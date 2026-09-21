@@ -12,6 +12,7 @@ count without naming (AGENTS.md architecture_scoping: "Private consumers",
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -61,6 +62,18 @@ def registered_members() -> list[Path]:
     ]
 
 
+def clean_git_env(env: dict[str, str] | None = None) -> dict[str, str]:
+    """Clear inherited repository selection for a Git call targeting another repo.
+
+    Configuration controls remain intact: they include caller-selected settings
+    and fixture isolation, not repository selection.
+    """
+    cleaned = (os.environ.copy() if env is None else env.copy())
+    for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
+        cleaned.pop(key, None)
+    return cleaned
+
+
 def git(repo: Path, *args: str) -> str:
     # Explicit UTF-8: with `text=True` alone, Windows decodes as cp1252, a
     # member manifest carrying an em dash raises in the reader thread, and
@@ -71,6 +84,7 @@ def git(repo: Path, *args: str) -> str:
         capture_output=True,
         encoding="utf-8",
         errors="replace",
+        env=clean_git_env(),
     ).stdout
 
 

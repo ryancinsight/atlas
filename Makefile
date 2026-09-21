@@ -1,5 +1,5 @@
 # Atlas workspace conveniences
-.PHONY: help check-mdbook-links build-mdbooks fmt-check board-lint verify-scattered-oracle search-index search-index-check search-lookup rustdoc-index rustdoc-check api-lookup output-retention cache-retention
+.PHONY: help check-mdbook-links build-mdbooks fmt-check board-lint stale-sides stale-basis verify-scattered-oracle search-index search-index-check search-lookup rustdoc-index rustdoc-check api-lookup output-retention cache-retention
 
 BOOKS = repos/CFDrs/docs/book repos/helios/docs/book repos/kwavers/docs/book repos/ritk/docs/book
 
@@ -9,6 +9,8 @@ help:
 	@echo "  make build-mdbooks       Build all four mdBooks"
 	@echo "  make fmt-check           cargo fmt --check across every stack member"
 	@echo "  make board-lint          Check backlog.md for duplicate item ids"
+	@echo "  make stale-sides         Fail if a changed file is an older revision of itself"
+	@echo "  make stale-basis         Check alternate Git indexes for stale staging state"
 	@echo "  make verify-scattered-oracle  Re-verify the ARCH-008 production split against the committed oracle"
 	@echo "  make search-index        Emit SCIP symbol indexes for every stack member"
 	@echo "  make search-index-check  Verify SCIP indexes are fresh for every member"
@@ -34,6 +36,12 @@ fmt-check:
 
 board-lint:
 	@python scripts/atlas-board-lint.py
+
+stale-sides:
+	@python scripts/atlas-stale-side-guard.py check
+
+stale-basis:
+	@python scripts/atlas-stale-side-guard.py basis
 
 verify-scattered-oracle:
 	@python scripts/atlas_scattered_containers_classify.py --verify-oracle scripts/oracles/arch-008-production-sites.txt

@@ -124,7 +124,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 27 packages.
 | Domain | [`asclepius`](repos/asclepius) | Biological-response, tissue-effect, treatment-response, and therapy-outcome laws over Aequitas quantities and Eunomia scalars, with a one-way Coeus adapter. |
 | Domain | [`athena`](repos/athena) | Backend-neutral PCG and restarted GMRES over Leto CPU and Hephaestus WGPU execution. |
 | Domain | [`coeus`](repos/coeus) | Strided tensors, automatic differentiation, neural networks, optimization, and sparse operations over the Leto CPU and Hephaestus accelerator backends, with Apollo transforms differentiated in place. |
-| Domain | [`consus`](repos/consus) | Native scientific storage formats, compression, and data transport. |
+| Domain | [`consus`](repos/consus) | Native scientific storage formats, bounded raster codecs, compression, and data transport. |
 | Domain | [`gaia`](repos/gaia) | Geometry predicates, topology, watertight meshes, and mesh generation. |
 | Domain | [`harmonia`](repos/harmonia) | Transactional partitioned multiphysics coupling, interface transfer, relaxation, and heterogeneous subcycling. |
 | Domain | [`hyperion`](repos/hyperion) | Validated photon and optical interaction coefficients, optical depth, Beer-Lambert transmission, derived transport laws, and bounded attenuation reference data. |
@@ -188,6 +188,8 @@ flowchart TB
     end
 
     Integrators --> Domains
+    metis --> consus
+    ritk --> consus
     Integrators --> Compute
     Domains --> Compute
     Compute --> Foundation
@@ -248,9 +250,9 @@ parallel.
 | Spectral transforms | `apollo` | Owns transform mathematics and plans; accelerator mechanics remain in Hephaestus. |
 | Tensors and autodiff | `coeus` | Owns tensor semantics, differentiation, neural-network operations, and optimizers. |
 | Geometry and meshes | `gaia` | Owns geometric predicates, topology, and mesh generation. |
-| Scientific persistence | `consus` | Owns storage formats, compression, and persistent scientific data exchange. |
+| Scientific persistence | `consus` | Owns storage formats, bounded raster codecs, compression, and persistent scientific data exchange. |
 | Visualization contracts | `iris` | Owns normalized color laws, fixed lookup-table construction, borrowed series/scalar-field views, and render-backend contracts; file formats, domain interpretation, UI state, and device mechanics remain with their providers and consumers. |
-| Medical imaging | `ritk` | Owns image formats, processing, registration, medical-image presentation, and VTK data models. |
+| Medical imaging | `ritk` | Owns medical image formats, processing, registration, medical-image presentation, and VTK data models; generic JPEG bytes use the Consus raster provider. |
 | Material properties | `proteus` | Owns validated material properties, material identity, and static constitutive-law contracts over Aequitas quantities and Eunomia scalars. |
 | Biological response | `asclepius` | Owns typed gEUD, TCP, NTCP, CEM43, Arrhenius damage, and independent-response composition; consumer workflows, clinical parameters, imaging, and transport remain local. |
 | Uncertainty quantification | `tyche` | Owns sampling, statistics, sensitivity, ensemble, and reproducible study vocabulary over Moirai execution and Consus persistence. |

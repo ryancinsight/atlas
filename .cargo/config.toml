@@ -139,6 +139,7 @@ consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
 consus-io = { path = "repos/consus/crates/consus-io" }
 consus-npy = { path = "repos/consus/crates/consus-npy" }
 consus-onnx = { path = "repos/consus/crates/consus-onnx" }
+consus-raster = { path = "repos/consus/crates/consus-raster" }
 consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/consus.git"]
@@ -148,6 +149,7 @@ consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
 consus-io = { path = "repos/consus/crates/consus-io" }
 consus-npy = { path = "repos/consus/crates/consus-npy" }
 consus-onnx = { path = "repos/consus/crates/consus-onnx" }
+consus-raster = { path = "repos/consus/crates/consus-raster" }
 consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/eunomia"]
@@ -224,10 +226,12 @@ melinoe = { path = "repos/melinoe" }
 
 [patch."https://github.com/ryancinsight/metis"]
 metis-platform = { path = "repos/metis/crates/metis-platform" }
+metis-ui-lang = { path = "repos/metis/crates/metis-ui-lang" }
 metis-web = { path = "repos/metis/crates/metis-web" }
 
 [patch."https://github.com/ryancinsight/metis.git"]
 metis-platform = { path = "repos/metis/crates/metis-platform" }
+metis-ui-lang = { path = "repos/metis/crates/metis-ui-lang" }
 metis-web = { path = "repos/metis/crates/metis-web" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne"]

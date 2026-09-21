@@ -1,0 +1,10 @@
+{
+  "<meta>": {
+    "guard": "scripts/atlas-stale-side-guard.py",
+    "purpose": "Reverts that are intended. A changed file whose content is byte-identical to an earlier revision of itself is reported by `check` as a stale side; an entry here explains one instead.",
+    "required": "Every entry needs `path` (repository-relative) and `reason`. Put a board item id in the reason, so the decision can be reviewed.",
+    "optional": "`blob` pins the entry to the content it was written for. Without it the entry covers any stale content that file ever reaches; with it the entry stops explaining when the file reaches a different revision, and the guard reports the new one.",
+    "example": {"path": "docs/example.md", "blob": "<40-char blob hash>", "reason": "ATLAS-EXAMPLE-2026-09-17: the older revision is the intended state"}
+  },
+  "waivers": []
+}

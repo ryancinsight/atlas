@@ -6,9 +6,11 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -21,18 +23,6 @@ assert SPEC is not None and SPEC.loader is not None
 audit = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = audit
 SPEC.loader.exec_module(audit)
-
-
-def _seed_record(path: Path) -> None:
-    path.write_text(
-        "\n".join(
-            (
-                "## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — done 2026-08-11",
-                "Scope: Tyche (aka Tychee)",
-            )
-        ),
-        encoding="utf-8",
-    )
 
 
 class ProviderIntegrationAuditTestCase(unittest.TestCase):
@@ -83,6 +73,90 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
         parsed = audit.parse_args(["--require-clean-checkouts"])
         self.assertTrue(parsed.require_clean_checkouts)
 
+    def test_staged_requires_structural_only(self) -> None:
+        with self.assertRaises(SystemExit):
+            audit.parse_args(["--staged"])
+
+    def test_git_query_terminates_a_spawned_child_at_the_deadline(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
+            root = Path(temp)
+            subprocess.run(
+                ["git", "init", str(root)],
+                capture_output=True,
+                check=True,
+                timeout=10,
+            )
+            started = time.monotonic()
+            with patch.object(audit, "GIT_QUERY_TIMEOUT_SECONDS", 1):
+                code, text, error = audit._git_output(
+                    "-c",
+                    "alias.review-wait=!sleep 5",
+                    "review-wait",
+                    cwd=root,
+                )
+
+        self.assertEqual(code, 124)
+        self.assertEqual(text, "")
+        self.assertIn("timed out", error)
+        self.assertLess(time.monotonic() - started, 4)
+
+    def test_staged_reads_selected_index_not_worktree(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
+            root = Path(temp)
+            environment = {
+                key: value
+                for key, value in os.environ.items()
+                if key not in {"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"}
+            }
+
+            def git(*arguments: str) -> None:
+                proc = subprocess.run(
+                    [
+                        "git",
+                        "-C",
+                        str(root),
+                        "-c",
+                        "user.name=Test",
+                        "-c",
+                        "user.email=test@example.invalid",
+                        *arguments,
+                    ],
+                    capture_output=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    env=environment,
+                    timeout=30,
+                )
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+            git("init", "-q", "-b", "main")
+            valid = '[submodule "repos/horae"]\n\tpath = repos/horae\n\tactive = true\n'
+            invalid = '[submodule "repos/horae"]\n\tpath = repos/horae\n'
+            (root / ".gitmodules").write_text(valid, encoding="utf-8")
+            git("add", ".gitmodules")
+            git("commit", "-qm", "Initial")
+            (root / ".gitmodules").write_text(invalid, encoding="utf-8")
+            git("add", ".gitmodules")
+            (root / ".gitmodules").write_text(valid, encoding="utf-8")
+
+            with patch.object(audit, "ROOT", root), patch.object(
+                audit, "GITMODULES", root / ".gitmodules"
+            ):
+                worktree_output = io.StringIO()
+                with redirect_stdout(worktree_output):
+                    worktree_code = audit.main(
+                        ["--structural-only", "--providers", "horae"]
+                    )
+                staged_output = io.StringIO()
+                with redirect_stdout(staged_output):
+                    staged_code = audit.main(
+                        ["--structural-only", "--staged", "--providers", "horae"]
+                    )
+
+        self.assertEqual(worktree_code, 0, worktree_output.getvalue())
+        self.assertEqual(staged_code, 1)
+        self.assertIn("repos/horae missing `active = true`", staged_output.getvalue())
+
     def test_requested_provider_inventory_is_complete(self) -> None:
         self.assertEqual(len(audit.REQUIRED_PROVIDERS), 22)
         self.assertEqual(audit.INTEGRATOR_REPOS, ("CFDrs", "kwavers", "helios"))
@@ -98,7 +172,7 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
             ("horae", "helios", "CFDrs", "kwavers"),
         )
 
-    def test_main_succeeds_with_complete_inputs(self) -> None:
+    def test_main_succeeds_without_completed_pm_history(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
             root = Path(temp)
             (root / ".gitmodules").write_text(
@@ -108,15 +182,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
-
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(
                 audit, "_coherence_scope_issues", return_value=([], 0)
             ):
@@ -141,15 +208,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                     lines.append("\tactive = true")
                 lines.append("")
             (root / ".gitmodules").write_text("\n".join(lines), encoding="utf-8")
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
-
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(
                 audit, "_coherence_scope_issues", return_value=([], 0)
             ):
@@ -159,42 +219,6 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
 
         self.assertEqual(code, 1)
         self.assertIn("repos/tyche missing `active = true`", output.getvalue())
-
-    def test_main_fails_when_record_not_done(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
-            root = Path(temp)
-            (root / ".gitmodules").write_text(
-                "\n".join(
-                    f'[submodule "repos/{name}"]\n\tpath = repos/{name}\n\tactive = true\n'
-                    for name in audit.REQUIRED_PROVIDERS
-                ),
-                encoding="utf-8",
-            )
-            (root / "checklist.md").write_text(
-                "## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — in-progress\nTyche (aka Tychee)\n",
-                encoding="utf-8",
-            )
-            _seed_record(root / "backlog.md")
-            _seed_record(root / "gap_audit.md")
-
-            with patch.object(audit, "ROOT", root), patch.object(
-                audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
-            ), patch.object(
-                audit, "_coherence_scope_issues", return_value=([], 0)
-            ):
-                output = io.StringIO()
-                with redirect_stdout(output):
-                    code = audit.main([])
-
-        self.assertEqual(code, 1)
-        self.assertIn(
-            "checklist.md: ATLAS-PROVIDER-INTEGRATION-AUDIT-001 is not marked done/closed",
-            output.getvalue(),
-        )
 
     def test_coherence_scope_filters_out_of_scope_findings(self) -> None:
         report = {
@@ -286,15 +310,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
-
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(
                 audit, "_coherence_scope_issues", side_effect=AssertionError("should not run")
             ):
@@ -315,8 +332,6 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
             report_path = root / "coherence.json"
             report_path.write_text(
                 json.dumps(
@@ -338,10 +353,6 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
 
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(audit.subprocess, "run") as run:
                 output = io.StringIO()
                 with redirect_stdout(output):
@@ -361,17 +372,11 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
             report_path = root / "coherence.json"
             report_path.write_text("{invalid json", encoding="utf-8")
 
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ):
                 output = io.StringIO()
                 with redirect_stdout(output):
@@ -391,15 +396,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
-
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(
                 audit, "_coherence_scope_issues", return_value=([], 2)
             ):
@@ -424,15 +422,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
-
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(
                 audit, "_coherence_scope_issues", return_value=([], 2)
             ):
@@ -457,15 +448,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
-
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(
                 audit, "_coherence_scope_issues", return_value=([], 0)
             ), patch.object(
@@ -490,15 +474,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
-
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(
                 audit, "_coherence_scope_issues", return_value=([], 0)
             ), patch.object(
@@ -541,28 +518,6 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 "horae": "head-a",
                 "hermes": "head-b",
             },
-        )
-
-    def test_record_a_current_open_item_does_not_accept_historical_closed_item(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
-            root = Path(temp)
-            records = tuple(root / filename for filename in ("checklist.md", "backlog.md", "gap_audit.md"))
-            records[0].write_text(
-                "## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — in progress\n"
-                "Tyche (aka Tychee)\n\n"
-                "- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** closed in an old record\n"
-                "  Tyche (aka Tychee)\n",
-                encoding="utf-8",
-            )
-            for record in records[1:]:
-                _seed_record(record)
-
-            with patch.object(audit, "RECORD_FILES", records):
-                issues = audit._record_issues()
-
-        self.assertIn(
-            "checklist.md: ATLAS-PROVIDER-INTEGRATION-AUDIT-001 is not marked done/closed",
-            issues,
         )
 
     def test_exact_head_issues_uses_batched_gitlink_map(self) -> None:
@@ -674,15 +629,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
-
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(
                 audit, "_coherence_scope_issues", return_value=([], 0)
             ):
@@ -746,15 +694,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
-
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(
                 audit, "_coherence_scope_issues", return_value=([], 0)
             ):
@@ -785,15 +726,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                     lines.append("\tactive = true")
                 lines.append("")
             (root / ".gitmodules").write_text("\n".join(lines), encoding="utf-8")
-            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
-                _seed_record(root / filename)
-
             with patch.object(audit, "ROOT", root), patch.object(
                 audit, "GITMODULES", root / ".gitmodules"
-            ), patch.object(
-                audit,
-                "RECORD_FILES",
-                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
             ), patch.object(
                 audit, "_coherence_scope_issues", return_value=([], 0)
             ):

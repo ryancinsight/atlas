@@ -46,7 +46,7 @@
 | [0035](0035-shared-publication-pipelines.md) | Atlas owns the release and documentation publication pipelines | Proposed |
 | [0036](0036-neuroimaging-and-mr-ownership.md) | Neuroimaging, diffusion MRI, and MR physics ownership | Proposed |
 | [0037](0037-facade-crates-and-registry-naming.md) | Workspace facade crates and crates.io registry naming | Proposed |
-| [0038](0038-compute-backend-conformance-crate.md) | One generic conformance suite owns the ComputeBackend contract | Proposed |
+| [0038](0038-compute-backend-conformance-crate.md) | One generic conformance suite owns the ComputeBackend contract | Accepted |
 | [0039](0039-compute-substrate-topology.md) | Compute-substrate topology across Apollo, Leto, Hephaestus, and Coeus | Accepted |
 | [0040](0040-first-party-zero-copy-archives.md) | Zero-copy archival is first-party, and Consus owns it | Proposed |
 | [0041](0041-closed-set-enum-dispatch.md) | Closed-set per-timestep `dyn` dispatch converts to exhaustive enum dispatch | Proposed |
@@ -70,3 +70,4 @@
 | [0060](0060-publish-order-optional-dependencies.md) | Optional dependencies are not publish-order constraints | Accepted |
 | [0061](0061-closure-surfaces-of-balance-members.md) | Hyperion and Asclepius are closure domains | Accepted |
 | [0062](0062-iterative-solver-and-preconditioner-ownership.md) | Iterative solvers and preconditioners are Athena policy over Leto kernels | Accepted |
+| [0063](0063-raster-codec-ownership.md) | Shared raster codec ownership | Accepted |

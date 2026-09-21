@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Guard Atlas root integration closure for the named provider set.
 
-This is a structural gate for the atlas-meta records. It checks root-owned
-integration facts and can optionally require each initialized provider checkout
-to be clean and at its recorded gitlink:
+This structural gate checks live integration facts and can optionally require
+each provider checkout to be clean and at its recorded gitlink:
 
 1. Requested providers are present and active in `.gitmodules`.
-2. The canonical root PM records carry the closed audit marker.
-3. Naming normalization remains explicit (`Tyche (aka Tychee)`).
+2. Provider aliases resolve to their canonical repository names.
+3. Requested providers pass dependency coherence when enabled.
 
 When exact-head or clean-checkout verification is requested, the three Atlas
 integrators (CFDrs, Kwavers, and Helios) are checked as well. They are not
@@ -27,17 +26,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import atlas_git_process as git_process  # noqa: E402
 from atlas_stack import run_tool  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 GITMODULES = ROOT / ".gitmodules"
-RECORD_FILES = (
-    ROOT / "checklist.md",
-    ROOT / "backlog.md",
-    ROOT / "gap_audit.md",
-)
-AUDIT_ID = "ATLAS-PROVIDER-INTEGRATION-AUDIT-001"
-NAME_NORMALIZATION = "Tyche (aka Tychee)"
 REQUIRED_PROVIDERS = (
     "horae",
     "hyperion",
@@ -97,6 +90,7 @@ PROVIDER_ALIASES = {
 # budget while allowing a cold local version-guard build to finish.
 COHERENCE_TIMEOUT_SECONDS = 120
 REMOTE_HEAD_TIMEOUT_SECONDS = 30
+GIT_QUERY_TIMEOUT_SECONDS = 30
 
 
 def _read(path: Path) -> str:
@@ -142,16 +136,48 @@ def _provider_activation_issues(
     return issues
 
 
+def _gitmodules_text(staged: bool) -> tuple[str | None, str | None]:
+    """Read provider structure from the worktree or caller-selected index."""
+    if staged:
+        returncode, text, error = _git_output("show", ":.gitmodules")
+        if returncode != 0:
+            return None, error or "selected index has no readable .gitmodules"
+        return text, None
+    if not GITMODULES.is_file():
+        return None, "missing .gitmodules"
+    try:
+        return _read(GITMODULES), None
+    except OSError as exc:
+        return None, f"cannot read .gitmodules: {exc}"
+
+
 def _git_output(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
     """Run a bounded Git query and return its exit status and text streams."""
-    proc = subprocess.run(
-        ["git", *args],
-        cwd=ROOT if cwd is None else cwd,
-        capture_output=True,
-        encoding="utf-8", errors="replace",
-        check=False,
+    repo = ROOT if cwd is None else cwd
+    try:
+        result = git_process.execute(
+            repo,
+            args,
+            timeout=GIT_QUERY_TIMEOUT_SECONDS,
+        )
+    except git_process.GitProcessError as exc:
+        if exc.timed_out:
+            return (
+                124,
+                "",
+                f"git query timed out after {GIT_QUERY_TIMEOUT_SECONDS}s: "
+                f"git {' '.join(args)}",
+            )
+        return (
+            126,
+            "",
+            str(exc),
+        )
+    return (
+        result.returncode,
+        result.stdout.decode("utf-8", "replace").strip(),
+        result.stderr.decode("utf-8", "replace").strip(),
     )
-    return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
 
 
 def _gitlink_commits(providers: tuple[str, ...]) -> dict[str, str]:
@@ -455,67 +481,6 @@ def _coherence_scope_issues_from_json_file(
     return _coherence_scope_issues_from_report(report, providers)
 
 
-def _record_issues() -> list[str]:
-    def current_item(text: str) -> str | None:
-        heading_pattern = re.compile(
-            rf"(?m)^(?P<marks>\#{{1,6}})[ \t]+[^\n]*{re.escape(AUDIT_ID)}[^\n]*$"
-        )
-        heading_matches = list(heading_pattern.finditer(text))
-        if heading_matches:
-            match = heading_matches[0]
-            level = len(match.group("marks"))
-            boundary_pattern = re.compile(r"(?m)^(?P<marks>\#{1,6})[ \t]+")
-            end = len(text)
-            for boundary in boundary_pattern.finditer(text, match.end()):
-                if len(boundary.group("marks")) <= level:
-                    end = boundary.start()
-                    break
-            next_item = re.search(
-                rf"(?m)^(?:\#{1,6}[ \t]+[^\n]*{re.escape(AUDIT_ID)}[^\n]*|"
-                rf"[ \t]*[-*+][ \t]+(?:\*\*)?{re.escape(AUDIT_ID)})",
-                text[match.end() :],
-            )
-            if next_item is not None:
-                end = min(end, match.end() + next_item.start())
-            return text[match.start() : end]
-
-        item_pattern = re.compile(
-            rf"(?m)^(?P<indent>[ \t]*)[-*+][ \t]+(?:\*\*)?"
-            rf"{re.escape(AUDIT_ID)}"
-        )
-        item_match = item_pattern.search(text)
-        if item_match is None:
-            return None
-        indent = len(item_match.group("indent").expandtabs(4))
-        end = len(text)
-        boundary_pattern = re.compile(
-            r"(?m)^(?P<indent>[ \t]*)(?:[-*+]|\d+[.)])[ \t]+|"
-            r"^(?P<heading>\#{1,6})[ \t]+"
-        )
-        for boundary in boundary_pattern.finditer(text, item_match.end()):
-            if boundary.group("heading") is not None:
-                end = boundary.start()
-                break
-            boundary_indent = len(boundary.group("indent").expandtabs(4))
-            if boundary_indent <= indent:
-                end = boundary.start()
-                break
-        return text[item_match.start() : end]
-
-    issues: list[str] = []
-    for path in RECORD_FILES:
-        text = _read(path)
-        item = current_item(text)
-        if item is None:
-            issues.append(f"{path.name}: missing current {AUDIT_ID} item")
-            continue
-        if not re.search(r"\b(done|closed)\b", item, flags=re.IGNORECASE):
-            issues.append(f"{path.name}: {AUDIT_ID} is not marked done/closed")
-        if NAME_NORMALIZATION not in item:
-            issues.append(f"{path.name}: missing '{NAME_NORMALIZATION}' normalization")
-    return issues
-
-
 def _structural_provider_count(providers: tuple[str, ...]) -> int:
     """Return the provider count for the requested structural audit scope."""
     return len(providers)
@@ -530,13 +495,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
         description=(
-            "Validate Atlas provider integration closure markers and requested-provider coherence."
+            "Validate provider activation, aliases, git state, and dependency coherence."
         )
     )
     parser.add_argument(
         "--structural-only",
         action="store_true",
         help="skip requested-provider coherence and run only structural checks",
+    )
+    parser.add_argument(
+        "--staged",
+        action="store_true",
+        help="read .gitmodules from the caller-selected index (requires --structural-only)",
     )
     parser.add_argument(
         "--exact-heads",
@@ -601,7 +571,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="text",
         help="output format (default: text)",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.staged and not args.structural_only:
+        parser.error("--staged requires --structural-only")
+    return args
 
 
 def _normalized_deduped_providers(raw_names: list[str]) -> tuple[str, ...]:
@@ -657,6 +630,7 @@ def main(argv: list[str] | None = None) -> int:
                         "exact_heads": bool(args.exact_heads),
                         "require_clean_checkouts": bool(args.require_clean_checkouts),
                         "structural_only": bool(args.structural_only),
+                        "staged": bool(args.staged),
                         "out_of_scope_coherence": 0,
                         "issues": issues,
                     }
@@ -678,6 +652,7 @@ def main(argv: list[str] | None = None) -> int:
                         "exact_heads": bool(args.exact_heads),
                         "require_clean_checkouts": bool(args.require_clean_checkouts),
                         "structural_only": bool(args.structural_only),
+                        "staged": bool(args.staged),
                         "out_of_scope_coherence": 0,
                         "issues": issues,
                     }
@@ -688,16 +663,13 @@ def main(argv: list[str] | None = None) -> int:
         print("- no providers selected")
         return 1
     issues: list[str] = []
-    if not GITMODULES.is_file():
-        issues.append("missing .gitmodules")
-    else:
-        issues.extend(_provider_activation_issues(_read(GITMODULES), providers))
+    gitmodules_text, gitmodules_error = _gitmodules_text(args.staged)
+    if gitmodules_error is not None:
+        issues.append(gitmodules_error)
+    elif gitmodules_text is not None:
+        issues.extend(_provider_activation_issues(gitmodules_text, providers))
 
-    for path in RECORD_FILES:
-        if not path.is_file():
-            issues.append(f"missing required record file: {path.name}")
     if not issues:
-        issues.extend(_record_issues())
         exact_scope = (
             _exact_scope(providers)
             if (args.exact_heads or args.require_clean_checkouts)
@@ -736,6 +708,7 @@ def main(argv: list[str] | None = None) -> int:
                     "exact_heads": bool(args.exact_heads),
                     "require_clean_checkouts": bool(args.require_clean_checkouts),
                     "structural_only": bool(args.structural_only),
+                    "staged": bool(args.staged),
                     "out_of_scope_coherence": out_of_scope,
                     "issues": issues,
                 }
@@ -754,8 +727,6 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"- {_structural_provider_count(providers)} providers present and active in .gitmodules"
     )
-    print(f"- {AUDIT_ID} closed across root records")
-    print(f"- naming normalization retained: {NAME_NORMALIZATION}")
     if args.exact_heads:
         print("- committed provider gitlinks match current remote origin defaults")
         print(

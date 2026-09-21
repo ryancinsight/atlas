@@ -24,6 +24,7 @@ def _git(directory: Path, *arguments: str) -> str:
         capture_output=True,
         text=True,
         encoding="utf-8",
+        env=publish_order.clean_git_env(),
     )
     return process.stdout
 

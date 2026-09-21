@@ -120,48 +120,124 @@ gained `fd_extensions.rs` with `pub mod fd` / `pub mod interp` re-exports. Moves
 The defect is narrow and dangerous: anyone scoping work from §3 will plan against
 a capability that does not exist.
 
-### F3 — Two ADRs Proposed since 2026-07-28 with no driver
+### F3 — Two ADRs whose status had drifted from their substance
 
-**ADR 0038 (one generic conformance suite).** `crates/hephaestus-conformance`
-exists — 21 modules, 7,020 LOC, `publish = false`. It is **additive, not a
-replacement**:
+The following counts describe the 2026-09-10 snapshot. Subsequent host seam
+implementations are tracked in [the coverage item](../../backlog/atlas-hephaestus-host-seam-coverage.md).
 
-- Per-backend `contract.rs` totals **16,391 lines, up from 15,939** at the ADR's
-  writing (cuda 4,098 / wgpu 5,585 / rocm 4,879 / metal 1,829). wgpu's file alone
-  holds 352 `assert`s.
-- Not generic over `<T: Scalar>`: the seam is `ComputeDevice`, and signatures read
-  `assert_dense_vector_contract<D, E: DenseVectorOps<D, f32>>` — the scalar is
-  concrete. 579 `f32` mentions against 98 `f64`. No `ComputeBackend` trait exists.
-- No one-call `assert_backend_contract::<B>()`; a backend that omits one of the 21
-  functions loses that coverage silently.
-- The crate has no `tests/` of its own, so "a deliberately broken backend fails
-  only that backend" has no home.
+*(Corrected 2026-09-10. The original heading called these "Two ADRs Proposed
+since 2026-07-28 with no driver." Both are in fact `Accepted`, and two of the
+three ADR-0039 complaints below rested on a wrong premise.)*
 
-**ADR 0039 (topology, no consumer re-forks the vendor dimension).** Seams landed —
-`hephaestus-core` defines 72 traits and all four backends implement the main
-families. But:
+**ADR 0038 (one generic conformance suite) — Accepted 2026-07-28; flipped from
+`Proposed` 2026-09-10.** `crates/hephaestus-conformance` exists: 22 files,
+7,020 LOC, `publish = false`, **22 public `assert_*_contract` free functions**
+(twenty take a seam, one — `assert_transfer_contract` — takes only
+`ComputeDevice`, and `convolution` ships two), generic over `ComputeDevice`. It
+is a **dev-dependency of five crates** — the four accelerator backends, each
+calling it from 18–19 test files, plus `hephaestus-host`. The crate is therefore
+*not* dead — but it remains **additive rather than a replacement**:
 
-- `coeus-rocm` / `coeus-metal` are **not deleted**. `src/` is correctly reduced to
-  device acquisition, but `tests/` is still cloned: `elementwise.rs` 431 vs 428,
-  `reduction.rs` 156 vs 155, `attention.rs` 92 vs 79, `cross_entropy.rs` 69 vs 62
-  — ~1,528 lines no deletion ledger ever counted.
-- `leto` is the oracle but runs nothing: `assert_leto_differential_contract`
-  covers **9 of the 14** entry points. `svd_decompose`, `svd_rank_revealing`,
-  `schur`, `hessenberg`, `bidiagonalize` have analytical invariants only. `leto`
-  implements no role trait, so "Leto *and* each backend as implementors" is half done.
+- Per-backend `contract.rs` totals **16,391 lines, up from 15,939** at the
+  ADR's writing (cuda 4,098 / wgpu 5,585 / rocm 4,879 / metal 1,829). The drain
+  the ADR asked for has not happened.
+- **Scalar genericity is partial, not absent.** The seam is `ComputeDevice`, and
+  most clauses pin the scalar via `where f32: DialectScalar<E::Dialect>`
+  (measured **616 `f32` vs 110 `f64`** mentions). But the convolution module
+  *is* scalar-generic through a local `ContractScalar: Scalar + Pod + PartialEq
+  + Debug` (implemented for both `f32` and `f64`), and `typed_elementwise.rs:78`
+  takes `<D, T>`. The real deviation is that the ADR's `<B: ComputeBackend, T:
+  Scalar>` shape was never built — **no `ComputeBackend` trait exists** — not
+  that the crate is un-generic.
+- ~~**No one-call entry.**~~ — **delivered 2026-09-10.** `assert_backend_contract`
+  over `BackendUnderTest` names all twenty seam clauses in one signature, so a
+  consumer that omits a seam fails to compile at the call site
+  (`hephaestus-conformance/src/assert_backend.rs`, `hephaestus@f2aaf64`). It is a
+  struct, not a function: the workspace denies `too_many_arguments`, so twenty
+  parameters cannot be a signature.
+- ~~**No `tests/` of its own**~~ — **delivered 2026-09-10.** The crate now has
+  `tests/negative_control.rs` (5 tests, all passing) over
+  `hephaestus_core::test_support::FaultyDevice`, a `ComputeDevice` that violates
+  the contract in one named way. Each case requires the clause to panic *and*
+  the panic message to name the specific property that fault should trip — so a
+  clause that failed for an unrelated reason does not count as covered.
+  *Scope, stated rather than implied:* every fault modelled is a transfer
+  concern, and `assert_transfer_contract` is the only clause generic over
+  `ComputeDevice` alone. A control for the seam-generic clauses needs a correct
+  seam implementor first; eighteen of nineteen seams have none anywhere in the
+  stack (`ATLAS-HEPHAESTUS-HOST-SEAM-COVERAGE`), so that coverage cannot exist
+  yet. What this does **not** catch: a clause in another seam that ignores its
+  inputs.
+
+**ADR 0039 (topology, no consumer re-forks the vendor dimension) — Accepted
+2026-07-28, revised 2026-08-12.** Two of the three original complaints were
+wrong:
+
+- ~~"`coeus-rocm` / `coeus-metal` are not deleted"~~ — **wrong premise.** All
+  four `coeus-<vendor>` crates declare `hephaestus-<vendor>` + `hephaestus-core`
+  + `coeus-hephaestus` as dependencies, i.e. they are now thin *bindings* over
+  the Hephaestus backends, not re-forks. `src/` measures rocm **152** / metal
+  **163** lines. The 2026-08-12 "Metal/ROCm provider collapse" is real: the
+  vendor dimension is **not** re-forked.
+- The ADR's own revision names the residual, and measurement agrees: **CUDA/WGPU
+  duplication remains open** — `coeus-cuda` **2,204** and `coeus-wgpu` **2,356**
+  lines of `src`, an order of magnitude more than the collapsed pair.
+- The ~1,528-line figure was real but **misattributed**: it is *test*
+  duplication, not a vendor re-fork. `coeus-rocm` + `coeus-metal` `tests/`
+  (776 + 752 = **1,528** lines) are hand-rolled clones — each defines its own
+  `assert_close`, and neither dev-depends on `hephaestus-conformance`. Across
+  all four coeus backends the hand-rolled test surface is **10,837 lines**,
+  none of it wired to the shared suite.
+- ~~"`leto` is the oracle but runs nothing: 9 of 14 entry points"~~ — **wrong.**
+  `assert_leto_differential_contract` is a private helper at
+  `hephaestus-conformance/src/decomposition.rs:87` that **is** invoked, from the
+  public `assert_decomposition_contract` at line 50. The 9 is a *deliberate
+  closed set*, documented in-source as "the decomposition operations with an
+  independent Leto oracle"; the other **6 of 15** carry analytical-invariant
+  clauses by design (`svd_recovers_exact_spectra`,
+  `general_spectral_reductions_hold_their_invariants`). The genuine gap is
+  narrower than claimed: `leto` implements no role trait, so "Leto *and* each
+  backend as implementors" is still half done.
 - Apollo's scaffold consolidation: **16 of 23 crates** still carry both
-  `application/execution/plan/` and `domain/contracts/` (baseline was 19-of-23).
-  No generic layer, and no `trait …Plan` exists anywhere.
+  `application/execution/plan/` and `domain/contracts/`; no `trait …Plan` exists
+  anywhere in the repo. *(Re-measured 2026-09-10, unchanged.)*
 
-### F4 — `eunomia`'s `RealField` excludes half the charter
+### F4 — `eunomia`'s scalar layering is deliberate (finding withdrawn)
 
-`RealField` is implemented for `f32` and `f64` only
-(`crates/eunomia/src/impls/field.rs:11,30`); `ComplexField` inherits the
-restriction. `UnitScalar` covers all ten real storage types (`f32`, `f64`, `F16`,
-`F32`, `F64`, `F4`, `F8`, `Bf4`, `Bf8`, `Bf16`) and `NumericElement` reaches them
-by macro. So every domain function bounded by `T: RealField` silently excludes
-the entire reduced-precision half of the datatype law. Either implement it or
-document the exclusion — today it is neither.
+*(Corrected 2026-09-10. The original finding read: "`eunomia`'s `RealField`
+excludes half the charter … So every domain function bounded by `T: RealField`
+silently excludes the entire reduced-precision half of the datatype law. Either
+implement it or document the exclusion — today it is neither." **That is
+wrong.** The exclusion is documented, intentional, and load-bearing.)*
+
+What is actually there:
+
+- `RealField` is implemented for `f32` and `f64`
+  (`crates/eunomia/src/impls/field.rs:11,30`), and `ComplexField` builds on it
+  (`:51`, `:118`). The scope is stated in the trait's own doc:
+  *"The `nalgebra::RealField` analogue. Implemented for `f32`/`f64`."*
+- `FloatElement` covers **all ten** storage types — `f32`, `f64`, and the eight
+  reduced-precision ones (`impls/wrappers/float.rs:32-199`,
+  `impls/unit.rs:19`). So the arithmetic surface is **not** truncated; only the
+  *field* vocabulary is.
+- The split is principled. `RealField` demands the mathematical constants
+  (`PI`, `TAU`, `E`, `LN_2`, `SQRT_2`, …) as `const`s, which the sub-byte
+  formats cannot meaningfully supply. `FloatElement` instead carries an
+  `Accumulator` policy with a full numerical-analysis justification
+  (`traits/float.rs:8-52`): identity for `f32`/`f64`, `f32` for reduced
+  precision, widened to lift them off their **stagnation** point (`n ≈ 1/ε`,
+  i.e. `n ≈ 256` for `bf16`) rather than for accuracy — since the widening is
+  exact for any ≤11-bit significand.
+- The exclusion is **relied upon**. `coeus-autograd/src/gradcheck.rs:114-118`
+  derives machine epsilon from `T`'s own arithmetic *specifically to keep*
+  `RealField` out of `gradcheck`'s public bound, "excluding the
+  reduced-precision types that implement `Float` but not `RealField`." Widening
+  `RealField` would break that decision.
+
+The real, smaller note this finding should have carried: `gradcheck.rs` calls
+`eunomia` a **dev-dependency** of `coeus-autograd`. If accurate, any future
+cross-layer widening needs `eunomia` promoted to a true dependency first — an
+unrecorded cost, and the only actionable thread here.
 
 Also: **ADR numbers are not namespaced.** Atlas `docs/adr/0005-…` is the
 `NumericElement` SSOT (Accepted, closed 2026-07-05); `repos/eunomia/docs/adr/0005-…`
@@ -274,6 +350,50 @@ symmetric SH basis exists at
   divergence) and `:746` (radix-table disagreement). The practical cost is that
   apollo's performance evidence is not reproducible in CI.
 
+### F8 — `hephaestus-metal` is retired doctrine sitting on an unrun removal
+*(Added 2026-09-10.)*
+
+The crate still exists (8,583 lines: 5,959 `src` + 2,624 `tests`) although its
+own manifest says it is dead: `crates/hephaestus-metal/Cargo.toml:9` reads
+*"Retired by ADR 0047: a forwarding layer over `hephaestus-wgpu` with the Metal
+adapter selected."* That citation is **wrong** — `docs/adr/0047-…` is the
+`SliceSeries` coordinate-map decision. The retirement is actually mandated by
+the board item **`ATLAS-ARCH-011`** (`backlog.md:7836`), which itself cites ADR
+0047; the mis-citation appears to be inherited from that row. Fix the citation
+regardless of what happens to the crate.
+
+The removal is **done work that was reverted**, not pending work.
+`ATLAS-ARCH-011` records the hephaestus-side deletion as mechanically complete
+and verified — member entry, workspace dep, facade optional dep and its three
+`?/` feature entries, the `metal` feature re-pointed to `["wgpu"]`, the
+`pub use hephaestus_metal as metal` re-export, and the crate itself, with zero
+residual references under `repos/hephaestus`. It was reverted solely because
+`repos/coeus` still declared the crate (`coeus/Cargo.toml:64`; re-verified
+2026-09-10 — **the blocker is still live**), and the stack overlay emits a
+`[patch]` for a then-nonexistent directory, failing every build beneath the
+stack root.
+
+Why this is worth landing rather than re-deferring: this is the *same* topology
+law as ADR 0039. Metal's native path is already gone and the delegation is a
+pure forwarding layer, so deleting it costs no capability, and
+`coeus-metal` — the sole reason the blocker persists — measures **915 lines with
+zero in-repo dependents**, reproducing nothing that `coeus-hephaestus` does not
+already do generically. One co-evolution unit closes both.
+
+Corrections to the `ATLAS-ARCH-011` row (all figures now measured):
+
+| Row says | Actually |
+| --- | --- |
+| "5 449 forwarding lines plus 2 606 test lines" | **5,959** `src` + **2,624** `tests` = **8,583** |
+| "`coeus-metal` is 1 233 lines" | **915** |
+| "a file-for-file copy of `coeus-rocm`" | Weaker than claimed: a `find`-order diff shows only 2 same-position pairs, and the `src` trees are 152 vs 163 lines. The *test* bodies are near-identical (431/428) — that part holds |
+| "no `hephaestus_metal` reference outside Coeus's tracked item" | Consistent with what I measure |
+| "`coeus-hephaestus` implements the whole op surface generically" | Consistent |
+
+Sequencing: run this **after** the `coeus` lock prune, not before — it is a
+manifest edit in a peer-claimed repo, and the AC-011 replay note already says a
+~15-minute mechanical re-apply.
+
 ## 3. Next steps
 
 ### Tier A — ownership on disk (deletions and moves, no new algorithms)
@@ -288,22 +408,99 @@ has not been done.
    files. This is the best single item on the list: it simultaneously removes a
    fork and gives `athena` the multigrid and block preconditioner the stack
    currently lacks entirely.
-2. **Finish ADR 0039.** Delete the ~1,528-line `coeus-rocm`/`coeus-metal` test
-   clone (the `src/` half is already done); build the generic plan layer for
-   Apollo's 16 remaining crates; make `leto` a real `DecompositionOps`
-   implementor with a role trait; add the five missing Leto oracles.
-3. **Finish ADR 0038.** Make the conformance suite generic over `<T: Scalar>`, add
-   `assert_backend_contract::<B>()`, give the crate its own tests including the
-   deliberately-broken-backend case — and only then delete the per-backend
-   `contract.rs`. Deleting first is how the suite lost its own rationale.
+2. **Finish ADR 0039** *(corrected 2026-09-10 — the original item said "delete the
+   ~1,528-line coeus-rocm/coeus-metal test clone" and "add the five missing Leto
+   oracles"; neither survives re-measurement)*. The vendor dimension is **not**
+   re-forked — all four `coeus-<vendor>` crates are thin bindings over
+   `hephaestus-<vendor>`. What remains, in priority order:
+   - **CUDA/WGPU duplication** — `coeus-cuda` 2,204 / `coeus-wgpu` 2,356 lines of
+     `src`, versus 152/163 for the already-collapsed rocm/metal pair. This is the
+     item the ADR's own 2026-08-12 revision left open.
+   - **10,837 lines of hand-rolled coeus backend tests** consume no shared suite.
+     Note these are *coverage*, not dead weight: do not delete them into a hole.
+     First decide whether `hephaestus-conformance` (generic over
+     `hephaestus_core::ComputeDevice`) can be applied to coeus-level APIs at all;
+     if not, the fix is a coeus-level shared suite, not a retrofit.
+   - Build the generic plan layer for Apollo's **16 of 23** remaining crates
+     (re-measured, unchanged; no `trait …Plan` exists anywhere).
+   - Make `leto` a real `DecompositionOps` implementor with a role trait — the one
+     surviving half of the original "Leto runs nothing" complaint.
+   - ~~Add the five missing Leto oracles~~ — **withdrawn.** The 9-of-15 split is a
+     deliberate closed set documented in-source
+     (`hephaestus-conformance/src/decomposition.rs:50-87`); the other 6 are
+     covered by analytical-invariant clauses by design.
+3. **Finish ADR 0038** *(historical worklist, corrected 2026-09-10)*. Current host
+   work is tracked in [the coverage item](../../backlog/atlas-hephaestus-host-seam-coverage.md). The crate is Accepted
+   and wired to all four accelerator backends, so this is residual work, not
+   construction:
+   - ~~Add **`assert_backend_contract::<B>()`**~~ — **delivered 2026-09-10** as
+     `assert_backend_contract` over `BackendUnderTest`
+     (`hephaestus-conformance/src/assert_backend.rs`, `hephaestus@f2aaf64`). It is
+     a struct of twenty seam references rather than a twenty-parameter function,
+     because the workspace denies `too_many_arguments`; and it names the twenty
+     clauses directly rather than through a `ComputeBackend` trait, because the
+     clauses' marker bounds (`SumOp: CombineExpr<R::Dialect>`, `f32:
+     OpIdentity<SumOp>`, …) resolve from the concrete seam type at the call site.
+   - ~~Give the crate **its own `tests/`**, including the
+     deliberately-broken-backend negative control.~~ — **delivered 2026-09-10**:
+     `tests/negative_control.rs`, 5 tests, over a fault-injecting
+     `ComputeDevice` in `hephaestus_core::test_support` (behind the existing
+     `test-util` feature, whose stated purpose is exposing test scaffolding to
+     this crate). The control is exact rather than nominal: each case requires
+     the panic message to name the property the injected fault should trip, so a
+     clause failing on an unrelated assertion is not counted. It covers the
+     transfer clause only — the one clause needing no seam implementor.
+   - **The remaining coverage needs a seam implementor per clause, not a
+     test-file addition.** This is why the control above is seam-limited, and it
+     is the same fact that makes `hephaestus-host` the wrong near-term home (next
+     bullet): a clause generic over an `*Ops` trait cannot be run against a
+     device that does not implement it.
+   - **`hephaestus-host` is not the near-term home for that control.** The ADR
+     previously read "19 clauses not run against the host." Measured: the host
+     implements **one** of the nineteen seam traits (`DecompositionOps`), so 18
+     of the missing 20 clauses have no seam to run against and cannot be wired.
+     The host is the right *eventual* oracle — it is the second full
+     instantiation of the suite and the only one debuggable directly — but
+     closing its row is eighteen seam implementations, not eighteen test
+     additions. Sequencing it behind the accelerator backends is correct.
+   - **Scalar genericity is partial**: bulk clauses pin `f32` via
+     `DialectScalar` (616 `f32` vs 110 `f64`), while `convolution` is already
+     generic over `ContractScalar` and `typed_elementwise` takes `<D, T>`. The
+     decision to take is whether to build the ADR's `ComputeBackend` trait — it
+     does not exist, and the aggregate entry point's failure to be tractable
+     without concrete seams is now measured evidence that it should not.
+   - Only then delete the per-backend `contract.rs` (16,391 lines). Deleting first
+     is how the suite lost its own rationale.
 4. **Collapse the `hermes` consumer forks** (apollo 22 files, eunomia 4, moirai 3,
    kwavers 5) and answer the moirai-below-hermes topology question by decision
    rather than by leaving it open.
 
 ### Tier B — capability holes nobody has recorded
 
-5. **`eunomia`: implement `RealField` for the reduced-precision types**, or
-   document the exclusion. Nothing else in the law layer gates as much.
+5. **`eunomia`: `RealField`'s f32/f64 scope is a design decision, not a hole**
+   *(corrected 2026-09-10 — the original item read "implement `RealField` for the
+   reduced-precision types, or document the exclusion. Nothing else in the law
+   layer gates as much." That is **wrong on both halves**, and acting on it would
+   have caused harm.)*
+   - It is **already documented**: `traits/float.rs:16` reads "The
+     `nalgebra::RealField` analogue. Implemented for `f32`/`f64`."
+   - Implementing it more widely is **not wanted**. `RealField` requires the
+     mathematical constants to be representable as `const`s, which is not true
+     for the sub-byte formats; and `coeus-autograd/src/gradcheck.rs:114-118`
+     records the exclusion as load-bearing, deriving machine epsilon from `T`'s
+     own arithmetic *precisely so that* `RealField` stays out of the public bound
+     and the reduced-precision types remain usable. Implementing `RealField` for
+     them would either fail to compile or silently pull them out of `gradcheck`.
+   - That file also calls `eunomia` a **dev-dependency** of `coeus-autograd`.
+     Verify that before any cross-layer widening argument — it would mean a
+     promote-to-`[dependencies]` is the real (and unrecorded) cost.
+   - The genuine coverage question is different and smaller: `FloatElement` does
+     cover all ten types (`impls/wrappers/float.rs:32-199`) with a documented
+     `Accumulator` policy, so the arithmetic surface is intact. Whether anything
+     *should* consume the reduced-precision half is a demand question, and no
+     consumer currently asks (zero `F16`/`Bf16` uses in `gaia`; `coeus` uses it
+     only in tests plus internal float handling). **Recommendation: close this as
+     working-as-intended; do not implement.**
 6. **`coeus`: second-order autodiff** — `jvp`/`hvp`, `double_backward`,
    `hessian`. Unblocks kwavers' PINN work. Then bridge `LevenbergMarquardt` to
    `coeus-autograd` and add a sparse/iterative variant.

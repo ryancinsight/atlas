@@ -417,8 +417,9 @@ def check_locks(packages: dict[str, tuple[Path, str | None]]) -> list[str]:
     the pin drift it is.
     """
     drift: list[str] = []
-    for lock in sorted(REPOS.glob("*/Cargo.lock")):
-        if _skip(lock):
+    for member in sorted(registered_member_names()):
+        lock = REPOS / member / "Cargo.lock"
+        if not lock.is_file():
             continue
         try:
             data = tomllib.loads(lock.read_text(encoding="utf-8"))

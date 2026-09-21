@@ -1,6 +1,22 @@
 # ADR 0038: One generic conformance suite owns the ComputeBackend contract
 
-- Status: Proposed
+- Status: **Accepted** — the shared suite is delivered; consolidation and
+  host coverage remain open. The measurements below describe 2026-09-10,
+  not current host coverage. Subsequent seam implementations are tracked in
+  [the host coverage item](../../backlog/atlas-hephaestus-host-seam-coverage.md).
+- Revision 2026-09-18: distinguish acceptance of the shared-suite ownership
+  decision from completion of every consumer migration. The old host counts
+  are historical; they do not describe the subsequent implementation work.
+  **Historical advance, measured 2026-09-10:** the aggregate entry point the ADR's
+  `<B: ComputeBackend, T: Scalar>` intent implied now exists as
+  `assert_backend_contract` over `BackendUnderTest`
+  (`src/assert_backend.rs`), which names all 20 seam clauses in one signature so
+  an unwired seam is a compile error rather than a silent coverage loss. It is
+  written against concrete seam parameters, not a `ComputeBackend` trait: most
+  clauses declare marker bounds (`SumOp: CombineExpr<R::Dialect>`,
+  `f32: OpIdentity<SumOp>`, …) whose marker types resolve from the concrete seam
+  type at the call site and cannot be discharged generically. The trait named in
+  the original Decision does not exist and is not required.
 - Date: 2026-07-28
 - Class: `[arch]` `[minor]`
 - Relates to: [ADR 0001](0001-gpu-accelerator-substrate.md),
@@ -53,6 +69,141 @@ independently — the duplication half. And 53 of rocm's 70 behaviours are
 verified for no other backend, while Metal is held to 40 assertions where WGPU is
 held to 130 — the coverage half. The seam's contract is not defined by the trait;
 it is defined by whichever backend's author wrote the most tests.
+
+### Re-measurement (2026-09-10) — the audit above is stale
+
+Measured across each backend's whole `tests/` tree, not `contract.rs` alone:
+
+| Backend | Files | Lines | `fn` decls | `#[test]` |
+| --- | --- | --- | --- | --- |
+| `hephaestus-wgpu` | 34 | 8 994 | 257 | **9** |
+| `hephaestus-rocm` | 21 | 5 781 | 115 | 89 |
+| `hephaestus-cuda` | 28 | 6 899 | 215 | 158 |
+| `hephaestus-metal` | 22 | 2 624 | 77 | 58 |
+| **Total** | **105** | **24 298** | **664** | **314** |
+
+`contract.rs` alone now totals 16 391 lines (wgpu 5 585, rocm 4 879, cuda 4 098,
+metal 1 829), against the 15 939 recorded above.
+
+**`wgpu` has already been restructured, and it is the precedent this ADR needs.**
+Its `contract.rs` is now a module aggregator (`mod allocation; mod recycling;
+mod storage; mod transfer;`) carrying **zero** `#[test]`. The bodies live in 21
+sibling `*_contracts.rs` files plus a 4-file `contract/` subdirectory, declared
+as plain `pub(super) fn <name>_contract()` and invoked from a small central
+dispatcher. That is why wgpu shows 257 `fn` declarations against 9 `#[test]`,
+while rocm, cuda and metal sit near 1:1.
+
+Two consequences:
+
+1. **The 2026-07-28 pairwise-overlap figures can no longer be reproduced for
+   wgpu.** The `cuda`/`wgpu` "87 shared tests" number counted names that have
+   since moved out of `contract.rs` and changed shape. Do not carry that number
+   forward — it measures a file layout that no longer exists.
+2. **The generic suite this ADR asks for already exists and is already in use**
+   (measured 2026-09-10, see Status below). `crates/hephaestus-conformance` —
+   22 files, 7 020 LOC, `publish = false` — exposes free functions generic over
+   [`ComputeDevice`](hephaestus_core::ComputeDevice) and the operation seam
+   (`assert_elementwise_contract<D, E>`, `assert_attention_contract<D, O>`,
+   `assert_dense_product_contract<D, P>`, …), and **five** crates declare it as a
+   dev-dependency: the four accelerator backends (`wgpu`, `cuda`, `rocm`,
+   `metal`), each calling it from 18–19 test files, **plus `hephaestus-host`**,
+   the CPU reference device (`hephaestus-host/Cargo.toml:36`), which calls only
+   **2 of 22** clauses (`assert_decomposition_contract`,
+   `assert_transfer_contract`) — and which implements one of the nineteen seams
+   those clauses are generic over, so the gap there is implementation, not
+   wiring. The remaining
+   work is therefore *not* authoring a suite: it is draining the 16 391 lines of
+   local scaffolding in the per-backend `contract.rs` files that predate it, so
+   the shared clauses become the only contract rather than one input among
+   several — and closing the wiring gaps below.
+
+   **Historical coverage snapshot (2026-09-10, corrected same day).** The suite's
+   opt-in shape lets a backend implement a seam and never run its clause. The
+   first version of this table was wrong in both directions, so the method is
+   stated: for each consumer it checks *whether the seam is implemented* and
+   *whether the clause is referenced anywhere in that crate* (in-crate
+   `#[cfg(test)]` modules count — they are compiled and run by `cargo test`):
+
+   | Consumer | Clauses wired | Gap |
+   | --- | --- | --- |
+   | `hephaestus-cuda` | 21 of 21 | none |
+   | `hephaestus-wgpu` | 21 of 21 | none |
+   | `hephaestus-rocm` | 19 of 21 | `assert_staggered_3d_contract` — **no gap**: rocm implements no `Staggered3DOps`, so there is no seam to run it against |
+   | `hephaestus-metal` | 21 of 21 | none — **closed 2026-09-10**; `tests/staggered_contracts.rs` wires `assert_staggered_3d_contract` for the `Staggered3DOps` impl at `src/application/stencil.rs:131` |
+   | `hephaestus-host` | **2 of 22 on 2026-09-10** | Historical baseline; subsequent implementations are tracked in the host coverage item |
+
+   **Two corrections to what this table said before.** Both were errors of
+   measurement, and both were caught by checking the seam as well as the clause:
+
+   - `hephaestus-wgpu` was recorded as missing the cross-entropy clause because
+     "no integration test runs it". The clause *is* run —
+     `src/application/loss/tests.rs:41` calls it from the crate's own `#[cfg(test)]`
+     module, registered in the case table at `:12-16`. Nothing about the clause's
+     coverage depends on that module being inside the crate rather than under
+     `tests/`: `cargo test` compiles and runs both. The claim was technically
+     true and substantively wrong.
+   - `hephaestus-rocm` was recorded as having a wiring gap on the same clause as
+     metal. It has no such gap and cannot: rocm's staggered support does not
+     exist (`grep -r Staggered3D crates/hephaestus-rocm/` returns nothing), so
+     the missing clause follows from the missing seam. That is a capability
+     difference between backends, which is a different kind of fact and belongs
+     in a different record — it is not work the conformance suite can close.
+
+   Also worth recording, because it makes the remaining gap *invisible* rather
+   than merely absent: wgpu's clause runs behind `device_or_skip()`
+   (`src/application/loss/tests.rs:250`), which returns early when no adapter is
+   available. 174 such early returns exist across the crate. Locally that means
+   a green run with the clause executing nothing — but CI is not fooled:
+   `.github/workflows/wgpu.yml` runs a "software-adapter contracts" job with
+   `HEPHAESTUS_WGPU_REQUIRE_DEVICE: "1"`, and `acquisition/tests.rs:37` turns a
+   skip into a failure when it is set. The pattern is sound; a reader of the
+   clause call site alone would not know that.
+
+   **At the 2026-09-10 snapshot, the `hephaestus-host` row was an implementation gap, not a wiring gap
+   (measured 2026-09-10).** The other four consumers are missing one clause
+   each; the host is missing the seams themselves. Of the 19 seam traits the
+   suite's clauses are generic over, `hephaestus-host` implements **one** —
+   `DecompositionOps` (`src/decomposition.rs:339`). It has no `ElementwiseOps`,
+   `AxisReductionOps`, `ConvolutionOps`, `FullReductionOps`, `ScanOps`,
+   `StencilOps`, … for the clauses to be generic over, so 18 of the 20 missing
+   clauses cannot be wired without first writing the seam implementation they
+   would exercise (`hephaestus-host/src/` is four files: `decomposition.rs`,
+   `lib.rs`, `pooling.rs`, `sliding_window.rs`; only the first of these belongs
+   to the twenty-seam suite — `pooling` and `sliding_window` are separate
+   traits). The clause count here is 22, not 21: `assert_transfer_contract`
+   takes only `D: ComputeDevice` and no seam, which is why it is one of the two
+   the host can already run.
+
+   So `hephaestus-host` is **not** a negative-control test host in waiting, and
+   the aggregate entry point cannot be called against it today. Its value as the
+   CPU oracle is real but prospective: it becomes the second full instantiation
+   of the suite — and the only one where a failure is debugged in a debugger
+   rather than a kernel log — only after the eighteen seam implementations
+   exist. Sequencing the host behind the accelerator backends is therefore
+   correct, and closing this row is a body of work in its own right rather than
+   an item in a cleanup pass.
+
+   **The negative control landed elsewhere, and does not need the host
+   (2026-09-10).** This ADR's residual asked the crate for its own `tests/`
+   carrying a deliberately broken backend. That now exists as
+   `hephaestus-conformance/tests/negative_control.rs` (5 tests), built on
+   `hephaestus_core::test_support::FaultyDevice` — a `ComputeDevice` that
+   violates the contract in one named way, behind the existing `test-util`
+   feature whose stated purpose is exposing test scaffolding to this crate. The
+   design is exact rather than nominal: each case requires the panic message to
+   name the *property* the injected fault should trip, so a clause that failed
+   for an unrelated reason is not credited. Its scope is the transfer clause,
+   because that is the one clause generic over `ComputeDevice` alone; a control
+   for the seam-generic clauses needs a correct seam implementor first, which is
+   the same fact that makes the host's row above what it is.
+
+   Each backend carries a case-count guard (wgpu asserts
+   `CONTRACT_CASES.len() == 127 / 186 / 139 / 188` by feature set), but a count
+   cannot detect a dropped seam: removing one seam's cases and adding unrelated
+   ones leaves the total unchanged and the run green. The aggregate entry point
+   added 2026-09-10 (`assert_backend_contract`, built on `BackendUnderTest`)
+   names every seam in one signature so an omission is a compile error — see the
+   Status section.
 
 This is the exact condition the seam abstraction exists to prevent. A consumer
 generic over `<B: ComputeBackend>` is entitled to assume every backend satisfies
