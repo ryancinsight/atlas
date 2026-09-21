@@ -21,6 +21,7 @@ never an implicit clinical geometry transformation.
 Metis scoped bytes and raster presentation --> consus-raster
 RITK medical sample conversion             --> consus-raster
 RITK viewer                               --> Metis
+consus-raster                             --> apollo-dctdst-core --> eunomia
 ```
 
 Direct Metis-to-RITK reuse would create a repository dependency cycle. Iris
@@ -29,6 +30,21 @@ A separate repository is unnecessary because
 Consus already owns formats and compression without depending on either
 consumer. Clinical formats, DICOM metadata and modality interpretation stay
 in RITK; UI permissions, path traversal defenses and placement stay in Metis.
+
+Revision 2026-09-21: Consus retains JPEG entropy parsing, dequantization, sample
+reconstruction and color conversion. Apollo owns reusable DCT-III mathematics
+through `apollo-dctdst-core`, which does not import the FFT or execution stack.
+The fixed-capacity plan serves the separable JPEG inverse transform. Existing
+Apollo callers migrate to that same implementation under
+[Apollo ADR 0069](../../repos/apollo/docs/adr/0069-lightweight-direct-dct-kernel.md)
+and [PR 526](https://github.com/ryancinsight/apollo/pull/526).
+
+Consus also owns the opt-in `DecodedImage::display_samples` iterator because
+sample packing and encoded precision define the same full-range integer mapping
+in both consumers. It preserves encoded-grid channel order and raw storage.
+Metis chooses that mapping before alpha and orientation handling; RITK's JPEG
+volume reader chooses it before luminance conversion. Medical codec consumers
+retain raw samples for signed interpretation, modality rescaling and windowing.
 
 ## Migration and evidence
 
@@ -46,7 +62,5 @@ acyclic. Source review establishes the ownership decision; it does not establish
 the decoder's behavior or native display correctness.
 
 Consumer gates resolve committed Git sources outside the local stack overlay.
-Concurrent member pre-push hooks currently snapshot and restore the same lockfile
-without serialization; one can restore another hook's temporary overlay state.
-After such contention, verify the committed lock separately before accepting a
-consumer result. Hook serialization remains an integration-tooling requirement.
+A consumer result binds to its committed lockfile. Verification that temporarily
+changes that file must exclude concurrent writers.

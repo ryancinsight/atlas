@@ -190,6 +190,7 @@ flowchart TB
     Integrators --> Domains
     metis --> consus
     ritk --> consus
+    consus --> apollo
     Integrators --> Compute
     Domains --> Compute
     Compute --> Foundation
@@ -228,7 +229,7 @@ The substrate edges above are read from the package manifests at this revision:
 `coeus` depends on `apollo-fft`, `leto`/`leto-ops`, and the `hephaestus-*`
 provider crates; `ritk` depends on `coeus-core`; `hephaestus` depends on `leto`
 for host-side staging arrays, so the two backends are layered rather than
-parallel.
+parallel. `consus-raster` uses `apollo-dctdst-core` for JPEG inverse DCT.
 
 ### Provider ownership
 
