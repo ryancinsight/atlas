@@ -1159,3 +1159,66 @@ class LaneGateTestCase(unittest.TestCase):
         code, err = self._run_in_lane(fixture, lane)
         self.assertNotIn("clippy fails for", err)
         self.assertIn("NOT verified", err)
+
+
+class PushedRangeSelectionTestCase(unittest.TestCase):
+    """The gate selects packages from the range git supplies on stdin.
+
+    `HEAD` is the checkout's branch, not the ref being pushed. In a shared
+    member tree those differ constantly: a commit built by plumbing and pushed
+    by SHA leaves HEAD on the base, so the gate diffed an empty range and ran
+    nothing for a Rust change; and with the tree on a peer's branch the gate
+    selected that branch's packages instead of the pushed one's.
+    """
+
+    def _commit_rust_on_a_branch_then_leave_it(self, fixture: GateFixture) -> None:
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "-b", "feat"],
+            check=True,
+        )
+        source = fixture.root / "crates" / "foo" / "src" / "lib.rs"
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("pub fn answer() -> u32 {\n    42\n}\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "add", "crates/foo"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "source"],
+            check=True,
+        )
+        # The push happens from a checkout sitting elsewhere, which is the case
+        # the gate got wrong.
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "main"],
+            check=True,
+        )
+
+    def test_a_branch_pushed_while_head_sits_elsewhere_is_gated(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            self._commit_rust_on_a_branch_then_leave_it(fixture)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("local gate not needed", stderr)
+            self.assertIn("gating foo", stderr)
+            self.assertIn("-p foo", fixture.calls.read_text(encoding="utf-8"))
+
+    def test_an_unresolvable_pushed_base_falls_back_rather_than_skipping(self) -> None:
+        """A remote tip this clone never fetched cannot be diffed against;
+        reading that as an empty range would skip the gate silently."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            self._commit_rust_on_a_branch_then_leave_it(fixture)
+            tip = _git(fixture.root, "rev-parse", "feat")
+            absent = "0123456789abcdef0123456789abcdef01234567"
+
+            code, stderr = fixture.run_hook(
+                f"refs/heads/feat {tip} refs/heads/feat {absent}\n"
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("local gate not needed", stderr)
+            self.assertIn("gating foo", stderr)
