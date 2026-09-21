@@ -113,6 +113,7 @@ about documentation truth and numerical evidence, not debt.
 <a id="atlas-coeus-nlls-004"></a>- [ATLAS-COEUS-NLLS-004](backlog/atlas-coeus-nlls-004.md) — original specification — todo
 <a id="atlas-conformance-ratchet-2026-08-19"></a>- [ATLAS-CONFORMANCE-RATCHET-2026-08-19](backlog/atlas-conformance-ratchet-2026-08-19.md) — exact provider regressions [patch] — blocked
 <a id="atlas-conformance-submodule-status-2026-08-19"></a>- [ATLAS-CONFORMANCE-SUBMODULE-STATUS-2026-08-19](backlog/atlas-conformance-submodule-status-2026-08-19.md) — classify provider dirt after root status [patch] — in-progress
+<a id="atlas-conformance-workflow-overlay-2026-09-21"></a>- [ATLAS-CONFORMANCE-WORKFLOW-OVERLAY-2026-09-21](backlog/atlas-conformance-workflow-overlay-2026-09-21.md) — exclude the checked-out Atlas overlay from member scans [patch] — in-progress
 <a id="atlas-consus-szip-bound-2026-08-20"></a>- [ATLAS-CONSUS-SZIP-BOUND-2026-08-20](backlog/atlas-consus-szip-bound-2026-08-20.md) — Bound SZIP allocation [security][patch] — in-progress
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) — 502 blanket suppressions the ratchet never counted [major] — in-progress
 <a id="crlf-stored-blobs"></a>- [ATLAS-CRLF-STORED-BLOBS-2026-09-08](backlog/crlf-stored-blobs.md) — Committed blobs contradict the declared line-ending policy [patch] — in-progress
@@ -130,7 +131,7 @@ about documentation truth and numerical evidence, not debt.
 <a id="atlas-helios-radon-oracle-2026-08-20"></a>- [ATLAS-HELIOS-RADON-ORACLE-2026-08-20](backlog/atlas-helios-radon-oracle-2026-08-20.md) — Remove existence-only sinogram assertion [patch] — in-progress
 <a id="atlas-hephaestus-host-seam-coverage"></a>- [ATLAS-HEPHAESTUS-HOST-SEAM-COVERAGE](backlog/atlas-hephaestus-host-seam-coverage.md) — `hephaestus-host` implements every seam the conformance suite is generic over [arch][major] — in-progress
 <a id="atlas-hermes-consumer-entry-2026-08-25"></a>- [ATLAS-HERMES-CONSUMER-ENTRY-2026-08-25](backlog/atlas-hermes-consumer-entry-2026-08-25.md) — Restore Hermes as the stack's lane-kernel owner [arch] — in-progress
-<a id="hook-fleet-duplication"></a>- [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog/hook-fleet-duplication.md) — Twenty-two hand-maintained copies of two git hooks [patch] — in-progress
+<a id="hook-fleet-duplication"></a>- [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog/hook-fleet-duplication.md) — Stack-owned git hooks [patch] — in-progress
 <a id="atlas-horae-consumer-audit-2026-08-19"></a>- [ATLAS-HORAE-CONSUMER-AUDIT-2026-08-19](backlog/atlas-horae-consumer-audit-2026-08-19.md) — boundary finding [patch] — blocked
 <a id="atlas-hosted-recheck-2026-08-19"></a>- [ATLAS-HOSTED-RECHECK-2026-08-19](backlog/atlas-hosted-recheck-2026-08-19.md) — moving-default evidence — in-progress
 <a id="atlas-hosted-recheck-2026-08-19-2"></a>- [ATLAS-HOSTED-RECHECK-2026-08-19-2](backlog/atlas-hosted-recheck-2026-08-19-2.md) — current provider state [patch] — in-progress
@@ -168,7 +169,6 @@ about documentation truth and numerical evidence, not debt.
 <a id="atlas-overlay-004"></a>- [ATLAS-OVERLAY-004](backlog/atlas-overlay-004.md) — Worktree sprawl breaks stack dependency resolution [patch] — in-progress
 <a id="atlas-overlay-005"></a>- [ATLAS-OVERLAY-005](backlog/atlas-overlay-005.md) — Clear first-party rev pins across the stack [patch] — in-progress
 <a id="atlas-overlay-gen-stale-1"></a>- [ATLAS-OVERLAY-GEN-STALE-1](backlog/atlas-overlay-gen-stale-1.md) — Cross-repo path deps on member mainlines [arch] — todo
-<a id="atlas-overlay-worktree-keyed"></a>- [ATLAS-OVERLAY-WORKTREE-KEYED-2026-09-06](backlog/atlas-overlay-worktree-keyed.md) — The overlay gate compares a committed artifact against a generation from uncommitted inputs [arch] — review
 <a id="atlas-pm-artifact-budgets"></a>- [ATLAS-PM-ARTIFACT-BUDGETS](backlog/atlas-pm-artifact-budgets.md) — Stack PM artifacts run eight to sixteen times their budget [patch] — in-progress
 <a id="atlas-prepush-hook-forked-across-members-2026-09-09"></a>- [ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09](backlog/atlas-prepush-hook-forked-across-members-2026-09-09.md) — One gate, twenty-three copies, six versions [patch] [ci] — in-progress
 <a id="atlas-privacy-naming-1"></a>- [ATLAS-PRIVACY-NAMING-1](backlog/atlas-privacy-naming-1.md) — Private consumer named throughout stack artifacts [chore] — todo
@@ -188,7 +188,6 @@ about documentation truth and numerical evidence, not debt.
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked
 <a id="publish-order-optional-edges"></a>- [ATLAS-PUBLISH-ORDER-OPTIONAL-EDGES-2026-09-04](backlog/publish-order-optional-edges.md) — Decide whether optional dependencies constrain publish order [patch] — in-progress
 <a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — in-progress
-<a id="ATLAS-RASTER-001"></a>- [ATLAS-RASTER-001](backlog/ATLAS-RASTER-001.md) — Shared raster codec ownership [arch] — in-progress
 <a id="ratchet-regression-set"></a>- [ATLAS-RATCHET-REGRESSION-SET-2026-09-08](backlog/ratchet-regression-set.md) — Seven ratchet regressions arrived with peers' merges [patch] — todo
 <a id="atlas-ritk-default-reconciliation-2026-08-19"></a>- [ATLAS-RITK-DEFAULT-RECONCILIATION-2026-08-19](backlog/atlas-ritk-default-reconciliation-2026-08-19.md) — docs-only merge [patch] — in-progress
 <a id="atlas-ritk-fssurf-013"></a>- [ATLAS-RITK-FSSURF-013](backlog/atlas-ritk-fssurf-013.md) — FreeSurfer surface formats and label table [minor] — todo
