@@ -39,6 +39,15 @@ records in full loses nothing. The open-checkbox exception above applies
 only to narrative (non-id) sections, which have no other record of their
 own.
 
+`--landed` widens what counts as closed by asking the repository rather
+than the heading: an item at `review` whose id carries an `Item:` trailer
+on the fetched default branch has been delivered, and a delivered item
+leaves the board. `review` is the only status this reclassifies, and an
+id matches a trailer only on the dated-suffix boundary (`KW-SWEPT` and
+`KW-SWEPT-2026-09-17` are one item; `KW-SWE-EDGE` is not
+`KW-SWE-EDGE-GROWTH`). Without the flag the classifier reads headings
+and bodies alone, as before.
+
 Per-item-file layout (`backlog.md` + `backlog/<anchor>.md`, past the
 forty-item threshold, `atlas-board-index.py`): a `backlog.md` with a
 sibling `backlog/` directory is in this layout, and compaction there works
@@ -54,6 +63,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -126,11 +136,82 @@ def _status_split(heading: str) -> tuple[str, str] | None:
     return None
 
 
-def is_closed(heading: str) -> bool:
-    """Closed only when the last top-level separator's segment is a status clause."""
+# `review` is the status an item sits at between its gate passing and its
+# pull request landing, so unlike the terminal words above it cannot be read
+# off the heading alone -- the repository decides. `--landed` closes such an
+# item when the default branch carries a commit trailing its id, which is the
+# trailer git_discipline requires on every commit advancing a tracked item.
+# No other status is reclassified: a multi-increment item lands its first
+# increment's trailer long before the item closes.
+DELIVERED_STATUS = re.compile(r"^\s*review\b", re.I)
+ITEM_TRAILER = re.compile(r"^Item:\s*(\S+?)\.?\s*$", re.M)
+DATE_SUFFIX = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def delivered_ids(root: Path) -> set[str]:
+    """Item ids carried by `root`'s fetched default branch.
+
+    Reading the default branch rather than any local ref is what makes this
+    a delivery test: an item closes here only once its work is published.
+    A repository with no fetched default branch delivers nothing.
+    """
+    ref = subprocess.run(
+        ["git", "-C", str(root), "symbolic-ref", "--quiet",
+         "refs/remotes/origin/HEAD"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    ).stdout.strip()
+    if not ref:
+        for candidate in ("refs/remotes/origin/main", "refs/remotes/origin/master"):
+            probe = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "--verify", "--quiet", candidate],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+            )
+            if probe.returncode == 0:
+                ref = candidate
+                break
+    if not ref:
+        return set()
+    log = subprocess.run(
+        ["git", "-C", str(root), "log", ref, "--format=%B%x1e"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if log.returncode != 0:
+        return set()
+    return {m.group(1) for m in ITEM_TRAILER.finditer(log.stdout)}
+
+
+def is_delivered(heading: str, delivered: set[str]) -> bool:
+    """A `review` item whose id the default branch already carries.
+
+    Ids and trailers match on the dated-suffix boundary, because one item is
+    cited both ways (`KW-SWEPT` and `KW-SWEPT-2026-09-17`); a bare prefix
+    match would delete `KW-SWE-EDGE-GROWTH` on a `KW-SWE-EDGE` trailer.
+    """
+    if not delivered:
+        return False
+    spans = _top_level_separators(heading)
+    if not spans or not DELIVERED_STATUS.match(heading[spans[-1][1]:].strip()):
+        return False
+    if not ITEM_ID.match(heading):
+        return False
+    item_id = heading[3:].split(" ")[0].strip()
+    for trailer in delivered:
+        if trailer == item_id:
+            return True
+        longer, shorter = max(trailer, item_id, key=len), min(trailer, item_id, key=len)
+        if longer.startswith(shorter + "-") and DATE_SUFFIX.match(longer[len(shorter) + 1:]):
+            return True
+    return False
+
+
+def is_closed(heading: str, delivered: set[str] | None = None) -> bool:
+    """Closed when the last top-level separator's segment is a terminal status
+    clause, or when a `review` item's work is already on the default branch."""
     if CLOSED_TICK.search(heading):
         return True
-    return _status_split(heading) is not None
+    if _status_split(heading) is not None:
+        return True
+    return is_delivered(heading, delivered or set())
 
 
 def split_items(
@@ -213,7 +294,8 @@ def body_is_closed(body: list[str], heading: str = "") -> bool:
 
 
 def compact(
-    path: Path, archive_heading: str, body_status: bool = False
+    path: Path, archive_heading: str, body_status: bool = False,
+    delivered: set[str] | None = None
 ) -> tuple[int, int, int, int]:
     """Rewrite `path` in place (inline-item layout). Returns (lines_before,
     lines_after, items_deleted, narrative_sections_deleted)."""
@@ -235,7 +317,7 @@ def compact(
     for anchor_line, prefix_blanks, heading, body in kept_items:
         m = ITEM_ID.match(heading)
         is_item = m is not None
-        closed = is_item and is_closed(heading)
+        closed = is_item and is_closed(heading, delivered)
         if body_status and is_item:
             # One law per board: a risk artifact's finding states its status
             # in prose whether or not its heading happens to carry an id, and
@@ -383,7 +465,9 @@ def _migrate_preamble_item(
     return target.name
 
 
-def compact_indexed(path: Path, archive_heading: str) -> tuple[int, int, int, int]:
+def compact_indexed(
+    path: Path, archive_heading: str, delivered: set[str] | None = None
+) -> tuple[int, int, int, int]:
     """Rewrite the per-item-file board rooted at `path` in place.
 
     Returns (lines_before, lines_after, items_deleted,
@@ -410,7 +494,7 @@ def compact_indexed(path: Path, archive_heading: str) -> tuple[int, int, int, in
         m = ITEM_ID.match(heading)
         if not m:
             continue
-        if is_closed(heading):
+        if is_closed(heading, delivered):
             item_path.unlink()
             items_deleted += 1
         else:
@@ -435,7 +519,7 @@ def compact_indexed(path: Path, archive_heading: str) -> tuple[int, int, int, in
             # directory, so leaving it inline deletes it; the narrative rule
             # would too, since its cross-references are other repositories'
             # ids and can never be in this board's open set.
-            if is_closed(heading):
+            if is_closed(heading, delivered):
                 items_deleted += 1
                 continue
             migrated = _migrate_preamble_item(
@@ -477,7 +561,9 @@ def compact_indexed(path: Path, archive_heading: str) -> tuple[int, int, int, in
     return before, after, items_deleted, narrative_deleted
 
 
-def _dry_run_indexed(path: Path, archive_heading: str) -> None:
+def _dry_run_indexed(
+    path: Path, archive_heading: str, delivered: set[str] | None = None
+) -> None:
     item_dir = path.parent / "backlog"
     lines = path.read_text(encoding="utf-8").splitlines()
     before = _total_lines(path, item_dir)
@@ -489,7 +575,7 @@ def _dry_run_indexed(path: Path, archive_heading: str) -> None:
         if not ITEM_ID.match(heading):
             continue
         item_count += 1
-        if is_closed(heading):
+        if is_closed(heading, delivered):
             closed += 1
     first_index_at = next(
         (i for i, ln in enumerate(lines) if INDEX_LINE.match(ln)), len(lines)
@@ -505,6 +591,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true",
                     help="report the counts without writing")
+    ap.add_argument("--landed", action="store_true",
+                    help="also close a `review` item whose Item: trailer is on "
+                         "the repository's fetched default branch")
     ap.add_argument("root", nargs="?", type=Path, default=ROOT,
                     help="repository root whose backlog.md/checklist.md to "
                          "compact (default: the repository holding this script)")
@@ -521,6 +610,10 @@ def main(argv: list[str] | None = None) -> int:
         (root / "checklist.md", "## Archive — closed checklists", False),
         (root / "gap_audit.md", "## Archive — closed findings", True),
     ]
+    delivered = delivered_ids(root) if args.landed else set()
+    if args.landed:
+        print(f"delivered item ids on the default branch: {len(delivered)}")
+
     for path, heading, body_status in targets:
         if not path.is_file():
             print(f"skip (absent): {path.name}")
@@ -528,7 +621,7 @@ def main(argv: list[str] | None = None) -> int:
         indexed = is_indexed_board(path)
         if args.dry_run:
             if indexed:
-                _dry_run_indexed(path, heading)
+                _dry_run_indexed(path, heading, delivered)
             else:
                 lines = path.read_text(encoding="utf-8").splitlines()
                 _, items = split_items(lines)
@@ -538,7 +631,8 @@ def main(argv: list[str] | None = None) -> int:
                 ]
                 item_count = sum(1 for _, _, h, _ in kept if ITEM_ID.match(h))
                 closed = sum(
-                    1 for _, _, h, _ in kept if ITEM_ID.match(h) and is_closed(h)
+                    1 for _, _, h, _ in kept
+                    if ITEM_ID.match(h) and is_closed(h, delivered)
                 )
                 narrative = len(kept) - item_count
                 if body_status:
@@ -554,10 +648,12 @@ def main(argv: list[str] | None = None) -> int:
                       f"({closed} would delete), {narrative} narrative sections")
             continue
         if indexed:
-            before, after, n_items, n_narrative = compact_indexed(path, heading)
+            before, after, n_items, n_narrative = compact_indexed(
+                path, heading, delivered
+            )
         else:
             before, after, n_items, n_narrative = compact(
-                path, heading, body_status=body_status
+                path, heading, body_status=body_status, delivered=delivered
             )
         print(f"{path.name}: {before} -> {after} lines "
               f"({n_items} items deleted, {n_narrative} narrative sections deleted)")
