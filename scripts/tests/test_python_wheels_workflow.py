@@ -40,6 +40,25 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
         self.assertEqual(inputs["abi3t-python"]["default"], "3.15t")
         self.assertEqual(inputs["abi3t-features"]["default"], "")
 
+    def test_validation_mode_skips_release_identity_and_attachment(self) -> None:
+        inputs = self.workflow[True]["workflow_call"]["inputs"]
+        self.assertFalse(inputs["verification"]["default"])
+        validation = next(
+            step for step in self.workflow["jobs"]["release-assets"]["steps"]
+            if step.get("name") == "Validate release identity and wheel set"
+        )
+        self.assertEqual(validation["env"]["VERIFICATION"], "${{ inputs.verification }}")
+        self.assertIn('if [[ "$VERIFICATION" != "true" ]]', validation["run"])
+        self.assertIn(
+            "name: ${{ inputs.verification && 'verification-wheels' || 'release-wheels' }}",
+            self.source,
+        )
+        attachment = next(
+            step for step in self.workflow["jobs"]["release-assets"]["steps"]
+            if step.get("name") == "Attach wheels to GitHub Release"
+        )
+        self.assertEqual(attachment["if"], "${{ !inputs.verification }}")
+
     def test_free_threaded_jobs_use_the_shared_build_and_test_contract(self) -> None:
         jobs = self.workflow["jobs"]
         for job in ("build-free-threaded", "build-abi3t"):
@@ -70,9 +89,17 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
         self.assertIn("--abi3-python", run)
         self.assertNotIn('PYTHON_GIL: "0"', run)
 
+    def test_release_validation_reads_sdist_metadata_from_tar_listing(self) -> None:
+        validation = next(
+            step for step in self.workflow["jobs"]["release-assets"]["steps"]
+            if step.get("name") == "Validate release identity and wheel set"
+        )
+        self.assertIn('tar -tf "${sdists[0]}"', validation["run"])
+        self.assertIn("awk '/(^|\\/)PKG-INFO$/", validation["run"])
+
     def test_actual_release_validator_handles_compressed_tags_and_wrong_floor(self) -> None:
         valid = [
-            "pkg-1-cp315-abi3.abi3t-macosx_11_0_universal2.macosx_10_9_universal2.whl",
+            "pkg-1-cp315-abi3.abi3t-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl",
             "pkg-1-cp315-abi3t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
             "pkg-1-cp315-abi3t-manylinux_2_17_aarch64.whl",
             "pkg-1-cp315-abi3t-win_amd64.whl",
@@ -82,12 +109,13 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
             command.extend(("--wheel", wheel))
         self.assertEqual(subprocess.run(command, check=False).returncode, 0)
         wrong = command.copy()
-        wrong[wrong.index("pkg-1-cp315-abi3.abi3t-macosx_11_0_universal2.macosx_10_9_universal2.whl")] = "pkg-1-cp314-abi3.abi3t-macosx_11_0_universal2.whl"
+        wrong[wrong.index(valid[0])] = "pkg-1-cp314-abi3.abi3t-macosx_11_0_universal2.whl"
         self.assertNotEqual(subprocess.run(wrong, check=False).returncode, 0)
         for malformed, index in (
             ("pkg-1-cp315-abi3t-manylinux_2_17_x86_64.win_amd64.whl", 1),
             ("pkg-1-cp315-abi3t-manylinux_2_17_x86_64.not_a_platform.whl", 1),
             ("pkg-1-cp315-abi3t-macosx___universal2.whl", 0),
+            ("pkg-1-cp315-abi3t-macosx_11_0_arm64.whl", 0),
         ):
             invalid_set = valid.copy()
             invalid_set[index] = malformed
@@ -96,6 +124,16 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
             for wheel in invalid_set:
                 invalid.extend(("--wheel", wheel))
             self.assertNotEqual(subprocess.run(invalid, check=False).returncode, 0)
+        free = [
+            "metis_rs-0.1.0-cp314-cp314t-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl",
+            "metis_rs-0.1.0-cp314-cp314t-manylinux_2_17_x86_64.whl",
+            "metis_rs-0.1.0-cp314-cp314t-manylinux_2_17_aarch64.whl",
+            "metis_rs-0.1.0-cp314-cp314t-win_amd64.whl",
+        ]
+        free_command = [sys.executable, str(VALIDATOR), "--free", "3.14t"]
+        for wheel in free:
+            free_command.extend(("--wheel", wheel))
+        self.assertEqual(subprocess.run(free_command, check=False).returncode, 0)
 
     def test_actual_release_validator_checks_cpython_and_abi3_floor(self) -> None:
         base = [

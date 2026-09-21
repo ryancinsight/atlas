@@ -15,6 +15,7 @@ PLATFORMS = {
     "win_amd64": re.compile(r"win_amd64"),
     "universal2": re.compile(r"macosx_[0-9]+_[0-9]+_universal2"),
 }
+MACOS_ARCH = re.compile(r"macosx_[0-9]+_[0-9]+_(?P<arch>arm64|universal2|x86_64)")
 
 
 def parse_wheel(path: str) -> tuple[str, str, str]:
@@ -24,11 +25,20 @@ def parse_wheel(path: str) -> tuple[str, str, str]:
     python_tag, abi_tag, platform_tag = tags
     tokens = platform_tag.split(".")
     canonical = []
+    macos_arches = set()
     for token in tokens:
         match = next((name for name, pattern in PLATFORMS.items() if pattern.fullmatch(token)), None)
         if match is None:
-            raise ValueError(f"unsupported platform tag in {path}: {token}")
-        canonical.append(match)
+            macos_match = MACOS_ARCH.fullmatch(token)
+            if macos_match is None:
+                raise ValueError(f"unsupported platform tag in {path}: {token}")
+            macos_arches.add(macos_match.group("arch"))
+        else:
+            canonical.append(match)
+    if macos_arches:
+        if "universal2" not in macos_arches and not {"arm64", "x86_64"} <= macos_arches:
+            raise ValueError(f"incomplete universal2 platform tags in {path}: {platform_tag}")
+        canonical.append("universal2")
     if not canonical or len(set(canonical)) != 1:
         raise ValueError(f"incompatible compressed platform tags in {path}: {platform_tag}")
     return python_tag, "abi3t" if abi_tag == "abi3.abi3t" else abi_tag, canonical[0]

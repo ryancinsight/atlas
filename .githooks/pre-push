@@ -11,19 +11,22 @@
 # were pushed through only via a transient `-c core.hooksPath` override.
 #
 # This prelude makes the default branch's committed copy of this same file
-# authoritative regardless of what is checked out: it compares this file's
-# on-disk bytes (as `git hash-object` would stage them, so line-ending
-# filters do not cause false mismatches) against
-# `origin/HEAD:.githooks/pre-push` -- falling back to `origin/main` when
-# `origin/HEAD` is unset -- and, on any difference, execs that blob's
-# content instead of continuing, passing argv and stdin straight through
-# (stdin carries git's ref-update protocol lines, read further down). When
-# the two already match -- the ordinary case, since this prelude ships as
-# part of the very file it guards -- there is nothing to fetch and
-# execution falls through to the gate below in the same process. A stale
-# checkout that already carries some version of this same prelude therefore
-# self-corrects the moment its content diverges from origin's default
-# branch, without anyone re-running `git config`.
+# authoritative regardless of what is checked out: it compares the bytes of
+# the file actually executing -- `${BASH_SOURCE[0]}`, captured before any
+# re-exec, so this holds even when `core.hooksPath` points somewhere other
+# than the checkout's own `.githooks/` (a transient override, a member
+# clone, or any other layout) -- against `origin/HEAD:.githooks/pre-push`,
+# falling back to `origin/main` when `origin/HEAD` is unset, hashed the way
+# `git hash-object` would stage it so line-ending filters do not cause false
+# mismatches. On any difference it execs that blob's content instead of
+# continuing, passing argv and stdin straight through (stdin carries git's
+# ref-update protocol lines, read further down). When the two already match
+# -- the ordinary case, since this prelude ships as part of the very file it
+# guards -- there is nothing to fetch and execution falls through to the
+# gate below in the same process. A stale checkout that already carries some
+# version of this same prelude therefore self-corrects the moment its
+# content diverges from origin's default branch, without anyone re-running
+# `git config`.
 #
 # Fails closed: an unresolvable origin ref or a missing blob refuses the
 # push rather than silently running whatever this checkout happens to hold.
@@ -33,16 +36,28 @@
 # itself performs.
 #
 # The re-exec'd content is this same file, so it re-defines and re-runs this
-# same prelude -- against the same on-disk path, which never changes mid-
-# process. Without a way to say "already resolved", that second pass would
-# find the same mismatch and re-exec forever. `_ATLAS_HOOK_TRAMPOLINE_DEFERRED`
-# is that marker: set only immediately before the exec below, inherited by
-# the child, and checked first on every entry.
+# same prelude. Its `${BASH_SOURCE[0]}` is now the process-substitution file
+# descriptor bash exec'd (`/dev/fd/NN` on POSIX shells), never the on-disk
+# hook path -- so this second pass must not repeat the comparison against
+# that descriptor, and nothing downstream may derive a filesystem path from
+# `BASH_SOURCE`/`$0` either, since both resolve to the same transient
+# descriptor after the exec (`atlas_root` below uses `git rev-parse
+# --show-toplevel` for exactly this reason). Without a way to say "already
+# resolved", a second comparison pass would also find the same mismatch and
+# re-exec forever. `_ATLAS_HOOK_TRAMPOLINE_DEFERRED` is that marker: set
+# only immediately before the exec below, inherited by the child, and
+# checked first on every entry.
 _atlas_hook_trampoline() {
     [ -n "${_ATLAS_HOOK_TRAMPOLINE_DEFERRED:-}" ] && return 0
 
     local hook_path=".githooks/pre-push"
-    local root ref blob_sha self_sha
+    local root ref blob_sha self_sha self_path
+
+    # Captured before anything below can re-exec: on the first pass this is
+    # the on-disk hook git (or this test harness) actually invoked, whatever
+    # `core.hooksPath` names -- exactly the file whose bytes must match
+    # origin's. On a re-exec'd pass (guarded above) this line never runs.
+    self_path="${BASH_SOURCE[0]}"
 
     # Git Bash on Windows mangles a `ref:path` argument that contains `/` --
     # MSYS's argv-to-native-path heuristic rewrites it to `ref\path` (and `:`
@@ -67,7 +82,7 @@ _atlas_hook_trampoline() {
         return 1
     fi
 
-    self_sha="$(git -C "$root" hash-object "${root}/${hook_path}" 2>/dev/null)" || self_sha=""
+    self_sha="$(git -C "$root" hash-object "$self_path" 2>/dev/null)" || self_sha=""
     if [ "$self_sha" = "$blob_sha" ]; then
         return 0
     fi
@@ -107,7 +122,21 @@ _atlas_hook_trampoline "$@" || exit 1
 
 set -uo pipefail
 
-atlas_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Not `dirname "${BASH_SOURCE[0]}"`: when the trampoline above re-execs this
+# file's content via process substitution, `${BASH_SOURCE[0]}` here is the
+# process-substitution descriptor (`/dev/fd/NN`), not this file's on-disk
+# path, and every path derived from it -- including the auditor's own
+# manifest path -- resolved under `/dev`. Git sets a hook's working
+# directory to the top of the work tree before invoking it (true for both
+# the first invocation and the re-exec'd one, since `exec` never changes
+# cwd), so asking git directly is the one derivation immune to how this
+# file got run.
+atlas_root="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$atlas_root" ]; then
+    echo "pre-push: BLOCKED -- not inside a git work tree; the gitlink" >&2
+    echo "auditor and its related paths cannot be resolved." >&2
+    exit 1
+fi
 binary="${atlas_root}/target/release/gitlink-coherence"
 [ -x "${binary}.exe" ] && binary="${binary}.exe"
 
