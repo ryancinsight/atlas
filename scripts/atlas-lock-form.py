@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -45,6 +46,7 @@ import tomllib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atlas_git_process import GitProcessError, execute as execute_git  # noqa: E402
 from atlas_stack import ROOT, registered_member_names  # noqa: E402
 
 REPOS = ROOT / "repos"
@@ -458,14 +460,11 @@ def cmd_sync_hooks(args) -> int:
     """
     source_dir = Path(__file__).resolve().parent / "git-hooks"
     hooks = sorted(p for p in source_dir.iterdir() if p.is_file())
-    registered = set(registered_member_names())
-    members = set(args.members) if args.members else registered
-    unknown = members - registered
-    if unknown:
-        print(f"unregistered members: {', '.join(sorted(unknown))}", file=sys.stderr)
+    members = member_scope(args.members)
+    if members is None:
         return 2
     drifted, written, absent = [], 0, []
-    for member in sorted(members):
+    for member in members:
         repo = REPOS / member
         if not repo.is_dir():
             continue
@@ -501,6 +500,11 @@ HOOK_MODE = "100755"
 # names its own branch opens a second request carrying a different revision of
 # the same file. Thirteen members carried exactly that pair on 2026-09-21.
 PUBLISH_BRANCH = "ci/sync-stack-hooks"
+# A push may run the committed 60-second hook gate; the remainder covers Git
+# transport and process-tree teardown without leaving an unbounded member.
+GIT_DEADLINE_SECONDS = 90
+# Hosting calls do not run member code and use the ordinary test slow bound.
+HOSTING_DEADLINE_SECONDS = 30
 
 
 def request_already_open(returncode: int, stderr: str) -> bool:
@@ -513,8 +517,24 @@ def request_already_open(returncode: int, stderr: str) -> bool:
     return returncode != 0 and "already exists" in (stderr or "")
 
 
-def git_in(repo: Path, *args: str, stdin: bytes | None = None, index: Path | None = None) -> str:
-    """Run git in `repo`, bytes in, text out; raise with git's message on failure.
+def member_scope(requested: list[str]) -> tuple[str, ...] | None:
+    """Return the requested registered members, or all members by default."""
+    registered = set(registered_member_names())
+    members = set(requested) if requested else registered
+    unknown = members - registered
+    if unknown:
+        print(f"unregistered members: {', '.join(sorted(unknown))}", file=sys.stderr)
+        return None
+    return tuple(sorted(members))
+
+
+def git_bytes(
+    repo: Path,
+    *args: str,
+    stdin: bytes | None = None,
+    index: Path | None = None,
+) -> bytes:
+    """Run bounded git in `repo`; raise with git's message on failure.
 
     `index` points git at a private index file, so a commit can be built from a
     member's fetched default without reading or touching its working tree or
@@ -523,13 +543,58 @@ def git_in(repo: Path, *args: str, stdin: bytes | None = None, index: Path | Non
     env = dict(os.environ)
     if index is not None:
         env["GIT_INDEX_FILE"] = str(index)
-    proc = subprocess.run(
-        ["git", "-C", str(repo), *args], input=stdin, capture_output=True, env=env
-    )
-    if proc.returncode != 0:
-        detail = proc.stderr.decode("utf-8", errors="replace").strip()
+    try:
+        result = execute_git(
+            repo,
+            tuple(args),
+            stdin=stdin,
+            env=env,
+            timeout=GIT_DEADLINE_SECONDS,
+        )
+    except GitProcessError as error:
+        raise RuntimeError(str(error)) from error
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(f"git {' '.join(args)} in {repo.name}: {detail}")
-    return proc.stdout.decode("utf-8", errors="replace").strip()
+    return result.stdout
+
+
+def git_in(
+    repo: Path,
+    *args: str,
+    stdin: bytes | None = None,
+    index: Path | None = None,
+) -> str:
+    """Run bounded git and decode its output as replacement-tolerant UTF-8."""
+    return git_bytes(repo, *args, stdin=stdin, index=index).decode(
+        "utf-8", errors="replace"
+    ).strip()
+
+
+def hosting_in(repo: Path, *args: str) -> str:
+    """Run a bounded GitHub CLI command and preserve its failure context."""
+    command = ["gh", *args]
+    try:
+        proc = subprocess.run(
+            command,
+            cwd=str(repo),
+            capture_output=True,
+            timeout=HOSTING_DEADLINE_SECONDS,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except subprocess.TimeoutExpired as error:
+        raise RuntimeError(
+            f"gh command timed out after {HOSTING_DEADLINE_SECONDS}s in {repo.name}: "
+            f"{' '.join(command)}"
+        ) from error
+    except OSError as error:
+        raise RuntimeError(f"cannot run gh in {repo.name}: {error}") from error
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"gh {' '.join(args)} in {repo.name}: {proc.stderr.strip()}"
+        )
+    return proc.stdout.strip()
 
 
 def committed_hooks(atlas: Path, ref: str) -> list[tuple[str, bytes]]:
@@ -543,10 +608,7 @@ def committed_hooks(atlas: Path, ref: str) -> list[tuple[str, bytes]]:
     listing = git_in(atlas, "ls-tree", "--name-only", f"{ref}:scripts/git-hooks")
     hooks = []
     for name in sorted(listing.splitlines()):
-        blob = subprocess.run(
-            ["git", "-C", str(atlas), "cat-file", "blob", f"{ref}:scripts/git-hooks/{name}"],
-            capture_output=True, check=True,
-        ).stdout
+        blob = git_bytes(atlas, "cat-file", "blob", f"{ref}:scripts/git-hooks/{name}")
         hooks.append((name, blob))
     return hooks
 
@@ -575,6 +637,90 @@ def hook_commit(
     return git_in(repo, "commit-tree", tree, "-p", base, stdin=message.encode("utf-8"))
 
 
+def push_hook_branch(repo: Path, commit: str, branch: str) -> None:
+    """Update the publication branch under a freshly observed explicit lease."""
+    ref = f"refs/heads/{branch}"
+    listing = git_bytes(repo, "ls-remote", "--heads", "origin", ref)
+    if listing == b"":
+        expected = ""
+    else:
+        try:
+            text = listing.decode("ascii")
+        except UnicodeDecodeError as error:
+            raise RuntimeError(
+                f"git ls-remote returned non-ASCII output for {ref}"
+            ) from error
+        rows = text.splitlines()
+        if len(rows) != 1:
+            raise RuntimeError(f"git ls-remote returned {len(rows)} rows for {ref}")
+        fields = rows[0].split()
+        if len(fields) != 2:
+            raise RuntimeError(f"git ls-remote returned a malformed row for {ref}")
+        expected, observed_ref = fields
+        if observed_ref != ref:
+            raise RuntimeError(
+                f"git ls-remote returned {observed_ref} while querying {ref}"
+            )
+        if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", expected) is None:
+            raise RuntimeError(f"git ls-remote returned a malformed object ID for {ref}")
+    git_in(
+        repo,
+        "push",
+        "-q",
+        f"--force-with-lease={ref}:{expected}",
+        "origin",
+        f"{commit}:{ref}",
+    )
+
+
+def pull_request_for(
+    repo: Path,
+    branch: str,
+    base: str,
+    subject: str,
+    message: str,
+) -> tuple[str, bool]:
+    """Return the branch's open pull request, creating it when absent."""
+    url = hosting_in(
+        repo,
+        "pr",
+        "list",
+        "--head",
+        branch,
+        "--base",
+        base,
+        "--state",
+        "open",
+        "--json",
+        "url",
+        "--jq",
+        ".[0].url",
+    )
+    if url and url != "null":
+        return url, False
+    return (
+        hosting_in(
+            repo,
+            "pr",
+            "create",
+            "--head",
+            branch,
+            "--base",
+            base,
+            "--title",
+            subject,
+            "--body",
+            message,
+        ),
+        True,
+    )
+
+
+def enqueue_pull_request(repo: Path, url: str) -> None:
+    """Enable merge-on-green for a pull request, surfacing refusal as failure."""
+    hosting_in(repo, "pr", "merge", url, "--merge", "--auto")
+
+
 def cmd_publish_hooks(args) -> int:
     """Publish the owned hooks to every member's default branch, one PR each.
 
@@ -588,6 +734,9 @@ def cmd_publish_hooks(args) -> int:
 
     Without `--push` it reports what it would publish.
     """
+    members = member_scope(args.members)
+    if members is None:
+        return 2
     git_in(ROOT, "fetch", "-q", "origin")
     atlas_default = git_in(ROOT, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
     hooks = committed_hooks(ROOT, atlas_default)
@@ -599,7 +748,7 @@ def cmd_publish_hooks(args) -> int:
         "gate-version drift the conformance scan counts.\n"
     )
     failures = 0
-    for member in sorted(registered_member_names()):
+    for member in members:
         repo = REPOS / member
         if not repo.is_dir():
             continue
@@ -614,26 +763,17 @@ def cmd_publish_hooks(args) -> int:
                 print(f"would publish: {member} onto {default}")
                 continue
             branch = PUBLISH_BRANCH
-            git_in(repo, "push", "-q", "--force-with-lease", "origin", f"{commit}:refs/heads/{branch}")
-            created = subprocess.run(
-                ["gh", "pr", "create", "--head", branch, "--base", default.removeprefix("origin/"),
-                 "--title", subject, "--body", message],
-                cwd=str(repo), capture_output=True, encoding="utf-8", errors="replace",
+            push_hook_branch(repo, commit, branch)
+            url, created = pull_request_for(
+                repo,
+                branch,
+                default.removeprefix("origin/"),
+                subject,
+                message,
             )
-            opened = created.stdout.strip()
-            if created.returncode != 0:
-                if not request_already_open(created.returncode, created.stderr):
-                    raise RuntimeError(f"gh pr create in {member}: {created.stderr.strip()}")
-                opened = subprocess.run(
-                    ["gh", "pr", "view", branch, "--json", "url", "-q", ".url"],
-                    cwd=str(repo), capture_output=True, encoding="utf-8", errors="replace",
-                ).stdout.strip()
-            queued = subprocess.run(
-                ["gh", "pr", "merge", branch, "--merge", "--auto"],
-                cwd=str(repo), capture_output=True, encoding="utf-8", errors="replace",
-            )
-            state = "enqueued" if queued.returncode == 0 else f"open ({queued.stderr.strip()})"
-            print(f"published: {member} {opened} {state}")
+            enqueue_pull_request(repo, url)
+            action = "published" if created else "reused"
+            print(f"{action}: {member} {url} enqueued")
         except RuntimeError as error:
             failures += 1
             print(f"FAILED: {error}")
@@ -684,6 +824,7 @@ def main() -> int:
                       help="report drift instead of writing")
     sync.set_defaults(func=cmd_sync_hooks)
     publish = sub.add_parser("publish-hooks")
+    publish.add_argument("members", nargs="*", help="registered members; defaults to all")
     publish.add_argument("--push", action="store_true", help="push and open the pull requests")
     publish.set_defaults(func=cmd_publish_hooks)
     sub.add_parser("check").set_defaults(func=cmd_check)
