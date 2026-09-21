@@ -75,6 +75,17 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
                 if step.get("uses", "").startswith("actions/setup-python@")
             )
             self.assertTrue(setup["with"]["allow-prereleases"])
+            self.assertTrue(setup["with"]["freethreaded"])
+        free_setup = next(
+            step for step in self.workflow["jobs"]["build-free-threaded"]["steps"]
+            if step.get("uses", "").startswith("actions/setup-python@")
+        )
+        abi3t_setup = next(
+            step for step in self.workflow["jobs"]["build-abi3t"]["steps"]
+            if step.get("uses", "").startswith("actions/setup-python@")
+        )
+        self.assertIn("matrix.python-version == '3.15t'", free_setup["with"]["python-version"])
+        self.assertIn("inputs.abi3t-python == '3.15t'", abi3t_setup["with"]["python-version"])
 
     def test_release_validation_distinguishes_free_threaded_abi_tags(self) -> None:
         validation = next(

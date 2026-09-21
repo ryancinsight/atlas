@@ -434,8 +434,11 @@ jobs:
       - name: Set up free-threaded Python ${{ matrix.python-version }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: ${{ matrix.python-version }}
+          # Keep the logical t suffix for wheel identity, but resolve the
+          # 3.15 release candidate through its x.y range.
+          python-version: ${{ matrix.python-version == '3.15t' && '3.15' || matrix.python-version }}
           allow-prereleases: true
+          freethreaded: true
 
       - name: Assert free-threaded interpreter
         shell: bash
@@ -535,8 +538,11 @@ jobs:
       - name: Set up Python ${{ inputs.abi3t-python }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: ${{ inputs.abi3t-python }}
+          # The input remains the published abi3t identity; setup-python
+          # selects the prerelease tool cache through the x.y range.
+          python-version: ${{ inputs.abi3t-python == '3.15t' && '3.15' || inputs.abi3t-python }}
           allow-prereleases: true
+          freethreaded: true
 
       - name: Assert free-threaded interpreter
         shell: bash
