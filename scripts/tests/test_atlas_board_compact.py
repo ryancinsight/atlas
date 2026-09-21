@@ -542,5 +542,182 @@ class RootArgumentTestCase(unittest.TestCase):
             self.assertEqual(_compact.main([str(Path(root) / "absent")]), 2)
 
 
+class RiskArtifactBodyStatusTests(unittest.TestCase):
+    """`gap_audit.md` classifies by prose: a finding's body is its status."""
+
+    def compact(self, board: str, body_status: bool):
+        with tempfile.TemporaryDirectory(prefix="atlas-gap-audit-") as tmp:
+            path = Path(tmp) / "gap_audit.md"
+            path.write_text(textwrap.dedent(board), encoding="utf-8")
+            counts = _compact.compact(
+                path, ARCHIVE_HEADING, body_status=body_status
+            )
+            return path.read_text(encoding="utf-8"), counts
+
+    def test_closure_stated_in_prose_deletes(self) -> None:
+        out, _ = self.compact(
+            """\
+            # Risks
+
+            ## Finding 2026-01-02: the walker aborted on derived caches
+
+            The scan raised on a `__pycache__` entry. Fixed in `abc1234`; the
+            traversal now prunes derived directories.
+            """,
+            body_status=True,
+        )
+        self.assertNotIn("the walker aborted", out)
+
+    def test_a_fixed_half_beside_an_open_half_survives_whole(self) -> None:
+        """The case that must never be swept: one finding, work left."""
+        board = """\
+            # Risks
+
+            ## Finding 2026-01-03: merge mechanics
+
+            **Fixed -- the stall was a generator.** Resolved in `def5678`.
+
+            **Open -- six members enforce no merge gate.** Re-open trigger:
+            the next authorized pass over merge mechanics.
+            """
+        out, _ = self.compact(board, body_status=True)
+        self.assertIn("merge mechanics", out)
+        self.assertIn("six members enforce no merge gate", out)
+
+    def test_a_finding_stating_neither_survives(self) -> None:
+        """Unclassifiable is left for a human, never guessed either way."""
+        out, _ = self.compact(
+            """\
+            # Risks
+
+            ## Finding 2026-01-04: four consumers carry their own ISA kernels
+
+            Each reimplements the lane-parallel path Hermes owns.
+            """,
+            body_status=True,
+        )
+        self.assertIn("four consumers carry their own ISA kernels", out)
+
+    def test_an_open_body_vetoes_a_closed_heading(self) -> None:
+        """Found by running the sweep: two findings read closed, were not."""
+        out, _ = self.compact(
+            """\
+            # Risks
+
+            ## ATLAS-DEMO-030 -- Merged caller defaults
+
+            Every caller default is reconciled. RITK #132 remains open and is
+            not covered by this reconciliation.
+            """,
+            body_status=True,
+        )
+        self.assertIn("ATLAS-DEMO-030", out)
+        self.assertIn("RITK #132 remains open", out)
+
+    def test_the_body_rule_does_not_reach_an_ordinary_board(self) -> None:
+        """An open item's prose says "fixed in X" about one of its parts."""
+        out, _ = self.compact(
+            """\
+            # Board
+
+            ## ATLAS-DEMO-001 -- Consolidate the decoder copies
+
+            The RITK half is fixed in `abc1234`; the Metis half is not
+            started.
+            """,
+            body_status=False,
+        )
+        self.assertIn("ATLAS-DEMO-001", out)
+
+
+class IndexedBoardPreambleItemTests(unittest.TestCase):
+    """An inline item on a per-item-file board migrates; it never vanishes."""
+
+    def compact(self, preamble: str, items: dict[str, str]):
+        tmp = tempfile.TemporaryDirectory(prefix="atlas-indexed-")
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "backlog").mkdir()
+        for name, content in items.items():
+            (root / "backlog" / name).write_text(
+                textwrap.dedent(content), encoding="utf-8"
+            )
+        board = root / "backlog.md"
+        board.write_text(textwrap.dedent(preamble), encoding="utf-8")
+        counts = _compact.compact_indexed(board, ARCHIVE_HEADING)
+        return root, board.read_text(encoding="utf-8"), counts
+
+    PEER = {
+        "peer.md": """\
+            <a id="peer"></a>
+            ## ATLAS-PEER-002 - A peer item - todo
+
+            Body.
+            """
+    }
+
+    def test_an_open_inline_item_migrates_to_its_file(self) -> None:
+        root, index, _ = self.compact(
+            """\
+            # Board
+
+            <a id="ATLAS-DEMO-001"></a>
+            ## ATLAS-DEMO-001 - Shared codec ownership [arch]
+            - Status: in-progress; integrator: root.
+            - Consumers: [RITK](repos/ritk/backlog.md#RITK-JPEG-001).
+
+            | id | outcome | status |
+            | --- | --- | --- |
+            """,
+            self.PEER,
+        )
+        migrated = root / "backlog" / "ATLAS-DEMO-001.md"
+        self.assertTrue(migrated.is_file(), "the live item lost its body")
+        body = migrated.read_text(encoding="utf-8")
+        self.assertIn("Shared codec ownership", body)
+        self.assertIn("RITK-JPEG-001", body)
+        # The file layout reads status from the heading, so the migration
+        # carries the one the body recorded rather than dropping it.
+        self.assertRegex(body, r"## ATLAS-DEMO-001 .* in-progress")
+        self.assertIn("ATLAS-DEMO-001", index)
+
+    def test_a_closed_inline_item_deletes(self) -> None:
+        root, index, counts = self.compact(
+            """\
+            # Board
+
+            <a id="ATLAS-DEMO-003"></a>
+            ## ATLAS-DEMO-003 - Old sweep - done
+
+            Delivered in `abc1234`.
+
+            | id | outcome | status |
+            | --- | --- | --- |
+            """,
+            self.PEER,
+        )
+        self.assertFalse((root / "backlog" / "ATLAS-DEMO-003.md").exists())
+        self.assertNotIn("ATLAS-DEMO-003", index)
+
+    def test_an_inline_item_without_a_status_stays_inline(self) -> None:
+        """Never invent a status: leave it where a human can read it."""
+        _, index, _ = self.compact(
+            """\
+            # Board
+
+            <a id="ATLAS-DEMO-004"></a>
+            ## ATLAS-DEMO-004 - No recorded status
+
+            Prose with no status line.
+
+            | id | outcome | status |
+            | --- | --- | --- |
+            """,
+            self.PEER,
+        )
+        self.assertIn("ATLAS-DEMO-004", index)
+        self.assertIn("No recorded status", index)
+
+
 if __name__ == "__main__":
     unittest.main()
