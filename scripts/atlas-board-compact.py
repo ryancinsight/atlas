@@ -92,6 +92,21 @@ CLOSED_TICK = re.compile(r"✓\s*DONE\b", re.I)
 # Narrative-section keep exception: an unfiled open TODO, or a reference to
 # an item id that is still open elsewhere on the board.
 CHECKBOX_OPEN = re.compile(r"^\s*-\s*\[ \]", re.M)
+# Risk-artifact (gap_audit) classification. A finding records its status in
+# its prose, so the heading clause `is_closed` reads never fires there. Both
+# halves are required: an explicit closure signal, and no open signal
+# anywhere in the body -- a finding whose prose carries one fixed half and
+# one open half is exactly the case that must survive whole.
+BODY_CLOSED = re.compile(
+    r"\b(?:closed|resolved|fixed in|landed|superseded|no action needed|"
+    r"completed?)\b",
+    re.I,
+)
+BODY_OPEN = re.compile(
+    r"^\s*-\s*\[ \]|re-?open trigger|\*\*open\b|still open|remains? open|"
+    r"\bnot yet\b|\btodo\b|\bblocked\b|\bawaiting\b",
+    re.I | re.M,
+)
 ID_TOKEN = re.compile(r"\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\b")
 
 
@@ -168,7 +183,25 @@ def narrative_keep_reason(body: list[str], open_ids: set[str]) -> str | None:
     return None
 
 
-def compact(path: Path, archive_heading: str) -> tuple[int, int, int, int]:
+def body_is_closed(body: list[str], heading: str = "") -> bool:
+    """Whether a risk-artifact finding records itself as closed.
+
+    Closure must be stated and nothing may contradict it. The open half is
+    checked first because a finding that says both is live: `**Fixed** ...
+    **Open** ...` is one finding with work left, not two. The heading joins
+    the text under test because a finding can carry its open half there and
+    nowhere else -- "Provider PR hosted closure remains open" was deleted by
+    a body-only read.
+    """
+    text = "\n".join([heading, *body])
+    if BODY_OPEN.search(text):
+        return False
+    return BODY_CLOSED.search(text) is not None
+
+
+def compact(
+    path: Path, archive_heading: str, body_status: bool = False
+) -> tuple[int, int, int, int]:
     """Rewrite `path` in place (inline-item layout). Returns (lines_before,
     lines_after, items_deleted, narrative_sections_deleted)."""
     lines = path.read_text(encoding="utf-8").splitlines()
@@ -190,6 +223,14 @@ def compact(path: Path, archive_heading: str) -> tuple[int, int, int, int]:
         m = ITEM_ID.match(heading)
         is_item = m is not None
         closed = is_item and is_closed(heading)
+        if body_status and is_item:
+            # One law per board: a risk artifact's finding states its status
+            # in prose whether or not its heading happens to carry an id, and
+            # the prose outranks the heading. Two atlas findings headed as
+            # merged/closed recorded a still-open half in their bodies ("RITK
+            # #132 remains open"); trusting the heading there would delete the
+            # live residual the finding exists to carry.
+            closed = body_is_closed(body, heading)
         if is_item and not closed:
             open_ids.add(m.group(1))
         classified.append((anchor_line, prefix_blanks, heading, body, is_item, closed))
@@ -203,6 +244,14 @@ def compact(path: Path, archive_heading: str) -> tuple[int, int, int, int]:
         if is_item:
             if closed:
                 items_deleted += 1
+                continue
+            keep = True
+        elif body_status:
+            # Risk artifact: a section IS a finding, so the report-genre
+            # default inverts -- delete only what its prose records as
+            # closed, keep everything else for a human at its next touch.
+            if body_is_closed(body, heading):
+                narrative_deleted += 1
                 continue
             keep = True
         else:
@@ -260,6 +309,67 @@ def _total_lines(board: Path, item_dir: Path) -> int:
     return total
 
 
+# An item-file heading ends in its status; the index generator reads it there.
+STATUS_TAIL = re.compile(
+    r"\s[-\u2013\u2014]\s*(todo|in-progress|blocked|review|done)\s*$", re.I
+)
+# Inline items written before the per-item migration keep it in the body.
+BODY_STATUS_LINE = re.compile(
+    r"^\s*[-*]\s*\**status\**\s*:\s*(todo|in-progress|blocked|review|done)\b",
+    re.I | re.M,
+)
+
+
+def _status_from_body(body: list[str]) -> str | None:
+    """The item's recorded status, or None when it states none."""
+    found = BODY_STATUS_LINE.search("\n".join(body))
+    return found.group(1).lower() if found else None
+
+
+def _block(
+    anchor_line: str | None, prefix_blanks: list[str], heading: str,
+    body: list[str],
+) -> list[str]:
+    """Reassemble a section exactly as it was read."""
+    out: list[str] = []
+    if anchor_line is not None:
+        out.append(anchor_line)
+    out.extend(prefix_blanks)
+    out.append(heading)
+    out.extend(body)
+    return out
+
+
+def _migrate_preamble_item(
+    item_dir: Path, anchor_line: str | None, heading: str, body: list[str]
+) -> str | None:
+    """Write an inline preamble item to its `backlog/<anchor>.md` file.
+
+    The anchor is the file's identity, so it is taken from the item's own
+    `<a id="...">` line when it has one and derived from the id otherwise --
+    a regenerated index links to the anchor, and inventing a different one
+    would break every existing reference to the item.
+    """
+    anchor = None
+    if anchor_line is not None:
+        found = ANCHOR_OWN_LINE.match(anchor_line)
+        if found:
+            anchor = found.group(1)
+    if anchor is None:
+        anchor = ITEM_ID.match(heading).group(1).lower()
+    target = item_dir / f"{anchor}.md"
+    if _status_split(heading) is None and STATUS_TAIL.search(heading) is None:
+        status = _status_from_body(body)
+        if status is None:
+            return None
+        heading = f"{heading.rstrip()} - {status}"
+    block = [f'<a id="{anchor}"></a>', heading, *body]
+    while block and not block[-1].strip():
+        block.pop()
+    target.write_text("\n".join(block) + "\n", encoding="utf-8", newline="")
+    return target.name
+
+
 def compact_indexed(path: Path, archive_heading: str) -> tuple[int, int, int, int]:
     """Rewrite the per-item-file board rooted at `path` in place.
 
@@ -299,21 +409,44 @@ def compact_indexed(path: Path, archive_heading: str) -> tuple[int, int, int, in
     pre_preamble, narrative_items = split_items(preamble_lines)
     kept_narrative_blocks: list[list[str]] = []
     narrative_deleted = 0
+    items_migrated: list[str] = []
+    unmigrated: list[str] = []
     for anchor_line, prefix_blanks, heading, body in narrative_items:
         if heading.startswith(archive_heading):
             narrative_deleted += 1
+            continue
+        item_match = ITEM_ID.match(heading)
+        if item_match is not None:
+            # An id-bearing preamble section is an item that never got its
+            # file, not narrative. The index regenerates from the item
+            # directory, so leaving it inline deletes it; the narrative rule
+            # would too, since its cross-references are other repositories'
+            # ids and can never be in this board's open set.
+            if is_closed(heading):
+                items_deleted += 1
+                continue
+            migrated = _migrate_preamble_item(
+                item_dir, anchor_line, heading, body
+            )
+            open_ids.add(item_match.group(1))
+            if migrated is None:
+                # No readable status: keep it inline rather than write an
+                # invented one into the board, and never fall through to the
+                # narrative rule, which would delete it.
+                unmigrated.append(item_match.group(1))
+                kept_narrative_blocks.append(
+                    _block(anchor_line, prefix_blanks, heading, body)
+                )
+            else:
+                items_migrated.append(migrated)
             continue
         reason = narrative_keep_reason(body, open_ids)
         if reason is None:
             narrative_deleted += 1
             continue
-        block = []
-        if anchor_line is not None:
-            block.append(anchor_line)
-        block.extend(prefix_blanks)
-        block.append(heading)
-        block.extend(body)
-        kept_narrative_blocks.append(block)
+        kept_narrative_blocks.append(
+            _block(anchor_line, prefix_blanks, heading, body)
+        )
 
     new_preamble = list(pre_preamble)
     for block in kept_narrative_blocks:
@@ -368,11 +501,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: root is not a directory: {root}", file=sys.stderr)
         return 2
 
+    # gap_audit is a board under the same budget and the same rule; it
+    # classifies by body because a finding states its status in prose.
     targets = [
-        (root / "backlog.md", "## Archive — closed items"),
-        (root / "checklist.md", "## Archive — closed checklists"),
+        (root / "backlog.md", "## Archive — closed items", False),
+        (root / "checklist.md", "## Archive — closed checklists", False),
+        (root / "gap_audit.md", "## Archive — closed findings", True),
     ]
-    for path, heading in targets:
+    for path, heading, body_status in targets:
         if not path.is_file():
             print(f"skip (absent): {path.name}")
             continue
@@ -392,13 +528,24 @@ def main(argv: list[str] | None = None) -> int:
                     1 for _, _, h, _ in kept if ITEM_ID.match(h) and is_closed(h)
                 )
                 narrative = len(kept) - item_count
+                if body_status:
+                    # Reporting the report-genre default here would promise a
+                    # sweep this board never performs.
+                    closed = sum(
+                        1 for _, _, h, b in kept
+                        if body_is_closed(b, h)
+                    )
+                    item_count = len(kept)
+                    narrative = 0
                 print(f"{path.name}: {len(lines)} lines, {item_count} items "
                       f"({closed} would delete), {narrative} narrative sections")
             continue
         if indexed:
             before, after, n_items, n_narrative = compact_indexed(path, heading)
         else:
-            before, after, n_items, n_narrative = compact(path, heading)
+            before, after, n_items, n_narrative = compact(
+                path, heading, body_status=body_status
+            )
         print(f"{path.name}: {before} -> {after} lines "
               f"({n_items} items deleted, {n_narrative} narrative sections deleted)")
     return 0
