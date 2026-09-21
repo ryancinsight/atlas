@@ -16,6 +16,8 @@ PATH_CHUNK = 64
 
 @dataclass(frozen=True)
 class Revision:
+    """Commits whose raw path change carries one blob as its post-image."""
+
     commit: str
     count: int
 
@@ -187,56 +189,71 @@ def existing_blobs(repo: Path, blobs: set[str]) -> set[str]:
 
 
 def historical_blobs(
-    repo: Path, paths: set[str], all_refs: bool
+    repo: Path, targets: dict[str, set[str]], all_refs: bool
 ) -> dict[str, dict[str, Revision]]:
+    """Find raw post-image occurrences without enumerating unrelated blobs.
+
+    Each query retains full merge-parent history and accepts only its own blob;
+    accepting another query's candidate would lose newest-first commit ordering.
+    """
     revisions = ["--all"] if all_refs else ["HEAD"]
-    tables: dict[str, dict[str, list]] = {path: {} for path in paths}
-    ordered = sorted(paths)
+    tables: dict[str, dict[str, list]] = {path: {} for path in targets}
+    paths_by_blob: dict[str, list[str]] = {}
+    for path, blobs in targets.items():
+        for blob in blobs:
+            paths_by_blob.setdefault(blob, []).append(path)
     width = object_id_width(repo)
-    for start in range(0, len(ordered), PATH_CHUNK):
-        chunk = ordered[start : start + PATH_CHUNK]
-        _code, out = run_bytes(
-            repo,
-            "log",
-            "--full-history",
-            "-m",
-            "-z",
-            "--format=COMMIT:%H",
-            "--raw",
-            "--no-abbrev",
-            "--no-renames",
-            *revisions,
-            "--",
-            *chunk,
-        )
-        commit: str | None = None
-        records = iter(record for record in out.split(b"\0") if record)
-        for record in records:
-            normalized = record.lstrip(b"\n")
-            if normalized.startswith(b"COMMIT:"):
-                commit = normalized.removeprefix(b"COMMIT:").decode("ascii")
-                continue
-            if not normalized.startswith(b":"):
-                raise process.GitProcessError("malformed `git log --raw -z` record")
-            fields = normalized.split()
-            try:
-                label = decode_path(next(records))
-            except StopIteration as exc:
-                raise process.GitProcessError(
-                    "missing path in `git log --raw -z` output"
-                ) from exc
-            if commit is None or len(fields) < 4 or label not in tables:
-                raise process.GitProcessError("malformed `git log --raw -z` metadata")
-            post_image = fields[3].decode("ascii")
-            if post_image == "0" * width:
-                continue
-            if len(post_image) != width:
-                raise process.GitProcessError("unexpected object id in `git log --raw -z`")
-            slot = tables[label].get(post_image)
-            if slot is None:
-                tables[label][post_image] = [commit, {commit}]
-            else:
-                slot[1].add(commit)
+    for blob, paths in sorted(paths_by_blob.items()):
+        ordered = sorted(paths)
+        for start in range(0, len(ordered), PATH_CHUNK):
+            chunk = ordered[start : start + PATH_CHUNK]
+            _code, out = run_bytes(
+                repo,
+                "log",
+                "--full-history",
+                "-m",
+                "-z",
+                "--format=COMMIT:%H",
+                "--raw",
+                "--no-abbrev",
+                "--no-renames",
+                f"--find-object={blob}",
+                *revisions,
+                "--",
+                *chunk,
+            )
+            commit: str | None = None
+            records = iter(record for record in out.split(b"\0") if record)
+            for record in records:
+                normalized = record.lstrip(b"\n")
+                if normalized.startswith(b"COMMIT:"):
+                    commit = normalized.removeprefix(b"COMMIT:").decode("ascii")
+                    continue
+                if not normalized.startswith(b":"):
+                    raise process.GitProcessError("malformed `git log --raw -z` record")
+                fields = normalized.split()
+                try:
+                    label = decode_path(next(records))
+                except StopIteration as exc:
+                    raise process.GitProcessError(
+                        "missing path in `git log --raw -z` output"
+                    ) from exc
+                if commit is None or len(fields) < 4 or label not in tables:
+                    raise process.GitProcessError("malformed `git log --raw -z` metadata")
+                post_image = fields[3].decode("ascii")
+                if post_image == "0" * width:
+                    continue
+                if len(post_image) != width:
+                    raise process.GitProcessError(
+                        "unexpected object id in `git log --raw -z`"
+                    )
+                if post_image != blob or blob not in targets[label]:
+                    continue
+                slot = tables[label].get(post_image)
+                if slot is None:
+                    tables[label][post_image] = [commit, {commit}]
+                else:
+                    slot[1].add(commit)
     return {
         path: {
             blob: Revision(slot[0], len(slot[1])) for blob, slot in table.items()
@@ -317,7 +334,10 @@ def collect(
     pending = [item for item in pending if item[2] in known]
     if not pending:
         return []
-    history = historical_blobs(repo, {path for path, _source, _blob in pending}, all_refs)
+    targets: dict[str, set[str]] = {}
+    for path, _source, blob in pending:
+        targets.setdefault(path, set()).add(blob)
+    history = historical_blobs(repo, targets, all_refs)
     refs = ref_blob_tables(repo)
     return [
         Finding(

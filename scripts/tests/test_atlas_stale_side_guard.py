@@ -78,6 +78,58 @@ class StaleSideGuardTestCase(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         return proc.stdout
 
+    def exhaustive_revisions(self, path: str) -> dict[str, guard_git.Revision]:
+        proc = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.repo),
+                *IDENT,
+                "log",
+                "--full-history",
+                "-m",
+                "-z",
+                "--format=COMMIT:%H",
+                "--raw",
+                "--no-abbrev",
+                "--no-renames",
+                "HEAD",
+                "--",
+                path,
+            ],
+            capture_output=True,
+            env=self.environment,
+            timeout=30,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr.decode("utf-8", "replace"))
+        width = 40
+        revisions: dict[str, list] = {}
+        commit = None
+        records = iter(record for record in proc.stdout.split(b"\0") if record)
+        for record in records:
+            normalized = record.lstrip(b"\n")
+            if normalized.startswith(b"COMMIT:"):
+                commit = normalized.removeprefix(b"COMMIT:").decode("ascii")
+                continue
+            self.assertTrue(normalized.startswith(b":"), normalized)
+            fields = normalized.split()
+            label = os.fsdecode(next(records))
+            self.assertEqual(label, path)
+            self.assertIsNotNone(commit)
+            self.assertGreaterEqual(len(fields), 4)
+            blob = fields[3].decode("ascii")
+            if blob == "0" * width:
+                continue
+            slot = revisions.get(blob)
+            if slot is None:
+                revisions[blob] = [commit, {commit}]
+            else:
+                slot[1].add(commit)
+        return {
+            blob: guard_git.Revision(slot[0], len(slot[1]))
+            for blob, slot in revisions.items()
+        }
+
     def write(self, name: str, text: str) -> None:
         """Write bytes verbatim -- `newline=""` keeps CRLF tests honest."""
         (self.repo / name).write_text(text, encoding="utf-8", newline="")
@@ -153,6 +205,116 @@ class StaleSideGuardTestCase(unittest.TestCase):
         # Two revisions carry this content; the newest is the one to name.
         self.assertIn(third[:10], out)
         self.assertIn("2 revision(s)", out)
+
+    def test_merge_parent_revision_remains_the_newest_match(self) -> None:
+        self.write("f.txt", "base\n")
+        self.commit("base")
+        self.git("checkout", "-q", "-b", "side")
+        self.write("f.txt", "side\n")
+        self.commit("side")
+        self.git("checkout", "-q", "main")
+        self.write("f.txt", "kept\n")
+        self.commit("main change")
+        self.git("merge", "-q", "--no-ff", "-s", "ours", "side", "-m", "merge")
+        merge = self.git("rev-parse", "HEAD").strip()
+        self.write("f.txt", "new\n")
+        self.commit("after merge")
+        exhaustive = self.exhaustive_revisions("f.txt")
+        targeted = guard_git.historical_blobs(
+            self.repo, {"f.txt": set(exhaustive)}, False
+        )["f.txt"]
+        self.assertEqual(targeted, exhaustive)
+        self.write("f.txt", "kept\n")
+
+        code, out = self.check()
+
+        self.assertEqual(code, 1, out)
+        self.assertIn(merge[:10], out)
+        self.assertIn("2 revision(s)", out)
+
+    def test_deletion_is_not_counted_as_a_revision_carrying_content(self) -> None:
+        self.write("f.txt", "old\n")
+        first = self.commit("one")
+        (self.repo / "f.txt").unlink()
+        self.commit("delete")
+        self.write("f.txt", "new\n")
+        self.commit("replace")
+        self.write("f.txt", "old\n")
+
+        code, out = self.check()
+
+        self.assertEqual(code, 1, out)
+        self.assertIn(first[:10], out)
+        self.assertIn("1 revision(s)", out)
+
+    def test_mode_only_change_remains_a_post_image_revision(self) -> None:
+        self.write("f.txt", "old\n")
+        self.commit("one")
+        old_blob = self.git("rev-parse", "HEAD:f.txt").strip()
+        self.git("update-index", "--chmod=+x", "f.txt")
+        self.git("commit", "-q", "-m", "executable")
+        mode_change = self.git("rev-parse", "HEAD").strip()
+        self.write("f.txt", "new\n")
+        self.commit("replace")
+        exhaustive = self.exhaustive_revisions("f.txt")
+        targeted = guard_git.historical_blobs(
+            self.repo, {"f.txt": {old_blob}}, False
+        )["f.txt"]
+        self.assertEqual(targeted[old_blob], exhaustive[old_blob])
+        self.write("f.txt", "old\n")
+
+        code, out = self.check()
+
+        self.assertEqual(code, 1, out)
+        self.assertIn(mode_change[:10], out)
+        self.assertIn("2 revision(s)", out)
+
+    def test_history_query_tracks_multiple_candidate_blobs(self) -> None:
+        self.write("f.txt", "first\n")
+        self.write("g.txt", "alpha\n")
+        first = self.commit("one")
+        first_f = self.git("rev-parse", f"{first}:f.txt").strip()
+        first_g = self.git("rev-parse", f"{first}:g.txt").strip()
+        self.write("f.txt", "second\n")
+        self.write("g.txt", "beta\n")
+        second = self.commit("two")
+        second_f = self.git("rev-parse", f"{second}:f.txt").strip()
+
+        history = guard_git.historical_blobs(
+            self.repo,
+            {"f.txt": {first_f, second_f}, "g.txt": {first_g}},
+            False,
+        )
+
+        self.assertEqual(history["f.txt"][first_f], guard_git.Revision(first, 1))
+        self.assertEqual(history["f.txt"][second_f], guard_git.Revision(second, 1))
+        self.assertEqual(history["g.txt"][first_g], guard_git.Revision(first, 1))
+
+    def test_candidate_queries_do_not_cross_contaminate_revisions(self) -> None:
+        contents = ["candidate one\n", "candidate two\n"]
+        self.write("f.txt", contents[0])
+        first_blob = self.git("hash-object", "f.txt").strip()
+        self.write("f.txt", contents[1])
+        second_blob = self.git("hash-object", "f.txt").strip()
+        early_blob, later_blob = sorted((first_blob, second_blob))
+        early_content = contents[0] if early_blob == first_blob else contents[1]
+        later_content = contents[1] if later_blob == second_blob else contents[0]
+
+        self.write("f.txt", early_content)
+        early = self.commit("early")
+        self.write("f.txt", later_content)
+        self.commit("transition")
+        self.write("f.txt", "other\n")
+        self.commit("away")
+        self.write("f.txt", later_content)
+        latest = self.commit("latest")
+
+        history = guard_git.historical_blobs(
+            self.repo, {"f.txt": {early_blob, later_blob}}, False
+        )["f.txt"]
+
+        self.assertEqual(history[early_blob], guard_git.Revision(early, 1))
+        self.assertEqual(history[later_blob], guard_git.Revision(latest, 2))
 
     def test_staged_mode_reads_the_index_not_the_worktree(self) -> None:
         self.one_commit_then_a_revert()

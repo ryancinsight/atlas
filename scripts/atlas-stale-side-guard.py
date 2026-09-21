@@ -125,7 +125,7 @@ def explain(
         return "unchanged content", False
     if blob not in git.existing_blobs(repo, {blob}):
         return "new content", False
-    revision = git.historical_blobs(repo, {path}, all_refs).get(path, {}).get(blob)
+    revision = git.historical_blobs(repo, {path: {blob}}, all_refs).get(path, {}).get(blob)
     if revision is None:
         return "new content", False
     finding = git.Finding(path, "", blob, revision, None)
