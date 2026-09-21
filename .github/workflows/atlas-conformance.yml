@@ -12,19 +12,14 @@
 name: atlas-conformance
 
 on:
+  # No `paths` filter on pull requests, deliberately. Both jobs below are
+  # required status checks named in the `main` ruleset, and a required check
+  # that does not run never reports -- so a pull request touching only an
+  # unlisted path (a `.gitignore` edit, say) is blocked forever rather than
+  # merged unverified. That is the ruleset working as intended; the filter
+  # was the defect. A filter belongs on a job that is *not* required, or on
+  # the push trigger below, where nothing waits on the report.
   pull_request:
-    paths:
-      - 'repos/**'
-      - 'docs/adr/**'
-      - 'scripts/**'
-      # This workflow's `Workflows are valid` job lints every file under
-      # `.github/workflows`, so a change to any of them is a change to what
-      # it checks. Naming only some meant a shellcheck finding in another
-      # (`semver-gate.yml`) could not be seen until something else landed.
-      - '.github/workflows/**'
-      - 'backlog.md'
-      - 'checklist.md'
-      - 'gap_audit.md'
   push:
     branches: [main]
     paths:
