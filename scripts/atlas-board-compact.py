@@ -102,9 +102,13 @@ BODY_CLOSED = re.compile(
     r"completed?)\b",
     re.I,
 )
+# Prose wraps, so every multi-word signal spans whitespace rather than a
+# single space: a line ending in "remains" whose next line opens with "open:"
+# is the case that taught this.
 BODY_OPEN = re.compile(
-    r"^\s*-\s*\[ \]|re-?open trigger|\*\*open\b|still open|remains? open|"
-    r"\bnot yet\b|\btodo\b|\bblocked\b|\bawaiting\b",
+    r"^\s*-\s*\[ \]|re-?open\s+trigger|\*\*open\b|still\s+open|"
+    r"remains?\s+open|in\s+progress|\bnot\s+yet\b|\btodo\b|\bblocked\b|"
+    r"\bawaiting\b",
     re.I | re.M,
 )
 ID_TOKEN = re.compile(r"\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\b")
@@ -180,6 +184,15 @@ def narrative_keep_reason(body: list[str], open_ids: set[str]) -> str | None:
     for tok in ID_TOKEN.findall(text):
         if tok in open_ids:
             return f"references open {tok}"
+    # A narrative section can be the only home of an open item, recorded as a
+    # bullet rather than a heading -- CFDrs keeps CFDRS-LINT-FLOOR-001 ("in
+    # progress ... full closure remains open") inside "Active lint-floor
+    # increment", where the cross-reference rule could never see it: the id
+    # appears nowhere else on the board, so there is no "open elsewhere" to
+    # match.
+    if BODY_OPEN.search(text):
+        ids = ID_TOKEN.findall(text)
+        return f"carries open {ids[0]}" if ids else "carries open work"
     return None
 
 

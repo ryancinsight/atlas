@@ -542,6 +542,33 @@ class RootArgumentTestCase(unittest.TestCase):
             self.assertEqual(_compact.main([str(Path(root) / "absent")]), 2)
 
 
+    def test_a_narrative_section_keeps_its_own_open_work(self) -> None:
+        """Its id is nowhere else, so cross-reference could never keep it."""
+        reason = _compact.narrative_keep_reason(
+            [
+                "",
+                "- **CFDRS-LINT-FLOOR-001 [patch] - in progress:** wire every",
+                "  package to the canonical lint floor. Full closure remains",
+                "  open: workspace all-target clippy still reports debt.",
+            ],
+            open_ids=set(),
+        )
+        self.assertIsNotNone(reason, "a live item was classified as report genre")
+        self.assertIn("CFDRS-LINT-FLOOR-001", reason)
+
+    def test_a_finished_narrative_section_still_deletes(self) -> None:
+        """The keep rule must not become "keep everything"."""
+        reason = _compact.narrative_keep_reason(
+            [
+                "",
+                "Default `931ee3a0` passes hosted run `32222487306`: the gate",
+                "completes format, check, clippy, and tests.",
+            ],
+            open_ids=set(),
+        )
+        self.assertIsNone(reason)
+
+
 class RiskArtifactBodyStatusTests(unittest.TestCase):
     """`gap_audit.md` classifies by prose: a finding's body is its status."""
 
