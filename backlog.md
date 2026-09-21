@@ -10,6 +10,7 @@
 - Acceptance: consumer copies removed, lossless precision retained, progressive
   and orientation fixtures pass, bounded rejection and Windows V06 verified.
 - Scope: shared provider and named consumers only; no release or unrelated format migration.
+- Integration gate: Consus [PR 77](https://github.com/ryancinsight/consus/pull/77) clears provider regressions. Consumer pointer advances remain blocked by pre-existing ratchet increases: Metis oversized files 0→5 and numeric names 0→4; RITK oversized files 45→48, existence assertions 0→2 and oversized images 26→30. Reopen when member counts return to baseline; do not raise baselines.
 
 
 ## Tier 0 — unsoundness and wrong numbers shipping
