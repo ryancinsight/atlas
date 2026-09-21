@@ -1862,15 +1862,27 @@ def scan_stack(
 
 
 def report(results: dict[str, dict[str, int]]) -> None:
+    """Print each ratcheted class with its total and worst offenders.
+
+    Indexing is total in both directions, because neither side of the
+    mapping is guaranteed to match `CLASSES`. A counts dict may carry
+    more: `<meta>` folds in the artifact budget, whose `items_over_budget`
+    is reported and never gated, so it is deliberately not a class -- and
+    an unguarded `totals[k] += v` made every `report` run die on it. A
+    counts dict may also carry less: a partial fixture, or a baseline
+    written before a class existed, omits keys a full scan produces.
+    Either shape is data to render, not a crash.
+    """
     totals = dict.fromkeys(CLASSES, 0)
     for counts in results.values():
         for k, v in counts.items():
-            totals[k] += v
+            if k in totals:
+                totals[k] += v
     width = max(len(k) for k in CLASSES)
     print(f"{'class':<{width}}  total  worst offenders")
     for k in CLASSES:
         worst = sorted(
-            ((r, c[k]) for r, c in results.items() if c[k]),
+            ((r, c[k]) for r, c in results.items() if c.get(k)),
             key=lambda t: -t[1],
         )[:3]
         offenders = ", ".join(f"{r}={n}" for r, n in worst) or "-"

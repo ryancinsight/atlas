@@ -175,6 +175,37 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(payload["host_regressions"], ["demo/target_forks: 0 -> 1"])
         self.assertEqual(result, 1, "host debt still fails the run it is measured on")
 
+    def test_report_renders_counts_that_do_not_match_the_class_list(self) -> None:
+        """A report-only count must not kill the report.
+
+        `<meta>` folds in the artifact budget, which emits
+        `items_over_budget` -- reported, never gated, and so deliberately
+        absent from `CLASSES`. The unguarded accumulator raised
+        `KeyError: 'items_over_budget'` on every `report` run once that
+        key existed, taking out the whole non-`--json` path. The opposite
+        shape is just as real: a partial fixture omits keys a full scan
+        produces, which is why the generate test above had to pass
+        `--json` to avoid this function.
+        """
+        results = {
+            "demo": {"markers": 2, "print_dbg": 1},
+            "<meta>": {"target_forks": 1, "items_over_budget": 9},
+        }
+        output = io.StringIO()
+        with redirect_stdout(output):
+            conformance.report(results)
+        text = output.getvalue()
+
+        self.assertIn("markers", text, "a class with a count is rendered")
+        self.assertIn("demo=2", text, "its worst offender is named")
+        self.assertNotIn(
+            "items_over_budget", text,
+            "a report-only count is not a ratcheted class",
+        )
+        for line in text.splitlines()[1:]:
+            klass = line.split()[0]
+            self.assertIn(klass, conformance.CLASSES)
+
     def test_render_baseline_reproduces_the_committed_file(self) -> None:
         """The generator must reproduce its own committed artifact byte for byte.
 
