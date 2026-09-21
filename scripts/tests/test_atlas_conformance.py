@@ -206,6 +206,35 @@ class AtlasConformanceTestCase(unittest.TestCase):
             klass = line.split()[0]
             self.assertIn(klass, conformance.CLASSES)
 
+    def test_git_ignored_files_are_not_repository_debt(self) -> None:
+        """An ignored path is this machine's, not the repository's.
+
+        A live scan walks the filesystem, so a member's ignored directory
+        was scanned as if it were its own source. apollo ignores
+        `/artifacts/`, which held four identical copies of a probe script,
+        and their eight `println!` calls were reported as library print
+        debt on a repository whose committed tree contains none -- a raise
+        no apollo commit could clear and a CI checkout would never see,
+        exactly like `target_forks` and `root_sprawl_untracked`.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-ignored-") as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            _write(root, ".gitignore", "/artifacts/\n")
+            _write(root, "Cargo.toml",
+                   "[package]\nname = \"demo\"\n")
+            _write(root, "src/lib.rs", "pub fn demo() {}\n")
+            _write(root, "artifacts/probe.rs",
+                   'fn main() { println!("probe"); }\n')
+
+            scanned = {p.name for p, _ in conformance.rust_files(root)}
+
+        self.assertIn("lib.rs", scanned, "tracked source is still scanned")
+        self.assertNotIn(
+            "probe.rs", scanned,
+            "an ignored path is host state, not repository debt",
+        )
+
     def test_render_baseline_reproduces_the_committed_file(self) -> None:
         """The generator must reproduce its own committed artifact byte for byte.
 
