@@ -10,6 +10,7 @@ are verified without a toolchain or network.
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import shutil
@@ -155,6 +156,9 @@ class GateFixture:
                 '[package]\nname = "solo"\nversion = "0.1.0"\nedition = "2021"\n',
             )
             _write(root / "src" / "lib.rs", "pub fn f() {}\n")
+        self.set_workspace_packages(
+            ["unrelated-member", "foo"] if layout == "crates" else ["solo"]
+        )
         _write(root / "Cargo.lock", "# lock\n")
         # A stub lockfile checker in the member-local location the hook
         # expects; records invocation and exits as configured.
@@ -175,6 +179,7 @@ class GateFixture:
             ["git", "-C", str(root), *_IDENT, "commit", "-q", "-m", "seed"],
             check=True,
         )
+
         # An origin with the default branch pushed, so upstream/default
         # logic resolves the way a real clone does -- including `origin/HEAD`,
         # which is what the gate reads on a first push with no upstream yet.
@@ -200,8 +205,37 @@ class GateFixture:
         )
         subprocess.run(
             ["git", "-C", str(root), "branch", "--set-upstream-to",
-             f"origin/{default_branch}"],
+            f"origin/{default_branch}"],
             check=True,
+        )
+
+    def set_workspace_packages(
+        self, names: list[str], workspace_root: pathlib.Path | None = None
+    ) -> None:
+        """Set the Cargo metadata returned by the fixture toolchain."""
+        workspace_root = workspace_root or self.root
+        packages = []
+        for name in names:
+            manifest = (
+                workspace_root / "Cargo.toml"
+                if self.layout == "single"
+                else workspace_root / "crates" / name / "Cargo.toml"
+            )
+            packages.append(
+                {
+                    "id": f"fixture:{name}",
+                    "name": name,
+                    "manifest_path": str(manifest.resolve()),
+                }
+            )
+        _write(
+            self.bin / "metadata.json",
+            json.dumps(
+                {
+                    "packages": packages,
+                    "workspace_members": [package["id"] for package in packages],
+                }
+            ),
         )
 
     def set_cargo_behavior(self, mode: str) -> None:
@@ -267,7 +301,12 @@ class GateFixture:
         _write(
             stub,
             "#!/usr/bin/env bash\n"
-            f'FIXTURE_ROOT="{self.root}"\n' + body,
+            f'FIXTURE_ROOT="{self.root}"\n'
+            'if [ "$1" = "metadata" ]; then\n'
+            '  cat "$FIXTURE_ROOT/bin/metadata.json"\n'
+            "  exit 0\n"
+            "fi\n"
+            + body,
             executable=True,
         )
 
@@ -374,6 +413,185 @@ class NewBranchRangeTestCase(unittest.TestCase):
 class PackageMapperTestCase(unittest.TestCase):
     """Changed paths map to owning packages in both layouts."""
 
+    def test_merged_default_assets_do_not_expand_the_feature_gate(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
+                 "-b", "feat"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), "checkout", "-q", "main"],
+                check=True,
+            )
+            _write(
+                fixture.root / "fuzz" / "Cargo.toml",
+                '[package]\nname = "consus-fuzz"\nversion = "0.0.0"\n'
+                "[workspace]\n",
+            )
+            _write(fixture.root / "fuzz" / "corpus" / "seed", "seed\n")
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add", "fuzz"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+                 "-m", "default corpus"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "push", "-q",
+                 "origin", "HEAD:main"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), "checkout", "-q", "feat"],
+                check=True,
+            )
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn f() {}\n// feature\n"
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-qam",
+                 "feature"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "merge", "-q",
+                 "--no-edit", "origin/main"],
+                check=True,
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating foo", stderr)
+            calls = fixture.calls.read_text(encoding="utf-8")
+            self.assertIn("-p foo", calls)
+            self.assertNotIn("consus-fuzz", calls)
+
+    def test_fixture_only_change_gates_its_workspace_package(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
+                 "-b", "feat"],
+                check=True,
+            )
+            binary_fixture = (
+                fixture.root / "crates" / "foo" / "tests" / "fixtures" / "sample.bin"
+            )
+            binary_fixture.parent.mkdir(parents=True, exist_ok=True)
+            binary_fixture.write_bytes(b"\x00\xff\x80fixture\x00")
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add", "crates/foo"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+                 "-m", "fixture"],
+                check=True,
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating foo", stderr)
+            self.assertIn(
+                "-p foo", fixture.calls.read_text(encoding="utf-8")
+            )
+
+    def test_excluded_workspace_changes_refuse_without_parent_package_flag(self) -> None:
+        cases = (
+            ("fuzz/src/main.rs", "consus-fuzz"),
+            ("fuzz/corpus/seed", "consus-fuzz"),
+            ("fuzz/src/name_collision.rs", "foo"),
+        )
+        for changed_path, package_name in cases:
+            with self.subTest(
+                changed_path=changed_path, package_name=package_name
+            ), tempfile.TemporaryDirectory(
+                prefix="atlas-gate-"
+            ) as temp:
+                fixture = GateFixture(pathlib.Path(temp))
+                _write(
+                    fixture.root / "fuzz" / "Cargo.toml",
+                    f'[package]\nname = "{package_name}"\nversion = "0.0.0"\n'
+                    '[workspace]\n',
+                )
+                subprocess.run(
+                    ["git", "-C", str(fixture.root), *_IDENT, "add", "fuzz"],
+                    check=True,
+                )
+                subprocess.run(
+                    ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+                     "-m", "fuzz workspace"],
+                    check=True,
+                )
+                subprocess.run(
+                    ["git", "-C", str(fixture.root), *_IDENT, "push", "-q",
+                     "origin", "HEAD:main"],
+                    check=True,
+                )
+                subprocess.run(
+                    ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
+                     "-b", "feat"],
+                    check=True,
+                )
+                _write(fixture.root / changed_path, "changed\n")
+                subprocess.run(
+                    ["git", "-C", str(fixture.root), *_IDENT, "add", changed_path],
+                    check=True,
+                )
+                subprocess.run(
+                    ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+                     "-m", "fuzz input"],
+                    check=True,
+                )
+
+                code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+                self.assertEqual(code, 1, stderr)
+                self.assertIn("excluded from the parent", stderr)
+                self.assertIn("fuzz/Cargo.toml", stderr)
+                calls = (
+                    fixture.calls.read_text(encoding="utf-8")
+                    if fixture.calls.exists()
+                    else ""
+                )
+                self.assertNotIn("-p consus-fuzz", calls)
+                if package_name == "foo":
+                    self.assertNotIn("clippy", calls)
+
+    def test_nested_virtual_workspace_manifest_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
+                 "-b", "feat"],
+                check=True,
+            )
+            _write(
+                fixture.root / "tools" / "Cargo.toml",
+                '[workspace]\nresolver = "3"\nmembers = []\n',
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add", "tools/Cargo.toml"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+                 "-m", "nested workspace"],
+                check=True,
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("excluded from the parent", stderr)
+            self.assertIn("tools/Cargo.toml", stderr)
+
     def test_single_crate_root_sources_gate_the_root_package(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture(pathlib.Path(temp), layout="single")
@@ -396,7 +614,7 @@ class PackageMapperTestCase(unittest.TestCase):
                 check=True,
             )
             code, stderr = fixture.run_hook(fixture.push_line_new_branch())
-            self.assertEqual(code, 0)
+            self.assertEqual(code, 0, stderr)
             self.assertIn("gating solo", stderr)
             calls = (fixture.root / "calls.log").read_text(encoding="utf-8")
             self.assertIn("-p solo", calls)
@@ -829,6 +1047,7 @@ class LaneGateTestCase(unittest.TestCase):
 
     def _run_in_lane(self, fixture: GateFixture, lane: pathlib.Path,
                      extra_env: dict | None = None) -> tuple:
+        fixture.set_workspace_packages(["unrelated-member", "foo"], lane)
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
         env.pop("CARGO_TARGET_DIR", None)

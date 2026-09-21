@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 import textwrap
 import unittest
+from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -420,6 +421,52 @@ class HookCommitTestCase(unittest.TestCase):
             )
 
             self.assertIsNone(commit)
+
+class HookDeploymentTestCase(unittest.TestCase):
+    def test_selected_members_receive_exact_owned_hooks(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as temp:
+            repos = Path(temp)
+            for member in ("alpha", "beta"):
+                (repos / member / ".githooks").mkdir(parents=True)
+                (repos / member / ".githooks/pre-push").write_bytes(b"previous\n")
+            with patch.object(_lock_form, "REPOS", repos), patch.object(
+                _lock_form, "registered_member_names", return_value=["alpha", "beta"]
+            ):
+                self.assertEqual(
+                    _lock_form.cmd_sync_hooks(Namespace(members=["alpha"], check=False)), 0
+                )
+                source = SCRIPT.parent / "git-hooks/pre-push"
+                self.assertEqual(
+                    (repos / "alpha/.githooks/pre-push").read_bytes(), source.read_bytes()
+                )
+                self.assertEqual(
+                    (repos / "beta/.githooks/pre-push").read_bytes(), b"previous\n"
+                )
+                self.assertEqual(
+                    _lock_form.cmd_sync_hooks(Namespace(members=["alpha"], check=True)), 0
+                )
+                self.assertEqual(
+                    _lock_form.cmd_sync_hooks(Namespace(members=[], check=True)), 1
+                )
+                self.assertEqual(
+                    _lock_form.cmd_sync_hooks(Namespace(members=[], check=False)), 0
+                )
+                self.assertEqual(
+                    _lock_form.cmd_sync_hooks(Namespace(members=[], check=True)), 0
+                )
+
+    def test_unknown_member_is_rejected_before_writing(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as temp:
+            repos = Path(temp)
+            with patch.object(_lock_form, "REPOS", repos), patch.object(
+                _lock_form, "registered_member_names", return_value=["alpha"]
+            ):
+                self.assertEqual(
+                    _lock_form.cmd_sync_hooks(Namespace(members=["../other"], check=False)),
+                    2,
+                )
+                self.assertEqual(list(repos.iterdir()), [])
+
 
 if __name__ == "__main__":
     unittest.main()
