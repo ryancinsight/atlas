@@ -54,8 +54,69 @@ def _image(size: int) -> bytes:
 
 
 class BoardBudgetTest(unittest.TestCase):
-    def test_filesystem_board_names_match_git_tree_names(self) -> None:
-        for relative in ("CHECKLIST.md", "BACKLOG/item.md", "backlog/item.MD"):
+    def test_board_names_resolve_by_canonical_name_not_spelling(self) -> None:
+        """Four members track `CHECKLIST.md`; that file is their checklist board.
+
+        Matching the path case-sensitively bounded none of them -- they carried
+        1,156 to 4,328 lines and still reported `pm_lines_over_budget: 0`, so the
+        gate could not see the largest boards in the stack.
+        """
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "backlog.md").write_text(_lines(5), encoding="utf-8")
+            (root / "CHECKLIST.md").write_text(_lines(120), encoding="utf-8")
+            _commit(root, "case-distinct board path")
+            expected = {"CHECKLIST.md": 120, "backlog.md": 5}
+            self.assertEqual(budget.board_lines(root, "HEAD"), expected)
+            self.assertEqual(budget.board_lines(root), expected)
+
+    def test_uppercase_checklist_is_bounded_by_the_line_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "CHECKLIST.md").write_text(_lines(120), encoding="utf-8")
+            _commit(root, "board")
+            failures, _ = budget.evaluate(root, None, line_budget=100)
+            self.assertEqual(len(failures), 1)
+            self.assertIn("CHECKLIST.md: 120 lines, 20 over", failures[0])
+            counts = budget.counts(root, line_budget=100)
+            self.assertEqual(counts["pm_lines_over_budget"], 20)
+
+    def test_uppercase_checklist_ratchets_like_any_other_board(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "CHECKLIST.md").write_text(_lines(120), encoding="utf-8")
+            base = _commit(root, "board")
+            (root / "CHECKLIST.md").write_text(_lines(130), encoding="utf-8")
+            failures, _ = budget.evaluate(root, base, line_budget=100)
+            self.assertEqual(len(failures), 1)
+            self.assertIn("grew from 120", failures[0])
+            (root / "CHECKLIST.md").write_text(_lines(110), encoding="utf-8")
+            failures, warnings = budget.evaluate(root, base, line_budget=100)
+            self.assertEqual(failures, [])
+            self.assertEqual(len(warnings), 1)
+            self.assertIn("held or shrank from 120", warnings[0])
+
+    def test_case_only_rename_ratchets_against_the_same_board(self) -> None:
+        """A board ratchets by canonical identity, so respelling it is not one
+        board vanishing and another appearing between `--base` and the push."""
+        self.assertEqual(
+            budget._ratchet_previous({"CHECKLIST.md": 120}, "checklist.md"), 120
+        )
+        self.assertEqual(
+            budget._ratchet_previous({"checklist.md": 90}, "CHECKLIST.md"), 90
+        )
+        self.assertIsNone(budget._ratchet_previous({"backlog.md": 1}, "gap_audit.md"))
+
+    def test_item_file_paths_stay_case_sensitive(self) -> None:
+        """Board names resolve by canonical name; item files do not.
+
+        `BACKLOG/` is not the `backlog/` item directory and `item.MD` is not an
+        item file, so neither folds into `backlog.md`'s budgeted total.
+        """
+        for relative in ("BACKLOG/item.md", "backlog/item.MD"):
             with self.subTest(relative=relative), tempfile.TemporaryDirectory() as temp:
                 root = Path(temp)
                 _repo(root)
@@ -63,12 +124,26 @@ class BoardBudgetTest(unittest.TestCase):
                 other = root / relative
                 other.parent.mkdir(exist_ok=True)
                 other.write_text(_lines(120), encoding="utf-8")
-                _commit(root, "case-distinct board path")
+                _commit(root, "case-distinct item path")
                 expected = {"backlog.md": 5}
                 self.assertEqual(budget.board_lines(root, "HEAD"), expected)
                 self.assertEqual(budget.board_lines(root), expected)
                 self.assertEqual(budget.oversized_item_files(root), {})
                 self.assertEqual(budget.counts(root)["pm_lines_over_budget"], 0)
+
+    def test_cli_check_fails_on_an_uppercase_board_over_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "CHECKLIST.md").write_text(_lines(120), encoding="utf-8")
+            _commit(root, "board")
+            proc = subprocess.run(
+                [sys.executable, str(SCRIPT), "check", "--root", str(root),
+                 "--line-budget", "100"],
+                capture_output=True, text=True, env=GIT_ENV,
+            )
+            self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+            self.assertIn("CHECKLIST.md: 120 lines, 20 over", proc.stdout)
 
     def test_under_budget_board_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

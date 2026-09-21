@@ -29,6 +29,17 @@ board. Each item file additionally carries its own fifteen-line budget,
 reported (never gated -- a real item can legitimately run long) as
 `items_over_budget` and, under `check`, as `INFO` lines.
 
+A board's identity is its canonical name, not its spelling. Four member
+repositories track `CHECKLIST.md`, and matching the path case-sensitively
+bounded none of them: they reported `pm_lines_over_budget: 0` while carrying
+1,156 to 4,328 lines, so a gate could not see the largest boards in the
+stack. The three canonical names are resolved per repository by their
+canonical name (`_board_paths`), and a board is ratcheted by that identity
+too, so a case-only rename between `--base` and the pushed revision does not
+read as one board vanishing and another appearing. Every other lookup keeps
+`_exact_path`'s case sensitivity: `BACKLOG/item.MD` is still not
+`backlog/item.md`.
+
 Without `--base` there is nothing to ratchet against, and every overage
 fails. `report` prints the three counts the conformance scanner records per
 member (`pm_lines_over_budget`, `oversized_tracked_images`,
@@ -138,8 +149,37 @@ def _read_text(root: Path, relpath: str, ref: str | None) -> str:
         return ""
 
 
+def _board_paths(root: Path, ref: str | None = None) -> list[str]:
+    """Tracked paths of this repository's boards, resolved by canonical name.
+
+    A board is the file a repository tracks under a canonical `PM_FILES` name,
+    whatever case it spells: `CHECKLIST.md` is the checklist board in the four
+    members that spell it that way, and skipping it bounded nothing there.
+    Paths are returned rather than one match per canonical name because a
+    case-sensitive filesystem can legitimately hold two spellings, and each
+    counts; on a case-insensitive filesystem the directory listing yields one
+    entry either way, so no board is double counted.
+    """
+    canonical = {name.lower() for name in PM_FILES}
+    if ref is None:
+        if not root.is_dir():
+            return []
+        found = [
+            entry.name for entry in root.iterdir()
+            if entry.is_file() and entry.name.lower() in canonical
+        ]
+    else:
+        try:
+            listing = _git(root, "ls-tree", "--name-only", ref)
+        except subprocess.CalledProcessError:
+            return []
+        found = [line for line in listing.splitlines() if line.lower() in canonical]
+    return sorted(found)
+
+
 def board_lines(root: Path, ref: str | None = None) -> dict[str, int]:
-    """Line count per PM file present at `ref` (or in the tree when None).
+    """Line count per board present at `ref` (or in the tree when None),
+    keyed by the path the repository tracks for it.
 
     `backlog.md`'s count folds in its per-item files under `backlog/`
     (`backlog/<anchor>.md`): the board-compaction migration moved item
@@ -148,23 +188,26 @@ def board_lines(root: Path, ref: str | None = None) -> dict[str, int]:
     would have carried, measured across the files it now spans.
     """
     counts: dict[str, int] = {}
-    for name in PM_FILES:
-        if ref is None:
-            path = _exact_path(root, name)
-            if path is None or not path.is_file():
-                continue
-            text = path.read_text(encoding="utf-8", errors="replace")
-        else:
-            try:
-                text = _git(root, "show", f"{ref}:{name}")
-            except subprocess.CalledProcessError:
-                continue
-        total = _line_count(text)
-        if name == "backlog.md":
+    for relpath in _board_paths(root, ref):
+        total = _line_count(_read_text(root, relpath, ref))
+        if relpath.lower() == "backlog.md":
             for item_path in _item_file_paths(root, ref):
                 total += _line_count(_read_text(root, item_path, ref))
-        counts[name] = total
+        counts[relpath] = total
     return counts
+
+
+def _ratchet_previous(counts: dict[str, int], name: str) -> int | None:
+    """The base count for the board `name`, tolerating a case-only rename.
+
+    Boards ratchet by canonical identity, so a repository that renamed
+    `CHECKLIST.md` to `checklist.md` between `--base` and the pushed revision
+    compares against the same board rather than reading as one that vanished.
+    """
+    if name in counts:
+        return counts[name]
+    lowered = name.lower()
+    return next((n for path, n in counts.items() if path.lower() == lowered), None)
 
 
 def oversized_item_files(
@@ -251,7 +294,7 @@ def evaluate(root: Path, base: str | None, line_budget: int = LINE_BUDGET,
         if lines <= line_budget:
             continue
         overage = lines - line_budget
-        previous = before.get(name)
+        previous = _ratchet_previous(before, name)
         if base is None:
             failures.append(
                 f"{name}: {lines} lines, {overage} over the {line_budget}-line budget"

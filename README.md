@@ -1104,7 +1104,7 @@ member and a hand-rolled copy is the duplication defect. GitHub forbids
 | `adr-index-guard.yml` | `docs/adr/README.md` matches the one generator, `scripts/adr-index.py`; `strict: true` also requires the canonical `# ADR NNNN: Title` heading and heading/filename number agreement | `directory` (default `docs/adr`), `strict` |
 | `semver-gate.yml` | `cargo-semver-checks` over the published surface; the release gate fails a break under a non-major bump, the informational twin reports | `package`, `manifest-path`, `rust-toolchain` |
 | `book-pages.yml` | mdBook build with `mdbook test`, Pages artifact and deploy | book path and Pages inputs |
-| `artifact-budget.yml` | PM boards (`backlog.md`, `checklist.md`, `gap_audit.md`) within their line budget and tracked images within their byte budget, ratchet-to-budget against the PR base: an over-budget board may not grow, an oversized image may not be added or touched | `line-budget` (default 1000), `image-budget-bytes` (default 204800) |
+| `artifact-budget.yml` | PM boards (`backlog.md`, `checklist.md`, `gap_audit.md`, resolved by canonical name whatever case a member spells them -- four track `CHECKLIST.md`) within their line budget and tracked images within their byte budget, ratchet-to-budget against the PR base: an over-budget board may not grow, an oversized image may not be added or touched | `line-budget` (default 1000), `image-budget-bytes` (default 204800) |
 | `crates-publish.yml` | dependency-ordered `cargo publish` through OIDC trusted publishing | release inputs |
 | `python-wheels.yml` | maturin wheel matrix, sdist, per-wheel smoke test | package inputs |
 
