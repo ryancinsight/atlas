@@ -818,7 +818,6 @@ Final gitlink-coherence state at Session 30 close: **25 probed | 4 defects | 1 s
 | CFDrs Aequitas closure advance | `c2cad74` | build(atlas) | Peer-owned |
 
 <a id="atlas-hephaestus-host-seam-coverage"></a>- [ATLAS-HEPHAESTUS-HOST-SEAM-COVERAGE](backlog/atlas-hephaestus-host-seam-coverage.md) — `hephaestus-host` implements every seam the conformance suite is generic over [arch][major] — in-progress
-<a id="atlas-hooks-follow-checkout-2026-09-18"></a>- [ATLAS-HOOKS-FOLLOW-CHECKOUT-2026-09-18](backlog/atlas-hooks-follow-checkout-2026-09-18.md) — The installed atlas hooks are whatever branch the shared tree holds [patch] — todo
 <a id="atlas-solver-ownership-consolidation"></a>- [ATLAS-SOLVER-OWNERSHIP-CONSOLIDATION](backlog/atlas-solver-ownership-consolidation.md) — Complete ADR 0033: the Krylov forks and the only multigrid in the stack live in CFDrs [arch][major] — todo
 <a id="atlas-prepush-hook-forked-across-members-2026-09-09"></a>- [ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09](backlog/atlas-prepush-hook-forked-across-members-2026-09-09.md) — One gate, twenty-three copies, six versions [patch] [ci] — in-progress
 <a id="atlas-coeus-branch-inventory-2026-09-09"></a>- [ATLAS-COEUS-BRANCH-INVENTORY-2026-09-09](backlog/atlas-coeus-branch-inventory-2026-09-09.md) — Fifteen coeus branches hold unique work nobody is finishing [patch] — in-progress
@@ -963,3 +962,4 @@ Final gitlink-coherence state at Session 30 close: **25 probed | 4 defects | 1 s
 <a id="crlf-stored-blobs"></a>- [ATLAS-CRLF-STORED-BLOBS-2026-09-08](backlog/crlf-stored-blobs.md) — Committed blobs contradict the declared line-ending policy [patch] — in-progress
 <a id="ratchet-regression-set"></a>- [ATLAS-RATCHET-REGRESSION-SET-2026-09-08](backlog/ratchet-regression-set.md) — Seven ratchet regressions arrived with peers' merges [patch] — todo
 <a id="atlas-helios-bench-local-instrument-2026-09-18"></a>- [ATLAS-HELIOS-BENCH-LOCAL-INSTRUMENT-2026-09-18](backlog/atlas-helios-bench-local-instrument-2026-09-18.md) — helios runs wall-clock benchmark regression on hosted CI [arch] — todo
+<a id="atlas-shared-tree-stale-basis-2026-09-17"></a>- [ATLAS-SHARED-TREE-STALE-BASIS-2026-09-17](backlog/atlas-shared-tree-stale-basis-2026-09-17.md) — Reconcile the checkout and finish its stale-index guard [patch] — in-progress

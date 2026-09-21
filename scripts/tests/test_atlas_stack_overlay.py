@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
 import tempfile
 import tomllib
@@ -211,7 +212,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
                 _overlay, "collect_first_party_deps", return_value=dependencies
             ):
                 block, missing, lag = _overlay.build_overlay(packages)
-            metadata = fixture.resolve(block, toolchain, SCRIPT.parent.parent)
+            metadata = fixture.resolve(block, toolchain)
             cores = [package for package in metadata["packages"] if package["name"] == "overlay-core"]
             self.assertEqual(missing, [])
             self.assertEqual(len(lag), 1)
@@ -223,7 +224,29 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             nodes = {node["id"]: node for node in metadata["resolve"]["nodes"]}
             self.assertEqual(nodes[transport["id"]]["dependencies"], [current["id"]])
             self.assertIn(current["id"], nodes[metadata["resolve"]["root"]]["dependencies"])
-            fixture.check(toolchain, SCRIPT.parent.parent)
+            fixture.check(toolchain)
+            # The compile landed in the fixture's own cache, and nowhere in the
+            # checkout. `CACHEDIR.TAG` is written by cargo at a target
+            # directory's root, so its presence is evidence of a real cache
+            # rather than of an empty directory a path assertion would accept.
+            self.assertTrue((fixture.target / "CACHEDIR.TAG").is_file())
+            self.assertFalse((fixture.consumer / "target").exists())
+            self.assertFalse((fixture.source / "target").exists())
+
+    def test_fixture_builds_in_its_own_target_not_the_shared_stack_cache(self) -> None:
+        """A fixture run must not route into -- or wait on -- the stack cache.
+
+        The stack's bootstrap scripts export `CARGO_TARGET_DIR`, and the root
+        config accepts that concurrent builds serialize on its build lock, so a
+        fixture that inherited either would make its own duration a function of
+        whatever else is compiling on the machine.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-isolation-") as directory:
+            root = Path(directory)
+            with patch.dict(os.environ, {"CARGO_TARGET_DIR": str(root / "stack-target")}):
+                fixture = _fixture.CargoOverlayFixture(root)
+            self.assertEqual(fixture.target, root / "target")
+            self.assertEqual(fixture.environment["CARGO_TARGET_DIR"], str(fixture.target))
 
 
 class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):

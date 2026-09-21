@@ -28,7 +28,10 @@ def _git(directory: Path, *arguments: str) -> str:
     """Run a git command in `directory` and return its stdout."""
     process = subprocess.run(
         ["git", "-C", str(directory), *arguments],
-        check=True, capture_output=True, text=True, encoding="utf-8",
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
     )
     return process.stdout
 
@@ -91,7 +94,8 @@ def _run_with_members(members: dict[str, dict[str, bool]]) -> subprocess.Complet
                     "git", "-C", str(root), "update-index", "--add", "--cacheinfo",
                     f"160000,{revision},repos/{member}",
                 ],
-                check=True, capture_output=True,
+                check=True,
+                capture_output=True,
             )
 
         return subprocess.run(

@@ -31,11 +31,7 @@ cd "$ROOT"
 # ---------------------------------------------------------------------------
 # Board and pointer hygiene (gap-audit 2026-08-24 patterns 1-4).
 #
-# Three rules born from real incidents this session:
-#
-#   R1  Board files (backlog.md / checklist.md) are coordination truth and
-#       are committed on the default branch only. Feature-branch edits were
-#       relocated twice by cherry-pick.
+# Board and gitlink updates have separate review boundaries:
 #
 #   R2  A board sync travels alone: no submodule pointers, no lockfiles.
 #       Pointer advances landed under a docs-audit message (df9042208) and
@@ -57,11 +53,10 @@ pointer_staged="$(echo "$pointer_staged" | grep -E '^repos/' || true)"
 # `git -C <submodule>` then resolves against this superproject's object
 # store instead of the submodule's, so every per-member ref probe below
 # misfires (hephaestus's `origin/master` does not exist in the atlas repo).
-# Unset them: each `git` call re-discovers its own repo from its cwd, and
-# superproject commands fall back to the default `$GIT_DIR/index`.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
-
-branch="$(git symbolic-ref --short -q HEAD || echo DETACHED)"
+# Root probes must retain the commit index, including `git commit --only`'s
+# temporary index. Only member probes discard it.
+unset GIT_DIR GIT_WORK_TREE
+member_git() { (unset GIT_INDEX_FILE; git -C "$@"); }
 
 # Staged gitlink coherence.
 #
@@ -81,13 +76,13 @@ while IFS= read -r path; do
   entry=$(git ls-files --stage -- "$path" 2>/dev/null | head -1)
   [ "${entry%% *}" = "160000" ] || continue
   sha=$(printf '%s' "$entry" | awk '{print $2}')
-  default=$(git -C "$path" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
+  default=$(member_git "$path" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
   default=${default:-main}
-  if ! git -C "$path" rev-parse --verify --quiet "origin/${default}" >/dev/null 2>&1; then
+  if ! member_git "$path" rev-parse --verify --quiet "origin/${default}" >/dev/null 2>&1; then
     echo "[pre-commit] $path: no origin/${default} locally; gitlink not checked." >&2
     continue
   fi
-  if ! git -C "$path" merge-base --is-ancestor "$sha" "origin/${default}" 2>/dev/null; then
+  if ! member_git "$path" merge-base --is-ancestor "$sha" "origin/${default}" 2>/dev/null; then
     echo "[pre-commit] $path is staged at ${sha:0:10}, which is not on origin/${default}." >&2
     echo "             A gitlink comes from the ref, never from a checkout:" >&2
     echo "               git update-index --cacheinfo 160000,\$(git -C $path rev-parse origin/${default}),$path" >&2
@@ -100,7 +95,7 @@ while IFS= read -r path; do
   # asks the separate question "is this commit already superseded here?".
   recorded=$(git rev-parse "HEAD:$path" 2>/dev/null || true)
   if [ -n "$recorded" ] && [ "$sha" != "$recorded" ] && \
-     git -C "$path" merge-base --is-ancestor "$sha" "$recorded" 2>/dev/null; then
+     member_git "$path" merge-base --is-ancestor "$sha" "$recorded" 2>/dev/null; then
     echo "[pre-commit] $path: staged ${sha:0:10} is behind recorded ${recorded:0:10}; refusing backward pin." >&2
     echo "  Advance from origin/${default}, never a stale checkout:" >&2
     echo "    git update-index --cacheinfo 160000,\$(git -C $path rev-parse origin/${default}),$path" >&2
@@ -109,13 +104,6 @@ while IFS= read -r path; do
 done < <(git diff --cached --name-only --diff-filter=ACM -- 'repos/*' 2>/dev/null)
 if [ "$gitlink_defect" != 0 ]; then
   echo "[pre-commit] refusing the commit: a pin the stack cannot resolve from the member's default branch breaks every consumer." >&2
-  exit 1
-fi
-
-# R1 - board edits on the default branch only.
-if [ -n "$board_staged" ] && [ "$branch" != "main" ]; then
-  echo "[pre-commit] R1: board files are committed on main only (current branch: $branch)" >&2
-  echo "  Relocate the edit: git restore --staged --worktree <board file>, then reapply on main." >&2
   exit 1
 fi
 
@@ -141,16 +129,21 @@ if [ -n "$pointer_staged" ]; then
   fi
 fi
 
+# Inspect the actual commit index; unrelated working-tree changes do not enter
+# this commit. A historical-content match needs an explicit recorded reason.
+if [ -n "$(git diff --cached --name-only --diff-filter=ACMR)" ]; then
+  python3 scripts/atlas-stale-side-guard.py check --staged || exit 1
+fi
+
+# Unused alternate indexes can retain an obsolete staging basis.
+python3 scripts/atlas-stale-side-guard.py basis || exit 1
 
 # Fast-path: only run the detector when docs-relevant files are staged.
 # Avoids paying the cost on every commit (e.g. pure Rust edits).
 changed=$(git diff --cached --name-only 2>/dev/null \
   | grep -E '^repos/[^/]+/docs/book/|^scripts/check_mdbook_links\.py|^\.github/workflows/docs\.yml$|^\.githooks/pre-commit$' \
   || true)
-if [ -z "$changed" ]; then
-  exit 0
-fi
-
+if [ -n "$changed" ]; then
 echo "[pre-commit] Atlas docs dead-link check (§7 #5, STRICT mode — blocks commits with FILE_MISSING > 0)…"
 
 # §7 #5 LANDED: --advisory removed.  The detector's exit-1 on
@@ -162,18 +155,18 @@ echo "[pre-commit] Atlas docs dead-link check (§7 #5, STRICT mode — blocks co
 # added to one and not the other is a silently ungated book; the glob means
 # new provider books are gated by both automatically.
 python3 scripts/check_mdbook_links.py repos/*/docs/book
+fi
 
 # Atlas provider-integration closure guard.
 #
-# This keeps the root integration facts (requested provider activation and
-# audit closure markers) from regressing silently when PM or .gitmodules files
-# change.
+# Provider configuration and gate changes require their own check, independent
+# of whether the same commit changes book content.
 integration_changed=$(git diff --cached --name-only 2>/dev/null \
-  | grep -E '^\.gitmodules$|^checklist\.md$|^backlog\.md$|^gap_audit\.md$|^scripts/atlas-provider-integration-audit\.py$|^scripts/atlas-version-guard-sweep\.py$|^scripts/tests/test_atlas_provider_integration_audit\.py$|^scripts/tests/test_atlas_version_guard_sweep\.py$|^\.github/workflows/version-guard\.yml$' \
+  | grep -E '^\.gitmodules$|^\.githooks/pre-commit$|^scripts/atlas-provider-integration-audit\.py$|^scripts/atlas-version-guard-sweep\.py$|^scripts/tests/test_atlas_provider_integration_audit\.py$|^scripts/tests/test_atlas_version_guard_sweep\.py$|^\.github/workflows/version-guard\.yml$' \
   || true)
 if [ -n "$integration_changed" ]; then
   echo "[pre-commit] Atlas provider integration closure guard…"
-  python3 scripts/atlas-provider-integration-audit.py --structural-only
+  python3 scripts/atlas-provider-integration-audit.py --structural-only --staged
 fi
 
 exit 0

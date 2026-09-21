@@ -73,6 +73,9 @@ def main(argv: list[str] | None = None) -> int:
             "version-guard", coherence_arguments(arguments), env=env
         ).returncode,
         lambda: run_step(
+            [sys.executable, str(ROOT / "scripts" / "atlas-governance-gate.py")], env=env
+        ),
+        lambda: run_step(
             [sys.executable, str(ROOT / "scripts" / "atlas-provider-integration-audit.py")], env=env
         ),
     ]
@@ -82,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
             return code
     print(
         f"version-guard sweep: OK - toolchain preflight, coherence ({view} view),"
-        " and provider integration guard clean"
+        " governance gate, and provider integration guard clean"
     )
     return 0
 
