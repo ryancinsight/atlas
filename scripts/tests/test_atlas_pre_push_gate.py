@@ -188,6 +188,17 @@ class GateFixture:
              str(root / "upstream.git"), "--bare"],
             check=True,
         )
+        # The remote is bare, so it carries no `.git` entry for git to
+        # recognise and skip: without this exclude a `git add -A` in a
+        # test walks it as ordinary files and indexes the remote's own
+        # HEAD, config, hooks and object store into the repository under
+        # test. That both feeds the gate a diff of hundreds of files it
+        # should never see, and races the push writing those objects --
+        # `fatal: unable to stat upstream.git/objects/..` when a loose
+        # object is packed away between readdir and stat, which is how it
+        # surfaced (a required check, failing on an unrelated pull
+        # request). A directory pattern prunes the traversal outright.
+        _write(root / ".git" / "info" / "exclude", "upstream.git/\n")
         subprocess.run(
             ["git", "-C", str(root), "remote", "add", "origin",
              str(root / "upstream.git")],
@@ -764,6 +775,38 @@ class MissingToolchainTestCase(unittest.TestCase):
             )
             self.assertEqual(code, 0)
             self.assertIn("no cargo toolchain found", stderr)
+
+
+class FixtureRemoteTestCase(unittest.TestCase):
+    """The fixture's own remote is not content of the repository under test.
+
+    `upstream.git` is bare, so it carries no `.git` entry for git to
+    recognise and skip, and it sits inside the work tree. Before the
+    exclude, a `git add -A` indexed the remote's HEAD, config, hooks and
+    object store -- every gate test then ran against a diff of hundreds
+    of files the gate should never see, and the traversal raced the push
+    writing those objects (`fatal: unable to stat
+    upstream.git/objects/..`), which is how it surfaced.
+    """
+
+    def test_add_all_does_not_index_the_bare_remote(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add", "-A"],
+                check=True,
+            )
+            tracked = subprocess.run(
+                ["git", "-C", str(fixture.root), "ls-files"],
+                capture_output=True, text=True, check=True,
+            ).stdout.splitlines()
+
+        remote = [f for f in tracked if f.startswith("upstream.git/")]
+        self.assertEqual(
+            remote, [],
+            "the fixture's remote is infrastructure, not repository content",
+        )
+        self.assertTrue(tracked, "the repository under test still has content")
 
 
 class SafetyRatchetTestCase(unittest.TestCase):
