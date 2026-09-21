@@ -1,0 +1,60 @@
+# Conformance guard (shared gate): a member's debt classes may not rise above
+# the counts atlas records for it.
+#
+# Same shape as artifact-budget.yml and adr-index-guard.yml: check out the
+# caller, check out atlas into `_atlas`, run atlas's one script against the
+# caller's tree.
+#
+# This is the half that was missing. Every debt class was enforced only at the
+# umbrella, where `--repo NAME` resolves `repos/NAME` in the stack checkout, so
+# a member's own pull request could not fail on a raise -- the stack learned
+# about it on the next gitlink advance, after importing it. metis's
+# `oversized_files` and `type_suffixed_fns` were closed to zero on 2026-09-10
+# and stood at 7 and 4 eleven days later, which is the cost of learning late.
+#
+# Callers:
+#   conformance:
+#     uses: ryancinsight/atlas/.github/workflows/conformance-guard.yml@<sha>
+#     with:
+#       atlas-ref: <sha>
+#       member: <this repository's name under repos/ in atlas>
+
+name: Conformance guard (shared gate)
+
+on:
+  workflow_call:
+    inputs:
+      atlas-ref:
+        description: Exact Atlas revision matching the caller's uses reference
+        required: true
+        type: string
+      member:
+        description: This repository's name under repos/ in atlas, whose baseline row the counts are judged against
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: Debt classes at or below the recorded baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          path: _atlas
+          # In a called workflow the github context belongs to the caller, so
+          # github.workflow_sha identifies the caller revision rather than this
+          # repository; the caller supplies the exact Atlas ref instead.
+          ref: ${{ inputs.atlas-ref }}
+      - name: Check this member against its recorded debt baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 _atlas/scripts/atlas-conformance.py check \
+            --repo "${{ inputs.member }}" \
+            --member-path .

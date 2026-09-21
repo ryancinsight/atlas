@@ -1625,5 +1625,58 @@ class ExistenceOnlyAssertionTests(unittest.TestCase):
         self.assertEqual(self.matches("assert!(result.is_ok() == expected);"), 0)
 
 
+class MemberPathScanTests(unittest.TestCase):
+    """`--member-path` judges a member from its own checkout."""
+
+    def run_check(self, argv: list[str], results: dict, baseline: dict):
+        with tempfile.TemporaryDirectory(prefix="atlas-member-path-") as temp:
+            baseline_path = Path(temp) / "baseline.json"
+            baseline_path.write_text(json.dumps(baseline), encoding="utf-8")
+            member = Path(temp) / "member"
+            member.mkdir()
+            output = io.StringIO()
+            with (
+                patch.object(conformance, "BASELINE", baseline_path),
+                patch.object(conformance, "scan_repo", return_value=results),
+                patch.object(
+                    sys, "argv",
+                    [str(SCRIPT), "check", "--json", *argv, "--member-path", str(member)],
+                ),
+                redirect_stdout(output),
+            ):
+                code = conformance.main()
+            return code, output.getvalue()
+
+    def test_a_raise_in_the_member_fails_its_own_check(self) -> None:
+        code, payload = self.run_check(
+            ["--repo", "demo"],
+            results={"markers": 3},
+            baseline={"demo": {"markers": 0}},
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("demo/markers: 0 -> 3", json.loads(payload)["regressions"])
+
+    def test_counts_at_or_below_the_baseline_pass(self) -> None:
+        code, payload = self.run_check(
+            ["--repo", "demo"],
+            results={"markers": 0},
+            baseline={"demo": {"markers": 2}},
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(payload)["regressions"], [])
+
+    def test_a_path_without_a_member_is_refused(self) -> None:
+        """Nothing to judge against is a usage error, not a pass."""
+        with tempfile.TemporaryDirectory(prefix="atlas-member-path-") as temp:
+            with (
+                patch.object(
+                    sys, "argv",
+                    [str(SCRIPT), "check", "--member-path", temp],
+                ),
+                redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(conformance.main(), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
