@@ -21,6 +21,8 @@ a trailing parenthetical.
 from __future__ import annotations
 
 import importlib.util
+import os
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -39,11 +41,12 @@ _SPEC.loader.exec_module(_compact)
 ARCHIVE_HEADING = "## Archive — closed items"
 
 
-def _run(text: str, heading: str = ARCHIVE_HEADING):
+def _run(text: str, heading: str = ARCHIVE_HEADING,
+         delivered: set[str] | None = None):
     with tempfile.TemporaryDirectory(prefix="atlas-compact-") as root:
         path = Path(root) / "backlog.md"
         path.write_text(text, encoding="utf-8")
-        result = _compact.compact(path, heading)
+        result = _compact.compact(path, heading, delivered=delivered)
         out = path.read_text(encoding="utf-8")
     return out, result
 
@@ -744,6 +747,123 @@ class IndexedBoardPreambleItemTests(unittest.TestCase):
         )
         self.assertIn("ATLAS-DEMO-004", index)
         self.assertIn("No recorded status", index)
+
+
+class DeliveredItemTestCase(unittest.TestCase):
+    """`review` closes once the work is on the default branch.
+
+    The board's law is that an item leaves at merge; `review` is the status it
+    sits at between its gate passing and its pull request landing, so the
+    delivering commits' `Item:` trailers are what turn it from live to closed.
+    """
+
+    REVIEWED = (
+        "## KW-SWEPT-KERNEL-2026-09-17 — sweep the kernel [patch] — review\n"
+        "\n"
+        "- Gate green; awaiting the merge queue.\n"
+    )
+
+    def test_review_item_with_a_delivered_trailer_is_deleted(self) -> None:
+        text = "# kwavers — backlog\n\n" + self.REVIEWED
+        out, (_, _, n_items, _) = _run(text, delivered={"KW-SWEPT-KERNEL-2026-09-17"})
+        self.assertEqual(n_items, 1)
+        self.assertNotIn("KW-SWEPT-KERNEL", out)
+
+    def test_review_item_without_a_trailer_survives_byte_identical(self) -> None:
+        text = "# kwavers — backlog\n\n" + self.REVIEWED
+        out, (_, _, n_items, n_narr) = _run(text, delivered={"KW-OTHER-ITEM-2026-09-17"})
+        self.assertEqual((n_items, n_narr), (0, 0))
+        self.assertIn(self.REVIEWED.rstrip("\n"), out)
+
+    def test_unlanded_statuses_survive_their_own_trailer(self) -> None:
+        """A multi-increment item lands its first trailer long before it closes."""
+        for status in ("todo", "in-progress", "blocked"):
+            with self.subTest(status=status):
+                block = (
+                    f"## KW-PARTIAL-2026-09-17 — half delivered [patch] — {status}\n"
+                    "\n"
+                    "- Increment one landed; increment two is open.\n"
+                )
+                out, (_, _, n_items, _) = _run(
+                    "# kwavers — backlog\n\n" + block,
+                    delivered={"KW-PARTIAL-2026-09-17"},
+                )
+                self.assertEqual(n_items, 0)
+                self.assertIn(block.rstrip("\n"), out)
+
+    def test_id_match_respects_the_dated_suffix_boundary(self) -> None:
+        """A trailer is the item's id, or that id plus a date — never a prefix."""
+        block = (
+            "## KW-SWE-EDGE-GROWTH — displacement grows at the edges [patch] — review\n"
+            "\n"
+            "- Still open.\n"
+        )
+        out, (_, _, n_items, _) = _run(
+            "# kwavers — backlog\n\n" + block, delivered={"KW-SWE-EDGE"}
+        )
+        self.assertEqual(n_items, 0)
+        self.assertIn("KW-SWE-EDGE-GROWTH", out)
+
+    def test_dated_and_undated_citations_of_one_item_match(self) -> None:
+        for item_id, trailer in (
+            ("KW-SWEPT-2026-09-17", "KW-SWEPT"),
+            ("KW-SWEPT", "KW-SWEPT-2026-09-17"),
+        ):
+            with self.subTest(item=item_id, trailer=trailer):
+                block = f"## {item_id} — a delivered item [patch] — review\n\n- Landed.\n"
+                out, (_, _, n_items, _) = _run(
+                    "# kwavers — backlog\n\n" + block, delivered={trailer}
+                )
+                self.assertEqual(n_items, 1)
+                self.assertNotIn(item_id, out)
+
+
+class DeliveredIdsTestCase(unittest.TestCase):
+    """`delivered_ids` reads the fetched default branch, never a local ref."""
+
+    @staticmethod
+    def _git(root: Path, *args: str) -> str:
+        done = subprocess.run(
+            ["git", "-C", str(root), *args],
+            capture_output=True,
+            text=True,
+            check=True,
+            env={
+                "GIT_AUTHOR_NAME": "t",
+                "GIT_AUTHOR_EMAIL": "t@example.invalid",
+                "GIT_COMMITTER_NAME": "t",
+                "GIT_COMMITTER_EMAIL": "t@example.invalid",
+                "PATH": os.environ["PATH"],
+            },
+        )
+        return done.stdout
+
+    def test_only_trailers_reachable_from_the_default_branch_count(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-delivered-") as tmp:
+            origin, work = Path(tmp) / "origin.git", Path(tmp) / "work"
+            self._git(Path(tmp), "init", "--bare", "--initial-branch=main", str(origin))
+            self._git(Path(tmp), "clone", str(origin), str(work))
+            (work / "f.txt").write_text("landed\n", encoding="utf-8")
+            self._git(work, "add", "f.txt")
+            self._git(work, "commit", "-m", "feat: land it\n\nItem: KW-LANDED-2026-09-17")
+            self._git(work, "push", "-q", "origin", "main")
+            # A second commit stays local, so its trailer is not delivered.
+            (work / "g.txt").write_text("local\n", encoding="utf-8")
+            self._git(work, "add", "g.txt")
+            self._git(work, "commit", "-m", "feat: hold it\n\nItem: KW-UNPUSHED-2026-09-17")
+
+            delivered = _compact.delivered_ids(work)
+            self.assertIn("KW-LANDED-2026-09-17", delivered)
+            self.assertNotIn("KW-UNPUSHED-2026-09-17", delivered)
+
+    def test_a_repository_without_a_default_branch_ref_delivers_nothing(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-delivered-none-") as tmp:
+            root = Path(tmp) / "solo"
+            self._git(Path(tmp), "init", "--initial-branch=main", str(root))
+            (root / "f.txt").write_text("x\n", encoding="utf-8")
+            self._git(root, "add", "f.txt")
+            self._git(root, "commit", "-m", "feat: x\n\nItem: KW-LOCAL-ONLY")
+            self.assertEqual(_compact.delivered_ids(root), set())
 
 
 if __name__ == "__main__":
