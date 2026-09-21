@@ -809,6 +809,8 @@ class DenySourcesTestCase(unittest.TestCase):
 class LaneGateTestCase(unittest.TestCase):
     """A lane of an overlaid member gates outside the overlay."""
 
+    inside_log = BlameClassifierTestCase.inside_log
+
     def _lane(self, overlay: bool) -> tuple:
         temp = tempfile.TemporaryDirectory(prefix="pre-push-lane-")
         self.addCleanup(temp.cleanup)
@@ -825,11 +827,13 @@ class LaneGateTestCase(unittest.TestCase):
         subprocess.run(["git", "-C", str(lane), *_IDENT, "commit", "-qam", "lane"], check=True)
         return stack, fixture, lane
 
-    def _run_in_lane(self, fixture: GateFixture, lane: pathlib.Path) -> tuple:
+    def _run_in_lane(self, fixture: GateFixture, lane: pathlib.Path,
+                     extra_env: dict | None = None) -> tuple:
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
         env.pop("CARGO_TARGET_DIR", None)
         env["SKIP_LOCKFILE_CHECK"] = "1"
+        env.update(extra_env or {})
         sha = _git(lane, "rev-parse", "HEAD")
         proc = subprocess.run(
             ["bash", str(SCRIPT)],
@@ -863,6 +867,29 @@ class LaneGateTestCase(unittest.TestCase):
         self.assertNotIn("gating outside the stack overlay", err)
         self.assertNotIn("--manifest-path", fixture.calls.read_text(encoding="utf-8"))
         self.assertIn("fmt -- --check\n", fixture.calls.read_text(encoding="utf-8"))
+
+    def test_a_lane_reproduce_line_is_a_runnable_command(self) -> None:
+        """The lane manifest is a separate argument, not glued to the flag.
+
+        Only the lane path sets a manifest, and the reproduce lines render it
+        by interpolation; without a leading space the flag joined its
+        subcommand (`cargo doc --no-deps--manifest-path ...`), so the one
+        command an author copies out of a refusal did not run.
+        """
+        _, fixture, lane = self._lane(overlay=True)
+        fixture.set_cargo_behavior("fail-doc")
+        env = {"CARGO_FAIL_LOG": self.inside_log.format(
+            root=str(lane).replace("\\", "/")
+        )}
+        code, err = self._run_in_lane(fixture, lane, extra_env=env)
+        self.assertEqual(code, 1, err)
+        reproduce = [
+            line.strip() for line in err.splitlines() if "cargo doc" in line
+        ]
+        self.assertTrue(reproduce, err)
+        for line in reproduce:
+            self.assertIn("--no-deps --manifest-path", line)
+            self.assertNotIn("--no-deps--", line)
 
     def test_a_lockfile_package_collision_is_the_environment(self) -> None:
         _, fixture, lane = self._lane(overlay=False)
