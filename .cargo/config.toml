@@ -89,11 +89,13 @@ aequitas = { path = "repos/aequitas" }
 aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
 
 [patch."https://github.com/ryancinsight/apollo"]
+apollo-dctdst-core = { path = "repos/apollo/crates/apollo-dctdst-core" }
 apollo-fft = { path = "repos/apollo/crates/apollo-fft" }
 apollo-nufft = { path = "repos/apollo/crates/apollo-nufft" }
 apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
 
 [patch."https://github.com/ryancinsight/apollo.git"]
+apollo-dctdst-core = { path = "repos/apollo/crates/apollo-dctdst-core" }
 apollo-fft = { path = "repos/apollo/crates/apollo-fft" }
 apollo-nufft = { path = "repos/apollo/crates/apollo-nufft" }
 apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
