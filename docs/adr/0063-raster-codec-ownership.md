@@ -46,6 +46,24 @@ Metis chooses that mapping before alpha and orientation handling; RITK's JPEG
 volume reader chooses it before luminance conversion. Medical codec consumers
 retain raw samples for signed interpretation, modality rescaling and windowing.
 
+
+## Revision — 2026-09-21 (pointer closure)
+
+The provider and consumer migrations are landed and the Atlas pointers now
+bind Consus `dd058480bfb380dc0d4b572de56b2030da6f3dc4`, Apollo
+`56bdec2ef2a1cfee4584b4faf9e5e3618dedeb5c`, RITK
+`2e346c0dd29d6f711e387167f43df029437eccd2`, Metis `08785d8f05d7ff5795c4a3692d5478c44a7ba2c0`, and Helios
+`ebb54c3ccfb30bb62ad7efa61147c015298ed7b0`. Consus and Apollo provide the
+shared JPEG/DCT kernels; RITK retains clinical interpretation and Metis owns
+bounded file admission, alpha, placement and one-time EXIF normalization.
+
+The member conformance scans report no regressions. Apollo's 41-to-39
+oversized-file reduction, Consus's 444-to-89 PM reduction and Metis's 7-to-0
+tracked-image reduction are recorded as baseline tightenings. Metis's Windows
+run 35623156489 passed all 27 configured stages and the native V06 comparison
+found zero differences across 464,000 client pixels. Release work remains
+outside this decision.
+
 ## Migration and evidence
 
 [Consus](../../repos/consus/backlog.md#CONSUS-RASTER-001) implements bounded
