@@ -17,6 +17,9 @@ scratch/
 .idea/
 *.swp
 .claude/settings.local.json
+# Per-machine agent state: subagent memory and harness-managed worktrees.
+.claude/agent-memory/
+.claude/worktrees/
 .poolside/
 
 # OS
