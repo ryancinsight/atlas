@@ -593,6 +593,13 @@ def is_cargo_target_dir(entry: Path) -> bool:
     Cargo stamps every target directory it owns, so the marker is exact
     rather than heuristic: `.rustc_info.json` (and `CACHEDIR.TAG`, which
     cargo also writes) appear only in a cache cargo created.
+    This is also why relinking a relocated cache does not clear the fork.
+    `Path.exists()` follows an NTFS junction transparently, so a junction at
+    `repos/<member>/target` pointing into the shared tree still answers True
+    for `.rustc_info.json` and the member re-counts. Moving the cache and
+    leaving the per-repo path absent (or empty) is the only state where this
+    returns False and the data stays reachable -- the junction step of the
+    2026-08-20 relocation was deliberately not executed for that reason.
     """
     if not entry.is_dir() or not entry.name.startswith("target"):
         return False
