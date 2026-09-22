@@ -63,17 +63,26 @@ def registered_members() -> list[Path]:
 
 
 def member_pins() -> dict[str, str]:
-    """Registered member -> the gitlink SHA the *index* records for it.
+    """Registered member -> the gitlink SHA ``HEAD`` records for it.
 
     The pin, never the checkout. A member is routinely parked on a feature
     branch -- that is what conversion work looks like -- so any artifact
     derived from the working tree measures unlanded work and changes whenever
-    somebody checks something else out. The index is the state the next commit
-    records, which is what makes an artifact regenerated beside a gitlink
-    advance agree with verification both before and after that commit.
+    somebody checks something else out. Reading the pins is what lets the
+    oracle be regenerated for a gitlink sweep without checking all ~28 members
+    out at the new commits, which a shared tree cannot do.
+
+    ``HEAD`` rather than the index: peers stage gitlink advances constantly,
+    and a census that moves when somebody else runs ``git add`` turns the gate
+    into noise. In CI the index and ``HEAD`` coincide on a fresh checkout, so
+    the gate means the same thing there; locally this keeps it stable until a
+    pin is actually committed.
     """
     out = subprocess.run(
-        ["git", "-C", str(ROOT), "ls-files", "-s", "--", "repos"],
+        # The trailing slash matters: `ls-tree HEAD -- repos` reports the
+        # `repos` tree entry itself, while `repos/` descends into it and
+        # yields the 28 gitlink entries.
+        ["git", "-C", str(ROOT), "ls-tree", "HEAD", "--", "repos/"],
         capture_output=True,
         encoding="utf-8",
         errors="replace",
@@ -87,7 +96,7 @@ def member_pins() -> dict[str, str]:
             continue
         parts = path.split("/")
         if len(parts) == 2 and parts[0] == "repos":
-            pins[parts[1]] = fields[1]
+            pins[parts[1]] = fields[2]
     return pins
 
 
