@@ -6,5 +6,7 @@
     "optional": "`blob` pins the entry to the content it was written for. Without it the entry covers any stale content that file ever reaches; with it the entry stops explaining when the file reaches a different revision, and the guard reports the new one.",
     "example": {"path": "docs/example.md", "blob": "<40-char blob hash>", "reason": "ATLAS-EXAMPLE-2026-09-17: the older revision is the intended state"}
   },
-  "waivers": []
+  "waivers": [
+    {"path": "backlog/atlas-apollo-stockham-policy-050c.md", "blob": "e9cc97423da86e3b87eb0860c2c3e4ca9eedddee", "reason": "ATLAS-APOLLO-STOCKHAM-POLICY-050C: intentional restoration of the item file that the consolidation lineage dropped; content recovered verbatim from commit fc2a51369 on feat/unresolved-reference-scan"}
+  ]
 }
