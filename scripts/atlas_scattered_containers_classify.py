@@ -14,14 +14,20 @@ What it does
    listing, so git-ignored private consumers never surface. Provider
    ``worktrees/`` lanes are excluded because they are alternate checkouts,
    not member source.
-2. Strips ``//`` line comments, ``/* */`` block comments, and string/char
+2. Reads those sources through a ``MemberSource``: the working tree by
+   default, or — with ``--pinned`` — the gitlink commits the *index* records,
+   straight out of the object store (``git ls-tree`` + ``git cat-file
+   --batch``), with no checkout and no temporary trees. ``--pinned`` is the
+   mode the committed oracle is generated and verified in, because it is the
+   only one that does not measure unlanded feature-branch work.
+3. Strips ``//`` line comments, ``/* */`` block comments, and string/char
    literals (including raw strings) before any analysis, so a
    ``feature = "test-utils"`` value or a ``"mod tests {"`` template string
    cannot pose as a ``test`` predicate and a commented ``Vec<Vec<`` is never
    counted as a site.
-3. Finds occurrences of the primary pointer-scattered shape ``Vec<Vec<_>>``
+4. Finds occurrences of the primary pointer-scattered shape ``Vec<Vec<_>>``
    (override with ``--pattern``) in the remaining code.
-4. Classifies each occurrence as *test/bench/example-local* when it sits
+5. Classifies each occurrence as *test/bench/example-local* when it sits
    under a ``tests/``, ``benches/``, ``examples/``, ``test_data/``, or
    ``fixtures/`` path, in a ``tests.rs``/``*_test.rs``/``bench.rs``-style
    file, inside a ``#[cfg(test)]``-guarded or ``mod tests`` block or a
@@ -32,14 +38,18 @@ What it does
 The production-only site list is the input to hotness-profiled conversion
 work; ranking by raw count is deliberately not used (see the entry's
 re-scope note). The committed oracle at
-``scripts/oracles/arch-008-production-sites.txt`` is re-verified by
-``--verify-oracle`` (exit 0 match / 1 drift / 2 unreadable oracle) and wired
-as ``make verify-scattered-oracle``, so the split can never drift silently
-from what is committed.
+``scripts/oracles/arch-008-production-sites.txt`` is a *pinned* census, and is
+re-verified by ``--pinned --verify-oracle`` (exit 0 match / 1 drift / 2
+unreadable oracle), wired as ``make verify-scattered-oracle``. Because both
+generation and verification read the gitlink pins, the gate is stable
+whatever any member has checked out, and it fails exactly when a gitlink
+advances without the oracle riding along -- so the split can never drift
+silently from what is committed.
 
 Usage
 -----
     python scripts/atlas_scattered_containers_classify.py
+    python scripts/atlas_scattered_containers_classify.py --pinned
     python scripts/atlas_scattered_containers_classify.py --site-list scripts/oracles/arch-008-production-sites.txt
     python scripts/atlas_scattered_containers_classify.py --verify-oracle scripts/oracles/arch-008-production-sites.txt
     python scripts/atlas_scattered_containers_classify.py --json
@@ -50,16 +60,18 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import Protocol
 
 try:
-    from atlas_stack import ROOT, registered_members
+    from atlas_stack import clean_git_env, member_pins, registered_members
 except ModuleNotFoundError:  # running from scripts/ directly
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from atlas_stack import ROOT, registered_members
+    from atlas_stack import clean_git_env, member_pins, registered_members
 
 VEC_VEC = re.compile(r"\bVec\s*<\s*Vec\s*<")
 CFG_ATTR_RE = re.compile(r"#\s*!?\s*\[\s*cfg\s*\((.+?)\)\s*\]")
@@ -92,6 +104,188 @@ class Occurrence:
     def site(self) -> str:
         """One-line form for the production site list."""
         return f"{self.path}:{self.line}:{self.column}"
+
+
+class MemberSource(Protocol):
+    """Read-only view of one member's Rust sources.
+
+    The classification logic depends on this and never on the filesystem, so
+    one analysis runs unchanged over a checkout or over pinned git objects.
+    Paths are member-relative POSIX either way, which is also what keeps a
+    Windows run and a Linux run comparable.
+    """
+
+    def files(self) -> list[PurePosixPath]:
+        """Every ``*.rs`` path the member contributes, sorted."""
+
+    def read_text(self, rel: PurePosixPath) -> str:
+        """The decoded text of one member-relative source path."""
+
+    def exists(self, rel: PurePosixPath) -> bool:
+        """Whether a member-relative path is a file in this source."""
+
+    def close(self) -> None:
+        """Release whatever the source holds open."""
+
+
+def _lexical(path: str) -> str:
+    """Collapse ``.``/``..``/empty components without touching the filesystem.
+
+    ``#[path = "../foo.rs"]`` has to key to the same path the file itself
+    registers under, and in pinned mode there is no directory to walk up.
+    """
+    out: list[str] = []
+    for part in path.split("/"):
+        if not part or part == ".":
+            continue
+        if part == "..":
+            if out:
+                out.pop()
+            continue
+        out.append(part)
+    return "/".join(out)
+
+
+@dataclass(frozen=True)
+class WorktreeSource:
+    """Member sources read from the checked-out tree.
+
+    Measures unlanded work by construction: a member parked on a feature
+    branch contributes that branch's sources. Right for local conversion work,
+    wrong for any committed artifact -- use ``PinnedSource`` for those.
+    """
+
+    member_root: Path
+
+    def files(self) -> list[PurePosixPath]:
+        out: list[PurePosixPath] = []
+        for path in sorted(self.member_root.rglob("*.rs")):
+            if path.suffix in SKIP_SUFFIXES:
+                continue
+            rel = PurePosixPath(path.relative_to(self.member_root).as_posix())
+            if any(part in SKIP_DIRS for part in rel.parts):
+                continue
+            out.append(rel)
+        return out
+
+    def read_text(self, rel: PurePosixPath) -> str:
+        return (self.member_root / rel.as_posix()).read_text(errors="replace")
+
+    def exists(self, rel: PurePosixPath) -> bool:
+        return (self.member_root / rel.as_posix()).is_file()
+
+    def close(self) -> None:
+        return None
+
+
+class _BatchBlobs:
+    """One long-lived ``git cat-file --batch`` per member.
+
+    A member contributes thousands of sources; one process per blob would cost
+    thousands of process spawns for the same bytes. The batch protocol pays
+    one and streams the rest.
+    """
+
+    def __init__(self, repo: Path) -> None:
+        self._proc = subprocess.Popen(
+            ["git", "-C", str(repo), "cat-file", "--batch"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env=clean_git_env(),
+        )
+
+    def read(self, spec: str) -> str | None:
+        """The text of ``<rev>:<path>``, or None when the object is absent."""
+        proc = self._proc
+        if proc.stdin is None or proc.stdout is None:  # pragma: no cover
+            return None
+        proc.stdin.write(f"{spec}\n".encode())
+        proc.stdin.flush()
+        header = proc.stdout.readline().split()
+        if len(header) != 3 or header[1] != b"blob":
+            return None
+        payload = proc.stdout.read(int(header[2]))
+        proc.stdout.read(1)  # the protocol's trailing newline
+        return payload.decode("utf-8", errors="replace")
+
+    def close(self) -> None:
+        proc = self._proc
+        if proc.stdin is not None:
+            proc.stdin.close()
+        if proc.stdout is not None:
+            proc.stdout.close()
+        proc.wait(timeout=30)
+
+
+@dataclass
+class PinnedSource:
+    """Member sources read from the gitlink commit the index records.
+
+    No checkout and no temporary tree: the paths come from ``git ls-tree`` and
+    the bytes from ``git cat-file``, so a census taken here is the same
+    whichever branch a developer happens to have parked the member on.
+    """
+
+    member_root: Path
+    pin: str
+
+    def __post_init__(self) -> None:
+        self._blobs = _BatchBlobs(self.member_root)
+        self._paths = self._list_files()
+        self._path_set = frozenset(self._paths)
+
+    def _list_files(self) -> list[PurePosixPath]:
+        proc = subprocess.run(
+            [
+                "git", "-C", str(self.member_root),
+                "ls-tree", "-r", "--name-only", self.pin,
+            ],
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            env=clean_git_env(),
+        )
+        # A failed listing must never read as "this member has no sources":
+        # that is a whole member quietly leaving the census while the gate
+        # still reports a match. Git says why -- an unreadable repository, a
+        # missing pin, a `safe.directory` refusal under a different HOME --
+        # and that reason belongs in the failure, not in a silent zero.
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()
+            raise SystemExit(
+                f"git ls-tree failed for member {self.member_root.name!r} "
+                f"at {self.pin} (exit {proc.returncode}): {detail}"
+            )
+        paths: list[PurePosixPath] = []
+        for name in proc.stdout.splitlines():
+            if not name.endswith(".rs"):
+                continue
+            rel = PurePosixPath(name)
+            if any(part in SKIP_DIRS for part in rel.parts):
+                continue
+            paths.append(rel)
+        return sorted(paths)
+
+    def files(self) -> list[PurePosixPath]:
+        return self._paths
+
+    def read_text(self, rel: PurePosixPath) -> str:
+        text = self._blobs.read(f"{self.pin}:{rel.as_posix()}")
+        if text is None:
+            # Only paths this source listed are ever read, so an absent blob
+            # means the object store disagrees with the tree listing.
+            raise SystemExit(
+                f"git cat-file could not read {rel.as_posix()!r} at "
+                f"{self.pin} in member {self.member_root.name!r}"
+            )
+        return text
+
+    def exists(self, rel: PurePosixPath) -> bool:
+        return rel in self._path_set
+
+    def close(self) -> None:
+        self._blobs.close()
 
 
 @dataclass
@@ -188,7 +382,7 @@ def clean_line(line: str, state: LexState) -> tuple[str, list[int]]:
     return "".join(clean), mapping
 
 
-def _is_test_path(path: Path) -> bool:
+def _is_test_path(path: PurePosixPath) -> bool:
     """True when the file path is test/bench/example/fixture-owned."""
     if TEST_FILE_RE.match(path.name):
         return True
@@ -206,53 +400,55 @@ def _is_test_cfg(line: str) -> bool:
     return re.search(r"\btest\b", inner) is not None
 
 
-def _include_gate_candidates(abs_path: Path) -> list[tuple[Path, str]]:
-    """(module file, module name) pairs that could declare `abs_path`.
+def _include_gate_candidates(
+    source: MemberSource, rel: PurePosixPath
+) -> list[tuple[PurePosixPath, str]]:
+    """(module file, module name) pairs that could declare `rel`.
 
     A Rust file is reachable through a `mod <name>;` item in its parent
     module file. For `dir/file.rs` that is `dir/mod.rs` (or the sibling
     `dir.rs`); for a file directly under `src/` it is `src/lib.rs` or
     `src/main.rs`; for `dir/mod.rs` the declared name is `dir`. The crate
-    roots `lib.rs`/`main.rs` have no `mod` declaration of their own.
+    roots `lib.rs`/`main.rs` have no `mod` declaration of their own, and
+    neither has a file sitting at the member root.
     """
-    parent = abs_path.parent
-    if abs_path.name == "mod.rs":
+    parent = rel.parent
+    if rel.name == "mod.rs":
         if parent.name == "src":
             return []
         name = parent.name
         pp = parent.parent
         cands = [pp / "mod.rs", pp / "lib.rs", pp / "main.rs", pp / (name + ".rs")]
-        return [(c, name) for c in cands if c.is_file()]
-    if abs_path.name in ("lib.rs", "main.rs"):
+        return [(c, name) for c in cands if source.exists(c)]
+    if rel.name in ("lib.rs", "main.rs"):
         return []
-    stem = abs_path.stem
+    if parent.name == "":  # member root: no module file can declare it
+        return []
+    stem = rel.stem
     cands = [parent / "mod.rs"]
     if parent.name == "src":
         cands.extend([parent / "lib.rs", parent / "main.rs"])
     else:
         cands.append(parent.parent / (parent.name + ".rs"))
-    return [(c, stem) for c in cands if c.is_file()]
+    return [(c, stem) for c in cands if source.exists(c)]
 
 
-def _path_decl_map(member_root: Path) -> dict[str, tuple[Path, int]]:
+def _path_decl_map(
+    source: MemberSource,
+) -> dict[str, tuple[PurePosixPath, int]]:
     """Resolved target path (str) -> (declaring file, its `mod <name>;` index).
 
     A file loaded via `#[path = "..."]` is declared under an arbitrary module
-    name, so the `mod <stem>;` lookup cannot find it. This scans each member
-    once (cached) for `#[path]` attributes and records the declaration they
-    attach to, keyed by the *resolved* target path (`#[path]` is relative to
-    the declaring file's directory). A basename key would collide badly — many
-    modules are named `mod.rs` — and would wrongly gate unrelated files.
+    name, so the `mod <stem>;` lookup cannot find it. This walks each member
+    once (cached by the caller, which scans one member at a time) for
+    `#[path]` attributes and records the declaration they attach to, keyed by
+    the *resolved* target path (`#[path]` is relative to the declaring file's
+    directory). A basename key would collide badly -- many modules are named
+    `mod.rs` -- and would wrongly gate unrelated files.
     """
-    if member_root in _PATH_DECLS:
-        return _PATH_DECLS[member_root]
-    decls: dict[str, tuple[Path, int]] = {}
-    for p in member_root.rglob("*.rs"):
-        if p.suffix in SKIP_SUFFIXES:
-            continue
-        if any(part in SKIP_DIRS for part in p.relative_to(member_root).parts):
-            continue
-        lines = p.read_text(errors="replace").splitlines()
+    decls: dict[str, tuple[PurePosixPath, int]] = {}
+    for rel in source.files():
+        lines = source.read_text(rel).splitlines()
         for i, line in enumerate(lines):
             m = PATH_ATTR_RE.search(line)
             if not m:
@@ -261,12 +457,12 @@ def _path_decl_map(member_root: Path) -> dict[str, tuple[Path, int]]:
             while j < len(lines) and not lines[j].strip():
                 j += 1
             if j < len(lines) and MOD_ITEM_RE.search(lines[j]):
-                decls[str((p.parent / m.group(1)).resolve())] = (p, j)
-    _PATH_DECLS[member_root] = decls
+                target = _lexical(f"{rel.parent.as_posix()}/{m.group(1)}")
+                decls[target] = (rel, j)
     return decls
 
 
-def _gated_attribute_block(cand_file: Path, mod_idx: int, our_name: str) -> bool:
+def _gated_attribute_block(lines: list[str], mod_idx: int, our_name: str) -> bool:
     """True when the attribute block above `mod_idx` is cfg(test)-gated and
     the declaration resolves to a file named `our_name` (by stem or #[path]).
 
@@ -274,7 +470,6 @@ def _gated_attribute_block(cand_file: Path, mod_idx: int, our_name: str) -> bool
     stacked attributes, stopping at the first non-attribute line so a cfg
     attribute belonging to a *previous* declaration never leaks onto this one.
     """
-    lines = cand_file.read_text(errors="replace").splitlines()
     if _is_test_cfg(lines[mod_idx]):  # `#[cfg(test)] mod <name>;` on one line
         return True
     attrs: list[str] = []
@@ -293,10 +488,10 @@ def _gated_attribute_block(cand_file: Path, mod_idx: int, our_name: str) -> bool
         return False
     m = MOD_ITEM_RE.search(lines[mod_idx])
     declared = m.group(1) if m else ""
-    stem = Path(our_name).stem
+    stem = PurePosixPath(our_name).stem
     names_our_file = declared == stem or any(
         (pm := PATH_ATTR_RE.search(a)) is not None
-        and Path(pm.group(1)).name == our_name
+        and PurePosixPath(pm.group(1)).name == our_name
         for a in attrs
     )
     if not names_our_file:
@@ -304,37 +499,36 @@ def _gated_attribute_block(cand_file: Path, mod_idx: int, our_name: str) -> bool
     return any(_is_test_cfg(a) for a in attrs)
 
 
-_PATH_DECLS: dict[Path, dict[str, tuple[Path, int]]] = {}
-
-
-def _is_include_gated(abs_path: Path) -> bool:
+def _is_include_gated(
+    source: MemberSource,
+    rel: PurePosixPath,
+    decl_map: dict[str, tuple[PurePosixPath, int]],
+) -> bool:
     """True when the file's module declaration is `#[cfg(test)]`-gated upstream.
 
     In-file markers alone cannot see a whole file compiled only under tests
     via `#[cfg(test)] mod <name>;` in a parent module; without this check such
     a file would be misreported as production. Two lookups: the `mod <stem>;`
     declaration in the normal module candidates, and files loaded under an
-    arbitrary name via `#[path = "..."]` (per-member map, cached).
+    arbitrary name via `#[path = "..."]` (member-wide map, built once).
     """
-    for cand_file, mod_name in _include_gate_candidates(abs_path):
-        cand_lines = cand_file.read_text(errors="replace").splitlines()
+    for cand, mod_name in _include_gate_candidates(source, rel):
+        cand_lines = source.read_text(cand).splitlines()
         for i, line in enumerate(cand_lines):
             m = MOD_ITEM_RE.search(line)
             if not m or m.group(1) != mod_name:
                 continue
             # The declaration names the module (`mod <name>;`), which for a
             # `dir/mod.rs` file is the directory name, not "mod.rs".
-            if _gated_attribute_block(cand_file, i, mod_name + ".rs"):
+            if _gated_attribute_block(cand_lines, i, mod_name + ".rs"):
                 return True
-    try:
-        rel = abs_path.relative_to(ROOT)
-    except ValueError:  # test fixture outside the atlas tree
+    hit = decl_map.get(_lexical(rel.as_posix()))
+    if hit is None:
         return False
-    if len(rel.parts) < 3:
-        return False
-    member_root = ROOT / rel.parts[0] / rel.parts[1]
-    hit = _path_decl_map(member_root).get(str(abs_path.resolve()))
-    return hit is not None and _gated_attribute_block(hit[0], hit[1], abs_path.name)
+    decl_rel, mod_idx = hit
+    return _gated_attribute_block(
+        source.read_text(decl_rel).splitlines(), mod_idx, rel.name
+    )
 
 
 def compute_test_regions(clean_lines: list[str]) -> list[bool]:
@@ -386,12 +580,13 @@ def compute_test_regions(clean_lines: list[str]) -> list[bool]:
 
 def classify_file(
     member: str,
-    member_root: Path,
-    abs_path: Path,
+    source: MemberSource,
+    rel: PurePosixPath,
+    decl_map: dict[str, tuple[PurePosixPath, int]],
     pattern: re.Pattern[str] = VEC_VEC,
 ) -> list[Occurrence]:
     """Find and classify every occurrence of ``pattern`` in one source file."""
-    lines = abs_path.read_text(errors="replace").splitlines()
+    lines = source.read_text(rel).splitlines()
     state = LexState()
     clean_lines: list[str] = []
     mappings: list[list[int]] = []
@@ -409,13 +604,11 @@ def classify_file(
     if not matches:
         return []
 
-    include_gated = _is_include_gated(abs_path)
-    rel = abs_path.relative_to(member_root)
+    include_gated = _is_include_gated(source, rel, decl_map)
     path_test = _is_test_path(rel)
-    try:
-        root_rel = abs_path.relative_to(ROOT)
-    except ValueError:  # test fixtures outside the atlas tree
-        root_rel = rel
+    # The member's own root is the same for both sources, so the reported path
+    # is identical whether it came off the disk or out of the object store.
+    root_rel = f"repos/{member}/{rel.as_posix()}"
 
     occurrences: list[Occurrence] = []
     for idx, match in matches:
@@ -427,7 +620,7 @@ def classify_file(
         occurrences.append(
             Occurrence(
                 member=member,
-                path=str(root_rel).replace("\\", "/"),
+                path=root_rel,
                 line=idx + 1,
                 column=column,
                 test_local=path_test or test_regions[idx] or include_gated,
@@ -436,25 +629,40 @@ def classify_file(
     return occurrences
 
 
-def iter_source_files(member_root: Path) -> list[Path]:
-    """All member `*.rs` files, excluding derived and alternate-checkout trees."""
-    files: list[Path] = []
-    for path in member_root.rglob("*.rs"):
-        if path.suffix in SKIP_SUFFIXES:
-            continue
-        if any(part in SKIP_DIRS for part in path.relative_to(member_root).parts):
-            continue
-        files.append(path)
-    return sorted(files)
+def build_sources(pinned: bool) -> list[tuple[str, MemberSource]]:
+    """One ``(member, source)`` pair per registered member.
 
-
-def scan(pattern: re.Pattern[str]) -> list[Occurrence]:
-    """Classify every pattern occurrence across registered Atlas members."""
-    occurrences: list[Occurrence] = []
+    ``pinned`` selects the gitlink commits the index records; the default is
+    the working tree. A member with no recorded gitlink is an error rather
+    than a silent skip: its sites would otherwise vanish from the census.
+    """
+    pins = member_pins() if pinned else {}
+    sources: list[tuple[str, MemberSource]] = []
     for member_root in registered_members():
         member = member_root.name
-        for abs_path in iter_source_files(member_root):
-            occurrences.extend(classify_file(member, member_root, abs_path, pattern))
+        if not pinned:
+            sources.append((member, WorktreeSource(member_root)))
+            continue
+        pin = pins.get(member)
+        if pin is None:
+            raise SystemExit(
+                f"no gitlink recorded for member {member!r} in the index; "
+                "a pinned census cannot be taken without one"
+            )
+        sources.append((member, PinnedSource(member_root, pin)))
+    return sources
+
+
+def scan(
+    pattern: re.Pattern[str],
+    sources: Sequence[tuple[str, MemberSource]],
+) -> list[Occurrence]:
+    """Classify every pattern occurrence across the given member sources."""
+    occurrences: list[Occurrence] = []
+    for member, source in sources:
+        decl_map = _path_decl_map(source)
+        for rel in source.files():
+            occurrences.extend(classify_file(member, source, rel, decl_map, pattern))
     return sorted(
         occurrences,
         key=lambda o: (o.member, o.path, o.line, o.column),
@@ -529,19 +737,31 @@ def verify_oracle(production_sites: Sequence[str], oracle: str) -> OracleDrift:
 
 
 def run_verify_oracle(
-    oracle_path: str, production_sites: list[str], total_sites: int
+    oracle_path: str,
+    production_sites: list[str],
+    total_sites: int,
+    pinned: bool,
 ) -> int:
     """Gate entry: re-verify the split against the committed oracle.
 
     Returns 0 on match, 1 on drift, 2 when the oracle file is unreadable, so
     orient and the ``make verify-scattered-oracle`` target can gate on it.
+
+    The mode is named in every message because the committed oracle is a
+    *pinned* census: verifying it from the working tree reports the members'
+    unlanded branches as drift, and that has to read as a mode mismatch rather
+    than as a finding.
     """
     path = Path(oracle_path)
+    mode = "pinned" if pinned else "worktree"
+    regen = (
+        "python scripts/atlas_scattered_containers_classify.py "
+        + ("--pinned " if pinned else "")
+        + f"--site-list {path}"
+    )
     if not path.is_file():
         print(
-            f"oracle missing: {path} — regenerate it with "
-            "`python scripts/atlas_scattered_containers_classify.py "
-            f"--site-list {path}`",
+            f"oracle missing: {path} — regenerate it with `{regen}`",
             file=sys.stderr,
         )
         return 2
@@ -549,13 +769,14 @@ def run_verify_oracle(
     drift = verify_oracle(production_sites, path.read_text(encoding="utf-8"))
     if drift.matches:
         print(
-            f"scattered-container oracle OK: {len(production_sites)} production "
-            f"sites match {path} ({test_bench} test/bench, {total_sites} total)"
+            f"scattered-container oracle OK ({mode}): "
+            f"{len(production_sites)} production sites match {path} "
+            f"({test_bench} test/bench, {total_sites} total)"
         )
         return 0
     print(
-        f"scattered-container oracle DRIFT vs {path} "
-        f"({len(production_sites)} production, {test_bench} test/bench, "
+        f"scattered-container oracle DRIFT vs {path} ({mode} census: "
+        f"{len(production_sites)} production, {test_bench} test/bench, "
         f"{total_sites} total):"
     )
     if drift.added:
@@ -574,9 +795,14 @@ def run_verify_oracle(
             print(f"    - {site}")
     print(
         "  Drift must be a deliberate, committed action: regenerate the oracle "
-        f"with `python scripts/atlas_scattered_containers_classify.py "
-        f"--site-list {path}` and commit it alongside the change."
+        f"with `{regen}` and commit it alongside the change."
     )
+    if not pinned:
+        print(
+            "  Note: this was a worktree census. The committed oracle is a "
+            "pinned one, so a member parked on a feature branch also shows "
+            "here; re-run with --pinned to test the committed state."
+        )
     return 1
 
 
@@ -591,6 +817,15 @@ def main(argv: list[str] | None = None) -> int:
         "--pattern",
         default=VEC_VEC.pattern,
         help="regular expression for the scattered shape (default: Vec<Vec<)",
+    )
+    parser.add_argument(
+        "--pinned",
+        action="store_true",
+        help=(
+            "read member sources from the gitlink commits the index records "
+            "(git ls-tree + git cat-file, no checkout) instead of the working "
+            "tree; required for any committed artifact"
+        ),
     )
     parser.add_argument(
         "--site-list",
@@ -613,12 +848,20 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     pattern = re.compile(args.pattern)
-    occurrences = scan(pattern)
+    sources = build_sources(args.pinned)
+    try:
+        occurrences = scan(pattern, sources)
+    finally:
+        for _, source in sources:
+            source.close()
     production = [o for o in occurrences if not o.test_local]
 
     if args.verify_oracle:
         return run_verify_oracle(
-            args.verify_oracle, [o.site() for o in production], len(occurrences)
+            args.verify_oracle,
+            [o.site() for o in production],
+            len(occurrences),
+            args.pinned,
         )
 
     if args.site_list:

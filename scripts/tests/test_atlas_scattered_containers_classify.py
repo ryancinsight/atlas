@@ -2,21 +2,27 @@
 """Tests for the ATLAS-ARCH-008 scattered-container classifier.
 
 Covers the production vs test/bench/example split, the `#[cfg(test)]` /
-`mod tests` brace-depth tracking, and the comment/literal stripping that
-keeps template strings and doc text from posing as predicates or sites.
+`mod tests` brace-depth tracking, the comment/literal stripping that keeps
+template strings and doc text from posing as predicates or sites, and the two
+`MemberSource` implementations (working tree vs pinned git objects).
 Fixtures are `tmp_path` trees so the tests never touch the live repository.
 """
 
 from __future__ import annotations
 
 import re
-from pathlib import Path
+import subprocess
+from pathlib import Path, PurePosixPath
+
+import pytest
 
 from atlas_scattered_containers_classify import (
     Occurrence,
+    PinnedSource,
     VEC_VEC,
+    WorktreeSource,
     _gated_attribute_block,
-    iter_source_files,
+    _lexical,
     _path_decl_map,
     classify_file,
     compute_test_regions,
@@ -32,8 +38,47 @@ def _write(tmp_path: Path, rel: str, content: str) -> Path:
 
 
 def _sites(tmp_path: Path, rel: str, content: str) -> list[Occurrence]:
-    path = _write(tmp_path, rel, content)
-    return classify_file("member", tmp_path, path)
+    _write(tmp_path, rel, content)
+    source = WorktreeSource(tmp_path)
+    return classify_file(
+        "member", source, PurePosixPath(rel), _path_decl_map(source)
+    )
+
+
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+    ).stdout
+
+
+def _init_repo(repo: Path) -> None:
+    repo.mkdir(parents=True, exist_ok=True)
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "tests@example.invalid")
+    _git(repo, "config", "user.name", "Atlas Tests")
+    _git(repo, "config", "commit.gpgsign", "false")
+
+
+def _commit_all(repo: Path, message: str) -> str:
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", message)
+    return _git(repo, "rev-parse", "HEAD").strip()
+
+
+def _pinned_sites(
+    repo: Path, pin: str, rel: str
+) -> list[Occurrence]:
+    source = PinnedSource(repo, pin)
+    try:
+        return classify_file(
+            "member", source, PurePosixPath(rel), _path_decl_map(source)
+        )
+    finally:
+        source.close()
 
 
 def test_production_occurrence_is_classified_production(tmp_path: Path) -> None:
@@ -130,9 +175,9 @@ def test_provider_worktree_lane_is_not_scanned(tmp_path: Path) -> None:
         "fn peer() { let rows: Vec<Vec<f64>> = Vec::new(); rows }\n",
     )
 
-    files = iter_source_files(tmp_path)
+    files = WorktreeSource(tmp_path).files()
 
-    assert files == [tmp_path / "src/lib.rs"]
+    assert files == [PurePosixPath("src/lib.rs")]
 
 
 def test_benches_and_examples_are_bench_local(tmp_path: Path) -> None:
@@ -305,18 +350,22 @@ def test_site_string_is_path_line_column() -> None:
 
 
 def test_deterministic_order(tmp_path: Path) -> None:
-    a = _write(
+    _write(
         tmp_path,
         "src/b.rs",
         "fn b() { let rows: Vec<Vec<f64>> = Vec::new(); rows }\n",
     )
-    b = _write(
+    _write(
         tmp_path,
         "src/a.rs",
         "fn a() { let rows: Vec<Vec<f64>> = Vec::new(); rows }\n",
     )
-    first = classify_file("member", tmp_path, a) + classify_file("member", tmp_path, b)
-    second = classify_file("member", tmp_path, a) + classify_file("member", tmp_path, b)
+    source = WorktreeSource(tmp_path)
+    decls = _path_decl_map(source)
+    first = classify_file("member", source, PurePosixPath("src/b.rs"), decls)
+    first += classify_file("member", source, PurePosixPath("src/a.rs"), decls)
+    second = classify_file("member", source, PurePosixPath("src/b.rs"), decls)
+    second += classify_file("member", source, PurePosixPath("src/a.rs"), decls)
     assert [o.site() for o in first] == [o.site() for o in second]
 
 
@@ -332,16 +381,16 @@ def test_scan_pattern_reaches_file_classifier(
 ) -> None:
     import atlas_scattered_containers_classify as clf
 
-    path = _write(
+    _write(
         tmp_path,
         "src/lib.rs",
         "fn value() { let rows: Box<Box<f64>> = Box::new(Box::new(1.0)); rows }\n",
     )
     pattern = re.compile(r"\bBox\s*<\s*Box\s*<")
-    monkeypatch.setattr(clf, "registered_members", lambda: [tmp_path])
-    occurrences = clf.scan(pattern)
+    sources = [("member", WorktreeSource(tmp_path))]
+    occurrences = clf.scan(pattern, sources)
 
-    assert [occ.site() for occ in occurrences] == ["src/lib.rs:1:24"]
+    assert [occ.site() for occ in occurrences] == ["repos/member/src/lib.rs:1:24"]
 
 
 def test_verify_oracle_matches() -> None:
@@ -411,7 +460,7 @@ def test_verify_oracle_cli_match_returns_zero(
         column=4,
         test_local=False,
     )
-    monkeypatch.setattr(clf, "scan", lambda pattern: [occ])
+    monkeypatch.setattr(clf, "scan", lambda pattern, sources: [occ])
     assert clf.main(["--verify-oracle", str(oracle)]) == 0
 
 
@@ -429,7 +478,7 @@ def test_verify_oracle_cli_drift_returns_one(
         column=4,
         test_local=False,
     )
-    monkeypatch.setattr(clf, "scan", lambda pattern: [occ])
+    monkeypatch.setattr(clf, "scan", lambda pattern, sources: [occ])
     assert clf.main(["--verify-oracle", str(oracle)]) == 1
 
 
@@ -438,7 +487,7 @@ def test_verify_oracle_cli_missing_file_returns_two(
 ) -> None:
     import atlas_scattered_containers_classify as clf
 
-    monkeypatch.setattr(clf, "scan", lambda pattern: [])
+    monkeypatch.setattr(clf, "scan", lambda pattern, sources: [])
     missing = tmp_path / "nope.txt"
     assert clf.main(["--verify-oracle", str(missing)]) == 2
 
@@ -542,19 +591,20 @@ def test_proptest_block_is_test_local(tmp_path: Path) -> None:
 
 def test_path_decl_map_finds_path_attr_decls(tmp_path: Path) -> None:
     # A file loaded via #[path = "..."] is declared under an arbitrary module
-    # name; the map must record the declaration (keyed by resolved path, since
-    # a basename key would collide on `mod.rs`) so the gate lookup can find it.
+    # name; the map must record the declaration (keyed by the resolved path,
+    # since a basename key would collide on `mod.rs`) so the gate lookup finds
+    # it. Keys are member-relative, so the two sources agree.
     _write(
         tmp_path,
         "src/mod.rs",
         "#[cfg(test)]\n#[path = \"support_extra.rs\"]\nmod support;\n",
     )
-    decls = _path_decl_map(tmp_path)
-    key = str((tmp_path / "src" / "support_extra.rs").resolve())
-    assert key in decls
-    decl_file, mod_idx = decls[key]
-    assert decl_file.name == "mod.rs"
-    assert "mod support;" in decl_file.read_text(encoding="utf-8").splitlines()[mod_idx]
+    source = WorktreeSource(tmp_path)
+    decls = _path_decl_map(source)
+    assert "src/support_extra.rs" in decls
+    decl_rel, mod_idx = decls["src/support_extra.rs"]
+    assert decl_rel == PurePosixPath("src/mod.rs")
+    assert "mod support;" in source.read_text(decl_rel).splitlines()[mod_idx]
 
 
 def test_gated_attribute_block_stacked_path_attr(tmp_path: Path) -> None:
@@ -566,12 +616,13 @@ def test_gated_attribute_block_stacked_path_attr(tmp_path: Path) -> None:
     )
     lines = mod.read_text(encoding="utf-8").splitlines()
     mod_idx = next(i for i, l in enumerate(lines) if "mod support;" in l)
-    assert _gated_attribute_block(mod, mod_idx, "support_extra.rs") is True
+    assert _gated_attribute_block(lines, mod_idx, "support_extra.rs") is True
 
 
 def test_gated_attribute_block_plain_include_is_not_gated(tmp_path: Path) -> None:
     mod = _write(tmp_path, "src/mod.rs", "mod support;\n")
-    assert _gated_attribute_block(mod, 0, "support.rs") is False
+    lines = mod.read_text(encoding="utf-8").splitlines()
+    assert _gated_attribute_block(lines, 0, "support.rs") is False
 
 
 def test_gated_attribute_block_previous_decl_cfg_does_not_leak(tmp_path: Path) -> None:
@@ -583,4 +634,114 @@ def test_gated_attribute_block_previous_decl_cfg_does_not_leak(tmp_path: Path) -
     )
     lines = mod.read_text(encoding="utf-8").splitlines()
     mod_idx = next(i for i, l in enumerate(lines) if "mod support;" in l)
-    assert _gated_attribute_block(mod, mod_idx, "support.rs") is False
+    assert _gated_attribute_block(lines, mod_idx, "support.rs") is False
+
+
+# --- MemberSource: working tree vs pinned git objects -----------------------
+
+
+def test_lexical_collapses_dot_segments() -> None:
+    assert _lexical("src/./lib.rs") == "src/lib.rs"
+    assert _lexical("src/nested/../lib.rs") == "src/lib.rs"
+    assert _lexical("./src//lib.rs") == "src/lib.rs"
+    assert _lexical("src/lib.rs") == "src/lib.rs"
+
+
+def test_pinned_source_reads_the_commit_not_the_checkout(tmp_path: Path) -> None:
+    # The defect this mode exists to prevent: a member parked on a feature
+    # branch must not change the census of what atlas pins. The pin carries a
+    # site the checkout has since removed, and only the pin may report it.
+    repo = tmp_path / "m"
+    _init_repo(repo)
+    _write(
+        repo,
+        "src/lib.rs",
+        "fn build() { let rows: Vec<Vec<f64>> = Vec::new(); rows }\n",
+    )
+    pin = _commit_all(repo, "one")
+    _write(
+        repo,
+        "src/lib.rs",
+        "fn build() { let rows: Vec<f64> = Vec::new(); rows }\n",
+    )
+
+    pinned = _pinned_sites(repo, pin, "src/lib.rs")
+    checkout = WorktreeSource(repo)
+    worktree = classify_file(
+        "member", checkout, PurePosixPath("src/lib.rs"), _path_decl_map(checkout)
+    )
+
+    assert [o.site() for o in pinned] == ["repos/member/src/lib.rs:1:24"]
+    assert worktree == []
+
+
+def test_pinned_and_worktree_agree_when_the_checkout_is_the_pin(
+    tmp_path: Path,
+) -> None:
+    # The two sources must be interchangeable whenever nothing is in flight,
+    # which is what lets the pinned mode replace the working-tree mode without
+    # changing a single reported site.
+    repo = tmp_path / "m"
+    _init_repo(repo)
+    _write(
+        repo,
+        "src/lib.rs",
+        "fn build() { let rows: Vec<Vec<f64>> = Vec::new(); rows }\n",
+    )
+    _write(repo, "src/plain.rs", "fn other() {}\n")
+    _write(repo, "benches/measure.rs", "fn bench() { let v: Vec<Vec<u8>> = vec![]; }\n")
+    pin = _commit_all(repo, "one")
+
+    checkout = WorktreeSource(repo)
+    pinned = PinnedSource(repo, pin)
+    try:
+        assert pinned.files() == checkout.files()
+        assert pinned.exists(PurePosixPath("src/plain.rs")) is True
+        for rel in ("src/lib.rs", "benches/measure.rs", "src/plain.rs"):
+            path = PurePosixPath(rel)
+            assert [
+                (o.site(), o.test_local)
+                for o in classify_file(
+                    "member", pinned, path, _path_decl_map(pinned)
+                )
+            ] == [
+                (o.site(), o.test_local)
+                for o in classify_file(
+                    "member", checkout, path, _path_decl_map(checkout)
+                )
+            ]
+    finally:
+        pinned.close()
+
+
+def test_pinned_source_existence_follows_the_commit(tmp_path: Path) -> None:
+    repo = tmp_path / "m"
+    _init_repo(repo)
+    _write(repo, "src/lib.rs", "fn build() {}\n")
+    pin = _commit_all(repo, "one")
+    _write(repo, "src/later.rs", "fn later() {}\n")
+
+    pinned = PinnedSource(repo, pin)
+    try:
+        assert pinned.exists(PurePosixPath("src/lib.rs")) is True
+        assert pinned.exists(PurePosixPath("src/later.rs")) is False
+        assert pinned.files() == [PurePosixPath("src/lib.rs")]
+    finally:
+        pinned.close()
+
+
+def test_pinned_source_fails_loudly_on_an_unreadable_member(
+    tmp_path: Path,
+) -> None:
+    # Regression: a failed `git ls-tree` used to yield an empty file list, so a
+    # whole member left the census while the gate still reported a match --
+    # observed for real when `make` ran under a different HOME and Git refused
+    # `repos/metis` as dubiously owned. Silent member loss is the one outcome
+    # this artifact exists to make impossible.
+    not_a_repo = tmp_path / "m"
+    not_a_repo.mkdir()
+
+    with pytest.raises(SystemExit) as excinfo:
+        PinnedSource(not_a_repo, "0" * 40)
+
+    assert "ls-tree failed" in str(excinfo.value)

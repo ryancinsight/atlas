@@ -62,6 +62,35 @@ def registered_members() -> list[Path]:
     ]
 
 
+def member_pins() -> dict[str, str]:
+    """Registered member -> the gitlink SHA the *index* records for it.
+
+    The pin, never the checkout. A member is routinely parked on a feature
+    branch -- that is what conversion work looks like -- so any artifact
+    derived from the working tree measures unlanded work and changes whenever
+    somebody checks something else out. The index is the state the next commit
+    records, which is what makes an artifact regenerated beside a gitlink
+    advance agree with verification both before and after that commit.
+    """
+    out = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "-s", "--", "repos"],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        env=clean_git_env(),
+    ).stdout
+    pins: dict[str, str] = {}
+    for line in out.splitlines():
+        meta, _, path = line.partition("\t")
+        fields = meta.split()
+        if len(fields) != 3 or fields[0] != "160000":
+            continue
+        parts = path.split("/")
+        if len(parts) == 2 and parts[0] == "repos":
+            pins[parts[1]] = fields[1]
+    return pins
+
+
 def clean_git_env(env: dict[str, str] | None = None) -> dict[str, str]:
     """Clear inherited repository selection for a Git call targeting another repo.
 
