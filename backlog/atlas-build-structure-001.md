@@ -1,7 +1,5 @@
 <a id="atlas-build-structure-001"></a>
 ## ATLAS-BUILD-STRUCTURE-001 — Consolidate leaf binaries; compiler-last dev profiles [patch] — in-progress
 - Census 2026-09-21 (top-level `tests/*.rs` per crate): 114 binaries — cfd-validation 37, cfd-1d 25, cfd-3d 18, cfd-2d 14, cfd-math 7, cfd-schematics 6, cfd-optim 4, cfd-core 2, cfd-io 1.
-- Delivered (all merged, listed=executed parity): validation → 3 harnesses (#441), 1d → 1 (#443), 3d → 1 (#445), math → 1 (#448),   schematics → 1 (#449: 30/30 integration, 214/214). Rustdoc drift
-  repaired along the way (#446 for cfd-3d, cfd-2d links inside #447's
-  unit — both merged, no bypasses since). Next slice when claimed:
-  cfd-optim (4).
+- Delivered (merged, listed=executed parity): validation → 3 harnesses (#441; the `allocator_compat`/`tracking_allocator` binaries stay standalone — one global allocator per binary is a documented contract), 1d → 1 (#443), 3d → 1 (#445), 2d → 1 (#447), math → 1 (#448), schematics → 1 (#449: 30/30 integration, 214/214). Rustdoc drift repaired along the way (#446 for cfd-3d, cfd-2d links inside #447's unit — no bypasses since).
+- Slice delivered 2026-09-22 as CFDrs **PR #450, merged** (`2f64d95f` / merge `4dd89942`): optim → 1 and core → 1 — all six leaf targets moved under `tests/main/` behind their `tests/main.rs` roots (same harness shape as 1d/3d/2d/math/schematics). Listed=executed parity: 31/31 integration under `cfd-optim::main` (137/137 total) and 19/19 under `cfd-core::main` (13+6); fmt clean on both. cfd-io stays a single flat `tests/*.rs` target: one binary needs no harness layer, and its `checkpoint_roundtrip.proptest-regressions` corpus is keyed to the source location. Leaf census after both slices: 114 → 11 binaries; nothing left to claim from the original census except the documented 3 standalone allocator-contract harnesses in cfd-validation.
