@@ -131,12 +131,25 @@ fi
 
 # Inspect the actual commit index; unrelated working-tree changes do not enter
 # this commit. A historical-content match needs an explicit recorded reason.
+python_bin="${PYTHON:-}"
+if [ -z "$python_bin" ]; then
+    for candidate in python3 python; do
+        if command -v "$candidate" >/dev/null 2>&1             && "$candidate" -c 'import sys' >/dev/null 2>&1; then
+            python_bin="$candidate"
+            break
+        fi
+    done
+fi
+if [ -z "$python_bin" ]; then
+    echo "pre-commit: BLOCKED -- no working python interpreter found." >&2
+    exit 1
+fi
 if [ -n "$(git diff --cached --name-only --diff-filter=ACMR)" ]; then
-  python3 scripts/atlas-stale-side-guard.py check --staged || exit 1
+  "$python_bin" scripts/atlas-stale-side-guard.py check --staged || exit 1
 fi
 
 # Unused alternate indexes can retain an obsolete staging basis.
-python3 scripts/atlas-stale-side-guard.py basis || exit 1
+"$python_bin" scripts/atlas-stale-side-guard.py basis || exit 1
 
 # Fast-path: only run the detector when docs-relevant files are staged.
 # Avoids paying the cost on every commit (e.g. pure Rust edits).
@@ -154,7 +167,7 @@ echo "[pre-commit] Atlas docs dead-link check (§7 #5, STRICT mode — blocks co
 # The glob mirrors .github/workflows/docs.yml — keep the two in step. A book
 # added to one and not the other is a silently ungated book; the glob means
 # new provider books are gated by both automatically.
-python3 scripts/check_mdbook_links.py repos/*/docs/book
+"$python_bin" scripts/check_mdbook_links.py repos/*/docs/book
 fi
 
 # Atlas provider-integration closure guard.
@@ -166,7 +179,7 @@ integration_changed=$(git diff --cached --name-only 2>/dev/null \
   || true)
 if [ -n "$integration_changed" ]; then
   echo "[pre-commit] Atlas provider integration closure guard…"
-  python3 scripts/atlas-provider-integration-audit.py --structural-only --staged
+  "$python_bin" scripts/atlas-provider-integration-audit.py --structural-only --staged
 fi
 
 exit 0
