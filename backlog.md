@@ -53,25 +53,12 @@ about documentation truth and numerical evidence, not debt.
 
 ## Deferred with a recorded reason
 
-- **ATLAS-PRIVACY-NAMING-1** stays open and unchanged. `repos/leoneuro-rs` is a
-  separate organisation's repository holding local commits `1b71a79` and
-  `50bfcd9` on a branch whose remote is **gone**, so it carries unique unpushed
-  work and must not be deleted. It is correctly gitignored; the violation is
-  that it is *named* in board items, which is a rewrite of existing entries, not
-  a tree change.
-- **Detector residuals.** The `declared_cfg_test` fix does not yet recognise
-  test modules gated through a `#[cfg(feature = "…")]` wrapper around a
-  `#[cfg(test)]` block. consus still reports 334 production unwraps against an
-  audited estimate near 34, so a second refinement pass is warranted before that
-  number drives any burn-down.
-
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — in-progress
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — in-progress
 <a id="atlas-apollo-python-surface-2026-08-20"></a>- [ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20](backlog/atlas-apollo-python-surface-2026-08-20.md) — Ship the typed Python surface [patch] — in-progress
 <a id="apollo-quarantine-lift"></a>- [ATLAS-APOLLO-QUARANTINE-LIFT-2026-09-08](backlog/apollo-quarantine-lift.md) — Apollo's moirai rev pin can now be removed [patch] — todo
 <a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
-<a id="atlas-apollo-stockham-policy-050c"></a>- [ATLAS-APOLLO-STOCKHAM-POLICY-050C](backlog/atlas-apollo-stockham-policy-050c.md) — Parameterize the dispatch-policy matrix [minor] — in-progress
 <a id="atlas-arch-005"></a>- [ATLAS-ARCH-005](backlog/atlas-arch-005.md) — Replace closed-set dyn dispatch in per-timestep paths [arch] — in-progress
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — in-progress
 <a id="atlas-arch-008-running-in-place-225"></a>- [ATLAS-ARCH-008-RUNNING-IN-PLACE-225](backlog/atlas-arch-008-running-in-place-225.md) — The conversion converts and re-accumulates at the same rate [patch] — in-progress
@@ -165,7 +152,7 @@ about documentation truth and numerical evidence, not debt.
 <a id="atlas-overlay-gen-stale-1"></a>- [ATLAS-OVERLAY-GEN-STALE-1](backlog/atlas-overlay-gen-stale-1.md) — Cross-repo path deps on member mainlines [arch] — todo
 <a id="atlas-pm-artifact-budgets"></a>- [ATLAS-PM-ARTIFACT-BUDGETS](backlog/atlas-pm-artifact-budgets.md) — Stack PM artifacts run eight to sixteen times their budget [patch] — in-progress
 <a id="atlas-prepush-hook-forked-across-members-2026-09-09"></a>- [ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09](backlog/atlas-prepush-hook-forked-across-members-2026-09-09.md) — One gate, twenty-three copies, six versions [patch] [ci] — in-progress
-<a id="atlas-privacy-naming-1"></a>- [ATLAS-PRIVACY-NAMING-1](backlog/atlas-privacy-naming-1.md) — Private consumer named throughout stack artifacts [chore] — todo
+<a id="atlas-privacy-naming-1"></a>- [ATLAS-PRIVACY-NAMING-1](backlog/atlas-privacy-naming-1.md) — Remove confidential consumer identity from stack artifacts [patch] — in-progress
 <a id="prometheus-promotion"></a>- [ATLAS-PROMETHEUS-PROMOTION-2026-09-03](backlog/prometheus-promotion.md) — Create and register `prometheus` (species mass balance) [arch][minor] — in-progress
 <a id="proteus-elastic-ssot"></a>- [ATLAS-PROTEUS-ELASTIC-SSOT-2026-09-03](backlog/proteus-elastic-ssot.md) — Proteus owns the isotropic modulus conversion contract [minor] — in-progress
 <a id="atlas-provider-chain-quality-2026-08-27"></a>- [ATLAS-PROVIDER-CHAIN-QUALITY-2026-08-27](backlog/atlas-provider-chain-quality-2026-08-27.md) — Perf/memory/stability/safety audit + fix wave: apollo provider chain [patch]..[minor] — in-progress
@@ -210,3 +197,4 @@ about documentation truth and numerical evidence, not debt.
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="ritk-shared-tree-stale-basis-213"></a>- [RITK-SHARED-TREE-STALE-BASIS-213](backlog/ritk-shared-tree-stale-basis-213.md) — ritk's shared tree is checked out 58 commits behind origin [patch] — in-progress
 <a id="ritk-views-047"></a>- [RITK-VIEWS-047](backlog/ritk-views-047.md) — Collapse seven data accessors to two [major] — blocked
+<a id="atlas-origin-ref-clobber-2026-09-21"></a>- [ATLAS-ORIGIN-REF-CLOBBER-2026-09-21](backlog/atlas-origin-ref-clobber-2026-09-21.md) — A pin sweep used refs/remotes/origin/main as scratch [patch] — todo
