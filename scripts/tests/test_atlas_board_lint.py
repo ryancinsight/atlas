@@ -11,6 +11,8 @@ scanner does not escapes the hard gate.
 from __future__ import annotations
 
 import importlib.util
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -239,6 +241,87 @@ class IndexedLayoutTestCase(BoardLintUtilTestCase):
             sys.argv = old_argv
             _lint.ROOT = old_root
         self.assertEqual(rc, 1)
+
+
+class HashReferenceTestCase(unittest.TestCase):
+    """Cited commit hashes resolve against the stack's object stores or count."""
+
+    GIT_ENV = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "fixture", "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
+        "GIT_COMMITTER_NAME": "fixture", "GIT_COMMITTER_EMAIL": "fixture@example.invalid",
+        "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+    }
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="atlas-board-lint-hash-")
+        self.root = Path(self._tmp.name)
+        self.root_hash = self._repo(self.root)
+        member = self.root / "repos" / "member"
+        member.mkdir(parents=True)
+        self.member_hash = self._repo(member)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _git(self, repo: Path, *args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args], check=True, capture_output=True,
+            text=True, env=self.GIT_ENV,
+        ).stdout.strip()
+
+    def _repo(self, path: Path) -> str:
+        self._git(path, "init", "-q", "-b", "main")
+        (path / "README.md").write_text("fixture\n", encoding="utf-8")
+        self._git(path, "add", "README.md")
+        self._git(path, "commit", "-q", "-m", "fixture")
+        return self._git(path, "rev-parse", "HEAD")
+
+    def test_hash_pattern_names_bare_citations_only(self) -> None:
+        line = (
+            "landed in 0123abc and deadbeef1; defaced facade; run 32026666522; "
+            "https://x/commit/0123abcdef00 crate-0123456789abcdef "
+            "v1.2.3 build_0123abc `4567abc` #4567abcd"
+        )
+        self.assertEqual(
+            _lint.HASH_PATTERN.findall(line),
+            ["0123abc", "deadbeef1", "4567abc", "4567abcd"],
+        )
+
+    def test_unresolved_hashes_resolve_across_the_stack(self) -> None:
+        board = self.root / "backlog.md"
+        board.write_text(
+            f"## ATLAS-X-001 - item\n"
+            f"- landed in {self.root_hash[:9]} and {self.member_hash[:9]}\n"
+            f"- claimed in deadbeef1 and again deadbeef1\n"
+            f"- deadbeef1 once more, in an unrelated line\n",
+            encoding="utf-8",
+        )
+        adr = self.root / "docs" / "adr"
+        adr.mkdir(parents=True)
+        (adr / "0001-x.md").write_text("basis: cafef00d1\n", encoding="utf-8")
+        stores = _lint.object_stores(self.root)
+        self.assertEqual([p.name for p in stores], [self.root.name, "member"])
+        unresolved = _lint.unresolved_hashes(_lint.reference_artifacts(self.root), stores)
+        self.assertEqual(
+            unresolved,
+            {
+                "deadbeef1": [("backlog.md", 3), ("backlog.md", 3), ("backlog.md", 4)],
+                "cafef00d1": [("0001-x.md", 1)],
+            },
+        )
+        self.assertEqual(_lint.count_unresolved(self.root, stores), 4)
+
+    def test_snapshot_without_object_store_still_counts_by_content(self) -> None:
+        snapshot = self.root / "snapshot"
+        (snapshot / "backlog").mkdir(parents=True)
+        (snapshot / "CHECKLIST.md").write_text(
+            f"- {self.member_hash[:7]} ok\n- 0badbad0 no\n", encoding="utf-8"
+        )
+        (snapshot / "backlog" / "item.md").write_text("- 0badbad0 no\n", encoding="utf-8")
+        self.assertEqual(_lint.object_stores(snapshot), [])
+        stores = _lint.object_stores(self.root)
+        self.assertEqual(_lint.count_unresolved(snapshot, stores), 2)
 
 
 class ControlCharacterTestCase(unittest.TestCase):
