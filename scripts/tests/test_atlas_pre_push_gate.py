@@ -188,6 +188,26 @@ class GateFixture:
              str(root / "upstream.git"), "--bare"],
             check=True,
         )
+        # Fixture teardown must not race Git's opportunistic maintenance. The
+        # gate exercises several short-lived repositories in parallel, and a
+        # background `gc --auto` can still rewrite `.git/objects` while
+        # TemporaryDirectory removes it. Disable maintenance in both the
+        # repository under test and its local bare remote; this changes no
+        # gate behavior, only the fixture's lifetime semantics.
+        for repo in (root, root / "upstream.git"):
+            subprocess.run(
+                ["git", "-C", str(repo), "config", "gc.auto", "0"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(repo), "config", "maintenance.auto", "false"],
+                check=True,
+            )
+        subprocess.run(
+            ["git", "-C", str(root / "upstream.git"), "config",
+             "receive.autogc", "false"],
+            check=True,
+        )
         # The remote is bare, so it carries no `.git` entry for git to
         # recognise and skip: without this exclude a `git add -A` in a
         # test walks it as ordinary files and indexes the remote's own
