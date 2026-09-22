@@ -34,6 +34,15 @@ on:
       - 'backlog.md'
       - 'checklist.md'
       - 'gap_audit.md'
+  # For the `pin-drift` job only. Drift is a function of what the *members*
+  # publish, so no atlas event can announce it: a member merging a pull request
+  # makes atlas's pin stale without touching this repository at all. Time is
+  # the only trigger that can catch that, which is why the 2026-09-21 sweep
+  # found all of it at once. The jobs above opt out of this event, so a
+  # scheduled run is one short network job, not a second copy of the ratchet.
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
 
 concurrency:
   # Pull requests share one group per ref and cancel superseded runs. Default-
@@ -51,12 +60,15 @@ jobs:
   # exactly the ones an invalid edit would break fleet-wide.
   workflow-lint:
     name: Workflows are valid
+    # The schedule exists for `pin-drift`; this job keeps the triggers it had.
+    if: github.event_name != 'schedule'
     uses: ./.github/workflows/workflow-lint.yml
     permissions:
       contents: read
 
   conformance-check:
     name: Debt-class ratchet (counts non-increasing vs committed baseline)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -230,4 +242,103 @@ jobs:
         with:
           name: conformance-check-log
           path: ${{ runner.temp }}/conformance-check.log
+          if-no-files-found: ignore
+
+  pin-drift:
+    name: Gitlink pins at their members' default branches
+    runs-on: ubuntu-latest
+    # Not in the pull-request round trip: the measurement below is gated to
+    # gitlink changes, so on an ordinary pull request this job costs a checkout
+    # and exits. The budget covers the scheduled run, which reads 28 remotes
+    # and initialises 28 members.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Members are initialised below, and only when the scan applies.
+          submodules: false
+          lfs: false
+          # The scope step diffs against the base, so it must be reachable.
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Decide whether the pins changed
+        id: scope
+        shell: bash
+        # One remote round trip per member is not a per-pull-request cost. It
+        # is paid on the schedule, and on any change that moves a pin -- a
+        # `repos/<name>` gitlink or `.gitmodules` itself. When the base cannot
+        # be resolved the answer is to measure: an undetermined scope must fail
+        # towards running the check, never towards skipping it.
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ] && [ "${{ github.event_name }}" != "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Scheduled or manual run: measuring every member."
+            exit 0
+          fi
+          base="${{ github.event.pull_request.base.sha || github.event.before || '' }}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Base revision unavailable: measuring rather than assuming clean."
+            exit 0
+          fi
+          # `grep -E ... > /dev/null`, never `grep -q`: under `pipefail`, `-q`
+          # exits at the first match and the SIGPIPE it sends upstream becomes
+          # the pipeline's status, so a *matching* diff can report 141 and skip
+          # the scan -- a false pass on exactly the change this job exists for.
+          if git diff --name-only "$base" HEAD | grep -E '^(\.gitmodules$|repos/)' > /dev/null; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "A gitlink or .gitmodules changed: measuring."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No pin moved in this change: the scheduled run covers drift."
+          fi
+
+      - name: Initialize direct Atlas members
+        if: steps.scope.outputs.run == 'true'
+        shell: bash
+        # Full commit history, unlike the ratchet job's `--depth=1`: counting
+        # the distance from a pin to a tip needs both commits and the path
+        # between them. Blobless keeps that cheap -- the guard reads history,
+        # never file content.
+        run: git -c protocol.version=2 submodule update --init --force --filter=blob:none
+
+      - name: Setup Python 3.11
+        if: steps.scope.outputs.run == 'true'
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Pins within one sweep of their members' defaults
+        if: steps.scope.outputs.run == 'true'
+        shell: bash
+        # Redirect-then-cat, not a pipe: the default shell has no pipefail, so
+        # piping to tee would report tee's status and this gate could not fail.
+        # Same trap the conformance step above documents.
+        run: |
+          set +e
+          python3 scripts/atlas-pin-drift.py > "$RUNNER_TEMP/pin-drift.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/pin-drift.log"
+          if [ "$status" -eq 2 ]; then
+            echo "::error::A member could not be measured, so no pin can be called \
+          current. This is not a pass: re-run once the remotes are reachable."
+          elif [ "$status" -ne 0 ]; then
+            echo "::error::A recorded gitlink has drifted from its member's default \
+          branch, or names a commit that branch does not carry. Advance the pin, or \
+          record the hold with a reason and a re-open trigger in \
+          scripts/pin-drift-waivers.json."
+          fi
+          exit "$status"
+
+      - name: Upload pin-drift log artefact
+        if: always() && steps.scope.outputs.run == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pin-drift-log
+          path: ${{ runner.temp }}/pin-drift.log
           if-no-files-found: ignore
