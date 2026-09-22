@@ -17,6 +17,11 @@
       "member": "ritk",
       "reason": "ATLAS-GITLINK-DRIFT-056: advancing the pin to main (e27409344e) raises oversized_files 45 -> 46. The same tip tightens allow_sites 6 -> 0 and type_suffixed_fns 73 -> 71, so this is one file short of an advance that would otherwise lower the baseline. Verified at e27409344e on 2026-09-22.",
       "reopen": "ritk's oversized_files returns to 45 or below on main -- the fix was in progress and no PR was filed when this was written, so the count itself is the trigger, not a PR number."
+    },
+    {
+      "member": "moirai",
+      "reason": "ATLAS-GITLINK-DRIFT-056: advancing the pin from b77239dd10 to current main 29b129659f (PR #437, after PR #436) raises oversized_files 33 -> 35, so the provider repair must land before the pin advances.",
+      "reopen": "Moirai main returns to oversized_files 33 or below after the provider-owned unit-task split is repaired."
     }
   ]
 }
