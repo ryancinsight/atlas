@@ -1,6 +1,7 @@
 # ADR 0031: Real sparse LU factorization for `leto-ops::SparseLuSolver`
 
 - **Status**: Accepted (2026-07-23; SparsLU landed at leto `687b670`) — was Proposed
+- **Amended**: 2026-09-22 — every "AMD ordering deferred" / "tracked as follow-up" clause in §Options, §Decision, §Consequences and §References below is **historical**. AMD fill-reducing ordering landed at leto `db9a63c` (2026-08-06) as `crates/leto-ops/src/application/sparse/amd.rs`, exposed opt-in through `OrderingStrategy::AmdApproxMinDegree` and `factor_symbolic_with_ordering` (wired at `lu_symbolic.rs`), with a fill-reduction test over Poisson structure. Natural column ordering remains the v0.40.0 default, so the shipped behavior this ADR records is unchanged; AMD is additive. RCM ordering is the only ordering still unimplemented.
 - **Date**: 2026-07-23
 - **Class**: `[arch]` `[minor]`
 - **Driver**: ATLAS-LETO-OPS-SPARSE-LU-001
@@ -108,7 +109,8 @@ Replace the body of `SparseLuSolver::solve_validated` with a **dispatcher**:
   constant factor becomes a tax.
 - Otherwise (large + sparse): factor via **symbolic LU + numeric LU** over
   the CSC pattern, with **partial pivoting** at each elimination step and
-  **natural column ordering** for v0.40.0 (RCM/AMD tracked as follow-up).
+  **natural column ordering** by default (AMD available opt-in since
+  2026-08-06; RCM still unimplemented).
 
 **Pros**:
 
@@ -126,7 +128,7 @@ Replace the body of `SparseLuSolver::solve_validated` with a **dispatcher**:
 
 - The dense path stays as a fallback path inside the same type — slight
   conceptual folding, but justified by the real crossover at small `n`.
-- AMD ordering deferred (see Consequences).
+- AMD ordering was deferred at authoring; it shipped 2026-08-06 (see Amendment).
 
 ### Option B — Separate `RealSparseLuSolver` + deprecate `SparseLuSolver`
 
@@ -154,11 +156,12 @@ technical-debt expansion).
 ## Decision (with recommendation)
 
 **Option A.** Implement real sparse LU with partial pivoting over CSC,
-size/density-gated dispatch inside the existing `SparseLuSolver`. Use
-**natural column ordering for v0.40.0** and track AMD/RCM ordering as the
-follow-up board item (see Consequences — the AMD algorithm's ~300-line
-implementation surface exceeds the bounded increment's context budget, per
-the AGENTS.md AMD-scope-risk caution).
+size/density-gated dispatch inside the existing `SparseLuSolver`. Natural
+column ordering is the default. AMD/RCM ordering was scoped as the follow-up
+board item at authoring — the AMD algorithm's ~300-line implementation
+surface exceeded the bounded increment's context budget, per the AGENTS.md
+AMD-scope-risk caution — and **AMD shipped 2026-08-06** (see Amendment); only
+RCM remains outstanding.
 
 ### Algorithm class
 
@@ -287,15 +290,16 @@ where reachable, `# Examples` runnable) per AGENTS.md `documentation`
 
 ### Negative / acknowledged limits
 
-- **AMD ordering deferred.** The AGENTS.md session-15 pitfalls caution
-  explicitly warns: AMD has a ~300-line implementation surface; if it
-  exceeds the bounded-increment context budget, ship natural ordering and
-  track AMD as a follow-up. **This ADR ships natural ordering** — fill-in
-  is not actively minimized for v0.40.0. For CFDrs's banded 2-D pressure
-  systems, natural ordering is already near-optimal (bandwidth small); for
-  unstructured 3-D systems the fill-in cost is real but bounded (worst case
-  still `O(n²)` storage, not worse than the dense path being replaced). The
-  follow-up AMD item is recorded on the board.
+- **AMD ordering — delivered 2026-08-06 (superseding "deferred").** This ADR
+  originally shipped natural ordering only: the AGENTS.md session-15 pitfalls
+  caution sized AMD at a ~300-line implementation surface that exceeded the
+  bounded increment's context budget. The follow-up landed at leto `db9a63c`
+  (`application/sparse/amd.rs`) as an **opt-in** strategy
+  (`OrderingStrategy::AmdApproxMinDegree` via `factor_symbolic_with_ordering`)
+  so the v0.40.0 default and its behavior are unchanged. For CFDrs's banded
+  2-D pressure systems natural ordering is already near-optimal (bandwidth
+  small); for unstructured 3-D systems AMD now actively reduces fill. RCM
+  ordering remains unimplemented.
 - Dense fallback path stays — slight conceptual non-minimalism, but the
   crossover at small `n` is a real measurement (symbolic factorization
   overhead exceeds dense-matrix constant factor around `n ≤ 32`), and
@@ -365,8 +369,8 @@ per farsight — **never** the bound raised or the workload shrunk.
 - Davis, T. A. (2006). *Direct Methods for Sparse Linear Systems*. SIAM,
   Series on the Fundamentals of Algorithms. Chapter 8 (LU factorization,
   partial pivoting, symbolic + numeric phases); Chapter 7 (AMD reference
-  implementation, deferred per Consequences).
+  implementation, delivered 2026-08-06 per Amendment).
 - Amestoy, P. R., Davis, T. A., Duff, I. S. (1996). *An approximate minimum
   degree ordering algorithm*. SIAM J. Matrix Anal. Appl. **17** (4),
-  886–905. Reserved for the follow-up AMD board item — explicitly not
-  implemented in v0.40.0.
+  886–905. Implemented 2026-08-06 in `application/sparse/amd.rs` (see
+  Amendment).
