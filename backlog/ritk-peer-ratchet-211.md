@@ -1,6 +1,5 @@
 <a id="ritk-peer-ratchet-211"></a>
 ## RITK-PEER-RATCHET-211 — Peer commits regressed three ratchet classes on ritk [patch] — todo
-- `print_dbg 12 → 17`, `oversized_files 43 → 44`, `manifest_implementation 104 → 105`.
-- Attribution is unambiguous: the counts are **identical at HEAD and in the dirty worktree**, so they came from the peer commits (#171–#173) that moved ritk's HEAD from `bacfe1f6` to `0f0b5c56` mid-session, not from the accessor work, which is ratchet-neutral.
-- `print_dbg +5` is the one to look at first — five new print/`dbg!` sites in library code is a lint-floor breach, not drift.
+- STALE as written (re-measured 2026-09-21 via the committed scanner, ritk worktree): `print_dbg` reads 0, not 17 — the item predates the `build.rs` cargo-protocol exemption and subsequent cleanup; `manifest_implementation` reads 104, back at baseline; `oversized_files` reads 45 (baseline 43) — still drifting, the only live remainder.
+- Do NOT execute the old prescription (print/manifest halves already resolved); the actionable residue is a fresh oversized-files triage against the current 45. Ritk tree holds live peer dirt (ritk-snap dicom work); coordinate there.
 - Acceptance: each class back at or below baseline, or the baseline regenerated with a recorded justification per the generator contract.
