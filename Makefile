@@ -11,7 +11,7 @@ help:
 	@echo "  make board-lint          Check backlog.md for duplicate item ids"
 	@echo "  make stale-sides         Fail if a changed file is an older revision of itself"
 	@echo "  make stale-basis         Check alternate Git indexes for stale staging state"
-	@echo "  make verify-scattered-oracle  Re-verify the ARCH-008 production split against the committed oracle"
+	@echo "  make verify-scattered-oracle  Re-verify the ARCH-008 production split against the committed oracle (pinned gitlinks)"
 	@echo "  make search-index        Emit SCIP symbol indexes for every stack member"
 	@echo "  make search-index-check  Verify SCIP indexes are fresh for every member"
 	@echo "  make search-lookup TOK=NumericLu  SCIP lookup for a symbol token"
@@ -44,7 +44,7 @@ stale-basis:
 	@python scripts/atlas-stale-side-guard.py basis
 
 verify-scattered-oracle:
-	@python scripts/atlas_scattered_containers_classify.py --verify-oracle scripts/oracles/arch-008-production-sites.txt
+	@python scripts/atlas_scattered_containers_classify.py --pinned --verify-oracle scripts/oracles/arch-008-production-sites.txt
 
 search-index:
 	@python scripts/search_ladder_index.py generate
