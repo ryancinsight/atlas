@@ -57,8 +57,6 @@ mechanically swept**:
 
 ### Recommended scanner improvement
 
-## Finding 2026-08-21: workflow_missing_timeout regression — moirai overlay re-application
-
 ## Finding 2026-08-21: missing_deny_docs assessment — not a safe editorial sweep
 
 The Step 4 "Outstanding debt after this turn" section names
@@ -80,81 +78,67 @@ editorial sweep. The 118-site count is a watchpoint for provider-level
 doc-discipline adoption, not a mechanical ratchet the Atlas audit-sweep can
 close.
 
-## Finding 2026-08-20: excess_worktrees — Phase 1+3 inventory + snapshot, Phase 4 unregistration still gated
+## Finding 2026-08-20: rescued lane dirt still sits in the lane root
 
-### What Phase 1 captured
+The Phase 1 lane inventory this finding carried is superseded: every lane it
+named is gone. Counted 2026-09-21: `repos/kwavers` has 2 registered trees,
+`repos/CFDrs` 1 and `repos/consus` 1, and none of the eight unregistered
+`worktrees/kwavers-*` filesystem residues survive.
 
-- **`repos/kwavers` registered linked = 4** (`kwavers-format`, `kwavers-fwi-asm-split-step`, `kwavers-gpu-honest`, `kwavers-simulated-gpu`)
-- **`repos/CFDrs` registered linked = 2** (`CFDrs-format-gate`, `cfdrs-global-allocator`)
-- **`repos/consus` registered linked = 2** (`consus-adr-0045-p4-benchmark-parser`, `fix/consus-zarr-endian-hardening-221`)
-- **8 unregistered `/worktrees/kwavers-*` filesystem lanes** with no gitdir entry: `kwavers-093`, `kwavers-093impl`, `kwavers-audit`, `kwavers-backlog-kw-pm-090`, `kwavers-cascade-provider-042`, `kwavers-doc557`, `kwavers-fwref`, `kwavers-kw-sol-092` — all **empty** (0 files / 0 bytes on disk), pure filesystem residue from earlier pruned worktrees
-- **`repos/consus` primary peer-owned rebase** — branch `codex/consus-parse-limits-035` with `[gone]` upstream; 6 modified tracked + 2 untracked
+Phase 3's archive does survive. `worktrees/.archive/` holds 19 entries -- 17
+`MANIFEST.txt` provenance files and 18 rescued working-tree files -- written
+2026-08-20 and 2026-08-21, gitignored, untouched since. Per the manifests the
+rescued content is almost entirely `Cargo.lock` copies, which are derived state
+and drop on sight; the one substantive entry is
+`consus-primary-codex-consus-parse-limits-035-ebc4979`, six files including the
+three board files, from a branch whose upstream was already `[gone]`.
 
-### Per-lane dirt summary (what Phase 4 would need to know before `git worktree remove`)
+Two residuals, neither of them the lane count: the archive is a non-worktree
+directory in the canonical lane root, which holds linked worktrees only; and
+`scripts/atlas-snapshot-worktrees.py`, the script this finding credits with
+producing it, is not tracked on `main`.
 
-| lane | branch | sha | working-tree dirt | copied to archive? |
-|---|---|---|---|---|
-| kwavers/kwavers-format | `refactor/seismic-example-structure` | `2f5b260e`**8 ahead** | clean | (empty archive dir) |
-| kwavers/kwavers-fwi-asm-split-step | `feat/kwavers-fwi-rotation-stage` | `8f7db4e5` | M `Cargo.lock` | ✅ 1 file copied |
-| kwavers/kwavers-gpu-honest | `chore/kwavers-lint-floor` | `5e5543ae` | M `Cargo.lock` | ✅ 1 file copied |
-| kwavers/kwavers-simulated-gpu | `refactor/kwavers-athena-krylov` | `6f77bd4e` | M `Cargo.lock` | ✅ 1 file copied |
-| CFDrs/CFDrs-format-gate | `fix/cfdrs-format-gate` | `c9aff82e` | clean | (empty archive dir) |
-| CFDrs/cfdrs-global-allocator | `refactor/cfdrs-athena-solver-ssot` | `7b078d72` | M `Cargo.lock` | ✅ 1 file copied |
-| consus/consus-adr-0045-p4-benchmark | `codex/adr-0045-p4-benchmark-parser`**11 ahead / 4 behind** | `1909709c` | M `Cargo.lock`, M `crates/consus-hdf5/src/file/async_reader.rs` | ✅ 2 files copied |
-| consus/consus-zarr-fix | `fix/consus-zarr-endian-hardening-221` | `2b8d71af` | M `Cargo.lock` | ✅ 1 file copied |
-| **consus primary** (peer rebase) | `codex/consus-parse-limits-035`**[gone]** | `ebc49798` | M `Cargo.lock`, M `README.md`, M `backlog.md`, M `checklist.md`, M `gap_audit.md`, M `.github/workflows/ci.yml` | ✅ **6 files copied** |
+re-open trigger: `worktrees/.archive` is non-empty.
 
-### Phase 3 archive layout (`D:/atlas/worktrees/.archive/`)
+## Finding 2026-09-21: rev-pin churn silts up the shared cache, and retention does not reach it
 
-- `<repo>-<lane>-<short-sha>/MANIFEST.txt` — provenance (lane, repo, path, branch, sha, captured_at, dirty count, untracked count, raw `git status`)
-- `<repo>-<lane>-<short-sha>/dirty-tracked/<file-path>` — copy of each dirty tracked file
+Measured while tracing a member target fork to its cause, then found in the
+shared cache at the same rate. A `rev =` advance on a first-party git
+dependency is a new source identity: cargo compiles a fresh generation of that
+crate and its dependents, and never reclaims the previous one. Counting
+fingerprint directories against distinct build units in `target/debug` gives
+the multiplier directly -- themis 41 directories for **1** unit, mnemosyne 140
+for 9, moirai 197 for 15, leto 29 for 2, hermes 58 for 5.
+`target/release/.fingerprint` holds 10,546 build-unit directories.
 
-### Phase 4 ledger (NOT executed this turn)
+`scripts/atlas-cache-retention.py` exists and names the general problem in its
+own docstring -- "Cargo never garbage-collects it" -- but its eviction units
+are containers (profiles, nested target directories) and the children of
+`incremental` directories. Per-rev generations live in `deps/` and
+`.fingerprint`, so the tool does not reach the dominant term. Nothing in
+`.github/` invokes it either, so it runs only by hand.
 
-Destructive-class ops still pending destructive-action authorisation:
+This is the second, unmeasured cost of a `rev =` pin. The scan already counts
+those pins as quarantine (lint floor); the cache sediment they leave is not
+counted anywhere.
 
-### Where to find the data
+re-open trigger: fingerprint directories per distinct build unit above ~2x for
+any first-party crate in the shared cache.
 
-- `D:/atlas/worktrees/.archive/` — 17 dirs + `_DRILLDOWN.json`
-- `D:/atlas/worktrees/.archive/_DRILLDOWN.json` — full machine-readable inventory
-- `scripts/atlas-snapshot-worktrees.py` — the script that produced the snapshot (re-runnable)
+## Finding 2026-08-20: target_forks regrew, and the ratchet cannot see it
 
-### Atlas-side state preservation
+The residual this finding recorded as fixed -- "residual dropped to 0 ...
+stack `target_forks` total 0" -- is back. Counted 2026-09-21 with the scan's
+own predicate (`is_cargo_target_dir`: a `target*` directory carrying
+`.rustc_info.json`, `CACHEDIR.TAG`, `debug` or `release`): five directories,
+33.5 GB together. Dating each against the guard that was supposed to prevent
+them splits the list in two.
 
-## Finding 2026-08-20: target_forks residual — mechanism, plan, authorization ledger
+`repos/.cargo/config.toml`, generated by `scripts/atlas-member-target-dir.py`,
+landed 2026-09-09 23:00. It is installed and correct today: gitignored as
+designed, carrying the absolute `target-dir`.
 
-### Mechanism
-
-```python
-```
-
-| repo | path | size | contents |
-|---|---|---|---|
-| aequitas | `repos/aequitas/target/` | 2.5 GB | `.rustc_info.json`, `CACHEDIR.TAG`, `book/`, `debug/`, `mdbook-test-libs/`, `tmp/` (Pages book rendered here) |
-| asclepius | `repos/asclepius/target/` | 1.3 GB | `.rustc_info.json`, `CACHEDIR.TAG`, `book/`, `debug/`, `tmp/` |
-
-### Option 1 / junction plan (as designed)
-
-   ```
-   ```
-
-### Authorization ledger (destructive-class actions taken vs pending)
-
-- `mv repos/<repo>/target/* target/<repo>/` — authorized as part of the option-1 approval, executed. Result: 3.8 GB relocated, residual dropped to 0 (`aequitas.target_forks = 0`, `asclepius.target_forks = 0`, stack `target_forks` total 0; verified via `python scripts/atlas-conformance.py --worktree --json`).
-- `mklink /J` — authorized in the same approval, **deliberately not executed** because the live `is_cargo_target_dir` predicate, applied to a junction, re-activates the residual. `pathlib.Path.exists()` follows NTFS junctions transparently on this Windows host, so `(repos/aequitas/target / ".rustc_info.json").exists()` returns True through the link and the scan would re-count the repo as `target_forks: 1`. Executing the junction step would undo the move's fix; the empty-directory state at the per-repo `target/` is the only state where the scan returns False AND the moved data stays reachable.
-
-### Destructive-class actions still pending authorization
-
-### Adjacent Atlas-side debt (untouched by this Finding)
-
-- `excess_worktrees` total 5 (Kwavers=3, CFDrs=1, Consus=1)
-- `gitattributes_missing` total 5 (Apollo=1, CFDrs=1, Consus=1, plus two more)
-- `workflow_missing_permissions` total 6
-- `seqcst_production` total 132 (Moirai=107, Melinoe=13, Kwavers=10)
-
-### 2026-09-21 census (from the superseded triage PR #220)
-
-| owner | written | contents | size |
+| directory | last written | contents | size |
 |---|---|---|---|
 | a gitignored non-member checkout | 2026-09-03 | `book/`, `debug/`, `doc/`, `release/`, `tmp/`, four rendered images | **30.9 GB** |
 | helios | 2026-09-21 18:58 | `bench-replicated/`, `debug/xtask.*` | 1.1 GB |
@@ -173,20 +157,28 @@ that dependency and everything downstream of it and never reclaims the
 previous one; themis, never re-pinned, is the control that shows what an
 unchurned dependency costs.
 
-It predates the guard by six days and nothing has touched it since. It is
-also the one row nobody should sweep: that checkout belongs to a separate
-organisation, is gitignored by design, and carries unique unpushed work on a
-branch whose remote is gone -- `ATLAS-PRIVACY-NAMING-1` governs how it may be
-referred to at all. Inert history, not a leak.
+It predates the guard by six days and nothing has touched it since.
+It is also the one row nobody should sweep: that checkout belongs to a
+separate organisation, is gitignored by design, and carries unique unpushed
+work on a branch whose remote is gone -- `ATLAS-PRIVACY-NAMING-1` governs how
+it may be referred to at all. Inert history, not a leak.
 
-The other four were each written 2026-09-21, with the guard installed, and
-2.6 GB is the actionable number. Two mechanisms, both structural rather than
+The other four were each written on 2026-09-21 with the guard installed,
+2.6 GB together, and all four were gone by 2026-09-22 09:16 -- removed by
+someone unrecorded, since an untracked cache leaves no commit. The class reads
+0 for registered members now. The risk stays open because nothing about the
+mechanism changed: the same invocation recreates them. Two mechanisms, both structural rather than
 a hole in the config. Cargo discovers configuration from the *current
 directory* upward, so `repos/.cargo/config.toml` reaches only invocations
 whose cwd is under `repos/`; a `cargo --manifest-path <member>` run from
-outside the stack -- the documented way to build without the overlay -- never
-sees it, and the stack root's relative `target-dir = "target"` then resolves
-against the member's own workspace root. And an explicit per-purpose
+outside the stack -- the documented way to build against a committed lock --
+never sees it. Measured with `cargo metadata --no-deps` on eunomia, the
+variable unset: cwd `/d/atlas` and `/d/atlas/repos` both resolve
+`target_directory` to `D:/atlas/target`, cwd `/c/Users` resolves it to the
+member's own `target`. The cause is not a mis-resolved relative path -- from
+outside the stack no atlas config is discovered at all, so cargo falls back to
+its default of `<workspace root>/target`, and the workspace root is the
+member. And an explicit per-purpose
 directory beats any config: `ci-wheel-target/` is maturin's, `bench-replicated/`
 a benchmark runner's, and neither name appears in a tracked script here or in
 the members' own.
