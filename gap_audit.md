@@ -152,6 +152,63 @@ Destructive-class ops still pending destructive-action authorisation:
 - `workflow_missing_permissions` total 6
 - `seqcst_production` total 132 (Moirai=107, Melinoe=13, Kwavers=10)
 
+### 2026-09-21 census (from the superseded triage PR #220)
+
+| owner | written | contents | size |
+|---|---|---|---|
+| a gitignored non-member checkout | 2026-09-03 | `book/`, `debug/`, `doc/`, `release/`, `tmp/`, four rendered images | **30.9 GB** |
+| helios | 2026-09-21 18:58 | `bench-replicated/`, `debug/xtask.*` | 1.1 GB |
+| eunomia | 2026-09-21 09:50 | `debug/{deps,examples,incremental}` | 596 MB |
+| CFDrs | 2026-09-21 17:16 | `debug/`, `doc/` | 579 MB |
+| aequitas | 2026-09-21 14:37 | `book/`, `ci-python-dist/`, `ci-python-env/`, `ci-wheel-target/{debug,maturin}` | 355 MB |
+
+The 30.9 GB is 24.6 GB of `debug/` and 5.6 GB of `release/`; `doc/`, `book/`
+and the renders are 13 MB between them, so the size is a build tree and
+nothing else. Its shape says how it got there: `target/debug/.fingerprint`
+holds 5,096 build-unit directories, among them **205 for mnemosyne across
+only 9 distinct build units** and 181 for moirai across 12, against 4 for
+themis across 1. That repository carries 35 `rev =` advances of mnemosyne. A
+rev advance is a new source identity, so cargo compiles a fresh generation of
+that dependency and everything downstream of it and never reclaims the
+previous one; themis, never re-pinned, is the control that shows what an
+unchurned dependency costs.
+
+It predates the guard by six days and nothing has touched it since. It is
+also the one row nobody should sweep: that checkout belongs to a separate
+organisation, is gitignored by design, and carries unique unpushed work on a
+branch whose remote is gone -- `ATLAS-PRIVACY-NAMING-1` governs how it may be
+referred to at all. Inert history, not a leak.
+
+The other four were each written 2026-09-21, with the guard installed, and
+2.6 GB is the actionable number. Two mechanisms, both structural rather than
+a hole in the config. Cargo discovers configuration from the *current
+directory* upward, so `repos/.cargo/config.toml` reaches only invocations
+whose cwd is under `repos/`; a `cargo --manifest-path <member>` run from
+outside the stack -- the documented way to build without the overlay -- never
+sees it, and the stack root's relative `target-dir = "target"` then resolves
+against the member's own workspace root. And an explicit per-purpose
+directory beats any config: `ci-wheel-target/` is maturin's, `bench-replicated/`
+a benchmark runner's, and neither name appears in a tracked script here or in
+the members' own.
+
+One quieter variant: `repos/asclepius/.cargo/config.toml` sets
+`target-dir = "D:/atlas/target/asclepius"`. That keeps `repos/asclepius/target`
+empty, so the class does not count it, while still giving the member a private
+cache inside the shared tree -- the dependency artifacts the one cache exists
+to compile once are not shared with it.
+
+The ratchet reports zero for the class regardless, and always will:
+`target_forks` is in `HOST_OBSERVED_CLASSES`, so `scripts/atlas-conformance.py`
+forces its baseline entry to 0 and reports it apart from regressions. That
+zero is why this finding read as resolved for a month.
+
+The junction alternative stays rejected for the reason recorded here
+originally: `Path.exists()` follows an NTFS junction, so linking a moved cache
+back re-activates the predicate and the fork re-counts. That constraint now
+lives with the predicate it constrains, in `is_cargo_target_dir`'s docstring.
+
+re-open trigger: any `repos/<member>/target*` satisfies `is_cargo_target_dir`.
+
 ## Finding 2026-08-20: Kwavers distributed queue remains externally gated
 
 Kwavers PR #427 remains open at head `7245db7e44a7f461a34ff2d67e5b7f1a76bc69c1`
