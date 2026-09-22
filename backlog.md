@@ -71,7 +71,7 @@ about documentation truth and numerical evidence, not debt.
 <a id="atlas-apollo-python-surface-2026-08-20"></a>- [ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20](backlog/atlas-apollo-python-surface-2026-08-20.md) — Ship the typed Python surface [patch] — in-progress
 <a id="apollo-quarantine-lift"></a>- [ATLAS-APOLLO-QUARANTINE-LIFT-2026-09-08](backlog/apollo-quarantine-lift.md) — Apollo's moirai rev pin can now be removed [patch] — todo
 <a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
-<a id="atlas-apollo-stockham-policy-050c"></a>- [ATLAS-APOLLO-STOCKHAM-POLICY-050C](backlog/atlas-apollo-stockham-policy-050c.md) — Parameterize the dispatch-policy matrix [minor] — todo
+<a id="atlas-apollo-stockham-policy-050c"></a>- [ATLAS-APOLLO-STOCKHAM-POLICY-050C](backlog/atlas-apollo-stockham-policy-050c.md) — Parameterize the dispatch-policy matrix [minor] — in-progress
 <a id="atlas-arch-005"></a>- [ATLAS-ARCH-005](backlog/atlas-arch-005.md) — Replace closed-set dyn dispatch in per-timestep paths [arch] — in-progress
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — in-progress
 <a id="atlas-arch-008-running-in-place-225"></a>- [ATLAS-ARCH-008-RUNNING-IN-PLACE-225](backlog/atlas-arch-008-running-in-place-225.md) — The conversion converts and re-accumulates at the same rate [patch] — in-progress
@@ -96,7 +96,6 @@ about documentation truth and numerical evidence, not debt.
 <a id="atlas-cfdrs-hosted-fmt-2026-08-20"></a>- [ATLAS-CFDRS-HOSTED-FMT-2026-08-20](backlog/atlas-cfdrs-hosted-fmt-2026-08-20.md) — repair required Rust format gate [patch] — in-progress
 <a id="atlas-cfdrs-jfnk-rerun-2026-08-19"></a>- [ATLAS-CFDRS-JFNK-RERUN-2026-08-19](backlog/atlas-cfdrs-jfnk-rerun-2026-08-19.md) — hosted infrastructure retry — in-progress
 <a id="atlas-cfdrs-lane-diverged-208"></a>- [ATLAS-CFDRS-LANE-DIVERGED-208](backlog/atlas-cfdrs-lane-diverged-208.md) — CFDrs lane holds 99 unpushed commits and is 18 behind its own remote [patch] — in-progress
-<a id="atlas-cfdrs-leto-sparse-migration-001"></a>- [ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001](backlog/atlas-cfdrs-leto-sparse-migration-001.md) — Migrate CFDrs direct_solver to SparseLuSolver::solve_view [minor] — todo
 <a id="atlas-cfdrs-lint-floor-001"></a>- [ATLAS-CFDRS-LINT-FLOOR-001](backlog/atlas-cfdrs-lint-floor-001.md) — Adopt canonical Atlas lint floor in CFDrs workspace [patch] — in-progress
 <a id="atlas-cfdrs-python-gil-2026-08-21"></a>- [ATLAS-CFDRS-PYTHON-GIL-2026-08-21](backlog/atlas-cfdrs-python-gil-2026-08-21.md) — Complete PyO3 solver GIL boundaries [minor] — in-progress
 <a id="atlas-cfdrs-runner-mdbook-index-1"></a>- [ATLAS-CFDRS-RUNNER-MDBOOK-INDEX-1](backlog/atlas-cfdrs-runner-mdbook-index-1.md) — Close CFDrs runner-side mdBook index + ci.yml silent-drop [patch] — in-progress
@@ -122,7 +121,7 @@ about documentation truth and numerical evidence, not debt.
 <a id="atlas-dmri-tractogram-fmt-014"></a>- [ATLAS-DMRI-TRACTOGRAM-FMT-014](backlog/atlas-dmri-tractogram-fmt-014.md) — Tractogram container ownership [arch] — todo
 <a id="atlas-downstream-coordination-001"></a>- [ATLAS-DOWNSTREAM-COORDINATION-001](backlog/atlas-downstream-coordination-001.md) — Notify LeoNeuro-INC maintainers about local leoneuro-rs `50bfcd9` [chore] — todo
 <a id="atlas-harmonia-field-exchange-050-2026-08-21"></a>- [ATLAS-HARMONIA-FIELD-EXCHANGE-050-2026-08-21](backlog/atlas-harmonia-field-exchange-050-2026-08-21.md) — Add typed physical-field exchange [major] [arch] — in-progress
-<a id="atlas-helios-bench-local-instrument-2026-09-18"></a>- [ATLAS-HELIOS-BENCH-LOCAL-INSTRUMENT-2026-09-18](backlog/atlas-helios-bench-local-instrument-2026-09-18.md) — helios runs wall-clock benchmark regression on hosted CI [arch] — todo
+<a id="atlas-helios-bench-local-instrument-2026-09-18"></a>- [ATLAS-HELIOS-BENCH-LOCAL-INSTRUMENT-2026-09-18](backlog/atlas-helios-bench-local-instrument-2026-09-18.md) — helios runs wall-clock benchmark regression on hosted CI [arch] — in-progress
 <a id="atlas-helios-radon-oracle-2026-08-20"></a>- [ATLAS-HELIOS-RADON-ORACLE-2026-08-20](backlog/atlas-helios-radon-oracle-2026-08-20.md) — Remove existence-only sinogram assertion [patch] — in-progress
 <a id="atlas-hephaestus-host-seam-coverage"></a>- [ATLAS-HEPHAESTUS-HOST-SEAM-COVERAGE](backlog/atlas-hephaestus-host-seam-coverage.md) — `hephaestus-host` implements every seam the conformance suite is generic over [arch][major] — in-progress
 <a id="atlas-hermes-consumer-entry-2026-08-25"></a>- [ATLAS-HERMES-CONSUMER-ENTRY-2026-08-25](backlog/atlas-hermes-consumer-entry-2026-08-25.md) — Restore Hermes as the stack's lane-kernel owner [arch] — in-progress

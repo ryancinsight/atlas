@@ -1,6 +1,6 @@
 <a id="atlas-helios-bench-local-instrument-2026-09-18"></a>
-## ATLAS-HELIOS-BENCH-LOCAL-INSTRUMENT-2026-09-18 — helios runs wall-clock benchmark regression on hosted CI [arch] — todo
-- Evidence: helios `ci.yml` job `benchmark-regression` times eight A/B legs on one hosted runner and hits its 60-minute cap (PR #88, exit 124). helios#90 (draft) splits it across four runners. Timing on shared runners is noise, not evidence, so the job cannot produce what it gates on.
-- Outcome: helios ADR 0003 is revised in place. The paired A B B A / B A A B schedule runs as the local pre-merge instrument, with its baseline comparison attached to the PR, and CI keeps only a single-iteration bench smoke. The `benchmark-regression` job is deleted and helios#90 closes.
-- Acceptance: the ADR revision records the evidence and is judged; CI runs `cargo test --benches` (or criterion `--test`) within the standard test budget; a committed local runner reproduces the paired schedule under the 300 s suite bound.
-- Last-update: 2026-09-18.
+## ATLAS-HELIOS-BENCH-LOCAL-INSTRUMENT-2026-09-18 — helios runs wall-clock benchmark regression on hosted CI [arch] — in-progress
+- Owner: muse-spark-2026-09-21. Outcome: ADR 0003 revised in place — the A/B/B/A paired schedule is the local pre-merge instrument with its baseline attached to the PR; CI keeps a single-iteration criterion `--test` smoke.
+- Delivered 2026-09-21 as helios PR #100, merged `c114792`: `benchmark-regression` + `classify` jobs deleted; `bench-smoke` runs four declared targets in `--test` mode (120 s/target from measured 71 s slowest); `cargo xtask bench-replicated` runs the eight-leg schedule (1500 s bound from measured 1101 s calibration; derivation in code and ADR). HELIOS-BENCH-REGRESSION-BUDGET-2026-09-01 closed by deletion in the same unit.
+- Calibration classified one noise verdict on identical revisions — no production code touched; it stands as the evidence CI must not gate on timings.
+- Residuals (re-open triggers): (1) collect helios main CI terminal green; (5) main CI at `849c5047` failed in `tests` — apollo-fft vs a drifted hermes-simd surface (provider-integration workstream, not this item); residual (3) satisfied — Atlas main records helios at `ebb54c3c`.
