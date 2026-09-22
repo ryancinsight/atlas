@@ -231,7 +231,7 @@ debt_gate() {
     python_bin="${PYTHON:-}"
     if [ -z "$python_bin" ]; then
         for candidate in python3 python; do
-            if command -v "$candidate" >/dev/null 2>&1 \n            && "$candidate" -c 'import sys' >/dev/null 2>&1; then
+            if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1; then
                 python_bin="$candidate"
                 break
             fi
@@ -268,7 +268,7 @@ budget_gate() {
     python_bin="${PYTHON:-}"
     if [ -z "$python_bin" ]; then
         for candidate in python3 python; do
-            command -v "$candidate" >/dev/null 2>&1 \n            && "$candidate" -c 'import sys' >/dev/null 2>&1 \n            && { python_bin="$candidate"; break; }
+            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
         done
     fi
     if [ -z "$python_bin" ]; then

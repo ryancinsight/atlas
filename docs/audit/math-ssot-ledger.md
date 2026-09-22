@@ -56,19 +56,19 @@ Constraints observed:
 
 ## 3. Leto SSOT surface — what is already owned
 
-> **Correction 2026-09-09 — one row in the table below is stale. Do not scope
-> work from it without reading this.**
+> **Correction 2026-09-09 (row removed 2026-09-22) — the
+> `application::linalg::iterative` row this note describes was stale and has
+> been deleted from the table below. Do not scope work from it.**
 >
-> The `application::linalg::iterative` row is wrong. It lists `leto-ops` as
+> The removed row listed `leto-ops` as
 > owning `ConjugateGradient`, `BiCGSTAB`, `GMRES`, `LsqrSolver`,
 > `Preconditioner`, and the `Identity`/`Jacobi`/`ILU`/`SSOR` preconditioners.
 > **None of that is in `leto` at this revision.** [ADR 0033](../adr/0033-krylov-ownership-reaffirmation.md)
 > reassigned Krylov ownership to `athena` and the recurrences were removed from
 > `leto`; `crates/leto-ops/src/application/linalg/` now contains only direct and
 > dense decompositions, and there is no `Preconditioner` type anywhere in the
-> crate. The only file in `leto` that still names `ConjugateGradient` or
-> `BiCGSTAB` is `application/linalg/mod.rs`, in a doc comment that is itself a
-> false capability claim.
+> crate. The stale doc comment in `application/linalg/mod.rs` that still named
+> `ConjugateGradient`/`BiCGSTAB` was removed in the same pass (2026-09-22).
 >
 > The solvers and preconditioners in that row live in `athena`:
 > `athena-core/src/solver/` (`Cg`, `Gmres<_, RESTART>`, `BiCgStab`, `Lsqr`) and
@@ -86,8 +86,7 @@ Constraints observed:
 > [`2026-09-09-foundation-layer-next-steps.md`](2026-09-09-foundation-layer-next-steps.md)
 > §F2.
 
-Verified against `repos/leto/crates/leto-ops/src/lib.rs` (2026-07); see the
-correction above for the one row that no longer holds:
+Verified against `repos/leto/crates/leto-ops/src/lib.rs` (2026-07):
 
 | Submodule | SSOT surface (cube contracts already published by `leto-ops`) |
 | --- | --- |
@@ -97,7 +96,6 @@ correction above for the one row that no longer holds:
 | `application::matrix` | `matmul`, `matmul_accumulate`, `batched_matmul` (rank-2 caller-owned output, rejects zero-stride aliasing). |
 | `application::vector` | `matvec`, `dot`, `hamming_distance`, `jaccard_distance`. |
 | `application::linalg` (dense) | `cholesky_decompose/det/inv/solve` + CholeskyDecomposition, `lu_decompose/det/inv/solve` + LuDecomposition, `qr_decompose` + QrDecomposition, `solve_least_squares`, `kron`, `l2_normalize[_into]`, `matrix_rank[+_with_tolerance]`, `norm`, `norm_l1/l2/max` + NormKind, `trace`, `symmetric_eigen_jacobi[+_with_tolerance]`, `symmetric_eigenvalues_jacobi[+_with_tolerance]` + SymmetricEigenDecomposition, `hermitian_eigen_jacobi/qr` + HermitianEigenConfig/Result, `eigenvalues`, `hessenberg` + HessenbergDecomposition, `schur` + RealSchur, `svd_decompose[+_with_tolerance]/svd_rank_revealing[+_with_tolerance]/svd_via_bidiagonal/singular_values/pinv` + SvdDecomposition, `udu_decompose` + UduDecomposition, `bidiagonalize` + BidiagonalDecomposition, `bunch_kaufman` + BunchKaufmanDecomposition, `col_piv_qr` + ColPivQrDecomposition, `full_piv_lu` + FullPivLuDecomposition, `complex_solve/complex_inv` (Complex<f64>), `matexp/matpow` (matrix function). Fluent rank-2 traits: `MatrixProduct`, `MatrixNorm`, `MatrixDecompose`, `MatrixSolve`, `MatrixProperties`, `MatrixFunction`, `AsMatrixView`. |
-| `application::linalg::iterative` | Iterative solvers SSOT: `ConjugateGradient`, `BiCGSTAB`, `GMRES`, `LsqrSolver` (with `LsqrConfig`/`LsqrResult`/`LsqrStopReason`); `IterativeLinearSolver`/`LinearSolver`/`LinearOperator`/`Preconditioner`/`Configurable`/`ConvergenceMonitor`/`IterativeSolverConfig`; preconditioners `IdentityPreconditioner`, `JacobiPreconditioner`, `ILUPreconditioner`, `SSORPreconditioner`. |
 | `application::sparse` | CSR / COO / CSC / sparse-LU SSOT: `CooMatrix` (assembly target), `CsrMatrix` (kernel target), `CscMatrix` + `CscColumn`, `spmv/spmv_into`, `spmm/spmm_into`, `spgemm`, `csc_spmv/csc_spmv_into`, `csr_to_dense`, `sparse_lu_solve` + `SparseLuSolver` + `factor_symbolic`/`factor_numeric` + `SymbolicLu`/`NumericLu` + `DENSE_LIMIT_DEFAULT`. The CSR SpMV `O(nnz)` theorem and the CSR-From-COO-from-dense pipeline are documented in `sparse/mod.rs` theorem comments. |
 | `application::interpolation` | 1-D `Interpolation1D` SSOT: `LinearInterpolation`, `LagrangeInterpolation`, `CubicSplineInterpolation`. |
 | `application::diff` | 1-D generic `FiniteDifference<T>` + `FiniteDifferenceScheme { Forward, Backward, Central, ForwardSecondOrder, BackwardSecondOrder }`; `first_derivative` / `second_derivative` on `&[T] → Result<Array1<T>>` with bounded-error tests. |

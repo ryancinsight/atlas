@@ -1,9 +1,10 @@
 # Rust build artifacts (per-submodule targets)
 target/
 **/target/
-# Miri isolation target dir (derived state; untracked since it appeared —
-# same run-output segregation as target/, see backlog ATLAS-TARGET-001)
-target-miri/
+# Per-purpose derived target dirs at the root (miri isolation, per-member
+# cargo runs, …): same run-output segregation as target/, see backlog
+# ATLAS-TARGET-001. A pattern so the next one needs no ignore edit.
+target-*/
 *.rs.bk
 *.pdb
 
@@ -12,6 +13,8 @@ target-miri/
 *.log
 tmp/
 scratch/
+# Derived pytest basetemp some suites point at the root; never content.
+.oracle-tmp/
 
 # IDE / local agent settings
 .idea/
@@ -64,14 +67,8 @@ errors[0-9]*.txt
 cargolog*.txt
 *.stderr
 repos/leoneuro-rs/
-# Pending member: the local tree exists but ryancinsight/prometheus does not,
-# so it cannot be a submodule yet. Untracked here rather than polluting the
-# member namespace (backlog.md#prometheus-promotion).
-repos/prometheus/
-# Cloned into the member namespace but not registered in .gitmodules, so the
-# conformance scan reads it as member-namespace pollution. Ignored the way
-# the other two unregistered checkouts are, pending the decision recorded
-# on the board about whether it becomes a stack member.
+# `repos/prometheus/` is no longer ignored: prometheus registered its
+# Phase 0 and is a recorded submodule in `.gitmodules`.
 
 # npm / opencode CLI install artifacts
 node_modules/

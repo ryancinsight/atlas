@@ -513,14 +513,25 @@ has not been done.
 
 ### Tier C — documentation that misdirects (cheap, and it is actively costing)
 
+> **Delivery status 2026-09-22 — this tier is closed.** 10, 12 and 14 are
+> delivered; 11 was delivered by a peer; 13 is moot (the 2026-09-21 board
+> compaction removed the three cited rows). One item not listed here was found
+> and fixed in the same pass: atlas ADR 0031 still recorded AMD ordering as
+> deferred although it landed at leto `db9a63c` (2026-08-06).
+
 10. **`math-ssot-ledger.md` §3** — remove the `application::linalg::iterative`
     row and the preconditioner families; ADR 0033 moved them to `athena`.
+    **Delivered 2026-09-22** — row removed and the §3 correction note reconciled.
 11. **`README.md:715`** — Gauss-Newton/LM and the even-order symmetric SH basis
     are delivered; drop them from the upstream-gap list.
+    **Delivered by a peer** — both rows now read "Delivered:".
 12. **`leto-ops/src/application/linalg/mod.rs`** — delete the false doc comment.
+    **Delivered 2026-09-22.**
 13. **Stale board rows:** `backlog.md:1385` and `:1405` (aequitas mechanics and
     reaction quantities, both done); `backlog.md:738` (CUDA driver boundary, done
-    at PR #277).
+    at PR #277). **Moot 2026-09-22** — the 2026-09-21 compaction removed the three
+    rows; `rg` finds no `HEPH-CUDA-DRIVER-BOUNDARY` / `ReactionRate` /
+    `StressSemantics` row in `backlog.md`.
 14. **ADR number namespaces collide** *(corrected 2026-09-10 — the original note
     claimed the `NumericElement` ADR did not exist; it does, at
     `docs/adr/0005-eunomia-scalar-ssot.md`, and it has landed).* The real defect is
@@ -528,6 +539,9 @@ has not been done.
     Fix = add a qualification convention (`atlas:0005` vs `eunomia:0005`) to
     `docs/adr/INDEX.md` and a disambiguation header on Atlas ADR 0005. No ADR
     needs authoring; the doctrine is already recorded and already implemented.
+    **Delivered by a peer** — the citation rule is at the head of
+    `docs/adr/INDEX.md` (§"ADR numbers are per-repository, not global") and the
+    `atlas:0005` disambiguation header is on Atlas ADR 0005.
 
 ### Tier D — unwired declarations and hygiene
 

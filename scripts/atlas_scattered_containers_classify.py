@@ -15,7 +15,7 @@ What it does
    ``worktrees/`` lanes are excluded because they are alternate checkouts,
    not member source.
 2. Reads those sources through a ``MemberSource``: the working tree by
-   default, or — with ``--pinned`` — the gitlink commits the *index* records,
+   default, or — with ``--pinned`` — the gitlink commits ``HEAD`` records,
    straight out of the object store (``git ls-tree`` + ``git cat-file
    --batch``), with no checkout and no temporary trees. ``--pinned`` is the
    mode the committed oracle is generated and verified in, because it is the
@@ -146,6 +146,24 @@ def _lexical(path: str) -> str:
     return "/".join(out)
 
 
+def _git(repo: Path, *args: str) -> list[str]:
+    """Git argv for reading one member's object store.
+
+    ``safe.directory`` is set for exactly the repository named here. A member
+    checkout can end up owned by another account -- a sandbox-created tree, a
+    restored backup -- and Git then refuses to read it outright. Whether it
+    refuses depends on which global config the ambient ``HOME`` resolves to,
+    so `make` and a direct run can disagree about the census; observed for
+    real when `make` ran with `HOME=/home/RyanClanton` and silently dropped
+    `repos/metis` from the scan. Scoping the exception to the one repository
+    the caller named makes the census identical everywhere without relaxing
+    the guard for anything else.
+    """
+    return [
+        "git", "-C", str(repo), "-c", f"safe.directory={repo.as_posix()}", *args
+    ]
+
+
 @dataclass(frozen=True)
 class WorktreeSource:
     """Member sources read from the checked-out tree.
@@ -188,7 +206,7 @@ class _BatchBlobs:
 
     def __init__(self, repo: Path) -> None:
         self._proc = subprocess.Popen(
-            ["git", "-C", str(repo), "cat-file", "--batch"],
+            _git(repo, "cat-file", "--batch"),
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -220,7 +238,7 @@ class _BatchBlobs:
 
 @dataclass
 class PinnedSource:
-    """Member sources read from the gitlink commit the index records.
+    """Member sources read from the gitlink commit ``HEAD`` records.
 
     No checkout and no temporary tree: the paths come from ``git ls-tree`` and
     the bytes from ``git cat-file``, so a census taken here is the same
@@ -237,10 +255,7 @@ class PinnedSource:
 
     def _list_files(self) -> list[PurePosixPath]:
         proc = subprocess.run(
-            [
-                "git", "-C", str(self.member_root),
-                "ls-tree", "-r", "--name-only", self.pin,
-            ],
+            _git(self.member_root, "ls-tree", "-r", "--name-only", self.pin),
             capture_output=True,
             encoding="utf-8",
             errors="replace",
@@ -632,7 +647,7 @@ def classify_file(
 def build_sources(pinned: bool) -> list[tuple[str, MemberSource]]:
     """One ``(member, source)`` pair per registered member.
 
-    ``pinned`` selects the gitlink commits the index records; the default is
+    ``pinned`` selects the gitlink commits ``HEAD`` records; the default is
     the working tree. A member with no recorded gitlink is an error rather
     than a silent skip: its sites would otherwise vanish from the census.
     """
@@ -646,7 +661,7 @@ def build_sources(pinned: bool) -> list[tuple[str, MemberSource]]:
         pin = pins.get(member)
         if pin is None:
             raise SystemExit(
-                f"no gitlink recorded for member {member!r} in the index; "
+                f"no gitlink recorded for member {member!r} in HEAD; "
                 "a pinned census cannot be taken without one"
             )
         sources.append((member, PinnedSource(member_root, pin)))
@@ -822,7 +837,7 @@ def main(argv: list[str] | None = None) -> int:
         "--pinned",
         action="store_true",
         help=(
-            "read member sources from the gitlink commits the index records "
+            "read member sources from the gitlink commits HEAD records "
             "(git ls-tree + git cat-file, no checkout) instead of the working "
             "tree; required for any committed artifact"
         ),

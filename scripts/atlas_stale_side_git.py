@@ -9,6 +9,11 @@ from pathlib import Path
 import atlas_git_process as process
 
 GIT_TIMEOUT_SECONDS = 30
+# The `--find-object` history walk is the one O(history) query: it rewalks
+# every commit touching each candidate path (measured 11s warm on this
+# machine, and over 30s cold), so it gets its own budget. Plumbing queries
+# keep the short budget so a wedged `ls-tree` still fails closed quickly.
+HISTORY_TIMEOUT_SECONDS = 300
 FILE_MODES = frozenset({"100644", "100755"})
 CHANGED_FILTER = "ACMR"
 PATH_CHUNK = 64
@@ -49,13 +54,14 @@ def run(
     stdin: str | None = None,
     env: dict[str, str] | None = None,
     allowed: tuple[int, ...] = (0,),
+    timeout: int | None = None,
 ) -> tuple[int, str]:
     result = process.execute(
         repo,
         args,
         stdin=None if stdin is None else stdin.encode("utf-8"),
         env=git_env() if env is None else env,
-        timeout=GIT_TIMEOUT_SECONDS,
+        timeout=GIT_TIMEOUT_SECONDS if timeout is None else timeout,
     )
     stdout = result.stdout.decode("utf-8", "replace")
     stderr = result.stderr.decode("utf-8", "replace")
@@ -73,13 +79,14 @@ def run_bytes(
     stdin: bytes | None = None,
     env: dict[str, str] | None = None,
     allowed: tuple[int, ...] = (0,),
+    timeout: int | None = None,
 ) -> tuple[int, bytes]:
     result = process.execute(
         repo,
         args,
         stdin=stdin,
         env=git_env() if env is None else env,
-        timeout=GIT_TIMEOUT_SECONDS,
+        timeout=GIT_TIMEOUT_SECONDS if timeout is None else timeout,
     )
     if result.returncode not in allowed:
         detail = result.stderr.decode("utf-8", "replace").strip() or "no diagnostic"
@@ -221,6 +228,7 @@ def historical_blobs(
                 *revisions,
                 "--",
                 *chunk,
+                timeout=HISTORY_TIMEOUT_SECONDS,
             )
             commit: str | None = None
             records = iter(record for record in out.split(b"\0") if record)

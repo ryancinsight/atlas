@@ -741,6 +741,38 @@ class StaleSideGuardTestCase(unittest.TestCase):
                 )
         self.assertLess(time.monotonic() - started, 4)
 
+    def test_the_history_walk_uses_its_own_budget(self) -> None:
+        """The O(history) walk outlives the plumbing budget, nothing else does.
+
+        The `--find-object` walk rewalks every commit touching each candidate
+        path; on a repository of any size that exceeds the 30s plumbing budget
+        cold, which turned `make stale-sides` into a reproducible ERROR. The
+        split has to be pinned from both ends: the walk gets the long budget,
+        and an ordinary query still dies at the short one.
+        """
+        self.write("f.txt", "one\n")
+        self.commit("one")
+        blob = self.git("rev-parse", "HEAD:f.txt").strip()
+        seen: list[int | None] = []
+        real_execute = git_process.execute
+
+        def spy(_repo, args, **kwargs):
+            seen.append(kwargs.get("timeout"))
+            return real_execute(_repo, args, **kwargs)
+
+        with mock.patch.object(git_process, "execute", side_effect=spy):
+            guard_git.historical_blobs(self.repo, {"f.txt": {blob}}, False)
+
+        # object_id_width's plumbing query keeps the short budget; the
+        # `--find-object` walk carries the long one. Both must appear.
+        self.assertIn(guard_git.GIT_TIMEOUT_SECONDS, seen)
+        self.assertIn(guard_git.HISTORY_TIMEOUT_SECONDS, seen)
+        self.assertGreater(guard_git.HISTORY_TIMEOUT_SECONDS, guard_git.GIT_TIMEOUT_SECONDS)
+        seen.clear()
+        with mock.patch.object(git_process, "execute", side_effect=spy):
+            guard_git.run(self.repo, "rev-parse", "--show-object-format")
+        self.assertEqual(seen, [guard_git.GIT_TIMEOUT_SECONDS])
+
 
 if __name__ == "__main__":
     unittest.main()
