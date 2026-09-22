@@ -88,15 +88,16 @@ jobs:
 
       - name: Initialize direct Atlas members
         shell: bash
-        # The depth-1 checkout keeps member fetches small; the blobless
-        # unshallow then restores full commit history, because the
-        # unresolved_references class resolves cited hashes against member
-        # object stores and a tip-only store would count every citation to
-        # an older commit as fabricated -- the class must measure the same
-        # thing on CI that it measures where the baseline is generated.
+        # The unresolved_references class resolves cited hashes against
+        # member object stores, so each store needs full commit history --
+        # a tip-only checkout would count every citation to an older commit
+        # as fabricated. One blobless fetch per member gives exactly that
+        # (commits and trees, no blob payloads): one negotiation instead of
+        # a shallow fetch plus an unshallow, which doubled per-member time
+        # and put the job past its own budget on the first attempt.
         run: |
-          git -c protocol.version=2 submodule update --init --force --depth=1
-          git submodule foreach 'git fetch --unshallow --filter=blob:none origin'
+          git config --global fetch.filter blob:none
+          git -c protocol.version=2 submodule update --init --force
 
       - name: Setup Python 3.11
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
