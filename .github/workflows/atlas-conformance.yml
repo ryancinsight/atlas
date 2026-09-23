@@ -123,9 +123,15 @@ jobs:
 
       - name: Conformance check (ratchet must hold)
         shell: bash
+        env:
+          # A pull request is bounded by its base tree re-measured under the
+          # same refs, so a member deleting a cited branch cannot fail every
+          # open pull request; the push run keeps the absolute bound and is
+          # where that drift is reported.
+          DRIFT_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           set +e
-          python3 scripts/atlas-conformance.py check > "$RUNNER_TEMP/conformance-check.log" 2>&1
+          python3 scripts/atlas-conformance.py check ${DRIFT_BASE:+--drift-base "$DRIFT_BASE"} > "$RUNNER_TEMP/conformance-check.log" 2>&1
           status=$?
           set -e
           cat "$RUNNER_TEMP/conformance-check.log"
