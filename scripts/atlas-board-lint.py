@@ -47,7 +47,18 @@ from __future__ import annotations
 import argparse
 import pathlib
 import re
+import subprocess
 import sys
+import time
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+from atlas_board_items import (  # noqa: E402
+    ANCHOR_INLINE,
+    expand_board_lines,
+    extract_anchor,
+    split_title_status,
+)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -421,6 +432,139 @@ def count_unresolved(repo: pathlib.Path, stores: list[pathlib.Path]) -> int:
     )
 
 
+# Board schema (prompt.yaml context_and_memory: Boards). The default-branch
+# board holds only `todo` and `blocked`; claimed, in review, and done are
+# hosting facts, so any other status word is a second home that drifts (a
+# stack census found 97 `done` items beside 48 `todo`, one member holding 60
+# of 81). Every item carries an anchor and a `priority:`, and checklist.md is
+# retired into item blocks. Each defect is a count the conformance ratchet
+# holds non-increasing per member, so boards convert at first touch instead
+# of blocking every push at once.
+BOARD_STATUSES = frozenset({"todo", "blocked"})
+ITEM_HEADING = re.compile(r"^#{2,3}\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)(.*)$")
+STATUS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_]*status[*_]*\s*[:=]\s*[*_`]*\s*([a-z][a-z-]*)")
+PRIORITY_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_`]*priority[*_`]*\s*[:=]")
+BASIS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_`]*basis[*_`]*\s*[:=]")
+STATUS_WORD = re.compile(r"[A-Za-z][A-Za-z-]*")
+AGING_DAYS = 30
+
+
+def _root_file(repo: pathlib.Path, name: str) -> pathlib.Path | None:
+    """`repo`'s root file whose name matches `name` in any case."""
+    if not repo.is_dir():
+        return None
+    return next(
+        (p for p in sorted(repo.iterdir()) if p.is_file() and p.name.lower() == name),
+        None,
+    )
+
+
+def _status_word(text: str) -> str | None:
+    """The status word in a heading's status field, past any `Status:` label."""
+    words = [word.lower() for word in STATUS_WORD.findall(text)]
+    if words and words[0] == "status":
+        words = words[1:]
+    return words[0] if words else None
+
+
+def _items_in(lines: list[str]) -> list[dict]:
+    """Items in board text: id, heading line, anchor, status, priority, basis."""
+    items: list[dict] = []
+    current: dict | None = None
+    prev: str | None = None
+    for number, line in enumerate(lines, start=1):
+        match = ITEM_HEADING.match(line)
+        if match:
+            tail = ANCHOR_INLINE.sub("", match.group(2))
+            split = split_title_status(tail)
+            current = {
+                "id": match.group(1),
+                "line": number,
+                "anchor": extract_anchor(line, prev),
+                "status": _status_word(split[1]) if split else None,
+                "priority": False,
+                "basis": False,
+            }
+            items.append(current)
+        elif current is not None:
+            status = STATUS_LINE.match(line)
+            if current["status"] is None and status:
+                current["status"] = status.group(1).lower()
+            current["priority"] = current["priority"] or bool(PRIORITY_LINE.match(line))
+            current["basis"] = current["basis"] or bool(BASIS_LINE.match(line))
+        if line.strip():
+            prev = line
+    return items
+
+
+def board_items(repo: pathlib.Path) -> list[dict]:
+    """Items of `repo`'s backlog, the per-item-file layout included."""
+    board = _root_file(repo, "backlog.md")
+    return _items_in(expand_board_lines(board)) if board is not None else []
+
+
+def board_schema_counts(repo: pathlib.Path) -> dict[str, int]:
+    """Schema defects on `repo`'s board, one count per conformance class."""
+    items = board_items(repo)
+    return {
+        "board_items_outside_status_set": sum(
+            1 for item in items if item["status"] not in BOARD_STATUSES
+        ),
+        "board_items_without_anchor": sum(1 for item in items if item["anchor"] is None),
+        "board_items_without_priority": sum(1 for item in items if not item["priority"]),
+        "board_checklist_files": int(_root_file(repo, "checklist.md") is not None),
+    }
+
+
+def _git_times(repo: pathlib.Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args], capture_output=True, text=True,
+        encoding="utf-8", errors="replace", check=False,
+    ).stdout
+
+
+def aged_items(repo: pathlib.Path, now: float | None = None) -> list[tuple[str, int]]:
+    """Basis-less items no commit has touched in `AGING_DAYS`, oldest first.
+
+    Report-only: an age grows with the clock, not with commits, so it cannot
+    sit in the non-increasing ratchet without failing pushes that changed
+    nothing. Under the per-item layout an item's age is its file's last
+    commit; in a single-file board it is the last commit to its heading line.
+    """
+    now = time.time() if now is None else now
+    board = _root_file(repo, "backlog.md")
+    if board is None:
+        return []
+    touched: list[tuple[str, float]] = []
+    files = _item_files(board)
+    if files:
+        for path in files:
+            items = _items_in(path.read_text(encoding="utf-8", errors="replace").splitlines())
+            stamp = _git_times(repo, "log", "-1", "--format=%ct", "--", str(path.relative_to(repo))).strip()
+            touched += [(item["id"], float(stamp)) for item in items if stamp and not item["basis"]]
+    else:
+        items = _items_in(board.read_text(encoding="utf-8", errors="replace").splitlines())
+        blame = _git_times(repo, "blame", "--line-porcelain", "--", board.name)
+        times: dict[int, float] = {}
+        line = 0
+        for row in blame.splitlines():
+            parts = row.split()
+            if len(parts) >= 3 and len(parts[0]) == 40 and all(c in "0123456789abcdef" for c in parts[0]):
+                line = int(parts[2])
+            elif row.startswith("author-time "):
+                times[line] = float(parts[1])
+        touched += [
+            (item["id"], times[item["line"]])
+            for item in items
+            if item["line"] in times and not item["basis"]
+        ]
+    aged = [(item_id, int((now - stamp) // 86400)) for item_id, stamp in touched]
+    return sorted(
+        ((item_id, days) for item_id, days in aged if days > AGING_DAYS),
+        key=lambda pair: -pair[1],
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--file", default="backlog.md", help="board file to lint")
@@ -484,6 +628,17 @@ def main() -> int:
             file=sys.stderr,
         )
         status = 1
+
+    aged = aged_items(ROOT)
+    if aged:
+        # Report at orientation; re-validate or delete in the next filing sweep.
+        print(
+            f"[report] {len(aged)} item(s) with no basis untouched past "
+            f"{AGING_DAYS} days - re-validate against the current tree or delete\n"
+        )
+        for item_id, days in aged[:20]:
+            print(f"  {item_id}  {days} days")
+        print()
 
     hashes = unresolved_hashes(reference_artifacts(ROOT), object_stores(ROOT))
     if hashes:
