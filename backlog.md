@@ -1,7 +1,5 @@
 # atlas — cross-repository integration backlog
 
-<!-- Compacted 2026-09-21 under the 1,000-line board budget: a board is a queue, never a ledger, so closed sections and delivery narrative are gone -- the record of a closed item is the PR that closed it and its `Item:` trailer. Live items, open checkboxes, anchors and open-marked findings are kept. Recover removed narrative with `git log -p -- <this file>`. -->
-
 ## Tier 3 — mechanical floor and stack hygiene
 
 | ID | Outcome | Class | Acceptance oracle |
