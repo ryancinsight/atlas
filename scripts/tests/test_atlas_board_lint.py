@@ -353,3 +353,96 @@ class ControlCharacterTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BoardSchemaTestCase(unittest.TestCase):
+    """Schema defects count per board; aging is reported, not counted."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="atlas-board-schema-")
+        self.repo = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_each_schema_defect_counts_once_per_item(self) -> None:
+        (self.repo / "backlog.md").write_text(
+            '<a id="ATLAS-A-001"></a>\n'
+            "## ATLAS-A-001 - ready item - todo\n"
+            "- priority: correctness\n"
+            "## ATLAS-A-002 - finished item - done\n"
+            "- priority: feature\n"
+            '<a id="ATLAS-A-003"></a>\n'
+            "## ATLAS-A-003 - status in a field\n"
+            "- **Status:** blocked\n"
+            "## Notes\n"
+            "- status: done (prose under a non-item heading)\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            _lint.board_schema_counts(self.repo),
+            {
+                "board_items_outside_status_set": 1,
+                "board_items_without_anchor": 1,
+                "board_items_without_priority": 1,
+                "board_checklist_files": 0,
+            },
+        )
+
+    def test_a_labelled_heading_status_reads_its_value(self) -> None:
+        (self.repo / "backlog.md").write_text(
+            '<a id="ATLAS-D-001"></a>\n'
+            "## ATLAS-D-001 - titled - Status: todo\n"
+            "- priority: feature\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            _lint.board_schema_counts(self.repo)["board_items_outside_status_set"], 0
+        )
+
+    def test_a_missing_status_and_a_checklist_count(self) -> None:
+        (self.repo / "backlog.md").write_text(
+            "### ATLAS-B-001 - no status anywhere\n", encoding="utf-8"
+        )
+        (self.repo / "CHECKLIST.md").write_text("- next\n", encoding="utf-8")
+        counts = _lint.board_schema_counts(self.repo)
+        self.assertEqual(counts["board_items_outside_status_set"], 1)
+        self.assertEqual(counts["board_checklist_files"], 1)
+
+    def test_a_repository_without_a_board_counts_nothing(self) -> None:
+        self.assertEqual(
+            _lint.board_schema_counts(self.repo),
+            {
+                "board_items_outside_status_set": 0,
+                "board_items_without_anchor": 0,
+                "board_items_without_priority": 0,
+                "board_checklist_files": 0,
+            },
+        )
+
+    def test_aging_reports_old_basis_less_items_only(self) -> None:
+        env = {
+            **os.environ,
+            "GIT_AUTHOR_NAME": "fixture", "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
+            "GIT_COMMITTER_NAME": "fixture", "GIT_COMMITTER_EMAIL": "fixture@example.invalid",
+            "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+            "GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z",
+            "GIT_COMMITTER_DATE": "2026-01-01T00:00:00Z",
+        }
+
+        def git(*args: str) -> None:
+            subprocess.run(["git", "-C", str(self.repo), *args], check=True,
+                           capture_output=True, env=env)
+
+        git("init", "-q", "-b", "main")
+        (self.repo / "backlog.md").write_text(
+            "## ATLAS-C-001 - old - todo\n"
+            "## ATLAS-C-002 - old but re-validated - todo\n"
+            "- basis: 0123abc\n",
+            encoding="utf-8",
+        )
+        git("add", "backlog.md")
+        git("commit", "-q", "-m", "board")
+        # 2026-03-02T00:00:00Z: 60 days after the commit.
+        aged = _lint.aged_items(self.repo, now=1_772_409_600.0)
+        self.assertEqual(aged, [("ATLAS-C-001", 60)])

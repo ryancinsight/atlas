@@ -321,6 +321,8 @@ CLASSES = [
     "member_gate_versions",
     "pm_lines_over_budget", "oversized_tracked_images",
     "unresolved_references", "second_output_root",
+    "board_items_outside_status_set", "board_items_without_anchor",
+    "board_items_without_priority", "board_checklist_files",
 ]
 
 #
@@ -1661,6 +1663,7 @@ def scan_repo(
     )
     c.update(artifact_budget.counts(repo))
     c["unresolved_references"] = board_lint.count_unresolved(repo, _object_stores())
+    c.update(board_lint.board_schema_counts(repo))
     # The shared-cache budget is stack-level, not per-member: the policy file
     # must exist and name this member's routed target dir (the root
     # `.cargo/config.toml` [build] target-dir) for the member to count as
@@ -1964,6 +1967,7 @@ def scan_stack(
     meta["crlf_stored_blobs"] = count_crlf_stored_blobs(ROOT)
     meta.update(artifact_budget.counts(ROOT))
     meta["unresolved_references"] = board_lint.count_unresolved(ROOT, _object_stores())
+    meta.update(board_lint.board_schema_counts(ROOT))
     meta["second_output_root"] = count_second_output_roots(ROOT)
     scan_workflows(ROOT, meta)
     out["<meta>"] = meta
