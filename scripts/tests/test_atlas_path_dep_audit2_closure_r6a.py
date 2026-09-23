@@ -109,10 +109,27 @@ class R6aVerifierTestCase(unittest.TestCase):
     def test_fails_when_worktree_missing(self) -> None:
         with tempfile.TemporaryDirectory() as root:
             root_path = Path(root)
+            # A registered member whose checkout vanished is drift: the
+            # registration is what separates it from an unregistered
+            # private worktree, which cannot go missing.
+            (root_path / ".gitmodules").write_text(
+                '[submodule "does-not-exist"]\n	path = repos/does-not-exist\n',
+                encoding="utf-8",
+            )
             rc = self._run_with_overrides(
                 [("does-not-exist", "deadbeef", False)], root_path,
             )
             self.assertEqual(rc, 1)
+
+    def test_skips_when_worktree_unregistered(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            root_path = Path(root)
+            # The private consumer is present only on machines that carry it
+            # and is not a stack member; its absence is not drift.
+            rc = self._run_with_overrides(
+                [("does-not-exist", "deadbeef", False)], root_path,
+            )
+            self.assertEqual(rc, 0)
 
     def test_passes_on_current_stack_state(self) -> None:
         """The live D:/atlas state must pass — this is the regression
