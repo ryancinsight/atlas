@@ -13,7 +13,13 @@ Eunomia PR #104 adds sealed `FloatElement` operations for binary exponent extrac
 
 ## Decision
 
-For finite, nonzero factors, Gaia evaluates each derivative term as one generic product ratio. It extracts each factor's significand and binary exponent, combines bounded significands while renormalizing, accumulates exponents separately, and applies one final binary scale. The coordinate difference participates in the same ratio as the derivative basis, weight, and homogeneous denominator; it is never multiplied after a potentially overflowing intermediate coefficient.
+For finite, nonzero factors, Gaia evaluates each derivative term as one generic
+product ratio. It extracts each factor's significand and binary exponent,
+multiplies the four bounded numerator significands, divides by the two bounded
+denominator significands, accumulates exponents separately, and applies one
+final binary scale. The coordinate difference participates in the same ratio
+as the derivative basis, weight, and homogeneous denominator; it is never
+multiplied after a potentially overflowing intermediate coefficient.
 
 The same operation serves curve tangents and both surface partials. Zero or non-finite factors follow the existing IEEE operation path because they have no finite binary exponent. Results outside the scalar format remain overflow or underflow. The method does not provide cancellation-safe summation or prevent overflow while forming a coordinate difference.
 
