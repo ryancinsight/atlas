@@ -62,7 +62,7 @@ class BoardDeliveryAuditTests(unittest.TestCase):
                 encoding="utf-8",
             )
             (root / "repos" / "hermes" / ".git").mkdir(parents=True)
-            (root / "repos" / "leoneuro-rs" / ".git").mkdir(parents=True)
+            (root / "repos" / "external-consumer" / ".git").mkdir(parents=True)
 
             members = MODULE.member_paths(root)
 

@@ -7,7 +7,7 @@
 - Method: read-only. Measured sizes and stub counts directly; reconciled ADR
   claims against source; verified three agent findings that conflicted with
   `docs/audit/math-ssot-ledger.md` before recording them.
-- Excluded by request: `repos/leoneuro-rs`, and the integrators except where
+- Excluded by request: unregistered downstream consumers; integrators except where
   they hold a substrate concern hostage.
 
 ## Summary
