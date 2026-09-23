@@ -128,7 +128,6 @@
 <a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — in-progress
 <a id="ratchet-regression-set"></a>- [ATLAS-RATCHET-REGRESSION-SET-2026-09-08](backlog/ratchet-regression-set.md) — Seven ratchet regressions arrived with peers' merges [patch] — review
 <a id="atlas-ritk-fssurf-013"></a>- [ATLAS-RITK-FSSURF-013](backlog/atlas-ritk-fssurf-013.md) — FreeSurfer surface formats and label table [minor] — todo
-<a id="atlas-run-output-segregation"></a>- [ATLAS-RUN-OUTPUT-SEGREGATION](backlog/atlas-run-output-segregation.md) — Two output roots at the stack root, one tracked-visible [patch] — todo
 <a id="atlas-runner-capacity-001"></a>- [ATLAS-RUNNER-CAPACITY-001](backlog/atlas-runner-capacity-001.md) — Size runner slots to fleet width [infra] [patch] — todo
 <a id="atlas-runner-starvation-2026-09-02"></a>- [ATLAS-RUNNER-STARVATION-2026-09-02](backlog/atlas-runner-starvation-2026-09-02.md) — Hosted runner queue starves every verification run [infra] — todo
 <a id="atlas-shared-tree-stale-basis-2026-09-17"></a>- [ATLAS-SHARED-TREE-STALE-BASIS-2026-09-17](backlog/atlas-shared-tree-stale-basis-2026-09-17.md) — Reconcile the checkout and finish its stale-index guard [patch] — in-progress
