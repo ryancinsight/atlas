@@ -166,8 +166,8 @@ class GateFixture:
             root / "scripts" / "lockfile.py",
             "#!/usr/bin/env python3\n"
             "import pathlib, sys\n"
-            "pathlib.Path(__file__).resolve().parent.parent.joinpath("
-            "'lockfile-calls.log').write_text('called\\n')\n"
+            f"pathlib.Path({str(root / 'lockfile-calls.log')!r}).write_text("
+            "'called\\n')\n"
             "sys.exit(int(__import__('os').environ.get('LOCKFILE_EXIT', '0')))\n",
             executable=True,
         )
@@ -891,6 +891,40 @@ class SafetyRatchetTestCase(unittest.TestCase):
         self.assertNotIn("SAFETY ratchet", stderr)
 
 
+class LockRevisionTestCase(unittest.TestCase):
+    """The lock is checked on the pushed revision, not the working tree."""
+
+    def test_a_dirty_working_lock_does_not_refuse_a_clean_push(self) -> None:
+        """An overlay-flattened working lock is not the push; its verdict is not asked."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            push_line = UnverifiableLockTestCase()._branch_touching_the_lock(fixture)
+            (fixture.root / "Cargo.lock").write_text("# flattened by the overlay\n")
+            code, stderr = fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1"})
+            self.assertEqual(code, 0, stderr)
+            self.assertTrue(fixture.lockfile_calls.is_file())
+            self.assertEqual(
+                (fixture.root / "Cargo.lock").read_text(), "# flattened by the overlay\n"
+            )
+
+    def test_the_pushed_lock_is_the_one_checked(self) -> None:
+        """A failing checker refuses even when the working tree is clean of the change."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            push_line = UnverifiableLockTestCase()._branch_touching_the_lock(fixture)
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "main"],
+                check=True,
+            )
+            code, stderr = fixture.run_hook(
+                push_line, {"SKIP_LOCAL_GATE": "1", "LOCKFILE_EXIT": "1"}
+            )
+            self.assertNotEqual(code, 0)
+            self.assertIn("does not resolve under --locked", stderr)
+            sha = push_line.split()[1]
+            self.assertIn(sha, stderr)
+
+
 class ArtifactBudgetRevisionTestCase(unittest.TestCase):
     """The budget check judges the pushed tip, not the checkout's `HEAD`.
 
@@ -1024,11 +1058,15 @@ class UnverifiableLockTestCase(unittest.TestCase):
     scrolled past in the push output.
     """
 
-    def _branch_touching_the_lock(self, fixture: GateFixture) -> str:
+    def _branch_touching_the_lock(
+        self, fixture: GateFixture, drop_checker: bool = False
+    ) -> str:
         """A never-pushed branch whose range changes `Cargo.lock`.
 
         The lockfile section is skipped when the range touches no manifest and
-        no lock, so a fixture that does not commit one tests nothing.
+        no lock, so a fixture that does not commit one tests nothing. The hook
+        runs the pushed revision's own checker, so `drop_checker` removes it
+        from the commit, not just from the working tree.
         """
         subprocess.run(
             ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
@@ -1040,6 +1078,12 @@ class UnverifiableLockTestCase(unittest.TestCase):
             ["git", "-C", str(fixture.root), *_IDENT, "add", "Cargo.lock"],
             check=True,
         )
+        if drop_checker:
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "rm", "-q",
+                 "scripts/lockfile.py"],
+                check=True,
+            )
         subprocess.run(
             ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
              "-m", "lock"],
@@ -1050,8 +1094,7 @@ class UnverifiableLockTestCase(unittest.TestCase):
     def test_absent_checker_refuses_the_push(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture(pathlib.Path(temp))
-            push_line = self._branch_touching_the_lock(fixture)
-            (fixture.root / "scripts" / "lockfile.py").unlink()
+            push_line = self._branch_touching_the_lock(fixture, drop_checker=True)
             code, stderr = fixture.run_hook(push_line)
             self.assertNotEqual(code, 0)
             self.assertIn("lockfile.py not present", stderr)
@@ -1080,8 +1123,7 @@ class UnverifiableLockTestCase(unittest.TestCase):
         """`SKIP_LOCKFILE_CHECK=1` remains the one way through, and says so."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture(pathlib.Path(temp))
-            push_line = self._branch_touching_the_lock(fixture)
-            (fixture.root / "scripts" / "lockfile.py").unlink()
+            push_line = self._branch_touching_the_lock(fixture, drop_checker=True)
             code, stderr = fixture.run_hook(
                 push_line, extra_env={"SKIP_LOCKFILE_CHECK": "1"}
             )
