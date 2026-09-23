@@ -250,22 +250,23 @@ fi
 # does not carry, and a peer's over-budget board then refused an unrelated
 # push. `HEAD` against its upstream remains the fallback when git supplied no
 # range (a manual run with no stdin).
+range_rev="${gate_tip:-HEAD}"
+range_base=""
+if [ -n "$gate_range_base" ] \
+  && git rev-parse --verify --quiet "$gate_range_base^{commit}" >/dev/null 2>&1; then
+  range_base="$gate_range_base"
+elif [ -z "$gate_tip" ] \
+  && upstream="$(git rev-parse --verify --quiet '@{upstream}' 2>/dev/null)"; then
+  range_base="$upstream"
+else
+  range_base="$(default_branch_base "$range_rev" || true)"
+fi
+range_args=()
+[ -n "$range_base" ] && range_args=(--base "$range_base")
+
 budget_checker="$repo_root/../../scripts/atlas-artifact-budget.py"
 if [ -f "$budget_checker" ] && [ -n "$python_bin" ]; then
-  budget_rev="${gate_tip:-HEAD}"
-  budget_base=""
-  if [ -n "$gate_range_base" ] \
-    && git rev-parse --verify --quiet "$gate_range_base^{commit}" >/dev/null 2>&1; then
-    budget_base="$gate_range_base"
-  elif [ -z "$gate_tip" ] \
-    && upstream="$(git rev-parse --verify --quiet '@{upstream}' 2>/dev/null)"; then
-    budget_base="$upstream"
-  else
-    budget_base="$(default_branch_base "$budget_rev" || true)"
-  fi
-  budget_args=()
-  [ -n "$budget_base" ] && budget_args=(--base "$budget_base")
-  if ! "$python_bin" "$budget_checker" check --root "$repo_root" --rev "$budget_rev" "${budget_args[@]}"; then
+  if ! "$python_bin" "$budget_checker" check --root "$repo_root" --rev "$range_rev" "${range_args[@]}"; then
     echo "pre-push: BLOCKED -- a PM board grew past its line budget or a tracked" >&2
     echo "image exceeds the byte budget. Compact the board (done items delete)," >&2
     echo "move evidence captures out of git, and push again." >&2
@@ -273,6 +274,22 @@ if [ -f "$budget_checker" ] && [ -n "$python_bin" ]; then
   fi
 else
   echo "pre-push: artifact-budget checker not reachable from this clone; CI enforces it" >&2
+fi
+
+# Credentials: the lines the pushed range adds, scanned before they leave the
+# machine (scripts/atlas-secret-scan.py). A secret that reaches a remote is
+# published -- a rewritten history does not unpublish it -- so this is the one
+# check CI cannot stand in for: by the time a runner sees the push, the value
+# is already out. Same range as the budget check above.
+secret_checker="$repo_root/../../scripts/atlas-secret-scan.py"
+if [ -f "$secret_checker" ] && [ -n "$python_bin" ]; then
+  if ! "$python_bin" "$secret_checker" check --root "$repo_root" --rev "$range_rev" "${range_args[@]}"; then
+    echo "pre-push: BLOCKED -- the pushed range adds a credential. Remove it from" >&2
+    echo "every commit in the range; if it ever reached a remote, rotate it." >&2
+    exit 1
+  fi
+else
+  echo "pre-push: secret scanner not reachable from this clone; the pushed range was not scanned" >&2
 fi
 
 # ---------------------------------------------------------------------------
