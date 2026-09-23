@@ -92,6 +92,7 @@ def _load_sibling(name: str, module: str):
 # member (scripts/atlas-artifact-budget.py in pre-push and CI), measured here
 # fleet-wide so the meta board sees the counts and the ratchet refuses growth.
 artifact_budget = _load_sibling("atlas-artifact-budget.py", "atlas_artifact_budget")
+board_lint = _load_sibling("atlas-board-lint.py", "atlas_board_lint")
 
 try:
     from atlas_architecture_test import (
@@ -319,6 +320,7 @@ CLASSES = [
     "cache_retention_policy_missing", "crlf_stored_blobs",
     "member_gate_versions",
     "pm_lines_over_budget", "oversized_tracked_images",
+    "unresolved_references",
 ]
 
 #
@@ -1511,6 +1513,21 @@ def runtime_dependency_names(manifest_text: str) -> frozenset[str]:
     return frozenset(names)
 
 
+_STORES: list[Path] | None = None
+
+
+def _object_stores() -> list[Path]:
+    """The live checkouts a cited hash may name, enumerated once per process.
+
+    Content may be an archived snapshot (no object store), so resolution
+    always reads the live root and member checkouts under `ROOT`.
+    """
+    global _STORES
+    if _STORES is None:
+        _STORES = board_lint.object_stores(ROOT)
+    return _STORES
+
+
 def scan_repo(
     repo: Path,
     live_repo: Path | None = None,
@@ -1621,6 +1638,7 @@ def scan_repo(
         repo, live_repo=live_repo, revision=revision
     )
     c.update(artifact_budget.counts(repo))
+    c["unresolved_references"] = board_lint.count_unresolved(repo, _object_stores())
     # The shared-cache budget is stack-level, not per-member: the policy file
     # must exist and name this member's routed target dir (the root
     # `.cargo/config.toml` [build] target-dir) for the member to count as
@@ -1923,6 +1941,7 @@ def scan_stack(
     meta["gitattributes_missing"] = lf_policy_missing(ROOT)
     meta["crlf_stored_blobs"] = count_crlf_stored_blobs(ROOT)
     meta.update(artifact_budget.counts(ROOT))
+    meta["unresolved_references"] = board_lint.count_unresolved(ROOT, _object_stores())
     scan_workflows(ROOT, meta)
     out["<meta>"] = meta
     return out

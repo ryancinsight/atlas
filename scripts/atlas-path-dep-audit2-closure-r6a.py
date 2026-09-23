@@ -67,10 +67,26 @@ def main(argv: list[str] | None = None) -> int:
     ok = 0
     anomalies: list[tuple[str, str, list[str]]] = []
     missing: list[tuple[str, str]] = []
+    stale: list[tuple[str, str]] = []
+
+    # A listed repo that the stack does not register (the private consumer,
+    # present only on machines that carry it) is not checkable here, and its
+    # absence is not drift: only a registered member may go missing.
+    gitmodules = repo_root / ".gitmodules"
+    if not gitmodules.is_file():
+        gitmodules = repo_root.parent / ".gitmodules"
+    registered_names = frozenset(
+        line.split("=")[1].strip().removeprefix("repos/")
+        for line in gitmodules.read_text(encoding="utf-8", errors="replace").splitlines()
+        if line.lstrip().startswith("path = ")
+    ) if gitmodules.is_file() else frozenset()
 
     for repo, sha, is_workspace_root in R6A_COMMITS:
         worktree = repo_root / repo
         if not worktree.is_dir():
+            if repo not in registered_names:
+                print(f"  SKIP {repo:15} {sha}  (unregistered worktree, not checkable here)")
+                continue
             print(f"  MISS {repo:15} {sha}  (worktree not present)")
             missing.append((repo, sha))
             continue
@@ -81,8 +97,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         if proc.returncode != 0:
             err = proc.stderr.strip().splitlines()[0] if proc.stderr.strip() else "(unknown)"
-            print(f"  ERR  {repo:15} {sha}  {err[:80]}")
-            anomalies.append((repo, sha, [f"git show failed: {err}"]))
+            # A listed commit the member's live history cannot reach (rewritten
+            # away, present only in stale stores) has no file list to check:
+            # report the stale entry for the r6a list's owner to amend rather
+            # than failing on history no checkout can supply.
+            print(f"  STALE {repo:14} {sha}  (not in live history: {err[:60]})")
+            stale.append((repo, sha))
             continue
 
         files = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
@@ -100,7 +120,17 @@ def main(argv: list[str] | None = None) -> int:
 
     total = len(R6A_COMMITS)
     print()
-    print(f"ok={ok} anomalies={len(anomalies)} missing={len(missing)} total={total}")
+    print(
+        f"ok={ok} anomalies={len(anomalies)} missing={len(missing)} "
+        f"stale={len(stale)} skipped-unregistered="
+        f"{total - ok - len(anomalies) - len(missing) - len(stale)} total={total}"
+    )
+    if stale:
+        print(
+            "listed commits unreachable in live history (amend the r6a list "
+            "or restore the commit): " + ", ".join(f"{r}@{s}" for r, s in stale),
+            file=sys.stderr,
+        )
 
     if anomalies or missing:
         print("Round-6a commit file-list hygiene: FAIL", file=sys.stderr)

@@ -17,6 +17,11 @@ to detect and expensive to unpick later, so detect them.
 Exit status is nonzero when any id is used twice, or when an
 ATLAS-* reference resolves to no heading in either board file.
 
+A bare commit hash cited in a board, item file, ADR, or changelog that no
+repository in the stack can resolve is reported here and counted per member
+by the conformance scan (`unresolved_references`): an identifier is copied
+from command output, never typed, and a fabricated one is an escaped defect.
+
 Why the reference check: items cite other items ("follow-ups filed
 below", "see ATLAS-XYZ") and those references rot silently - two real
 incidents sent work chasing ids that were never filed. A reference is
@@ -258,6 +263,164 @@ def _item_files(board: pathlib.Path) -> list[pathlib.Path]:
     return sorted(item_dir.glob("*.md"))
 
 
+# A commit hash in a board, ADR, or changelog is an identifier looked up,
+# never typed: an agent completed a hash-shaped slot with hash-shaped noise,
+# then narrated "I fabricated that hash" and continued, and nothing measured
+# the result. A bare hex run of 7-40 characters carrying at least one digit
+# and one letter is a citation to resolve: every English word is digit-free,
+# an all-digit run is a hosted run or job id (11 digits, resolved by the
+# hosting API rather than an object store), and a real abbreviation lacks
+# one class with probability (6/16)^7 + (10/16)^7. Runs preceded by `/`,
+# `-`, `.`, `_`, or an alphanumeric are not citations: URLs
+# (`commit/<sha>`, the link checker's domain), cargo metadata suffixes
+# (`crate-<hash>`), and identifiers.
+HASH_PATTERN = re.compile(
+    r"(?<![0-9A-Za-z_/.\-])(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}"
+    r"(?![0-9A-Za-z_\-])"
+)
+REFERENCE_BOARDS = ("backlog.md", "checklist.md", "gap_audit.md", "changelog.md")
+
+
+def _is_git_checkout(path: pathlib.Path) -> bool:
+    marker = path / ".git"
+    return marker.is_dir() or marker.is_file()
+
+
+def object_stores(root: pathlib.Path) -> list[pathlib.Path]:
+    """Every git checkout whose objects a hash may name: the root and its members.
+
+    A member board cites meta commits and the meta board cites member commits,
+    so a hash resolves against the whole stack, not the repository that
+    cites it. An archived snapshot has no object store and is skipped.
+    """
+    stores = [root] if _is_git_checkout(root) else []
+    members = root / "repos"
+    if members.is_dir():
+        stores.extend(
+            p for p in sorted(members.iterdir()) if p.is_dir() and _is_git_checkout(p)
+        )
+    return stores
+
+
+def reference_artifacts(repo: pathlib.Path) -> list[pathlib.Path]:
+    """The files whose cited hashes are checked: boards, item files, ADRs, changelog."""
+    found: list[pathlib.Path] = []
+    if repo.is_dir():
+        found.extend(
+            p for p in sorted(repo.iterdir())
+            if p.is_file() and p.name.lower() in REFERENCE_BOARDS
+        )
+    for sub in ("backlog", "docs/adr"):
+        d = repo / sub
+        if d.is_dir():
+            found.extend(sorted(p for p in d.glob("*.md") if p.is_file()))
+    return found
+
+
+def cited_hashes(paths: list[pathlib.Path]) -> dict[str, list[tuple[str, int]]]:
+    """Every bare hash token with the (file name, line) sites that cite it."""
+    found: dict[str, list[tuple[str, int]]] = {}
+    for path in paths:
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            for token in HASH_PATTERN.findall(line):
+                found.setdefault(token, []).append((path.name, lineno))
+    return found
+
+
+_REACHABLE_INDEX: dict[tuple[pathlib.Path, ...], dict[str, frozenset[str]]] = {}
+
+
+def _reachable_index(stores: list[pathlib.Path]) -> dict[str, frozenset[str]]:
+    """Map 7-char hash prefixes to the full reachable shas they abbreviate.
+
+    Per store, enumerate refs and collect the commits they reach. Enumerate
+    refs first (`for-each-ref --format=%(refname)` with no pattern, safe
+    across git versions) because rev-listing a raw `refs/remotes/origin`
+    prefix is not a revision git accepts; the enumerated names are. Only
+    `refs/remotes/origin/*` and `refs/tags/*` count -- those are the refs a
+    hash citation is expected to name, and reachability from them is uniform
+    across hosts whose object stores differ only in odds and ends. A store
+    with none of those refs (a bare fixture or archival checkout) falls back
+    to its local `refs/heads/*`, which still answers citations against it.
+
+    A 40-char sha enters the bucket of its first 7 chars. Every process has
+    its own index, cached per store list so a stack-wide scan walks the
+    reachable history once and each member's token set resolves against it.
+    """
+    import subprocess
+    key = tuple(stores)
+    cached = _REACHABLE_INDEX.get(key)
+    if cached is not None:
+        return cached
+    buckets: dict[str, set[str]] = {}
+    for store in stores:
+        proc = subprocess.run(
+            ["git", "-C", str(store), "for-each-ref", "--format=%(refname)"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=False,
+        )
+        names = [
+            n for n in proc.stdout.splitlines()
+            if n.startswith(("refs/remotes/origin/", "refs/tags/"))
+        ]
+        if not names:
+            local = [
+                n for n in proc.stdout.splitlines() if n.startswith("refs/heads/")
+            ]
+            if local:
+                names = local
+            else:
+                continue
+        listed = subprocess.run(
+            ["git", "-C", str(store), "rev-list", *names],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=False,
+        )
+        full = (n for n in listed.stdout.splitlines() if re.fullmatch(r"[0-9a-f]{40}", n))
+        for n in full:
+            buckets.setdefault(n[:7], set()).add(n)
+    index = {prefix: frozenset(full) for prefix, full in buckets.items()}
+    _REACHABLE_INDEX[key] = index
+    return index
+
+
+def resolve_hashes(tokens: set[str], stores: list[pathlib.Path]) -> set[str]:
+    """The subset of `tokens` naming a reachable object in any of `stores`.
+
+    A token resolves when its 7-char prefix has a full sha in `_reachable_index`
+    whose own first chars match the token -- git's own abbreviation contract,
+    where `ambiguous` still names real objects. The rule is reachability, not
+    store contents, so the resolution does not depend on what a working tree
+    happens to have materialized.
+    """
+    index = _reachable_index(stores)
+    return {
+        t for t in tokens
+        if any(full.startswith(t) for full in index.get(t[:7], frozenset()))
+    }
+
+
+def unresolved_hashes(
+    paths: list[pathlib.Path], stores: list[pathlib.Path]
+) -> dict[str, list[tuple[str, int]]]:
+    """Cited hashes that no store can resolve, with their citing sites."""
+    cited = cited_hashes(paths)
+    resolved = resolve_hashes(set(cited), stores)
+    return {token: sites for token, sites in cited.items() if token not in resolved}
+
+
+def count_unresolved(repo: pathlib.Path, stores: list[pathlib.Path]) -> int:
+    """Citation sites of unresolvable hashes in `repo`'s reference artifacts.
+
+    Sites, not distinct tokens: the conformance ratchet counts what one
+    correction removes, and a hash cited three times is three corrections.
+    """
+    return sum(
+        len(sites) for sites in unresolved_hashes(reference_artifacts(repo), stores).values()
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--file", default="backlog.md", help="board file to lint")
@@ -321,6 +484,20 @@ def main() -> int:
             file=sys.stderr,
         )
         status = 1
+
+    hashes = unresolved_hashes(reference_artifacts(ROOT), object_stores(ROOT))
+    if hashes:
+        # Report here; the conformance scan ratchets the count per member.
+        sites = sum(len(v) for v in hashes.values())
+        print(
+            f"[report] {sites} citation(s) of {len(hashes)} commit hash(es) no "
+            "stack repository can resolve - an identifier is copied from "
+            "command output, never typed\n"
+        )
+        for token, uses in sorted(hashes.items()):
+            where = ", ".join(f"{name}:{line}" for name, line in uses[:3])
+            print(f"  {token}  {where}")
+        print()
 
     if refs:
         # Report-only until ATLAS-LINT-CALIB normalizes the corpus

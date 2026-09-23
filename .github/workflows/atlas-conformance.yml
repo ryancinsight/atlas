@@ -88,7 +88,28 @@ jobs:
 
       - name: Initialize direct Atlas members
         shell: bash
-        run: git -c protocol.version=2 submodule update --init --force --depth=1
+        # The unresolved_references class resolves cited hashes against
+        # member object stores, so each store needs full commit history --
+        # a tip-only checkout would count every citation to an older commit
+        # as fabricated. One blobless fetch per member gives exactly that
+        # (commits and trees, no blob payloads): one negotiation instead of
+        # a shallow fetch plus an unshallow, which doubled per-member time
+        # and put the job past its own budget on the first attempt.
+        run: |
+          git config --global fetch.filter blob:none
+          git -c protocol.version=2 submodule update --init --force
+
+      - name: Fetch superproject refs for hash resolution
+        shell: bash
+        # actions/checkout leaves the superproject store without every
+        # origin branch and tag, and the unresolved_references resolver
+        # enumerates refs/remotes/origin/* and refs/tags/* (falling back to
+        # refs/heads/*) before listing reachable commits. Without a full
+        # ref fetch a cited hash that resolves in the development stack can
+        # count as unresolved in CI and vice versa; the ratchet then tracks
+        # checkout behavior instead of citation health.
+        run: |
+          git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*'
 
       - name: Setup Python 3.11
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
