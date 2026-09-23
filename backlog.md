@@ -58,7 +58,7 @@
 <a id="atlas-cwd-config-cost-2026-09-16"></a>- [ATLAS-CWD-CONFIG-COST-2026-09-16](backlog/atlas-cwd-config-cost-2026-09-16.md) — Cargo config discovery is all-or-nothing: the shared `target-dir` arrives with the whole-stack `[patch]` overlay [patch] — in-progress
 <a id="atlas-default-branch-reds-2026-09-02"></a>- [ATLAS-DEFAULT-BRANCH-REDS-2026-09-02](backlog/atlas-default-branch-reds-2026-09-02.md) — Member default-branch workflows red with no collector [patch] — todo
 <a id="atlas-dmri-correct-009"></a>- [ATLAS-DMRI-CORRECT-009](backlog/atlas-dmri-correct-009.md) — Motion, eddy-current, and susceptibility correction [minor] — review
-<a id="atlas-dmri-denoise-008"></a>- [ATLAS-DMRI-DENOISE-008](backlog/atlas-dmri-denoise-008.md) — MP-PCA denoising and Gibbs unringing [minor] — todo
+<a id="atlas-dmri-denoise-008"></a>- [ATLAS-DMRI-DENOISE-008](backlog/atlas-dmri-denoise-008.md) — MP-PCA denoising and Gibbs unringing [minor] — in-progress
 <a id="atlas-dmri-io-001"></a>- [ATLAS-DMRI-IO-001](backlog/atlas-dmri-io-001.md) — Rank-generic acquisition-series I/O [minor] — in-progress
 <a id="atlas-dmri-tractogram-fmt-014"></a>- [ATLAS-DMRI-TRACTOGRAM-FMT-014](backlog/atlas-dmri-tractogram-fmt-014.md) — Tractogram container ownership [arch] — todo
 <a id="atlas-downstream-coordination-001"></a>- [ATLAS-DOWNSTREAM-COORDINATION-001](backlog/atlas-downstream-coordination-001.md) — Coordinate with an external consumer owner [chore] — blocked
