@@ -1098,7 +1098,7 @@ class UnverifiableLockTestCase(unittest.TestCase):
             code, stderr = fixture.run_hook(push_line)
             self.assertNotEqual(code, 0)
             self.assertIn("lockfile.py not present", stderr)
-            self.assertIn("SKIP_LOCKFILE_CHECK=1", stderr)
+            self.assertNotIn("SKIP_LOCKFILE_CHECK", stderr)
 
     def test_absent_interpreter_refuses_the_push(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -1117,18 +1117,41 @@ class UnverifiableLockTestCase(unittest.TestCase):
             )
             self.assertNotEqual(code, 0)
             self.assertIn("no python interpreter found", stderr)
-            self.assertIn("SKIP_LOCKFILE_CHECK=1", stderr)
+            self.assertNotIn("SKIP_LOCKFILE_CHECK", stderr)
 
-    def test_the_deliberate_bypass_still_passes(self) -> None:
-        """`SKIP_LOCKFILE_CHECK=1` remains the one way through, and says so."""
+    def test_skip_variable_cannot_hide_checker_failures(self) -> None:
+        """`SKIP_LOCKFILE_CHECK=1` no longer hides an absent checker.
+
+        The recorded reason for routine `SKIP_LOCKFILE_CHECK=1` use -- an
+        overlay-flattened working-tree lock the archive-based check never saw
+        anyway -- is gone (2026 stack-hook revision). coeus's checker contract
+        (scripts/tests/test_hooks.py::
+        test_skip_variable_cannot_hide_checker_failures) requires that no
+        variable can hide a checker failure; this pins the same guarantee
+        here so the two do not drift apart again.
+        """
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture(pathlib.Path(temp))
             push_line = self._branch_touching_the_lock(fixture, drop_checker=True)
             code, stderr = fixture.run_hook(
                 push_line, extra_env={"SKIP_LOCKFILE_CHECK": "1"}
             )
-            self.assertEqual(code, 0, stderr)
-            self.assertIn("skipped by SKIP_LOCKFILE_CHECK", stderr)
+            self.assertNotEqual(code, 0, stderr)
+            self.assertIn("SKIP_LOCKFILE_CHECK is no longer honoured", stderr)
+            self.assertIn("lockfile.py not present", stderr)
+
+    def test_skip_variable_cannot_hide_a_failing_lock(self) -> None:
+        """A lock the checker rejects still refuses the push under the skip var."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            push_line = self._branch_touching_the_lock(fixture)
+            code, stderr = fixture.run_hook(
+                push_line,
+                extra_env={"SKIP_LOCKFILE_CHECK": "1", "LOCKFILE_EXIT": "1"},
+            )
+            self.assertNotEqual(code, 0, stderr)
+            self.assertIn("SKIP_LOCKFILE_CHECK is no longer honoured", stderr)
+            self.assertIn("does not resolve under --locked", stderr)
 
 
 class DenySourcesTestCase(unittest.TestCase):
@@ -1209,11 +1232,15 @@ class LaneGateTestCase(unittest.TestCase):
 
     def _run_in_lane(self, fixture: GateFixture, lane: pathlib.Path,
                      extra_env: dict | None = None) -> tuple:
+        # No SKIP_LOCKFILE_CHECK here: the lane's own commit touches only
+        # crates/foo/src/lib.rs, so the range never touches Cargo.lock or
+        # Cargo.toml and the lockfile section already self-skips on that
+        # evidence (removing the var, previously set unconditionally, changes
+        # nothing -- confirmed by running this suite with and without it).
         fixture.set_workspace_packages(["unrelated-member", "foo"], lane)
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
         env.pop("CARGO_TARGET_DIR", None)
-        env["SKIP_LOCKFILE_CHECK"] = "1"
         env.update(extra_env or {})
         sha = _git(lane, "rev-parse", "HEAD")
         proc = subprocess.run(
