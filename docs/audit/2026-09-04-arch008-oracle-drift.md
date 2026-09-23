@@ -1,8 +1,8 @@
 # ARCH-008 scattered-container oracle drift — measured 2026-09-04
 
 Instrument: `python scripts/atlas_scattered_containers_classify.py --json`
-against all member working trees (every member clean except apollo's five
-peer-owned n=32 files and leoneuro-rs/report scratch), diffed against
+against registered member working trees (Apollo held five peer-owned files),
+diffed against
 `scripts/oracles/arch-008-production-sites.txt` (249 sites, 161 files).
 
 ## Result

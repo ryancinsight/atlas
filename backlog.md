@@ -63,7 +63,7 @@
 <a id="atlas-dmri-denoise-008"></a>- [ATLAS-DMRI-DENOISE-008](backlog/atlas-dmri-denoise-008.md) — MP-PCA denoising and Gibbs unringing [minor] — todo
 <a id="atlas-dmri-io-001"></a>- [ATLAS-DMRI-IO-001](backlog/atlas-dmri-io-001.md) — Rank-generic acquisition-series I/O [minor] — in-progress
 <a id="atlas-dmri-tractogram-fmt-014"></a>- [ATLAS-DMRI-TRACTOGRAM-FMT-014](backlog/atlas-dmri-tractogram-fmt-014.md) — Tractogram container ownership [arch] — todo
-<a id="atlas-downstream-coordination-001"></a>- [ATLAS-DOWNSTREAM-COORDINATION-001](backlog/atlas-downstream-coordination-001.md) — Notify LeoNeuro-INC maintainers about local leoneuro-rs `50bfcd9` [chore] — todo
+<a id="atlas-downstream-coordination-001"></a>- [ATLAS-DOWNSTREAM-COORDINATION-001](backlog/atlas-downstream-coordination-001.md) — Coordinate with an external consumer owner [chore] — blocked
 <a id="atlas-harmonia-field-exchange-050-2026-08-21"></a>- [ATLAS-HARMONIA-FIELD-EXCHANGE-050-2026-08-21](backlog/atlas-harmonia-field-exchange-050-2026-08-21.md) — Add typed physical-field exchange [major] [arch] — in-progress
 <a id="atlas-helios-bench-local-instrument-2026-09-18"></a>- [ATLAS-HELIOS-BENCH-LOCAL-INSTRUMENT-2026-09-18](backlog/atlas-helios-bench-local-instrument-2026-09-18.md) — helios runs wall-clock benchmark regression on hosted CI [arch] — in-progress
 <a id="atlas-helios-radon-oracle-2026-08-20"></a>- [ATLAS-HELIOS-RADON-ORACLE-2026-08-20](backlog/atlas-helios-radon-oracle-2026-08-20.md) — Remove existence-only sinogram assertion [patch] — in-progress

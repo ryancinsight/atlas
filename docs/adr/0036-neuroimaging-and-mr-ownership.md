@@ -7,6 +7,8 @@
   [ADR 0029](0029-iris-visualization-promotion.md),
   [ADR 0026](0026-tyche-uq-promotion.md)
 
+Privacy revision (2026-09-22): downstream repository references are generalized under [ATLAS-PRIVACY-NAMING-1](../../backlog/atlas-privacy-naming-1.md); RITK ownership remains the documented direction.
+
 ## Context
 
 A forward-looking requirement was raised: RITK should support tractography and
@@ -239,9 +241,8 @@ them first:
   only. `ritk-connectome` needs surface parcellations to define nodes, so this is
   a real prerequisite for decision 1's third crate rather than an optional
   format. It also has an existing deletion ledger: the FreeSurfer `aseg`/`aparc`
-  label table is hand-rolled in a downstream consumer at
-  `repos/leoneuro-rs/crates/leoneuro-gui/src/freesurfer.rs`, which the RITK
-  owner's first increment deletes.
+  label table is hand-rolled in a downstream consumer. The RITK
+  owner's first increment removes the duplicate table.
 
 ## Consequences
 

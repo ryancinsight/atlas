@@ -5,7 +5,7 @@
 - Method: read-only. Board and doctrine from `backlog.md`, `checklist.md`,
   `gap_audit.md`, `README.md`, `docs/adr/`; capability claims checked against
   source in `repos/ritk`, `repos/helios`, `repos/kwavers`, `repos/metis`,
-  `repos/leoneuro-rs`.
+  registered downstream consumers.
 - Status: findings only. No source was modified and no gitlink was advanced.
 
 ## Summary
@@ -71,9 +71,9 @@ the weakest link in the stack and it is copy-pasted.
   stoichiometric calibration, no stopping-power table.
 - `crates/helios-solver/src/attenuation_map.rs:58` — "material-segmented model
   is a later refinement". There is no HU → material segmentation.
-- `helios` does this without `ritk` or `proteus`. `kwavers-imaging` carries its
-  own `medical/ct_loader` and `medical/dicom_loader`; `repos/leoneuro-rs`
-  carries a third CT → acoustic-medium path.
+- `helios` does this without `ritk` or `proteus`; `kwavers-imaging`
+  carries its own `medical/ct_loader` and `medical/dicom_loader`.
+  Other downstream implementations remain outside this registered-stack survey.
 
 Three consumers of one conversion is exactly the promotion-gate condition that
 ADR 0055 exists to catch. Under that axis the conversion is a **closure**
@@ -156,7 +156,7 @@ resample-and-transfer path — the duplication that produced F2.
 ### Gate 2 — the image-to-material seam (F2)
 
 9. **Move HU → material into `proteus`.** Three consumers now exist
-   (`helios-physics`, `kwavers-imaging`, `leoneuro`), which is the second-consumer
+   (`helios-physics`, `kwavers-imaging`, and an unregistered downstream consumer),
    condition. Scope: stoichiometric calibration, stopping-power table, and
    HU → material segmentation — the three things `helios` explicitly lacks
    today. Classify it as a closure domain per ADR 0061's test: read the public
@@ -189,36 +189,14 @@ resample-and-transfer path — the duplication that produced F2.
     substrate (`ritk-io/src/dispatch.rs:281`) — a suite that can read every
     format and write none is a viewer, not a pipeline.
 
-## 5. One decision to make explicitly
+## 5. External-consumer boundary
 
-`repos/leoneuro-rs` is a **private external code drop** (LeoNeuro-INC), absent
-from `.gitmodules` and therefore not part of the recorded stack; that rule was
-confirmed as intentional. But it is the only place in this workspace where the
-whole chain actually runs:
-
-```text
-brain CT + MRI (NIfTI/DICOM) → ritk registration (multi-res rigid→affine, cross-modal MI)
-  → SSS lumen mask → centerline polyline (leoneuro-vessel)
-  → stent-conformal transducer array (leoneuro-array)
-  → acoustic field: analytical Rayleigh–Sommerfeld (leoneuro-field) + kwavers PSTD (leoneuro-sim)
-  → neuromodulation (leoneuro-neuromod)
-  → NIfTI pressure field + device STL/GIFTI
-```
-
-Two options, and the current state — carrying it locally while the board records
-it as out of contract — is the worse third one:
-
-- **(a) Treat it as the first-consumer specification.** Upstream its reusable
-  seams into the owning members: vessel centerline and polyline geometry to
-  `gaia` (ADR 0036 already names the missing polyline type as an upstream gap),
-  CT → acoustic medium to `proteus` (Gate 2 step 9), transducer-on-centerline
-  to `kwavers-transducer`. Its gaps are the stack's gaps.
-- **(b) Record it formally as out of contract** and stop carrying its tree in
-  the stack checkout.
-
-Recommendation: (a), because its four reusable seams are precisely F1, F2, and
-the `gaia` polyline gap, and because it is the only end-to-end evidence that the
-suite's compositions work at all.
+Unregistered downstream repositories remain outside the Atlas stack map. This
+audit does not record their names, paths, branches, commits, or implementation
+details, and they do not supply a stack acceptance contract. Cross-member
+requirements here derive from registered source and tests; shared capabilities
+belong in their owning registered member. Contact with an external owner
+requires explicit authorization.
 
 ## 6. What not to build
 
@@ -226,7 +204,7 @@ Recorded so the next audit does not reopen them:
 
 - **No neuroimaging package.** ADR 0036 placed diffusion, tractography, and
   connectomics as `ritk` workspace crates. The crates exist. Gate 1 and 6
-  remain unmet for a separate repository — `ritk` is the only consumer.
+  remain unmet for a separate repository — `ritk` is the only registered consumer.
 - **No optics, RF, or MR-acquisition package.** ADR 0032 and ADR 0036 defer all
   three with named triggers. MR *acquisition* simulation (Bloch, k-space,
   sequence timing) is demand-gated and has no consumer; MR *image processing*

@@ -3,7 +3,7 @@
 Cargo.lock` only (workspace roots may legitimately touch only
 `Cargo.lock` when the path-dep lives in member manifests).
 
-The round-6a series (12 commits across 12 submodules) was authored
+The round-6a series (11 commits across 11 registered submodules) was authored
 during the ATLAS-PATH-DEP-AUDIT-2 closure cycle to land the
 `path = "../<sibling>"` overrides after the r5 over-strip. ATLAS-R6A-
 FILELIST-001 requires every r6a commit to be strictly cargo-only;
@@ -42,7 +42,6 @@ R6A_COMMITS: list[tuple[str, str, bool]] = [
     ("helios",      "dca9e80",  False),
     ("hephaestus",  "47ca84a",  False),
     ("kwavers",     "4bb54bda6", False),
-    ("leoneuro-rs", "50bfcd9",  False),
     ("hermes",      "50b4959",  False),
     ("ritk",        "65035908", False),
     ("athena",      "a5fd806",  False),
