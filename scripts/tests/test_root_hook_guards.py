@@ -132,6 +132,7 @@ class RootHookGuardTests(unittest.TestCase):
         # shared tree), so the guarded form carries the tip argument.
         self.assertIn('debt_gate "$tip" || exit 1', text)
         self.assertIn('budget_gate "$tip" || exit 1', text)
+        self.assertIn('secret_gate "$tip" || exit 1', text)
 
     def test_pre_commit_cites_the_detector_parity_rationale(self) -> None:
         text = PRE_COMMIT.read_text(encoding="utf-8")

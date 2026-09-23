@@ -982,6 +982,49 @@ class ArtifactBudgetRevisionTestCase(unittest.TestCase):
             self.assertEqual(args[args.index("--base") + 1], base)
 
 
+class SecretScanTestCase(unittest.TestCase):
+    """The credential scan judges the pushed range and blocks on a finding."""
+
+    def _stack(self, temp: str, exit_code: int) -> tuple:
+        stack = pathlib.Path(temp)
+        fixture = GateFixture(stack / "repos" / "member")
+        log = stack / "secret-args.log"
+        _write(
+            stack / "scripts" / "atlas-secret-scan.py",
+            "#!/usr/bin/env python3\n"
+            "import pathlib, sys\n"
+            f"pathlib.Path({str(log)!r}).write_text(' '.join(sys.argv[1:]))\n"
+            f"sys.exit({exit_code})\n",
+            executable=True,
+        )
+        root = fixture.root
+        base = _git(root, "rev-parse", "HEAD")
+        subprocess.run(
+            ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "feat"], check=True
+        )
+        (root / "crates" / "foo" / "src" / "lib.rs").write_text("pub fn f() {}\n// pushed\n")
+        subprocess.run(
+            ["git", "-C", str(root), *_IDENT, "commit", "-q", "-am", "pushed"], check=True
+        )
+        return fixture, log, base, _git(root, "rev-parse", "feat")
+
+    def test_scan_runs_on_the_pushed_range(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, log, base, pushed = self._stack(temp, 0)
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+            self.assertEqual(code, 0, stderr)
+            args = log.read_text().split()
+            self.assertEqual(args[args.index("--rev") + 1], pushed)
+            self.assertEqual(args[args.index("--base") + 1], base)
+
+    def test_a_finding_blocks_the_push(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, _, _ = self._stack(temp, 1)
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+            self.assertEqual(code, 1)
+            self.assertIn("adds a credential", stderr)
+
+
 class DefaultBranchTestCase(unittest.TestCase):
     """The gate follows the remote's default branch, not `main`.
 
