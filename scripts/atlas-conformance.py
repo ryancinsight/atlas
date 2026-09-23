@@ -320,7 +320,7 @@ CLASSES = [
     "cache_retention_policy_missing", "crlf_stored_blobs",
     "member_gate_versions",
     "pm_lines_over_budget", "oversized_tracked_images",
-    "unresolved_references",
+    "unresolved_references", "second_output_root",
 ]
 
 #
@@ -700,6 +700,28 @@ def count_excess_worktrees(repo: Path) -> int:
         return 0
     linked = sum(1 for entry in wt_dir.iterdir() if entry.is_dir())
     return max(0, linked - (WORKTREE_BOUND - 1))
+
+
+# Directories the stack used as a run-output segregation root before
+# `output/` was chosen canonical (ATLAS-RUN-OUTPUT-SEGREGATION): `run-output/`
+# held 327 MB of duplicate scratch at the stack root, ignored but never
+# evicted, because the one committed retention policy
+# (`atlas-output-retention.py` / `atlas-output-retention.toml`) only ever
+# covered `output/`. Content routed to any of these sits outside every
+# eviction cadence exactly as that one did before anyone measured it. All are
+# `.gitignore`d, so -- like `target_forks` -- a fresh checkout carries none of
+# them; this is host state, not repository content.
+SECOND_OUTPUT_ROOT_NAMES = ("run-output", "helios_workflow_output")
+
+
+def count_second_output_roots(root: Path) -> int:
+    """Non-canonical output roots present beside `output/` at the stack root.
+
+    Directory-only: an empty placeholder or a same-named stray file is not
+    the debt this counts -- only an actual second tree duplicating the one
+    retention policy is.
+    """
+    return sum(1 for name in SECOND_OUTPUT_ROOT_NAMES if (root / name).is_dir())
 
 
 def lf_policy_missing(repo: Path) -> int:
@@ -1942,6 +1964,7 @@ def scan_stack(
     meta["crlf_stored_blobs"] = count_crlf_stored_blobs(ROOT)
     meta.update(artifact_budget.counts(ROOT))
     meta["unresolved_references"] = board_lint.count_unresolved(ROOT, _object_stores())
+    meta["second_output_root"] = count_second_output_roots(ROOT)
     scan_workflows(ROOT, meta)
     out["<meta>"] = meta
     return out
@@ -2011,15 +2034,16 @@ def baseline_raises(
 # The classes `count_debt` reads from the live checkout rather than from the
 # scanned revision. A fresh CI checkout has neither a stray `target/` nor a
 # linked worktree, so these measure zero there by construction -- every
-# committed baseline records zero for both -- while one lane or one forked
-# cache makes them nonzero on a developer's machine. They are real debt and
-# still fail a local run; they are simply not a statement about repository
-# content, and reporting them in the same list made a forked cache read as a
-# ratchet regression.
+# committed baseline records zero for all of them -- while one lane, one
+# forked cache, or one legacy `run-output/`-style tree makes one nonzero on a
+# developer's machine. They are real debt and still fail a local run; they
+# are simply not a statement about repository content, and reporting them in
+# the same list made a forked cache read as a ratchet regression.
 HOST_OBSERVED_CLASSES = (
     "target_forks",
     "excess_worktrees",
     "root_sprawl_untracked",
+    "second_output_root",
 )
 
 

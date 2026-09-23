@@ -1760,5 +1760,48 @@ class RootAllowanceFollowsTheMemberTests(unittest.TestCase):
             self.assertEqual(carried, 1)
 
 
+class SecondOutputRootTestCase(unittest.TestCase):
+    """`output/` is canonical; a legacy root beside it is debt.
+
+    ATLAS-RUN-OUTPUT-SEGREGATION: `run-output/` held 327 MB at the stack
+    root, ignored but outside the one committed retention policy, which
+    only ever covered `output/`.
+    """
+
+    def test_no_legacy_root_counts_zero(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-output-root-") as temp:
+            root = Path(temp)
+            (root / "output").mkdir()
+            self.assertEqual(conformance.count_second_output_roots(root), 0)
+
+    def test_run_output_directory_counts_one(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-output-root-") as temp:
+            root = Path(temp)
+            (root / "output").mkdir()
+            (root / "run-output").mkdir()
+            self.assertEqual(conformance.count_second_output_roots(root), 1)
+
+    def test_every_legacy_root_present_counts(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-output-root-") as temp:
+            root = Path(temp)
+            for name in conformance.SECOND_OUTPUT_ROOT_NAMES:
+                (root / name).mkdir()
+            self.assertEqual(
+                conformance.count_second_output_roots(root),
+                len(conformance.SECOND_OUTPUT_ROOT_NAMES),
+            )
+
+    def test_a_same_named_file_is_not_counted(self) -> None:
+        """Directory-only: an empty placeholder file is not the debt."""
+        with tempfile.TemporaryDirectory(prefix="atlas-output-root-") as temp:
+            root = Path(temp)
+            (root / "run-output").write_text("", encoding="utf-8")
+            self.assertEqual(conformance.count_second_output_roots(root), 0)
+
+    def test_the_class_is_registered_for_the_ratchet(self) -> None:
+        self.assertIn("second_output_root", conformance.CLASSES)
+        self.assertIn("second_output_root", conformance.HOST_OBSERVED_CLASSES)
+
+
 if __name__ == "__main__":
     unittest.main()
