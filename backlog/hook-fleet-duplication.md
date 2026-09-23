@@ -4,5 +4,5 @@
 - **rollout:** 19 sync PRs merged, seven are enqueued, and `consus`/`ritk` already match canonical hook blob `0fc8934833d79075ed4b123819a98c5fc0d6e1b8`.
 - **open:** `kwavers` #815 remains dirty; a fresh-default retry reached the canonical 90-second command deadline while a peer release build held the shared cache, and the timed-out hook process tree required cleanup.
 - **risk:** hook `Cargo.lock` snapshot/restore remains unsynchronized, so concurrent hooks can restore over each other. The selector and publisher fixes do not serialize it.
-- **risk:** the member hook validates the checked-out `HEAD`, not the private-index revision being pushed, so unrelated dirty or in-flight member state can refuse publication or produce evidence for the wrong revision.
+- **resolved (atlas#246, atlas#258):** the hook judges the pushed revision — budget on the pushed tip, lock on an export of it with its own checker — and no longer honours `SKIP_LOCKFILE_CHECK`. Members whose stale hook refuses or times out the sync push are published through the git data API with the same bytes.
 - **acceptance:** close when canonical hooks are current fleet-wide, `sync-hooks --check` exits zero, and named publisher reruns are idempotent and bounded.
