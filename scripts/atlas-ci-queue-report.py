@@ -5,11 +5,19 @@ ATLAS-CI-RUNNER-SATURATION-2026-08-25's measurement instrument. For every
 registered member repository it pulls recent workflow runs from the GitHub API
 and reports, per repository:
 
-- queue minutes: ``created_at -> run_started_at`` (runner starvation signal),
+- run queue minutes: ``created_at -> run_started_at``,
+- job queue minutes: per job ``created_at -> started_at``, over the refined
+  runs (runner starvation signal),
 - run minutes:   ``run_started_at -> updated_at`` (consumed runner minutes),
 - event mix:     push / pull_request / schedule / workflow_dispatch,
 - conclusion mix,
 - the worst queued runs (name, head branch, queue minutes).
+
+GitHub sets ``run_started_at`` when the run is created, before any job has a
+runner, so run-level queue reads near zero however starved the pool is: the
+wait sits between each job's ``created_at`` and ``started_at``, inside what
+run wall time counts as work. Job queue is therefore read from the jobs
+endpoint the refinement already calls.
 
 The aggregate answers the capacity-vs-load-shedding question with numbers:
 which repositories burn the minutes, which events cause them, and how much of
@@ -37,6 +45,7 @@ import time
 import tomllib
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 
 FLEET = [
     "ryancinsight/atlas",
@@ -282,6 +291,8 @@ def summarise(
     queued_runs.sort(key=lambda item: item["queue_minutes"], reverse=True)
 
     work_seconds = wall_seconds
+    job_queue_seconds = 0.0
+    job_queue_max_seconds = 0.0
     refined = 0
     if accurate:
         # Longest first: wall time bounds job-sum from above, so a run's wall
@@ -289,7 +300,10 @@ def summarise(
         for wall, run_id in sorted(timed, reverse=True)[:refine_budget]:
             if wall < refine_minimum_seconds:
                 break
-            work_seconds += _jobs_work_seconds(repo, run_id, token) - wall
+            timings = _job_timings(repo, run_id, token)
+            work_seconds += timings.work_seconds - wall
+            job_queue_seconds += timings.queue_seconds
+            job_queue_max_seconds = max(job_queue_max_seconds, timings.queue_max_seconds)
             refined += 1
 
     return {
@@ -304,6 +318,8 @@ def summarise(
             else "run-wall"
         ),
         "runs_refined": refined,
+        "job_queue_minutes_refined": round(job_queue_seconds / 60, 1),
+        "job_queue_max_minutes": round(job_queue_max_seconds / 60, 1),
         "events": events,
         "conclusions": conclusions,
         "queued_over_5m": len(queued_runs),
@@ -311,8 +327,19 @@ def summarise(
     }
 
 
-def _jobs_work_seconds(repo: str, run_id: int, token: str | None) -> float:
-    total = 0.0
+@dataclass(frozen=True)
+class JobTimings:
+    """One run's jobs: summed runtime, summed queue wait, longest single wait."""
+
+    work_seconds: float
+    queue_seconds: float
+    queue_max_seconds: float
+
+
+def _job_timings(repo: str, run_id: int, token: str | None) -> JobTimings:
+    work = 0.0
+    queue = 0.0
+    queue_max = 0.0
     page = 1
     while True:
         payload, _ = _get(
@@ -320,16 +347,21 @@ def _jobs_work_seconds(repo: str, run_id: int, token: str | None) -> float:
             token,
         )
         for job in payload.get("jobs", []):
+            created = job.get("created_at")
             started = job.get("started_at")
             completed = job.get("completed_at")
             if started and completed:
-                total += max(
+                work += max(
                     (_parse(completed) - _parse(started)).total_seconds(), 0.0
                 )
+            if created and started:
+                wait = max((_parse(started) - _parse(created)).total_seconds(), 0.0)
+                queue += wait
+                queue_max = max(queue_max, wait)
         if len(payload.get("jobs", [])) < 100 or page >= 10:
             break
         page += 1
-    return total
+    return JobTimings(work, queue, queue_max)
 
 
 def main() -> int:
@@ -395,19 +427,25 @@ def main() -> int:
             f"{repo.split('/', 1)[1]:12s} runs={report['runs']:4d} "
             f"queue={report['queue_minutes_total']:8.1f}m "
             f"work={report['work_minutes_total']:8.1f}m "
+            f"job_queue={report['job_queue_minutes_refined']:8.1f}m "
+            f"(max {report['job_queue_max_minutes']:6.1f}m) "
             f">5m_queue={report['queued_over_5m']:3d} "
             f"refined={report['runs_refined']:3d}",
             flush=True,
         )
 
     total_q = sum(r["queue_minutes_total"] for r in reports)
+    total_jq = sum(r["job_queue_minutes_refined"] for r in reports)
     total_w = sum(r["work_minutes_total"] for r in reports)
     by_event: dict[str, int] = {}
     for r in reports:
         for event, count in r["events"].items():
             by_event[event] = by_event.get(event, 0) + count
     print("\n=== fleet totals over {} days ===".format(args.days))
-    print(f"runs={sum(r['runs'] for r in reports)} queue_minutes={total_q:.0f} work_minutes={total_w:.0f}")
+    print(
+        f"runs={sum(r['runs'] for r in reports)} queue_minutes={total_q:.0f} "
+        f"job_queue_minutes_refined={total_jq:.0f} work_minutes={total_w:.0f}"
+    )
     print(f"events: {json.dumps(by_event, sort_keys=True)}")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

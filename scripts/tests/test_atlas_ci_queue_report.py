@@ -38,7 +38,7 @@ def _run(rid: int, created: str, started: str | None, updated: str) -> dict:
     return run
 
 
-def test_jobs_work_seconds_sums_across_pages() -> None:
+def test_job_timings_sums_across_pages() -> None:
     # The paginator only advances when a page is FULL (100 jobs), so build a
     # full page of one-second jobs plus a short second page.
     full = [
@@ -58,13 +58,13 @@ def test_jobs_work_seconds_sums_across_pages() -> None:
         return page1, "5000"
 
     with mock.patch.object(_qr, "_get", side_effect=fake_get):
-        total = _qr._jobs_work_seconds("ryancinsight/kwavers", 123, None)
+        total = _qr._job_timings("ryancinsight/kwavers", 123, None).work_seconds
     assert total == 100 + 31, total
     # First page fetched, then a second page because page 1 was full.
     assert calls["n"] == 2
 
 
-def test_jobs_work_seconds_single_page() -> None:
+def test_job_timings_single_page() -> None:
     jobs = {"jobs": [
         {"started_at": "2026-08-25T10:00:00Z", "completed_at": "2026-08-25T10:01:00Z"},
     ]}
@@ -73,11 +73,11 @@ def test_jobs_work_seconds_single_page() -> None:
         return jobs, "5000"
 
     with mock.patch.object(_qr, "_get", side_effect=fake_get):
-        total = _qr._jobs_work_seconds("ryancinsight/x", 1, None)
+        total = _qr._job_timings("ryancinsight/x", 1, None).work_seconds
     assert total == 60
 
 
-def test_jobs_work_seconds_ignores_incomplete_jobs() -> None:
+def test_job_timings_ignores_incomplete_jobs() -> None:
     # A job without completed_at (still running) contributes nothing.
     jobs = {"jobs": [
         {"started_at": "2026-08-25T10:00:00Z", "completed_at": "2026-08-25T10:01:00Z"},
@@ -89,7 +89,7 @@ def test_jobs_work_seconds_ignores_incomplete_jobs() -> None:
         return jobs, "5000"
 
     with mock.patch.object(_qr, "_get", side_effect=fake_get):
-        total = _qr._jobs_work_seconds("ryancinsight/x", 1, None)
+        total = _qr._job_timings("ryancinsight/x", 1, None).work_seconds
     assert total == 60
 
 
@@ -113,6 +113,48 @@ def test_summarise_accurate_uses_job_sum() -> None:
     assert report["work_minutes_total"] == 2.0
     assert report["runs_refined"] == 1
     assert report["work_minutes_upper_bound"] == 5.0, "wall time bounds job-sum from above"
+
+
+def test_job_timings_measure_queue_from_job_creation() -> None:
+    # A run whose own start equals its creation still queued its jobs: the
+    # wait sits between each job's created_at and started_at.
+    jobs = {"jobs": [
+        {"created_at": "2026-08-25T10:00:00Z", "started_at": "2026-08-25T10:30:00Z",
+         "completed_at": "2026-08-25T10:31:00Z"},
+        {"created_at": "2026-08-25T10:00:00Z", "started_at": "2026-08-25T10:02:00Z",
+         "completed_at": "2026-08-25T10:02:20Z"},
+        {"created_at": "2026-08-25T10:00:00Z", "started_at": None, "completed_at": None},
+    ]}
+
+    def fake_get(_url, _token):  # noqa: ANN001, ANN202
+        return jobs, "5000"
+
+    with mock.patch.object(_qr, "_get", side_effect=fake_get):
+        timings = _qr._job_timings("ryancinsight/x", 1, None)
+    assert timings.work_seconds == 60 + 20
+    assert timings.queue_seconds == 1800 + 120
+    assert timings.queue_max_seconds == 1800
+
+
+def test_summarise_reports_job_queue_when_run_queue_is_zero() -> None:
+    runs = [
+        _run(1, "2026-08-25T10:00:00Z", "2026-08-25T10:00:00Z", "2026-08-25T10:40:00Z"),
+    ]
+
+    def fake_get(_url, _token):  # noqa: ANN001, ANN202
+        return {"jobs": [
+            {"created_at": "2026-08-25T10:00:00Z", "started_at": "2026-08-25T10:36:00Z",
+             "completed_at": "2026-08-25T10:40:00Z"},
+        ]}, "5000"
+
+    with mock.patch.object(_qr, "_get", side_effect=fake_get):
+        report = _qr.summarise(
+            "ryancinsight/x", runs, None, accurate=True, refine_minimum_seconds=0
+        )
+    assert report["queue_minutes_total"] == 0.0
+    assert report["job_queue_minutes_refined"] == 36.0
+    assert report["job_queue_max_minutes"] == 36.0
+    assert report["work_minutes_total"] == 4.0
 
 
 def test_summarise_run_wall_uses_updated_minus_started() -> None:
