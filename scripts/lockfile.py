@@ -115,7 +115,8 @@ def run_outside_the_overlay(
     `manifest` defaults to `MANIFEST` as it stands at call time -- `main`
     reassigns it under `--manifest-path`, which a definition-time default would
     never see -- and the consumer lock sweep passes a member's, so one
-    overlay-free runner serves the stack.
+    overlay-free runner serves the stack. The manifest option goes before `--`
+    when present because cargo forwards everything after it to the subcommand.
 
     Excluding the overlay excludes the whole config, `target-dir` included, so
     the shared cache is restored explicitly from the stack config above the
@@ -132,9 +133,19 @@ def run_outside_the_overlay(
         shared = shared_target_dir(manifest)
         if shared is not None:
             environment["CARGO_TARGET_DIR"] = str(shared)
+    try:
+        separator = arguments.index("--")
+    except ValueError:
+        separator = len(arguments)
+    cargo_arguments = [
+        *arguments[:separator],
+        "--manifest-path",
+        str(manifest),
+        *arguments[separator:],
+    ]
     with tempfile.TemporaryDirectory() as neutral_directory:
         return subprocess.run(
-            ["cargo", *arguments, "--manifest-path", str(manifest)],
+            ["cargo", *cargo_arguments],
             cwd=neutral_directory,
             env=environment,
             capture_output=True,
