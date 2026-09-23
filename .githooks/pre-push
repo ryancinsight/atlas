@@ -287,6 +287,30 @@ budget_gate() {
     return 0
 }
 
+# No committed tool may write another repository's refs into the shared
+# remote-tracking namespace (scripts/atlas-refspec-guard.py): a loaded pin
+# sweep did exactly that on 2026-09-21 and masqueraded as atlas's own
+# published origin. Fetching a member ref lands in refs/scratch/ or in
+# FETCH_HEAD; only the own-origin wildcard mirror touches refs/remotes/.
+refspec_gate() {
+    local tip="$1" python_bin candidate
+    python_bin="${PYTHON:-}"
+    if [ -z "$python_bin" ]; then
+        for candidate in python3 python; do
+            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
+        done
+    fi
+    if [ -z "$python_bin" ]; then
+        echo "pre-push: BLOCKED -- no python interpreter; refspec guard unverified." >&2
+        return 1
+    fi
+    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas-refspec-guard.py" 2>/dev/null; then
+        return 0
+    fi
+    git -C "$atlas_root" show "$tip:scripts/atlas-refspec-guard.py"         | "$python_bin" - check --root "$atlas_root" --rev "$tip"         || { echo "pre-push: BLOCKED -- a committed tool maps a fetched ref onto a remote-tracking ref; only the own-origin wildcard mirror may." >&2; return 1; }
+    return 0
+}
+
 case "$status" in
     0)
         for i in "${!pushed_tips[@]}"; do
@@ -294,6 +318,7 @@ case "$status" in
             gate_base="$(gate_base_for "$tip" "${pushed_bases[$i]}")"
             debt_gate "$tip" || exit 1
             budget_gate "$tip" || exit 1
+            refspec_gate "$tip" || exit 1
         done
         exit 0
         ;;
