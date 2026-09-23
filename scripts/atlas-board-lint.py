@@ -328,32 +328,77 @@ def cited_hashes(paths: list[pathlib.Path]) -> dict[str, list[tuple[str, int]]]:
     return found
 
 
-def resolve_hashes(tokens: set[str], stores: list[pathlib.Path]) -> set[str]:
-    """The subset of `tokens` naming an object in any of `stores`.
+_REACHABLE_INDEX: dict[tuple[pathlib.Path, ...], dict[str, frozenset[str]]] = {}
 
-    `git cat-file --batch-check` answers every token in one process per
-    store; a token is resolved unless the store reports it `missing` (an
-    `ambiguous` abbreviation still names real objects). The token rides the
-    `%(rest)` column back, since a found object is reported by its full name.
+
+def _reachable_index(stores: list[pathlib.Path]) -> dict[str, frozenset[str]]:
+    """Map 7-char hash prefixes to the full reachable shas they abbreviate.
+
+    Per store, enumerate refs and collect the commits they reach. Enumerate
+    refs first (`for-each-ref --format=%(refname)` with no pattern, safe
+    across git versions) because rev-listing a raw `refs/remotes/origin`
+    prefix is not a revision git accepts; the enumerated names are. Only
+    `refs/remotes/origin/*` and `refs/tags/*` count -- those are the refs a
+    hash citation is expected to name, and reachability from them is uniform
+    across hosts whose object stores differ only in odds and ends. A store
+    with none of those refs (a bare fixture or archival checkout) falls back
+    to its local `refs/heads/*`, which still answers citations against it.
+
+    A 40-char sha enters the bucket of its first 7 chars. Every process has
+    its own index, cached per store list so a stack-wide scan walks the
+    reachable history once and each member's token set resolves against it.
     """
     import subprocess
-    unresolved = set(tokens)
+    key = tuple(stores)
+    cached = _REACHABLE_INDEX.get(key)
+    if cached is not None:
+        return cached
+    buckets: dict[str, set[str]] = {}
     for store in stores:
-        if not unresolved:
-            break
         proc = subprocess.run(
-            ["git", "-C", str(store), "cat-file", "--batch-check=%(objectname) %(rest)"],
-            input="".join(f"{t} {t}\n" for t in sorted(unresolved)),
+            ["git", "-C", str(store), "for-each-ref", "--format=%(refname)"],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             check=False,
         )
-        # A found object answers `<full sha> <token>`; a missing one answers
-        # `<token> missing`, so the token rides `%(rest)` back in either case.
-        for line in proc.stdout.splitlines():
-            parts = line.split()
-            if len(parts) == 2 and parts[1] != "missing":
-                unresolved.discard(parts[1])
-    return tokens - unresolved
+        names = [
+            n for n in proc.stdout.splitlines()
+            if n.startswith(("refs/remotes/origin/", "refs/tags/"))
+        ]
+        if not names:
+            local = [
+                n for n in proc.stdout.splitlines() if n.startswith("refs/heads/")
+            ]
+            if local:
+                names = local
+            else:
+                continue
+        listed = subprocess.run(
+            ["git", "-C", str(store), "rev-list", *names],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=False,
+        )
+        full = (n for n in listed.stdout.splitlines() if re.fullmatch(r"[0-9a-f]{40}", n))
+        for n in full:
+            buckets.setdefault(n[:7], set()).add(n)
+    index = {prefix: frozenset(full) for prefix, full in buckets.items()}
+    _REACHABLE_INDEX[key] = index
+    return index
+
+
+def resolve_hashes(tokens: set[str], stores: list[pathlib.Path]) -> set[str]:
+    """The subset of `tokens` naming a reachable object in any of `stores`.
+
+    A token resolves when its 7-char prefix has a full sha in `_reachable_index`
+    whose own first chars match the token -- git's own abbreviation contract,
+    where `ambiguous` still names real objects. The rule is reachability, not
+    store contents, so the resolution does not depend on what a working tree
+    happens to have materialized.
+    """
+    index = _reachable_index(stores)
+    return {
+        t for t in tokens
+        if any(full.startswith(t) for full in index.get(t[:7], frozenset()))
+    }
 
 
 def unresolved_hashes(
