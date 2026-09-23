@@ -22,7 +22,6 @@
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) — Create and register `ares` (solid momentum balance) [arch][minor] — in-progress
 <a id="atlas-athena-allocation-contract"></a>- [ATLAS-ATHENA-ALLOCATION-CONTRACT](backlog/atlas-athena-allocation-contract.md) — warm solves allocate 4-6 small buffers per call on Linux [patch] — in-progress
-<a id="bare-git-pin-staleness"></a>- [ATLAS-BARE-GIT-PIN-STALENESS-2026-09-08](backlog/bare-git-pin-staleness.md) — A version-less git dependency freezes at its first resolution [patch] — todo
 <a id="atlas-bench-budget-001"></a>- [ATLAS-BENCH-BUDGET-001](backlog/atlas-bench-budget-001.md) — Wall-clock budgets for benches and examples [patch] — in-progress
 <a id="atlas-board-closure-canon-001"></a>- [ATLAS-BOARD-CLOSURE-CANON-001](backlog/atlas-board-closure-canon-001.md) — Canonicalize historical closure markers [pm-hygiene] [patch] [M] — in-progress
 <a id="atlas-book-caller-pins-2026-08-20"></a>- [ATLAS-BOOK-CALLER-PINS-2026-08-20](backlog/atlas-book-caller-pins-2026-08-20.md) — Repin provider mdBook callers [patch] — in-progress
