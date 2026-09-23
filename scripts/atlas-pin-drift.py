@@ -60,6 +60,37 @@ GITLINK_MODE = "160000"
 SYMREF = re.compile(r"^ref:\s+refs/heads/(\S+)\s+HEAD$", re.MULTILINE)
 OBJECT_ID = re.compile(r"[0-9a-f]{40}([0-9a-f]{24})?")
 
+# Private scratch namespace for the branch this tool fetches to measure
+# distance. Never `refs/remotes/*`: a bare `git fetch <url> <branch>` (no
+# colon) still opportunistically updates the matching remote-tracking ref
+# when `<url>` equals a configured remote's URL, and a destination under
+# `refs/remotes/` risks colliding with the *caller's* own tracking ref when
+# `-C`/git-dir resolution lands on the wrong repository. That is exactly
+# ATLAS-ORIGIN-REF-CLOBBER-2026-09-21: a sweep fetching five different
+# members' `main` landed each, forced, in Atlas's own `refs/remotes/origin/
+# main` in turn. `refs/scratch/` is disposable, reused across members, and
+# never read by anything but this measurement.
+SCRATCH_REF_PREFIX = "refs/scratch/"
+SCRATCH_HEAD_REF = f"{SCRATCH_REF_PREFIX}atlas-pin-drift-head"
+
+
+def fetch_refspec(branch: str) -> str:
+    """The refspec `distance` passes to `git fetch` for `branch`.
+
+    Force-updates `SCRATCH_HEAD_REF` only -- never a `refs/remotes/*`
+    destination -- so this tool's fetch can never overwrite a caller's
+    remote-tracking ref, however `-C`/git-dir resolution lands.
+    """
+    return f"+{branch}:{SCRATCH_HEAD_REF}"
+
+
+# Every refspec this tool ever passes to `git fetch`, in the form a caller
+# might supply a branch name. Exercised by
+# `test_atlas_pin_drift.FetchRefspecTestCase` so a future edit that routes a
+# fetch destination back through `refs/remotes/` fails the suite immediately
+# rather than waiting for another clobbered tracking ref to surface it.
+FETCH_REFSPECS = tuple(fetch_refspec(branch) for branch in ("main", "master", "trunk"))
+
 # One commit of lag is the race between a member landing a pull request and the
 # next integration sweep advancing the pin; failing on it would make the gate
 # red as a matter of course, and a gate nobody can keep green is worse than no
@@ -182,17 +213,30 @@ def published_default(repo: Path, url: str, timeout: int) -> tuple[str, str]:
 def distance(clone: Path, url: str, branch: str, gitlink: str, timeout: int) -> tuple[int, int]:
     """Commits the pin is (behind, ahead of) the published default tip.
 
-    Fetches the branch into FETCH_HEAD only -- no refspec, so no remote-tracking
-    ref and no working tree of the member clone is touched.
+    Force-fetches the branch into `SCRATCH_HEAD_REF` -- a private
+    `refs/scratch/` ref, never a remote-tracking one -- and no working tree
+    of the member clone is touched. A bare `git fetch <url> <branch>` (what
+    this used to do) opportunistically updates the matching
+    `refs/remotes/*` ref whenever `<url>` equals a configured remote's URL;
+    routing the destination through `fetch_refspec` instead means this
+    tool's fetch can never land in a `refs/remotes/` ref, the caller's
+    included (ATLAS-ORIGIN-REF-CLOBBER-2026-09-21).
     """
-    fetched = _git(clone, "fetch", "--no-tags", "--quiet", url, branch, timeout=timeout)
+    fetched = _git(
+        clone, "fetch", "--no-tags", "--quiet", url, fetch_refspec(branch), timeout=timeout
+    )
     if fetched.returncode != 0:
         raise GitProcessError(
             f"fetch failed: "
             f"{fetched.stderr.decode('utf-8', errors='replace').strip() or 'no output'}"
         )
     counted = _git(
-        clone, "rev-list", "--left-right", "--count", f"{gitlink}...FETCH_HEAD", timeout=timeout
+        clone,
+        "rev-list",
+        "--left-right",
+        "--count",
+        f"{gitlink}...{SCRATCH_HEAD_REF}",
+        timeout=timeout,
     )
     if counted.returncode != 0:
         raise GitProcessError(

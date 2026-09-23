@@ -102,7 +102,6 @@
 <a id="atlas-moirai-accelerator-route-2026-08-21"></a>- [ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21](backlog/atlas-moirai-accelerator-route-2026-08-21.md) — Execute accelerator routes [major] [arch] — in-progress
 <a id="atlas-multiphysics-adoption-100"></a>- [ATLAS-MULTIPHYSICS-ADOPTION-100](backlog/atlas-multiphysics-adoption-100.md) — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in-progress
 <a id="next-steps"></a>- [ATLAS-NEXT-STEPS-2026-09-03](backlog/next-steps.md) — Sequenced plan toward the suite [arch] — todo
-<a id="atlas-origin-ref-clobber-2026-09-21"></a>- [ATLAS-ORIGIN-REF-CLOBBER-2026-09-21](backlog/atlas-origin-ref-clobber-2026-09-21.md) — A pin sweep used refs/remotes/origin/main as scratch [patch] — todo
 <a id="atlas-overlay-001"></a>- [ATLAS-OVERLAY-001](backlog/atlas-overlay-001.md) — Generated [patch] overlay for local-vs-git coherence [patch] — in-progress
 <a id="atlas-overlay-004"></a>- [ATLAS-OVERLAY-004](backlog/atlas-overlay-004.md) — Worktree sprawl breaks stack dependency resolution [patch] — in-progress
 <a id="atlas-overlay-005"></a>- [ATLAS-OVERLAY-005](backlog/atlas-overlay-005.md) — Clear first-party rev pins across the stack [patch] — in-progress
