@@ -891,6 +891,63 @@ class SafetyRatchetTestCase(unittest.TestCase):
         self.assertNotIn("SAFETY ratchet", stderr)
 
 
+class ArtifactBudgetRevisionTestCase(unittest.TestCase):
+    """The budget check judges the pushed tip, not the checkout's `HEAD`.
+
+    A shared tree checked out on a peer's branch carried a board over budget;
+    the hook passed `--rev HEAD` and refused an unrelated plumbing push whose
+    own board was within budget.
+    """
+
+    def test_budget_checks_the_pushed_tip_not_head(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack = pathlib.Path(temp)
+            fixture = GateFixture(stack / "repos" / "member")
+            log = stack / "budget-args.log"
+            _write(
+                stack / "scripts" / "atlas-artifact-budget.py",
+                "#!/usr/bin/env python3\n"
+                "import pathlib, sys\n"
+                f"pathlib.Path({str(log)!r}).write_text(' '.join(sys.argv[1:]))\n",
+                executable=True,
+            )
+            root = fixture.root
+            base = _git(root, "rev-parse", "HEAD")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "feat"],
+                check=True,
+            )
+            (root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn f() {}\n// pushed\n"
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-am", "pushed"],
+                check=True,
+            )
+            pushed = _git(root, "rev-parse", "feat")
+            # The checkout moves to a different branch, as a peer's would.
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "peer", base],
+                check=True,
+            )
+            (root / "README.md").write_text("peer\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "add", "README.md"], check=True
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-m", "peer"],
+                check=True,
+            )
+            self.assertNotEqual(_git(root, "rev-parse", "HEAD"), pushed)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            args = log.read_text().split()
+            self.assertEqual(args[args.index("--rev") + 1], pushed)
+            self.assertEqual(args[args.index("--base") + 1], base)
+
+
 class DefaultBranchTestCase(unittest.TestCase):
     """The gate follows the remote's default branch, not `main`.
 

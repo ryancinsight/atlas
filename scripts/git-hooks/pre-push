@@ -245,19 +245,28 @@ fi
 # one member before anything measured either. The script lives in the stack
 # root; a standalone clone outside the stack reports and continues, since the
 # shared CI workflow (artifact-budget.yml) is the authoritative gate there.
-# The gate judges HEAD, the revision being pushed, never the working tree a
-# peer may hold dirty.
+# The gate judges the pushed tip against the pushed range's base, never the
+# working tree a peer may hold dirty and never `HEAD`: a plumbing push, or a
+# shared tree checked out on a peer's branch, makes `HEAD` a revision this push
+# does not carry, and a peer's over-budget board then refused an unrelated
+# push. `HEAD` against its upstream remains the fallback when git supplied no
+# range (a manual run with no stdin).
 budget_checker="$repo_root/../../scripts/atlas-artifact-budget.py"
 if [ -f "$budget_checker" ] && [ -n "$python_bin" ]; then
+  budget_rev="${gate_tip:-HEAD}"
   budget_base=""
-  if upstream="$(git rev-parse --verify --quiet '@{upstream}' 2>/dev/null)"; then
+  if [ -n "$gate_range_base" ] \
+    && git rev-parse --verify --quiet "$gate_range_base^{commit}" >/dev/null 2>&1; then
+    budget_base="$gate_range_base"
+  elif [ -z "$gate_tip" ] \
+    && upstream="$(git rev-parse --verify --quiet '@{upstream}' 2>/dev/null)"; then
     budget_base="$upstream"
   else
-    budget_base="$(default_branch_base HEAD || true)"
+    budget_base="$(default_branch_base "$budget_rev" || true)"
   fi
   budget_args=()
   [ -n "$budget_base" ] && budget_args=(--base "$budget_base")
-  if ! "$python_bin" "$budget_checker" check --root "$repo_root" --rev HEAD "${budget_args[@]}"; then
+  if ! "$python_bin" "$budget_checker" check --root "$repo_root" --rev "$budget_rev" "${budget_args[@]}"; then
     echo "pre-push: BLOCKED -- a PM board grew past its line budget or a tracked" >&2
     echo "image exceeds the byte budget. Compact the board (done items delete)," >&2
     echo "move evidence captures out of git, and push again." >&2
