@@ -3,3 +3,4 @@
 - **outcome:** hosted CI queue time returns under the five-minute job target stack-wide; kwavers `GPU Parity (scheduled)` turns green.
 - **Ask-User:** (1) spending cap/billing stop on the account? (2) register self-hosted runners org-wide (`self-hosted, linux, x64`, `cuda` on the RTX 5080 host).
 - **acceptance oracle:** `gh run list` median queue under 5 min; kwavers GPU Parity scheduled row green.
+- **Evidence 2026-09-23:** job-level queue is twice the work it waits for (118,253 vs 57,847 minutes over 7 days; ATLAS-CI-RUNNER-SATURATION-2026-08-25). Load shedding continues; capacity remains the user's decision.

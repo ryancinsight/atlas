@@ -152,7 +152,7 @@
 <a id="atlas-worktree-001"></a>- [ATLAS-WORKTREE-001](backlog/atlas-worktree-001.md) — Canonical lane root consolidation [patch] — in-progress
 <a id="atlas-worktree-clones-001"></a>- [ATLAS-WORKTREE-CLONES-001](backlog/atlas-worktree-clones-001.md) — Reconcile standalone clones under `worktrees/` [patch] — in-progress
 <a id="atlas-worktree-takeover-107"></a>- [ATLAS-WORKTREE-TAKEOVER-107](backlog/atlas-worktree-takeover-107.md) — stale-lane sweep across the stack [patch] — in-progress
-<a id="kwavers-ci-pipeline-001"></a>- [KWAVERS-CI-PIPELINE-001](backlog/kwavers-ci-pipeline-001.md) — Consolidate kwavers CI to one verification pipeline [ci] [patch] — todo
+<a id="kwavers-ci-pipeline-001"></a>- [KWAVERS-CI-PIPELINE-001](backlog/kwavers-ci-pipeline-001.md) — Consolidate kwavers CI to one verification pipeline [ci] [patch] — in-progress
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="ritk-shared-tree-stale-basis-213"></a>- [RITK-SHARED-TREE-STALE-BASIS-213](backlog/ritk-shared-tree-stale-basis-213.md) — ritk's shared tree is checked out 58 commits behind origin [patch] — in-progress
