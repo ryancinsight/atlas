@@ -1247,6 +1247,51 @@ class AtlasConformanceTestCase(unittest.TestCase):
             self.assertNotIn("demo", results)
             self.assertIn("demo", err.getvalue())
 
+    def test_recorded_revision_scan_measures_the_meta_row_at_the_revision(
+        self,
+    ) -> None:
+        """The meta row reads the revision, not the checkout holding it.
+
+        A shared checkout routinely holds an older or dirty branch; the meta
+        row once read it live, so `generate --revision origin/main` reported
+        a phantom raise measured from the wrong tree.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+            _write(root, ".gitmodules", "")
+            _write(root, ".gitattributes", "* text=auto eol=lf\n")
+            _write(
+                root,
+                "backlog.md",
+                '<a id="ATLAS-A-001"></a>\n'
+                "## ATLAS-A-001 - ready - todo\n"
+                "- priority: correctness\n",
+            )
+            for argv in (
+                ["init", "-q", "-b", "main"],
+                [*ident, "add", "-A"],
+                [*ident, "commit", "-q", "-m", "clean board"],
+            ):
+                subprocess.run(["git", "-C", str(root), *argv], check=True)
+            rev = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            # The live tree drifts from the revision: the policy file is
+            # gone and the board gains an off-set item.
+            (root / ".gitattributes").unlink()
+            with (root / "backlog.md").open("a", encoding="utf-8") as board:
+                board.write("## ATLAS-A-002 - finished - done\n")
+
+            at_revision = conformance.scan_stack(root, rev)["<meta>"]
+            live = conformance.scan_stack(root)["<meta>"]
+
+            self.assertEqual(at_revision["gitattributes_missing"], 0)
+            self.assertEqual(at_revision["board_items_outside_status_set"], 0)
+            self.assertEqual(live["gitattributes_missing"], 1)
+            self.assertEqual(live["board_items_outside_status_set"], 1)
+
     def test_generate_refuses_to_raise_a_count(self) -> None:
         """`generate` must not launder a regression into the baseline.
 
