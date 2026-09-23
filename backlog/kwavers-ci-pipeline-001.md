@@ -1,4 +1,5 @@
 <a id="kwavers-ci-pipeline-001"></a>
-## KWAVERS-CI-PIPELINE-001 - Consolidate kwavers CI to one verification pipeline [ci] [patch] — todo
+## KWAVERS-CI-PIPELINE-001 - Consolidate kwavers CI to one verification pipeline [ci] [patch] — in-progress
 - Outcome: one workflow whose jobs carry the stage structure (build-once, cheapest-first, affected-scope filters); mdBook deploy off pull_request events; benchmark regression job removed (benchmarks run locally per policy - CI keeps the single-iteration bench smoke only).
 - Evidence 2026-08-24: six sibling workflows fire per PR event and per main push; queue sat 6-15 min behind one busy runner; one main-push CI/CD Pipeline run ended cancelled, leaving that merge unverified.
+- Delivered 2026-09-23: [kwavers#831](https://github.com/ryancinsight/kwavers/pull/831) (migration audit folded into CI, Ubuntu-only wheel smoke on PRs, benchmark diff to dispatch, required checks `CI gate` + `Architecture gate`), [kwavers#832](https://github.com/ryancinsight/kwavers/pull/832) (Architecture Validation 14 -> 5 jobs over one build), [kwavers#838](https://github.com/ryancinsight/kwavers/pull/838) (restores the wheel-smoke file #831 made GitHub reject). Next: fold `architecture-validation.yml` into `ci.yml`, then re-measure PR wall time with the job-queue column.
