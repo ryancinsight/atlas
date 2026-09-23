@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib.util
+import inspect
 import io
 import os
 import subprocess
@@ -345,6 +346,48 @@ class PinDriftWaiverFileTestCase(unittest.TestCase):
         for member, entry in waivers.items():
             for field in guard.WAIVER_FIELDS:
                 self.assertTrue(entry.get(field, "").strip(), f"{member} lacks {field}")
+
+
+class FetchRefspecTestCase(unittest.TestCase):
+    """The refspec `distance` passes to `git fetch` never targets a
+    remote-tracking ref.
+
+    ATLAS-ORIGIN-REF-CLOBBER-2026-09-21: a sweep force-fetching five
+    different members' `main` -- each measured against a non-atlas (member)
+    URL -- landed every one of them, in turn, in Atlas's own shared
+    `refs/remotes/origin/main`. `distance()` measures against `url`, which
+    is always a member's URL, never atlas's own, so every refspec this tool
+    ever constructs is exercised here.
+    """
+
+    def test_every_refspec_targets_the_scratch_prefix(self) -> None:
+        self.assertTrue(guard.FETCH_REFSPECS, "no refspecs to check")
+        for spec in guard.FETCH_REFSPECS:
+            self.assertTrue(spec.startswith("+"), f"refspec {spec!r} must force-update")
+            _, _, dest = spec.partition(":")
+            self.assertTrue(
+                dest.startswith(guard.SCRATCH_REF_PREFIX),
+                f"refspec {spec!r} destination {dest!r} must live under "
+                f"{guard.SCRATCH_REF_PREFIX!r}",
+            )
+
+    def test_fetch_refspec_never_targets_remote_tracking_namespace(self) -> None:
+        for branch in ("main", "master", "refs/heads/main", "release/2026.09"):
+            spec = guard.fetch_refspec(branch)
+            _, _, dest = spec.partition(":")
+            self.assertFalse(
+                dest.startswith("refs/remotes/"),
+                f"fetch_refspec({branch!r}) = {spec!r} targets a remote-tracking ref",
+            )
+
+    def test_distance_reads_the_scratch_ref_not_fetch_head(self) -> None:
+        """`distance()` must query `SCRATCH_HEAD_REF`, not `FETCH_HEAD` --
+        `FETCH_HEAD` is itself a shared, ambient ref this process does not
+        own exclusively, which is the same class of scratch-space misuse
+        this item closes."""
+        source = inspect.getsource(guard.distance)
+        self.assertIn("SCRATCH_HEAD_REF", source)
+        self.assertNotIn("FETCH_HEAD", source)
 
 
 if __name__ == "__main__":

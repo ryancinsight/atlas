@@ -1,4 +1,0 @@
-<a id="atlas-origin-ref-clobber-2026-09-21"></a>
-## ATLAS-ORIGIN-REF-CLOBBER-2026-09-21 — A pin sweep used refs/remotes/origin/main as scratch [patch] — todo
-- Evidence: `git reflog show origin/main` records five forced updates 2026-09-21 17:10:11-17:10:31 -0400 fetching aequitas, apollo, athena, CFDrs and coeus `+main:refs/remotes/origin/main` into Atlas's shared tracking ref; restored at 17:17:38. A concurrent orientation in that window computed `origin/main..main` as 10 and `main..origin/main` as 1433 — member histories, not Atlas — so every tree-mate's origin-sync, merge-base and stale-tree reasoning silently misreads while the ref is a member tip.
-- Acceptance: the committed sweep tool's refspecs target `refs/scratch/` exclusively; a unit test over the refspec list fails on any `refs/remotes/` target from a non-atlas URL; a repository-level grep for `+main:refs/remotes/origin/main` in committed tooling stays zero.
