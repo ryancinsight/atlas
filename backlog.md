@@ -43,7 +43,6 @@
 <a id="atlas-cfdrs-lint-floor-001"></a>- [ATLAS-CFDRS-LINT-FLOOR-001](backlog/atlas-cfdrs-lint-floor-001.md) — Adopt canonical Atlas lint floor in CFDrs workspace [patch] — in-progress
 <a id="atlas-cfdrs-python-gil-2026-08-21"></a>- [ATLAS-CFDRS-PYTHON-GIL-2026-08-21](backlog/atlas-cfdrs-python-gil-2026-08-21.md) — Complete PyO3 solver GIL boundaries [minor] — in-progress
 <a id="atlas-cfdrs-runner-mdbook-index-1"></a>- [ATLAS-CFDRS-RUNNER-MDBOOK-INDEX-1](backlog/atlas-cfdrs-runner-mdbook-index-1.md) — Close CFDrs runner-side mdBook index + ci.yml silent-drop [patch] — in-progress
-<a id="atlas-cfdrs-stale-example-pages-001"></a>- [ATLAS-CFDRS-STALE-EXAMPLE-PAGES-001](backlog/atlas-cfdrs-stale-example-pages-001.md) — Book example pages for deleted examples [docs] [patch] [S] — todo
 <a id="atlas-check-figures-ci-verify-defer"></a>- [ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER](backlog/atlas-check-figures-ci-verify-defer.md) — End-to-end CI verification of `prebook check-figures` [minor] — in-progress
 <a id="atlas-ci-runner-saturation-2026-08-25"></a>- [ATLAS-CI-RUNNER-SATURATION-2026-08-25](backlog/atlas-ci-runner-saturation-2026-08-25.md) — Hosted-runner queue depth delays every merge gate [patch] — in-progress
 <a id="atlas-code-index-001"></a>- [ATLAS-CODE-INDEX-001](backlog/atlas-code-index-001.md) — Search-ladder infrastructure for context economy [patch] — in-progress
