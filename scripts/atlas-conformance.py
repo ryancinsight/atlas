@@ -2067,6 +2067,83 @@ def ratchet_delta(
     return regressions, host, tightenings
 
 
+# The one class whose count depends on remote refs rather than on the scanned
+# tree: a cited hash resolves while some origin branch or tag reaches it, so a
+# member deleting a branch raises the count with no change to any citation.
+# On 2026-09-23 `<meta>` went 119 -> 126 in seven hours on every open pull
+# request while the boards stood still.
+REF_DRIFT_CLASS = "unresolved_references"
+
+
+def unresolved_at(repo: Path, revision: str, stores: list[Path]) -> int:
+    """Count unresolved citations in `revision`'s reference artifacts of `repo`.
+
+    Only the artifacts `board_lint.reference_artifacts` reads are extracted,
+    and they resolve against `stores` -- the same refs the scanned tree is
+    judged against, so the two counts differ only by what the tree cites.
+    """
+    top = git_output("ls-tree", "--name-only", revision, cwd=repo).splitlines()
+    paths = [n for n in top if n.lower() in board_lint.REFERENCE_BOARDS]
+    for sub in ("backlog", "docs/adr"):
+        if git_output("ls-tree", "-d", "--name-only", revision, "--", sub, cwd=repo).strip():
+            paths.append(sub)
+    if not paths:
+        return 0
+    archive = subprocess.run(
+        ["git", "-C", str(repo), "archive", "--format=tar", revision, "--", *paths],
+        capture_output=True, check=False,
+    )
+    if archive.returncode:
+        raise RuntimeError(
+            f"{repo.name}: cannot archive {revision[:12]}: "
+            f"{archive.stderr.decode('utf-8', 'replace').strip()}"
+        )
+    with tempfile.TemporaryDirectory(prefix="atlas-ref-drift-") as scratch:
+        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+            tar.extractall(scratch, filter="data")
+        return board_lint.count_unresolved(Path(scratch), stores)
+
+
+def drift_bounded_baseline(
+    baseline: dict[str, dict[str, int]],
+    results: dict[str, dict[str, int]],
+    base_revision: str,
+    stack_root: Path = ROOT,
+) -> tuple[dict[str, dict[str, int]], list[str]]:
+    """Raise each `REF_DRIFT_CLASS` bound to what `base_revision` measures now.
+
+    A pull request is then judged on the citations it adds: the base tree,
+    re-counted under today's refs, absorbs every orphaning that happened
+    outside the change. The committed baseline still binds the default-branch
+    run, which is where drift is reported and paid for. A member with no
+    gitlink at `base_revision` (added by this change) keeps its recorded
+    bound.
+    """
+    bounded = {repo: dict(row) for repo, row in baseline.items()}
+    stores = board_lint.object_stores(stack_root)
+    notes = []
+    for repo, counts in results.items():
+        if REF_DRIFT_CLASS not in counts:
+            continue
+        if repo == "<meta>":
+            source, revision = stack_root, base_revision
+        else:
+            try:
+                revision = gitlink_revision(base_revision, f"repos/{repo}", stack_root)
+            except RuntimeError:
+                continue
+            source = stack_root / "repos" / repo
+        measured = unresolved_at(source, revision, stores)
+        recorded = bounded.get(repo, {}).get(REF_DRIFT_CLASS, 0)
+        if measured > recorded:
+            bounded.setdefault(repo, {})[REF_DRIFT_CLASS] = measured
+            notes.append(
+                f"{repo}/{REF_DRIFT_CLASS}: baseline {recorded}, "
+                f"base {base_revision[:12]} measures {measured}"
+            )
+    return bounded, notes
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", nargs="?", default="report",
@@ -2103,6 +2180,13 @@ def main() -> int:
              "content, and atlas's committed baseline row for --repo is what "
              "the counts are judged against, so a raise fails the member's "
              "own pull request instead of the stack's next pin advance",
+    )
+    parser.add_argument(
+        "--drift-base",
+        metavar="REV",
+        help="with `check`, bound unresolved_references by what REV's boards "
+             "measure under the current refs, so a pull request fails only on "
+             "citations it adds; pass the pull request's base commit",
     )
     parser.add_argument(
         "--accept-raises",
@@ -2214,13 +2298,27 @@ def main() -> int:
         print("no committed baseline; run `generate` first", file=sys.stderr)
         return 1
     base = json.loads(BASELINE.read_text())
-    regressions, host, tightenings = ratchet_delta(base, results)
+    _, _, tightenings = ratchet_delta(base, results)
+    drift = []
+    if args.drift_base:
+        try:
+            base_revision = git_output(
+                "rev-parse", "--verify", f"{args.drift_base}^{{commit}}"
+            ).strip()
+            bound, drift = drift_bounded_baseline(base, results, base_revision)
+        except RuntimeError as exc:
+            print(f"drift base unavailable: {exc}", file=sys.stderr)
+            return 1
+    else:
+        bound = base
+    regressions, host, _ = ratchet_delta(bound, results)
     if args.json:
         print(json.dumps({
             "results": results,
             "regressions": regressions,
             "host_regressions": host,
             "tightenings": tightenings,
+            "ref_drift": drift,
         }, indent=1, sort_keys=True))
         return 1 if regressions or host else 0
     for t in tightenings:
@@ -2239,6 +2337,8 @@ def main() -> int:
                 note = staleness_note(member)
                 if note:
                     stale[repo_name] = note
+    for d in drift:
+        print(f"REF DRIFT (outside this change): {d}")
     for r in regressions:
         print(f"RATCHET VIOLATION: {r}{stale.get(r.split('/', 1)[0], '')}")
     for r in host:

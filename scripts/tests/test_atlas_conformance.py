@@ -1760,6 +1760,120 @@ class RootAllowanceFollowsTheMemberTests(unittest.TestCase):
             self.assertEqual(carried, 1)
 
 
+class RefDriftBoundTests(unittest.TestCase):
+    """A pull request is judged on the citations it adds: a cited commit
+    orphaned by a branch deletion outside the change raises the base tree's
+    count too, and the base count bounds the check."""
+
+    GIT_ENV = {
+        "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid",
+        "GIT_CONFIG_NOSYSTEM": "1", "HOME": tempfile.gettempdir(),
+        "PATH": __import__("os").environ["PATH"],
+    }
+    CLS = conformance.REF_DRIFT_CLASS
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="atlas-ref-drift-")
+        self.root = Path(self._tmp.name)
+        conformance.board_lint._REACHABLE_INDEX.clear()
+
+    def tearDown(self) -> None:
+        conformance.board_lint._REACHABLE_INDEX.clear()
+        self._tmp.cleanup()
+
+    def _git(self, repo: Path, *args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args], check=True, capture_output=True,
+            text=True, env=self.GIT_ENV,
+        ).stdout.strip()
+
+    def _commit(self, repo: Path, rel: str, text: str) -> str:
+        _write(repo, rel, text)
+        self._git(repo, "add", rel)
+        self._git(repo, "commit", "-q", "-m", rel)
+        return self._git(repo, "rev-parse", "HEAD")
+
+    def _branch_only_commit(self, repo: Path) -> str:
+        """A commit reachable from `feature` alone, which is then deleted."""
+        self._git(repo, "switch", "-q", "-c", "feature")
+        orphan = self._commit(repo, "feature.txt", "feature\n")
+        self._git(repo, "switch", "-q", "main")
+        return orphan
+
+    def _stack(self) -> tuple[str, str, str]:
+        """Root and member boards each cite a branch-only commit at base."""
+        member = self.root / "repos" / "member"
+        member.mkdir(parents=True)
+        self._git(member, "init", "-q", "-b", "main")
+        self._commit(member, "README.md", "member\n")
+        member_orphan = self._branch_only_commit(member)
+        member_base = self._commit(member, "backlog.md", f"- at {member_orphan[:9]}\n")
+
+        self._git(self.root, "init", "-q", "-b", "main")
+        self._commit(self.root, "README.md", "root\n")
+        root_orphan = self._branch_only_commit(self.root)
+        _write(self.root, "backlog.md", f"- at {root_orphan[:9]}\n")
+        self._git(self.root, "add", "backlog.md")
+        self._git(
+            self.root, "update-index", "--add", "--cacheinfo",
+            f"160000,{member_base},repos/member",
+        )
+        self._git(self.root, "commit", "-q", "-m", "base")
+        base = self._git(self.root, "rev-parse", "HEAD")
+        return base, root_orphan, member_orphan
+
+    def _measure(self) -> dict[str, dict[str, int]]:
+        stores = conformance.board_lint.object_stores(self.root)
+        return {
+            "<meta>": {self.CLS: conformance.board_lint.count_unresolved(self.root, stores)},
+            "member": {
+                self.CLS: conformance.board_lint.count_unresolved(
+                    self.root / "repos" / "member", stores
+                )
+            },
+        }
+
+    def test_orphaning_outside_the_change_is_bounded_by_the_base(self) -> None:
+        base, _, _ = self._stack()
+        self._git(self.root, "branch", "-q", "-D", "feature")
+        self._git(self.root / "repos" / "member", "branch", "-q", "-D", "feature")
+        baseline = {"<meta>": {self.CLS: 0}, "member": {self.CLS: 0}}
+        results = self._measure()
+        self.assertEqual(results, {"<meta>": {self.CLS: 1}, "member": {self.CLS: 1}})
+
+        regressions, _, _ = conformance.ratchet_delta(baseline, results)
+        self.assertEqual(len(regressions), 2)
+
+        bound, notes = conformance.drift_bounded_baseline(
+            baseline, results, base, self.root
+        )
+        self.assertEqual(bound, {"<meta>": {self.CLS: 1}, "member": {self.CLS: 1}})
+        self.assertEqual(len(notes), 2)
+        self.assertEqual(conformance.ratchet_delta(bound, results), ([], [], []))
+
+    def test_a_citation_the_change_adds_still_fails(self) -> None:
+        base, _, _ = self._stack()
+        self._git(self.root, "branch", "-q", "-D", "feature")
+        _write(self.root, "backlog.md", (self.root / "backlog.md").read_text() + "- deadbeef1\n")
+        baseline = {"<meta>": {self.CLS: 0}, "member": {self.CLS: 1}}
+        results = self._measure()
+        self.assertEqual(results["<meta>"][self.CLS], 2)
+
+        bound, _ = conformance.drift_bounded_baseline(baseline, results, base, self.root)
+        self.assertEqual(bound["<meta>"][self.CLS], 1)
+        regressions, _, _ = conformance.ratchet_delta(bound, results)
+        self.assertEqual(regressions, [f"<meta>/{self.CLS}: 1 -> 2"])
+
+    def test_no_drift_leaves_the_committed_bound(self) -> None:
+        base, _, _ = self._stack()
+        baseline = {"<meta>": {self.CLS: 0}, "member": {self.CLS: 0}}
+        results = self._measure()
+        self.assertEqual(results, baseline)
+        bound, notes = conformance.drift_bounded_baseline(baseline, results, base, self.root)
+        self.assertEqual((bound, notes), (baseline, []))
+
+
 class SecondOutputRootTestCase(unittest.TestCase):
     """`output/` is canonical; a legacy root beside it is debt.
 
