@@ -1962,14 +1962,33 @@ def scan_stack(
                     and not is_git_ignored(repo)
                 ):
                     meta["member_namespace_pollution"] += 1
-    meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(ROOT)
-    meta["gitattributes_missing"] = lf_policy_missing(ROOT)
-    meta["crlf_stored_blobs"] = count_crlf_stored_blobs(ROOT)
-    meta.update(artifact_budget.counts(ROOT))
-    meta["unresolved_references"] = board_lint.count_unresolved(ROOT, _object_stores())
-    meta.update(board_lint.board_schema_counts(ROOT))
-    meta["second_output_root"] = count_second_output_roots(ROOT)
-    scan_workflows(ROOT, meta)
+    # The meta row measures the revision, as every member row does: a clean
+    # checkout at that commit is its own snapshot and anything else is
+    # archived (`materialize_member`). Reading the live tree let a checkout
+    # holding an older branch report a phantom `unresolved_references` raise
+    # (123 -> 127) against a baseline measured at `origin/main`.
+    with tempfile.TemporaryDirectory(prefix="atlas-meta-") as scratch:
+        expected = None
+        content = stack_root
+        if root_revision is not None:
+            expected = git_output(
+                "rev-parse", f"{root_revision}^{{commit}}", cwd=stack_root
+            ).strip()
+            content, _ = materialize_member(stack_root, expected, Path(scratch))
+        meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(
+            content, live_repo=stack_root
+        )
+        meta["gitattributes_missing"] = lf_policy_missing(content)
+        meta["crlf_stored_blobs"] = count_crlf_stored_blobs(
+            content, live_repo=stack_root, revision=expected
+        )
+        meta.update(artifact_budget.counts(content))
+        meta["unresolved_references"] = board_lint.count_unresolved(content, _object_stores())
+        meta.update(board_lint.board_schema_counts(content))
+        scan_workflows(content, meta)
+    # Output roots are untracked directories: a statement about this
+    # checkout, never about a revision.
+    meta["second_output_root"] = count_second_output_roots(stack_root)
     out["<meta>"] = meta
     return out
 
