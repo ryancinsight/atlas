@@ -126,7 +126,7 @@
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked
 <a id="publish-order-optional-edges"></a>- [ATLAS-PUBLISH-ORDER-OPTIONAL-EDGES-2026-09-04](backlog/publish-order-optional-edges.md) — Decide whether optional dependencies constrain publish order [patch] — in-progress
 <a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — in-progress
-<a id="ratchet-regression-set"></a>- [ATLAS-RATCHET-REGRESSION-SET-2026-09-08](backlog/ratchet-regression-set.md) — Seven ratchet regressions arrived with peers' merges [patch] — todo
+<a id="ratchet-regression-set"></a>- [ATLAS-RATCHET-REGRESSION-SET-2026-09-08](backlog/ratchet-regression-set.md) — Seven ratchet regressions arrived with peers' merges [patch] — review
 <a id="atlas-ritk-fssurf-013"></a>- [ATLAS-RITK-FSSURF-013](backlog/atlas-ritk-fssurf-013.md) — FreeSurfer surface formats and label table [minor] — todo
 <a id="atlas-run-output-segregation"></a>- [ATLAS-RUN-OUTPUT-SEGREGATION](backlog/atlas-run-output-segregation.md) — Two output roots at the stack root, one tracked-visible [patch] — todo
 <a id="atlas-runner-capacity-001"></a>- [ATLAS-RUNNER-CAPACITY-001](backlog/atlas-runner-capacity-001.md) — Size runner slots to fleet width [infra] [patch] — todo
