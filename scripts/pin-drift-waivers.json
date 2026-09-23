@@ -4,7 +4,11 @@
     "purpose": "Pins held back on purpose. A gitlink more than `--max-behind` commits behind its member's default branch is reported by the guard as drift; an entry here explains one instead. A held pin is a debt with an owner, not a steady state.",
     "required": "Every entry needs `member` (the name under repos/), `reason` (why advancing the pin is currently wrong -- name the regression and the filed fix), and `reopen` (the observable event that retires the waiver). An entry missing any of them fails the check, so a waiver cannot decay into an unexplained hold.",
     "scope": "Waivers cover drift only. A pin AHEAD of the member default -- a commit the member does not publish -- is reported as OFF-DEFAULT and is never waivable: it is not a pin held back, it is a pin pointing off the branch.",
-    "example": {"member": "example", "reason": "ATLAS-EXAMPLE-2026-09-21: the default tip raises `oversized_files` 4 -> 6, which the conformance ratchet rejects", "reopen": "example PR #12 merges and the count returns to 4"},
+    "example": {
+      "member": "example",
+      "reason": "ATLAS-EXAMPLE-2026-09-21: the default tip raises `oversized_files` 4 -> 6, which the conformance ratchet rejects",
+      "reopen": "example PR #12 merges and the count returns to 4"
+    },
     "review": "Re-verify every entry against the member's current default before a sweep advances pins; an entry whose regression the member has since fixed is deleted, not renewed. Measure it the way these were measured: `git -C repos/<member> archive FETCH_HEAD` into a scratch directory, then `python scripts/atlas-conformance.py check --repo <member> --member-path <dir>`, which judges the default tip against the committed baseline without touching the member checkout."
   },
   "waivers": [
@@ -12,6 +16,21 @@
       "member": "moirai",
       "reason": "ATLAS-GITLINK-DRIFT-056: advancing the pin from b77239dd10 to current main 29b129659f (PR #437, after PR #436) raises oversized_files 33 -> 35, so the provider repair must land before the pin advances.",
       "reopen": "Moirai main returns to oversized_files 33 or below after the provider-owned unit-task split is repaired."
+    },
+    {
+      "member": "gaia",
+      "reason": "ATLAS-SWEEP-2026-09-23: advancing the pin to current main raises workspace_lints_missing 0 -> 1, which the conformance ratchet rejects; the fix is gaia PR #83 (fix/gaia-workspace-lints-table).",
+      "reopen": "gaia PR #83 merges and gaia main declares the workspace lints table the ratchet accepts."
+    },
+    {
+      "member": "leto",
+      "reason": "ATLAS-SWEEP-2026-09-23: advancing the pin to current main raises oversized_files 23 -> 24; the newly oversized file is split before the pin advances.",
+      "reopen": "leto main returns to oversized_files 23 or below after the split."
+    },
+    {
+      "member": "CFDrs",
+      "reason": "ATLAS-SWEEP-2026-09-23: advancing the pin to current main raises four board classes 0 -> 10 each (items outside the status set, items without anchors, items without priority, board checklist files); the board is canonicalized before the pin advances.",
+      "reopen": "CFDrs main carries a board every item of which has a closed-set status, an anchor, and a priority, with no checklist file."
     }
   ]
 }
