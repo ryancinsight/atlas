@@ -104,16 +104,16 @@ board_lint = _load_sibling("atlas-board-lint.py", "atlas_board_lint")
 try:
     from atlas_architecture_test import (
         BALANCE_DOMAINS as _BALANCE_DOMAINS,
+        CLOSURE_DOMAINS as _CLOSURE_DOMAINS,
         MEMBER_BALANCE_DOMAINS as _MEMBER_BALANCE_DOMAINS,
-        build_member_for_package as _build_member_for_package,
         classify_edge as _classify_balance_edge,
         classify_member_edge as _classify_balance_member_edge,
         Edge as _BalanceEdge,
     )
 except ImportError:  # pragma: no cover - the rule module ships with this script
     _BALANCE_DOMAINS = frozenset()
+    _CLOSURE_DOMAINS = frozenset()
     _MEMBER_BALANCE_DOMAINS = frozenset()
-    _build_member_for_package = None
     _classify_balance_edge = None
     _classify_balance_member_edge = None
     _BalanceEdge = None
@@ -1596,7 +1596,7 @@ def scan_repo(
     `member_for_package` maps each `[package] name` to the member
     repository it lives under; the architecture test uses it to
     distinguish intra-repository composition (allowed) from
-    cross-balance-member coupling (forbidden). When `None`, the
+    cross-member boundary coupling and closure edges. When `None`, the
     member-level classification is skipped and only the package-level
     rule runs — the recorded-revision snapshot path passes `None`
     because it has no archive-wide mapping.
@@ -1724,7 +1724,7 @@ def scan_repo(
         )
         c["bare_git_dependency"] += count_bare_git_dependencies(text)
         if _classify_balance_edge is not None and (
-            _BALANCE_DOMAINS or _MEMBER_BALANCE_DOMAINS
+            _BALANCE_DOMAINS or _MEMBER_BALANCE_DOMAINS or _CLOSURE_DOMAINS
         ):
             consumer = member_package_name(text)
             if consumer is not None:
@@ -1742,9 +1742,10 @@ def scan_repo(
                             c["balance_domain_edges"] += 1
                 # Member-level rule: catch cross-balance-member edges
                 # that the package-level rule misses because
-                # `CFDrs`/`kwavers`/`helios`/`hyperion`/`asclepius`
-                # are multi-crate workspaces and only one of their
-                # crates sits in `BALANCE_DOMAINS`. The
+                # `CFDrs`/`kwavers`/`helios` are multi-crate workspaces
+                # and only one of their crates sits in `BALANCE_DOMAINS`.
+                # The same map classifies balance-to-closure edges as
+                # sanctioned `closure_provider` edges. The
                 # same-repository exemption in
                 # `classify_member_edge` keeps intra-member composition
                 # edges out of the count.
@@ -1919,45 +1920,24 @@ def scan_stack(
                 # composition from cross-balance-member coupling. The
                 # mapping is built from the live trees (each target's
                 # workspace) before the parallel scan starts, so each
-                # worker receives the same global view — the mapping
-                # is shared read-only and never mutated per-repo. When
+                # worker receives the same global view — the mapping is
+                # shared read-only and never mutated per-repo. When
                 # the rule module is missing the mapping is empty and
                 # the member-level classification silently no-ops.
                 #
-                # Non-balance packages — anything not in
-                # `MEMBER_BALANCE_DOMAINS` — may legitimately be
-                # duplicated across members (the `xtask` scaffolding
-                # crate is the textbook case: CFDrs and apollo both
-                # carry one). The member-level rule does not classify
-                # edges through non-balance packages, so the
-                # collision does not affect R7. Skip the entry: a
-                # collision among non-balance packages is benign.
+                # Balance and closure members contribute packages to the
+                # mapping. Other members may legitimately be duplicated
+                # (the `xtask` scaffolding crate is the textbook case:
+                # CFDrs and apollo both carry one), and R7 does not
+                # classify edges through them.
+                boundary_members = _MEMBER_BALANCE_DOMAINS | _CLOSURE_DOMAINS
                 member_for_package: dict[str, str] = {}
-                balance_only_names: set[str] = set()
                 for target in targets:
                     content_path = target[0]
                     member_name = target[1].name
-                    if member_name in _MEMBER_BALANCE_DOMAINS:
-                        balance_only_names.update(member_package_names(content_path))
-                for target in targets:
-                    content_path = target[0]
-                    member_name = target[1].name
+                    if member_name not in boundary_members:
+                        continue
                     for package in member_package_names(content_path):
-                        # Two filters keep the mapping exact:
-                        #
-                        # 1. Only balance-domain members contribute
-                        #    packages to the mapping. A non-balance
-                        #    member (e.g. `apollo`) carrying a
-                        #    duplicate `xtask` does not register,
-                        #    because R7's classification never asks
-                        #    who owns `xtask`.
-                        if member_name not in _MEMBER_BALANCE_DOMAINS:
-                            continue
-                        # 2. The package must appear under exactly one
-                        #    balance member. Two balance members
-                        #    claiming the same `[package] name` would
-                        #    be a registry collision; the scan
-                        #    refuses rather than silently picking one.
                         existing = member_for_package.get(package)
                         if existing is not None and existing != member_name:
                             raise RuntimeError(
@@ -1965,6 +1945,7 @@ def scan_stack(
                                 f"both {existing!r} and {member_name!r}"
                             )
                         member_for_package[package] = member_name
+
                 # Four workers match the smallest hosted runner while avoiding
                 # unbounded parallel metadata and filesystem traversal.
                 worker_count = min(MAX_SCAN_WORKERS, len(repos))
