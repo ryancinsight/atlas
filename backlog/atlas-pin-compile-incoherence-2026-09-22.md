@@ -1,9 +1,0 @@
-<a id="atlas-pin-compile-incoherence-2026-09-22"></a>
-## ATLAS-PIN-COMPILE-INCOHERENCE-2026-09-22 — Atlas member pins can be a compile-incoherent set [patch] — in-progress
-- Evidence: twice in two days the overlay build broke at the PIN set, while every member's own CI stayed green — aequitas's default called `scale_by_f64` after eunomia's default renamed it to `scale_by_factor`, until aequitas's follow-up (PR #81) landed. Each member's lock pins its own compatible dependency revs, so member CI proves nothing about the atlas set; the new pins-at-defaults guard (#226) sweeps every gitlink to its default the moment it can, which is exactly the window in which a breaking rename has landed in one member and its consumers' adaptations have not.
-- Outcome: `scripts/atlas-pin-compile.py` compiles the exact recorded Aequitas consumer against the exact recorded Eunomia provider from archived Git objects; the required conformance job runs both current and historical oracles, and the scheduled pin-drift job rechecks the current pair.
-- Acceptance oracle: the current recorded pair compiles; pinning pre-#81 aequitas `b05c2ac7072a220450b7add288d6d6f2ae160a34` to the rename merge `87a6a4a8182c231d88e6934794fc1aab64c64a7e` fails with `scale_by_f64` in the report; both full revisions are named; an absent object returns unavailable, never pass. This representative seam does not claim compatibility for every provider pair.
-- Scope: shared Git archive/pin helpers, the compile instrument and behavioral tests, the existing required and scheduled `atlas-conformance` jobs, ADR 0020, and this board state.
-- Verification: focused pytest; the full `scripts/tests` suite; current and historical CLI runs; workflow lint; conformance ratchet.
-- Next: deliver the verified diff; close the item when the pull request merges.
-- basis: `0d3016899e9ff4ba3e83be1f601d131a554c390c`
