@@ -189,5 +189,25 @@ class StalenessTestCase(unittest.TestCase):
             self.assertIn("1 commit(s) behind upstream", note)
 
 
+class StackRootTestCase(unittest.TestCase):
+    """A copy of the scripts extracted elsewhere measures the stack it names."""
+
+    def root_of(self, env: dict[str, str]) -> Path:
+        probe = subprocess.run(
+            [sys.executable, "-c", "import atlas_stack; print(atlas_stack.ROOT)"],
+            cwd=SCRIPT.parent, env=env, capture_output=True, text=True, check=True,
+        )
+        return Path(probe.stdout.strip())
+
+    def test_the_named_stack_is_the_root(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-stack-root-") as temp:
+            env = dict(os.environ, ATLAS_STACK_ROOT=temp)
+            self.assertEqual(self.root_of(env), Path(temp).resolve())
+
+    def test_unset_the_root_is_the_tree_the_scripts_sit_in(self) -> None:
+        env = {k: v for k, v in os.environ.items() if k != "ATLAS_STACK_ROOT"}
+        self.assertEqual(self.root_of(env), SCRIPT.resolve().parent.parent)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -12,13 +12,21 @@ count without naming (AGENTS.md architecture_scoping: "Private consumers",
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
 
 from atlas_git_process import GitProcessError, execute as execute_git
 
-ROOT = Path(__file__).resolve().parent.parent
+# The stack these scripts measure: the tree they sit in, unless
+# `ATLAS_STACK_ROOT` names another. The member pre-push gate runs the copy
+# of these scripts committed at the stack's default branch, extracted outside
+# the stack, so the stack checkout's branch -- whatever a peer left there --
+# never decides which checker runs; this names the live stack it measures.
+ROOT = Path(
+    os.environ.get("ATLAS_STACK_ROOT") or Path(__file__).resolve().parent.parent
+).resolve()
 TOOL_ROOT = ROOT / "tools"
 
 
