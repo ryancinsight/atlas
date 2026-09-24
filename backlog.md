@@ -2,6 +2,11 @@
 
 <!-- Compacted 2026-09-21 under the 1,000-line board budget: a board is a queue, never a ledger, so closed sections and delivery narrative are gone -- the record of a closed item is the PR that closed it and its `Item:` trailer. Live items, open checkboxes, anchors and open-marked findings are kept. Recover removed narrative with `git log -p -- <this file>`. -->
 
+## Tier 3 — mechanical floor and stack hygiene
+
+| ID | Outcome | Class | Acceptance oracle |
+| --- | --- | --- | --- |
+
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — in-progress
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — in-progress
@@ -46,7 +51,6 @@
 <a id="atlas-consus-szip-bound-2026-08-20"></a>- [ATLAS-CONSUS-SZIP-BOUND-2026-08-20](backlog/atlas-consus-szip-bound-2026-08-20.md) — Bound SZIP allocation [security][patch] — in-progress
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) — 502 blanket suppressions the ratchet never counted [major] — in-progress
 <a id="crlf-stored-blobs"></a>- [ATLAS-CRLF-STORED-BLOBS-2026-09-08](backlog/crlf-stored-blobs.md) — Committed blobs contradict the declared line-ending policy [patch] — in-progress
-<a id="cross-balance-remediation"></a>- [ATLAS-CROSS-BALANCE-EDGE-REMEDIATION-2026-09-04](backlog/cross-balance-remediation.md) — Route the four cross-balance edges through harmonia [minor] — todo
 <a id="atlas-cross-member-sweep-108"></a>- [ATLAS-CROSS-MEMBER-SWEEP-108](backlog/atlas-cross-member-sweep-108.md) — cross-member staleness and dirt sweep [patch] (2026-08-23) — in-progress
 <a id="atlas-cwd-config-cost-2026-09-16"></a>- [ATLAS-CWD-CONFIG-COST-2026-09-16](backlog/atlas-cwd-config-cost-2026-09-16.md) — Cargo config discovery is all-or-nothing: the shared `target-dir` arrives with the whole-stack `[patch]` overlay [patch] — in-progress
 <a id="atlas-default-branch-reds-2026-09-02"></a>- [ATLAS-DEFAULT-BRANCH-REDS-2026-09-02](backlog/atlas-default-branch-reds-2026-09-02.md) — Member default-branch workflows red with no collector [patch] — todo
@@ -99,7 +103,6 @@
 <a id="atlas-overlay-004"></a>- [ATLAS-OVERLAY-004](backlog/atlas-overlay-004.md) — Worktree sprawl breaks stack dependency resolution [patch] — in-progress
 <a id="atlas-overlay-005"></a>- [ATLAS-OVERLAY-005](backlog/atlas-overlay-005.md) — Clear first-party rev pins across the stack [patch] — in-progress
 <a id="atlas-overlay-gen-stale-1"></a>- [ATLAS-OVERLAY-GEN-STALE-1](backlog/atlas-overlay-gen-stale-1.md) — Cross-repo path deps on member mainlines [arch] — todo
-<a id="atlas-pin-compile-incoherence-2026-09-22"></a>- [ATLAS-PIN-COMPILE-INCOHERENCE-2026-09-22](backlog/atlas-pin-compile-incoherence-2026-09-22.md) — Atlas member pins can be a compile-incoherent set [patch] — in-progress
 <a id="atlas-pm-artifact-budgets"></a>- [ATLAS-PM-ARTIFACT-BUDGETS](backlog/atlas-pm-artifact-budgets.md) — Stack PM artifacts run eight to sixteen times their budget [patch] — in-progress
 <a id="atlas-prepush-hook-forked-across-members-2026-09-09"></a>- [ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09](backlog/atlas-prepush-hook-forked-across-members-2026-09-09.md) — One gate, twenty-three copies, six versions [patch] [ci] — in-progress
 <a id="atlas-privacy-naming-1"></a>- [ATLAS-PRIVACY-NAMING-1](backlog/atlas-privacy-naming-1.md) — Remove confidential consumer identity from stack artifacts [patch] — in-progress
