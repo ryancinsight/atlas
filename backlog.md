@@ -6,7 +6,6 @@
 
 | ID | Outcome | Class | Acceptance oracle |
 | --- | --- | --- | --- |
-| ATLAS-GITLINK-DRIFT-056 | Leto is four commits behind `0cc46f726fbfa626303c1c239c9e254449671bbf`; Moirai's provider repair has landed, so its recorded waiver re-opened. | [patch] | Leto and Moirai match their fetched defaults without increasing the committed conformance baseline; the waiver is removed; the committed pin-drift check passes |
 
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — in-progress
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo

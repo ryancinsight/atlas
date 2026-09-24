@@ -11,11 +11,5 @@
     },
     "review": "Re-verify every entry against the member's current default before a sweep advances pins; an entry whose regression the member has since fixed is deleted, not renewed. Measure it the way these were measured: `git -C repos/<member> archive FETCH_HEAD` into a scratch directory, then `python scripts/atlas-conformance.py check --repo <member> --member-path <dir>`, which judges the default tip against the committed baseline without touching the member checkout."
   },
-  "waivers": [
-    {
-      "member": "moirai",
-      "reason": "ATLAS-GITLINK-DRIFT-056: advancing the pin from b77239dd10 to current main 29b129659f (PR #437, after PR #436) raises oversized_files 33 -> 35, so the provider repair must land before the pin advances.",
-      "reopen": "Moirai main returns to oversized_files 33 or below after the provider-owned unit-task split is repaired."
-    }
-  ]
+  "waivers": []
 }
