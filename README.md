@@ -721,7 +721,9 @@ Existing owners are not duplicated by this decision:
 | Streamline geometry | `gaia` | Streamlines are polyline geometry and topology typed in Gaia primitives; RITK owns the integration policy that produces them. Upstream gap: Gaia has meshes and topology but no polyline type. |
 | Population and group statistics | `tyche` | Cohort sampling, ensembles, sensitivity, and reproducible study vocabulary stay in Tyche; RITK supplies per-subject image measures. |
 | Rendering and color | `iris` | Tract and connectome display uses Iris color law and view contracts through `ritk-snap` / `ritk-vtk`. |
-| Derived-array persistence | `consus` | Fitted fields, streamline sets, and connectivity matrices persist through Consus formats. |
+| Derived-array persistence | `consus` | Fitted fields, streamline sets, and connectivity matrices use Consus storage; RITK retains ownership of external tractogram interchange. |
+| Tractogram interchange | RITK format crates | `ritk-tck`, `ritk-trk`, and `ritk-trx` own `.tck`, `.trk`, and TRX bytes; Gaia owns polyline geometry and Consus owns no tractogram codec. |
+| MIF image/scheme boundary | RITK | `ritk-mif` owns the image container; `ritk-diffusion-scheme` owns `DW_scheme` semantics. `.mif.gz` is not implemented. |
 | Quantities and scalars | `aequitas`, `eunomia` | Diffusivity, b-values, and gradient directions are typed quantities over Eunomia scalars, not raw floats. |
 
 MR *physics* is a separate question from MR *image processing*, and the two must
