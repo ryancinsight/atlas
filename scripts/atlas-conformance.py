@@ -56,6 +56,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
 import tempfile
 import threading
@@ -1819,6 +1820,89 @@ def materialize_member(
     return content, provider
 
 
+def link_snapshot(checkout: Path, revision: str, scratch: Path) -> Path:
+    """Materialize `revision` of `checkout` under `scratch`, reusing unchanged files.
+
+    Each tracked path whose working-tree content already matches `revision`
+    is hard-linked from the checkout; every other path is written from a
+    temporary index by `checkout-index`, so it carries the line-ending
+    filters a checkout applies, exactly as `git archive` would. Untracked
+    and ignored files never enter, and the checkout's index is not touched.
+
+    `git archive` gives the same content, but every file it extracts is new
+    to the filesystem, and on this Windows host first opening them dominated:
+    a kwavers revision scan took 173 s archived against 24 s in place
+    (2026-09-24), outside any pre-push budget. `scratch` must share the
+    checkout's volume for links to form; a path that cannot be linked is
+    copied, and the copies are reported since they cost that time again.
+    """
+    listing = git_output("ls-tree", "-r", "-z", "--full-tree", revision, cwd=checkout)
+    tracked: list[tuple[str, str]] = []
+    for entry in filter(None, listing.split("\0")):
+        meta, path = entry.split("\t", 1)
+        mode = meta.split(" ", 1)[0]
+        if mode != "160000":
+            tracked.append((mode, path))
+    try:
+        diff = execute_git(
+            checkout,
+            ("diff", "--no-renames", "--name-only", "-z", revision, "--"),
+            env=dict(os.environ, GIT_OPTIONAL_LOCKS="0"),
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+    except GitProcessError as exc:
+        raise RuntimeError(f"{checkout}: cannot diff against {revision[:12]}: {exc}") from exc
+    if diff.returncode:
+        detail = diff.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"{checkout}: cannot diff against {revision[:12]}")
+    differs = set(filter(None, diff.stdout.decode("utf-8", errors="replace").split("\0")))
+    # A symlink is written as the checkout would write it, never linked.
+    written = [path for mode, path in tracked if path in differs or mode == "120000"]
+    content = scratch / checkout.name
+    content.mkdir(parents=True)
+    made: set[Path] = set()
+    copied = 0
+    for mode, path in tracked:
+        if path in differs or mode == "120000":
+            continue
+        target = content / path
+        if target.parent not in made:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            made.add(target.parent)
+        try:
+            os.link(checkout / path, target)
+        except OSError:
+            shutil.copyfile(checkout / path, target)
+            copied += 1
+    if written:
+        fd, index_path = tempfile.mkstemp(prefix="atlas-snapshot-index-")
+        os.close(fd)
+        try:
+            env = dict(os.environ, GIT_INDEX_FILE=index_path)
+            for args, stdin in (
+                (("read-tree", revision), None),
+                (("checkout-index", f"--prefix={content.as_posix()}/", "-z", "--stdin"),
+                 "\0".join(written).encode("utf-8")),
+            ):
+                result = execute_git(
+                    checkout, args, stdin=stdin, env=env, timeout=ARCHIVE_TIMEOUT_SECONDS
+                )
+                if result.returncode:
+                    detail = result.stderr.decode("utf-8", errors="replace").strip()
+                    raise RuntimeError(
+                        f"{checkout}: {args[0]} at {revision[:12]} failed: {detail}"
+                    )
+        except GitProcessError as exc:
+            raise RuntimeError(f"{checkout}: cannot write {revision[:12]}: {exc}") from exc
+        finally:
+            os.unlink(index_path)
+    if copied:
+        print(f"snapshot: {copied} file(s) copied, not linked ({scratch} is on "
+              f"another volume from {checkout})", file=sys.stderr)
+    (content / ".git").write_text(f"gitdir: archived {revision}\n", encoding="utf-8")
+    return content
+
+
 def scan_member(
     stack_root: Path, name: str, root_revision: str | None
 ) -> dict[str, int]:
@@ -2150,6 +2234,7 @@ def drift_bounded_baseline(
     results: dict[str, dict[str, int]],
     base_revision: str,
     stack_root: Path = ROOT,
+    member_checkout: Path | None = None,
 ) -> tuple[dict[str, dict[str, int]], list[str]]:
     """Raise each `REF_DRIFT_CLASS` bound to what `base_revision` measures now.
 
@@ -2158,7 +2243,8 @@ def drift_bounded_baseline(
     outside the change. The committed baseline still binds the default-branch
     run, which is where drift is reported and paid for. A member with no
     gitlink at `base_revision` (added by this change) keeps its recorded
-    bound.
+    bound. With `member_checkout`, `base_revision` is a commit of that
+    checkout -- a member gating its own push -- and is measured there.
     """
     bounded = {repo: dict(row) for repo, row in baseline.items()}
     stores = board_lint.object_stores(stack_root)
@@ -2166,7 +2252,9 @@ def drift_bounded_baseline(
     for repo, counts in results.items():
         if REF_DRIFT_CLASS not in counts:
             continue
-        if repo == "<meta>":
+        if member_checkout is not None:
+            source, revision = member_checkout, base_revision
+        elif repo == "<meta>":
             source, revision = stack_root, base_revision
         else:
             try:
@@ -2223,11 +2311,28 @@ def main() -> int:
              "own pull request instead of the stack's next pin advance",
     )
     parser.add_argument(
+        "--member-revision",
+        metavar="REV",
+        help="with --member-path, scan commit REV of that checkout instead of "
+             "its working tree. A pre-push gate passes the pushed tip: a shared "
+             "checkout holds whatever branch and dirt a peer left there, which "
+             "is no revision anyone is pushing. Host-observed rows are reported "
+             "but do not fail the check, since REV does not contain them",
+    )
+    parser.add_argument(
+        "--baseline-rev",
+        metavar="REV",
+        help="judge against the baseline committed at atlas revision REV "
+             "instead of the working copy, which a peer's uncommitted "
+             "regeneration or a checked-out branch can make any value",
+    )
+    parser.add_argument(
         "--drift-base",
         metavar="REV",
         help="with `check`, bound unresolved_references by what REV's boards "
              "measure under the current refs, so a pull request fails only on "
-             "citations it adds; pass the pull request's base commit",
+             "citations it adds; pass the pull request's base commit (a commit "
+             "of the --member-path checkout when that is given)",
     )
     parser.add_argument(
         "--accept-raises",
@@ -2244,6 +2349,10 @@ def main() -> int:
               "baseline row to judge it against, so both are required",
               file=sys.stderr)
         return 2
+    if args.member_revision is not None and args.member_path is None:
+        print("--member-revision names a commit of the --member-path checkout; "
+              "give both", file=sys.stderr)
+        return 2
     if mode == "generate" and args.repo:
         print("refusing to generate a baseline from a single repo; omit --repo",
               file=sys.stderr)
@@ -2257,7 +2366,25 @@ def main() -> int:
             # The member's own checkout is the content; no gitlink is involved,
             # so neither the provider-materialisation gate nor a root revision
             # applies here.
-            results = {args.repo: scan_repo(member, member=args.repo)}
+            if args.member_revision is None:
+                results = {args.repo: scan_repo(member, member=args.repo)}
+            else:
+                pushed = git_output(
+                    "rev-parse", "--verify", f"{args.member_revision}^{{commit}}",
+                    cwd=member,
+                ).strip()
+                # Inside the member's own git directory: the checkout's volume,
+                # so the snapshot's links form, and outside its working tree.
+                store = member / git_output(
+                    "rev-parse", "--git-common-dir", cwd=member
+                ).strip()
+                with tempfile.TemporaryDirectory(
+                    prefix="atlas-conformance-", dir=store
+                ) as scratch:
+                    content = link_snapshot(member, pushed, Path(scratch))
+                    results = {args.repo: scan_repo(
+                        content, live_repo=member, revision=pushed, member=args.repo
+                    )}
         elif args.repo:
             member = ROOT / "repos" / args.repo
             if not member.is_dir():
@@ -2335,24 +2462,48 @@ def main() -> int:
             report(results)
         return 0
 
-    if not BASELINE.is_file():
+    if args.baseline_rev:
+        try:
+            base = json.loads(git_output(
+                "show", f"{args.baseline_rev}:{BASELINE.relative_to(ROOT).as_posix()}",
+                cwd=ROOT,
+            ))
+        except RuntimeError as exc:
+            print(f"baseline at {args.baseline_rev} unavailable: {exc}", file=sys.stderr)
+            return 2
+    elif not BASELINE.is_file():
         print("no committed baseline; run `generate` first", file=sys.stderr)
         return 1
-    base = json.loads(BASELINE.read_text())
+    else:
+        base = json.loads(BASELINE.read_text())
     _, _, tightenings = ratchet_delta(base, results)
     drift = []
+    # A member checkout's pull-request base is a commit of that checkout,
+    # not of the stack root.
+    drift_repo = (
+        args.member_path.resolve() if args.member_path is not None else ROOT
+    )
     if args.drift_base:
         try:
             base_revision = git_output(
-                "rev-parse", "--verify", f"{args.drift_base}^{{commit}}"
+                "rev-parse", "--verify", f"{args.drift_base}^{{commit}}",
+                cwd=drift_repo,
             ).strip()
-            bound, drift = drift_bounded_baseline(base, results, base_revision)
+            bound, drift = drift_bounded_baseline(
+                base, results, base_revision,
+                member_checkout=drift_repo if args.member_path is not None else None,
+            )
         except RuntimeError as exc:
             print(f"drift base unavailable: {exc}", file=sys.stderr)
             return 1
     else:
         bound = base
     regressions, host, _ = ratchet_delta(bound, results)
+    # A revision scan judges what the push carries; the live checkout's lanes,
+    # forked caches, and scratch files are not in it, and refusing a push over
+    # them refuses it on a peer's state.
+    host_gates = args.member_revision is None
+    failed = bool(regressions or (host and host_gates))
     if args.json:
         print(json.dumps({
             "results": results,
@@ -2361,7 +2512,7 @@ def main() -> int:
             "tightenings": tightenings,
             "ref_drift": drift,
         }, indent=1, sort_keys=True))
-        return 1 if regressions or host else 0
+        return 1 if failed else 0
     for t in tightenings:
         print(f"tightened (update baseline): {t}")
     # A `--worktree` scan measures whatever is checked out, and members of
@@ -2390,12 +2541,15 @@ def main() -> int:
             "checkout has neither, so these never reach the hosted gate. "
             "Sweep the tree or close the lane; do not regenerate the "
             "baseline over them."
+            + ("" if host_gates else
+               " They do not fail a --member-revision check, which judges "
+               "only the revision's content.")
         )
     print(
         f"{len(regressions)} regression(s), {len(host)} host-state row(s), "
         f"{len(tightenings)} tightening(s)"
     )
-    return 1 if regressions or host else 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

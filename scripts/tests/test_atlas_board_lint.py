@@ -400,6 +400,22 @@ class BoardSchemaTestCase(unittest.TestCase):
             _lint.board_schema_counts(self.repo)["board_items_outside_status_set"], 0
         )
 
+    def test_a_priority_field_on_a_status_line_counts(self) -> None:
+        """`- Status: todo; priority: X` carries the priority; prose does not."""
+        (self.repo / "backlog.md").write_text(
+            '<a id="ATLAS-E-001"></a>\n'
+            "## ATLAS-E-001 - inline fields\n"
+            "- Status: todo; priority: tightening; needs: none\n"
+            '<a id="ATLAS-E-002"></a>\n'
+            "## ATLAS-E-002 - prose mentions the word\n"
+            "- Status: todo\n"
+            "- outcome: raise the priority: of the render thread\n",
+            encoding="utf-8",
+        )
+        counts = _lint.board_schema_counts(self.repo)
+        self.assertEqual(counts["board_items_without_priority"], 1)
+        self.assertEqual(counts["board_items_outside_status_set"], 0)
+
     def test_a_missing_status_and_a_checklist_count(self) -> None:
         (self.repo / "backlog.md").write_text(
             "### ATLAS-B-001 - no status anywhere\n", encoding="utf-8"

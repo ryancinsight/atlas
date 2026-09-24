@@ -2,9 +2,11 @@
 #
 # Atlas member-side pre-push gate (single owned copy; see below).
 #
-# Two guards, in order: the lockfile must resolve under `--locked`, and the
-# packages the push changes must pass fmt, clippy, and their tests. CI confirms
-# what this found; it should not be where a defect is discovered.
+# Guards, in order: the lockfile must resolve under `--locked`; the pushed
+# range must stay within the artifact budgets, add no credential, and raise no
+# debt class above the member's recorded baseline; and the packages the push
+# changes must pass fmt, clippy, and their tests. CI confirms what this found;
+# it should not be where a defect is discovered.
 #
 # Refuse a push whose Cargo.lock cannot resolve under `--locked`.
 #
@@ -290,6 +292,80 @@ if [ -f "$secret_checker" ] && [ -n "$python_bin" ]; then
   fi
 else
   echo "pre-push: secret scanner not reachable from this clone; the pushed range was not scanned" >&2
+fi
+
+# Debt ratchet: the pushed revision's conformance classes may not rise above
+# the counts atlas records for this member. CI runs the same script through
+# conformance-guard.yml (`atlas-conformance.py check --repo <member>
+# --member-path .`); nothing local did, so metis#394 passed every stage here
+# and then failed CI on `oversized_files: 0 -> 1` and
+# `existence_only_assertions: 0 -> 1`.
+#
+# Each input is pinned to this push. The content is the pushed tip, archived
+# (`--member-revision`), never the working tree a peer may hold on another
+# branch or dirty. The baseline is the one committed at the stack's fetched
+# default branch (`--baseline-rev`), never the working copy a regeneration in
+# progress can rewrite to any value. Cited hashes are bounded by what the
+# range's base measures today (`--drift-base`), so a branch deleted elsewhere
+# does not refuse a push that cites nothing new. The scan runs from the stack
+# checkout, like the two checks above, because citations resolve against
+# every member's object store and only the stack holds them all.
+conformance_checker="$repo_root/../../scripts/atlas-conformance.py"
+if [ -f "$conformance_checker" ] && [ -n "$python_bin" ]; then
+  stack_root="$(cd "$repo_root/../.." && pwd)"
+  # The member is the registered directory sharing this checkout's object
+  # store, so a lane (`worktrees/<repo>-<branch>`) resolves to its repository.
+  own_store="$(cd "$repo_root" && cd "$(git rev-parse --git-common-dir)" && pwd)"
+  conformance_member=""
+  for candidate in "$stack_root/repos/${repo_root##*/}" "$stack_root"/repos/*; do
+    [ -d "$candidate" ] || continue
+    candidate_store="$(cd "$candidate" 2>/dev/null \
+      && cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd)" || continue
+    if [ "$candidate_store" = "$own_store" ]; then
+      conformance_member="${candidate##*/}"
+      break
+    fi
+  done
+  stack_baseline=""
+  for ref in origin/HEAD origin/main; do
+    stack_baseline="$(git -C "$stack_root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null || true)"
+    [ -n "$stack_baseline" ] && break
+  done
+  if [ -z "$conformance_member" ]; then
+    echo "pre-push: not a registered stack member; debt ratchet not run" >&2
+  elif ! grep -q -- '--member-revision' "$conformance_checker"; then
+    # A stack checkout on a branch cut before revision scans existed. Scanning
+    # the working tree instead would judge the wrong state; refusing would
+    # block every member on the stack tree's branch.
+    echo "pre-push: the stack checkout's atlas-conformance.py predates --member-revision;" >&2
+    echo "debt ratchet not run. Bring $stack_root up to its default branch." >&2
+  elif [ -z "$stack_baseline" ]; then
+    echo "pre-push: BLOCKED -- the stack checkout has no fetched default branch to" >&2
+    echo "read the committed debt baseline from. Run: git -C $stack_root fetch origin" >&2
+    exit 1
+  else
+    drift_args=()
+    [ -n "$range_base" ] && drift_args=(--drift-base "$range_base")
+    set +e
+    "$python_bin" "$conformance_checker" check \
+      --repo "$conformance_member" --member-path "$repo_root" \
+      --member-revision "$range_rev" --baseline-rev "$stack_baseline" \
+      "${drift_args[@]}" >&2
+    conformance_status=$?
+    set -e
+    if [ "$conformance_status" -eq 1 ]; then
+      echo "pre-push: BLOCKED -- the pushed revision raises a debt class above the" >&2
+      echo "baseline atlas ${stack_baseline:0:12} records for $conformance_member." >&2
+      echo "Fix the debt; never regenerate the baseline over it. Reproduce:" >&2
+      echo "  python $conformance_checker check --repo $conformance_member --member-path $repo_root --member-revision $range_rev --baseline-rev $stack_baseline ${drift_args[*]}" >&2
+      exit 1
+    elif [ "$conformance_status" -ne 0 ]; then
+      echo "pre-push: BLOCKED -- the debt ratchet could not run (exit $conformance_status)." >&2
+      exit 1
+    fi
+  fi
+else
+  echo "pre-push: conformance checker not reachable from this clone; CI enforces it" >&2
 fi
 
 # ---------------------------------------------------------------------------
