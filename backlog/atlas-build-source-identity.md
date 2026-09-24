@@ -5,4 +5,4 @@
 - Evidence: Apollo's retained release macro artifact records no source-tree identity; Cargo's shared proc-macro fingerprint reused the prior revision.
 - Acceptance: reproduce a source transition, reject stale artifacts before gate acceptance, rebuild only affected packages, and retain source/artifact identities without changing workloads or cache roots.
 - Dependencies: compose the core with the live pre-push lease in PR #277; Apollo's release-artifact repair is delivered.
-- Verification: deterministic source-transition regression, ordinary shared-cache reuse, and concurrent-owner preservation checks; next: integrate the leased hook and run the full gate.
+- Verification: deterministic source-transition regression, ordinary shared-cache reuse, and concurrent-owner preservation checks; next: run the integrated hook and full gate, then close the item.

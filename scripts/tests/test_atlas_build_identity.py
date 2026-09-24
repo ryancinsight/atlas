@@ -18,6 +18,8 @@ SCRIPT = Path(__file__).resolve().parents[1] / "atlas_build_identity.py"
 SPEC = importlib.util.spec_from_file_location("atlas_build_identity", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 sys.path.insert(0, str(SCRIPT.parent))
+import atlas_build_artifacts as artifacts
+
 identity = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = identity
 SPEC.loader.exec_module(identity)
@@ -200,18 +202,66 @@ class BuildIdentityTestCase(unittest.TestCase):
         lock = identity.lease_path(spec)
         lock.parent.mkdir(parents=True, exist_ok=True)
         lock.write_text(
-            json.dumps({"root": "stale", "revision": "stale", "expires_ns": 0}),
+            json.dumps(
+                {
+                    "root": "stale",
+                    "revision": "stale",
+                    "package": "demo",
+                    "target_dir": str(self.target),
+                    "token": "stale-token",
+                    "expires_ns": 0,
+                }
+            ),
             encoding="utf-8",
         )
         result = self.build(source_token="recovered")
         self.assertEqual(result.status, "rebuilt")
         self.assertFalse(identity.lease_is_held(lock))
 
+    def test_malformed_owner_fails_closed(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            spec = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+        lock = identity.lease_path(spec)
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text("not-json", encoding="utf-8")
+        with self.assertRaises(identity.IdentityError):
+            self.build(source_token="blocked")
+        self.assertFalse(self.clean_log.exists())
+
     def test_toolchain_identity_runs_in_the_source_root(self) -> None:
         completed = subprocess.CompletedProcess(["rustc"], 0, "rustc 1.95.0\n", "")
         with patch.object(identity.subprocess, "run", return_value=completed) as run:
             self.assertEqual(identity.toolchain_identity(self.root), "rustc 1.95.0")
         self.assertEqual(run.call_args.kwargs["cwd"], self.root)
+
+    def test_command_cwd_is_recorded_and_used(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        execution_root = self.base / "execution"
+        execution_root.mkdir()
+        cwd_marker = self.base / "command-cwd.txt"
+        command_script = self.base / "record-cwd.py"
+        write_script(
+            command_script,
+            "import os\n"
+            "from pathlib import Path\n"
+            f"Path({str(cwd_marker)!r}).write_text(os.getcwd(), encoding='utf-8')\n"
+            f"Path({str(self.artifact)!r}).write_text('built\\n', encoding='utf-8')\n",
+        )
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                "demo",
+                self.target,
+                [sys.executable, str(command_script)],
+                artifact_paths=[self.artifact],
+                clean_command=[sys.executable, "-c", "pass"],
+                command_cwd=execution_root,
+            )
+        record = json.loads(result.record_path.read_text(encoding="utf-8"))
+        self.assertEqual(record["build"]["command_cwd"], execution_root.resolve().as_posix())
+        self.assertEqual(cwd_marker.read_text(encoding="utf-8"), str(execution_root.resolve()))
 
     def test_a_dirty_tree_is_not_identified_by_revision_alone(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -220,6 +270,18 @@ class BuildIdentityTestCase(unittest.TestCase):
         after = identity.source_identity(self.root)
         self.assertTrue(after.dirty)
         self.assertNotEqual(before.tree_digest, after.tree_digest)
+
+    def test_target_files_do_not_change_source_identity(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        before = identity.source_identity(self.root)
+        target = self.root / "target"
+        target.mkdir()
+        (target / "artifact.rlib").write_text("generated", encoding="utf-8")
+        identity_value = identity.source_identity(self.root, (target,))
+        self.assertFalse(identity_value.dirty)
+        self.assertEqual(identity_value.tree_digest, before.tree_digest)
+        with self.assertRaises(identity.IdentityError):
+            identity.build_spec(self.root, "demo", self.root, "debug", "host", "")
 
     def test_source_changes_during_build_are_not_recorded(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -267,7 +329,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         for path in (wanted, similar, executable):
             path.write_bytes(path.name.encode())
         with patch.object(
-            identity,
+            artifacts,
             "_workspace_package_names",
             return_value=frozenset({"demo", "demo-tools"}),
         ):

@@ -56,6 +56,34 @@ def _open_lease(path: Path):
     return handle
 
 
+def _read_owner(handle: Any, path: Path) -> dict[str, object] | None:
+    try:
+        handle.seek(0)
+        raw = handle.read()
+    except OSError as error:
+        raise BuildIdentityError(f"cannot read source identity lease {path}: {error}") from error
+    if raw in (b"", b"\0"):
+        return None
+    try:
+        value = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise BuildIdentityError(f"malformed source identity lease {path}") from error
+    if not isinstance(value, dict):
+        raise BuildIdentityError(f"malformed source identity lease {path}")
+    required = {
+        "root": str,
+        "revision": str,
+        "package": str,
+        "target_dir": str,
+        "token": str,
+        "expires_ns": int,
+    }
+    for key, expected in required.items():
+        if type(value.get(key)) is not expected:
+            raise BuildIdentityError(f"malformed source identity lease {path}")
+    return value
+
+
 class OwnerLease:
     def __init__(self, path: Path, owner: dict[str, object], seconds: int) -> None:
         if seconds <= 0:
@@ -70,15 +98,21 @@ class OwnerLease:
         handle = _open_lease(self.path)
         if not _try_lock(handle):
             try:
-                current = json.loads(self.path.read_text(encoding="utf-8"))
-                owner = current.get("root", "unknown") if isinstance(current, dict) else "unknown"
-                revision = current.get("revision", "unknown") if isinstance(current, dict) else "unknown"
-            except (OSError, json.JSONDecodeError):
+                current = _read_owner(handle, self.path)
+                owner = current.get("root", "unknown") if current else "unknown"
+                revision = current.get("revision", "unknown") if current else "unknown"
+            except BuildIdentityError:
                 owner = revision = "unknown"
             handle.close()
             raise BuildIdentityError(
                 f"source identity is owned by {owner} at {revision}; retry after it releases"
             )
+        try:
+            _read_owner(handle, self.path)
+        except BuildIdentityError:
+            _unlock(handle)
+            handle.close()
+            raise
         token = uuid.uuid4().hex
         payload = {
             **self.owner,
@@ -120,6 +154,7 @@ def lease_is_held(path: Path) -> bool:
     try:
         if _try_lock(handle):
             _unlock(handle)
+            _read_owner(handle, path)
             return False
         return True
     finally:

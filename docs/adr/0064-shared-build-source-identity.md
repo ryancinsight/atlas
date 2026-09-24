@@ -15,7 +15,7 @@ A Git revision alone is insufficient for a dirty checkout, a branch name is not 
 
 ### Stable scope and record
 
-`scripts/atlas_build_identity.py` owns one record for each build scope: shared target directory, package, profile, target triple, feature set, and toolchain identity. The record is stored atomically under `target/.atlas/source-identity/`, inside the existing cache root. It contains the canonical source root, full Git revision, clean/dirty state, source-tree digest, build dimensions, and hashes of the discovered or explicitly supplied package artifacts.
+`scripts/atlas_build_identity.py` owns one record for each build scope: shared target directory, package, profile, target triple, feature set, toolchain identity, and the caller's stable command key. The command key names the build-entry-point dimensions without treating `clippy`, tests, and documentation as different source identities. The record is stored atomically under `target/.atlas/source-identity/`, inside the existing cache root. It contains the canonical source root, full Git revision, clean/dirty state, source-tree digest, build dimensions, and hashes of the discovered or explicitly supplied package artifacts.
 
 The record path excludes the source revision deliberately. A source transition must contend with the existing owner of the same build scope; otherwise a second source tree could acquire a different lock and overwrite the first record.
 
@@ -27,13 +27,13 @@ The lease stores owner root, revision, package, target directory, token, and exp
 
 ### Build entry points
 
-The shared identity module is the single policy surface. The member pre-push gate must invoke it for the changed package scope before accepting clippy, tests, or documentation. The integration composes with the existing conformance push guard in PR #277; it must not duplicate that guard or hand-edit member hook copies. Other build entry points use the same module when they compile packages, rather than implementing a second provenance format.
+The shared identity module is the single policy surface. The member pre-push gate invokes it for each changed package before accepting clippy, tests, or documentation, using one stable command key per package so those steps share a record. The integration composes with the existing conformance push guard in PR #277; it must not duplicate that guard or hand-edit member hook copies. Other build entry points use the same module when they compile packages, rather than implementing a second provenance format.
 
 The module records artifact hashes after the command. It does not treat Cargo fingerprint JSON as a public schema, and it does not claim that a missing `.fingerprint` directory proves source identity.
 
 ## Failure modes
 
-- A dirty tree is identified by a digest of its Git diff and untracked source files; a matching revision with different content is stale.
+- A dirty tree is identified by a digest of its Git diff and untracked source files; generated files under the resolved target directory are excluded; a matching revision with different content is stale.
 - A source path or artifact outside the shared target is rejected.
 - A live owner conflict returns a diagnostic naming the owner and revision and performs no destructive action.
 - A failed build leaves the previous record unchanged and releases the lease.
@@ -56,12 +56,13 @@ The module records artifact hashes after the command. It does not treat Cargo fi
 
 ## Verification
 
-The core regression suite covers a source transition, matching-source reuse, different-root identity, active-owner preservation, expired-lease recovery, dirty-tree identity, and artifact-boundary rejection. The integrated hook must additionally prove that a stale package is rejected before acceptance, an unrelated package artifact is preserved, and a live owner blocks cleaning without changing source files. Focused Python tests, the full scripts suite, pre-push hook tests, conformance, the ARCH-008 oracle, and the pin-drift gate are required before merge.
+The core regression suite covers a source transition, matching-source reuse, different-root identity, active-owner preservation, expired-lease recovery, dirty-tree identity, target-directory exclusion, and artifact-boundary rejection. The integrated hook regression additionally proves that a stale package is rebuilt once per source transition, an unrelated package artifact is preserved, and a live owner blocks cleaning without changing source files. Focused Python tests, the full scripts suite, pre-push hook tests, conformance, the ARCH-008 oracle, and the pin-drift gate are required before merge.
 
 ## References
 
 - [ATLAS-BUILD-SOURCE-IDENTITY](../../backlog.md#atlas-build-source-identity)
 - [PR #277](https://github.com/ryancinsight/atlas/pull/277)
 - [scripts/atlas_build_identity.py](../../scripts/atlas_build_identity.py)
+- [scripts/atlas_build_artifacts.py](../../scripts/atlas_build_artifacts.py)
 - [scripts/git-hooks/pre-push](../../scripts/git-hooks/pre-push)
 - [Apollo ADR 0051](../../repos/apollo/docs/adr/0051-composite-phase-schedules.md)
