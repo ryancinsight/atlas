@@ -39,7 +39,7 @@ A model that maps signal to a per-voxel quantity belongs to `ritk-diffusion`; a 
 | Streamline geometry | `gaia` | RITK owns integration policy; Gaia owns `Polyline`, predicates, topology, and meshes. |
 | Study structure | `tyche` | Supply per-subject measures as Tyche responses; do not create `ritk-study`. |
 | Rendering and color | `iris` | Use Iris color and view contracts through RITK display crates. |
-| Derived-array persistence | `consus` | Store fitted fields, streamline sets, and connectivity matrices through Consus; do not write bespoke persistence. |
+| Derived-array persistence | `consus` | Normative boundary: store fitted fields, streamline sets, and connectivity matrices through Consus; do not write bespoke persistence. |
 | Quantities and scalars | `aequitas`, `eunomia` | Use typed physical quantities; raw scalar fields are invalid. |
 | Execution | `moirai` | Dispatch per-voxel fitting and per-seed integration; no local pool. |
 
@@ -65,13 +65,13 @@ A neuroimaging repository opens only when a second production consumer outside R
 
 The format crates must read and write the acquisition axis before model fitting. `Image<T, B, D>` is already rank-generic; restrictions in NIfTI, NRRD, MGH, and DICOM are format-crate work. The MGH frame-drop defect is independent and is fixed regardless.
 
-One typed acquisition scheme carries b-values and unit gradient directions in a declared frame. RITK's physical metadata is LPS; readers state their input frame and convert once. A transform applied to a series reorients its gradient table. FSL `.bval`/`.bvec`, MRtrix `.b` and `DW_scheme`, NRRD DWI keys, and DICOM diffusion tags are codecs for that one contract. Surface-based parcellation formats remain a named prerequisite for `ritk-connectome` and are not resolved by this decision.
+One typed acquisition scheme carries b-values and unit gradient directions in a declared frame. RITK's physical metadata is LPS; readers state their input frame and convert once. A transform applied to a series reorients its gradient table. FSL `.bval`/`.bvec`, MRtrix `DW_scheme`, NRRD DWI keys, and DICOM diffusion tags are codecs for that one contract; a standalone MRtrix `.b` file codec remains a prerequisite. Surface-based parcellation formats remain a named prerequisite for `ritk-connectome` and are not resolved by this decision.
 
 ### 8. Tractogram and MIF ownership revision — 2026-09-24
 
 The previously open tractogram-container distinction is resolved by the current workspace:
 
-- MRtrix `.tck`, TrackVis `.trk`, and TRX are published interchange grammars owned by `ritk-tck`, `ritk-trk`, and `ritk-trx`. They own byte parsing, validation, writing, and coordinate conversion. `ritk-tractography` owns integration policy; Gaia owns the returned `Polyline` geometry.
+- MRtrix `.tck`, TrackVis `.trk`, and TRX are published interchange grammars owned by `ritk-tck`, `ritk-trk`, and `ritk-trx`. They own byte parsing, validation, writing, and their format-specific coordinate conventions. `ritk-tractography` owns integration policy; Gaia owns the returned `Polyline` geometry.
 - Consus remains the scientific storage provider for derived arrays. A Consus-backed store of tractogram-derived data does not transfer ownership of `.tck`, `.trk`, or TRX to Consus and authorizes no Consus tractogram codec or canonical tractogram model.
 - `ritk-mif` owns the MRtrix image container, dimensions, layout, geometry, and voxel I/O. `ritk-diffusion-scheme` owns the typed `GradientScheme` and `DW_scheme` semantics. A future `.mif.gz` implementation remains in the RITK interchange boundary; the current tree has no `.mif.gz` support, and this revision selects no compression provider or claims end-to-end MIF scheme writing.
 
