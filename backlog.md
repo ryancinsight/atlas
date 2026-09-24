@@ -2,12 +2,6 @@
 
 <!-- Compacted 2026-09-21 under the 1,000-line board budget: a board is a queue, never a ledger, so closed sections and delivery narrative are gone -- the record of a closed item is the PR that closed it and its `Item:` trailer. Live items, open checkboxes, anchors and open-marked findings are kept. Recover removed narrative with `git log -p -- <this file>`. -->
 
-## Tier 3 — mechanical floor and stack hygiene
-
-| ID | Outcome | Class | Acceptance oracle |
-| --- | --- | --- | --- |
-| ATLAS-GITLINK-DRIFT-056 | Gaia's gitlink is 19 commits behind its fetched default `4c99b66f67b6c990415ed00b259c23fc93b98d66`; Moirai remains at its recorded provider-owned waiver. | [patch] | Gaia's gitlink matches its fetched default without increasing the committed conformance baseline; Moirai remains the sole waived member; the committed pin-drift check passes |
-
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — in-progress
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — in-progress
