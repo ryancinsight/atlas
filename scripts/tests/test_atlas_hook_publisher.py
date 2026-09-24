@@ -10,7 +10,7 @@ import sys
 import tempfile
 import unittest
 from argparse import Namespace
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -258,7 +258,15 @@ class PublisherScopeTestCase(unittest.TestCase):
             patch.object(
                 sys,
                 "argv",
-                ["atlas-lock-form.py", "publish-hooks", "alpha", "beta", "--push"],
+                [
+                    "atlas-lock-form.py",
+                    "publish-hooks",
+                    "alpha",
+                    "beta",
+                    "--push",
+                    "--source-ref",
+                    "refs/remotes/origin/pr/286",
+                ],
             ),
             patch.object(
                 _lock_form,
@@ -270,24 +278,134 @@ class PublisherScopeTestCase(unittest.TestCase):
 
         self.assertEqual(captured[0].members, ["alpha", "beta"])
         self.assertTrue(captured[0].push)
+        self.assertEqual(captured[0].source_ref, "refs/remotes/origin/pr/286")
 
     def test_unknown_member_is_rejected_before_external_commands(self) -> None:
-        args = Namespace(members=["../other"], push=True)
+        args = Namespace(members=["../other"], push=True, source_ref=None)
         with (
             patch.object(_lock_form, "registered_member_names", return_value=["alpha"]),
             patch.object(_lock_form, "git_in", side_effect=AssertionError("git must not run")),
         ):
             self.assertEqual(_lock_form.cmd_publish_hooks(args), 2)
 
+    def test_committed_source_ref_is_resolved_before_member_commit(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hook-source-") as temp:
+            root = Path(temp)
+            member_root = root / "repos"
+            (member_root / "alpha").mkdir(parents=True)
+            source_commit = "a" * 40
+            hook_bytes = [("pre-push", b"committed hook bytes\n")]
+            args = Namespace(
+                members=["alpha"], push=False, source_ref="refs/remotes/origin/pr/286"
+            )
+            git_results = iter(
+                [
+                    "",  # fetch Atlas
+                    "refs/remotes/origin/main",  # Atlas default
+                    source_commit,  # resolve the requested source ref
+                    "aaaaaaaa",  # source abbreviation for the PR message
+                    "",  # fetch member
+                    "origin/main",  # member default
+                    "b" * 40,  # member base
+                ]
+            )
+
+            with (
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "REPOS", member_root),
+                patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+                patch.object(
+                    _lock_form, "git_in", side_effect=lambda *_args: next(git_results)
+                ) as git_in,
+                patch.object(
+                    _lock_form, "committed_hooks", return_value=hook_bytes
+                ) as committed_hooks,
+                patch.object(
+                    _lock_form, "hook_commit", return_value="built"
+                ) as hook_commit,
+                redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
+
+            self.assertEqual(
+                git_in.call_args_list[2].args[1:],
+                (
+                    "rev-parse",
+                    "--verify",
+                    "--end-of-options",
+                    "refs/remotes/origin/pr/286^{commit}",
+                ),
+            )
+            committed_hooks.assert_called_once_with(root, source_commit)
+            self.assertEqual(hook_commit.call_args.args[2], hook_bytes)
+            self.assertEqual(hook_commit.call_args.args[1], "b" * 40)
+
+    def test_invalid_source_ref_stops_before_member_publication(self) -> None:
+        args = Namespace(
+            members=["alpha"], push=True, source_ref="refs/remotes/origin/missing"
+        )
+        output = io.StringIO()
+        error_output = io.StringIO()
+        with (
+            patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+            patch.object(_lock_form, "git_in") as git_in,
+            patch.object(_lock_form, "committed_hooks") as committed_hooks,
+            patch.object(_lock_form, "hook_commit") as hook_commit,
+            patch.object(_lock_form, "push_hook_branch") as push_hook_branch,
+            redirect_stdout(output),
+            redirect_stderr(error_output),
+        ):
+            # The third call resolves the missing ref after Atlas fetch/default.
+            git_in.side_effect = [
+                "",
+                "refs/remotes/origin/main",
+                RuntimeError("bad object"),
+            ]
+            self.assertEqual(_lock_form.cmd_publish_hooks(args), 2)
+
+        self.assertEqual(git_in.call_count, 3)
+        committed_hooks.assert_not_called()
+        hook_commit.assert_not_called()
+        push_hook_branch.assert_not_called()
+        self.assertNotIn("published:", output.getvalue())
+        self.assertIn("invalid committed hook source", error_output.getvalue())
+
+    def test_empty_source_ref_is_not_defaulted(self) -> None:
+        args = Namespace(members=["alpha"], push=True, source_ref="")
+        error_output = io.StringIO()
+        with (
+            patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+            patch.object(_lock_form, "git_in") as git_in,
+            patch.object(_lock_form, "committed_hooks") as committed_hooks,
+            patch.object(_lock_form, "hook_commit") as hook_commit,
+            patch.object(_lock_form, "push_hook_branch") as push_hook_branch,
+            redirect_stderr(error_output),
+        ):
+            self.assertEqual(_lock_form.cmd_publish_hooks(args), 2)
+
+        git_in.assert_not_called()
+        committed_hooks.assert_not_called()
+        hook_commit.assert_not_called()
+        push_hook_branch.assert_not_called()
+        self.assertIn("reference is empty", error_output.getvalue())
+
     def test_hosting_stage_failures_make_the_member_and_command_fail(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-failure-") as temp:
             root = Path(temp)
             (root / "repos" / "alpha").mkdir(parents=True)
-            args = Namespace(members=["alpha"], push=True)
+            args = Namespace(members=["alpha"], push=True, source_ref=None)
             for failed_stage in ("list", "create", "merge"):
                 with self.subTest(failed_stage=failed_stage):
                     git_results = iter(
-                        ["", "origin/main", "5ddb629c2", "", "origin/main", "base"]
+                        [
+                            "",
+                            "refs/remotes/origin/main",
+                            "5" * 40,
+                            "55555555",
+                            "",
+                            "origin/main",
+                            "base",
+                        ]
                     )
 
                     def host(_repo: Path, *command: str) -> str:

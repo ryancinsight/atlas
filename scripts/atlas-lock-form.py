@@ -737,10 +737,26 @@ def cmd_publish_hooks(args) -> int:
     members = member_scope(args.members)
     if members is None:
         return 2
+    requested_source = args.source_ref
+    if requested_source == "":
+        print("invalid committed hook source '': reference is empty", file=sys.stderr)
+        return 2
     git_in(ROOT, "fetch", "-q", "origin")
     atlas_default = git_in(ROOT, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
-    hooks = committed_hooks(ROOT, atlas_default)
-    source = git_in(ROOT, "rev-parse", "--short", atlas_default)
+    source_ref = atlas_default if requested_source is None else requested_source
+    try:
+        source_commit = git_in(
+            ROOT,
+            "rev-parse",
+            "--verify",
+            "--end-of-options",
+            f"{source_ref}^{{commit}}",
+        )
+    except RuntimeError as error:
+        print(f"invalid committed hook source {source_ref!r}: {error}", file=sys.stderr)
+        return 2
+    hooks = committed_hooks(ROOT, source_commit)
+    source = git_in(ROOT, "rev-parse", "--short", source_commit)
     subject = "ci: Sync the stack-owned git hooks"
     message = (
         f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
@@ -826,6 +842,11 @@ def main() -> int:
     publish = sub.add_parser("publish-hooks")
     publish.add_argument("members", nargs="*", help="registered members; defaults to all")
     publish.add_argument("--push", action="store_true", help="push and open the pull requests")
+    publish.add_argument(
+        "--source-ref",
+        metavar="REF",
+        help="locally available committed Atlas ref; defaults to origin/HEAD",
+    )
     publish.set_defaults(func=cmd_publish_hooks)
     sub.add_parser("check").set_defaults(func=cmd_check)
     sub.add_parser("status").set_defaults(func=cmd_status)
