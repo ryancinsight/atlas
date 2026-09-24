@@ -2,6 +2,12 @@
 
 <!-- Compacted 2026-09-21 under the 1,000-line board budget: a board is a queue, never a ledger, so closed sections and delivery narrative are gone -- the record of a closed item is the PR that closed it and its `Item:` trailer. Live items, open checkboxes, anchors and open-marked findings are kept. Recover removed narrative with `git log -p -- <this file>`. -->
 
+## Tier 3 — mechanical floor and stack hygiene
+
+| ID | Outcome | Class | Acceptance oracle |
+| --- | --- | --- | --- |
+| ATLAS-GITLINK-DRIFT-056 | Leto is four commits behind `0cc46f726fbfa626303c1c239c9e254449671bbf`; Moirai's provider repair has landed, so its recorded waiver re-opened. | [patch] | Leto and Moirai match their fetched defaults without increasing the committed conformance baseline; the waiver is removed; the committed pin-drift check passes |
+
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — in-progress
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — in-progress
