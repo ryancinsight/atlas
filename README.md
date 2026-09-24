@@ -111,7 +111,7 @@ addition.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 27 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 28 packages.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
@@ -131,6 +131,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 27 packages.
 | Domain | [`horae`](repos/horae) | Typed simulation time, explicit integration, adaptive policy, event clipping, and subcycle ratios. |
 | Domain | [`iris`](repos/iris) | Domain-neutral normalized colors, fixed lookup tables, borrowed diagnostic views, and render-backend contracts. |
 | Domain | [`proteus`](repos/proteus) | Validated material-property, material-identity, and static constitutive-law vocabulary parameterized by Aequitas quantities and Eunomia scalars. |
+| Domain | [`prometheus`](repos/prometheus) | Species mass balance, stoichiometric mass-action kinetics, reaction enthalpy, and zero-dimensional network integration. |
 | Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, domain-specific visualization, and VTK data models over Coeus tensors. |
 | Domain | [`tyche`](repos/tyche) | Uncertainty quantification, sampling, ensembles, sensitivity, and reproducible stochastic studies over Moirai execution and Consus persistence. |
 | Compute | [`hephaestus`](repos/hephaestus) | GPU device, buffer, transfer, and kernel substrate for WGPU and CUDA. |
@@ -168,6 +169,7 @@ flowchart TB
         iris
         athena
         proteus
+        prometheus
         ritk
         tyche
     end
@@ -839,11 +841,12 @@ atlas/
 │   ├── mnemosyne/ moirai/   hermes/   leto/  hephaestus/  # Compute
 │   ├── apollo/    asclepius/ athena/  coeus/ consus/      # Domain
 │   │   gaia/      harmonia/ horae/    hyperion/ iris/
-│   │   proteus/   ritk/     tyche/
+│   │   proteus/   prometheus/ ritk/   tyche/
 │   └── CFDrs/     helios/   kwavers/                      # Integrator
 ├── scripts/
 │   ├── atlas-board-compact.py       # collapses closed board items to a one-line archive
 │   ├── atlas-conformance.py         # per-repo debt scan + non-increasing ratchet
+│   ├── atlas-pin-compile.py         # compile the recorded Aequitas/Eunomia seam
 │   ├── atlas-multiphysics-audit.py  # integrator boundary and evidence audit
 │   ├── atlas-stack-overlay.py       # generates the [patch] overlay from cargo metadata
 │   ├── atlas-toolchain-bootstrap.*  # clear Rust overrides; prioritize MSYS2 ucrt64
@@ -1089,6 +1092,15 @@ Moving branch names, duplicated provider lists, wrong-revision reuse, dirty
 reuse, missing provider URLs, missing dependency manifests, and paths outside
 the authorized destination fail closed.
 
+`python scripts/atlas-pin-compile.py` archives the exact recorded Aequitas and
+Eunomia gitlinks, resolves a temporary consumer against the archived Eunomia
+crate, and checks that the pair type-checks. The archived manifests and Cargo
+metadata select the provider, so a member lockfile, dirty checkout, or local
+overlay cannot substitute another revision. The required conformance suite
+runs current and historical oracles; the scheduled pin job rechecks the current
+pair. This is the representative Aequitas-to-Eunomia compatibility seam, not a
+claim that every provider pair compiles.
+
 ### Shared CI surfaces
 
 Atlas publishes the stack's shared jobs as reusable workflows under
@@ -1136,6 +1148,9 @@ nobody is looking at cannot rot silently:
   ratchet over every member at its recorded gitlink (`--worktree` for a live
   audit, `--repo NAME` for one member); a new detector lands with its baseline
   in the same change.
+- `python scripts/atlas-pin-compile.py` — compile the exact recorded
+  Aequitas/Eunomia gitlink seam from archived sources, reporting both full
+  revisions and a distinct unavailable status when the pair cannot be measured.
 - `python scripts/lockfile.py --check --manifest-path <Cargo.toml>` — a lock
   regenerated inside the stack overlay has its first-party git sources stripped
   and fails every `--locked` job; `--regenerate` rewrites it from outside the

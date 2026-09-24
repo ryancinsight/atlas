@@ -14,17 +14,50 @@ from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas_stack.py"
+sys.path.insert(0, str(SCRIPT.parent))
 SPEC = importlib.util.spec_from_file_location("atlas_stack_under_test", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 atlas_stack = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = atlas_stack
 SPEC.loader.exec_module(atlas_stack)
+from atlas_git_process import clean_process_env
 
 IDENT = ["-c", "user.email=t@t", "-c", "user.name=t"]
 
 
 def _git(repo: Path, *argv: str) -> None:
-    subprocess.run(["git", "-C", str(repo), *argv], check=True, env=atlas_stack.clean_git_env())
+    subprocess.run(["git", "-C", str(repo), *argv], check=True, env=clean_process_env())
+
+
+class MemberPinsTestCase(unittest.TestCase):
+    def test_reads_gitlinks_from_the_requested_repository(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-stack-pins-") as directory:
+            repo = Path(directory)
+            _git(repo, "init", "-q", "-b", "main")
+            (repo / ".gitmodules").write_text(
+                '[submodule "repos/demo"]\n'
+                "\tpath = repos/demo\n"
+                "\turl = https://github.com/ryancinsight/demo\n",
+                encoding="utf-8",
+            )
+            _git(repo, "add", ".gitmodules")
+            revision = "1" * 40
+            _git(
+                repo,
+                "update-index",
+                "--add",
+                "--cacheinfo",
+                f"160000,{revision},repos/demo",
+            )
+            _git(
+                repo,
+                "update-index",
+                "--add",
+                "--cacheinfo",
+                f"160000,{'2' * 40},repos/unregistered",
+            )
+            _git(repo, *IDENT, "commit", "-q", "-m", "pin demo")
+            self.assertEqual(atlas_stack.member_pins(repo), {"demo": revision})
 
 
 class StalenessTestCase(unittest.TestCase):
@@ -67,7 +100,7 @@ class StalenessTestCase(unittest.TestCase):
                     Path(atlas_stack.git(repo, "rev-parse", "--show-toplevel").strip()).resolve(),
                     repo.resolve(),
                 )
-                cleaned = atlas_stack.clean_git_env()
+                cleaned = clean_process_env()
                 self.assertEqual(cleaned["GIT_CONFIG_GLOBAL"], configuration["GIT_CONFIG_GLOBAL"])
                 self.assertEqual(cleaned["GIT_CONFIG_NOSYSTEM"], "1")
                 self.assertEqual(dict(os.environ), before)
@@ -84,7 +117,7 @@ class StalenessTestCase(unittest.TestCase):
         subprocess.run(
             ["git", "clone", "-q", str(origin), str(clone)],
             check=True,
-            env=atlas_stack.clean_git_env(),
+            env=clean_process_env(),
         )
         (origin / "b.md").write_text("second\n", encoding="utf-8")
         _git(origin, *IDENT, "add", "b.md")
@@ -122,6 +155,32 @@ class StalenessTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-stack-") as temp:
             self.assertEqual(atlas_stack.commits_behind_upstream(Path(temp)), 0)
             self.assertEqual(atlas_stack.staleness_note(Path(temp)), "")
+
+    def test_git_timeout_is_not_an_empty_measurement(self) -> None:
+        with patch.object(
+            atlas_stack,
+            "execute_git",
+            side_effect=atlas_stack.GitProcessError("timed out", timed_out=True),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "timed out"):
+                atlas_stack.git(Path("unused"), "rev-parse", "HEAD")
+
+    def test_nonzero_git_result_is_not_a_clean_measurement(self) -> None:
+        failure = subprocess.CompletedProcess(
+            ["git"], 128, stdout=b"", stderr=b"fatal: failed"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / ".git").mkdir()
+            with patch.object(atlas_stack, "execute_git", return_value=failure):
+                with self.assertRaisesRegex(RuntimeError, "failed"):
+                    atlas_stack.git(repo, "rev-parse", "HEAD")
+            with patch.object(atlas_stack, "execute_git", return_value=failure):
+                with self.assertRaisesRegex(RuntimeError, "failed"):
+                    atlas_stack.commits_behind_upstream(repo)
+        with patch.object(atlas_stack, "execute_git", return_value=failure):
+            with self.assertRaisesRegex(RuntimeError, "failed"):
+                atlas_stack.is_git_ignored(atlas_stack.ROOT / "artifact")
 
     def test_note_states_the_distance(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-stack-") as temp:

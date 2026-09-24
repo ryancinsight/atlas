@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "publish-order.py"
+sys.path.insert(0, str(SCRIPT.parent))
 SPEC = importlib.util.spec_from_file_location("publish_order", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 publish_order = importlib.util.module_from_spec(SPEC)
@@ -24,7 +26,7 @@ def _git(directory: Path, *arguments: str) -> str:
         capture_output=True,
         text=True,
         encoding="utf-8",
-        env=publish_order.clean_git_env(),
+        env=publish_order.clean_process_env(),
     )
     return process.stdout
 

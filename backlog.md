@@ -106,7 +106,7 @@
 <a id="atlas-overlay-004"></a>- [ATLAS-OVERLAY-004](backlog/atlas-overlay-004.md) — Worktree sprawl breaks stack dependency resolution [patch] — in-progress
 <a id="atlas-overlay-005"></a>- [ATLAS-OVERLAY-005](backlog/atlas-overlay-005.md) — Clear first-party rev pins across the stack [patch] — in-progress
 <a id="atlas-overlay-gen-stale-1"></a>- [ATLAS-OVERLAY-GEN-STALE-1](backlog/atlas-overlay-gen-stale-1.md) — Cross-repo path deps on member mainlines [arch] — todo
-<a id="atlas-pin-compile-incoherence-2026-09-22"></a>- [ATLAS-PIN-COMPILE-INCOHERENCE-2026-09-22](backlog/atlas-pin-compile-incoherence-2026-09-22.md) — Atlas member pins can be a compile-incoherent set [patch] — todo
+<a id="atlas-pin-compile-incoherence-2026-09-22"></a>- [ATLAS-PIN-COMPILE-INCOHERENCE-2026-09-22](backlog/atlas-pin-compile-incoherence-2026-09-22.md) — Atlas member pins can be a compile-incoherent set [patch] — in-progress
 <a id="atlas-pm-artifact-budgets"></a>- [ATLAS-PM-ARTIFACT-BUDGETS](backlog/atlas-pm-artifact-budgets.md) — Stack PM artifacts run eight to sixteen times their budget [patch] — in-progress
 <a id="atlas-prepush-hook-forked-across-members-2026-09-09"></a>- [ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09](backlog/atlas-prepush-hook-forked-across-members-2026-09-09.md) — One gate, twenty-three copies, six versions [patch] [ci] — in-progress
 <a id="atlas-privacy-naming-1"></a>- [ATLAS-PRIVACY-NAMING-1](backlog/atlas-privacy-naming-1.md) — Remove confidential consumer identity from stack artifacts [patch] — in-progress

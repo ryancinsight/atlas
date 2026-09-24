@@ -31,6 +31,29 @@ def _write(root: Path, rel: str, content: str) -> None:
 
 
 class AtlasConformanceTestCase(unittest.TestCase):
+    def test_untracked_git_timeout_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / ".git").mkdir()
+            with patch.object(
+                conformance,
+                "execute_git",
+                side_effect=conformance.GitProcessError("timed out", timed_out=True),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "cannot list untracked paths"):
+                    conformance.untracked_root_names(repo)
+
+    def test_untracked_git_failure_fails_closed(self) -> None:
+        failure = subprocess.CompletedProcess(
+            ["git"], 128, stdout=b"", stderr=b"fatal: failed"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / ".git").mkdir()
+            with patch.object(conformance, "execute_git", return_value=failure):
+                with self.assertRaisesRegex(RuntimeError, "failed"):
+                    conformance.untracked_root_names(repo)
+
     def test_json_check_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             baseline_path = Path(temp) / "baseline.json"

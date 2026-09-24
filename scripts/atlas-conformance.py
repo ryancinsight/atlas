@@ -53,13 +53,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import io
 import json
 import os
 import re
-import subprocess
 import sys
-import tarfile
 import tempfile
 import threading
 import tomllib
@@ -72,7 +69,17 @@ except ImportError:  # pragma: no cover - optional for environments without PyYA
     _yaml = None
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from atlas_stack import ROOT, is_git_ignored, staleness_note
+from atlas_git_process import (
+    GitProcessError,
+    archive,
+    execute as execute_git,
+    extract_archive,
+)
+from atlas_stack import ROOT, is_git_ignored, registered_member_names, staleness_note
+
+GIT_TIMEOUT_SECONDS = 60
+ARCHIVE_TIMEOUT_SECONDS = 120
+FETCH_TIMEOUT_SECONDS = 120
 
 
 def _load_sibling(name: str, module: str):
@@ -611,6 +618,21 @@ def is_cargo_target_dir(entry: Path) -> bool:
     return any((entry / marker).exists() for marker in markers)
 
 
+def _is_unmaterialized_checkout(repo: Path) -> bool:
+    marker = repo / ".git"
+    if not marker.exists():
+        return True
+    if marker.is_dir():
+        return False
+    value = marker.read_text(encoding="utf-8", errors="replace").strip()
+    if value.startswith("gitdir: archived "):
+        return True
+    if value.startswith("gitdir:"):
+        target = (repo / value.removeprefix("gitdir:").strip()).resolve()
+        return not target.exists()
+    return False
+
+
 def untracked_root_names(repo: Path) -> set[str]:
     """Names of root-level files git does not track in `repo`, ignored included.
 
@@ -626,19 +648,23 @@ def untracked_root_names(repo: Path) -> set[str]:
     recorded revision contains that revision's content by construction, so
     nothing in it is untracked.
     """
+    if _is_unmaterialized_checkout(repo) or not (repo / ".git").exists():
+        return set()
     names: set[str] = set()
     for extra in ((), ("--ignored", "--directory")):
-        listing = subprocess.run(
-            ["git", "-C", str(repo), "ls-files", "--others", "--exclude-standard", *extra],
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",
-        )
+        try:
+            listing = execute_git(
+                repo,
+                ("ls-files", "--others", "--exclude-standard", *extra),
+                timeout=GIT_TIMEOUT_SECONDS,
+            )
+        except GitProcessError as exc:
+            raise RuntimeError(f"cannot list untracked paths in {repo}") from exc
         if listing.returncode != 0:
-            return set()
-        names.update(
-            name for name in listing.stdout.split("\n") if name and "/" not in name
-        )
+            detail = listing.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(detail or f"cannot list untracked paths in {repo}")
+        output = listing.stdout.decode("utf-8", errors="replace")
+        names.update(name for name in output.splitlines() if name and "/" not in name)
     return names
 
 
@@ -753,21 +779,25 @@ def _crlf_blobs_at_revision(repo: Path, revision: str) -> int:
     os.close(fd)
     try:
         env = dict(os.environ, GIT_INDEX_FILE=index_path)
-        subprocess.run(
-            ["git", "-C", str(repo), "read-tree", revision],
-            check=True,
-            capture_output=True,
+        read = execute_git(
+            repo,
+            ("read-tree", revision),
             env=env,
+            timeout=GIT_TIMEOUT_SECONDS,
         )
-        output = subprocess.run(
-            ["git", "-C", str(repo), "ls-files", "--eol"],
-            check=True,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
+        if read.returncode:
+            detail = read.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(detail or f"cannot read tree {revision}")
+        listed = execute_git(
+            repo,
+            ("ls-files", "--eol"),
             env=env,
-        ).stdout
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+        if listed.returncode:
+            detail = listed.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(detail or "cannot list index EOL state")
+        output = listed.stdout.decode("utf-8", errors="replace")
     finally:
         try:
             os.unlink(index_path)
@@ -800,22 +830,26 @@ def count_crlf_stored_blobs(
     # Worktree scan: measure the checkout directly. Materialized or broken
     # copies whose plumbing cannot answer cannot substantiate the defect, so
     # they contribute none — the same convention as `count_excess_worktrees`.
-    probe = subprocess.run(
-        ["git", "-C", str(repo), "rev-parse", "--git-dir"],
-        check=False,
-        capture_output=True,
-    )
-    if probe.returncode != 0:
+    if _is_unmaterialized_checkout(repo):
         return 0
-    output = subprocess.run(
-        ["git", "-C", str(repo), "ls-files", "--eol"],
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    ).stdout
-    return _count_index_crlf(output)
+    try:
+        probe = execute_git(
+            repo, ("rev-parse", "--git-dir"), timeout=GIT_TIMEOUT_SECONDS
+        )
+        if probe.returncode != 0:
+            if not (repo / ".git").exists():
+                return 0
+            detail = probe.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(detail or f"cannot resolve Git directory for {repo}")
+        listed = execute_git(
+            repo, ("ls-files", "--eol"), timeout=GIT_TIMEOUT_SECONDS
+        )
+    except GitProcessError as exc:
+        raise RuntimeError(f"cannot measure CRLF state in {repo}") from exc
+    if listed.returncode:
+        detail = listed.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"cannot list index EOL state in {repo}")
+    return _count_index_crlf(listed.stdout.decode("utf-8", errors="replace"))
 
 
 def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path]:
@@ -1074,30 +1108,14 @@ def declared_cfg_test(entry: Path, _depth: int = 0) -> bool:
 
 def git_output(*args: str, cwd: Path = ROOT) -> str:
     """Run a read-only Git query and return its output or a useful error."""
-    proc = subprocess.run(
-        ["git", "-C", str(cwd), *args],
-        capture_output=True,
-        encoding="utf-8", errors="replace",
-        check=False,
-    )
-    if proc.returncode:
-        detail = proc.stderr.strip() or "git command failed"
-        raise RuntimeError(detail)
-    return proc.stdout
-
-
-def registered_member_names_at(root: Path) -> set[str]:
-    """Read the stack universe from the `.gitmodules` in a scan root."""
-    gm = root / ".gitmodules"
-    if not gm.is_file():
-        return set()
-    return {
-        m.group(1)
-        for m in re.finditer(
-            r"path\s*=\s*repos/([^\s/]+)",
-            gm.read_text(encoding="utf-8", errors="replace"),
-        )
-    }
+    try:
+        result = execute_git(cwd, args, timeout=GIT_TIMEOUT_SECONDS)
+    except GitProcessError as exc:
+        raise RuntimeError(str(exc)) from exc
+    if result.returncode:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or "git command failed")
+    return result.stdout.decode("utf-8", errors="replace")
 
 
 def require_materialized_providers(
@@ -1149,18 +1167,27 @@ def git_ignored_paths(repo: Path) -> frozenset[Path]:
     archived snapshot of a recorded revision has no `.git` and contains only
     tracked content, so the empty set is the right answer there.
     """
-    if not (repo / ".git").exists():
+    if _is_unmaterialized_checkout(repo) or not (repo / ".git").exists():
         return frozenset()
-    result = subprocess.run(
-        ["git", "-C", str(repo), "ls-files", "--others", "--ignored",
-         "--exclude-standard", "--directory"],
-        capture_output=True, text=True,
-        encoding="utf-8", errors="replace", check=False,
-    )
+    try:
+        result = execute_git(
+            repo,
+            (
+                "ls-files",
+                "--others",
+                "--ignored",
+                "--exclude-standard",
+                "--directory",
+            ),
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+    except GitProcessError as exc:
+        raise RuntimeError(f"cannot list ignored paths in {repo}") from exc
     if result.returncode:
-        return frozenset()
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"cannot list ignored paths in {repo}")
     paths = set()
-    for line in result.stdout.splitlines():
+    for line in result.stdout.decode("utf-8", errors="replace").splitlines():
         entry = line.strip().rstrip("/")
         if entry:
             paths.add((repo / entry).resolve())
@@ -1751,26 +1778,40 @@ def materialize_member(
     dirty = git_output("status", "--porcelain", "--ignore-submodules=all", cwd=provider).strip()
     if actual == expected and not dirty:
         return provider, provider
-    archive = subprocess.run(
-        ["git", "-C", str(provider), "archive", "--format=tar", expected],
-        capture_output=True, check=False,
-    )
-    if archive.returncode:
-        subprocess.run(["git", "-C", str(provider), "fetch", "--quiet", "origin"],
-                       capture_output=True, check=False)
-        archive = subprocess.run(
-            ["git", "-C", str(provider), "archive", "--format=tar", expected],
-            capture_output=True, check=False,
-        )
-    if archive.returncode:
-        raise RuntimeError(
-            f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
-            f"provider's object store: {archive.stderr.decode('utf-8', 'replace').strip()}"
-        )
+    try:
+        payload = archive(provider, expected, timeout=ARCHIVE_TIMEOUT_SECONDS)
+    except GitProcessError as exc:
+        if exc.timed_out:
+            raise RuntimeError(
+                f"repos/{provider.name}: archive exceeded its deadline for {expected[:12]}"
+            ) from exc
+        try:
+            fetched = execute_git(
+                provider,
+                ("fetch", "--quiet", "origin"),
+                timeout=FETCH_TIMEOUT_SECONDS,
+            )
+        except GitProcessError as fetch_exc:
+            raise RuntimeError(
+                f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
+                f"provider's object store: fetch failed: {fetch_exc}"
+            ) from fetch_exc
+        if fetched.returncode:
+            detail = fetched.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(
+                f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
+                f"provider's object store: fetch failed: {detail or 'unknown Git error'}"
+            )
+        try:
+            payload = archive(provider, expected, timeout=ARCHIVE_TIMEOUT_SECONDS)
+        except GitProcessError as retry_exc:
+            raise RuntimeError(
+                f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
+                f"provider's object store: {retry_exc}"
+            ) from retry_exc
     content = scratch / provider.name
     content.mkdir(parents=True)
-    with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
-        tar.extractall(content, filter="data")
+    extract_archive(payload, content)
     # The provider gate accepts a checkout by its `.git` marker; the snapshot
     # carries one so the same gate admits it.
     (content / ".git").write_text(f"gitdir: archived {expected}\n", encoding="utf-8")
@@ -1813,7 +1854,9 @@ def scan_stack(
     """
     out = {}
     member_root = stack_root / "repos"
-    members = registered_member_names_at(stack_root)
+    members = registered_member_names(
+        stack_root, root_revision if root_revision is not None else None
+    )
     meta = dict.fromkeys(CLASSES, 0)
     if member_root.is_dir() and root_revision is not None:
         # Drop registered-but-never-linked members BEFORE the
@@ -2112,18 +2155,12 @@ def unresolved_at(repo: Path, revision: str, stores: list[Path]) -> int:
             paths.append(sub)
     if not paths:
         return 0
-    archive = subprocess.run(
-        ["git", "-C", str(repo), "archive", "--format=tar", revision, "--", *paths],
-        capture_output=True, check=False,
-    )
-    if archive.returncode:
-        raise RuntimeError(
-            f"{repo.name}: cannot archive {revision[:12]}: "
-            f"{archive.stderr.decode('utf-8', 'replace').strip()}"
-        )
+    try:
+        payload = archive(repo, revision, paths=tuple(paths), timeout=ARCHIVE_TIMEOUT_SECONDS)
+    except GitProcessError as exc:
+        raise RuntimeError(f"{repo.name}: cannot archive {revision[:12]}: {exc}") from exc
     with tempfile.TemporaryDirectory(prefix="atlas-ref-drift-") as scratch:
-        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
-            tar.extractall(scratch, filter="data")
+        extract_archive(payload, Path(scratch))
         return board_lint.count_unresolved(Path(scratch), stores)
 
 
