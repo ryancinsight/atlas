@@ -219,8 +219,21 @@ class PinCompileTestCase(unittest.TestCase):
             )
             self.assertNotIn(f'"{child_pid}"', listing.stdout)
         else:
-            with self.assertRaises(ProcessLookupError):
-                os.kill(child_pid, 0)
+            status = subprocess.run(
+                ["ps", "-o", "stat=", "-p", str(child_pid)],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=10,
+                check=False,
+            )
+            self.assertTrue(
+                status.returncode != 0
+                or not status.stdout.strip()
+                or status.stdout.lstrip().startswith("Z"),
+                f"descendant {child_pid} remains active with state {status.stdout.strip()!r}",
+            )
 
     def test_explicit_git_index_is_preserved(self) -> None:
         repo = self.root / "private-index"
