@@ -696,13 +696,12 @@ crates/ritk-connectome     parcellation-to-graph construction and graph measures
 ```
 
 Owning the context is not the same as having the capability. A 2026-07-30
-capability audit against FreeSurfer, MRtrix3, FSL, and DIPY found that no RITK
-reader accepts a diffusion-weighted series — the readers are 3-D only, and MGH
-silently drops frames past the first — and that no crate models b-values or
-gradient directions. Both are RITK format-crate prerequisites sequenced ahead of
-the three crates above, not arguments against the ownership decision; ADR 0036
-decision 7 records them, and four provider edges below terminate in upstream
-capability that must be built in the provider first.
+capability audit against FreeSurfer, MRtrix3, FSL, and DIPY found that RITK
+lacked diffusion-series readers and a typed gradient-scheme contract. The
+current RITK tree now contains rank-generic series readers and the
+`ritk-diffusion-scheme` contract; ADR 0036 records the historical prerequisite
+and the provider work that remains. These format-crate increments support the
+ownership decision; they are not arguments for a new repository.
 
 Gate conditions 1 and 6 are unmet for a separate package — RITK is the only
 consumer, and none of these crates is consumed across a repository boundary.
@@ -718,10 +717,12 @@ Existing owners are not duplicated by this decision:
 | Nonlinear model fitting | `coeus` | Diffusion fits use Coeus autodiff and optimizers; RITK adds no local optimizer. Delivered: `coeus-optim::least_squares` carries damped Gauss-Newton and `levenberg_marquardt` / `batched_levenberg_marquardt`. Residual gap: the solver is dense-only and requires a caller-supplied analytic Jacobian with no `coeus-autograd` bridge, so it fits small dense models; a sparse or autograd-backed variant belongs in `coeus`, never in RITK. |
 | Dense linear least squares | `leto` | Log-linear tensor estimation solves through `leto-ops`; RITK assembles the design matrix and does not implement a solve. |
 | Spherical harmonic basis | `apollo` | Orientation distribution functions are SH expansions owned by `apollo-sht`. Delivered: `RealSphericalHarmonicBasis` evaluates the real even-order symmetric basis over scattered gradient directions (`MAX_REAL_SH_DEGREE = 85`, MRtrix3 orthonormal convention) and returns a `design_matrix`; RITK consumes it. |
-| Streamline geometry | `gaia` | Streamlines are polyline geometry and topology typed in Gaia primitives; RITK owns the integration policy that produces them. Upstream gap: Gaia has meshes and topology but no polyline type. |
+| Streamline geometry | `gaia` | Streamlines use Gaia's `Polyline` geometry and topology; RITK owns the integration policy that produces them. |
 | Population and group statistics | `tyche` | Cohort sampling, ensembles, sensitivity, and reproducible study vocabulary stay in Tyche; RITK supplies per-subject image measures. |
 | Rendering and color | `iris` | Tract and connectome display uses Iris color law and view contracts through `ritk-snap` / `ritk-vtk`. |
-| Derived-array persistence | `consus` | Fitted fields, streamline sets, and connectivity matrices persist through Consus formats. |
+| Derived-array persistence | `consus` | Fitted fields, streamline sets, and connectivity matrices use Consus storage; RITK retains ownership of external tractogram interchange. |
+| Tractogram interchange | RITK format crates | `ritk-tck`, `ritk-trk`, and `ritk-trx` own `.tck`, `.trk`, and TRX bytes; Gaia owns polyline geometry and Consus owns no tractogram codec. |
+| MIF image/scheme boundary | RITK | `ritk-mif` owns the image container; `ritk-diffusion-scheme` owns `DW_scheme` semantics. `.mif.gz` is not implemented. |
 | Quantities and scalars | `aequitas`, `eunomia` | Diffusivity, b-values, and gradient directions are typed quantities over Eunomia scalars, not raw floats. |
 
 MR *physics* is a separate question from MR *image processing*, and the two must
