@@ -1113,6 +1113,61 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(results["beta"]["oversized_files"], 0)
         self.assertEqual(set(results), {"<meta>", "alpha", "beta"})
 
+    def test_stack_scan_maps_closure_member_edges(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(
+                root,
+                ".gitmodules",
+                "[submodule \"kwavers\"]\n\tpath = repos/kwavers\n"
+                "[submodule \"hyperion\"]\n\tpath = repos/hyperion\n",
+            )
+            for member in ("kwavers", "hyperion"):
+                _write(root, f"repos/{member}/.git", "gitdir: modules/member\n")
+            _write(
+                root,
+                "repos/kwavers/Cargo.toml",
+                "[package]\nname = 'kwavers-physics'\n"
+                "[dependencies]\nhyperion = { path = '../../hyperion' }\n",
+            )
+            _write(root, "repos/kwavers/src/lib.rs", "pub fn kwavers() {}\n")
+            _write(
+                root,
+                "repos/hyperion/Cargo.toml",
+                "[package]\nname = 'hyperion'\n",
+            )
+            _write(root, "repos/hyperion/src/lib.rs", "pub fn hyperion() {}\n")
+            observed: list[str] = []
+            classifier = conformance._classify_balance_member_edge
+            self.assertIsNotNone(classifier)
+
+            def record_finding(edge, member_for_package):
+                finding = classifier(edge, member_for_package)
+                observed.append(finding.kind)
+                return finding
+
+            with (
+                patch.object(
+                    conformance,
+                    "_MEMBER_BALANCE_DOMAINS",
+                    frozenset({"kwavers"}),
+                ),
+                patch.object(
+                    conformance,
+                    "_CLOSURE_DOMAINS",
+                    frozenset({"hyperion"}),
+                ),
+                patch.object(
+                    conformance,
+                    "_classify_balance_member_edge",
+                    side_effect=record_finding,
+                ),
+            ):
+                results = conformance.scan_stack(root)
+
+        self.assertEqual(results["kwavers"]["balance_domain_edges"], 0)
+        self.assertIn("closure_provider", observed)
+
     def test_stack_scan_counts_distinct_gate_versions(self) -> None:
         """`member_gate_versions` converges to 1 as the rollout lands.
 
