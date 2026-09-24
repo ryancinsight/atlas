@@ -1543,9 +1543,40 @@ class DebtRatchetTestCase(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             self.assertEqual(len([p for p in cache.iterdir() if p.is_dir()]), 1)
 
-    def test_a_lane_is_judged_as_its_registered_member(self) -> None:
+    @staticmethod
+    def _git_push(fixture: GateFixture, cwd: pathlib.Path, *refspec: str) -> tuple:
+        """Push through git itself, so the hook sees the environment git gives
+        hooks -- `GIT_DIR` among it, absolute in a lane -- not a bare shell's.
+        """
+        env = dict(os.environ)
+        env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+        # The fixture's package metadata names the main tree, so the compile
+        # gate is out of scope; the ratchet precedes it and this variable does
+        # not skip it.
+        env["SKIP_LOCAL_GATE"] = "1"
+        for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
+            env.pop(key, None)
+        proc = subprocess.run(
+            ["git", "-C", str(cwd), *_IDENT, "-c", f"core.hooksPath={SCRIPT.parent}",
+             "push", "-q", "origin", *refspec],
+            env=env, capture_output=True,
+        )
+        return proc.returncode, proc.stderr.decode("utf-8", errors="replace")
+
+    def test_a_main_tree_push_through_git_runs_the_ratchet(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture, log, _, _, _ = self._stack(temp, 0)
+            fixture, log, stack_head, base, pushed = self._stack(temp, 0)
+            code, stderr = self._git_push(fixture, fixture.root, "feat")
+            self.assertEqual(code, 0, stderr)
+            args = self._args(log)
+            self.assertEqual(args["--repo"], "member")
+            self.assertEqual(args["--member-revision"], pushed)
+            self.assertEqual(args["--baseline-rev"], stack_head)
+
+    def test_a_lane_push_through_git_judges_its_registered_member(self) -> None:
+        """From a lane the stack's refs, not the lane's, name the baseline."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, log, stack_head, _, _ = self._stack(temp, 0)
             lane = pathlib.Path(temp) / "worktrees" / "member-lane"
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "worktree", "add", "-q",
@@ -1553,25 +1584,25 @@ class DebtRatchetTestCase(unittest.TestCase):
                 check=True,
             )
             pushed = _git(lane, "rev-parse", "HEAD")
-            env = dict(os.environ)
-            env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
-            # The fixture's package metadata names the main tree, so the
-            # compile gate is out of scope here; the ratchet precedes it and
-            # is not one of the steps this variable skips.
-            env["SKIP_LOCAL_GATE"] = "1"
-            proc = subprocess.run(
-                ["bash", str(SCRIPT)],
-                input=f"refs/heads/lane {pushed} refs/heads/lane {ZERO}\n".encode(),
-                cwd=str(lane),
-                env=env,
-                capture_output=True,
-            )
-            stderr = proc.stderr.decode("utf-8", errors="replace")
-            self.assertEqual(proc.returncode, 0, stderr)
+            code, stderr = self._git_push(fixture, lane, "lane")
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("no stack checker reachable", stderr)
             args = self._args(log)
             self.assertEqual(args["--repo"], "member")
             self.assertEqual(pathlib.Path(args["--member-path"]).resolve(), lane.resolve())
             self.assertEqual(args["--member-revision"], pushed)
+            self.assertEqual(args["--baseline-rev"], stack_head)
+
+    def test_a_deletion_only_push_is_not_judged(self) -> None:
+        """No commit is pushed, so nothing -- `HEAD` least of all -- is scanned."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, log, _, _, pushed = self._stack(temp, 1)
+            code, stderr = fixture.run_hook(
+                f"(delete) {ZERO} refs/heads/feat {pushed}\n"
+            )
+            self.assertFalse(log.is_file())
+            self.assertIn("carries no commits", stderr)
+            self.assertNotIn("raises a debt class", stderr)
 
     def test_an_unregistered_checkout_is_not_gated(self) -> None:
         """No `repos/` entry shares this checkout's store, so it has no row."""
