@@ -637,7 +637,9 @@ def hook_commit(
     return git_in(repo, "commit-tree", tree, "-p", base, stdin=message.encode("utf-8"))
 
 
-def push_hook_branch(repo: Path, commit: str, branch: str) -> None:
+def push_hook_branch(
+    repo: Path, commit: str, branch: str, pre_push_hook: bytes
+) -> None:
     """Update the publication branch under a freshly observed explicit lease."""
     ref = f"refs/heads/{branch}"
     listing = git_bytes(repo, "ls-remote", "--heads", "origin", ref)
@@ -663,14 +665,23 @@ def push_hook_branch(repo: Path, commit: str, branch: str) -> None:
             )
         if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", expected) is None:
             raise RuntimeError(f"git ls-remote returned a malformed object ID for {ref}")
-    git_in(
-        repo,
-        "push",
-        "-q",
-        f"--force-with-lease={ref}:{expected}",
-        "origin",
-        f"{commit}:{ref}",
-    )
+    # A member checkout may hold an older or dirty .githooks copy. Select the
+    # committed source hook for this push only; Git still invokes it normally
+    # with the pushed ref range on stdin.
+    with tempfile.TemporaryDirectory(prefix="atlas-pre-push-") as temporary:
+        hook_path = Path(temporary) / "pre-push"
+        hook_path.write_bytes(pre_push_hook)
+        hook_path.chmod(0o755)
+        git_in(
+            repo,
+            "-c",
+            f"core.hooksPath={temporary}",
+            "push",
+            "-q",
+            f"--force-with-lease={ref}:{expected}",
+            "origin",
+            f"{commit}:{ref}",
+        )
 
 
 def pull_request_for(
@@ -756,6 +767,15 @@ def cmd_publish_hooks(args) -> int:
         print(f"invalid committed hook source {source_ref!r}: {error}", file=sys.stderr)
         return 2
     hooks = committed_hooks(ROOT, source_commit)
+    pre_push_hook = next(
+        (content for name, content in hooks if name == "pre-push"), None
+    )
+    if not pre_push_hook:
+        print(
+            f"committed hook source {source_commit} has no non-empty pre-push gate",
+            file=sys.stderr,
+        )
+        return 2
     source = git_in(ROOT, "rev-parse", "--short", source_commit)
     subject = "ci: Sync the stack-owned git hooks"
     message = (
@@ -779,7 +799,7 @@ def cmd_publish_hooks(args) -> int:
                 print(f"would publish: {member} onto {default}")
                 continue
             branch = PUBLISH_BRANCH
-            push_hook_branch(repo, commit, branch)
+            push_hook_branch(repo, commit, branch, pre_push_hook)
             url, created = pull_request_for(
                 repo,
                 branch,

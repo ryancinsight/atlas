@@ -390,6 +390,86 @@ class NewBranchRangeTestCase(unittest.TestCase):
     skipped on precisely the pushes that needed it.
     """
 
+    def test_force_updated_publication_branch_uses_current_default_base(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-force-update-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            root = fixture.root
+            branch = "ci/sync-stack-hooks"
+
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "old-publication"],
+                check=True,
+            )
+            _write(root / "old-hook.txt", "previous published hook\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "add", "old-hook.txt"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-m", "old publication"],
+                check=True,
+            )
+            old_publication = _git(root, "rev-parse", "HEAD")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "push", "-q", "origin",
+                 f"{old_publication}:refs/heads/{branch}"],
+                check=True,
+            )
+
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "main"],
+                check=True,
+            )
+            with (root / "Cargo.toml").open("a", encoding="utf-8") as manifest:
+                manifest.write("\n# unrelated default-branch update\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-am", "default update"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "push", "-q", "origin", "main"],
+                check=True,
+            )
+            subprocess.run(["git", "-C", str(root), "fetch", "-q", "origin"], check=True)
+            subprocess.run(
+                ["git", "-C", str(root), "remote", "set-head", "origin", "--auto"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "rebuilt",
+                 "origin/main"],
+                check=True,
+            )
+            _write(root / "new-hook.txt", "rebuilt hook\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "add", "new-hook.txt"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-m", "rebuilt publication"],
+                check=True,
+            )
+            desired = _git(root, "rev-parse", "HEAD")
+            self.assertNotEqual(
+                subprocess.run(
+                    [
+                        "git", "-C", str(root), "merge-base", "--is-ancestor",
+                        old_publication, desired,
+                    ],
+                    capture_output=True,
+                ).returncode,
+                0,
+            )
+            push_line = (
+                f"refs/heads/{branch} {desired} refs/heads/{branch} {old_publication}\n"
+            )
+
+            code, stderr = fixture.run_hook(push_line)
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("no Cargo.lock or Cargo.toml in the pushed range", stderr)
+            self.assertFalse(fixture.lockfile_calls.exists())
+
     def test_new_branch_manifest_push_runs_lockfile_check(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture(pathlib.Path(temp))
