@@ -2,12 +2,6 @@
 
 <!-- Compacted 2026-09-21 under the 1,000-line board budget: a board is a queue, never a ledger, so closed sections and delivery narrative are gone -- the record of a closed item is the PR that closed it and its `Item:` trailer. Live items, open checkboxes, anchors and open-marked findings are kept. Recover removed narrative with `git log -p -- <this file>`. -->
 
-## Tier 3 — mechanical floor and stack hygiene
-
-| ID | Outcome | Class | Acceptance oracle |
-| --- | --- | --- | --- |
-| ATLAS-GITLINK-DRIFT-056 | Provider gitlinks must match each registered member's current default. This sweep advances CFDrs to `b2a0d282cad1064050b3a56e4a50552a13f1c5f3`, Apollo to `5a2895f9511a5342f26a4fb70fed0c3dbdcdf2df`, Consus to `179b0f1a5d749d5d89b094962363b253a2d6a692`, Eunomia to `487afa6247623329e2f95ccd1e57dbc2e66ec74f`, Gaia to `40a3b7ce87dd76f57c88b671f17d33bc17c31859`, Helios to `c2a1c23e58c9dace979e94fc0d5e7d413fad689e`, Kwavers to `be114df86f5196339d513a383ac94871d1246224`, Leto to `9242dbf1ccf9e3f059d7fc80ece813059c59ca8f`, Melinoe to `1d45f7e960a66232fd20340a3a292cdcb85e8e16`, Themis to `481b03b22b05b95af5e3600e4487dd5c7ded38c9`, while Metis remains at `1b10541c2ef7a849e6ff66a3c778874bdf96de7b` and RITK is advanced to `29c51440ad4d33ab4109dd665683b7ef5bf45198`. Moirai remains at reachable clean pin `b77239dd10bcaf803394c26255c462bc858c1340` because current default `29b129659f368fcbc3168103302cfc545411e642` raises `oversized_files` 33 -> 35; the provider repair is the re-open trigger. | [patch] | All advanceable members match fetched defaults and remain within the committed conformance baseline; Moirai has the sole named provider-owned waiver and re-open trigger; delivery: PR [#237](https://github.com/ryancinsight/atlas/pull/237), corrective pin delivery PR [#238](https://github.com/ryancinsight/atlas/pull/238); the committed pin-drift check passes |
-
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — in-progress
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — in-progress
