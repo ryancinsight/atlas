@@ -16,6 +16,7 @@ import pathlib
 import shutil
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -264,6 +265,7 @@ class GateFixture:
             json.dumps(
                 {
                     "packages": packages,
+                    "target_directory": str((workspace_root / "target").resolve()),
                     "workspace_members": [package["id"] for package in packages],
                 }
             ),
@@ -1439,6 +1441,15 @@ class DebtRatchetTestCase(unittest.TestCase):
             f"sys.exit({exit_code})\n",
             executable=True,
         )
+        identity_log = stack / "identity-args.log"
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            "#!/usr/bin/env python3\n"
+            "import pathlib, sys\n"
+            f"pathlib.Path({str(identity_log)!r}).write_text('\\n'.join(sys.argv[1:]))\n"
+            "sys.exit(0)\n",
+            executable=True,
+        )
         _git_init_repo(stack)
         subprocess.run(["git", "-C", str(stack), *_IDENT, "add", "scripts"], check=True)
         subprocess.run(
@@ -1527,6 +1538,7 @@ class DebtRatchetTestCase(unittest.TestCase):
             env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
             # The fixture's package metadata names the main tree, so the
             # compile gate is out of scope here; the ratchet precedes it and
+
             # is not one of the steps this variable skips.
             env["SKIP_LOCAL_GATE"] = "1"
             proc = subprocess.run(
@@ -1551,3 +1563,206 @@ class DebtRatchetTestCase(unittest.TestCase):
             self.assertFalse(log.is_file())
             self.assertEqual(code, 0, stderr)
             self.assertIn("not a registered stack member", stderr)
+
+
+class SourceIdentityHookTestCase(unittest.TestCase):
+    def _fixture(self) -> tuple[GateFixture, pathlib.Path, pathlib.Path, pathlib.Path]:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-identity-hook-")
+        self.addCleanup(temp.cleanup)
+        stack = pathlib.Path(temp.name) / "stack"
+        scripts = stack / "scripts"
+        scripts.mkdir(parents=True)
+        source_scripts = SCRIPT.parents[1]
+        for name in (
+            "atlas-build-identity.py",
+            "atlas_build_artifacts.py",
+            "atlas_build_identity.py",
+            "atlas_build_lease.py",
+        ):
+            shutil.copy2(source_scripts / name, scripts / name)
+        _write(
+            scripts / "atlas-conformance.py",
+            "#!/usr/bin/env python3\n# accepts --member-revision\nimport sys\nsys.exit(0)\n",
+            executable=True,
+        )
+        _git_init_repo(stack)
+        subprocess.run(["git", "-C", str(stack), *_IDENT, "add", "scripts"], check=True)
+        subprocess.run(
+            ["git", "-C", str(stack), *_IDENT, "commit", "-q", "-m", "stack"],
+            check=True,
+        )
+        stack_head = _git(stack, "rev-parse", "HEAD")
+        _git(stack, "update-ref", "refs/remotes/origin/main", stack_head)
+        fixture = GateFixture(stack / "repos" / "member")
+        target = fixture.root.parent / "shared-target"
+        metadata_path = fixture.bin / "metadata.json"
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata["target_directory"] = str(target.resolve())
+        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+        calls = fixture.root.parent / "cargo-calls.log"
+        artifact = target / "debug" / "deps" / "libfoo-identity.rlib"
+        unrelated = target / "debug" / "deps" / "libunrelated-identity.rlib"
+        unrelated.parent.mkdir(parents=True)
+        unrelated.write_text("unrelated", encoding="utf-8")
+        cargo = f'''#!/usr/bin/env bash
+set -e
+if [ "$1" = "metadata" ]; then
+  cat "{fixture.bin / 'metadata.json'}"
+  exit 0
+fi
+printf '%s\\n' "$*" >> "{calls}"
+if [ "$1" = "clean" ]; then
+  rm -f "{artifact}"
+  exit 0
+fi
+case "$1" in
+  clippy|nextest|doc)
+    mkdir -p "{artifact.parent}"
+    printf '%s\\n' "${{IDENTITY_TOKEN:-built}}" > "{artifact}"
+    ;;
+esac
+exit 0
+'''
+        cargo_path = fixture.bin / "cargo"
+        _write(cargo_path, cargo, executable=True)
+        _write(
+            fixture.bin / "cargo.cmd",
+            f'@echo off\nbash "{cargo_path.as_posix()}" %*\n',
+        )
+        rustc_path = fixture.bin / "rustc"
+        _write(
+            rustc_path,
+            "#!/usr/bin/env bash\nprintf 'rustc 1.95.0\\n'\n",
+            executable=True,
+        )
+        _write(
+            fixture.bin / "rustc.cmd",
+            f'@echo off\nbash "{rustc_path.as_posix()}" %*\n',
+        )
+        return fixture, calls, artifact, unrelated
+
+    def _source_push(self, fixture: GateFixture, token: str) -> str:
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "-b", "feat"],
+            check=True,
+        )
+        (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+            f"pub fn f() {{}} // {token}\n", encoding="utf-8"
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "add", "crates/foo/src/lib.rs"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", token],
+            check=True,
+        )
+        return fixture.push_line_new_branch("feat")
+
+    def _run(self, fixture: GateFixture, push: str, token: str) -> tuple:
+        return fixture.run_hook(
+            push,
+            {
+                "CARGO": str(fixture.bin / "cargo.cmd"),
+                "RUSTC": str(fixture.bin / "rustc.cmd"),
+                "IDENTITY_TOKEN": token,
+            },
+        )
+
+    def test_source_transition_cleans_once_and_reuses_the_scope(self) -> None:
+        fixture, calls, artifact, unrelated = self._fixture()
+        push = self._source_push(fixture, "source-a")
+        code, stderr = self._run(fixture, push, "source-a")
+        self.assertEqual(code, 0, stderr)
+        self.assertEqual(artifact.read_text(encoding="utf-8").strip(), "source-a")
+        self.assertEqual(unrelated.read_text(encoding="utf-8"), "unrelated")
+        first_calls = calls.read_text(encoding="utf-8")
+        self.assertEqual(first_calls.count("clean -p foo"), 1)
+        self.assertIn("clippy -p foo", first_calls)
+        self.assertIn("doc --no-deps -p foo", first_calls)
+
+        (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+            "pub fn f() {} // source-b\n", encoding="utf-8"
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-qam", "source-b"],
+            check=True,
+        )
+        code, stderr = self._run(
+            fixture, fixture.push_line_new_branch("feat"), "source-b"
+        )
+        self.assertEqual(code, 0, stderr)
+        self.assertEqual(artifact.read_text(encoding="utf-8").strip(), "source-b")
+        self.assertEqual(unrelated.read_text(encoding="utf-8"), "unrelated")
+        self.assertEqual(calls.read_text(encoding="utf-8").count("clean -p foo"), 2)
+
+    def test_linked_worktree_passes_the_member_manifest(self) -> None:
+        fixture, calls, _, _ = self._fixture()
+        self._source_push(fixture, "lane-source")
+        lane = fixture.root.parent.parent / "worktrees" / "member-lane"
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "worktree", "add", "-q", "-b", "lane", str(lane), "feat"],
+            check=True,
+        )
+        pushed = _git(lane, "rev-parse", "HEAD")
+        push = f"refs/heads/lane {pushed} refs/heads/lane {ZERO}\n"
+        code, stderr = self._run(fixture, push, "lane-source")
+        self.assertEqual(code, 0, stderr)
+        self.assertIn("--manifest-path", calls.read_text(encoding="utf-8"))
+
+    def test_live_owner_blocks_before_cleaning(self) -> None:
+        fixture, calls, artifact, unrelated = self._fixture()
+        self._source_push(fixture, "source-a")
+        code, stderr = self._run(
+            fixture, fixture.push_line_new_branch("feat"), "source-a"
+        )
+        self.assertEqual(code, 0, stderr)
+        calls_before = calls.read_text(encoding="utf-8")
+        scripts = SCRIPT.parents[1]
+        holder_code = (
+            "import sys\n"
+            f"sys.path.insert(0, {str(scripts)!r})\n"
+            "from pathlib import Path\n"
+            "from atlas_build_identity import OwnerLease, build_spec, lease_path\n"
+            f"root = Path({str(fixture.root)!r})\n"
+            f"target = Path({str(fixture.root.parent / 'shared-target')!r})\n"
+            "spec = build_spec(root, 'foo', target, 'debug', 'host', '', "
+            "['cargo', 'clippy', '-p', 'foo', '--all-targets'], command_key='atlas-pre-push:foo')\n"
+            f"lease = OwnerLease(lease_path(spec), {{'root': str(root), 'revision': 'held', "
+            "'package': 'foo', 'target_dir': str(target)}, 60)\n"
+            "with lease:\n"
+            "    print('ready', flush=True)\n"
+            "    sys.stdin.read()\n"
+        )
+        env = dict(os.environ)
+        env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+        env["CARGO"] = str(fixture.bin / "cargo.cmd")
+        env["RUSTC"] = str(fixture.bin / "rustc.cmd")
+        holder = subprocess.Popen(
+            [sys.executable, "-c", holder_code],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
+        try:
+            self.assertEqual(holder.stdout.readline().strip(), "ready")
+            code, stderr = self._run(
+                fixture, fixture.push_line_new_branch("feat"), "intruder"
+            )
+            self.assertEqual(code, 1)
+            self.assertIn("source identity blocked", stderr)
+            calls_after = calls.read_text(encoding="utf-8")
+            for command in ("clean -p foo", "clippy -p foo", "nextest run -p foo", "doc --no-deps -p foo"):
+                self.assertEqual(
+                    calls_after.count(command), calls_before.count(command), command
+                )
+            self.assertEqual(artifact.read_text(encoding="utf-8").strip(), "source-a")
+            self.assertEqual(unrelated.read_text(encoding="utf-8"), "unrelated")
+        finally:
+            holder.terminate()
+            holder.wait(timeout=30)
+            for stream in (holder.stdin, holder.stdout, holder.stderr):
+                if stream is not None:
+                    stream.close()

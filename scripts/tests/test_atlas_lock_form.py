@@ -455,6 +455,35 @@ class HookDeploymentTestCase(unittest.TestCase):
                     _lock_form.cmd_sync_hooks(Namespace(members=[], check=True)), 0
                 )
 
+    def test_selected_hook_does_not_touch_other_owned_hooks(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as temp:
+            repos = Path(temp)
+            (repos / "alpha" / ".githooks").mkdir(parents=True)
+            (repos / "alpha" / ".githooks" / "pre-push").write_bytes(b"previous\n")
+            (repos / "alpha" / ".githooks" / "pre-commit").write_bytes(b"commit\n")
+            with patch.object(_lock_form, "REPOS", repos), patch.object(
+                _lock_form, "registered_member_names", return_value=["alpha"]
+            ):
+                self.assertEqual(
+                    _lock_form.cmd_sync_hooks(
+                        Namespace(members=["alpha"], check=False, hook="pre-push")
+                    ),
+                    0,
+                )
+                self.assertEqual(
+                    (repos / "alpha/.githooks/pre-push").read_bytes(),
+                    (SCRIPT.parent / "git-hooks/pre-push").read_bytes(),
+                )
+                self.assertEqual(
+                    (repos / "alpha/.githooks/pre-commit").read_bytes(), b"commit\n"
+                )
+                self.assertEqual(
+                    _lock_form.cmd_sync_hooks(
+                        Namespace(members=["alpha"], check=False, hook="missing")
+                    ),
+                    2,
+                )
+
     def test_unknown_member_is_rejected_before_writing(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as temp:
             repos = Path(temp)

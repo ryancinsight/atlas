@@ -459,7 +459,13 @@ def cmd_sync_hooks(args) -> int:
     writing, which is what CI runs.
     """
     source_dir = Path(__file__).resolve().parent / "git-hooks"
-    hooks = sorted(p for p in source_dir.iterdir() if p.is_file())
+    hook_filter = getattr(args, "hook", None)
+    if hook_filter and not (source_dir / hook_filter).is_file():
+        print(f"hook not found: {hook_filter}")
+        return 2
+    hooks = sorted(
+        p for p in source_dir.iterdir() if p.is_file() and (not hook_filter or p.name == hook_filter)
+    )
     members = member_scope(args.members)
     if members is None:
         return 2
@@ -822,6 +828,7 @@ def main() -> int:
     sync.add_argument("members", nargs="*", help="registered members; defaults to all")
     sync.add_argument("--check", action="store_true",
                       help="report drift instead of writing")
+    sync.add_argument("--hook", help="sync only this owned hook")
     sync.set_defaults(func=cmd_sync_hooks)
     publish = sub.add_parser("publish-hooks")
     publish.add_argument("members", nargs="*", help="registered members; defaults to all")
