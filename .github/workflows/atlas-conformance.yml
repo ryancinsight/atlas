@@ -23,6 +23,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.gitmodules'
       - 'repos/**'
       - 'docs/adr/**'
       - 'scripts/**'
@@ -121,6 +122,13 @@ jobs:
         # malformed-workflow class needs PyYAML and degrades to zero without it.
         run: python3 -m pip install --quiet -r scripts/requirements-test.txt
 
+      - name: Setup recorded consumer toolchain
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          channel=$(python3 -c 'import tomllib; print(tomllib.load(open("repos/aequitas/rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$channel" --profile minimal
+
       - name: Conformance check (ratchet must hold)
         shell: bash
         env:
@@ -169,7 +177,7 @@ jobs:
         shell: bash
         run: python3 scripts/atlas-book-gate-audit.py --check
 
-      - name: Book gate audit regression tests
+      - name: Script regression tests
         shell: bash
         # The whole suite under its own runner (pytest.ini, requirements-test.txt);
         # the previous single-file unittest call gated 1 of 35 files. No pipe on
@@ -339,15 +347,24 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Setup recorded consumer toolchain
+        if: steps.scope.outputs.run == 'true' && github.event_name == 'schedule'
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          channel=$(python3 -c 'import tomllib; print(tomllib.load(open("repos/aequitas/rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$channel" --profile minimal
+
       - name: Pins within one sweep of their members' defaults
         if: steps.scope.outputs.run == 'true'
+        timeout-minutes: 5
         shell: bash
         # Redirect-then-cat, not a pipe: the default shell has no pipefail, so
         # piping to tee would report tee's status and this gate could not fail.
         # Same trap the conformance step above documents.
         run: |
           set +e
-          python3 scripts/atlas-pin-drift.py > "$RUNNER_TEMP/pin-drift.log" 2>&1
+          python3 scripts/atlas-pin-drift.py --timeout 20 --jobs 8 > "$RUNNER_TEMP/pin-drift.log" 2>&1
           status=$?
           set -e
           cat "$RUNNER_TEMP/pin-drift.log"
@@ -362,10 +379,35 @@ jobs:
           fi
           exit "$status"
 
+      - name: Compile recorded Aequitas -> Eunomia pins
+        if: always() && steps.scope.outputs.run == 'true' && github.event_name == 'schedule'
+        timeout-minutes: 6
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/atlas-pin-compile.py > "$RUNNER_TEMP/pin-compile.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/pin-compile.log"
+          if [ "$status" -eq 2 ]; then
+            echo "::error::The recorded Aequitas/Eunomia pair could not be measured; the compile gate did not pass."
+          elif [ "$status" -ne 0 ]; then
+            echo "::error::The recorded Aequitas/Eunomia pair is compile-incompatible."
+          fi
+          exit "$status"
+
       - name: Upload pin-drift log artefact
         if: always() && steps.scope.outputs.run == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pin-drift-log
           path: ${{ runner.temp }}/pin-drift.log
+          if-no-files-found: ignore
+
+      - name: Upload pin-compile log artefact
+        if: always() && steps.scope.outputs.run == 'true' && github.event_name == 'schedule'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pin-compile-log
+          path: ${{ runner.temp }}/pin-compile.log
           if-no-files-found: ignore
