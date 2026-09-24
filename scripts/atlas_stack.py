@@ -12,13 +12,13 @@ count without naming (AGENTS.md architecture_scoping: "Private consumers",
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 from pathlib import Path
 
+from atlas_git_process import GitProcessError, execute as execute_git
+
 ROOT = Path(__file__).resolve().parent.parent
-MEMBER_ROOT = ROOT / "repos"
 TOOL_ROOT = ROOT / "tools"
 
 
@@ -42,27 +42,42 @@ def run_tool(
     return subprocess.run(command, cwd=workspace, check=False, **run_options)
 
 
-def registered_member_names() -> set[str]:
-    gm = ROOT / ".gitmodules"
-    if not gm.is_file():
-        return set()
-    return {
-        m.group(1)
-        for m in re.finditer(
-            r"path\s*=\s*repos/([^\s/]+)", gm.read_text(errors="replace")
+def registered_member_names(
+    repo: Path | None = None, revision: str | None = None
+) -> set[str]:
+    repository = ROOT if repo is None else repo
+    if revision is None:
+        modules = repository / ".gitmodules"
+        if not modules.is_file():
+            return set()
+        text = modules.read_text(errors="replace")
+    else:
+        result = execute_git(
+            repository,
+            ("show", f"{revision}:.gitmodules"),
+            timeout=30,
         )
+        if result.returncode:
+            detail = result.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(detail or f"cannot read .gitmodules at {revision}")
+        text = result.stdout.decode("utf-8", errors="replace")
+    return {
+        match.group(1)
+        for match in re.finditer(r"path\s*=\s*repos/([^\s/]+)", text)
     }
 
 
-def registered_members() -> list[Path]:
+def registered_members(repo: Path | None = None) -> list[Path]:
+    repository = ROOT if repo is None else repo
+    member_root = repository / "repos"
     return [
-        MEMBER_ROOT / name
-        for name in sorted(registered_member_names())
-        if (MEMBER_ROOT / name).is_dir()
+        member_root / name
+        for name in sorted(registered_member_names(repository))
+        if (member_root / name).is_dir()
     ]
 
 
-def member_pins() -> dict[str, str]:
+def member_pins(repo: Path | None = None) -> dict[str, str]:
     """Registered member -> the gitlink SHA ``HEAD`` records for it.
 
     The pin, never the checkout. A member is routinely parked on a feature
@@ -76,54 +91,40 @@ def member_pins() -> dict[str, str]:
     and a census that moves when somebody else runs ``git add`` turns the gate
     into noise. In CI the index and ``HEAD`` coincide on a fresh checkout, so
     the gate means the same thing there; locally this keeps it stable until a
-    pin is actually committed.
+    pin is actually committed. ``repo`` selects another Atlas-shaped fixture
+    without duplicating gitlink parsing.
     """
-    out = subprocess.run(
-        # The trailing slash matters: `ls-tree HEAD -- repos` reports the
-        # `repos` tree entry itself, while `repos/` descends into it and
-        # yields the 28 gitlink entries.
-        ["git", "-C", str(ROOT), "ls-tree", "HEAD", "--", "repos/"],
-        capture_output=True,
-        encoding="utf-8",
-        errors="replace",
-        env=clean_git_env(),
-    ).stdout
+    repository = ROOT if repo is None else repo
+    result = execute_git(
+        repository,
+        ("ls-tree", "HEAD", "--", "repos/"),
+        timeout=30,
+    )
+    if result.returncode:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"cannot read member pins from {repository}")
+    registered = registered_member_names(repository, "HEAD")
     pins: dict[str, str] = {}
-    for line in out.splitlines():
+    for line in result.stdout.decode("utf-8", errors="replace").splitlines():
         meta, _, path = line.partition("\t")
         fields = meta.split()
         if len(fields) != 3 or fields[0] != "160000":
             continue
         parts = path.split("/")
-        if len(parts) == 2 and parts[0] == "repos":
+        if len(parts) == 2 and parts[0] == "repos" and parts[1] in registered:
             pins[parts[1]] = fields[2]
     return pins
 
 
-def clean_git_env(env: dict[str, str] | None = None) -> dict[str, str]:
-    """Clear inherited repository selection for a Git call targeting another repo.
-
-    Configuration controls remain intact: they include caller-selected settings
-    and fixture isolation, not repository selection.
-    """
-    cleaned = (os.environ.copy() if env is None else env.copy())
-    for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
-        cleaned.pop(key, None)
-    return cleaned
-
-
 def git(repo: Path, *args: str) -> str:
-    # Explicit UTF-8: with `text=True` alone, Windows decodes as cp1252, a
-    # member manifest carrying an em dash raises in the reader thread, and
-    # `.stdout` silently becomes None. `errors="replace"` keeps a malformed
-    # byte from turning a whole read into absence.
-    return subprocess.run(
-        ["git", "-C", str(repo), *args],
-        capture_output=True,
-        encoding="utf-8",
-        errors="replace",
-        env=clean_git_env(),
-    ).stdout
+    try:
+        result = execute_git(repo, args, timeout=60)
+    except GitProcessError as exc:
+        raise RuntimeError(str(exc)) from exc
+    if result.returncode:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"git {' '.join(args)} failed in {repo}")
+    return result.stdout.decode("utf-8", errors="replace")
 
 
 def commits_behind_upstream(repo: Path) -> int:
@@ -142,7 +143,19 @@ def commits_behind_upstream(repo: Path) -> int:
     Zero when neither resolves, so a caller's note appears only when it
     means something.
     """
+    if not (repo / ".git").exists():
+        return 0
     for rev in ("@{upstream}", "origin/main"):
+        probe = execute_git(
+            repo,
+            ("rev-parse", "--verify", "--quiet", rev),
+            timeout=60,
+        )
+        if probe.returncode == 1:
+            continue
+        if probe.returncode:
+            detail = probe.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(detail or f"cannot resolve revision {rev} in {repo}")
         out = git(repo, "rev-list", "--count", f"HEAD..{rev}").strip()
         if out.isdigit():
             return int(out)
@@ -161,7 +174,17 @@ def staleness_note(repo: Path) -> str:
 
 
 def is_git_ignored(path: Path) -> bool:
-    return subprocess.run(
-        ["git", "-C", str(ROOT), "check-ignore", "-q", str(path.relative_to(ROOT))],
-        capture_output=True,
-    ).returncode == 0
+    try:
+        result = execute_git(
+            ROOT,
+            ("check-ignore", "-q", str(path.relative_to(ROOT))),
+            timeout=60,
+        )
+    except GitProcessError as exc:
+        raise RuntimeError(str(exc)) from exc
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    detail = result.stderr.decode("utf-8", errors="replace").strip()
+    raise RuntimeError(detail or "git check-ignore failed")

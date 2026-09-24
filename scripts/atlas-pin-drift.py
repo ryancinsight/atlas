@@ -47,12 +47,17 @@ import argparse
 import json
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from atlas_git_process import GitProcessError, execute as execute_git  # noqa: E402
-from atlas_stack import ROOT, clean_git_env  # noqa: E402
+from atlas_git_process import (  # noqa: E402
+    GitProcessError,
+    clean_process_env,
+    execute as execute_git,
+)
+from atlas_stack import ROOT  # noqa: E402
 
 WAIVERS = Path(__file__).resolve().parent / "pin-drift-waivers.json"
 WAIVER_FIELDS = ("member", "reason", "reopen")
@@ -100,6 +105,7 @@ FETCH_REFSPECS = tuple(fetch_refspec(branch) for branch in ("main", "master", "t
 # merge-then-sweep window.
 DEFAULT_MAX_BEHIND = 1
 DEFAULT_TIMEOUT_SECONDS = 120
+DEFAULT_JOBS = 8
 
 
 @dataclass(frozen=True)
@@ -121,7 +127,7 @@ def _text(result) -> str:
 
 
 def _git(repo: Path, *args: str, timeout: int):
-    return execute_git(repo, args, env=clean_git_env(), timeout=timeout)
+    return execute_git(repo, args, env=clean_process_env(), timeout=timeout)
 
 
 def member_urls(repo: Path, rev: str, timeout: int) -> dict[str, str]:
@@ -355,6 +361,12 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--member", action="append", default=None, help="restrict the scan to this member (repeatable)"
     )
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_SECONDS)
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=DEFAULT_JOBS,
+        help=f"members measured concurrently (default {DEFAULT_JOBS})",
+    )
     return parser.parse_args(argv)
 
 
@@ -370,9 +382,15 @@ def main(argv: list[str] | None = None) -> int:
         selected = sorted(set(urls) & set(gitlinks))
         if args.member:
             selected = [name for name in selected if name in set(args.member)]
-        readings = [
-            measure(repo, name, urls[name], gitlinks[name], args.timeout) for name in selected
-        ]
+        if args.jobs < 1:
+            raise ValueError("--jobs must be at least 1")
+
+        def read_member(name: str) -> Reading:
+            return measure(repo, name, urls[name], gitlinks[name], args.timeout)
+
+        workers = min(args.jobs, len(selected)) or 1
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            readings = list(executor.map(read_member, selected))
     except (GitProcessError, OSError, UnicodeError, ValueError) as exc:
         print(f"atlas-pin-drift: ERROR - {exc}")
         return 2
