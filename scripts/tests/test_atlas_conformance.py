@@ -2105,6 +2105,12 @@ class RefDriftBoundTests(unittest.TestCase):
         "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid",
         "GIT_CONFIG_NOSYSTEM": "1", "HOME": tempfile.gettempdir(),
         "PATH": __import__("os").environ["PATH"],
+        # Fixed dates make every fixture sha the same on every run. With
+        # clock dates a cited 9-character prefix was all digits about 1.5% of
+        # the time, which the citation pattern rightly does not read as a
+        # hash, and the expected count came out one short.
+        "GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z",
+        "GIT_COMMITTER_DATE": "2026-01-01T00:00:00Z",
     }
     CLS = conformance.REF_DRIFT_CLASS
 
@@ -2134,6 +2140,10 @@ class RefDriftBoundTests(unittest.TestCase):
         self._git(repo, "switch", "-q", "-c", "feature")
         orphan = self._commit(repo, "feature.txt", "feature\n")
         self._git(repo, "switch", "-q", "main")
+        self.assertRegex(
+            orphan[:9], conformance.board_lint.HASH_PATTERN,
+            "the fixture cites this prefix, so it must read as a hash",
+        )
         return orphan
 
     def _stack(self) -> tuple[str, str, str]:
