@@ -1429,15 +1429,20 @@ class DebtRatchetTestCase(unittest.TestCase):
     ) -> tuple:
         stack = pathlib.Path(temp)
         log = stack / "conformance-args.log"
-        marker = "# accepts --member-revision\n" if revision_scans else ""
+        # The stack's committed checker: it logs the stack it was told to
+        # measure, then its arguments, one per line.
         _write(
             stack / "scripts" / "atlas-conformance.py",
             "#!/usr/bin/env python3\n"
-            + marker
-            + "import pathlib, sys\n"
-            f"pathlib.Path({str(log)!r}).write_text('\\n'.join(sys.argv[1:]))\n"
+            "import os, pathlib, sys\n"
+            f"pathlib.Path({str(log)!r}).write_text("
+            "'\\n'.join([os.environ.get('ATLAS_STACK_ROOT', ''), *sys.argv[1:]]))\n"
             f"sys.exit({exit_code})\n",
             executable=True,
+        )
+        _write(
+            stack / "scripts" / "atlas_stack.py",
+            "ROOT = None  # honours ATLAS_STACK_ROOT\n" if revision_scans else "ROOT = None\n",
         )
         _git_init_repo(stack)
         subprocess.run(["git", "-C", str(stack), *_IDENT, "add", "scripts"], check=True)
@@ -1467,10 +1472,10 @@ class DebtRatchetTestCase(unittest.TestCase):
 
     @staticmethod
     def _args(log: pathlib.Path) -> dict:
-        argv = log.read_text().split("\n")
+        stack_root, *argv = log.read_text().split("\n")
         return {flag: argv[argv.index(flag) + 1] for flag in (
             "--repo", "--member-path", "--member-revision", "--baseline-rev", "--drift-base",
-        )} | {"mode": argv[0]}
+        )} | {"mode": argv[0], "ATLAS_STACK_ROOT": stack_root}
 
     def test_the_pushed_tip_is_judged_against_the_committed_baseline(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -1479,6 +1484,9 @@ class DebtRatchetTestCase(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             args = self._args(log)
             self.assertEqual(args["mode"], "check")
+            self.assertEqual(
+                pathlib.Path(args["ATLAS_STACK_ROOT"]).resolve(), pathlib.Path(temp).resolve()
+            )
             self.assertEqual(args["--repo"], "member")
             self.assertEqual(
                 pathlib.Path(args["--member-path"]).resolve(), fixture.root.resolve()
@@ -1511,7 +1519,29 @@ class DebtRatchetTestCase(unittest.TestCase):
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
             self.assertFalse(log.is_file())
             self.assertEqual(code, 0, stderr)
-            self.assertIn("predates --member-revision", stderr)
+            self.assertIn("predates revision scans", stderr)
+
+    def test_the_committed_checker_runs_not_the_stack_checkout_s(self) -> None:
+        """The stack tree on a peer's branch or dirty never picks the checker."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, log, _, _, _ = self._stack(temp, 0)
+            stray = pathlib.Path(temp) / "stray.log"
+            _write(
+                pathlib.Path(temp) / "scripts" / "atlas-conformance.py",
+                "import pathlib, sys\n"
+                f"pathlib.Path({str(stray)!r}).write_text('ran')\n"
+                "sys.exit(1)\n",
+            )
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+            self.assertEqual(code, 0, stderr)
+            self.assertTrue(log.is_file())
+            self.assertFalse(stray.exists(), "the working-tree checker ran")
+            # A second push reuses the extracted revision.
+            cache = pathlib.Path(temp) / ".git" / "atlas-checker"
+            self.assertEqual(len([p for p in cache.iterdir() if p.is_dir()]), 1)
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(len([p for p in cache.iterdir() if p.is_dir()]), 1)
 
     def test_a_lane_is_judged_as_its_registered_member(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
