@@ -28,7 +28,7 @@
     "orphan_modules": 0,
     "oversized_files": 0,
     "oversized_tracked_images": 0,
-    "pm_lines_over_budget": 16,
+    "pm_lines_over_budget": 15,
     "print_dbg": 0,
     "pull_request_target_use": 0,
     "reexport_shims": 0,

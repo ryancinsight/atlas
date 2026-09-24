@@ -50,7 +50,7 @@ repos/coeus/crates/coeus-leto/src/dispatch/structural.rs:148:13  # coeus
 repos/coeus/crates/coeus-leto/src/dispatch/structural.rs:186:13  # coeus
 repos/coeus/crates/coeus-python/src/ops/shape.rs:220:17  # coeus
 repos/coeus/crates/coeus-python/src/ops/statistics.rs:246:24  # coeus
-repos/consus/crates/consus-hdf5/src/file/writer.rs:2014:22  # consus
+repos/consus/crates/consus-hdf5/src/file/writer/builder.rs:47:22  # consus
 repos/consus/crates/consus-hdf5/src/heap/global.rs:268:13  # consus
 repos/consus/crates/consus-mat/src/v5/matrix.rs:292:33  # consus
 repos/consus/crates/consus-nwb/src/model/units.rs:45:27  # consus
