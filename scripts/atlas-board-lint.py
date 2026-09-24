@@ -443,7 +443,11 @@ def count_unresolved(repo: pathlib.Path, stores: list[pathlib.Path]) -> int:
 BOARD_STATUSES = frozenset({"todo", "blocked"})
 ITEM_HEADING = re.compile(r"^#{2,3}\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)(.*)$")
 STATUS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_]*status[*_]*\s*[:=]\s*[*_`]*\s*([a-z][a-z-]*)")
-PRIORITY_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_`]*priority[*_`]*\s*[:=]")
+# A priority is a field of its own line or of a `;`-separated field line
+# (`- Status: todo; priority: tightening; needs: none`, the form every metis
+# item uses); reading only the first form counted metis's prioritized items
+# as unprioritized.
+PRIORITY_LINE = re.compile(r"(?i)^\s*[-*]?\s*(?:[^;\n]*;\s*)*[*_`]*priority[*_`]*\s*[:=]")
 BASIS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_`]*basis[*_`]*\s*[:=]")
 STATUS_WORD = re.compile(r"[A-Za-z][A-Za-z-]*")
 AGING_DAYS = 30
