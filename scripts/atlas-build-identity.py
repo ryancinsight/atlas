@@ -23,11 +23,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         command.add_argument("--profile", default="debug")
         command.add_argument("--target", default="host")
         command.add_argument("--features", default="")
+        command.add_argument("--manifest", type=Path, required=True)
         command.add_argument("--artifact", type=Path, action="append", default=[])
+        command.add_argument("command", nargs=argparse.REMAINDER)
         if mode == "run":
-            command.add_argument("--manifest", type=Path, required=True)
             command.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_SECONDS)
-            command.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
     try:
         if args.mode == "check":
@@ -39,6 +39,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.target,
                 args.features,
                 args.artifact,
+                args.manifest,
+                args.command,
             )
             print(json.dumps(value, sort_keys=True))
             return code

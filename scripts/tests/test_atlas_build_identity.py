@@ -9,7 +9,6 @@ import os
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -18,6 +17,7 @@ from unittest.mock import patch
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas_build_identity.py"
 SPEC = importlib.util.spec_from_file_location("atlas_build_identity", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
+sys.path.insert(0, str(SCRIPT.parent))
 identity = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = identity
 SPEC.loader.exec_module(identity)
@@ -71,7 +71,10 @@ class BuildIdentityTestCase(unittest.TestCase):
             "from pathlib import Path\n"
             "path = Path(os.environ['ARTIFACT'])\n"
             "path.parent.mkdir(parents=True, exist_ok=True)\n"
-            "path.write_text(os.environ['SOURCE_TOKEN'], encoding='utf-8')\n",
+            "path.write_text(os.environ['SOURCE_TOKEN'], encoding='utf-8')\n"
+            "mutate = os.environ.get('MUTATE_SOURCE')\n"
+            "if mutate:\n"
+            "    Path(mutate).write_text('changed during build\\n', encoding='utf-8')\n",
         )
         write_script(
             self.clean_script,
@@ -142,6 +145,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 "demo",
                 self.target,
                 artifact_paths=[self.artifact],
+                command=[sys.executable, str(self.build_script)],
             )
         self.assertEqual(code, 0)
         self.assertEqual(value["status"], "match")
@@ -164,24 +168,30 @@ class BuildIdentityTestCase(unittest.TestCase):
         with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
             spec = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
         lock = identity.lease_path(spec)
-        lock.parent.mkdir(parents=True, exist_ok=True)
-        lock.write_text(
-            json.dumps(
-                {
-                    "root": "other-source",
-                    "revision": "other-revision",
-                    "package": "demo",
-                    "expires_ns": time.time_ns() + 60_000_000_000,
-                }
-            ),
-            encoding="utf-8",
+        lease = identity.OwnerLease(
+            lock,
+            {"root": "other-source", "revision": "other-revision", "package": "demo"},
+            60,
         )
-        self.clean_log.unlink()
-        with self.assertRaises(identity.IdentityError):
-            self.build(source_token="intruder")
-        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "owner")
-        self.assertFalse(self.clean_log.exists())
-        self.assertTrue(lock.exists())
+        lease.__enter__()
+        try:
+            self.clean_log.unlink()
+            with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+                code, value = identity.check_record(
+                    self.root,
+                    "demo",
+                    self.target,
+                    artifact_paths=[self.artifact],
+                    manifest=self.root / "Cargo.toml",
+                )
+            self.assertEqual(code, 3)
+            self.assertEqual(value["status"], "owned")
+            with self.assertRaises(identity.IdentityError):
+                self.build(source_token="intruder")
+            self.assertEqual(self.artifact.read_text(encoding="utf-8"), "owner")
+            self.assertFalse(self.clean_log.exists())
+        finally:
+            lease.__exit__(None, None, None)
 
     def test_an_expired_owner_is_recovered(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -195,7 +205,13 @@ class BuildIdentityTestCase(unittest.TestCase):
         )
         result = self.build(source_token="recovered")
         self.assertEqual(result.status, "rebuilt")
-        self.assertFalse(lock.exists())
+        self.assertFalse(identity.lease_is_held(lock))
+
+    def test_toolchain_identity_runs_in_the_source_root(self) -> None:
+        completed = subprocess.CompletedProcess(["rustc"], 0, "rustc 1.95.0\n", "")
+        with patch.object(identity.subprocess, "run", return_value=completed) as run:
+            self.assertEqual(identity.toolchain_identity(self.root), "rustc 1.95.0")
+        self.assertEqual(run.call_args.kwargs["cwd"], self.root)
 
     def test_a_dirty_tree_is_not_identified_by_revision_alone(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -204,6 +220,90 @@ class BuildIdentityTestCase(unittest.TestCase):
         after = identity.source_identity(self.root)
         self.assertTrue(after.dirty)
         self.assertNotEqual(before.tree_digest, after.tree_digest)
+
+    def test_source_changes_during_build_are_not_recorded(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        changed = self.root / "src/lib.rs"
+        with (
+            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.dict(
+                os.environ,
+                {
+                    "ARTIFACT": str(self.artifact),
+                    "SOURCE_TOKEN": "during",
+                    "CLEAN_LOG": str(self.clean_log),
+                    "MUTATE_SOURCE": str(changed),
+                },
+            ),
+            self.assertRaises(identity.IdentityError),
+        ):
+            identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                "demo",
+                self.target,
+                [sys.executable, str(self.build_script)],
+                artifact_paths=[self.artifact],
+                clean_command=[sys.executable, str(self.clean_script)],
+            )
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            spec = identity.build_spec(
+                self.root,
+                "demo",
+                self.target,
+                "debug",
+                "host",
+                "",
+                [sys.executable, str(self.build_script)],
+            )
+        self.assertFalse(identity.record_path(spec).exists())
+
+    def test_discovery_uses_target_triple_and_exact_package_name(self) -> None:
+        deps = self.target / "x86_64-unknown-linux-gnu" / "debug" / "deps"
+        deps.mkdir(parents=True)
+        wanted = deps / "libdemo-111.rlib"
+        similar = deps / "libdemo-tools-222.rlib"
+        executable = deps / "demo-333.exe"
+        for path in (wanted, similar, executable):
+            path.write_bytes(path.name.encode())
+        with patch.object(
+            identity,
+            "_workspace_package_names",
+            return_value=frozenset({"demo", "demo-tools"}),
+        ):
+            paths = identity.discover_artifacts(
+                self.target,
+                "demo",
+                "debug",
+                "x86_64-unknown-linux-gnu",
+                self.root / "Cargo.toml",
+            )
+        self.assertEqual(set(paths), {wanted.resolve(), executable.resolve()})
+
+    def test_malformed_records_fail_closed(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            spec = identity.build_spec(
+                self.root,
+                "demo",
+                self.target,
+                "debug",
+                "host",
+                "",
+                [sys.executable, str(self.build_script)],
+            )
+            record = identity.record_path(spec)
+            record.parent.mkdir(parents=True, exist_ok=True)
+            record.write_text('{"version": true}', encoding="utf-8")
+            with self.assertRaises(identity.IdentityError):
+                identity.check_record(
+                    self.root,
+                    "demo",
+                    self.target,
+                    artifact_paths=[self.artifact],
+                    manifest=self.root / "Cargo.toml",
+                    command=[sys.executable, str(self.build_script)],
+                )
 
     def test_artifact_paths_must_stay_inside_the_shared_target(self) -> None:
         init_repo(self.root, "fn main() {}\n")
