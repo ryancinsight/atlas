@@ -132,17 +132,25 @@ jobs:
       - name: Conformance check (ratchet must hold)
         shell: bash
         env:
-          # A pull request is bounded by its base tree re-measured under the
-          # same refs, so a member deleting a cited branch cannot fail every
-          # open pull request; the push run keeps the absolute bound and is
-          # where that drift is reported.
-          DRIFT_BASE: ${{ github.event.pull_request.base.sha }}
+          # Every change is bounded by the tree it replaced -- a pull
+          # request's base, or a push's previous `main` tip -- re-measured
+          # under the same refs, so a member deleting a cited branch fails
+          # nothing. unresolved_references is the one class that moves
+          # without a commit; ratcheting it raw failed every `main` push from
+          # 2026-09-24T17:22Z on over a helios branch sweep. The drift is
+          # annotated below, and `check` refuses an added citation that only a
+          # non-default branch reaches, so no change writes new drift. A manual
+          # dispatch has no base and keeps the absolute bound.
+          DRIFT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
+          # A push creating the branch reports an all-zero `before`.
+          case "$DRIFT_BASE" in *[!0]*) ;; *) DRIFT_BASE= ;; esac
           set +e
           python3 scripts/atlas-conformance.py check ${DRIFT_BASE:+--drift-base "$DRIFT_BASE"} > "$RUNNER_TEMP/conformance-check.log" 2>&1
           status=$?
           set -e
           cat "$RUNNER_TEMP/conformance-check.log"
+          sed -n 's/^REF DRIFT (outside this change): /::warning title=Cited commit orphaned::/p' "$RUNNER_TEMP/conformance-check.log"
           exit "$status"
         # `shell: bash` is load-bearing. GitHub's default `run` shell is
         # `bash -e {0}` WITHOUT pipefail, so the previous
