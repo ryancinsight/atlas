@@ -2095,10 +2095,9 @@ class RootAllowanceFollowsTheMemberTests(unittest.TestCase):
             self.assertEqual(carried, 1)
 
 
-class RefDriftBoundTests(unittest.TestCase):
-    """A pull request is judged on the citations it adds: a cited commit
-    orphaned by a branch deletion outside the change raises the base tree's
-    count too, and the base count bounds the check."""
+class RefCitationFixture(unittest.TestCase):
+    """Git fixtures for citation checks: a root and a member whose boards
+    cite commits, some reachable only from a branch that can be deleted."""
 
     GIT_ENV = {
         "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
@@ -2179,6 +2178,13 @@ class RefDriftBoundTests(unittest.TestCase):
             },
         }
 
+
+
+class RefDriftBoundTests(RefCitationFixture):
+    """A change is judged on the citations it adds: a cited commit orphaned
+    by a branch deletion outside the change raises the base tree's count
+    too, and the base count bounds the check."""
+
     def test_orphaning_outside_the_change_is_bounded_by_the_base(self) -> None:
         base, _, _ = self._stack()
         self._git(self.root, "branch", "-q", "-D", "feature")
@@ -2217,6 +2223,106 @@ class RefDriftBoundTests(unittest.TestCase):
         self.assertEqual(results, baseline)
         bound, notes = conformance.drift_bounded_baseline(baseline, results, base, self.root)
         self.assertEqual((bound, notes), (baseline, []))
+
+
+class UnlandedCitationTests(RefCitationFixture):
+    """A citation is written against landed history: a hash only a working
+    branch reaches resolves until that branch is rebase-merged or swept, and
+    then fails a default-branch push that changed nothing."""
+
+    def _stores(self) -> list[Path]:
+        return conformance.board_lint.object_stores(self.root)
+
+    def _cite(self, text: str) -> str:
+        return self._commit(self.root, "backlog.md", text)
+
+    def _second_branch_commit(self) -> str:
+        """A second commit only the live branch `second` reaches."""
+        self._git(self.root, "switch", "-q", "-c", "second")
+        second = self._commit(self.root, "second.txt", "second\n")
+        self._git(self.root, "switch", "-q", "main")
+        self.assertRegex(second[:9], conformance.board_lint.HASH_PATTERN)
+        return second
+
+    def test_landed_index_holds_the_default_branch_and_tags_only(self) -> None:
+        # The CI superproject: origin branches fetched, no `origin/HEAD`.
+        self._git(self.root, "init", "-q", "-b", "main")
+        trunk = self._commit(self.root, "README.md", "root\n")
+        branch_only = self._branch_only_commit(self.root)
+        self._git(self.root, "switch", "-q", "-c", "release")
+        tagged = self._commit(self.root, "release.txt", "release\n")
+        self._git(self.root, "tag", "v1")
+        self._git(self.root, "switch", "-q", "main")
+        self._git(self.root, "update-ref", "refs/remotes/origin/main", trunk)
+        self._git(self.root, "update-ref", "refs/remotes/origin/feature", branch_only)
+        self.assertRegex(tagged[:9], conformance.board_lint.HASH_PATTERN)
+        tokens = {trunk[:9], branch_only[:9], tagged[:9]}
+        lint = conformance.board_lint
+
+        self.assertEqual(lint.resolve_hashes(tokens, self._stores()), tokens)
+        self.assertEqual(
+            lint.resolve_hashes(tokens, self._stores(), landed=True),
+            {trunk[:9], tagged[:9]},
+        )
+
+    def test_origin_default_wins_over_other_origin_branches(self) -> None:
+        self._git(self.root, "init", "-q", "-b", "main")
+        trunk = self._commit(self.root, "README.md", "root\n")
+        branch_only = self._branch_only_commit(self.root)
+        self._git(self.root, "update-ref", "refs/remotes/origin/trunk", trunk)
+        self._git(self.root, "update-ref", "refs/remotes/origin/feature", branch_only)
+        self._git(
+            self.root, "symbolic-ref", "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/trunk",
+        )
+        lint = conformance.board_lint
+        tokens = {trunk[:9], branch_only[:9]}
+
+        self.assertEqual(lint.resolve_hashes(tokens, self._stores()), tokens)
+        # The local `feature` branch reaches `branch_only` too; with origin
+        # refs present no local branch is consulted.
+        self.assertEqual(
+            lint.resolve_hashes(tokens, self._stores(), landed=True), {trunk[:9]}
+        )
+
+    def test_an_added_branch_only_citation_is_refused(self) -> None:
+        base, root_orphan, _ = self._stack()
+        second = self._second_branch_commit()
+        trunk = self._git(self.root, "rev-parse", "HEAD~1")
+        head = self._cite(
+            f"- at {root_orphan[:9]}\n- landed {trunk[:9]}\n- pending {second[:9]}\n"
+        )
+
+        self.assertEqual(
+            conformance.unlanded_additions(self.root, head, base, self._stores()),
+            [f"backlog.md:3 {second[:9]}"],
+        )
+
+    def test_a_citation_the_base_carried_is_not_refused(self) -> None:
+        base, root_orphan, _ = self._stack()
+        head = self._cite(f"- at {root_orphan[:9]}\n- again {root_orphan[:9]}\n")
+
+        self.assertEqual(
+            conformance.unlanded_additions(self.root, head, base, self._stores()), []
+        )
+
+    def test_an_unresolvable_addition_is_left_to_the_ratchet(self) -> None:
+        base, _, _ = self._stack()
+        head = self._cite("- invented deadbeef1\n")
+
+        self.assertEqual(
+            conformance.unlanded_additions(self.root, head, base, self._stores()), []
+        )
+
+    def test_the_working_tree_is_read_without_a_revision(self) -> None:
+        base, _, _ = self._stack()
+        second = self._second_branch_commit()
+        _write(self.root, "backlog.md", f"- pending {second[:9]}\n")
+
+        self.assertEqual(
+            conformance.unlanded_additions(self.root, None, base, self._stores()),
+            [f"backlog.md:1 {second[:9]}"],
+        )
 
 
 class SecondOutputRootTestCase(unittest.TestCase):

@@ -2206,27 +2206,63 @@ def ratchet_delta(
 REF_DRIFT_CLASS = "unresolved_references"
 
 
-def unresolved_at(repo: Path, revision: str, stores: list[Path]) -> int:
-    """Count unresolved citations in `revision`'s reference artifacts of `repo`.
+def cited_at(repo: Path, revision: str | None) -> dict[str, list[tuple[str, int]]]:
+    """Every hash `revision`'s reference artifacts of `repo` cite, with sites.
 
-    Only the artifacts `board_lint.reference_artifacts` reads are extracted,
-    and they resolve against `stores` -- the same refs the scanned tree is
-    judged against, so the two counts differ only by what the tree cites.
+    Only the artifacts `board_lint.reference_artifacts` reads are extracted.
+    With no `revision`, the checkout's working tree is read as it is.
     """
+    if revision is None:
+        return board_lint.cited_hashes(board_lint.reference_artifacts(repo))
     top = git_output("ls-tree", "--name-only", revision, cwd=repo).splitlines()
     paths = [n for n in top if n.lower() in board_lint.REFERENCE_BOARDS]
     for sub in ("backlog", "docs/adr"):
         if git_output("ls-tree", "-d", "--name-only", revision, "--", sub, cwd=repo).strip():
             paths.append(sub)
     if not paths:
-        return 0
+        return {}
     try:
         payload = archive(repo, revision, paths=tuple(paths), timeout=ARCHIVE_TIMEOUT_SECONDS)
     except GitProcessError as exc:
         raise RuntimeError(f"{repo.name}: cannot archive {revision[:12]}: {exc}") from exc
     with tempfile.TemporaryDirectory(prefix="atlas-ref-drift-") as scratch:
         extract_archive(payload, Path(scratch))
-        return board_lint.count_unresolved(Path(scratch), stores)
+        return board_lint.cited_hashes(board_lint.reference_artifacts(Path(scratch)))
+
+
+def unresolved_at(repo: Path, revision: str, stores: list[Path]) -> int:
+    """Count unresolved citations in `revision`'s reference artifacts of `repo`.
+
+    The citations resolve against `stores` -- the same refs the scanned tree
+    is judged against, so the two counts differ only by what the tree cites.
+    """
+    cited = cited_at(repo, revision)
+    resolved = board_lint.resolve_hashes(set(cited), stores)
+    return sum(len(sites) for token, sites in cited.items() if token not in resolved)
+
+
+def unlanded_additions(
+    repo: Path, revision: str | None, base_revision: str, stores: list[Path]
+) -> list[str]:
+    """Citations `revision` adds over `base_revision` that only a branch reaches.
+
+    A hash that resolves through some origin branch but through no default
+    branch or tag (`board_lint.resolve_hashes(landed=True)`) names a pre-merge
+    commit: it resolves today and becomes an unresolved reference the moment
+    its branch is rebase-merged or swept, failing a push that changed
+    nothing. Refusing it where it is written keeps that drift from being
+    created. A hash that resolves nowhere is left to the ratchet, which
+    already counts it.
+    """
+    cited = cited_at(repo, revision)
+    added = set(cited) - set(cited_at(repo, base_revision))
+    resolved = board_lint.resolve_hashes(added, stores)
+    landed = board_lint.resolve_hashes(resolved, stores, landed=True)
+    return [
+        f"{name}:{line} {token}"
+        for token in sorted(resolved - landed)
+        for name, line in cited[token]
+    ]
 
 
 def drift_bounded_baseline(
@@ -2238,10 +2274,11 @@ def drift_bounded_baseline(
 ) -> tuple[dict[str, dict[str, int]], list[str]]:
     """Raise each `REF_DRIFT_CLASS` bound to what `base_revision` measures now.
 
-    A pull request is then judged on the citations it adds: the base tree,
+    A change is then judged on the citations it adds: the base tree,
     re-counted under today's refs, absorbs every orphaning that happened
-    outside the change. The committed baseline still binds the default-branch
-    run, which is where drift is reported and paid for. A member with no
+    outside the change, which is reported rather than failing a push that
+    changed nothing. The base is a pull request's base commit, or the default
+    branch's previous tip for a push to it. A member with no
     gitlink at `base_revision` (added by this change) keeps its recorded
     bound. With `member_checkout`, `base_revision` is a commit of that
     checkout -- a member gating its own push -- and is measured there.
@@ -2330,8 +2367,10 @@ def main() -> int:
         "--drift-base",
         metavar="REV",
         help="with `check`, bound unresolved_references by what REV's boards "
-             "measure under the current refs, so a pull request fails only on "
-             "citations it adds; pass the pull request's base commit (a commit "
+             "measure under the current refs, so a change fails only on "
+             "citations it adds, and refuse an added citation that only a "
+             "non-default branch reaches; pass the pull request's base commit, "
+             "or the default branch's previous tip for a push to it (a commit "
              "of the --member-path checkout when that is given)",
     )
     parser.add_argument(
@@ -2478,6 +2517,7 @@ def main() -> int:
         base = json.loads(BASELINE.read_text())
     _, _, tightenings = ratchet_delta(base, results)
     drift = []
+    unlanded: list[str] = []
     # A member checkout's pull-request base is a commit of that checkout,
     # not of the stack root.
     drift_repo = (
@@ -2493,6 +2533,19 @@ def main() -> int:
                 base, results, base_revision,
                 member_checkout=drift_repo if args.member_path is not None else None,
             )
+            # Only the boards this change edits: the member gating itself, or
+            # atlas. A stack scan of one member (`--repo` alone) edits none.
+            if args.member_path is not None:
+                scanned = pushed if args.member_revision is not None else None
+            else:
+                scanned = None if args.worktree else root_revision
+            if args.member_path is not None or not args.repo:
+                unlanded = [
+                    f"{args.repo or '<meta>'}/{site}"
+                    for site in unlanded_additions(
+                        drift_repo, scanned, base_revision, _object_stores()
+                    )
+                ]
         except RuntimeError as exc:
             print(f"drift base unavailable: {exc}", file=sys.stderr)
             return 1
@@ -2503,7 +2556,7 @@ def main() -> int:
     # forked caches, and scratch files are not in it, and refusing a push over
     # them refuses it on a peer's state.
     host_gates = args.member_revision is None
-    failed = bool(regressions or (host and host_gates))
+    failed = bool(regressions or unlanded or (host and host_gates))
     if args.json:
         print(json.dumps({
             "results": results,
@@ -2511,6 +2564,7 @@ def main() -> int:
             "host_regressions": host,
             "tightenings": tightenings,
             "ref_drift": drift,
+            "unlanded_citations": unlanded,
         }, indent=1, sort_keys=True))
         return 1 if failed else 0
     for t in tightenings:
@@ -2533,6 +2587,14 @@ def main() -> int:
         print(f"REF DRIFT (outside this change): {d}")
     for r in regressions:
         print(f"RATCHET VIOLATION: {r}{stale.get(r.split('/', 1)[0], '')}")
+    for u in unlanded:
+        print(f"UNLANDED CITATION: {u}")
+    if unlanded:
+        print(
+            "Only a non-default branch reaches these commits, so the next "
+            "rebase merge or branch sweep orphans them. Cite the pull request "
+            "number, or the commit as it landed on the default branch."
+        )
     for r in host:
         print(f"HOST STATE: {r}")
     if host:
@@ -2546,8 +2608,8 @@ def main() -> int:
                "only the revision's content.")
         )
     print(
-        f"{len(regressions)} regression(s), {len(host)} host-state row(s), "
-        f"{len(tightenings)} tightening(s)"
+        f"{len(regressions)} regression(s), {len(unlanded)} unlanded citation(s), "
+        f"{len(host)} host-state row(s), {len(tightenings)} tightening(s)"
     )
     return 1 if failed else 0
 
