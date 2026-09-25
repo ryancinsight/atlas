@@ -1377,13 +1377,18 @@ class LaneGateTestCase(unittest.TestCase):
         return stack, fixture, lane
 
     def _run_in_lane(self, fixture: GateFixture, lane: pathlib.Path,
-                     extra_env: dict | None = None) -> tuple:
+                     extra_env: dict | None = None,
+                     target_directory: pathlib.Path | None = None) -> tuple:
         # No SKIP_LOCKFILE_CHECK here: the lane's own commit touches only
         # crates/foo/src/lib.rs, so the range never touches Cargo.lock or
         # Cargo.toml and the lockfile section already self-skips on that
         # evidence (removing the var, previously set unconditionally, changes
         # nothing -- confirmed by running this suite with and without it).
         fixture.set_workspace_packages(["unrelated-member", "foo"], lane)
+        if target_directory is not None:
+            metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+            metadata["target_directory"] = str(target_directory)
+            _write(fixture.bin / "metadata.json", json.dumps(metadata))
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
         env.pop("CARGO_TARGET_DIR", None)
@@ -1421,6 +1426,37 @@ class LaneGateTestCase(unittest.TestCase):
         self.assertNotIn("gating outside the stack overlay", err)
         self.assertNotIn("--manifest-path", fixture.calls.read_text(encoding="utf-8"))
         self.assertIn("fmt -- --check\n", fixture.calls.read_text(encoding="utf-8"))
+
+    def test_a_lane_identity_step_runs_cargo_with_its_manifest(self) -> None:
+        """The checker receives a runnable command, manifest after the subcommand.
+
+        The checker runs everything after `--` verbatim, so a lane manifest
+        placed before `cargo` made `--manifest-path` the program and refused
+        every lane push of a stack member.
+        """
+        stack, fixture, lane = self._lane(overlay=True)
+        log = stack / "identity-commands.log"
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            "import pathlib, sys\n"
+            f"log = pathlib.Path({str(log)!r})\n"
+            "command = sys.argv[sys.argv.index('--') + 1:]\n"
+            "with log.open('a', encoding='utf-8') as stream:\n"
+            "    stream.write(' '.join(command) + '\\n')\n",
+        )
+        code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
+        self.assertEqual(code, 0, err)
+        commands = [line.split() for line in log.read_text(encoding="utf-8").splitlines()]
+        self.assertTrue(any("clippy" in command for command in commands), commands)
+        for command in commands:
+            self.assertIn(command[0], ("cargo", "env"), command)
+            cargo = command.index("cargo")
+            manifest = command.index("--manifest-path")
+            self.assertGreater(manifest, cargo + 1, command)
+            self.assertEqual(
+                pathlib.Path(command[manifest + 1]).resolve(),
+                (lane / "Cargo.toml").resolve(),
+            )
 
     def test_a_lane_reproduce_line_is_a_runnable_command(self) -> None:
         """The lane manifest is a separate argument, not glued to the flag.
@@ -1817,12 +1853,10 @@ class SourceIdentityGateTestCase(unittest.TestCase):
             log = stack / "identity-args.log"
             _write(
                 stack / "scripts" / "atlas-build-identity.py",
-                "import pathlib, subprocess, sys\n"
+                "import pathlib, sys\n"
                 f"log = pathlib.Path({str(log)!r})\n"
                 "with log.open('a', encoding='utf-8') as stream:\n"
-                "    stream.write(' '.join(sys.argv[1:]) + '\\n')\n"
-                "command = sys.argv[sys.argv.index('--') + 1:]\n"
-                "raise SystemExit(subprocess.run(command).returncode)\n",
+                "    stream.write(' '.join(sys.argv[1:]) + '\\n')\n",
             )
 
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))

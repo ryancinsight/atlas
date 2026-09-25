@@ -909,7 +909,6 @@ run_identity_step() {
     --ignore-path "$repo_root/Cargo.lock"
     "${identity_manifest_args[@]}"
     --
-    "${identity_cargo_manifest_args[@]}"
     "$@"
   )
   local verdict
@@ -992,7 +991,7 @@ trap 'rm -f "$gate_log"; restore_gate_lock' EXIT INT TERM
 
 if [ "$identity_enabled" -eq 1 ]; then
   for package_name in $gate_packages; do
-    run_identity_step "$package_name" clippy cargo clippy -p "$package_name" --all-targets
+    run_identity_step "$package_name" clippy cargo clippy "${identity_cargo_manifest_args[@]}" -p "$package_name" --all-targets
   done
 else
   case "$(classify_gate_step "$gate_log" cargo clippy $gate_specs --all-targets)" in
@@ -1019,7 +1018,7 @@ fi
 if command -v cargo-nextest >/dev/null 2>&1; then
   if [ "$identity_enabled" -eq 1 ]; then
     for package_name in $gate_packages; do
-      run_identity_step "$package_name" tests cargo nextest run -p "$package_name"
+      run_identity_step "$package_name" tests cargo nextest run "${identity_cargo_manifest_args[@]}" -p "$package_name"
     done
   else
     case "$(classify_gate_step "$gate_log" cargo nextest run $gate_specs)" in
@@ -1052,7 +1051,7 @@ fi
 # packages are documented here the same way.
 if [ "$identity_enabled" -eq 1 ]; then
   for package_name in $gate_packages; do
-    run_identity_step "$package_name" rustdoc env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps -p "$package_name"
+    run_identity_step "$package_name" rustdoc env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps "${identity_cargo_manifest_args[@]}" -p "$package_name"
   done
 else
   case "$(classify_gate_step "$gate_log" env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps $gate_specs)" in
