@@ -329,7 +329,8 @@ fi
 # Every such process runs through `outside_checkout`.
 outside_checkout() {
   env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_PREFIX \
-    -u GIT_COMMON_DIR "$@"
+    -u GIT_COMMON_DIR -u GIT_CONFIG_COUNT -u GIT_CONFIG_KEY_0 \
+    -u GIT_CONFIG_VALUE_0 "$@"
 }
 stack_root="$(cd "$repo_root/../.." && pwd)"
 stack_top="$(outside_checkout git -C "$stack_root" rev-parse --show-toplevel 2>/dev/null || true)"
