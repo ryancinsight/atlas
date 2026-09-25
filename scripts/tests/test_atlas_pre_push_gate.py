@@ -1427,6 +1427,33 @@ class LaneGateTestCase(unittest.TestCase):
         )
         return proc.returncode, proc.stderr.decode("utf-8", errors="replace")
 
+    def test_a_lane_uses_exported_manifest_when_live_manifest_is_missing(self) -> None:
+        _, fixture, lane = self._lane(overlay=True)
+        (lane / "crates" / "foo" / "Cargo.toml").unlink()
+        code, err = self._run_in_lane(fixture, lane)
+        self.assertEqual(code, 0, err)
+        self.assertIn("clippy", fixture.calls.read_text(encoding="utf-8"))
+
+    def test_a_lane_runs_the_exported_safety_checker_when_live_copy_is_missing(self) -> None:
+        _, fixture, lane = self._lane(overlay=True)
+        checker = lane / "scripts" / "safety_ratchet.py"
+        checker.parent.mkdir(parents=True, exist_ok=True)
+        checker.write_text("import sys; sys.exit(1)\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(lane), *_IDENT, "add", "scripts/safety_ratchet.py"], check=True)
+        subprocess.run(["git", "-C", str(lane), *_IDENT, "commit", "-q", "-m", "checker"], check=True)
+        checker.unlink()
+        code, err = self._run_in_lane(fixture, lane)
+        self.assertEqual(code, 1, err)
+        self.assertIn("SAFETY ratchet fails", err)
+
+    def test_a_lane_classifies_exported_diagnostic_paths_as_ours(self) -> None:
+        _, fixture, lane = self._lane(overlay=True)
+        fixture.set_cargo_behavior("fail-clippy-ours")
+        log = self.inside_log.replace("{root}", "__GATE_CWD__")
+        code, err = self._run_in_lane(fixture, lane, {"CARGO_FAIL_LOG": log})
+        self.assertEqual(code, 1, err)
+        self.assertIn("clippy fails", err)
+
     def test_a_lane_gates_from_outside_the_stack_with_its_manifest(self) -> None:
         stack, fixture, lane = self._lane(overlay=True)
         code, err = self._run_in_lane(fixture, lane)
@@ -1522,8 +1549,8 @@ class LaneGateTestCase(unittest.TestCase):
         """
         _, fixture, lane = self._lane(overlay=True)
         fixture.set_cargo_behavior("fail-doc")
-        env = {"CARGO_FAIL_LOG": self.inside_log.format(
-            root=str(lane).replace("\\", "/")
+        env = {"CARGO_FAIL_LOG": self.inside_log.replace(
+            "{root}", "__GATE_CWD__"
         )}
         code, err = self._run_in_lane(fixture, lane, extra_env=env)
         self.assertEqual(code, 1, err)

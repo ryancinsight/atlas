@@ -570,7 +570,7 @@ while IFS= read -r changed_path; do
   package_dir=""
   excluded_manifest=""
   while [ "$owner_dir" != "." ] && [ "$owner_dir" != "/" ]; do
-    manifest="$repo_root/$owner_dir/Cargo.toml"
+    manifest="$gate_cwd/$owner_dir/Cargo.toml"
     if [ -f "$manifest" ]; then
       if grep -qE '^\[package\]' "$manifest" 2>/dev/null; then
         package_dir="$owner_dir"
@@ -589,14 +589,14 @@ while IFS= read -r changed_path; do
     continue
   fi
   if [ -z "$package_dir" ]; then
-    if [ -f "$repo_root/Cargo.toml" ] && grep -qE '^\[package\]' "$repo_root/Cargo.toml" 2>/dev/null; then
+    if [ -f "$gate_cwd/Cargo.toml" ] && grep -qE '^\[package\]' "$repo_root/Cargo.toml" 2>/dev/null; then
       package_dir="."
     else
       continue
     fi
   fi
-  manifest="$repo_root/$package_dir/Cargo.toml"
-  relative_manifest="${manifest#"$repo_root"/}"
+  manifest="$gate_cwd/$package_dir/Cargo.toml"
+  relative_manifest="${manifest#"$gate_cwd"/}"
   relative_manifest="${relative_manifest#./}"
   package_name="$(printf '%s\n' "$workspace_members" | awk -F '\t' -v manifest="$relative_manifest" '$1 == manifest { print $2; exit }')"
   if [ -z "$package_name" ]; then
@@ -691,7 +691,7 @@ classify_gate_step() {
   fi
 
   local root_normalised inside=0 outside=0 location foreign_crate=0
-  root_normalised="$(normalise_diagnostic_path "$repo_root")"
+  root_normalised="$(normalise_diagnostic_path "$gate_cwd")"
 
   # Only locations under an `error` header count. A crate that fails to compile
   # still emits warnings for whatever did compile, and counting those made the
@@ -806,14 +806,14 @@ fi
 # then failed CI on a `// SAFETY:` comment two lines above its block, because
 # nothing here ran the ratchet. It is text-only and fast, so it runs before the
 # compile steps; a member without the script has no ratchet to run.
-safety_ratchet="$repo_root/scripts/safety_ratchet.py"
+safety_ratchet="$gate_cwd/scripts/safety_ratchet.py"
 if [ -f "$safety_ratchet" ]; then
   if [ -z "$python_bin" ]; then
     echo "pre-push: scripts/safety_ratchet.py present but no python interpreter found" >&2
     echo "pre-push: push anyway with SKIP_LOCAL_GATE=1 git push" >&2
     exit 1
   fi
-  if ! (cd "$repo_root" && "$python_bin" scripts/safety_ratchet.py check >&2); then
+  if ! (cd "$gate_cwd" && "$python_bin" scripts/safety_ratchet.py check >&2); then
     cat >&2 <<'MESSAGE'
 
 pre-push: the SAFETY ratchet fails, so CI's workspace job would. Put a
