@@ -225,7 +225,10 @@ def read_record(path: Path) -> dict[str, object] | None:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise IdentityError(f"malformed source identity record {path}: {error}") from error
-    if not isinstance(value, dict) or type(value.get("version")) is not int or value["version"] != VERSION:
+    version = value.get("version") if isinstance(value, dict) else None
+    if type(version) is int and version in {1, 2}:
+        return None
+    if not isinstance(value, dict) or type(version) is not int or version != VERSION:
         raise IdentityError(f"unsupported source identity record: {path}")
     source = value.get("source")
     build = value.get("build")

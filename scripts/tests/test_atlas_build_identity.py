@@ -623,6 +623,12 @@ class BuildIdentityTestCase(unittest.TestCase):
         clean_commands = [command for command in commands if list(command[1:3]) == ["clean", "-p"]]
         self.assertEqual([command[3] for command in clean_commands], ["demo", "dep"])
 
+    def test_older_record_versions_are_stale(self) -> None:
+        record = self.base / "old-record.json"
+        for version in (1, 2):
+            record.write_text(json.dumps({"version": version}), encoding="utf-8")
+            self.assertIsNone(identity.read_record(record))
+
     def test_malformed_records_fail_closed(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         with patch.object(identity, "toolchain_identity", return_value="rustc-test"):

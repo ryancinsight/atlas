@@ -1,7 +1,8 @@
 # ADR 0064: Shared build source and artifact identity
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-24
+- Revision: 2026-09-25 — Accepted the implemented locked dependency-content and closure-lease design.
 - Class: `[arch]`
 - Item: [ATLAS-BUILD-SOURCE-IDENTITY](../../backlog.md#atlas-build-source-identity)
 
@@ -15,7 +16,7 @@ A Git revision alone is insufficient for a dirty checkout, a branch name is not 
 
 ### Stable scope and record
 
-`scripts/atlas_build_identity.py` owns one record for each build scope: shared target directory, package, profile, target triple, feature set, toolchain identity, build-affecting environment digest, dependency-closure digest, and the caller's stable command key. The command key names the build-entry-point dimensions without treating `clippy`, tests, and documentation as different source identities. The record is stored atomically under `target/.atlas/source-identity/`, inside the existing cache root. It contains the canonical source root, full Git revision, clean/dirty state, source-tree digest, resolved dependency closure, build dimensions, and hashes of the discovered or explicitly supplied package artifacts. Version 3 records without a resolved closure are stale.
+`scripts/atlas_build_identity.py` owns one record for each build scope: shared target directory, package, profile, target triple, feature set, toolchain identity, build-affecting environment digest, dependency-closure digest, and the caller's stable command key. The command key names the build-entry-point dimensions without treating `clippy`, tests, and documentation as different source identities. The record is stored atomically under `target/.atlas/source-identity/`, inside the existing cache root. It contains the canonical source root, full Git revision, clean/dirty state, source-tree digest, resolved dependency closure, build dimensions, and hashes of the discovered or explicitly supplied package artifacts. Version 1 and 2 records are stale; malformed or unsupported current records fail closed.
 
 The record path excludes the source revision deliberately. A source transition must contend with the existing owner of the same build scope; otherwise a second source tree could acquire a different lock and overwrite the first record.
 
@@ -65,6 +66,7 @@ The core regression suite covers a source transition, matching-source reuse, dif
 
 - [ATLAS-BUILD-SOURCE-IDENTITY](../../backlog.md#atlas-build-source-identity)
 - [PR #277](https://github.com/ryancinsight/atlas/pull/277)
+- [PR #299](https://github.com/ryancinsight/atlas/pull/299)
 - [scripts/atlas_build_identity.py](../../scripts/atlas_build_identity.py)
 - [scripts/atlas_build_source.py](../../scripts/atlas_build_source.py)
 - [scripts/atlas_build_artifacts.py](../../scripts/atlas_build_artifacts.py)
