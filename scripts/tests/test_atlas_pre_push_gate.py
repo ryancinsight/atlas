@@ -393,6 +393,41 @@ class GateFixture:
         return f"refs/heads/{branch} {sha} refs/heads/{branch} {ZERO}\n"
 
 
+def _publish_stack_scripts(
+    stack: pathlib.Path, remove_from_checkout: tuple = ()
+) -> None:
+    """Commit the stack checkout's `scripts/` and make that commit the stack's
+    fetched default, which is where the hook runs stack tools from.
+
+    Names in `remove_from_checkout` then leave the working tree, as they do
+    when the stack checkout sits on a branch that predates them.
+    """
+    if not (stack / "scripts").is_dir():
+        return
+    if not (stack / ".git").exists():
+        _git_init_repo(stack)
+    subprocess.run(["git", "-C", str(stack), *_IDENT, "add", "scripts"], check=True)
+    subprocess.run(
+        ["git", "-C", str(stack), *_IDENT, "commit", "-q", "--allow-empty",
+         "-m", "stack scripts"],
+        check=True,
+    )
+    _git(stack, "update-ref", "refs/remotes/origin/main", _git(stack, "rev-parse", "HEAD"))
+    for name in remove_from_checkout:
+        (stack / "scripts" / name).unlink()
+
+
+def _recording_tool(log: pathlib.Path, exit_code: int) -> str:
+    """A stack tool that records the path it ran from and its argv, then exits."""
+    return (
+        "#!/usr/bin/env python3\n"
+        "import pathlib, sys\n"
+        f"with pathlib.Path({str(log)!r}).open('a', encoding='utf-8') as stream:\n"
+        "    stream.write(' '.join([__file__, *sys.argv[1:]]) + '\\n')\n"
+        f"sys.exit({exit_code})\n"
+    )
+
+
 def _git_init_repo(root: pathlib.Path) -> None:
     subprocess.run(["git", "init", "-q", "-b", "main", str(root)], check=True)
     subprocess.run(
@@ -1048,6 +1083,7 @@ class ArtifactBudgetRevisionTestCase(unittest.TestCase):
                 f"pathlib.Path({str(log)!r}).write_text(' '.join(sys.argv[1:]))\n",
                 executable=True,
             )
+            _publish_stack_scripts(stack)
             root = fixture.root
             base = _git(root, "rev-parse", "HEAD")
             subprocess.run(
@@ -1100,6 +1136,7 @@ class SecretScanTestCase(unittest.TestCase):
             f"sys.exit({exit_code})\n",
             executable=True,
         )
+        _publish_stack_scripts(stack)
         root = fixture.root
         base = _git(root, "rev-parse", "HEAD")
         subprocess.run(
@@ -1388,6 +1425,7 @@ class LaneGateTestCase(unittest.TestCase):
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
         env.pop("CARGO_TARGET_DIR", None)
         env.update(extra_env or {})
+        _publish_stack_scripts(lane.parents[1])
         sha = _git(lane, "rev-parse", "HEAD")
         proc = subprocess.run(
             ["bash", str(SCRIPT)],
@@ -1824,6 +1862,7 @@ class SourceIdentityGateTestCase(unittest.TestCase):
                 "command = sys.argv[sys.argv.index('--') + 1:]\n"
                 "raise SystemExit(subprocess.run(command).returncode)\n",
             )
+            _publish_stack_scripts(stack)
 
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
 
@@ -1850,3 +1889,78 @@ class SourceIdentityGateTestCase(unittest.TestCase):
 
             self.assertEqual(code, 1, stderr)
             self.assertIn("source identity checker is missing", stderr)
+
+
+class StackToolBaselineTestCase(unittest.TestCase):
+    """Stack tools run from the stack's fetched default, not its checkout.
+
+    The stack checkout sits on whatever branch a peer left there. On one cut
+    before the secret scanner existed, the hook reported the scanner "not
+    reachable" and pushed unscanned; on one before the identity checker, a
+    registered member was blocked on a checker the default branch carried.
+    """
+
+    @staticmethod
+    def _extracted(stack: pathlib.Path, ran_from: str) -> bool:
+        cache = (stack / ".git" / "atlas-checker").resolve()
+        return cache in pathlib.Path(ran_from).resolve().parents
+
+    def test_a_baseline_secret_finding_refuses_the_push(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack = pathlib.Path(temp)
+            fixture, _, _, _, pushed = DebtRatchetTestCase._stack(self, temp, 0)
+            scan_log = stack / "secret-args.log"
+            _write(stack / "scripts" / "atlas-secret-scan.py", _recording_tool(scan_log, 1))
+            _publish_stack_scripts(stack, ("atlas-secret-scan.py",))
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("adds a credential", stderr)
+            self.assertNotIn("secret scanner not reachable", stderr)
+            ran_from, *argv = scan_log.read_text(encoding="utf-8").split()
+            self.assertTrue(self._extracted(stack, ran_from), ran_from)
+            self.assertEqual(argv[argv.index("--rev") + 1], pushed)
+
+    def test_the_baseline_identity_checker_runs(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack, fixture = SourceIdentityGateTestCase._member_at_pushed_tip(self, temp)
+            identity_log = stack / "identity-args.log"
+            _write(
+                stack / "scripts" / "atlas-build-identity.py",
+                _recording_tool(identity_log, 0),
+            )
+            _publish_stack_scripts(stack, ("atlas-build-identity.py",))
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("identity checker is missing", stderr)
+            lines = identity_log.read_text(encoding="utf-8").splitlines()
+            self.assertTrue(lines, "the identity checker did not run")
+            ran_from, mode, *argv = lines[0].split()
+            self.assertTrue(self._extracted(stack, ran_from), ran_from)
+            self.assertEqual(mode, "run")
+            self.assertEqual(argv[argv.index("--package") + 1], "foo")
+            self.assertTrue(
+                any("cargo clippy" in line and "-p foo" in line for line in lines), lines
+            )
+
+    def test_a_tool_changed_only_in_the_checkout_is_not_run(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack = pathlib.Path(temp)
+            fixture, _, _, _, _ = DebtRatchetTestCase._stack(self, temp, 0)
+            scan_log = stack / "secret-args.log"
+            stray = stack / "stray.log"
+            _write(stack / "scripts" / "atlas-secret-scan.py", _recording_tool(scan_log, 0))
+            _publish_stack_scripts(stack)
+            # An uncommitted edit in the stack checkout, as a peer leaves one.
+            _write(stack / "scripts" / "atlas-secret-scan.py", _recording_tool(stray, 1))
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertNotIn("adds a credential", stderr)
+            self.assertFalse(stray.exists(), "the checkout's copy of the scanner ran")
+            ran_from = scan_log.read_text(encoding="utf-8").split()[0]
+            self.assertTrue(self._extracted(stack, ran_from), ran_from)
+            assert_blocked_before_building(self, code, stderr, fixture)
