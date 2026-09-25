@@ -214,6 +214,7 @@ flowchart TB
     CFDrs --> iris
     metis --> iris
     metis --> moirai
+    metis --> hermes
     coeus --> apollo
     coeus --> leto
     coeus --> hephaestus

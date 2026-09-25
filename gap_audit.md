@@ -475,6 +475,7 @@ the B-mode pipeline across crates and should not be decided incidentally.
 ```rust
 ```
 
+<a id="atlas-usct-fwi-024"></a>
 ## ATLAS-USCT-FWI-024 — kwavers audit vs FullWaveformInversionUSCT (open 2026-08-13)
 
 Reference: `rehmanali1994/FullWaveformInversionUSCT` at `master` — a compact
@@ -839,3 +840,7 @@ not this entry.
 ## Finding 2026-09-04: ares release dispatch failed on package allowlist
 
 ## Finding 2026-09-05: committed stack overlay missing moirai sections
+
+## Finding 2026-09-24: member pre-push reads the secret scanner from the live stack tree
+
+`scripts/git-hooks/pre-push` runs `$repo_root/../../scripts/atlas-secret-scan.py`, the file checked out in the shared stack tree, while its debt ratchet extracts the checker from the stack's fetched default. With the tree on a branch older than the scanner, member pushes skip the scan: CFDrs#459, kwavers#850 and Moirai#471 all did on 2026-09-24. Re-open trigger: the hook extracts the scanner from `$stack_baseline`, as it does the checker.

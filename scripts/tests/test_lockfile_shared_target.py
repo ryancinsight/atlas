@@ -12,10 +12,13 @@ class the conformance ratchet counts, produced by the tooling that measures it.
 from __future__ import annotations
 
 import importlib.util
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parent.parent / "lockfile.py"
 SPEC = importlib.util.spec_from_file_location("atlas_lockfile_target", SCRIPT)
@@ -73,6 +76,28 @@ class SharedTargetDirTestCase(unittest.TestCase):
         self.assertEqual(
             lockfile.shared_target_dir(manifest), (root / "build/out").resolve()
         )
+
+    def test_manifest_path_stays_before_cargo_subcommand_separator(self) -> None:
+        root, manifest = self.stack('[build]\ntarget-dir = "target"\n')
+        completed = subprocess.CompletedProcess(["cargo"], 0, stdout="", stderr="")
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(lockfile.subprocess, "run", return_value=completed) as cargo_run,
+        ):
+            result = lockfile.run_outside_the_overlay(
+                ["clippy", "--locked", "-p", "m", "--all-targets", "--", "-D", "warnings"],
+                manifest,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        command = cargo_run.call_args.args[0]
+        self.assertLess(command.index("--manifest-path"), command.index("--"))
+        self.assertEqual(command[command.index("--manifest-path") + 1], str(manifest))
+        shared_target = Path(
+            cargo_run.call_args.kwargs["env"]["CARGO_TARGET_DIR"]
+        )
+        self.assertEqual(shared_target.name, "target")
+        self.assertTrue(os.path.samefile(shared_target.parent, root))
 
 
 if __name__ == "__main__":
