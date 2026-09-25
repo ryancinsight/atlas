@@ -1,9 +1,9 @@
 # ADR 0064: Shared build source and artifact identity
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-24
 - Class: `[arch]`
-- Item: [ATLAS-BUILD-SOURCE-IDENTITY](../../backlog.md#atlas-build-source-identity)
+- Item: ATLAS-BUILD-SOURCE-IDENTITY (closed; delivered by [PR #295](https://github.com/ryancinsight/atlas/pull/295) and [PR #296](https://github.com/ryancinsight/atlas/pull/296))
 
 ## Context
 
@@ -60,7 +60,8 @@ The core regression suite covers a source transition, matching-source reuse, dif
 
 ## References
 
-- [ATLAS-BUILD-SOURCE-IDENTITY](../../backlog.md#atlas-build-source-identity)
+- [PR #295](https://github.com/ryancinsight/atlas/pull/295)
+- [PR #296](https://github.com/ryancinsight/atlas/pull/296)
 - [PR #277](https://github.com/ryancinsight/atlas/pull/277)
 - [scripts/atlas_build_identity.py](../../scripts/atlas_build_identity.py)
 - [scripts/git-hooks/pre-push](../../scripts/git-hooks/pre-push)
