@@ -337,6 +337,27 @@ class GateFixture:
             '  cat "$FIXTURE_ROOT/bin/metadata.json"\n'
             "  exit 0\n"
             "fi\n"
+            'if [ "${CARGO_OBSERVE_LOCK:-0}" = "1" ] && [ "$1" != "fmt" ]; then\n'
+            '  manifest=""\n'
+            '  previous=""\n'
+            '  for argument in "$@"; do\n'
+            '    if [ "$previous" = "--manifest-path" ]; then manifest="$argument"; fi\n'
+            '    previous="$argument"\n'
+            '  done\n'
+            '  if [ -z "$manifest" ]; then manifest="$PWD/Cargo.toml"; fi\n'
+            '  if [ ! -f "$FIXTURE_ROOT/observed-lock" ]; then cat "$(dirname "$manifest")/Cargo.lock" > "$FIXTURE_ROOT/observed-lock"; fi\n'
+            '  case " $* " in *" --locked "*) ;; *) echo "missing --locked" >&2; exit 77 ;; esac\n'
+            'fi\n'
+            'if [ "${CARGO_MUTATE_LOCK:-0}" = "1" ] && [ "$1" != "fmt" ]; then\n'
+            '  manifest=""\n'
+            '  previous=""\n'
+            '  for argument in "$@"; do\n'
+            '    if [ "$previous" = "--manifest-path" ]; then manifest="$argument"; fi\n'
+            '    previous="$argument"\n'
+            '  done\n'
+            '  if [ -z "$manifest" ]; then manifest="$PWD/Cargo.toml"; fi\n'
+            '  printf "# cargo rewrote this graph\\n" >> "$(dirname "$manifest")/Cargo.lock"\n'
+            'fi\n'
             + body,
             executable=True,
         )
@@ -1171,6 +1192,31 @@ class LockRestoreTestCase(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(lock.read_bytes(), before)
 
+    def test_lock_bytes_survive_a_failing_gate(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            lock = fixture.root / "Cargo.lock"
+            before = lock.read_bytes()
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "-b", "feat"],
+                check=True,
+            )
+            _write(fixture.root / "crates" / "foo" / "src" / "lib.rs", "pub fn g() {}\n")
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add", "-A"], check=True
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "src"],
+                check=True,
+            )
+            fixture.set_cargo_behavior("fail-doc")
+            code, _ = fixture.run_hook(
+                fixture.push_line_new_branch(),
+                {"CARGO_MUTATE_LOCK": "1"},
+            )
+            self.assertEqual(code, 1)
+            self.assertEqual(lock.read_bytes(), before)
+
 
 class UnverifiableLockTestCase(unittest.TestCase):
     """A lockfile guard that cannot run must refuse, not announce and pass.
@@ -1390,6 +1436,53 @@ class LaneGateTestCase(unittest.TestCase):
                 os.path.normcase(str(stack.resolve())), os.path.normcase(str(pathlib.Path(cwd).resolve())),
                 "cargo must not run inside the stack",
             )
+
+    def test_a_lane_uses_the_committed_lock_and_locked_commands(self) -> None:
+        stack, fixture, lane = self._lane(overlay=True)
+        committed = subprocess.run(
+            ["git", "-C", str(lane), "show", "HEAD:Cargo.lock"],
+            check=True,
+            capture_output=True,
+        ).stdout
+        working = b"# overlay-flattened working lock\n"
+        (lane / "Cargo.lock").write_bytes(working)
+        code, err = self._run_in_lane(
+            fixture,
+            lane,
+            {"CARGO_OBSERVE_LOCK": "1", "CARGO_MUTATE_LOCK": "1"},
+        )
+        self.assertEqual(code, 0, err)
+        self.assertEqual((lane / "Cargo.lock").read_bytes(), working)
+        self.assertEqual(
+            (fixture.root / "observed-lock").read_bytes().replace(b"\r\n", b"\n"),
+            committed.replace(b"\r\n", b"\n"),
+        )
+        calls = fixture.calls.read_text(encoding="utf-8")
+        for command in ("clippy", "nextest", "doc"):
+            matching = [line for line in calls.splitlines() if line.startswith(command)]
+            self.assertTrue(matching, calls)
+            self.assertTrue(all("--locked" in line for line in matching), matching)
+
+    def test_a_lane_keeps_the_working_lock_after_a_failed_command(self) -> None:
+        _, fixture, lane = self._lane(overlay=True)
+        working = b"# overlay-flattened working lock\n"
+        (lane / "Cargo.lock").write_bytes(working)
+        fixture.set_cargo_behavior("fail-doc")
+        code, err = self._run_in_lane(
+            fixture,
+            lane,
+            {"CARGO_OBSERVE_LOCK": "1", "CARGO_MUTATE_LOCK": "1"},
+        )
+        self.assertEqual(code, 1, err)
+        self.assertEqual((lane / "Cargo.lock").read_bytes(), working)
+        self.assertEqual(
+            (fixture.root / "observed-lock").read_bytes().replace(b"\r\n", b"\n"),
+            subprocess.run(
+                ["git", "-C", str(lane), "show", "HEAD:Cargo.lock"],
+                check=True,
+                capture_output=True,
+            ).stdout.replace(b"\r\n", b"\n"),
+        )
 
     def test_a_lane_without_an_overlay_gates_in_place(self) -> None:
         _, fixture, lane = self._lane(overlay=False)
