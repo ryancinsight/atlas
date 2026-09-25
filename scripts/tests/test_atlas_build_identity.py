@@ -210,6 +210,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             "root": "demo",
             "packages": [],
             "edges": [],
+            "artifact_packages": ["demo", "dep"],
             "clean_packages": ["demo", "dep"],
             "digest": "dependency-digest",
         }
@@ -585,6 +586,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             "root": "demo",
             "packages": [],
             "edges": [],
+            "artifact_packages": ["demo", "dep"],
             "clean_packages": ["demo", "dep"],
             "digest": "dependency-digest",
         }
@@ -625,7 +627,7 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_older_record_versions_are_stale(self) -> None:
         record = self.base / "old-record.json"
-        for version in (1, 2):
+        for version in (1, 2, 3):
             record.write_text(json.dumps({"version": version}), encoding="utf-8")
             self.assertIsNone(identity.read_record(record))
 
