@@ -772,9 +772,20 @@ def cmd_publish_hooks(args) -> int:
     except RuntimeError as error:
         print(f"invalid committed hook source {source_ref!r}: {error}", file=sys.stderr)
         return 2
-    hooks = committed_hooks(ROOT, source_commit)
+    committed = committed_hooks(ROOT, source_commit)
+    hook_filter = getattr(args, "hook", None)
+    if hook_filter:
+        hooks = [entry for entry in committed if entry[0] == hook_filter]
+        if not hooks:
+            print(
+                f"committed hook source {source_commit} has no {hook_filter}",
+                file=sys.stderr,
+            )
+            return 2
+    else:
+        hooks = committed
     pre_push_hook = next(
-        (content for name, content in hooks if name == "pre-push"), None
+        (content for name, content in committed if name == "pre-push"), None
     )
     if not pre_push_hook:
         print(
@@ -869,6 +880,7 @@ def main() -> int:
     publish = sub.add_parser("publish-hooks")
     publish.add_argument("members", nargs="*", help="registered members; defaults to all")
     publish.add_argument("--push", action="store_true", help="push and open the pull requests")
+    publish.add_argument("--hook", help="publish only this owned hook")
     publish.add_argument(
         "--source-ref",
         metavar="REF",

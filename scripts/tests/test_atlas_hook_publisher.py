@@ -339,6 +339,8 @@ class PublisherScopeTestCase(unittest.TestCase):
                     "alpha",
                     "beta",
                     "--push",
+                    "--hook",
+                    "pre-push",
                     "--source-ref",
                     "refs/remotes/origin/pr/286",
                 ],
@@ -353,6 +355,7 @@ class PublisherScopeTestCase(unittest.TestCase):
 
         self.assertEqual(captured[0].members, ["alpha", "beta"])
         self.assertTrue(captured[0].push)
+        self.assertEqual(captured[0].hook, "pre-push")
         self.assertEqual(captured[0].source_ref, "refs/remotes/origin/pr/286")
 
     def test_unknown_member_is_rejected_before_external_commands(self) -> None:
@@ -369,9 +372,15 @@ class PublisherScopeTestCase(unittest.TestCase):
             member_root = root / "repos"
             (member_root / "alpha").mkdir(parents=True)
             source_commit = "a" * 40
-            hook_bytes = [("pre-push", b"#!/bin/sh\nexit 0\n")]
+            hook_bytes = [
+                ("pre-commit", b"#!/bin/sh\nexit 0\n"),
+                ("pre-push", b"#!/bin/sh\nexit 0\n"),
+            ]
             args = Namespace(
-                members=["alpha"], push=True, source_ref="refs/remotes/origin/pr/286"
+                members=["alpha"],
+                push=True,
+                hook="pre-push",
+                source_ref="refs/remotes/origin/pr/286",
             )
             git_results = iter(
                 [
@@ -417,13 +426,45 @@ class PublisherScopeTestCase(unittest.TestCase):
                 ),
             )
             committed_hooks.assert_called_once_with(root, source_commit)
-            self.assertEqual(hook_commit.call_args.args[2], hook_bytes)
+            self.assertEqual(hook_commit.call_args.args[2], [hook_bytes[1]])
             self.assertEqual(hook_commit.call_args.args[1], "b" * 40)
             push_hook_branch.assert_called_once_with(
-                member_root / "alpha", "built", "ci/sync-stack-hooks", hook_bytes[0][1]
+                member_root / "alpha", "built", "ci/sync-stack-hooks", hook_bytes[1][1]
             )
 
-    def test_invalid_source_ref_stops_before_member_publication(self) -> None:
+    def test_unknown_hook_filter_stops_before_member_publication(self) -> None:
+        args = Namespace(
+            members=["alpha"],
+            push=True,
+            hook="pre-push",
+            source_ref="refs/remotes/origin/pr/286",
+        )
+        error_output = io.StringIO()
+        git_results = iter(
+            [
+                "",
+                "refs/remotes/origin/main",
+                "a" * 40,
+                "aaaaaaaa",
+            ]
+        )
+        with (
+            patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+            patch.object(
+                _lock_form, "git_in", side_effect=lambda *_args: next(git_results)
+            ),
+            patch.object(
+                _lock_form,
+                "committed_hooks",
+                return_value=[("pre-commit", b"#!/bin/sh\nexit 0\n")],
+            ),
+            patch.object(_lock_form, "hook_commit") as hook_commit,
+            redirect_stderr(error_output),
+        ):
+            self.assertEqual(_lock_form.cmd_publish_hooks(args), 2)
+        hook_commit.assert_not_called()
+        self.assertIn("has no pre-push", error_output.getvalue())
+
         args = Namespace(
             members=["alpha"], push=True, source_ref="refs/remotes/origin/missing"
         )
