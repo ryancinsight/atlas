@@ -195,6 +195,17 @@ class GateFixture:
             executable=True,
         )
         self.set_cargo_behavior("pass")
+        _write(
+            self.bin / "cargo-nextest",
+            "#!/usr/bin/env bash\nexit 0\n",
+            executable=True,
+        )
+        self.cargo_launcher = self.bin / ("cargo.cmd" if os.name == "nt" else "cargo")
+        if os.name == "nt":
+            _write(
+                self.cargo_launcher,
+                f'@echo off\r\nbash "{self.bin / "cargo"}" %*\r\n',
+            )
         subprocess.run(
             ["git", "-C", str(root), *_IDENT, "add", "-A"], check=True
         )
@@ -368,6 +379,7 @@ class GateFixture:
         """Run the owned hook script in this fixture; return (exit, stderr)."""
         env = dict(os.environ)
         env["PATH"] = str(self.bin) + os.pathsep + env.get("PATH", "")
+        env["CARGO"] = str(self.cargo_launcher)
         if extra_env:
             env.update(extra_env)
         # Bytes, not text: on Windows a text-mode pipe translates `\n` to
@@ -1817,11 +1829,11 @@ class SourceIdentityGateTestCase(unittest.TestCase):
             log = stack / "identity-args.log"
             _write(
                 stack / "scripts" / "atlas-build-identity.py",
-                "import pathlib, subprocess, sys\n"
+                "import os, pathlib, subprocess, sys\n"
                 f"log = pathlib.Path({str(log)!r})\n"
                 "with log.open('a', encoding='utf-8') as stream:\n"
                 "    stream.write(' '.join(sys.argv[1:]) + '\\n')\n"
-                "command = sys.argv[sys.argv.index('--') + 1:]\n"
+                "command = [os.environ.get('CARGO', 'cargo') if value == 'cargo' else value for value in sys.argv[sys.argv.index('--') + 1:]]\n"
                 "raise SystemExit(subprocess.run(command).returncode)\n",
             )
 
