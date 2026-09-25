@@ -66,7 +66,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             lease_seconds=args.lease_seconds,
             command_cwd=args.command_cwd,
             command_key=args.command_key,
-            ignored_paths=args.ignore_path,
+            ignore_paths=args.ignore_path,
         )
         print(
             json.dumps(

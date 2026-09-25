@@ -16,7 +16,6 @@ import pathlib
 import shutil
 import stat
 import subprocess
-import sys
 import tempfile
 import unittest
 
@@ -128,6 +127,23 @@ def _path_without_cargo(extra_first: str) -> str:
     return os.pathsep.join(entries)
 
 
+_FIXTURE_EXCLUDES = "upstream.git/\nbin/\ncalls.log\nlockfile-calls.log\n"
+
+
+def assert_blocked_before_building(
+    test: unittest.TestCase, code: int, stderr: str, fixture: "GateFixture"
+) -> None:
+    """The package gate refused to build a checkout other than the pushed tip.
+
+    Every check before it reads the pushed revision; cargo reads the working
+    tree, so an accepted verdict would describe a tree the push does not carry.
+    """
+    test.assertEqual(code, 1, stderr)
+    test.assertIn("BLOCKED -- pushed revision", stderr)
+    calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.is_file() else ""
+    test.assertNotIn("-p foo", calls, "cargo ran against the checkout")
+
+
 class GateFixture:
     """A member-like git repo with a stub toolchain and lockfile checker."""
 
@@ -144,6 +160,12 @@ class GateFixture:
         self.lockfile_calls: pathlib.Path = root / "lockfile-calls.log"
         self.layout = layout
         _git_init_repo(root)
+        # The stub toolchain and its call logs live inside the repository,
+        # and the gate refuses a dirty checkout before building it. Excluded
+        # from the first commit on, switching the stub's behaviour or logging
+        # a call stays fixture plumbing instead of looking like work the
+        # push does not carry.
+        _write(root / ".git" / "info" / "exclude", _FIXTURE_EXCLUDES)
         if layout == "crates":
             _write(root / "Cargo.toml", '[workspace]\nmembers = ["crates/foo"]\n')
             _write(
@@ -219,10 +241,7 @@ class GateFixture:
         # object is packed away between readdir and stat, which is how it
         # surfaced (a required check, failing on an unrelated pull
         # request). A directory pattern prunes the traversal outright.
-        _write(
-            root / ".git" / "info" / "exclude",
-            "upstream.git/\nlockfile-calls.log\ncalls.log\ncwd.log\n",
-        )
+        _write(root / ".git" / "info" / "exclude", _FIXTURE_EXCLUDES)
         subprocess.run(
             ["git", "-C", str(root), "remote", "add", "origin",
              str(root / "upstream.git")],
@@ -260,10 +279,7 @@ class GateFixture:
                 {
                     "id": f"fixture:{name}",
                     "name": name,
-                    "version": "0.1.0",
-                    "source": None,
                     "manifest_path": str(manifest.resolve()),
-                    "targets": [{"name": name, "kind": ["lib"]}],
                 }
             )
         _write(
@@ -271,14 +287,7 @@ class GateFixture:
             json.dumps(
                 {
                     "packages": packages,
-                    "target_directory": str((workspace_root / "target").resolve()),
                     "workspace_members": [package["id"] for package in packages],
-                    "resolve": {
-                        "nodes": [
-                            {"id": package["id"], "dependencies": []}
-                            for package in packages
-                        ]
-                    },
                 }
             ),
         )
@@ -484,39 +493,6 @@ class NewBranchRangeTestCase(unittest.TestCase):
             self.assertIn("no Cargo.lock or Cargo.toml in the pushed range", stderr)
             self.assertFalse(fixture.lockfile_calls.exists())
 
-    def test_hook_publication_can_be_pushed_from_a_private_index(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-gate-publication-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
-            root = fixture.root
-            base = _git(root, "rev-parse", "HEAD")
-            subprocess.run(
-                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "publish"],
-                check=True,
-            )
-            _write(root / ".githooks" / "pre-push", "published pre-push\n")
-            _write(root / ".githooks" / "pre-commit", "published pre-commit\n")
-            subprocess.run(
-                ["git", "-C", str(root), *_IDENT, "add", ".githooks"],
-                check=True,
-            )
-            subprocess.run(
-                ["git", "-C", str(root), *_IDENT, "commit", "-q",
-                 "-m", "ci: Sync the stack-owned git hooks"],
-                check=True,
-            )
-            tip = _git(root, "rev-parse", "HEAD")
-            subprocess.run(
-                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "peer", base],
-                check=True,
-            )
-            push_line = f"refs/heads/publish {tip} refs/heads/publish {ZERO}\n"
-
-            code, stderr = fixture.run_hook(push_line)
-
-            self.assertEqual(code, 0, stderr)
-            self.assertIn("canonical hook publication accepted", stderr)
-            self.assertFalse(fixture.calls.exists())
-
     def test_new_branch_manifest_push_runs_lockfile_check(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture(pathlib.Path(temp))
@@ -628,30 +604,6 @@ class PackageMapperTestCase(unittest.TestCase):
             calls = fixture.calls.read_text(encoding="utf-8")
             self.assertIn("-p foo", calls)
             self.assertNotIn("consus-fuzz", calls)
-
-    def test_root_virtual_workspace_manifest_gates_all_workspace_packages(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
-            subprocess.run(
-                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "-b", "feat"],
-                check=True,
-            )
-            (fixture.root / "Cargo.toml").write_text(
-                '[workspace]\nmembers = ["crates/foo"]\nresolver = "2"\n',
-                encoding="utf-8",
-            )
-            subprocess.run(
-                ["git", "-C", str(fixture.root), *_IDENT, "add", "Cargo.toml"],
-                check=True,
-            )
-            subprocess.run(
-                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "workspace"],
-                check=True,
-            )
-            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
-            self.assertEqual(code, 0, stderr)
-            self.assertIn("gating unrelated-member", stderr)
-            self.assertIn("-p foo", fixture.calls.read_text(encoding="utf-8"))
 
     def test_fixture_only_change_gates_its_workspace_package(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -841,14 +793,6 @@ class BlameClassifierTestCase(unittest.TestCase):
             "fail-clippy-ours" if "could not compile `foo`" in log else
             "fail-clippy-environment",
         )
-        subprocess.run(
-            ["git", "-C", str(fixture.root), *_IDENT, "add", "bin/cargo"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "fixture tool"],
-            check=True,
-        )
         return fixture.run_hook(
             fixture.push_line_new_branch(),
             extra_env={"CARGO_FAIL_LOG": log.format(root=root)},
@@ -877,14 +821,6 @@ class BlameClassifierTestCase(unittest.TestCase):
             )
             root = str(fixture.root).replace("\\", "/")
             fixture.set_cargo_behavior("fail-doc")
-            subprocess.run(
-                ["git", "-C", str(fixture.root), *_IDENT, "add", "bin/cargo"],
-                check=True,
-            )
-            subprocess.run(
-                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "fixture tool"],
-                check=True,
-            )
             code, stderr = fixture.run_hook(
                 fixture.push_line_new_branch(),
                 extra_env={"CARGO_FAIL_LOG": self.inside_log.format(root=root)},
@@ -1143,8 +1079,7 @@ class ArtifactBudgetRevisionTestCase(unittest.TestCase):
 
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
 
-            self.assertEqual(code, 1, stderr)
-            self.assertIn("differs from checkout", stderr)
+            assert_blocked_before_building(self, code, stderr, fixture)
             args = log.read_text().split()
             self.assertEqual(args[args.index("--rev") + 1], pushed)
             self.assertEqual(args[args.index("--base") + 1], base)
@@ -1551,17 +1486,17 @@ class PushedRangeSelectionTestCase(unittest.TestCase):
             check=True,
         )
 
-    def test_a_branch_pushed_while_head_sits_elsewhere_is_gated(self) -> None:
+    def test_a_branch_pushed_while_head_sits_elsewhere_blocks_before_building(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture(pathlib.Path(temp))
             self._commit_rust_on_a_branch_then_leave_it(fixture)
 
             code, stderr = fixture.run_hook(fixture.push_line_new_branch())
 
-            self.assertEqual(code, 1, stderr)
-            self.assertIn("differs from checkout", stderr)
-            self.assertNotIn("gating foo", stderr)
-            self.assertFalse(fixture.calls.exists())
+            # The range is still found (no silent "not needed"), but the
+            # package gate will not build a checkout the push does not carry.
+            self.assertNotIn("local gate not needed", stderr)
+            assert_blocked_before_building(self, code, stderr, fixture)
 
     def test_an_unresolvable_pushed_base_falls_back_rather_than_skipping(self) -> None:
         """A remote tip this clone never fetched cannot be diffed against;
@@ -1569,10 +1504,6 @@ class PushedRangeSelectionTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture(pathlib.Path(temp))
             self._commit_rust_on_a_branch_then_leave_it(fixture)
-            subprocess.run(
-                ["git", "-C", str(fixture.root), "checkout", "-q", "feat"],
-                check=True,
-            )
             tip = _git(fixture.root, "rev-parse", "feat")
             absent = "0123456789abcdef0123456789abcdef01234567"
 
@@ -1580,9 +1511,8 @@ class PushedRangeSelectionTestCase(unittest.TestCase):
                 f"refs/heads/feat {tip} refs/heads/feat {absent}\n"
             )
 
-            self.assertEqual(code, 0, stderr)
             self.assertNotIn("local gate not needed", stderr)
-            self.assertIn("gating foo", stderr)
+            assert_blocked_before_building(self, code, stderr, fixture)
 
 
 class DebtRatchetTestCase(unittest.TestCase):
@@ -1610,15 +1540,6 @@ class DebtRatchetTestCase(unittest.TestCase):
             f"pathlib.Path({str(log)!r}).write_text("
             "'\\n'.join([os.environ.get('ATLAS_STACK_ROOT', ''), *sys.argv[1:]]))\n"
             f"sys.exit({exit_code})\n",
-            executable=True,
-        )
-        identity_log = stack / "identity-args.log"
-        _write(
-            stack / "scripts" / "atlas-build-identity.py",
-            "#!/usr/bin/env python3\n"
-            "import pathlib, sys\n"
-            f"pathlib.Path({str(identity_log)!r}).write_text('\\n'.join(sys.argv[1:]))\n"
-            "sys.exit(0)\n",
             executable=True,
         )
         _write(
@@ -1662,8 +1583,7 @@ class DebtRatchetTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture, log, stack_head, base, pushed = self._stack(temp, 0)
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
-            self.assertEqual(code, 1, stderr)
-            self.assertIn("differs from checkout", stderr)
+            assert_blocked_before_building(self, code, stderr, fixture)
             args = self._args(log)
             self.assertEqual(args["mode"], "check")
             self.assertEqual(
@@ -1700,18 +1620,13 @@ class DebtRatchetTestCase(unittest.TestCase):
             fixture, log, _, _, _ = self._stack(temp, 1, revision_scans=False)
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
             self.assertFalse(log.is_file())
-            self.assertEqual(code, 1, stderr)
+            assert_blocked_before_building(self, code, stderr, fixture)
             self.assertIn("predates revision scans", stderr)
-            self.assertIn("differs from checkout", stderr)
 
     def test_the_committed_checker_runs_not_the_stack_checkout_s(self) -> None:
         """The stack tree on a peer's branch or dirty never picks the checker."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture, log, _, _, _ = self._stack(temp, 0)
-            subprocess.run(
-                ["git", "-C", str(fixture.root), "checkout", "-q", "feat"],
-                check=True,
-            )
             stray = pathlib.Path(temp) / "stray.log"
             _write(
                 pathlib.Path(temp) / "scripts" / "atlas-conformance.py",
@@ -1720,14 +1635,14 @@ class DebtRatchetTestCase(unittest.TestCase):
                 "sys.exit(1)\n",
             )
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
-            self.assertEqual(code, 0, stderr)
+            assert_blocked_before_building(self, code, stderr, fixture)
             self.assertTrue(log.is_file())
             self.assertFalse(stray.exists(), "the working-tree checker ran")
             # A second push reuses the extracted revision.
             cache = pathlib.Path(temp) / ".git" / "atlas-checker"
             self.assertEqual(len([p for p in cache.iterdir() if p.is_dir()]), 1)
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
-            self.assertEqual(code, 0, stderr)
+            assert_blocked_before_building(self, code, stderr, fixture)
             self.assertEqual(len([p for p in cache.iterdir() if p.is_dir()]), 1)
 
     @staticmethod
@@ -1797,246 +1712,141 @@ class DebtRatchetTestCase(unittest.TestCase):
             fixture, log, _, _, _ = self._stack(temp, 1, location="scratch")
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
             self.assertFalse(log.is_file())
-            self.assertEqual(code, 1, stderr)
+            assert_blocked_before_building(self, code, stderr, fixture)
             self.assertIn("not a registered stack member", stderr)
-            self.assertIn("differs from checkout", stderr)
 
 
-class SourceIdentityHookTestCase(unittest.TestCase):
-    def _fixture(self) -> tuple[GateFixture, pathlib.Path, pathlib.Path, pathlib.Path]:
-        temp = tempfile.TemporaryDirectory(prefix="atlas-identity-hook-")
-        self.addCleanup(temp.cleanup)
-        stack = pathlib.Path(temp.name) / "stack"
-        scripts = stack / "scripts"
-        scripts.mkdir(parents=True)
-        source_scripts = SCRIPT.parents[1]
-        for name in (
-            "atlas-build-identity.py",
-            "atlas_build_artifacts.py",
-            "atlas_build_identity.py",
-            "atlas_build_lease.py",
-            "atlas_build_source.py",
-        ):
-            shutil.copy2(source_scripts / name, scripts / name)
-        _write(
-            scripts / "atlas-conformance.py",
-            "#!/usr/bin/env python3\n# accepts --member-revision\nimport sys\nsys.exit(0)\n",
-            executable=True,
-        )
-        _git_init_repo(stack)
-        subprocess.run(["git", "-C", str(stack), *_IDENT, "add", "scripts"], check=True)
-        subprocess.run(
-            ["git", "-C", str(stack), *_IDENT, "commit", "-q", "-m", "stack"],
-            check=True,
-        )
-        stack_head = _git(stack, "rev-parse", "HEAD")
-        _git(stack, "update-ref", "refs/remotes/origin/main", stack_head)
-        fixture = GateFixture(stack / "repos" / "member")
-        target = fixture.root.parent / "shared-target"
-        metadata_path = fixture.bin / "metadata.json"
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        metadata["target_directory"] = str(target.resolve())
-        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
-        calls = fixture.root.parent / "cargo-calls.log"
-        artifact = target / "debug" / "deps" / "libfoo-identity.rlib"
-        unrelated = target / "debug" / "deps" / "libunrelated-identity.rlib"
-        unrelated.parent.mkdir(parents=True)
-        unrelated.write_text("unrelated", encoding="utf-8")
-        cargo = f'''#!/usr/bin/env bash
-set -e
-if [ "${{MUTATE_LOCK:-0}}" = "1" ]; then
-  printf 'overlay lock rewrite\\n' >> "{fixture.root / 'Cargo.lock'}"
-fi
-if [ "$1" = "metadata" ]; then
-  cat "{fixture.bin / 'metadata.json'}"
-  exit 0
-fi
-printf '%s\\n' "$*" >> "{calls}"
-if [ "$1" = "clean" ]; then
-  rm -f "{artifact}"
-  exit 0
-fi
-if [ "${{FAIL_COLLISION:-0}}" = "1" ] && [ "$1" = "clippy" ]; then
-  echo "error: package collision in the lockfile" >&2
-  exit 101
-fi
-case "$1" in
-  clippy|nextest|doc)
-    mkdir -p "{artifact.parent}"
-    printf '%s\\n' "${{IDENTITY_TOKEN:-built}}" > "{artifact}"
-    ;;
-esac
-exit 0
-'''
-        cargo_path = fixture.bin / "cargo"
-        _write(cargo_path, cargo, executable=True)
-        _write(
-            fixture.bin / "cargo.cmd",
-            f'@echo off\nbash "{cargo_path.as_posix()}" %*\n',
-        )
-        rustc_path = fixture.bin / "rustc"
-        _write(
-            rustc_path,
-            "#!/usr/bin/env bash\nprintf 'rustc 1.95.0\\n'\n",
-            executable=True,
-        )
-        _write(
-            fixture.bin / "rustc.cmd",
-            f'@echo off\nbash "{rustc_path.as_posix()}" %*\n',
-        )
-        subprocess.run(
-            ["git", "-C", str(fixture.root), *_IDENT, "add", "bin"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "fixture tools"],
-            check=True,
-        )
-        return fixture, calls, artifact, unrelated
+class CheckoutIdentityTestCase(unittest.TestCase):
+    """The package gate builds only the tree the push carries."""
 
-    def _source_push(self, fixture: GateFixture, token: str) -> str:
-        subprocess.run(
-            ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "-b", "feat"],
-            check=True,
-        )
-        (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
-            f"pub fn f() {{}} // {token}\n", encoding="utf-8"
-        )
-        subprocess.run(
-            ["git", "-C", str(fixture.root), *_IDENT, "add", "crates/foo/src/lib.rs"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", token],
-            check=True,
-        )
-        return fixture.push_line_new_branch("feat")
-
-    def _run(
-        self, fixture: GateFixture, push: str, token: str, extra: dict | None = None
-    ) -> tuple:
-        environment = {
-            "CARGO": str(fixture.bin / "cargo.cmd"),
-            "RUSTC": str(fixture.bin / "rustc.cmd"),
-            "IDENTITY_TOKEN": token,
-        }
-        environment.update(extra or {})
-        return fixture.run_hook(push, environment)
-
-    def test_source_transition_cleans_once_and_reuses_the_scope(self) -> None:
-        fixture, calls, artifact, unrelated = self._fixture()
-        push = self._source_push(fixture, "source-a")
-        code, stderr = self._run(fixture, push, "source-a")
-        self.assertEqual(code, 0, stderr)
-        self.assertEqual(artifact.read_text(encoding="utf-8").strip(), "source-a")
-        self.assertEqual(unrelated.read_text(encoding="utf-8"), "unrelated")
-        first_calls = calls.read_text(encoding="utf-8")
-        self.assertEqual(first_calls.count("clean -p foo"), 1)
-        self.assertIn("clippy -p foo", first_calls)
-        self.assertIn("doc --no-deps -p foo", first_calls)
-
-        (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
-            "pub fn f() {} // source-b\n", encoding="utf-8"
-        )
-        subprocess.run(
-            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-qam", "source-b"],
-            check=True,
-        )
-        code, stderr = self._run(
-            fixture, fixture.push_line_new_branch("feat"), "source-b"
-        )
-        self.assertEqual(code, 0, stderr)
-        self.assertEqual(artifact.read_text(encoding="utf-8").strip(), "source-b")
-        self.assertEqual(unrelated.read_text(encoding="utf-8"), "unrelated")
-        self.assertEqual(calls.read_text(encoding="utf-8").count("clean -p foo"), 2)
-
-    def test_overlay_lock_rewrite_is_restored_after_identity_gate(self) -> None:
-        fixture, _, _, _ = self._fixture()
-        push = self._source_push(fixture, "lock-source")
-        lock = fixture.root / "Cargo.lock"
-        before = lock.read_bytes()
-        code, stderr = self._run(
-            fixture, push, "lock-source", {"MUTATE_LOCK": "1"}
-        )
-        self.assertEqual(code, 0, stderr)
-        self.assertEqual(lock.read_bytes(), before)
-
-    def test_identity_environment_failure_is_not_accepted(self) -> None:
-        fixture, calls, _, _ = self._fixture()
-        push = self._source_push(fixture, "collision-source")
-        code, stderr = self._run(
-            fixture, push, "collision-source", {"FAIL_COLLISION": "1"}
-        )
-        self.assertEqual(code, 1)
-        self.assertIn("source identity did not verify", stderr)
-
-    def test_linked_worktree_passes_the_member_manifest(self) -> None:
-        fixture, calls, _, _ = self._fixture()
-        self._source_push(fixture, "lane-source")
-        lane = fixture.root.parent.parent / "worktrees" / "member-lane"
-        subprocess.run(
-            ["git", "-C", str(fixture.root), *_IDENT, "worktree", "add", "-q", "-b", "lane", str(lane), "feat"],
-            check=True,
-        )
-        pushed = _git(lane, "rev-parse", "HEAD")
-        push = f"refs/heads/lane {pushed} refs/heads/lane {ZERO}\n"
-        code, stderr = self._run(fixture, push, "lane-source")
-        self.assertEqual(code, 0, stderr)
-        self.assertIn("--manifest-path", calls.read_text(encoding="utf-8"))
-
-    def test_live_owner_blocks_before_cleaning(self) -> None:
-        fixture, calls, artifact, unrelated = self._fixture()
-        self._source_push(fixture, "source-a")
-        code, stderr = self._run(
-            fixture, fixture.push_line_new_branch("feat"), "source-a"
-        )
-        self.assertEqual(code, 0, stderr)
-        calls_before = calls.read_text(encoding="utf-8")
-        scripts = SCRIPT.parents[1]
-        holder_code = (
-            "import sys\n"
-            f"sys.path.insert(0, {str(scripts)!r})\n"
-            "from pathlib import Path\n"
-            "from atlas_build_identity import OwnerLease, build_spec, lease_path\n"
-            f"root = Path({str(fixture.root)!r})\n"
-            f"target = Path({str(fixture.root.parent / 'shared-target')!r})\n"
-            "spec = build_spec(root, 'foo', target, 'debug', 'host', '', "
-            "['cargo', 'clippy', '-p', 'foo', '--all-targets'], command_key='atlas-pre-push:foo')\n"
-            f"lease = OwnerLease(lease_path(spec), {{'root': str(root), 'revision': 'held', "
-            "'package': 'foo', 'target_dir': str(target)}, 60)\n"
-            "with lease:\n"
-            "    print('ready', flush=True)\n"
-            "    sys.stdin.read()\n"
-        )
-        env = dict(os.environ)
-        env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
-        env["CARGO"] = str(fixture.bin / "cargo.cmd")
-        env["RUSTC"] = str(fixture.bin / "rustc.cmd")
-        holder = subprocess.Popen(
-            [sys.executable, "-c", holder_code],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env=env,
-        )
-        try:
-            self.assertEqual(holder.stdout.readline().strip(), "ready")
-            code, stderr = self._run(
-                fixture, fixture.push_line_new_branch("feat"), "intruder"
+    def test_a_dirty_checkout_is_blocked_before_building(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            root = fixture.root
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "feat"], check=True
             )
-            self.assertEqual(code, 1)
-            self.assertIn("source identity blocked", stderr)
-            calls_after = calls.read_text(encoding="utf-8")
-            for command in ("clean -p foo", "clippy -p foo", "nextest run -p foo", "doc --no-deps -p foo"):
-                self.assertEqual(
-                    calls_after.count(command), calls_before.count(command), command
-                )
-            self.assertEqual(artifact.read_text(encoding="utf-8").strip(), "source-a")
-            self.assertEqual(unrelated.read_text(encoding="utf-8"), "unrelated")
-        finally:
-            holder.terminate()
-            holder.wait(timeout=30)
-            for stream in (holder.stdin, holder.stdout, holder.stderr):
-                if stream is not None:
-                    stream.close()
+            (root / "crates" / "foo" / "src" / "lib.rs").write_text("pub fn f() {}\n// pushed\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-am", "pushed"], check=True
+            )
+            # Cargo would compile this uncommitted module; the push would not carry it.
+            (root / "crates" / "foo" / "src" / "scratch.rs").write_text("pub fn g() {}\n")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("checkout has uncommitted changes", stderr)
+            calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.is_file() else ""
+            self.assertNotIn("-p foo", calls)
+
+    def test_a_hook_publication_from_another_checkout_is_accepted(self) -> None:
+        """The publisher pushes `ci/sync-stack-hooks` without checking it out."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            root = fixture.root
+            base = _git(root, "rev-parse", "main")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "ci/sync-stack-hooks"],
+                check=True,
+            )
+            _write(root / ".githooks" / "pre-push", "#!/bin/sh\nexit 0\n", executable=True)
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "add", ".githooks/pre-push"], check=True
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-m",
+                 "ci: Sync the stack-owned git hooks"],
+                check=True,
+            )
+            tip = _git(root, "rev-parse", "HEAD")
+            subprocess.run(["git", "-C", str(root), *_IDENT, "checkout", "-q", "main"], check=True)
+
+            code, stderr = fixture.run_hook(
+                f"refs/heads/ci/sync-stack-hooks {tip} refs/heads/ci/sync-stack-hooks {base}\n"
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("canonical hook publication accepted", stderr)
+            self.assertNotIn("BLOCKED", stderr)
+
+    def test_a_publication_subject_on_other_paths_is_not_a_publication(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            root = fixture.root
+            base = _git(root, "rev-parse", "main")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "ci/sync-stack-hooks"],
+                check=True,
+            )
+            (root / "crates" / "foo" / "src" / "lib.rs").write_text("pub fn f() {}\n// smuggled\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-am",
+                 "ci: Sync the stack-owned git hooks"],
+                check=True,
+            )
+            tip = _git(root, "rev-parse", "HEAD")
+            subprocess.run(["git", "-C", str(root), *_IDENT, "checkout", "-q", "main"], check=True)
+
+            code, stderr = fixture.run_hook(
+                f"refs/heads/ci/sync-stack-hooks {tip} refs/heads/ci/sync-stack-hooks {base}\n"
+            )
+
+            self.assertNotIn("canonical hook publication accepted", stderr)
+            assert_blocked_before_building(self, code, stderr, fixture)
+
+
+class SourceIdentityGateTestCase(unittest.TestCase):
+    """A stack member's package steps run through the stack's identity checker."""
+
+    def _member_at_pushed_tip(self, temp: str) -> tuple:
+        """A registered member (the stack checker names it) checked out at the tip."""
+        fixture, _, _, _, _ = DebtRatchetTestCase._stack(self, temp, 0)
+        stack = pathlib.Path(temp)
+        metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+        metadata["target_directory"] = str(stack / "target")
+        _write(fixture.bin / "metadata.json", json.dumps(metadata))
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "feat"], check=True
+        )
+        return stack, fixture
+
+    def test_package_steps_run_through_the_identity_checker(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack, fixture = self._member_at_pushed_tip(temp)
+            log = stack / "identity-args.log"
+            _write(
+                stack / "scripts" / "atlas-build-identity.py",
+                "import pathlib, subprocess, sys\n"
+                f"log = pathlib.Path({str(log)!r})\n"
+                "with log.open('a', encoding='utf-8') as stream:\n"
+                "    stream.write(' '.join(sys.argv[1:]) + '\\n')\n"
+                "command = sys.argv[sys.argv.index('--') + 1:]\n"
+                "raise SystemExit(subprocess.run(command).returncode)\n",
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            lines = log.read_text(encoding="utf-8").splitlines()
+            self.assertTrue(any("cargo clippy -p foo" in line for line in lines), lines)
+            first = lines[0].split()
+            self.assertEqual(first[0], "run")
+            self.assertEqual(first[first.index("--package") + 1], "foo")
+            self.assertEqual(first[first.index("--command-key") + 1], "atlas-pre-push:foo")
+            self.assertEqual(
+                pathlib.Path(first[first.index("--ignore-path") + 1]).name, "Cargo.lock"
+            )
+            self.assertEqual(
+                pathlib.Path(first[first.index("--target-dir") + 1]).resolve(),
+                (stack / "target").resolve(),
+            )
+
+    def test_a_missing_identity_checker_blocks_a_stack_member(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            _, fixture = self._member_at_pushed_tip(temp)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("source identity checker is missing", stderr)

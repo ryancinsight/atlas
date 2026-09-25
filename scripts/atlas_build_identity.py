@@ -104,7 +104,7 @@ def build_spec(
     features: str,
     command: Sequence[str] = (),
     command_key: str | None = None,
-    ignored_paths: Sequence[Path] = (),
+    ignore_paths: Sequence[Path] = (),
     dependency_digest: str = "",
 ) -> BuildSpec:
     if not package:
@@ -118,7 +118,7 @@ def build_spec(
         normalized_command, separators=(",", ":")
     )
     return BuildSpec(
-        source=source_identity(canonical_root, (canonical_target,), ignored_paths),
+        source=source_identity(canonical_root, (canonical_target,), ignore_paths),
         package=package,
         profile=profile,
         target=target,
@@ -136,7 +136,7 @@ def _dependency_data(
     package: str,
     target_dir: Path,
     metadata_cwd: Path,
-    ignored_paths: Sequence[Path],
+    ignore_paths: Sequence[Path],
     has_explicit_artifacts: bool,
 ) -> dict[str, object]:
     if has_explicit_artifacts:
@@ -153,7 +153,7 @@ def _dependency_data(
             canonical_path = _canonical(path)
             if canonical_path not in source_cache:
                 source_cache[canonical_path] = source_identity(
-                    canonical_path, (target_dir,), ignored_paths
+                    canonical_path, (target_dir,), ignore_paths
                 ).as_dict()
             return source_cache[canonical_path]
 
@@ -186,6 +186,29 @@ def _lease_key(spec: BuildSpec) -> str:
 
 def record_path(spec: BuildSpec) -> Path:
     return Path(spec.target_dir) / ".atlas" / "source-identity" / f"{_spec_key(spec)}.json"
+
+
+def _sibling_matches(spec: BuildSpec) -> bool:
+    build = spec.as_dict()
+    build.pop("command_key")
+    directory = record_path(spec).parent
+    if not directory.is_dir():
+        return False
+    for candidate in directory.glob("*.json"):
+        try:
+            record = read_record(candidate)
+        except IdentityError:
+            continue
+        if record is None:
+            continue
+        other = record.get("build")
+        if not isinstance(other, dict):
+            continue
+        other = dict(other)
+        other.pop("command_key", None)
+        if other == build and record.get("source") == spec.source.as_dict():
+            return True
+    return False
 
 
 def lease_path(spec: BuildSpec) -> Path:
@@ -288,7 +311,7 @@ def run_build(
     lease_seconds: int = DEFAULT_LEASE_SECONDS,
     command_cwd: Path | None = None,
     command_key: str | None = None,
-    ignored_paths: Sequence[Path] = (),
+    ignore_paths: Sequence[Path] = (),
 ) -> BuildResult:
     if not command:
         raise IdentityError("a build command is required")
@@ -302,7 +325,7 @@ def run_build(
         package,
         target_dir,
         execution_root,
-        ignored_paths,
+        ignore_paths,
         bool(artifact_paths),
     )
     spec = build_spec(
@@ -314,7 +337,7 @@ def run_build(
         features,
         command,
         command_key,
-        ignored_paths,
+        ignore_paths,
         str(dependencies["digest"]),
     )
     record = record_path(spec)
@@ -330,7 +353,7 @@ def run_build(
     cleaned = False
     with OwnerLease(lock, owner, lease_seconds):
         existing = read_record(record)
-        stale = existing is None
+        stale = existing is None and not _sibling_matches(spec)
         if existing is not None:
             try:
                 current_artifact = artifact_identity(
@@ -372,7 +395,7 @@ def run_build(
                     )
             cleaned = True
         _run_checked(command, execution_root, environment)
-        final_source = source_identity(root, (target_dir,), ignored_paths)
+        final_source = source_identity(root, (target_dir,), ignore_paths)
         if final_source.as_dict() != spec.source.as_dict():
             raise IdentityError("source tree changed while the build was running")
         final_dependencies = _dependency_data(
@@ -380,7 +403,7 @@ def run_build(
             package,
             target_dir,
             execution_root,
-            ignored_paths,
+            ignore_paths,
             bool(artifact_paths),
         )
         if final_dependencies != dependencies:
@@ -424,7 +447,7 @@ def check_record(
     command: Sequence[str] = (),
     command_cwd: Path | None = None,
     command_key: str | None = None,
-    ignored_paths: Sequence[Path] = (),
+    ignore_paths: Sequence[Path] = (),
 ) -> tuple[int, dict[str, object]]:
     target_dir = _canonical(target_dir)
     artifact_paths = validate_artifact_paths(target_dir, artifact_paths)
@@ -436,7 +459,7 @@ def check_record(
         package,
         target_dir,
         execution_root,
-        ignored_paths,
+        ignore_paths,
         bool(artifact_paths),
     )
     spec = build_spec(
@@ -448,7 +471,7 @@ def check_record(
         features,
         command,
         command_key,
-        ignored_paths,
+        ignore_paths,
         str(dependencies["digest"]),
     )
     record_file = record_path(spec)

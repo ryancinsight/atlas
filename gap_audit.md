@@ -475,6 +475,7 @@ the B-mode pipeline across crates and should not be decided incidentally.
 ```rust
 ```
 
+<a id="atlas-usct-fwi-024"></a>
 ## ATLAS-USCT-FWI-024 — kwavers audit vs FullWaveformInversionUSCT (open 2026-08-13)
 
 Reference: `rehmanali1994/FullWaveformInversionUSCT` at `master` — a compact
