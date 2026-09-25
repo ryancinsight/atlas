@@ -7,6 +7,9 @@
     "example": {"path": "docs/example.md", "blob": "<40-char blob hash>", "reason": "ATLAS-EXAMPLE-2026-09-17: the older revision is the intended state"}
   },
   "waivers": [
-    {"path": "backlog/atlas-apollo-stockham-policy-050c.md", "blob": "e9cc97423da86e3b87eb0860c2c3e4ca9eedddee", "reason": "ATLAS-APOLLO-STOCKHAM-POLICY-050C: intentional restoration of the item file that the consolidation lineage dropped; content recovered verbatim from commit fc2a51369 on feat/unresolved-reference-scan"}
+    {"path": "backlog/atlas-apollo-stockham-policy-050c.md", "blob": "e9cc97423da86e3b87eb0860c2c3e4ca9eedddee", "reason": "ATLAS-APOLLO-STOCKHAM-POLICY-050C: intentional restoration of the item file that the consolidation lineage dropped; content recovered verbatim from commit fc2a51369 on feat/unresolved-reference-scan"},
+    {"path": "scripts/atlas_build_artifacts.py", "blob": "cd42ebd6739ac5a94485fe832a114f4bee496f20", "reason": "ATLAS-BUILD-SOURCE-IDENTITY: intentional recovery of the last coherent content after the incomplete refactor handoff; preserved at refs/atlas/wip/atlas-build-source-identity-20260925"},
+    {"path": "scripts/atlas_build_identity.py", "blob": "956fb9d3b4f6edaa112a096c357781e4f6c1f7d4", "reason": "ATLAS-BUILD-SOURCE-IDENTITY: intentional recovery of the last coherent content after the incomplete refactor handoff; preserved at refs/atlas/wip/atlas-build-source-identity-20260925"},
+    {"path": "scripts/tests/test_atlas_build_identity.py", "blob": "666777b5fd31001ecbb9afd83c13af9955f7d25a", "reason": "ATLAS-BUILD-SOURCE-IDENTITY: intentional recovery of the last coherent content after the incomplete refactor handoff; preserved at refs/atlas/wip/atlas-build-source-identity-20260925"}
   ]
 }

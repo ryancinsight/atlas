@@ -25,6 +25,7 @@
 <a id="atlas-book-figure-closure-2026-08-21"></a>- [ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21](backlog/atlas-book-figure-closure-2026-08-21.md) — Restore generated validation figures [patch] — in-progress
 <a id="atlas-book-staging-2026-08-20"></a>- [ATLAS-BOOK-STAGING-2026-08-20](backlog/atlas-book-staging-2026-08-20.md) — Preserve Cargo artifact identity in mdBook gates [patch] — in-progress
 <a id="atlas-branch-inventory-001"></a>- [ATLAS-BRANCH-INVENTORY-001](backlog/atlas-branch-inventory-001.md) — Burn down stack branch inventories [git-hygiene] [patch] — in-progress
+<a id="atlas-build-source-identity"></a>- [ATLAS-BUILD-SOURCE-IDENTITY](backlog/atlas-build-source-identity.md) — Detect stale artifacts across source trees [patch] — todo
 <a id="atlas-build-structure-001"></a>- [ATLAS-BUILD-STRUCTURE-001](backlog/atlas-build-structure-001.md) — Consolidate leaf binaries; compiler-last dev profiles [patch] — in-progress
 <a id="atlas-cfdrs-allocator-2026-08-20"></a>- [ATLAS-CFDRS-ALLOCATOR-2026-08-20](backlog/atlas-cfdrs-allocator-2026-08-20.md) — Remove library global allocator [major][arch] — in-progress
 <a id="atlas-cfdrs-athena-migration-001"></a>- [ATLAS-CFDRS-ATHENA-MIGRATION-001](backlog/atlas-cfdrs-athena-migration-001.md) — Stage B: CFDrs to Athena [major] [arch] — in-progress
