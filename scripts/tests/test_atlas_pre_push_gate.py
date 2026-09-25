@@ -219,7 +219,10 @@ class GateFixture:
         # object is packed away between readdir and stat, which is how it
         # surfaced (a required check, failing on an unrelated pull
         # request). A directory pattern prunes the traversal outright.
-        _write(root / ".git" / "info" / "exclude", "upstream.git/\nlockfile-calls.log\n")
+        _write(
+            root / ".git" / "info" / "exclude",
+            "upstream.git/\nlockfile-calls.log\ncalls.log\ncwd.log\n",
+        )
         subprocess.run(
             ["git", "-C", str(root), "remote", "add", "origin",
              str(root / "upstream.git")],
@@ -400,6 +403,86 @@ class NewBranchRangeTestCase(unittest.TestCase):
     range exactly when pushing the checked-out branch, so the check was
     skipped on precisely the pushes that needed it.
     """
+
+    def test_force_updated_publication_branch_uses_current_default_base(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-force-update-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            root = fixture.root
+            branch = "ci/sync-stack-hooks"
+
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "old-publication"],
+                check=True,
+            )
+            _write(root / "old-hook.txt", "previous published hook\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "add", "old-hook.txt"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-m", "old publication"],
+                check=True,
+            )
+            old_publication = _git(root, "rev-parse", "HEAD")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "push", "-q", "origin",
+                 f"{old_publication}:refs/heads/{branch}"],
+                check=True,
+            )
+
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "main"],
+                check=True,
+            )
+            with (root / "Cargo.toml").open("a", encoding="utf-8") as manifest:
+                manifest.write("\n# unrelated default-branch update\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-am", "default update"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "push", "-q", "origin", "main"],
+                check=True,
+            )
+            subprocess.run(["git", "-C", str(root), "fetch", "-q", "origin"], check=True)
+            subprocess.run(
+                ["git", "-C", str(root), "remote", "set-head", "origin", "--auto"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "rebuilt",
+                 "origin/main"],
+                check=True,
+            )
+            _write(root / "new-hook.txt", "rebuilt hook\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "add", "new-hook.txt"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-m", "rebuilt publication"],
+                check=True,
+            )
+            desired = _git(root, "rev-parse", "HEAD")
+            self.assertNotEqual(
+                subprocess.run(
+                    [
+                        "git", "-C", str(root), "merge-base", "--is-ancestor",
+                        old_publication, desired,
+                    ],
+                    capture_output=True,
+                ).returncode,
+                0,
+            )
+            push_line = (
+                f"refs/heads/{branch} {desired} refs/heads/{branch} {old_publication}\n"
+            )
+
+            code, stderr = fixture.run_hook(push_line)
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("no Cargo.lock or Cargo.toml in the pushed range", stderr)
+            self.assertFalse(fixture.lockfile_calls.exists())
 
     def test_new_branch_manifest_push_runs_lockfile_check(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -1485,13 +1568,14 @@ class DebtRatchetTestCase(unittest.TestCase):
     ) -> tuple:
         stack = pathlib.Path(temp)
         log = stack / "conformance-args.log"
-        marker = "# accepts --member-revision\n" if revision_scans else ""
+        # The stack's committed checker: it logs the stack it was told to
+        # measure, then its arguments, one per line.
         _write(
             stack / "scripts" / "atlas-conformance.py",
             "#!/usr/bin/env python3\n"
-            + marker
-            + "import pathlib, sys\n"
-            f"pathlib.Path({str(log)!r}).write_text('\\n'.join(sys.argv[1:]))\n"
+            "import os, pathlib, sys\n"
+            f"pathlib.Path({str(log)!r}).write_text("
+            "'\\n'.join([os.environ.get('ATLAS_STACK_ROOT', ''), *sys.argv[1:]]))\n"
             f"sys.exit({exit_code})\n",
             executable=True,
         )
@@ -1503,6 +1587,10 @@ class DebtRatchetTestCase(unittest.TestCase):
             f"pathlib.Path({str(identity_log)!r}).write_text('\\n'.join(sys.argv[1:]))\n"
             "sys.exit(0)\n",
             executable=True,
+        )
+        _write(
+            stack / "scripts" / "atlas_stack.py",
+            "ROOT = None  # honours ATLAS_STACK_ROOT\n" if revision_scans else "ROOT = None\n",
         )
         _git_init_repo(stack)
         subprocess.run(["git", "-C", str(stack), *_IDENT, "add", "scripts"], check=True)
@@ -1532,10 +1620,10 @@ class DebtRatchetTestCase(unittest.TestCase):
 
     @staticmethod
     def _args(log: pathlib.Path) -> dict:
-        argv = log.read_text().split("\n")
+        stack_root, *argv = log.read_text().split("\n")
         return {flag: argv[argv.index(flag) + 1] for flag in (
             "--repo", "--member-path", "--member-revision", "--baseline-rev", "--drift-base",
-        )} | {"mode": argv[0]}
+        )} | {"mode": argv[0], "ATLAS_STACK_ROOT": stack_root}
 
     def test_the_pushed_tip_is_judged_against_the_committed_baseline(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -1545,6 +1633,9 @@ class DebtRatchetTestCase(unittest.TestCase):
             self.assertIn("differs from checkout", stderr)
             args = self._args(log)
             self.assertEqual(args["mode"], "check")
+            self.assertEqual(
+                pathlib.Path(args["ATLAS_STACK_ROOT"]).resolve(), pathlib.Path(temp).resolve()
+            )
             self.assertEqual(args["--repo"], "member")
             self.assertEqual(
                 pathlib.Path(args["--member-path"]).resolve(), fixture.root.resolve()
@@ -1577,12 +1668,69 @@ class DebtRatchetTestCase(unittest.TestCase):
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
             self.assertFalse(log.is_file())
             self.assertEqual(code, 1, stderr)
-            self.assertIn("predates --member-revision", stderr)
+            self.assertIn("predates revision scans", stderr)
             self.assertIn("differs from checkout", stderr)
 
-    def test_a_lane_is_judged_as_its_registered_member(self) -> None:
+    def test_the_committed_checker_runs_not_the_stack_checkout_s(self) -> None:
+        """The stack tree on a peer's branch or dirty never picks the checker."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture, log, _, _, _ = self._stack(temp, 0)
+            subprocess.run(
+                ["git", "-C", str(fixture.root), "checkout", "-q", "feat"],
+                check=True,
+            )
+            stray = pathlib.Path(temp) / "stray.log"
+            _write(
+                pathlib.Path(temp) / "scripts" / "atlas-conformance.py",
+                "import pathlib, sys\n"
+                f"pathlib.Path({str(stray)!r}).write_text('ran')\n"
+                "sys.exit(1)\n",
+            )
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+            self.assertEqual(code, 0, stderr)
+            self.assertTrue(log.is_file())
+            self.assertFalse(stray.exists(), "the working-tree checker ran")
+            # A second push reuses the extracted revision.
+            cache = pathlib.Path(temp) / ".git" / "atlas-checker"
+            self.assertEqual(len([p for p in cache.iterdir() if p.is_dir()]), 1)
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(len([p for p in cache.iterdir() if p.is_dir()]), 1)
+
+    @staticmethod
+    def _git_push(fixture: GateFixture, cwd: pathlib.Path, *refspec: str) -> tuple:
+        """Push through git itself, so the hook sees the environment git gives
+        hooks -- `GIT_DIR` among it, absolute in a lane -- not a bare shell's.
+        """
+        env = dict(os.environ)
+        env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+        # The fixture's package metadata names the main tree, so the compile
+        # gate is out of scope; the ratchet precedes it and this variable does
+        # not skip it.
+        env["SKIP_LOCAL_GATE"] = "1"
+        for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
+            env.pop(key, None)
+        proc = subprocess.run(
+            ["git", "-C", str(cwd), *_IDENT, "-c", f"core.hooksPath={SCRIPT.parent}",
+             "push", "-q", "origin", *refspec],
+            env=env, capture_output=True,
+        )
+        return proc.returncode, proc.stderr.decode("utf-8", errors="replace")
+
+    def test_a_main_tree_push_through_git_runs_the_ratchet(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, log, stack_head, base, pushed = self._stack(temp, 0)
+            code, stderr = self._git_push(fixture, fixture.root, "feat")
+            self.assertEqual(code, 0, stderr)
+            args = self._args(log)
+            self.assertEqual(args["--repo"], "member")
+            self.assertEqual(args["--member-revision"], pushed)
+            self.assertEqual(args["--baseline-rev"], stack_head)
+
+    def test_a_lane_push_through_git_judges_its_registered_member(self) -> None:
+        """From a lane the stack's refs, not the lane's, name the baseline."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, log, stack_head, _, _ = self._stack(temp, 0)
             lane = pathlib.Path(temp) / "worktrees" / "member-lane"
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "worktree", "add", "-q",
@@ -1590,26 +1738,25 @@ class DebtRatchetTestCase(unittest.TestCase):
                 check=True,
             )
             pushed = _git(lane, "rev-parse", "HEAD")
-            env = dict(os.environ)
-            env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
-            # The fixture's package metadata names the main tree, so the
-            # compile gate is out of scope here; the ratchet precedes it and
-
-            # is not one of the steps this variable skips.
-            env["SKIP_LOCAL_GATE"] = "1"
-            proc = subprocess.run(
-                ["bash", str(SCRIPT)],
-                input=f"refs/heads/lane {pushed} refs/heads/lane {ZERO}\n".encode(),
-                cwd=str(lane),
-                env=env,
-                capture_output=True,
-            )
-            stderr = proc.stderr.decode("utf-8", errors="replace")
-            self.assertEqual(proc.returncode, 0, stderr)
+            code, stderr = self._git_push(fixture, lane, "lane")
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("no stack checker reachable", stderr)
             args = self._args(log)
             self.assertEqual(args["--repo"], "member")
             self.assertEqual(pathlib.Path(args["--member-path"]).resolve(), lane.resolve())
             self.assertEqual(args["--member-revision"], pushed)
+            self.assertEqual(args["--baseline-rev"], stack_head)
+
+    def test_a_deletion_only_push_is_not_judged(self) -> None:
+        """No commit is pushed, so nothing -- `HEAD` least of all -- is scanned."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, log, _, _, pushed = self._stack(temp, 1)
+            code, stderr = fixture.run_hook(
+                f"(delete) {ZERO} refs/heads/feat {pushed}\n"
+            )
+            self.assertFalse(log.is_file())
+            self.assertIn("carries no commits", stderr)
+            self.assertNotIn("raises a debt class", stderr)
 
     def test_an_unregistered_checkout_is_not_gated(self) -> None:
         """No `repos/` entry shares this checkout's store, so it has no row."""
