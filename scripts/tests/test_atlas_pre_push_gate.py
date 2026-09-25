@@ -515,6 +515,7 @@ class NewBranchRangeTestCase(unittest.TestCase):
 
             self.assertEqual(code, 0, stderr)
             self.assertIn("canonical hook publication accepted", stderr)
+            self.assertFalse(fixture.calls.exists())
 
     def test_new_branch_manifest_push_runs_lockfile_check(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
