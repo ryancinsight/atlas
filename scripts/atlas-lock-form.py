@@ -459,7 +459,13 @@ def cmd_sync_hooks(args) -> int:
     writing, which is what CI runs.
     """
     source_dir = Path(__file__).resolve().parent / "git-hooks"
-    hooks = sorted(p for p in source_dir.iterdir() if p.is_file())
+    hook_filter = getattr(args, "hook", None)
+    if hook_filter and not (source_dir / hook_filter).is_file():
+        print(f"hook not found: {hook_filter}")
+        return 2
+    hooks = sorted(
+        p for p in source_dir.iterdir() if p.is_file() and (not hook_filter or p.name == hook_filter)
+    )
     members = member_scope(args.members)
     if members is None:
         return 2
@@ -766,9 +772,20 @@ def cmd_publish_hooks(args) -> int:
     except RuntimeError as error:
         print(f"invalid committed hook source {source_ref!r}: {error}", file=sys.stderr)
         return 2
-    hooks = committed_hooks(ROOT, source_commit)
+    committed = committed_hooks(ROOT, source_commit)
+    hook_filter = getattr(args, "hook", None)
+    if hook_filter:
+        hooks = [entry for entry in committed if entry[0] == hook_filter]
+        if not hooks:
+            print(
+                f"committed hook source {source_commit} has no {hook_filter}",
+                file=sys.stderr,
+            )
+            return 2
+    else:
+        hooks = committed
     pre_push_hook = next(
-        (content for name, content in hooks if name == "pre-push"), None
+        (content for name, content in committed if name == "pre-push"), None
     )
     if not pre_push_hook:
         print(
@@ -858,10 +875,12 @@ def main() -> int:
     sync.add_argument("members", nargs="*", help="registered members; defaults to all")
     sync.add_argument("--check", action="store_true",
                       help="report drift instead of writing")
+    sync.add_argument("--hook", help="sync only this owned hook")
     sync.set_defaults(func=cmd_sync_hooks)
     publish = sub.add_parser("publish-hooks")
     publish.add_argument("members", nargs="*", help="registered members; defaults to all")
     publish.add_argument("--push", action="store_true", help="push and open the pull requests")
+    publish.add_argument("--hook", help="publish only this owned hook")
     publish.add_argument(
         "--source-ref",
         metavar="REF",

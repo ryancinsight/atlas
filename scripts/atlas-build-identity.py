@@ -23,16 +23,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         command.add_argument("--profile", default="debug")
         command.add_argument("--target", default="host")
         command.add_argument("--features", default="")
-        command.add_argument("--artifact", type=Path, action="append", default=[])
-        command.add_argument("--command-key", default="")
+        command.add_argument("--manifest", type=Path, required=True)
+        command.add_argument("--command-cwd", type=Path, help="directory for the build command")
+        command.add_argument("--command-key", help="stable key for the build dimensions")
         command.add_argument("--ignore-path", type=Path, action="append", default=[])
+        command.add_argument("--artifact", type=Path, action="append", default=[])
+        command.add_argument("command", nargs=argparse.REMAINDER)
         if mode == "run":
-            command.add_argument("--manifest", type=Path, required=True)
-            command.add_argument("--command-cwd", type=Path)
             command.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_SECONDS)
-            command.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
     try:
+        command = tuple(args.command)
+        if command[:1] == ("--",):
+            command = command[1:]
         if args.mode == "check":
             code, value = check_record(
                 args.root,
@@ -42,14 +45,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.target,
                 args.features,
                 args.artifact,
-                command_key=args.command_key,
-                ignore_paths=args.ignore_path,
+                args.manifest,
+                command,
+                args.command_cwd,
+                args.command_key,
+                args.ignore_path,
             )
             print(json.dumps(value, sort_keys=True))
             return code
-        command = tuple(args.command)
-        if command[:1] == ("--",):
-            command = command[1:]
         result = run_build(
             args.root,
             args.manifest,
