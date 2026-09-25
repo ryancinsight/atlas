@@ -71,4 +71,5 @@
 | [0061](0061-closure-surfaces-of-balance-members.md) | Hyperion and Asclepius are closure domains | Accepted |
 | [0062](0062-iterative-solver-and-preconditioner-ownership.md) | Iterative solvers and preconditioners are Athena policy over Leto kernels | Accepted |
 | [0063](0063-raster-codec-ownership.md) | Shared raster codec ownership | Accepted |
-| [0064](0064-nurbs-derivative-scaling.md) | Overflow-safe rational derivative products | Accepted |
+| [0064](0064-shared-build-source-identity.md) | Shared build source and artifact identity | Proposed |
+| [0065](0065-nurbs-derivative-scaling.md) | Overflow-safe rational derivative products | Accepted |

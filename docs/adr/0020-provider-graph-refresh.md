@@ -135,8 +135,10 @@ then the checkout action materializes one reproducible graph `G(P)`. A
 consumer cannot silently select an older provider revision because the action
 fetches the exact gitlink object.
 
-This is a structural Git proof obligation; compile and test results remain the
-behavioral obligation of each consumer pull request.
+This is a structural Git proof obligation. The recorded-pin compile gate adds
+one behavioral witness by compiling the archived Aequitas consumer against the
+exact archived Eunomia gitlink; full consumer suites remain provider-owned.
+Revision 2026-09-23: that representative seam closes pin-sweep compile drift.
 
 ## Rejected alternatives
 

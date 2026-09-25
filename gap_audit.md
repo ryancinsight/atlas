@@ -2,6 +2,26 @@
 
 <!-- Compacted 2026-09-21 under the 1,000-line board budget: a board is a queue, never a ledger, so closed sections and delivery narrative are gone -- the record of a closed item is the PR that closed it and its `Item:` trailer. Live items, open checkboxes, anchors and open-marked findings are kept. Recover removed narrative with `git log -p -- <this file>`. -->
 
+## Finding 2026-09-24: Dioxus joins the GUI comparator set
+
+The stack's GUI gap analysis lives in one place, Metis
+[ADR 0003](repos/metis/docs/adr/0003-framework-conformance.md), and compares
+Metis against egui, GPUI, Tauri, Iced, Svelte/SvelteKit and Axum. Dioxus was
+missing, although it is the closest Rust comparator: one Rust component tree
+styled with HTML/CSS, rendered to the browser, desktop and mobile WebViews,
+the server and a native wgpu renderer (Blitz).
+
+Dioxus 0.7.10 is now a pinned comparator there, read from its published
+crates (`dioxus`, `-desktop`, `-signals`, `-stores`, `-hooks`, `-router`,
+`-fullstack`, `-native`, `blitz-*`). The first pass closed its state and
+routing gaps in Metis (`derived2`, field projections, async resources, a
+typed router; metis PR #400) and its native menu bars through Moirai
+(Moirai PR #468). Nested layouts with history, SSR/hydration, Rust hot
+patching and mobile bundles remain open in the ADR's Dioxus table. The stack
+still owns no Dioxus dependency: comparators are evidence, not
+requirements. Re-open trigger: a Dioxus minor release, when the table is
+re-read against the new crates.
+
 ## Finding 2026-09-09: auto-merge stalls behind `strict` protection, and six members enforce nothing
 
 Two facts about merge mechanics across the stack, one fixed and one open.
@@ -820,3 +840,7 @@ not this entry.
 ## Finding 2026-09-04: ares release dispatch failed on package allowlist
 
 ## Finding 2026-09-05: committed stack overlay missing moirai sections
+
+## Finding 2026-09-24: member pre-push reads the secret scanner from the live stack tree
+
+`scripts/git-hooks/pre-push` runs `$repo_root/../../scripts/atlas-secret-scan.py`, the file checked out in the shared stack tree, while its debt ratchet extracts the checker from the stack's fetched default. With the tree on a branch older than the scanner, member pushes skip the scan: CFDrs#459, kwavers#850 and Moirai#471 all did on 2026-09-24. Re-open trigger: the hook extracts the scanner from `$stack_baseline`, as it does the checker.

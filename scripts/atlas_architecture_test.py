@@ -12,16 +12,16 @@ The rule was preventive until 2026-09-04, when `ares` registered its
 Phase 0 and became the first entry in the boundary list. A forbidden
 edge now fails at the merge gate rather than at code review.
 
-Boundary table is encoded directly from ADR 0055's continuum-domain
-table:
+Boundary table is encoded from ADR 0055's continuum-domain table as
+amended by ADR 0061:
 
 | Layer | Owner | Conserved quantity | Status |
 | --- | --- | --- | --- |
 | Balance | `CFDrs` | fluid momentum / mass | live |
 | Balance | `kwavers` | acoustic momentum | live |
-| Balance | `helios` / `hyperion` | radiative energy | live |
-| Balance | `asclepius` | bio-heat | live |
+| Balance | `helios` | radiative energy | live |
 | Closure | `proteus` | n/a (material response) | live |
+| Closure | `hyperion` / `asclepius` | n/a (closure response) | live |
 | Coupling | `harmonia` | n/a (multi-balance router) | live |
 
 | Balance | `ares` | solid momentum | live (2026-09-04) |

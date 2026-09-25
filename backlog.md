@@ -1,12 +1,8 @@
 # atlas — cross-repository integration backlog
-
+<!-- Compacted 2026-09-21 under the 1,000-line board budget: a board is a queue, never a ledger, so closed sections and delivery narrative are gone -- the record of a closed item is the PR that closed it and its `Item:` trailer. Live items, open checkboxes, anchors and open-marked findings are kept. Recover removed narrative with `git log -p -- <this file>`. -->
 ## Tier 3 — mechanical floor and stack hygiene
-
 | ID | Outcome | Class | Acceptance oracle |
 | --- | --- | --- | --- |
-| ATLAS-GITLINK-DRIFT-056 | Provider gitlinks must match each registered member's current default. This sweep advances CFDrs to `b2a0d282cad1064050b3a56e4a50552a13f1c5f3`, Apollo to `5a2895f9511a5342f26a4fb70fed0c3dbdcdf2df`, Consus to `179b0f1a5d749d5d89b094962363b253a2d6a692`, Eunomia to `487afa6247623329e2f95ccd1e57dbc2e66ec74f`, Gaia to `40a3b7ce87dd76f57c88b671f17d33bc17c31859`, Helios to `c2a1c23e58c9dace979e94fc0d5e7d413fad689e`, Kwavers to `be114df86f5196339d513a383ac94871d1246224`, Leto to `9242dbf1ccf9e3f059d7fc80ece813059c59ca8f`, Melinoe to `1d45f7e960a66232fd20340a3a292cdcb85e8e16`, Themis to `481b03b22b05b95af5e3600e4487dd5c7ded38c9`, while Metis remains at `1b10541c2ef7a849e6ff66a3c778874bdf96de7b` and RITK is advanced to `29c51440ad4d33ab4109dd665683b7ef5bf45198`. Moirai remains at reachable clean pin `b77239dd10bcaf803394c26255c462bc858c1340` because current default `29b129659f368fcbc3168103302cfc545411e642` raises `oversized_files` 33 -> 35; the provider repair is the re-open trigger. | [patch] | All advanceable members match fetched defaults and remain within the committed conformance baseline; Moirai has the sole named provider-owned waiver and re-open trigger; delivery: PR [#237](https://github.com/ryancinsight/atlas/pull/237), corrective pin delivery PR [#238](https://github.com/ryancinsight/atlas/pull/238); the committed pin-drift check passes |
-
-## Deferred with a recorded reason
 
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — in-progress
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
@@ -14,7 +10,10 @@
 <a id="atlas-apollo-python-surface-2026-08-20"></a>- [ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20](backlog/atlas-apollo-python-surface-2026-08-20.md) — Ship the typed Python surface [patch] — in-progress
 <a id="apollo-quarantine-lift"></a>- [ATLAS-APOLLO-QUARANTINE-LIFT-2026-09-08](backlog/apollo-quarantine-lift.md) — Apollo's moirai rev pin can now be removed [patch] — todo
 <a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
+<a id="atlas-apollo-stockham-policy-050c"></a>- [ATLAS-APOLLO-STOCKHAM-POLICY-050C](backlog/atlas-apollo-stockham-policy-050c.md) — Parameterize the dispatch-policy matrix [minor] — in-progress
 <a id="atlas-arch-005"></a>- [ATLAS-ARCH-005](backlog/atlas-arch-005.md) — Replace closed-set dyn dispatch in per-timestep paths [arch] — in-progress
+<a id="atlas-nightly-probe-consolidation"></a>- [ATLAS-NIGHTLY-PROBE-CONSOLIDATION](backlog/atlas-nightly-probe-consolidation.md) — One nightly-rustc probe for the stack [patch] — todo
+<a id="atlas-r7-closure-mapping-2026-09-24"></a>- [ATLAS-R7-CLOSURE-MAPPING-2026-09-24](backlog/atlas-r7-closure-mapping-2026-09-24.md) — Map closure members in the live R7 scan [patch] — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — in-progress
 <a id="atlas-arch-008-running-in-place-225"></a>- [ATLAS-ARCH-008-RUNNING-IN-PLACE-225](backlog/atlas-arch-008-running-in-place-225.md) — The conversion converts and re-accumulates at the same rate [patch] — in-progress
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
@@ -40,7 +39,7 @@
 <a id="atlas-cfdrs-lint-floor-001"></a>- [ATLAS-CFDRS-LINT-FLOOR-001](backlog/atlas-cfdrs-lint-floor-001.md) — Adopt canonical Atlas lint floor in CFDrs workspace [patch] — in-progress
 <a id="atlas-cfdrs-python-gil-2026-08-21"></a>- [ATLAS-CFDRS-PYTHON-GIL-2026-08-21](backlog/atlas-cfdrs-python-gil-2026-08-21.md) — Complete PyO3 solver GIL boundaries [minor] — in-progress
 <a id="atlas-cfdrs-runner-mdbook-index-1"></a>- [ATLAS-CFDRS-RUNNER-MDBOOK-INDEX-1](backlog/atlas-cfdrs-runner-mdbook-index-1.md) — Close CFDrs runner-side mdBook index + ci.yml silent-drop [patch] — in-progress
-<a id="atlas-check-figures-ci-verify-defer"></a>- [ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER](backlog/atlas-check-figures-ci-verify-defer.md) — End-to-end CI verification of `prebook check-figures` [minor] — in-progress
+<a id="atlas-check-figures-ci-verify-defer"></a>- [ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER](backlog/atlas-check-figures-ci-verify-defer.md) — End-to-end CI verification of `prebook check-figures` [minor] — todo
 <a id="atlas-ci-runner-saturation-2026-08-25"></a>- [ATLAS-CI-RUNNER-SATURATION-2026-08-25](backlog/atlas-ci-runner-saturation-2026-08-25.md) — Hosted-runner queue depth delays every merge gate [patch] — in-progress
 <a id="atlas-code-index-001"></a>- [ATLAS-CODE-INDEX-001](backlog/atlas-code-index-001.md) — Search-ladder infrastructure for context economy [patch] — in-progress
 <a id="atlas-coeus-branch-inventory-2026-09-09"></a>- [ATLAS-COEUS-BRANCH-INVENTORY-2026-09-09](backlog/atlas-coeus-branch-inventory-2026-09-09.md) — Fifteen coeus branches hold unique work nobody is finishing [patch] — in-progress
@@ -51,15 +50,14 @@
 <a id="atlas-consus-szip-bound-2026-08-20"></a>- [ATLAS-CONSUS-SZIP-BOUND-2026-08-20](backlog/atlas-consus-szip-bound-2026-08-20.md) — Bound SZIP allocation [security][patch] — in-progress
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) — 502 blanket suppressions the ratchet never counted [major] — in-progress
 <a id="crlf-stored-blobs"></a>- [ATLAS-CRLF-STORED-BLOBS-2026-09-08](backlog/crlf-stored-blobs.md) — Committed blobs contradict the declared line-ending policy [patch] — in-progress
-<a id="cross-balance-remediation"></a>- [ATLAS-CROSS-BALANCE-EDGE-REMEDIATION-2026-09-04](backlog/cross-balance-remediation.md) — Route the four cross-balance edges through harmonia [minor] — todo
 <a id="atlas-cross-member-sweep-108"></a>- [ATLAS-CROSS-MEMBER-SWEEP-108](backlog/atlas-cross-member-sweep-108.md) — cross-member staleness and dirt sweep [patch] (2026-08-23) — in-progress
 <a id="atlas-cwd-config-cost-2026-09-16"></a>- [ATLAS-CWD-CONFIG-COST-2026-09-16](backlog/atlas-cwd-config-cost-2026-09-16.md) — Cargo config discovery is all-or-nothing: the shared `target-dir` arrives with the whole-stack `[patch]` overlay [patch] — in-progress
 <a id="atlas-default-branch-reds-2026-09-02"></a>- [ATLAS-DEFAULT-BRANCH-REDS-2026-09-02](backlog/atlas-default-branch-reds-2026-09-02.md) — Member default-branch workflows red with no collector [patch] — todo
 <a id="atlas-dmri-correct-009"></a>- [ATLAS-DMRI-CORRECT-009](backlog/atlas-dmri-correct-009.md) — Motion, eddy-current, and susceptibility correction [minor] — review
 <a id="atlas-dmri-denoise-008"></a>- [ATLAS-DMRI-DENOISE-008](backlog/atlas-dmri-denoise-008.md) — MP-PCA denoising and Gibbs unringing [minor] — in-progress
 <a id="atlas-dmri-io-001"></a>- [ATLAS-DMRI-IO-001](backlog/atlas-dmri-io-001.md) — Rank-generic acquisition-series I/O [minor] — in-progress
-<a id="atlas-dmri-tractogram-fmt-014"></a>- [ATLAS-DMRI-TRACTOGRAM-FMT-014](backlog/atlas-dmri-tractogram-fmt-014.md) — Tractogram container ownership [arch] — todo
 <a id="atlas-downstream-coordination-001"></a>- [ATLAS-DOWNSTREAM-COORDINATION-001](backlog/atlas-downstream-coordination-001.md) — Coordinate with an external consumer owner [chore] — blocked
+<a id="atlas-gaia-mesh-renderer"></a>- [ATLAS-GAIA-MESH-RENDERER](backlog/atlas-gaia-mesh-renderer.md) — Gaia renders meshes; metis hosts the window and the input — in-progress
 <a id="atlas-harmonia-field-exchange-050-2026-08-21"></a>- [ATLAS-HARMONIA-FIELD-EXCHANGE-050-2026-08-21](backlog/atlas-harmonia-field-exchange-050-2026-08-21.md) — Add typed physical-field exchange [major] [arch] — in-progress
 <a id="atlas-helios-bench-local-instrument-2026-09-18"></a>- [ATLAS-HELIOS-BENCH-LOCAL-INSTRUMENT-2026-09-18](backlog/atlas-helios-bench-local-instrument-2026-09-18.md) — helios runs wall-clock benchmark regression on hosted CI [arch] — in-progress
 <a id="atlas-helios-radon-oracle-2026-08-20"></a>- [ATLAS-HELIOS-RADON-ORACLE-2026-08-20](backlog/atlas-helios-radon-oracle-2026-08-20.md) — Remove existence-only sinogram assertion [patch] — in-progress
@@ -91,12 +89,10 @@
 <a id="atlas-lane-audit-001"></a>- [ATLAS-LANE-AUDIT-001](backlog/atlas-lane-audit-001.md) — Lane-root sweep results and residuals [patch] — in-progress
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — in-progress
 <a id="atlas-leto-peer-wip"></a>- [ATLAS-LETO-PEER-WIP](backlog/atlas-leto-peer-wip.md) — Leto uncommitted peer WIP [patch] — blocked
-<a id="atlas-apollo-stockham-policy-050c"></a>- [ATLAS-APOLLO-STOCKHAM-POLICY-050C](backlog/atlas-apollo-stockham-policy-050c.md) — Parameterize the dispatch-policy matrix [minor] — in-progress
 <a id="atlas-mnemosyne-default-recheck-2026-08-18"></a>- [ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-18](backlog/atlas-mnemosyne-default-recheck-2026-08-18.md) — moving default remains open — in-progress
 <a id="atlas-mnemosyne-default-recheck-2026-08-19"></a>- [ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-19](backlog/atlas-mnemosyne-default-recheck-2026-08-19.md) — moving default remains open — todo
 <a id="mnemosyne-pin-campaign-stranded"></a>- [ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06](backlog/mnemosyne-pin-campaign-stranded.md) — A provider-pin campaign stalled undelivered in five members [patch] — todo
 <a id="atlas-modality-003"></a>- [ATLAS-MODALITY-003](backlog/atlas-modality-003.md) — Optical-transport and RF/EM promotion watchpoint [arch] — blocked
-<a id="moirai-06-sweep"></a>- [ATLAS-MOIRAI-06-SWEEP-2026-09-06](backlog/moirai-06-sweep.md) — Moirai 0.6.0 landed without its forward sweep [patch] — in-progress
 <a id="atlas-moirai-accelerator-route-2026-08-21"></a>- [ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21](backlog/atlas-moirai-accelerator-route-2026-08-21.md) — Execute accelerator routes [major] [arch] — in-progress
 <a id="atlas-multiphysics-adoption-100"></a>- [ATLAS-MULTIPHYSICS-ADOPTION-100](backlog/atlas-multiphysics-adoption-100.md) — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in-progress
 <a id="next-steps"></a>- [ATLAS-NEXT-STEPS-2026-09-03](backlog/next-steps.md) — Sequenced plan toward the suite [arch] — todo
@@ -104,7 +100,6 @@
 <a id="atlas-overlay-004"></a>- [ATLAS-OVERLAY-004](backlog/atlas-overlay-004.md) — Worktree sprawl breaks stack dependency resolution [patch] — in-progress
 <a id="atlas-overlay-005"></a>- [ATLAS-OVERLAY-005](backlog/atlas-overlay-005.md) — Clear first-party rev pins across the stack [patch] — in-progress
 <a id="atlas-overlay-gen-stale-1"></a>- [ATLAS-OVERLAY-GEN-STALE-1](backlog/atlas-overlay-gen-stale-1.md) — Cross-repo path deps on member mainlines [arch] — todo
-<a id="atlas-pin-compile-incoherence-2026-09-22"></a>- [ATLAS-PIN-COMPILE-INCOHERENCE-2026-09-22](backlog/atlas-pin-compile-incoherence-2026-09-22.md) — Atlas member pins can be a compile-incoherent set [patch] — todo
 <a id="atlas-pm-artifact-budgets"></a>- [ATLAS-PM-ARTIFACT-BUDGETS](backlog/atlas-pm-artifact-budgets.md) — Stack PM artifacts run eight to sixteen times their budget [patch] — in-progress
 <a id="atlas-prepush-hook-forked-across-members-2026-09-09"></a>- [ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09](backlog/atlas-prepush-hook-forked-across-members-2026-09-09.md) — One gate, twenty-three copies, six versions [patch] [ci] — in-progress
 <a id="atlas-privacy-naming-1"></a>- [ATLAS-PRIVACY-NAMING-1](backlog/atlas-privacy-naming-1.md) — Remove confidential consumer identity from stack artifacts [patch] — in-progress
@@ -124,7 +119,6 @@
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked
 <a id="publish-order-optional-edges"></a>- [ATLAS-PUBLISH-ORDER-OPTIONAL-EDGES-2026-09-04](backlog/publish-order-optional-edges.md) — Decide whether optional dependencies constrain publish order [patch] — in-progress
 <a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — in-progress
-<a id="ratchet-regression-set"></a>- [ATLAS-RATCHET-REGRESSION-SET-2026-09-08](backlog/ratchet-regression-set.md) — Seven ratchet regressions arrived with peers' merges [patch] — review
 <a id="atlas-ritk-fssurf-013"></a>- [ATLAS-RITK-FSSURF-013](backlog/atlas-ritk-fssurf-013.md) — FreeSurfer surface formats and label table [minor] — todo
 <a id="atlas-runner-capacity-001"></a>- [ATLAS-RUNNER-CAPACITY-001](backlog/atlas-runner-capacity-001.md) — Size runner slots to fleet width [infra] [patch] — todo
 <a id="atlas-runner-starvation-2026-09-02"></a>- [ATLAS-RUNNER-STARVATION-2026-09-02](backlog/atlas-runner-starvation-2026-09-02.md) — Hosted runner queue starves every verification run [infra] — todo
@@ -150,5 +144,3 @@
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="ritk-shared-tree-stale-basis-213"></a>- [RITK-SHARED-TREE-STALE-BASIS-213](backlog/ritk-shared-tree-stale-basis-213.md) — ritk's shared tree is checked out 58 commits behind origin [patch] — in-progress
-<a id="atlas-gaia-mesh-renderer"></a>- [ATLAS-GAIA-MESH-RENDERER](backlog/atlas-gaia-mesh-renderer.md) — Gaia renders meshes; metis hosts the window and the input — in-progress
-<a id="atlas-gaia-nurbs-scale-001"></a>- [ATLAS-GAIA-NURBS-SCALE-001](backlog/atlas-gaia-nurbs-scale-001.md) — Preserve finite rational derivatives — todo

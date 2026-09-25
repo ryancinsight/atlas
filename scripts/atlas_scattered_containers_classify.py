@@ -10,7 +10,7 @@ classifier.
 What it does
 ------------
 1. Scans ``*.rs`` sources under the ``.gitmodules``-registered Atlas members
-   only (see ``atlas_stack.registered_members``) — never a bare directory
+   only (see ``atlas_stack.registered_member_names``) — never a bare directory
    listing, so git-ignored private consumers never surface. Provider
    ``worktrees/`` lanes are excluded because they are alternate checkouts,
    not member source.
@@ -68,10 +68,12 @@ from pathlib import Path, PurePosixPath
 from typing import Protocol
 
 try:
-    from atlas_stack import clean_git_env, member_pins, registered_members
+    from atlas_git_process import clean_process_env
+    from atlas_stack import ROOT, member_pins, registered_member_names
 except ModuleNotFoundError:  # running from scripts/ directly
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from atlas_stack import clean_git_env, member_pins, registered_members
+    from atlas_git_process import clean_process_env
+    from atlas_stack import ROOT, member_pins, registered_member_names
 
 VEC_VEC = re.compile(r"\bVec\s*<\s*Vec\s*<")
 CFG_ATTR_RE = re.compile(r"#\s*!?\s*\[\s*cfg\s*\((.+?)\)\s*\]")
@@ -210,7 +212,7 @@ class _BatchBlobs:
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            env=clean_git_env(),
+            env=clean_process_env(),
         )
 
     def read(self, spec: str) -> str | None:
@@ -259,7 +261,7 @@ class PinnedSource:
             capture_output=True,
             encoding="utf-8",
             errors="replace",
-            env=clean_git_env(),
+            env=clean_process_env(),
         )
         # A failed listing must never read as "this member has no sources":
         # that is a whole member quietly leaving the census while the gate
@@ -652,11 +654,13 @@ def build_sources(pinned: bool) -> list[tuple[str, MemberSource]]:
     than a silent skip: its sites would otherwise vanish from the census.
     """
     pins = member_pins() if pinned else {}
+    members = registered_member_names(ROOT, "HEAD" if pinned else None)
     sources: list[tuple[str, MemberSource]] = []
-    for member_root in registered_members():
-        member = member_root.name
+    for member in sorted(members):
+        member_root = ROOT / "repos" / member
         if not pinned:
-            sources.append((member, WorktreeSource(member_root)))
+            if member_root.is_dir():
+                sources.append((member, WorktreeSource(member_root)))
             continue
         pin = pins.get(member)
         if pin is None:

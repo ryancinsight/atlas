@@ -10,13 +10,14 @@
 # `build.target-dir` against, not the parent of `.cargo`. Inside
 # `repos/<member>` the workspace root is the member, and this same line would
 # resolve to that member's own `target/`. `repos/.cargo/config.toml`, generated
-# by `scripts/atlas-member-target-dir.py`, carries an absolute path for exactly
-# that case; without it, a `cargo fmt` run inside a member forks the cache.
+# by `scripts/atlas-member-target-dir.py`, carries an absolute path to the
+# primary checkout's cache. The generator resolves Git's common directory, so
+# member builds from a linked Atlas worktree still use the primary cache.
 #
-# Owning the configuration at the stack root covers package worktrees beneath
-# `worktrees/`; an Atlas-meta worktree contains its own copy of this file, so
-# its tools must be built from the primary root until a portable root-worktree
-# route can preserve this exact cache path.
+# A root-level Cargo invocation inside an Atlas-meta worktree still resolves
+# this relative path to that worktree's `target/`. Build Atlas-root Rust tools
+# from the primary checkout until root-level worktree routing has a portable
+# configuration; member builds use the generated absolute pin above.
 #
 # Tradeoff (intentional, see the build-budget rule): concurrent builds across
 # repos serialize on the shared build lock — disk size outranks build

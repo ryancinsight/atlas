@@ -53,13 +53,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import io
 import json
 import os
 import re
-import subprocess
+import shutil
 import sys
-import tarfile
 import tempfile
 import threading
 import tomllib
@@ -72,7 +70,17 @@ except ImportError:  # pragma: no cover - optional for environments without PyYA
     _yaml = None
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from atlas_stack import ROOT, is_git_ignored, staleness_note
+from atlas_git_process import (
+    GitProcessError,
+    archive,
+    execute as execute_git,
+    extract_archive,
+)
+from atlas_stack import ROOT, is_git_ignored, registered_member_names, staleness_note
+
+GIT_TIMEOUT_SECONDS = 60
+ARCHIVE_TIMEOUT_SECONDS = 120
+FETCH_TIMEOUT_SECONDS = 120
 
 
 def _load_sibling(name: str, module: str):
@@ -97,16 +105,16 @@ board_lint = _load_sibling("atlas-board-lint.py", "atlas_board_lint")
 try:
     from atlas_architecture_test import (
         BALANCE_DOMAINS as _BALANCE_DOMAINS,
+        CLOSURE_DOMAINS as _CLOSURE_DOMAINS,
         MEMBER_BALANCE_DOMAINS as _MEMBER_BALANCE_DOMAINS,
-        build_member_for_package as _build_member_for_package,
         classify_edge as _classify_balance_edge,
         classify_member_edge as _classify_balance_member_edge,
         Edge as _BalanceEdge,
     )
 except ImportError:  # pragma: no cover - the rule module ships with this script
     _BALANCE_DOMAINS = frozenset()
+    _CLOSURE_DOMAINS = frozenset()
     _MEMBER_BALANCE_DOMAINS = frozenset()
-    _build_member_for_package = None
     _classify_balance_edge = None
     _classify_balance_member_edge = None
     _BalanceEdge = None
@@ -611,6 +619,21 @@ def is_cargo_target_dir(entry: Path) -> bool:
     return any((entry / marker).exists() for marker in markers)
 
 
+def _is_unmaterialized_checkout(repo: Path) -> bool:
+    marker = repo / ".git"
+    if not marker.exists():
+        return True
+    if marker.is_dir():
+        return False
+    value = marker.read_text(encoding="utf-8", errors="replace").strip()
+    if value.startswith("gitdir: archived "):
+        return True
+    if value.startswith("gitdir:"):
+        target = (repo / value.removeprefix("gitdir:").strip()).resolve()
+        return not target.exists()
+    return False
+
+
 def untracked_root_names(repo: Path) -> set[str]:
     """Names of root-level files git does not track in `repo`, ignored included.
 
@@ -626,19 +649,23 @@ def untracked_root_names(repo: Path) -> set[str]:
     recorded revision contains that revision's content by construction, so
     nothing in it is untracked.
     """
+    if _is_unmaterialized_checkout(repo) or not (repo / ".git").exists():
+        return set()
     names: set[str] = set()
     for extra in ((), ("--ignored", "--directory")):
-        listing = subprocess.run(
-            ["git", "-C", str(repo), "ls-files", "--others", "--exclude-standard", *extra],
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",
-        )
+        try:
+            listing = execute_git(
+                repo,
+                ("ls-files", "--others", "--exclude-standard", *extra),
+                timeout=GIT_TIMEOUT_SECONDS,
+            )
+        except GitProcessError as exc:
+            raise RuntimeError(f"cannot list untracked paths in {repo}") from exc
         if listing.returncode != 0:
-            return set()
-        names.update(
-            name for name in listing.stdout.split("\n") if name and "/" not in name
-        )
+            detail = listing.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(detail or f"cannot list untracked paths in {repo}")
+        output = listing.stdout.decode("utf-8", errors="replace")
+        names.update(name for name in output.splitlines() if name and "/" not in name)
     return names
 
 
@@ -753,21 +780,25 @@ def _crlf_blobs_at_revision(repo: Path, revision: str) -> int:
     os.close(fd)
     try:
         env = dict(os.environ, GIT_INDEX_FILE=index_path)
-        subprocess.run(
-            ["git", "-C", str(repo), "read-tree", revision],
-            check=True,
-            capture_output=True,
+        read = execute_git(
+            repo,
+            ("read-tree", revision),
             env=env,
+            timeout=GIT_TIMEOUT_SECONDS,
         )
-        output = subprocess.run(
-            ["git", "-C", str(repo), "ls-files", "--eol"],
-            check=True,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
+        if read.returncode:
+            detail = read.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(detail or f"cannot read tree {revision}")
+        listed = execute_git(
+            repo,
+            ("ls-files", "--eol"),
             env=env,
-        ).stdout
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+        if listed.returncode:
+            detail = listed.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(detail or "cannot list index EOL state")
+        output = listed.stdout.decode("utf-8", errors="replace")
     finally:
         try:
             os.unlink(index_path)
@@ -800,22 +831,26 @@ def count_crlf_stored_blobs(
     # Worktree scan: measure the checkout directly. Materialized or broken
     # copies whose plumbing cannot answer cannot substantiate the defect, so
     # they contribute none — the same convention as `count_excess_worktrees`.
-    probe = subprocess.run(
-        ["git", "-C", str(repo), "rev-parse", "--git-dir"],
-        check=False,
-        capture_output=True,
-    )
-    if probe.returncode != 0:
+    if _is_unmaterialized_checkout(repo):
         return 0
-    output = subprocess.run(
-        ["git", "-C", str(repo), "ls-files", "--eol"],
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    ).stdout
-    return _count_index_crlf(output)
+    try:
+        probe = execute_git(
+            repo, ("rev-parse", "--git-dir"), timeout=GIT_TIMEOUT_SECONDS
+        )
+        if probe.returncode != 0:
+            if not (repo / ".git").exists():
+                return 0
+            detail = probe.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(detail or f"cannot resolve Git directory for {repo}")
+        listed = execute_git(
+            repo, ("ls-files", "--eol"), timeout=GIT_TIMEOUT_SECONDS
+        )
+    except GitProcessError as exc:
+        raise RuntimeError(f"cannot measure CRLF state in {repo}") from exc
+    if listed.returncode:
+        detail = listed.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"cannot list index EOL state in {repo}")
+    return _count_index_crlf(listed.stdout.decode("utf-8", errors="replace"))
 
 
 def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path]:
@@ -1074,30 +1109,14 @@ def declared_cfg_test(entry: Path, _depth: int = 0) -> bool:
 
 def git_output(*args: str, cwd: Path = ROOT) -> str:
     """Run a read-only Git query and return its output or a useful error."""
-    proc = subprocess.run(
-        ["git", "-C", str(cwd), *args],
-        capture_output=True,
-        encoding="utf-8", errors="replace",
-        check=False,
-    )
-    if proc.returncode:
-        detail = proc.stderr.strip() or "git command failed"
-        raise RuntimeError(detail)
-    return proc.stdout
-
-
-def registered_member_names_at(root: Path) -> set[str]:
-    """Read the stack universe from the `.gitmodules` in a scan root."""
-    gm = root / ".gitmodules"
-    if not gm.is_file():
-        return set()
-    return {
-        m.group(1)
-        for m in re.finditer(
-            r"path\s*=\s*repos/([^\s/]+)",
-            gm.read_text(encoding="utf-8", errors="replace"),
-        )
-    }
+    try:
+        result = execute_git(cwd, args, timeout=GIT_TIMEOUT_SECONDS)
+    except GitProcessError as exc:
+        raise RuntimeError(str(exc)) from exc
+    if result.returncode:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or "git command failed")
+    return result.stdout.decode("utf-8", errors="replace")
 
 
 def require_materialized_providers(
@@ -1149,18 +1168,27 @@ def git_ignored_paths(repo: Path) -> frozenset[Path]:
     archived snapshot of a recorded revision has no `.git` and contains only
     tracked content, so the empty set is the right answer there.
     """
-    if not (repo / ".git").exists():
+    if _is_unmaterialized_checkout(repo) or not (repo / ".git").exists():
         return frozenset()
-    result = subprocess.run(
-        ["git", "-C", str(repo), "ls-files", "--others", "--ignored",
-         "--exclude-standard", "--directory"],
-        capture_output=True, text=True,
-        encoding="utf-8", errors="replace", check=False,
-    )
+    try:
+        result = execute_git(
+            repo,
+            (
+                "ls-files",
+                "--others",
+                "--ignored",
+                "--exclude-standard",
+                "--directory",
+            ),
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+    except GitProcessError as exc:
+        raise RuntimeError(f"cannot list ignored paths in {repo}") from exc
     if result.returncode:
-        return frozenset()
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"cannot list ignored paths in {repo}")
     paths = set()
-    for line in result.stdout.splitlines():
+    for line in result.stdout.decode("utf-8", errors="replace").splitlines():
         entry = line.strip().rstrip("/")
         if entry:
             paths.add((repo / entry).resolve())
@@ -1569,7 +1597,7 @@ def scan_repo(
     `member_for_package` maps each `[package] name` to the member
     repository it lives under; the architecture test uses it to
     distinguish intra-repository composition (allowed) from
-    cross-balance-member coupling (forbidden). When `None`, the
+    cross-member boundary coupling and closure edges. When `None`, the
     member-level classification is skipped and only the package-level
     rule runs — the recorded-revision snapshot path passes `None`
     because it has no archive-wide mapping.
@@ -1697,7 +1725,7 @@ def scan_repo(
         )
         c["bare_git_dependency"] += count_bare_git_dependencies(text)
         if _classify_balance_edge is not None and (
-            _BALANCE_DOMAINS or _MEMBER_BALANCE_DOMAINS
+            _BALANCE_DOMAINS or _MEMBER_BALANCE_DOMAINS or _CLOSURE_DOMAINS
         ):
             consumer = member_package_name(text)
             if consumer is not None:
@@ -1715,9 +1743,10 @@ def scan_repo(
                             c["balance_domain_edges"] += 1
                 # Member-level rule: catch cross-balance-member edges
                 # that the package-level rule misses because
-                # `CFDrs`/`kwavers`/`helios`/`hyperion`/`asclepius`
-                # are multi-crate workspaces and only one of their
-                # crates sits in `BALANCE_DOMAINS`. The
+                # `CFDrs`/`kwavers`/`helios` are multi-crate workspaces
+                # and only one of their crates sits in `BALANCE_DOMAINS`.
+                # The same map classifies balance-to-closure edges as
+                # sanctioned `closure_provider` edges. The
                 # same-repository exemption in
                 # `classify_member_edge` keeps intra-member composition
                 # edges out of the count.
@@ -1751,30 +1780,127 @@ def materialize_member(
     dirty = git_output("status", "--porcelain", "--ignore-submodules=all", cwd=provider).strip()
     if actual == expected and not dirty:
         return provider, provider
-    archive = subprocess.run(
-        ["git", "-C", str(provider), "archive", "--format=tar", expected],
-        capture_output=True, check=False,
-    )
-    if archive.returncode:
-        subprocess.run(["git", "-C", str(provider), "fetch", "--quiet", "origin"],
-                       capture_output=True, check=False)
-        archive = subprocess.run(
-            ["git", "-C", str(provider), "archive", "--format=tar", expected],
-            capture_output=True, check=False,
-        )
-    if archive.returncode:
-        raise RuntimeError(
-            f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
-            f"provider's object store: {archive.stderr.decode('utf-8', 'replace').strip()}"
-        )
+    try:
+        payload = archive(provider, expected, timeout=ARCHIVE_TIMEOUT_SECONDS)
+    except GitProcessError as exc:
+        if exc.timed_out:
+            raise RuntimeError(
+                f"repos/{provider.name}: archive exceeded its deadline for {expected[:12]}"
+            ) from exc
+        try:
+            fetched = execute_git(
+                provider,
+                ("fetch", "--quiet", "origin"),
+                timeout=FETCH_TIMEOUT_SECONDS,
+            )
+        except GitProcessError as fetch_exc:
+            raise RuntimeError(
+                f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
+                f"provider's object store: fetch failed: {fetch_exc}"
+            ) from fetch_exc
+        if fetched.returncode:
+            detail = fetched.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(
+                f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
+                f"provider's object store: fetch failed: {detail or 'unknown Git error'}"
+            )
+        try:
+            payload = archive(provider, expected, timeout=ARCHIVE_TIMEOUT_SECONDS)
+        except GitProcessError as retry_exc:
+            raise RuntimeError(
+                f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
+                f"provider's object store: {retry_exc}"
+            ) from retry_exc
     content = scratch / provider.name
     content.mkdir(parents=True)
-    with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
-        tar.extractall(content, filter="data")
+    extract_archive(payload, content)
     # The provider gate accepts a checkout by its `.git` marker; the snapshot
     # carries one so the same gate admits it.
     (content / ".git").write_text(f"gitdir: archived {expected}\n", encoding="utf-8")
     return content, provider
+
+
+def link_snapshot(checkout: Path, revision: str, scratch: Path) -> Path:
+    """Materialize `revision` of `checkout` under `scratch`, reusing unchanged files.
+
+    Each tracked path whose working-tree content already matches `revision`
+    is hard-linked from the checkout; every other path is written from a
+    temporary index by `checkout-index`, so it carries the line-ending
+    filters a checkout applies, exactly as `git archive` would. Untracked
+    and ignored files never enter, and the checkout's index is not touched.
+
+    `git archive` gives the same content, but every file it extracts is new
+    to the filesystem, and on this Windows host first opening them dominated:
+    a kwavers revision scan took 173 s archived against 24 s in place
+    (2026-09-24), outside any pre-push budget. `scratch` must share the
+    checkout's volume for links to form; a path that cannot be linked is
+    copied, and the copies are reported since they cost that time again.
+    """
+    listing = git_output("ls-tree", "-r", "-z", "--full-tree", revision, cwd=checkout)
+    tracked: list[tuple[str, str]] = []
+    for entry in filter(None, listing.split("\0")):
+        meta, path = entry.split("\t", 1)
+        mode = meta.split(" ", 1)[0]
+        if mode != "160000":
+            tracked.append((mode, path))
+    try:
+        diff = execute_git(
+            checkout,
+            ("diff", "--no-renames", "--name-only", "-z", revision, "--"),
+            env=dict(os.environ, GIT_OPTIONAL_LOCKS="0"),
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+    except GitProcessError as exc:
+        raise RuntimeError(f"{checkout}: cannot diff against {revision[:12]}: {exc}") from exc
+    if diff.returncode:
+        detail = diff.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"{checkout}: cannot diff against {revision[:12]}")
+    differs = set(filter(None, diff.stdout.decode("utf-8", errors="replace").split("\0")))
+    # A symlink is written as the checkout would write it, never linked.
+    written = [path for mode, path in tracked if path in differs or mode == "120000"]
+    content = scratch / checkout.name
+    content.mkdir(parents=True)
+    made: set[Path] = set()
+    copied = 0
+    for mode, path in tracked:
+        if path in differs or mode == "120000":
+            continue
+        target = content / path
+        if target.parent not in made:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            made.add(target.parent)
+        try:
+            os.link(checkout / path, target)
+        except OSError:
+            shutil.copyfile(checkout / path, target)
+            copied += 1
+    if written:
+        fd, index_path = tempfile.mkstemp(prefix="atlas-snapshot-index-")
+        os.close(fd)
+        try:
+            env = dict(os.environ, GIT_INDEX_FILE=index_path)
+            for args, stdin in (
+                (("read-tree", revision), None),
+                (("checkout-index", f"--prefix={content.as_posix()}/", "-z", "--stdin"),
+                 "\0".join(written).encode("utf-8")),
+            ):
+                result = execute_git(
+                    checkout, args, stdin=stdin, env=env, timeout=ARCHIVE_TIMEOUT_SECONDS
+                )
+                if result.returncode:
+                    detail = result.stderr.decode("utf-8", errors="replace").strip()
+                    raise RuntimeError(
+                        f"{checkout}: {args[0]} at {revision[:12]} failed: {detail}"
+                    )
+        except GitProcessError as exc:
+            raise RuntimeError(f"{checkout}: cannot write {revision[:12]}: {exc}") from exc
+        finally:
+            os.unlink(index_path)
+    if copied:
+        print(f"snapshot: {copied} file(s) copied, not linked ({scratch} is on "
+              f"another volume from {checkout})", file=sys.stderr)
+    (content / ".git").write_text(f"gitdir: archived {revision}\n", encoding="utf-8")
+    return content
 
 
 def scan_member(
@@ -1813,7 +1939,9 @@ def scan_stack(
     """
     out = {}
     member_root = stack_root / "repos"
-    members = registered_member_names_at(stack_root)
+    members = registered_member_names(
+        stack_root, root_revision if root_revision is not None else None
+    )
     meta = dict.fromkeys(CLASSES, 0)
     if member_root.is_dir() and root_revision is not None:
         # Drop registered-but-never-linked members BEFORE the
@@ -1876,45 +2004,24 @@ def scan_stack(
                 # composition from cross-balance-member coupling. The
                 # mapping is built from the live trees (each target's
                 # workspace) before the parallel scan starts, so each
-                # worker receives the same global view — the mapping
-                # is shared read-only and never mutated per-repo. When
+                # worker receives the same global view — the mapping is
+                # shared read-only and never mutated per-repo. When
                 # the rule module is missing the mapping is empty and
                 # the member-level classification silently no-ops.
                 #
-                # Non-balance packages — anything not in
-                # `MEMBER_BALANCE_DOMAINS` — may legitimately be
-                # duplicated across members (the `xtask` scaffolding
-                # crate is the textbook case: CFDrs and apollo both
-                # carry one). The member-level rule does not classify
-                # edges through non-balance packages, so the
-                # collision does not affect R7. Skip the entry: a
-                # collision among non-balance packages is benign.
+                # Balance and closure members contribute packages to the
+                # mapping. Other members may legitimately be duplicated
+                # (the `xtask` scaffolding crate is the textbook case:
+                # CFDrs and apollo both carry one), and R7 does not
+                # classify edges through them.
+                boundary_members = _MEMBER_BALANCE_DOMAINS | _CLOSURE_DOMAINS
                 member_for_package: dict[str, str] = {}
-                balance_only_names: set[str] = set()
                 for target in targets:
                     content_path = target[0]
                     member_name = target[1].name
-                    if member_name in _MEMBER_BALANCE_DOMAINS:
-                        balance_only_names.update(member_package_names(content_path))
-                for target in targets:
-                    content_path = target[0]
-                    member_name = target[1].name
+                    if member_name not in boundary_members:
+                        continue
                     for package in member_package_names(content_path):
-                        # Two filters keep the mapping exact:
-                        #
-                        # 1. Only balance-domain members contribute
-                        #    packages to the mapping. A non-balance
-                        #    member (e.g. `apollo`) carrying a
-                        #    duplicate `xtask` does not register,
-                        #    because R7's classification never asks
-                        #    who owns `xtask`.
-                        if member_name not in _MEMBER_BALANCE_DOMAINS:
-                            continue
-                        # 2. The package must appear under exactly one
-                        #    balance member. Two balance members
-                        #    claiming the same `[package] name` would
-                        #    be a registry collision; the scan
-                        #    refuses rather than silently picking one.
                         existing = member_for_package.get(package)
                         if existing is not None and existing != member_name:
                             raise RuntimeError(
@@ -1922,6 +2029,7 @@ def scan_stack(
                                 f"both {existing!r} and {member_name!r}"
                             )
                         member_for_package[package] = member_name
+
                 # Four workers match the smallest hosted runner while avoiding
                 # unbounded parallel metadata and filesystem traversal.
                 worker_count = min(MAX_SCAN_WORKERS, len(repos))
@@ -2112,18 +2220,12 @@ def unresolved_at(repo: Path, revision: str, stores: list[Path]) -> int:
             paths.append(sub)
     if not paths:
         return 0
-    archive = subprocess.run(
-        ["git", "-C", str(repo), "archive", "--format=tar", revision, "--", *paths],
-        capture_output=True, check=False,
-    )
-    if archive.returncode:
-        raise RuntimeError(
-            f"{repo.name}: cannot archive {revision[:12]}: "
-            f"{archive.stderr.decode('utf-8', 'replace').strip()}"
-        )
+    try:
+        payload = archive(repo, revision, paths=tuple(paths), timeout=ARCHIVE_TIMEOUT_SECONDS)
+    except GitProcessError as exc:
+        raise RuntimeError(f"{repo.name}: cannot archive {revision[:12]}: {exc}") from exc
     with tempfile.TemporaryDirectory(prefix="atlas-ref-drift-") as scratch:
-        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
-            tar.extractall(scratch, filter="data")
+        extract_archive(payload, Path(scratch))
         return board_lint.count_unresolved(Path(scratch), stores)
 
 
@@ -2132,6 +2234,7 @@ def drift_bounded_baseline(
     results: dict[str, dict[str, int]],
     base_revision: str,
     stack_root: Path = ROOT,
+    member_checkout: Path | None = None,
 ) -> tuple[dict[str, dict[str, int]], list[str]]:
     """Raise each `REF_DRIFT_CLASS` bound to what `base_revision` measures now.
 
@@ -2140,7 +2243,8 @@ def drift_bounded_baseline(
     outside the change. The committed baseline still binds the default-branch
     run, which is where drift is reported and paid for. A member with no
     gitlink at `base_revision` (added by this change) keeps its recorded
-    bound.
+    bound. With `member_checkout`, `base_revision` is a commit of that
+    checkout -- a member gating its own push -- and is measured there.
     """
     bounded = {repo: dict(row) for repo, row in baseline.items()}
     stores = board_lint.object_stores(stack_root)
@@ -2148,7 +2252,9 @@ def drift_bounded_baseline(
     for repo, counts in results.items():
         if REF_DRIFT_CLASS not in counts:
             continue
-        if repo == "<meta>":
+        if member_checkout is not None:
+            source, revision = member_checkout, base_revision
+        elif repo == "<meta>":
             source, revision = stack_root, base_revision
         else:
             try:
@@ -2205,11 +2311,28 @@ def main() -> int:
              "own pull request instead of the stack's next pin advance",
     )
     parser.add_argument(
+        "--member-revision",
+        metavar="REV",
+        help="with --member-path, scan commit REV of that checkout instead of "
+             "its working tree. A pre-push gate passes the pushed tip: a shared "
+             "checkout holds whatever branch and dirt a peer left there, which "
+             "is no revision anyone is pushing. Host-observed rows are reported "
+             "but do not fail the check, since REV does not contain them",
+    )
+    parser.add_argument(
+        "--baseline-rev",
+        metavar="REV",
+        help="judge against the baseline committed at atlas revision REV "
+             "instead of the working copy, which a peer's uncommitted "
+             "regeneration or a checked-out branch can make any value",
+    )
+    parser.add_argument(
         "--drift-base",
         metavar="REV",
         help="with `check`, bound unresolved_references by what REV's boards "
              "measure under the current refs, so a pull request fails only on "
-             "citations it adds; pass the pull request's base commit",
+             "citations it adds; pass the pull request's base commit (a commit "
+             "of the --member-path checkout when that is given)",
     )
     parser.add_argument(
         "--accept-raises",
@@ -2226,6 +2349,10 @@ def main() -> int:
               "baseline row to judge it against, so both are required",
               file=sys.stderr)
         return 2
+    if args.member_revision is not None and args.member_path is None:
+        print("--member-revision names a commit of the --member-path checkout; "
+              "give both", file=sys.stderr)
+        return 2
     if mode == "generate" and args.repo:
         print("refusing to generate a baseline from a single repo; omit --repo",
               file=sys.stderr)
@@ -2239,7 +2366,25 @@ def main() -> int:
             # The member's own checkout is the content; no gitlink is involved,
             # so neither the provider-materialisation gate nor a root revision
             # applies here.
-            results = {args.repo: scan_repo(member, member=args.repo)}
+            if args.member_revision is None:
+                results = {args.repo: scan_repo(member, member=args.repo)}
+            else:
+                pushed = git_output(
+                    "rev-parse", "--verify", f"{args.member_revision}^{{commit}}",
+                    cwd=member,
+                ).strip()
+                # Inside the member's own git directory: the checkout's volume,
+                # so the snapshot's links form, and outside its working tree.
+                store = member / git_output(
+                    "rev-parse", "--git-common-dir", cwd=member
+                ).strip()
+                with tempfile.TemporaryDirectory(
+                    prefix="atlas-conformance-", dir=store
+                ) as scratch:
+                    content = link_snapshot(member, pushed, Path(scratch))
+                    results = {args.repo: scan_repo(
+                        content, live_repo=member, revision=pushed, member=args.repo
+                    )}
         elif args.repo:
             member = ROOT / "repos" / args.repo
             if not member.is_dir():
@@ -2317,24 +2462,48 @@ def main() -> int:
             report(results)
         return 0
 
-    if not BASELINE.is_file():
+    if args.baseline_rev:
+        try:
+            base = json.loads(git_output(
+                "show", f"{args.baseline_rev}:{BASELINE.relative_to(ROOT).as_posix()}",
+                cwd=ROOT,
+            ))
+        except RuntimeError as exc:
+            print(f"baseline at {args.baseline_rev} unavailable: {exc}", file=sys.stderr)
+            return 2
+    elif not BASELINE.is_file():
         print("no committed baseline; run `generate` first", file=sys.stderr)
         return 1
-    base = json.loads(BASELINE.read_text())
+    else:
+        base = json.loads(BASELINE.read_text())
     _, _, tightenings = ratchet_delta(base, results)
     drift = []
+    # A member checkout's pull-request base is a commit of that checkout,
+    # not of the stack root.
+    drift_repo = (
+        args.member_path.resolve() if args.member_path is not None else ROOT
+    )
     if args.drift_base:
         try:
             base_revision = git_output(
-                "rev-parse", "--verify", f"{args.drift_base}^{{commit}}"
+                "rev-parse", "--verify", f"{args.drift_base}^{{commit}}",
+                cwd=drift_repo,
             ).strip()
-            bound, drift = drift_bounded_baseline(base, results, base_revision)
+            bound, drift = drift_bounded_baseline(
+                base, results, base_revision,
+                member_checkout=drift_repo if args.member_path is not None else None,
+            )
         except RuntimeError as exc:
             print(f"drift base unavailable: {exc}", file=sys.stderr)
             return 1
     else:
         bound = base
     regressions, host, _ = ratchet_delta(bound, results)
+    # A revision scan judges what the push carries; the live checkout's lanes,
+    # forked caches, and scratch files are not in it, and refusing a push over
+    # them refuses it on a peer's state.
+    host_gates = args.member_revision is None
+    failed = bool(regressions or (host and host_gates))
     if args.json:
         print(json.dumps({
             "results": results,
@@ -2343,7 +2512,7 @@ def main() -> int:
             "tightenings": tightenings,
             "ref_drift": drift,
         }, indent=1, sort_keys=True))
-        return 1 if regressions or host else 0
+        return 1 if failed else 0
     for t in tightenings:
         print(f"tightened (update baseline): {t}")
     # A `--worktree` scan measures whatever is checked out, and members of
@@ -2372,12 +2541,15 @@ def main() -> int:
             "checkout has neither, so these never reach the hosted gate. "
             "Sweep the tree or close the lane; do not regenerate the "
             "baseline over them."
+            + ("" if host_gates else
+               " They do not fail a --member-revision check, which judges "
+               "only the revision's content.")
         )
     print(
         f"{len(regressions)} regression(s), {len(host)} host-state row(s), "
         f"{len(tightenings)} tightening(s)"
     )
-    return 1 if regressions or host else 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

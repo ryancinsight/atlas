@@ -31,6 +31,29 @@ def _write(root: Path, rel: str, content: str) -> None:
 
 
 class AtlasConformanceTestCase(unittest.TestCase):
+    def test_untracked_git_timeout_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / ".git").mkdir()
+            with patch.object(
+                conformance,
+                "execute_git",
+                side_effect=conformance.GitProcessError("timed out", timed_out=True),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "cannot list untracked paths"):
+                    conformance.untracked_root_names(repo)
+
+    def test_untracked_git_failure_fails_closed(self) -> None:
+        failure = subprocess.CompletedProcess(
+            ["git"], 128, stdout=b"", stderr=b"fatal: failed"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / ".git").mkdir()
+            with patch.object(conformance, "execute_git", return_value=failure):
+                with self.assertRaisesRegex(RuntimeError, "failed"):
+                    conformance.untracked_root_names(repo)
+
     def test_json_check_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             baseline_path = Path(temp) / "baseline.json"
@@ -1090,6 +1113,61 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(results["beta"]["oversized_files"], 0)
         self.assertEqual(set(results), {"<meta>", "alpha", "beta"})
 
+    def test_stack_scan_maps_closure_member_edges(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(
+                root,
+                ".gitmodules",
+                "[submodule \"kwavers\"]\n\tpath = repos/kwavers\n"
+                "[submodule \"hyperion\"]\n\tpath = repos/hyperion\n",
+            )
+            for member in ("kwavers", "hyperion"):
+                _write(root, f"repos/{member}/.git", "gitdir: modules/member\n")
+            _write(
+                root,
+                "repos/kwavers/Cargo.toml",
+                "[package]\nname = 'kwavers-physics'\n"
+                "[dependencies]\nhyperion = { path = '../../hyperion' }\n",
+            )
+            _write(root, "repos/kwavers/src/lib.rs", "pub fn kwavers() {}\n")
+            _write(
+                root,
+                "repos/hyperion/Cargo.toml",
+                "[package]\nname = 'hyperion'\n",
+            )
+            _write(root, "repos/hyperion/src/lib.rs", "pub fn hyperion() {}\n")
+            observed: list[str] = []
+            classifier = conformance._classify_balance_member_edge
+            self.assertIsNotNone(classifier)
+
+            def record_finding(edge, member_for_package):
+                finding = classifier(edge, member_for_package)
+                observed.append(finding.kind)
+                return finding
+
+            with (
+                patch.object(
+                    conformance,
+                    "_MEMBER_BALANCE_DOMAINS",
+                    frozenset({"kwavers"}),
+                ),
+                patch.object(
+                    conformance,
+                    "_CLOSURE_DOMAINS",
+                    frozenset({"hyperion"}),
+                ),
+                patch.object(
+                    conformance,
+                    "_classify_balance_member_edge",
+                    side_effect=record_finding,
+                ),
+            ):
+                results = conformance.scan_stack(root)
+
+        self.assertEqual(results["kwavers"]["balance_domain_edges"], 0)
+        self.assertIn("closure_provider", observed)
+
     def test_stack_scan_counts_distinct_gate_versions(self) -> None:
         """`member_gate_versions` converges to 1 as the rollout lands.
 
@@ -1774,6 +1852,218 @@ class MemberPathScanTests(unittest.TestCase):
             ):
                 self.assertEqual(conformance.main(), 2)
 
+    def test_a_revision_without_a_member_path_is_refused(self) -> None:
+        with (
+            patch.object(
+                sys, "argv",
+                [str(SCRIPT), "check", "--repo", "demo", "--member-revision", "HEAD"],
+            ),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(io.StringIO()),
+        ):
+            self.assertEqual(conformance.main(), 2)
+
+
+def _git(repo: Path, *argv: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t",
+         "-c", "core.autocrlf=false", *argv],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+
+def _member_repo(root: Path) -> Path:
+    """A one-crate git repository with a committed, in-budget source file."""
+    member = root / "member"
+    _write(member, "Cargo.toml", '[package]\nname = "demo"\nversion = "0.1.0"\n')
+    _write(member, "src/lib.rs", "pub fn f() {}\n")
+    _git(member.parent, "init", "-q", str(member))
+    _git(member, "add", "-A")
+    _git(member, "commit", "-q", "-m", "seed")
+    return member
+
+
+class MemberRevisionScanTests(unittest.TestCase):
+    """`--member-revision` judges a commit of the member, not its checkout.
+
+    The pre-push gate passes the pushed tip. A shared checkout holds whatever
+    branch and uncommitted files a peer left there, so a working-tree scan
+    judged a state nobody was pushing -- in both directions.
+    """
+
+    # 500 newline-terminated lines count as 501: the scan counts the text
+    # after the last newline as a line, matching the 501-line push it refuses.
+    OVERSIZED = "".join(f"// line {n}\n" for n in range(500))
+
+    def check(self, member: Path, revision: str, baseline: dict) -> tuple[int, dict]:
+        with tempfile.TemporaryDirectory(prefix="atlas-baseline-") as temp:
+            baseline_path = Path(temp) / "baseline.json"
+            baseline_path.write_text(json.dumps(baseline), encoding="utf-8")
+            output = io.StringIO()
+            with (
+                patch.object(conformance, "BASELINE", baseline_path),
+                patch.object(
+                    sys, "argv",
+                    [str(SCRIPT), "check", "--json", "--repo", "demo",
+                     "--member-path", str(member), "--member-revision", revision],
+                ),
+                redirect_stdout(output),
+            ):
+                code = conformance.main()
+            return code, json.loads(output.getvalue())
+
+    def seed_counts(self, member: Path) -> dict:
+        """The seed commit's own counts, recorded as the member's baseline."""
+        _, payload = self.check(member, "HEAD", {"demo": {}})
+        counts = payload["results"]["demo"]
+        self.assertEqual(counts["oversized_files"], 0)
+        return counts
+
+    def test_uncommitted_debt_is_not_the_revision_s(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-member-rev-") as temp:
+            member = _member_repo(Path(temp))
+            recorded = self.seed_counts(member)
+            _write(member, "src/big.rs", self.OVERSIZED)
+            code, payload = self.check(member, "HEAD", {"demo": recorded})
+            self.assertEqual(payload["results"]["demo"]["oversized_files"], 0)
+            self.assertEqual(payload["regressions"], [])
+            self.assertEqual(code, 0)
+
+    def test_committed_debt_fails_even_when_the_checkout_is_elsewhere(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-member-rev-") as temp:
+            member = _member_repo(Path(temp))
+            recorded = self.seed_counts(member)
+            seed = _git(member, "rev-parse", "HEAD")
+            _write(member, "src/big.rs", self.OVERSIZED)
+            _write(member, "src/lib.rs", "pub mod big;\npub fn f() {}\n")
+            _git(member, "add", "src")
+            _git(member, "commit", "-q", "-m", "oversized")
+            pushed = _git(member, "rev-parse", "HEAD")
+            # The checkout moves back, as a peer switching the shared tree would.
+            _git(member, "checkout", "-q", seed)
+            code, payload = self.check(member, pushed, {"demo": recorded})
+            self.assertEqual(payload["results"]["demo"]["oversized_files"], 1)
+            self.assertEqual(payload["regressions"], ["demo/oversized_files: 0 -> 1"])
+            self.assertEqual(code, 1)
+
+    def test_host_rows_are_reported_without_failing_a_revision(self) -> None:
+        """A lane or forked cache on this machine is not in the pushed commit."""
+        with tempfile.TemporaryDirectory(prefix="atlas-member-rev-") as temp:
+            member = _member_repo(Path(temp))
+            with patch.object(conformance, "scan_repo", return_value={"target_forks": 1}):
+                code, payload = self.check(member, "HEAD", {"demo": {"target_forks": 0}})
+            self.assertEqual(payload["host_regressions"], ["demo/target_forks: 0 -> 1"])
+            self.assertEqual(code, 0)
+
+
+class LinkSnapshotTests(unittest.TestCase):
+    """`link_snapshot` reproduces `git archive` of the revision exactly."""
+
+    @staticmethod
+    def tree(root: Path) -> dict[str, bytes]:
+        return {
+            p.relative_to(root).as_posix(): p.read_bytes()
+            for p in root.rglob("*") if p.is_file() and p.name != ".git"
+        }
+
+    def test_the_snapshot_matches_the_archived_revision(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-link-snapshot-") as temp:
+            member = _member_repo(Path(temp))
+            _write(member, "src/kept.rs", "pub fn kept() {}\n")
+            _write(member, "src/edited.rs", "pub fn committed() {}\n")
+            _write(member, "src/removed.rs", "pub fn removed() {}\n")
+            _git(member, "add", "-A")
+            _git(member, "commit", "-q", "-m", "revision")
+            revision = _git(member, "rev-parse", "HEAD")
+            # A shared checkout's state after the commit: an edit, a deletion,
+            # and a scratch file, none of which the revision contains.
+            _write(member, "src/edited.rs", "pub fn uncommitted() {}\n")
+            (member / "src" / "removed.rs").unlink()
+            _write(member, "scratch.rs", "fn peer() {}\n")
+
+            archived = Path(temp) / "archived"
+            archived.mkdir()
+            conformance.extract_archive(
+                conformance.archive(member, revision, timeout=60), archived
+            )
+            scratch = Path(temp) / "scratch"
+            scratch.mkdir()
+            linked = conformance.link_snapshot(member, revision, scratch)
+
+            self.assertEqual(self.tree(linked), self.tree(archived))
+            self.assertEqual(
+                (linked / "src" / "edited.rs").read_text(), "pub fn committed() {}\n"
+            )
+            self.assertFalse((linked / "scratch.rs").exists())
+            # The checkout itself is untouched by the snapshot and its removal.
+            shutil.rmtree(linked)
+            self.assertEqual(
+                (member / "src" / "edited.rs").read_text(), "pub fn uncommitted() {}\n"
+            )
+            self.assertEqual(
+                [e.strip() for e in _git(member, "status", "--porcelain", "-z").split("\0")],
+                ["M src/edited.rs", "D src/removed.rs", "?? scratch.rs", ""],
+            )
+
+
+class BaselineRevisionTests(unittest.TestCase):
+    """`--baseline-rev` reads the committed baseline, not the working copy."""
+
+    def test_the_committed_baseline_is_the_one_judged_against(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-baseline-rev-") as temp:
+            stack = Path(temp) / "stack"
+            baseline_path = stack / "scripts" / "conformance-baseline.json"
+            _write(stack, "scripts/conformance-baseline.json",
+                   json.dumps({"demo": {"markers": 5}}))
+            _git(stack.parent, "init", "-q", str(stack))
+            _git(stack, "add", "-A")
+            _git(stack, "commit", "-q", "-m", "baseline")
+            # A regeneration in progress rewrote the working copy downward.
+            baseline_path.write_text(json.dumps({"demo": {"markers": 0}}))
+            member = Path(temp) / "member"
+            member.mkdir()
+
+            def run(extra: list[str]) -> int:
+                with (
+                    patch.object(conformance, "ROOT", stack),
+                    patch.object(conformance, "BASELINE", baseline_path),
+                    patch.object(conformance, "scan_repo", return_value={"markers": 3}),
+                    patch.object(
+                        sys, "argv",
+                        [str(SCRIPT), "check", "--repo", "demo",
+                         "--member-path", str(member), *extra],
+                    ),
+                    redirect_stdout(io.StringIO()),
+                ):
+                    return conformance.main()
+
+            self.assertEqual(run(["--baseline-rev", "HEAD"]), 0)
+            self.assertEqual(run([]), 1)
+
+    def test_an_unreadable_baseline_revision_cannot_pass(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-baseline-rev-") as temp:
+            stack = Path(temp) / "stack"
+            stack.mkdir()
+            _git(stack.parent, "init", "-q", str(stack))
+            member = Path(temp) / "member"
+            member.mkdir()
+            with (
+                patch.object(conformance, "ROOT", stack),
+                patch.object(
+                    conformance, "BASELINE",
+                    stack / "scripts" / "conformance-baseline.json",
+                ),
+                patch.object(conformance, "scan_repo", return_value={"markers": 0}),
+                patch.object(
+                    sys, "argv",
+                    [str(SCRIPT), "check", "--repo", "demo", "--member-path",
+                     str(member), "--baseline-rev", "no-such-ref"],
+                ),
+                redirect_stdout(io.StringIO()),
+                redirect_stderr(io.StringIO()),
+            ):
+                self.assertEqual(conformance.main(), 2)
+
 
 class RootAllowanceFollowsTheMemberTests(unittest.TestCase):
     """A member's sanctioned root files travel with the member's name."""
@@ -1815,6 +2105,12 @@ class RefDriftBoundTests(unittest.TestCase):
         "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid",
         "GIT_CONFIG_NOSYSTEM": "1", "HOME": tempfile.gettempdir(),
         "PATH": __import__("os").environ["PATH"],
+        # Fixed dates make every fixture sha the same on every run. With
+        # clock dates a cited 9-character prefix was all digits about 1.5% of
+        # the time, which the citation pattern rightly does not read as a
+        # hash, and the expected count came out one short.
+        "GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z",
+        "GIT_COMMITTER_DATE": "2026-01-01T00:00:00Z",
     }
     CLS = conformance.REF_DRIFT_CLASS
 
@@ -1844,6 +2140,10 @@ class RefDriftBoundTests(unittest.TestCase):
         self._git(repo, "switch", "-q", "-c", "feature")
         orphan = self._commit(repo, "feature.txt", "feature\n")
         self._git(repo, "switch", "-q", "main")
+        self.assertRegex(
+            orphan[:9], conformance.board_lint.HASH_PATTERN,
+            "the fixture cites this prefix, so it must read as a hash",
+        )
         return orphan
 
     def _stack(self) -> tuple[str, str, str]:

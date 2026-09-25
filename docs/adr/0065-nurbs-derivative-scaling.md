@@ -1,4 +1,4 @@
-# ADR 0064: Overflow-safe rational derivative products
+# ADR 0065: Overflow-safe rational derivative products
 
 - Status: Accepted
 - Date: 2026-09-23
