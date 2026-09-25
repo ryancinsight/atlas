@@ -1505,7 +1505,10 @@ class LaneGateTestCase(unittest.TestCase):
         self.assertTrue(observed_target, "lane gate dropped CARGO_TARGET_DIR")
         self.assertEqual(pathlib.PurePosixPath(observed_target.replace("\\", "/")).name, "target")
         calls = fixture.calls.read_text(encoding="utf-8")
-        for command in ("clippy", "nextest", "doc"):
+        required_commands = ("clippy", "doc")
+        if shutil.which("cargo-nextest") is not None:
+            required_commands += ("nextest",)
+        for command in required_commands:
             matching = [line for line in calls.splitlines() if line.startswith(command)]
             self.assertTrue(matching, calls)
             self.assertTrue(all("--locked" in line for line in matching), matching)
