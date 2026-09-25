@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import uuid
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
@@ -17,7 +18,14 @@ from atlas_build_artifacts import (
     discover_artifacts,
     validate_artifact_paths,
 )
-from atlas_build_lease import BuildIdentityError, LeaseProbe, OwnerLease, lease_is_held
+from atlas_build_lease import (
+    BuildIdentityError,
+    LeaseProbe,
+    OwnerLease,
+    lease_is_held,
+    package_target_lease_path,
+    package_target_lease_scopes,
+)
 from atlas_build_source import (
     SourceIdentity,
     environment_digest,
@@ -179,11 +187,6 @@ def _spec_key(spec: BuildSpec) -> str:
     return _sha256_bytes(encoded)
 
 
-def _lease_key(spec: BuildSpec) -> str:
-    scope = {"package": spec.package, "target_dir": spec.target_dir}
-    return _sha256_bytes(json.dumps(scope, sort_keys=True, separators=(",", ":")).encode())
-
-
 def record_path(spec: BuildSpec) -> Path:
     return Path(spec.target_dir) / ".atlas" / "source-identity" / f"{_spec_key(spec)}.json"
 
@@ -212,7 +215,7 @@ def _sibling_matches(spec: BuildSpec) -> bool:
 
 
 def lease_path(spec: BuildSpec) -> Path:
-    return Path(spec.target_dir) / ".atlas" / "source-identity" / f"{_lease_key(spec)}.lock"
+    return package_target_lease_path(spec.package, Path(spec.target_dir))
 
 
 def read_record(path: Path) -> dict[str, object] | None:
@@ -341,17 +344,42 @@ def run_build(
         str(dependencies["digest"]),
     )
     record = record_path(spec)
-    lock = lease_path(spec)
-    owner = {
-        "root": spec.source.root,
-        "revision": spec.source.revision,
-        "package": package,
-        "target_dir": target_dir.as_posix(),
-    }
     environment = dict(os.environ)
     environment["CARGO_TARGET_DIR"] = target_dir.as_posix()
     cleaned = False
-    with OwnerLease(lock, owner, lease_seconds):
+    with ExitStack() as leases:
+        for lock, owner in package_target_lease_scopes(
+            spec.package,
+            target_dir,
+            spec.source.root,
+            spec.source.revision,
+            tuple(str(value) for value in dependencies["clean_packages"]),
+        ):
+            leases.enter_context(OwnerLease(lock, owner, lease_seconds))
+        locked_dependencies = _dependency_data(
+            manifest,
+            package,
+            target_dir,
+            execution_root,
+            ignore_paths,
+            bool(artifact_paths),
+        )
+        locked_spec = build_spec(
+            root,
+            package,
+            target_dir,
+            profile,
+            target,
+            features,
+            command,
+            command_key,
+            ignore_paths,
+            str(locked_dependencies["digest"]),
+        )
+        if locked_dependencies != dependencies or locked_spec.as_dict() != spec.as_dict():
+            raise IdentityError(
+                "source or dependency inputs changed while acquiring the package leases"
+            )
         existing = read_record(record)
         stale = existing is None and not _sibling_matches(spec)
         if existing is not None:
@@ -475,7 +503,17 @@ def check_record(
         str(dependencies["digest"]),
     )
     record_file = record_path(spec)
-    with LeaseProbe(lease_path(spec)) as acquired:
+    with ExitStack() as probes:
+        acquired = True
+        for lock, _owner in package_target_lease_scopes(
+            spec.package,
+            target_dir,
+            spec.source.root,
+            spec.source.revision,
+            tuple(str(value) for value in dependencies["clean_packages"]),
+        ):
+            if not probes.enter_context(LeaseProbe(lock)):
+                acquired = False
         if not acquired:
             return 3, {"status": "owned", "record": record_file.as_posix()}
         existing = read_record(record_file)

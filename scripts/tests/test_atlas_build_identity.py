@@ -19,6 +19,7 @@ SPEC = importlib.util.spec_from_file_location("atlas_build_identity", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
+from atlas_build_lease import OwnerLease, package_target_lease_path
 
 identity = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = identity
@@ -202,6 +203,49 @@ class BuildIdentityTestCase(unittest.TestCase):
             self.assertFalse(self.clean_log.exists())
         finally:
             lease.__exit__(None, None, None)
+
+    def test_a_dependency_owner_blocks_cleaning(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        snapshot = {
+            "root": "demo",
+            "packages": [],
+            "edges": [],
+            "clean_packages": ["demo", "dep"],
+            "digest": "dependency-digest",
+        }
+        lock = package_target_lease_path("dep", self.target)
+        owner = OwnerLease(
+            lock,
+            {"root": str(self.root), "revision": "dependency", "package": "dep"},
+            60,
+        )
+        owner.__enter__()
+        try:
+            self.clean_log.unlink(missing_ok=True)
+            with (
+                patch.object(identity, "_dependency_data", return_value=snapshot),
+                patch.object(
+                    identity,
+                    "artifact_identity",
+                    return_value={
+                        "files": {"debug/deps/libdemo-abcdef.rlib": "digest"},
+                        "digest": "artifact",
+                    },
+                ),
+                patch.object(identity, "_run_checked"),
+            ):
+                with self.assertRaises(identity.IdentityError):
+                    identity.run_build(
+                        self.root,
+                        self.root / "Cargo.toml",
+                        "demo",
+                        self.target,
+                        [sys.executable, str(self.build_script)],
+                        artifact_paths=(),
+                    )
+            self.assertFalse(self.clean_log.exists())
+        finally:
+            owner.__exit__(None, None, None)
 
     def test_an_expired_owner_is_recovered(self) -> None:
         init_repo(self.root, "fn main() {}\n")

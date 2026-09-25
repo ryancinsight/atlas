@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
@@ -12,6 +13,36 @@ from typing import Any
 
 class BuildIdentityError(RuntimeError):
     """A source identity cannot be established or safely used."""
+
+
+def package_target_lease_path(package: str, target_dir: Path) -> Path:
+    scope = {"package": package, "target_dir": target_dir.as_posix()}
+    encoded = json.dumps(scope, sort_keys=True, separators=(",", ":")).encode()
+    key = hashlib.sha256(encoded).hexdigest()
+    return target_dir / ".atlas" / "source-identity" / f"{key}.lock"
+
+
+def package_target_lease_scopes(
+    package: str,
+    target_dir: Path,
+    root: str,
+    revision: str,
+    clean_packages: list[str] | tuple[str, ...] | set[str],
+) -> list[tuple[Path, dict[str, object]]]:
+    packages = {str(value) for value in clean_packages}
+    packages.add(package)
+    return [
+        (
+            package_target_lease_path(name, target_dir),
+            {
+                "root": root,
+                "revision": revision,
+                "package": name,
+                "target_dir": target_dir.as_posix(),
+            },
+        )
+        for name in sorted(packages)
+    ]
 
 
 def _try_lock(handle: Any) -> bool:
