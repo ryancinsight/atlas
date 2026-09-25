@@ -46,6 +46,7 @@ class BuildSpec:
     features: str
     toolchain: str
     target_dir: str
+    command_key: str = ""
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -56,6 +57,7 @@ class BuildSpec:
             "features": self.features,
             "toolchain": self.toolchain,
             "target_dir": self.target_dir,
+            "command_key": self.command_key,
         }
 
 
@@ -96,11 +98,31 @@ def _canonical(path: Path, *, strict: bool = False) -> Path:
         raise IdentityError(f"cannot resolve {path}: {error}") from error
 
 
-def source_identity(root: Path) -> SourceIdentity:
+def _exclusions(top: Path, ignore_paths: Sequence[Path]) -> list[str]:
+    """Pathspecs that leave `ignore_paths` out of every source query.
+
+    A gate that rewrites a file and restores it afterwards (the pre-push
+    gate does this to `Cargo.lock`) must not turn its own transient edit into
+    a new source identity, or each of its steps would clean the previous
+    step's artifacts.
+    """
+    pathspecs = ["--", "."]
+    for path in ignore_paths:
+        resolved = _canonical(path if path.is_absolute() else top / path)
+        try:
+            relative = resolved.relative_to(top).as_posix()
+        except ValueError as error:
+            raise IdentityError(f"ignored path is outside the source tree: {resolved}") from error
+        pathspecs.append(f":(exclude,literal){relative}")
+    return pathspecs
+
+
+def source_identity(root: Path, ignore_paths: Sequence[Path] = ()) -> SourceIdentity:
     root = _canonical(root, strict=True)
     top = Path(_git(root, "rev-parse", "--show-toplevel").decode().strip()).resolve()
     revision = _git(top, "rev-parse", "HEAD").decode().strip()
-    status = _git(top, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+    pathspecs = _exclusions(top, ignore_paths)
+    status = _git(top, "status", "--porcelain=v1", "-z", "--untracked-files=all", *pathspecs)
     if not status:
         return SourceIdentity(
             root=top.as_posix(),
@@ -110,8 +132,8 @@ def source_identity(root: Path) -> SourceIdentity:
         )
 
     digest = hashlib.sha256()
-    digest.update(_git(top, "diff", "--binary", "HEAD", "--"))
-    untracked = _git(top, "ls-files", "--others", "--exclude-standard", "-z")
+    digest.update(_git(top, "diff", "--binary", "HEAD", *pathspecs))
+    untracked = _git(top, "ls-files", "--others", "--exclude-standard", "-z", *pathspecs)
     for raw_path in untracked.split(b"\0"):
         if not raw_path:
             continue
@@ -156,17 +178,20 @@ def build_spec(
     profile: str,
     target: str,
     features: str,
+    command_key: str = "",
+    ignore_paths: Sequence[Path] = (),
 ) -> BuildSpec:
     if not package:
         raise IdentityError("package must not be empty")
     return BuildSpec(
-        source=source_identity(root),
+        source=source_identity(root, ignore_paths),
         package=package,
         profile=profile,
         target=target,
         features=features,
         toolchain=toolchain_identity(),
         target_dir=_canonical(target_dir).as_posix(),
+        command_key=command_key,
     )
 
 
@@ -238,6 +263,35 @@ def artifact_identity(
         files[relative] = _file_digest(path)
     digest = _sha256_bytes(json.dumps(files, sort_keys=True, separators=(",", ":")).encode())
     return {"files": files, "digest": digest}
+
+
+def _sibling_matches(spec: BuildSpec) -> bool:
+    """Whether another command's record already built this exact source.
+
+    Records differ only by `command_key` when one gate runs several commands
+    over a package. A missing record for the next command is then no evidence
+    of a foreign source, so it must not clean what the previous command built.
+    """
+    build = spec.as_dict()
+    build.pop("command_key")
+    directory = record_path(spec).parent
+    if not directory.is_dir():
+        return False
+    for candidate in directory.glob("*.json"):
+        try:
+            record = read_record(candidate)
+        except IdentityError:
+            continue
+        if record is None:
+            continue
+        other = record.get("build")
+        if not isinstance(other, dict):
+            continue
+        other = dict(other)
+        other.pop("command_key", None)
+        if other == build and record.get("source") == spec.source.as_dict():
+            return True
+    return False
 
 
 def read_record(path: Path) -> dict[str, object] | None:
@@ -329,9 +383,9 @@ class OwnerLease:
             raise IdentityError(f"cannot release source identity lease {self.path}") from error
 
 
-def _run_checked(command: Sequence[str], root: Path, environment: dict[str, str]) -> None:
+def _run_checked(command: Sequence[str], cwd: Path, environment: dict[str, str]) -> None:
     try:
-        result = subprocess.run(list(command), cwd=root, env=environment, check=False)
+        result = subprocess.run(list(command), cwd=cwd, env=environment, check=False)
     except OSError as error:
         raise IdentityError(f"cannot run {command[0]}: {error}") from error
     if result.returncode != 0:
@@ -369,13 +423,26 @@ def run_build(
     artifact_paths: Sequence[Path] = (),
     clean_command: Sequence[str] | None = None,
     lease_seconds: int = DEFAULT_LEASE_SECONDS,
+    command_cwd: Path | None = None,
+    command_key: str = "",
+    ignore_paths: Sequence[Path] = (),
 ) -> BuildResult:
+    """Run `command` against artifacts recorded for this exact source.
+
+    `command_cwd` is where the clean and build commands run (the source root
+    by default). `command_key` separates records for different commands over
+    one package -- clippy, tests and rustdoc leave different artifacts, so a
+    shared record would make each step see the previous one as stale.
+    """
     if not command:
         raise IdentityError("a build command is required")
     root = _canonical(root, strict=True)
     manifest = _canonical(manifest, strict=True)
     target_dir = _canonical(target_dir)
-    spec = build_spec(root, package, target_dir, profile, target, features)
+    cwd = _canonical(command_cwd, strict=True) if command_cwd is not None else root
+    spec = build_spec(
+        root, package, target_dir, profile, target, features, command_key, ignore_paths
+    )
     record = record_path(spec)
     lock = lease_path(spec)
     owner = {
@@ -390,7 +457,7 @@ def run_build(
     with OwnerLease(lock, owner, lease_seconds):
         existing = read_record(record)
         artifact_paths = tuple(_canonical(path) for path in artifact_paths)
-        stale = existing is None
+        stale = existing is None and not _sibling_matches(spec)
         if existing is not None:
             try:
                 current_artifact = artifact_identity(root, target_dir, package, profile, artifact_paths)
@@ -406,9 +473,9 @@ def run_build(
             clean = list(clean_command) if clean_command is not None else [
                 "cargo", "clean", "-p", package, "--manifest-path", str(manifest)
             ]
-            _run_checked(clean, root, environment)
+            _run_checked(clean, cwd, environment)
             cleaned = True
-        _run_checked(command, root, environment)
+        _run_checked(command, cwd, environment)
         paths = artifact_paths or discover_artifacts(target_dir, package, profile)
         artifact = artifact_identity(root, target_dir, package, profile, paths)
         _write_atomic(
@@ -431,8 +498,12 @@ def check_record(
     target: str = "host",
     features: str = "",
     artifact_paths: Sequence[Path] = (),
+    command_key: str = "",
+    ignore_paths: Sequence[Path] = (),
 ) -> tuple[int, dict[str, object]]:
-    spec = build_spec(root, package, target_dir, profile, target, features)
+    spec = build_spec(
+        root, package, target_dir, profile, target, features, command_key, ignore_paths
+    )
     record_file = record_path(spec)
     existing = read_record(record_file)
     if existing is None:

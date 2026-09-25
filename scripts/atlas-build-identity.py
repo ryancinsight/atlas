@@ -24,8 +24,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         command.add_argument("--target", default="host")
         command.add_argument("--features", default="")
         command.add_argument("--artifact", type=Path, action="append", default=[])
+        command.add_argument("--command-key", default="")
+        command.add_argument("--ignore-path", type=Path, action="append", default=[])
         if mode == "run":
             command.add_argument("--manifest", type=Path, required=True)
+            command.add_argument("--command-cwd", type=Path)
             command.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_SECONDS)
             command.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
@@ -39,6 +42,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.target,
                 args.features,
                 args.artifact,
+                command_key=args.command_key,
+                ignore_paths=args.ignore_path,
             )
             print(json.dumps(value, sort_keys=True))
             return code
@@ -56,6 +61,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.features,
             args.artifact,
             lease_seconds=args.lease_seconds,
+            command_cwd=args.command_cwd,
+            command_key=args.command_key,
+            ignore_paths=args.ignore_path,
         )
         print(
             json.dumps(
