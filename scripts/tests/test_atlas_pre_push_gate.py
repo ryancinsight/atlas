@@ -484,6 +484,38 @@ class NewBranchRangeTestCase(unittest.TestCase):
             self.assertIn("no Cargo.lock or Cargo.toml in the pushed range", stderr)
             self.assertFalse(fixture.lockfile_calls.exists())
 
+    def test_hook_publication_can_be_pushed_from_a_private_index(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-publication-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            root = fixture.root
+            base = _git(root, "rev-parse", "HEAD")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "publish"],
+                check=True,
+            )
+            _write(root / ".githooks" / "pre-push", "published pre-push\n")
+            _write(root / ".githooks" / "pre-commit", "published pre-commit\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "add", ".githooks"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q",
+                 "-m", "ci: Sync the stack-owned git hooks"],
+                check=True,
+            )
+            tip = _git(root, "rev-parse", "HEAD")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "peer", base],
+                check=True,
+            )
+            push_line = f"refs/heads/publish {tip} refs/heads/publish {ZERO}\n"
+
+            code, stderr = fixture.run_hook(push_line)
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("canonical hook publication accepted", stderr)
+
     def test_new_branch_manifest_push_runs_lockfile_check(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture(pathlib.Path(temp))
