@@ -2198,80 +2198,7 @@ def ratchet_delta(
     return regressions, host, tightenings
 
 
-# The one class whose count depends on remote refs rather than on the scanned
-# tree: a cited hash resolves while some origin branch or tag reaches it, so a
-# member deleting a branch raises the count with no change to any citation.
-# On 2026-09-23 `<meta>` went 119 -> 126 in seven hours on every open pull
-# request while the boards stood still.
 REF_DRIFT_CLASS = "unresolved_references"
-
-
-def unresolved_at(repo: Path, revision: str, stores: list[Path]) -> int:
-    """Count unresolved citations in `revision`'s reference artifacts of `repo`.
-
-    Only the artifacts `board_lint.reference_artifacts` reads are extracted,
-    and they resolve against `stores` -- the same refs the scanned tree is
-    judged against, so the two counts differ only by what the tree cites.
-    """
-    top = git_output("ls-tree", "--name-only", revision, cwd=repo).splitlines()
-    paths = [n for n in top if n.lower() in board_lint.REFERENCE_BOARDS]
-    for sub in ("backlog", "docs/adr"):
-        if git_output("ls-tree", "-d", "--name-only", revision, "--", sub, cwd=repo).strip():
-            paths.append(sub)
-    if not paths:
-        return 0
-    try:
-        payload = archive(repo, revision, paths=tuple(paths), timeout=ARCHIVE_TIMEOUT_SECONDS)
-    except GitProcessError as exc:
-        raise RuntimeError(f"{repo.name}: cannot archive {revision[:12]}: {exc}") from exc
-    with tempfile.TemporaryDirectory(prefix="atlas-ref-drift-") as scratch:
-        extract_archive(payload, Path(scratch))
-        return board_lint.count_unresolved(Path(scratch), stores)
-
-
-def drift_bounded_baseline(
-    baseline: dict[str, dict[str, int]],
-    results: dict[str, dict[str, int]],
-    base_revision: str,
-    stack_root: Path = ROOT,
-    member_checkout: Path | None = None,
-) -> tuple[dict[str, dict[str, int]], list[str]]:
-    """Raise each `REF_DRIFT_CLASS` bound to what `base_revision` measures now.
-
-    A pull request is then judged on the citations it adds: the base tree,
-    re-counted under today's refs, absorbs every orphaning that happened
-    outside the change. The committed baseline still binds the default-branch
-    run, which is where drift is reported and paid for. A member with no
-    gitlink at `base_revision` (added by this change) keeps its recorded
-    bound. With `member_checkout`, `base_revision` is a commit of that
-    checkout -- a member gating its own push -- and is measured there.
-    """
-    bounded = {repo: dict(row) for repo, row in baseline.items()}
-    stores = board_lint.object_stores(stack_root)
-    notes = []
-    for repo, counts in results.items():
-        if REF_DRIFT_CLASS not in counts:
-            continue
-        if member_checkout is not None:
-            source, revision = member_checkout, base_revision
-        elif repo == "<meta>":
-            source, revision = stack_root, base_revision
-        else:
-            try:
-                revision = gitlink_revision(base_revision, f"repos/{repo}", stack_root)
-            except RuntimeError:
-                continue
-            source = stack_root / "repos" / repo
-        measured = unresolved_at(source, revision, stores)
-        recorded = bounded.get(repo, {}).get(REF_DRIFT_CLASS, 0)
-        if measured > recorded:
-            bounded.setdefault(repo, {})[REF_DRIFT_CLASS] = measured
-            notes.append(
-                f"{repo}/{REF_DRIFT_CLASS}: baseline {recorded}, "
-                f"base {base_revision[:12]} measures {measured}"
-            )
-    return bounded, notes
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -2325,14 +2252,6 @@ def main() -> int:
         help="judge against the baseline committed at atlas revision REV "
              "instead of the working copy, which a peer's uncommitted "
              "regeneration or a checked-out branch can make any value",
-    )
-    parser.add_argument(
-        "--drift-base",
-        metavar="REV",
-        help="with `check`, bound unresolved_references by what REV's boards "
-             "measure under the current refs, so a pull request fails only on "
-             "citations it adds; pass the pull request's base commit (a commit "
-             "of the --member-path checkout when that is given)",
     )
     parser.add_argument(
         "--accept-raises",
@@ -2477,27 +2396,7 @@ def main() -> int:
     else:
         base = json.loads(BASELINE.read_text())
     _, _, tightenings = ratchet_delta(base, results)
-    drift = []
-    # A member checkout's pull-request base is a commit of that checkout,
-    # not of the stack root.
-    drift_repo = (
-        args.member_path.resolve() if args.member_path is not None else ROOT
-    )
-    if args.drift_base:
-        try:
-            base_revision = git_output(
-                "rev-parse", "--verify", f"{args.drift_base}^{{commit}}",
-                cwd=drift_repo,
-            ).strip()
-            bound, drift = drift_bounded_baseline(
-                base, results, base_revision,
-                member_checkout=drift_repo if args.member_path is not None else None,
-            )
-        except RuntimeError as exc:
-            print(f"drift base unavailable: {exc}", file=sys.stderr)
-            return 1
-    else:
-        bound = base
+    bound = base
     regressions, host, _ = ratchet_delta(bound, results)
     # A revision scan judges what the push carries; the live checkout's lanes,
     # forked caches, and scratch files are not in it, and refusing a push over
@@ -2510,7 +2409,6 @@ def main() -> int:
             "regressions": regressions,
             "host_regressions": host,
             "tightenings": tightenings,
-            "ref_drift": drift,
         }, indent=1, sort_keys=True))
         return 1 if failed else 0
     for t in tightenings:
@@ -2529,8 +2427,6 @@ def main() -> int:
                 note = staleness_note(member)
                 if note:
                     stale[repo_name] = note
-    for d in drift:
-        print(f"REF DRIFT (outside this change): {d}")
     for r in regressions:
         print(f"RATCHET VIOLATION: {r}{stale.get(r.split('/', 1)[0], '')}")
     for r in host:
