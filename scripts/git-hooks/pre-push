@@ -429,6 +429,22 @@ if [ -n "$gate_range_base" ] \
   gate_range_base=""
 fi
 gate_tip_rev="${gate_tip:-HEAD}"
+checkout_tip="$(git rev-parse --verify --quiet HEAD^{commit} || true)"
+pushed_tip="$(git rev-parse --verify --quiet "$gate_tip_rev^{commit}" || true)"
+if [ -n "$gate_tip" ] && [ -n "$checkout_tip" ] && [ -n "$pushed_tip" ] \
+  && [ "$checkout_tip" != "$pushed_tip" ]; then
+  echo "pre-push: BLOCKED -- pushed revision $pushed_tip differs from checkout $checkout_tip" >&2
+  echo "Run the gate from a checkout of the pushed revision; no artifact was accepted." >&2
+  exit 1
+fi
+if [ -n "$gate_tip" ]; then
+  checkout_status="$(git status --porcelain=v1 --untracked-files=all)"
+  if [ -n "$checkout_status" ]; then
+    echo "pre-push: BLOCKED -- checkout has uncommitted changes not present in the pushed revision" >&2
+    echo "Commit or remove them before pushing; no artifact was accepted." >&2
+    exit 1
+  fi
+fi
 if [ -n "$gate_range_base" ]; then
   gate_base="$gate_range_base"
 else
@@ -499,6 +515,26 @@ if [ -z "$python_bin" ]; then
   exit 1
 fi
 
+gate_lock="$repo_root/Cargo.lock"
+gate_lock_backup=""
+if [ -f "$gate_lock" ]; then
+  gate_lock_backup="$(mktemp)"
+  cp -p "$gate_lock" "$gate_lock_backup"
+fi
+
+restore_gate_lock() {
+  if [ -n "$gate_lock_backup" ] && [ -f "$gate_lock_backup" ]; then
+    if ! cmp -s "$gate_lock_backup" "$gate_lock" 2>/dev/null; then
+      cp -p "$gate_lock_backup" "$gate_lock" || true
+    fi
+    rm -f "$gate_lock_backup" || true
+  fi
+  rm -f "${gate_log:-}" 2>/dev/null || true
+  cleanup_gate_cwd
+}
+
+trap restore_gate_lock EXIT INT TERM
+
 # Cargo is the authority on which package manifests belong to this workspace.
 # A nested standalone manifest (cargo-fuzz is the common case) can legally use
 # the same package name as a member, so names alone cannot establish ownership.
@@ -551,6 +587,18 @@ while IFS= read -r changed_path; do
       *" $excluded_manifest "*) ;;
       *) excluded_manifests="$excluded_manifests $excluded_manifest" ;;
     esac
+    continue
+  fi
+  if [ -z "$package_dir" ] && [ "$changed_path" = "Cargo.toml" ] \
+    && [ -f "$repo_root/Cargo.toml" ] \
+    && grep -qE '^\[workspace\]' "$repo_root/Cargo.toml" 2>/dev/null; then
+    while IFS=$'\t' read -r _workspace_manifest workspace_package; do
+      [ -n "$workspace_package" ] || continue
+      case " $gate_packages " in
+        *" $workspace_package "*) ;;
+        *) gate_packages="$gate_packages $workspace_package" ;;
+      esac
+    done <<< "$workspace_members"
     continue
   fi
   if [ -z "$package_dir" ]; then
@@ -735,10 +783,12 @@ done
 
 identity_checker="$repo_root/../../scripts/atlas-build-identity.py"
 identity_target_dir=""
+identity_target="${CARGO_BUILD_TARGET:-host}"
 identity_enabled=0
-identity_manifest_args=()
+identity_manifest_args=(--manifest "$repo_root/Cargo.toml")
+identity_cargo_manifest_args=()
 if [ -n "$gate_manifest" ]; then
-  identity_manifest_args=(--manifest-path "$repo_root/Cargo.toml")
+  identity_cargo_manifest_args=(--manifest-path "$repo_root/Cargo.toml")
 fi
 if [ -f "$identity_checker" ]; then
   if [ -z "$python_bin" ]; then
@@ -774,12 +824,14 @@ run_identity_step() {
     --package "$package_name"
     --target-dir "$identity_target_dir"
     --profile debug
-    --target host
+    --target "$identity_target"
     --manifest "$repo_root/Cargo.toml"
     --command-cwd "$gate_cwd"
     --command-key "atlas-pre-push:$package_name"
+    --ignore-path "$repo_root/Cargo.lock"
     "${identity_manifest_args[@]}"
     --
+    "${identity_cargo_manifest_args[@]}"
     "$@"
   )
   local verdict
@@ -804,37 +856,13 @@ MESSAGE
       ;;
     environment)
       report_broken_graph "source identity $step_name" "$gate_log"
-      exit 0
+      echo "pre-push: source identity did not verify the pushed revision" >&2
+      exit 1
       ;;
   esac
 }
 
 echo "pre-push: gating${gate_packages}" >&2
-
-# Restore whatever the lock held before this gate ran -- the committed content,
-# or a developer's own uncommitted edit to it. Copying the bytes rather than
-# checking out the committed file is what makes the second case safe: this hook
-# must not decide that someone's in-progress lock work was a side effect of its
-# own.
-gate_lock="$repo_root/Cargo.lock"
-gate_lock_backup=""
-if [ -f "$gate_lock" ]; then
-  gate_lock_backup="$(mktemp)"
-  cp -p "$gate_lock" "$gate_lock_backup"
-fi
-
-restore_gate_lock() {
-  if [ -n "$gate_lock_backup" ] && [ -f "$gate_lock_backup" ]; then
-    if ! cmp -s "$gate_lock_backup" "$gate_lock" 2>/dev/null; then
-      cp -p "$gate_lock_backup" "$gate_lock" || true
-    fi
-    rm -f "$gate_lock_backup" || true
-  fi
-  rm -f "${gate_log:-}" 2>/dev/null || true
-  cleanup_gate_cwd
-}
-
-trap restore_gate_lock EXIT INT TERM
 
 # Formatting is workspace-wide and near-instant, and its failure is the
 # cheapest one to find here rather than on a runner.

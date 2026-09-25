@@ -15,26 +15,29 @@ A Git revision alone is insufficient for a dirty checkout, a branch name is not 
 
 ### Stable scope and record
 
-`scripts/atlas_build_identity.py` owns one record for each build scope: shared target directory, package, profile, target triple, feature set, toolchain identity, and the caller's stable command key. The command key names the build-entry-point dimensions without treating `clippy`, tests, and documentation as different source identities. The record is stored atomically under `target/.atlas/source-identity/`, inside the existing cache root. It contains the canonical source root, full Git revision, clean/dirty state, source-tree digest, build dimensions, and hashes of the discovered or explicitly supplied package artifacts.
+`scripts/atlas_build_identity.py` owns one record for each build scope: shared target directory, package, profile, target triple, feature set, toolchain identity, build-affecting environment digest, dependency-closure digest, and the caller's stable command key. The command key names the build-entry-point dimensions without treating `clippy`, tests, and documentation as different source identities. The record is stored atomically under `target/.atlas/source-identity/`, inside the existing cache root. It contains the canonical source root, full Git revision, clean/dirty state, source-tree digest, resolved dependency closure, build dimensions, and hashes of the discovered or explicitly supplied package artifacts. Version 3 records without a resolved closure are stale.
 
 The record path excludes the source revision deliberately. A source transition must contend with the existing owner of the same build scope; otherwise a second source tree could acquire a different lock and overwrite the first record.
 
 ### Mismatch and ownership
 
-A missing, malformed, or mismatched record is stale. The gate acquires the scope lease before running `cargo clean -p <package> --manifest-path <manifest>`, then runs the requested build command and writes the record only after success. Ordinary matching builds reuse the existing artifact without cleaning.
+A missing, malformed, or mismatched record is stale. The gate resolves the package's reachable path and Git dependency closure, acquires the scope lease, cleans the affected non-registry packages plus the selected package, then runs the requested build command and writes the record only after success. Ordinary matching builds reuse the existing artifacts without cleaning. Registry package IDs and graph edges remain part of the closure digest without hashing registry checkout paths.
 
-The lease stores owner root, revision, package, target directory, token, and expiry. A live conflicting owner refuses the operation without cleaning, deleting, or overwriting artifacts. An expired lease is recoverable after a crash; a malformed lease fails closed. The target resolver uses the Git common directory so a linked Atlas worktree still addresses the primary cache.
+The lease stores owner root, revision, package, target directory, token, and expiry. The OS file lock is authoritative while a process is alive; expiry is recovery metadata after a crash. A live conflicting owner refuses the operation without cleaning, deleting, or overwriting artifacts. A malformed lease or record fails closed. The target resolver uses the Git common directory so a linked Atlas worktree still addresses the primary cache.
 
 ### Build entry points
 
-The shared identity module is the single policy surface. The member pre-push gate invokes it for each changed package before accepting clippy, tests, or documentation, using one stable command key per package so those steps share a record. The integration composes with the existing conformance push guard in PR #277; it must not duplicate that guard or hand-edit member hook copies. Other build entry points use the same module when they compile packages, rather than implementing a second provenance format.
+The shared identity module is the single policy surface. The member pre-push gate refuses a pushed revision that differs from the checkout, invokes the module for each changed package before accepting clippy, tests, or documentation, and passes the member manifest in linked-worktree mode. One stable command key per package lets those steps share a record. The integration composes with the existing conformance push guard in PR #277; it must not duplicate that guard or hand-edit member hook copies. Other build entry points use the same module when they compile packages, rather than implementing a second provenance format.
 
 The module records artifact hashes after the command. It does not treat Cargo fingerprint JSON as a public schema, and it does not claim that a missing `.fingerprint` directory proves source identity.
 
 ## Failure modes
 
-- A dirty tree is identified by a digest of its Git diff and untracked source files; generated files under the resolved target directory are excluded; a matching revision with different content is stale.
-- A source path or artifact outside the shared target is rejected.
+- A dirty tree is identified by a digest of its Git diff and untracked or ignored source files; generated files under the resolved target directory are excluded; a matching revision with different content is stale.
+- A source path or artifact outside the shared target is rejected before any clean.
+- A full Cargo metadata graph is required when artifacts are discovered implicitly; an unresolved or name-ambiguous dependency closure fails closed.
+- A build-affecting environment change produces a different record scope.
+- A lockfile rewrite caused by the development overlay is excluded from the source digest only after the pushed lock has been checked and the working copy is restored.
 - A live owner conflict returns a diagnostic naming the owner and revision and performs no destructive action.
 - A failed build leaves the previous record unchanged and releases the lease.
 - A missing or malformed record fails closed rather than accepting an unknown artifact.
@@ -56,13 +59,14 @@ The module records artifact hashes after the command. It does not treat Cargo fi
 
 ## Verification
 
-The core regression suite covers a source transition, matching-source reuse, different-root identity, active-owner preservation, expired-lease recovery, dirty-tree identity, target-directory exclusion, and artifact-boundary rejection. The integrated hook regression additionally proves that a stale package is rebuilt once per source transition, an unrelated package artifact is preserved, and a live owner blocks cleaning without changing source files. Focused Python tests, the full scripts suite, pre-push hook tests, conformance, the ARCH-008 oracle, and the pin-drift gate are required before merge.
+The core regression suite covers a source transition, matching-source reuse, different-root identity, dependency-closure transitions and cleanup, active-owner preservation, expired-lease recovery, dirty and ignored-source identity, build-environment dimensions, target-directory exclusion, and artifact-boundary rejection. The integrated hook regression additionally proves that a stale package is rebuilt once per source transition, an unrelated package artifact is preserved, a pushed-revision mismatch is refused, overlay lock rewrites are restored, linked worktrees receive the member manifest, environment failures are not accepted, and a live owner blocks cleaning without changing source files. Focused Python tests, the full scripts suite, pre-push hook tests, conformance, the ARCH-008 oracle, and the pin-drift gate are required before merge.
 
 ## References
 
 - [ATLAS-BUILD-SOURCE-IDENTITY](../../backlog.md#atlas-build-source-identity)
 - [PR #277](https://github.com/ryancinsight/atlas/pull/277)
 - [scripts/atlas_build_identity.py](../../scripts/atlas_build_identity.py)
+- [scripts/atlas_build_source.py](../../scripts/atlas_build_source.py)
 - [scripts/atlas_build_artifacts.py](../../scripts/atlas_build_artifacts.py)
 - [scripts/git-hooks/pre-push](../../scripts/git-hooks/pre-push)
 - [Apollo ADR 0051](../../repos/apollo/docs/adr/0051-composite-phase-schedules.md)

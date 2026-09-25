@@ -235,7 +235,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             self.assertEqual(identity.toolchain_identity(self.root), "rustc 1.95.0")
         self.assertEqual(run.call_args.kwargs["cwd"], self.root)
 
-    def test_command_cwd_is_recorded_and_used(self) -> None:
+    def test_command_cwd_is_used_without_changing_record_scope(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         execution_root = self.base / "execution"
         execution_root.mkdir()
@@ -260,7 +260,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 command_cwd=execution_root,
             )
         record = json.loads(result.record_path.read_text(encoding="utf-8"))
-        self.assertEqual(record["build"]["command_cwd"], execution_root.resolve().as_posix())
+        self.assertNotIn("command_cwd", record["build"])
         self.assertEqual(cwd_marker.read_text(encoding="utf-8"), str(execution_root.resolve()))
 
     def test_a_dirty_tree_is_not_identified_by_revision_alone(self) -> None:
@@ -270,6 +270,24 @@ class BuildIdentityTestCase(unittest.TestCase):
         after = identity.source_identity(self.root)
         self.assertTrue(after.dirty)
         self.assertNotEqual(before.tree_digest, after.tree_digest)
+
+    def test_ignored_source_files_are_hashed_and_can_be_explicitly_excluded(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        (self.root / ".gitignore").write_text("generated.rs\n", encoding="utf-8")
+        git(self.root, "add", ".gitignore")
+        git(self.root, "commit", "-q", "-m", "ignore generated source")
+        clean = identity.source_identity(self.root)
+        (self.root / "generated.rs").write_text("first\n", encoding="utf-8")
+        before = identity.source_identity(self.root)
+        (self.root / "generated.rs").write_text("second\n", encoding="utf-8")
+        after = identity.source_identity(self.root)
+        self.assertTrue(after.dirty)
+        self.assertNotEqual(before.tree_digest, after.tree_digest)
+        excluded = identity.source_identity(
+            self.root, ignored_paths=(self.root / "generated.rs",)
+        )
+        self.assertFalse(excluded.dirty)
+        self.assertEqual(excluded.tree_digest, clean.tree_digest)
 
     def test_target_files_do_not_change_source_identity(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -282,6 +300,28 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(identity_value.tree_digest, before.tree_digest)
         with self.assertRaises(identity.IdentityError):
             identity.build_spec(self.root, "demo", self.root, "debug", "host", "")
+
+    def test_explicit_ignored_lockfile_does_not_change_source_identity(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        lock = self.root / "Cargo.lock"
+        lock.write_text("version = 4\n", encoding="utf-8")
+        git(self.root, "add", "Cargo.lock")
+        git(self.root, "commit", "-q", "-m", "lock")
+        before = identity.source_identity(self.root)
+        lock.write_text("version = 4\nchanged\n", encoding="utf-8")
+        after = identity.source_identity(self.root, ignored_paths=(lock,))
+        self.assertEqual(after.tree_digest, before.tree_digest)
+        self.assertFalse(after.dirty)
+
+    def test_build_environment_changes_change_the_record_scope(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            with patch.dict(os.environ, {"RUSTFLAGS": "-C debuginfo=0"}):
+                first = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+            with patch.dict(os.environ, {"RUSTFLAGS": "-C debuginfo=2"}):
+                second = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+        self.assertNotEqual(first.environment_digest, second.environment_digest)
+        self.assertNotEqual(identity.record_path(first), identity.record_path(second))
 
     def test_source_changes_during_build_are_not_recorded(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -330,8 +370,11 @@ class BuildIdentityTestCase(unittest.TestCase):
             path.write_bytes(path.name.encode())
         with patch.object(
             artifacts,
-            "_workspace_package_names",
-            return_value=frozenset({"demo", "demo-tools"}),
+            "_workspace_artifact_owners",
+            return_value={
+                "demo": frozenset({"demo"}),
+                "demo-tools": frozenset({"demo_tools"}),
+            },
         ):
             paths = identity.discover_artifacts(
                 self.target,
@@ -341,6 +384,132 @@ class BuildIdentityTestCase(unittest.TestCase):
                 self.root / "Cargo.toml",
             )
         self.assertEqual(set(paths), {wanted.resolve(), executable.resolve()})
+
+    def test_discovery_normalizes_target_names_and_fingerprint_layout(self) -> None:
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "my-pkg-123"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True, exist_ok=True)
+        artifact = deps / "libcustom_target-111.rlib"
+        output = fingerprint / "output"
+        artifact.write_bytes(b"artifact")
+        output.write_bytes(b"output")
+        with patch.object(
+            artifacts,
+            "_workspace_artifact_owners",
+            return_value={"my-pkg": frozenset({"custom_target", "my_pkg"})},
+        ):
+            paths = artifacts.discover_artifacts(
+                self.target, "my-pkg", "debug", manifest=self.root / "Cargo.toml"
+            )
+        self.assertEqual(set(paths), {artifact.resolve(), output.resolve()})
+
+    def test_dependency_snapshot_tracks_reachable_path_sources(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        dependency_root = self.base / "dependency"
+        dependency_root.mkdir()
+        (dependency_root / "Cargo.toml").write_text("[package]\nname = \"dep\"\n", encoding="utf-8")
+        metadata = {
+            "packages": [
+                {
+                    "id": "root 0.1.0",
+                    "name": "demo",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str((self.root / "Cargo.toml").resolve()),
+                },
+                {
+                    "id": "path+dep 0.1.0",
+                    "name": "dep",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str((dependency_root / "Cargo.toml").resolve()),
+                },
+            ],
+            "workspace_members": ["root 0.1.0"],
+            "resolve": {
+                "nodes": [
+                    {"id": "root 0.1.0", "dependencies": [{"pkg": "path+dep 0.1.0", "dep_kinds": []}]},
+                    {"id": "path+dep 0.1.0", "dependencies": []},
+                ]
+            },
+        }
+        with patch.object(artifacts, "_cargo_metadata", return_value=metadata):
+            first = artifacts.dependency_snapshot(
+                self.root / "Cargo.toml",
+                "demo",
+                self.root,
+                lambda path: {"root": path.as_posix(), "revision": "a"},
+            )
+            second = artifacts.dependency_snapshot(
+                self.root / "Cargo.toml",
+                "demo",
+                self.root,
+                lambda path: {"root": path.as_posix(), "revision": "b"},
+            )
+        self.assertNotEqual(first["digest"], second["digest"])
+        self.assertEqual(first["clean_packages"], ["demo", "dep"])
+
+    def test_outside_artifact_is_rejected_before_cleaning(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        outside = self.base / "outside.rlib"
+        outside.write_text("outside", encoding="utf-8")
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            with self.assertRaises(identity.IdentityError):
+                identity.run_build(
+                    self.root,
+                    self.root / "Cargo.toml",
+                    "demo",
+                    self.target,
+                    [sys.executable, str(self.build_script)],
+                    artifact_paths=[outside],
+                    clean_command=[sys.executable, str(self.clean_script)],
+                )
+        self.assertFalse(self.clean_log.exists())
+
+    def test_dependency_transition_cleans_the_reachable_path_packages(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        snapshot = {
+            "root": "demo",
+            "packages": [],
+            "edges": [],
+            "clean_packages": ["demo", "dep"],
+            "digest": "dependency-digest",
+        }
+        artifact = self.target / "debug" / "deps" / "libdemo-123.rlib"
+        artifact.parent.mkdir(parents=True, exist_ok=True)
+        commands: list[tuple[str, ...]] = []
+
+        def run_command(command: tuple[str, ...], root: Path, environment: dict[str, str]) -> None:
+            commands.append(command)
+            if len(command) < 2 or command[1] != "clean":
+                artifact.write_text("built", encoding="utf-8")
+
+        artifact_value = {"files": {"debug/deps/libdemo-123.rlib": "digest"}, "digest": "artifact"}
+        with (
+            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.object(identity, "dependency_snapshot", return_value=snapshot),
+            patch.object(identity, "artifact_identity", return_value=artifact_value),
+            patch.object(identity, "_run_checked", side_effect=run_command),
+        ):
+            first = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                "demo",
+                self.target,
+                [sys.executable, "-c", "pass"],
+            )
+            second = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                "demo",
+                self.target,
+                [sys.executable, "-c", "pass"],
+            )
+        self.assertEqual(first.status, "rebuilt")
+        self.assertEqual(second.status, "reused")
+        clean_commands = [command for command in commands if list(command[1:3]) == ["clean", "-p"]]
+        self.assertEqual([command[3] for command in clean_commands], ["demo", "dep"])
 
     def test_malformed_records_fail_closed(self) -> None:
         init_repo(self.root, "fn main() {}\n")

@@ -147,6 +147,37 @@ class OwnerLease:
             self.handle = None
 
 
+class LeaseProbe:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.handle = None
+
+    def __enter__(self) -> bool:
+        handle = _open_lease(self.path)
+        if not _try_lock(handle):
+            handle.close()
+            return False
+        try:
+            _read_owner(handle, self.path)
+        except BuildIdentityError:
+            _unlock(handle)
+            handle.close()
+            raise
+        self.handle = handle
+        return True
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        if self.handle is None:
+            return
+        try:
+            _unlock(self.handle)
+            self.handle.close()
+        except OSError as error:
+            raise BuildIdentityError(f"cannot release source identity lease {self.path}") from error
+        finally:
+            self.handle = None
+
+
 def lease_is_held(path: Path) -> bool:
     if not path.exists():
         return False

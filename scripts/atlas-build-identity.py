@@ -26,6 +26,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         command.add_argument("--manifest", type=Path, required=True)
         command.add_argument("--command-cwd", type=Path, help="directory for the build command")
         command.add_argument("--command-key", help="stable key for the build dimensions")
+        command.add_argument("--ignore-path", type=Path, action="append", default=[])
         command.add_argument("--artifact", type=Path, action="append", default=[])
         command.add_argument("command", nargs=argparse.REMAINDER)
         if mode == "run":
@@ -48,6 +49,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 command,
                 args.command_cwd,
                 args.command_key,
+                args.ignore_path,
             )
             print(json.dumps(value, sort_keys=True))
             return code
@@ -64,6 +66,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             lease_seconds=args.lease_seconds,
             command_cwd=args.command_cwd,
             command_key=args.command_key,
+            ignored_paths=args.ignore_path,
         )
         print(
             json.dumps(
