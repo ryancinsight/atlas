@@ -801,16 +801,16 @@ mnemosyne::scratch::ScratchElement is not satisfied` at
 `apollo-fft/.../radix_composite/cache.rs:118` (`TL_COMPOSITE_SCRATCH_64`)
 and `winograd/traits.rs:33`. The compiler note is explicit: **three
 different `mnemosyne_arena` revisions coexist** —
-`af7a23a` (expected trait), `da5c6be`, `7f1737513c` (found trait).
+`af7a23a` (expected trait), and mnemosyne's unmerged `feat/phase10-improvements` commits "Unify Eunomia source identity" and "regenerate Cargo.lock" (found trait).
 
 Requirement map from `59f202c6:Cargo.lock` (all `mnemosyne-memory 0.7.0`):
 
 - `af7a23a` — apollo workspace pin (`Cargo.toml:67`, temporary co-evolution pin for Mnemosyne PR #128). This rev HAS the `ScratchElement for Complex` impls (`element.rs:59/66`), gated on `all(feature = "eunomia", not(feature = "bytemuck"))`.
-- `da5c6be` — required by `hermes-simd-core` and `leto` (their manifests still pin the older rev).
-- `7f1737513c` — required by `moirai-core/-executor/-runtime/-scheduler`.
+- mnemosyne's unmerged `feat/phase10-improvements` commit "Unify Eunomia source identity" — required by `hermes-simd-core` and `leto` (their manifests still pin the older rev).
+- mnemosyne's unmerged `feat/phase10-improvements` commit "regenerate Cargo.lock" — required by `moirai-core/-executor/-runtime/-scheduler`.
 - eunomia is likewise dual-versioned: branch pin `02397fa4` alongside the workspace `rev = "fdbf122"`.
 
-No manifest in apollo declares `da5c6be` — it arrives transitively, so the
+No manifest in apollo declares that mnemosyne `feat/phase10-improvements` commit ("Unify Eunomia source identity") — it arrives transitively, so the
 fix is a forward sweep, not a local edit: advance the hermes/leto/moirai
 mnemosyne pins to the workspace rev, unify the eunomia pins, regenerate
 apollo's lock (which prunes the stale copies). Reverting #320 instead

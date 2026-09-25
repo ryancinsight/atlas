@@ -341,23 +341,57 @@ def cited_hashes(paths: list[pathlib.Path]) -> dict[str, list[tuple[str, int]]]:
 
 _REACHABLE_INDEX: dict[tuple[pathlib.Path, ...], dict[str, frozenset[str]]] = {}
 
+# The refs a cited hash resolves through: each store's default branch and its
+# tags. Both only grow, so a count resolved against them changes only when a
+# citation does. Any other branch is working state that a rebase merge or a
+# stale-branch sweep deletes: resolved through every origin branch, atlas's
+# `<meta>` count rose 119 -> 126 in seven hours on 2026-09-23 with no board
+# edit, and on 2026-09-24 a helios sweep orphaned `e66a16afcd7` and failed
+# every `main` conformance run until the item was re-cited. A branch-only
+# hash now fails the push that writes it.
+REMOTE_DEFAULT_REFS = ("refs/remotes/origin/main", "refs/remotes/origin/master")
+LOCAL_DEFAULT_REFS = ("refs/heads/main", "refs/heads/master")
+
+
+def _landed_refs(store: pathlib.Path, names: list[str]) -> list[str]:
+    """The default branch and the tags of `store`, among its ref `names`.
+
+    The default is what `refs/remotes/origin/HEAD` names; a store without that
+    symref (`actions/checkout` does not write it) falls back to origin's
+    `main`, then `master`. A store with no origin refs at all (a fixture or an
+    archival checkout) answers with its local `main` or `master`. A store with
+    origin refs but none of those defaults raises: skipping it would count
+    every citation into it as unresolved and blame whichever push ran next.
+    """
+    import subprocess
+    head = subprocess.run(
+        ["git", "-C", str(store), "symbolic-ref", "-q", "refs/remotes/origin/HEAD"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        check=False,
+    ).stdout.strip()
+    candidates = [head, *REMOTE_DEFAULT_REFS] if head else list(REMOTE_DEFAULT_REFS)
+    has_origin = any(n.startswith("refs/remotes/origin/") for n in names)
+    if not has_origin:
+        candidates.extend(LOCAL_DEFAULT_REFS)
+    default = next((c for c in candidates if c in names), None)
+    if default is None and has_origin:
+        raise RuntimeError(
+            f"{store.name}: origin refs name no default branch "
+            "(set it with `git remote set-head origin --auto`)"
+        )
+    tags = [n for n in names if n.startswith("refs/tags/")]
+    return ([default] if default else []) + tags
+
 
 def _reachable_index(stores: list[pathlib.Path]) -> dict[str, frozenset[str]]:
-    """Map 7-char hash prefixes to the full reachable shas they abbreviate.
+    """Map 7-char hash prefixes to the landed shas they abbreviate.
 
-    Per store, enumerate refs and collect the commits they reach. Enumerate
-    refs first (`for-each-ref --format=%(refname)` with no pattern, safe
-    across git versions) because rev-listing a raw `refs/remotes/origin`
-    prefix is not a revision git accepts; the enumerated names are. Only
-    `refs/remotes/origin/*` and `refs/tags/*` count -- those are the refs a
-    hash citation is expected to name, and reachability from them is uniform
-    across hosts whose object stores differ only in odds and ends. A store
-    with none of those refs (a bare fixture or archival checkout) falls back
-    to its local `refs/heads/*`, which still answers citations against it.
-
-    A 40-char sha enters the bucket of its first 7 chars. Every process has
-    its own index, cached per store list so a stack-wide scan walks the
-    reachable history once and each member's token set resolves against it.
+    Per store, enumerate refs (`for-each-ref --format=%(refname)` with no
+    pattern, safe across git versions), select the default branch and tags
+    (`_landed_refs`), and collect the commits they reach. A 40-char sha enters
+    the bucket of its first 7 chars. Every process has its own index, cached
+    per store list so a stack-wide scan walks the landed history once and each
+    member's token set resolves against it.
     """
     import subprocess
     key = tuple(stores)
@@ -371,23 +405,20 @@ def _reachable_index(stores: list[pathlib.Path]) -> dict[str, frozenset[str]]:
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             check=False,
         )
-        names = [
-            n for n in proc.stdout.splitlines()
-            if n.startswith(("refs/remotes/origin/", "refs/tags/"))
-        ]
+        if proc.returncode != 0:
+            raise RuntimeError(f"{store.name}: cannot list refs: {proc.stderr.strip()}")
+        names = _landed_refs(store, proc.stdout.splitlines())
         if not names:
-            local = [
-                n for n in proc.stdout.splitlines() if n.startswith("refs/heads/")
-            ]
-            if local:
-                names = local
-            else:
-                continue
+            continue
         listed = subprocess.run(
             ["git", "-C", str(store), "rev-list", *names],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             check=False,
         )
+        if listed.returncode != 0:
+            raise RuntimeError(
+                f"{store.name}: cannot walk landed history: {listed.stderr.strip()}"
+            )
         full = (n for n in listed.stdout.splitlines() if re.fullmatch(r"[0-9a-f]{40}", n))
         for n in full:
             buckets.setdefault(n[:7], set()).add(n)
@@ -397,13 +428,13 @@ def _reachable_index(stores: list[pathlib.Path]) -> dict[str, frozenset[str]]:
 
 
 def resolve_hashes(tokens: set[str], stores: list[pathlib.Path]) -> set[str]:
-    """The subset of `tokens` naming a reachable object in any of `stores`.
+    """The subset of `tokens` naming a landed commit in any of `stores`.
 
     A token resolves when its 7-char prefix has a full sha in `_reachable_index`
     whose own first chars match the token -- git's own abbreviation contract,
-    where `ambiguous` still names real objects. The rule is reachability, not
-    store contents, so the resolution does not depend on what a working tree
-    happens to have materialized.
+    where `ambiguous` still names real objects. The rule is reachability from
+    landed refs, not store contents, so the resolution does not depend on what
+    a working tree happens to have materialized or which branches exist.
     """
     index = _reachable_index(stores)
     return {
@@ -415,7 +446,7 @@ def resolve_hashes(tokens: set[str], stores: list[pathlib.Path]) -> set[str]:
 def unresolved_hashes(
     paths: list[pathlib.Path], stores: list[pathlib.Path]
 ) -> dict[str, list[tuple[str, int]]]:
-    """Cited hashes that no store can resolve, with their citing sites."""
+    """Cited hashes no store's landed history reaches, with their citing sites."""
     cited = cited_hashes(paths)
     resolved = resolve_hashes(set(cited), stores)
     return {token: sites for token, sites in cited.items() if token not in resolved}
@@ -650,8 +681,8 @@ def main() -> int:
         sites = sum(len(v) for v in hashes.values())
         print(
             f"[report] {sites} citation(s) of {len(hashes)} commit hash(es) no "
-            "stack repository can resolve - an identifier is copied from "
-            "command output, never typed\n"
+            "stack repository's default branch or tag reaches - cite the PR "
+            "until it lands, then the landed commit\n"
         )
         for token, uses in sorted(hashes.items()):
             where = ", ".join(f"{name}:{line}" for name, line in uses[:3])
