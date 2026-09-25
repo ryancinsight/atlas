@@ -302,6 +302,50 @@ class AtlasConformanceTestCase(unittest.TestCase):
             conformance.scan_workflows(root, counts)
             self.assertEqual(counts["default_branch_cancel_in_progress"], 1)
 
+    def test_pull_request_target_use_counts_triggers_not_text(self) -> None:
+        # metis PR #418 filtered artifacts by the Actions API field
+        # `.workflow_run.head_repository_id` to reject fork-uploaded markers;
+        # it uses neither trigger, but the text-match detector counted it
+        # anyway. The class exists for the pwn-request trigger risk, so only
+        # a workflow's actual `on:` trigger set may count it.
+        pull_request_target = "name: ci\non: pull_request_target\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps: []\n"
+        workflow_run_list = "name: ci\non: [push, workflow_run]\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps: []\n"
+        workflow_run_map = (
+            "name: ci\non:\n  workflow_run:\n    workflows: [x]\n"
+            "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps: []\n"
+        )
+        false_positive = (
+            "name: ci\non:\n  pull_request:\n  push:\n"
+            "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      # not pull_request_target: rejects fork-uploaded markers\n"
+            "      - run: |\n"
+            "          jq '.workflow_run.head_repository_id' event.json\n"
+        )
+        self.assertEqual(conformance.workflow_triggers(pull_request_target), {"pull_request_target"})
+        self.assertEqual(conformance.workflow_triggers(workflow_run_list), {"push", "workflow_run"})
+        self.assertEqual(conformance.workflow_triggers(workflow_run_map), {"workflow_run"})
+        self.assertEqual(conformance.workflow_triggers(false_positive), {"pull_request", "push"})
+        self.assertIsNone(conformance.workflow_triggers("name: ci\non: [\n"))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write(root, ".github/workflows/a.yml", pull_request_target)
+            _write(root, ".github/workflows/b.yml", workflow_run_list)
+            _write(root, ".github/workflows/c.yml", workflow_run_map)
+            _write(root, ".github/workflows/d.yml", false_positive)
+            counts: dict[str, int] = {name: 0 for name in conformance.CLASSES}
+            conformance.scan_workflows(root, counts)
+            self.assertEqual(counts["pull_request_target_use"], 3)
+        # A file PyYAML cannot parse falls back to the conservative text match,
+        # consistent with workflow_yaml_is_valid treating it as unverifiable.
+        with patch.object(conformance, "_yaml_loader", return_value=None):
+            self.assertIsNone(conformance.workflow_triggers(false_positive))
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                _write(root, ".github/workflows/d.yml", false_positive)
+                counts = {name: 0 for name in conformance.CLASSES}
+                conformance.scan_workflows(root, counts)
+                self.assertEqual(counts["pull_request_target_use"], 1)
+
     def test_toolchain_requests_the_committed_pin_outranks_are_counted(self) -> None:
         # Seven members' MSRV jobs installed an older toolchain under a committed
         # 1.97.0 pin and compiled with 1.97.0; RUSTUP_TOOLCHAIN exempts a job.
