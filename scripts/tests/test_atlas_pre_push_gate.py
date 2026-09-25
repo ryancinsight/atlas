@@ -334,6 +334,7 @@ class GateFixture:
             "#!/usr/bin/env bash\n"
             f'FIXTURE_ROOT="{self.root}"\n'
             'if [ "$1" = "metadata" ]; then\n'
+            '  if [ "${CARGO_REAL_METADATA:-0}" = "1" ]; then exec "$ATLAS_REAL_CARGO" "$@"; fi\n'
             '  cat "$FIXTURE_ROOT/bin/metadata.json"\n'
             "  exit 0\n"
             "fi\n"
@@ -1411,6 +1412,10 @@ class LaneGateTestCase(unittest.TestCase):
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
         env.pop("CARGO_TARGET_DIR", None)
+        real_cargo = shutil.which("cargo")
+        self.assertIsNotNone(real_cargo)
+        env["CARGO_REAL_METADATA"] = "1"
+        env["ATLAS_REAL_CARGO"] = real_cargo
         env.update(extra_env or {})
         sha = _git(lane, "rev-parse", "HEAD")
         proc = subprocess.run(
@@ -1436,6 +1441,18 @@ class LaneGateTestCase(unittest.TestCase):
                 os.path.normcase(str(stack.resolve())), os.path.normcase(str(pathlib.Path(cwd).resolve())),
                 "cargo must not run inside the stack",
             )
+
+    def test_a_lane_maps_real_metadata_from_the_exported_revision(self) -> None:
+        _, fixture, lane = self._lane(overlay=True)
+        real_cargo = shutil.which("cargo")
+        self.assertIsNotNone(real_cargo)
+        code, err = self._run_in_lane(
+            fixture,
+            lane,
+            {"CARGO_REAL_METADATA": "1", "ATLAS_REAL_CARGO": real_cargo},
+        )
+        self.assertEqual(code, 0, err)
+        self.assertIn("clippy", fixture.calls.read_text(encoding="utf-8"))
 
     def test_a_lane_uses_the_committed_lock_and_locked_commands(self) -> None:
         stack, fixture, lane = self._lane(overlay=True)

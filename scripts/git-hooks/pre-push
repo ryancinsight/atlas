@@ -550,7 +550,7 @@ for package in metadata["packages"]:
         continue
     manifest = os.path.realpath(package["manifest_path"])
     relative = os.path.relpath(manifest, root).replace(os.sep, "/")
-    print(f"{relative}\t{package['"'"'name'"'"']}")' "$repo_root"
+    print(f"{relative}\t{package['"'"'name'"'"']}")' "$gate_cwd"
 )"; then
   echo "pre-push: cargo metadata could not establish workspace membership" >&2
   echo "pre-push: push anyway with SKIP_LOCAL_GATE=1 git push" >&2
