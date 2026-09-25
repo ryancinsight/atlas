@@ -2095,10 +2095,11 @@ class RootAllowanceFollowsTheMemberTests(unittest.TestCase):
             self.assertEqual(carried, 1)
 
 
-class RefDriftBoundTests(unittest.TestCase):
-    """A pull request is judged on the citations it adds: a cited commit
-    orphaned by a branch deletion outside the change raises the base tree's
-    count too, and the base count bounds the check."""
+class CitationResolutionTests(unittest.TestCase):
+    """A cited hash resolves through default branches and tags alone, so the
+    count is a function of the scanned tree: a branch deletion elsewhere can
+    neither raise it nor lower it, and a branch-only citation counts from the
+    push that writes it."""
 
     GIT_ENV = {
         "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
@@ -2179,42 +2180,104 @@ class RefDriftBoundTests(unittest.TestCase):
             },
         }
 
-    def test_orphaning_outside_the_change_is_bounded_by_the_base(self) -> None:
-        base, _, _ = self._stack()
+    def _remeasure(self) -> dict[str, dict[str, int]]:
+        conformance.board_lint._REACHABLE_INDEX.clear()
+        return self._measure()
+
+    def test_a_branch_deletion_leaves_the_count_unchanged(self) -> None:
+        self._stack()
+        cited_on_branches = self._measure()
+        self.assertEqual(cited_on_branches, {"<meta>": {self.CLS: 1}, "member": {self.CLS: 1}})
         self._git(self.root, "branch", "-q", "-D", "feature")
         self._git(self.root / "repos" / "member", "branch", "-q", "-D", "feature")
-        baseline = {"<meta>": {self.CLS: 0}, "member": {self.CLS: 0}}
-        results = self._measure()
-        self.assertEqual(results, {"<meta>": {self.CLS: 1}, "member": {self.CLS: 1}})
+        self.assertEqual(self._remeasure(), cited_on_branches)
 
-        regressions, _, _ = conformance.ratchet_delta(baseline, results)
-        self.assertEqual(len(regressions), 2)
-
-        bound, notes = conformance.drift_bounded_baseline(
-            baseline, results, base, self.root
-        )
-        self.assertEqual(bound, {"<meta>": {self.CLS: 1}, "member": {self.CLS: 1}})
-        self.assertEqual(len(notes), 2)
-        self.assertEqual(conformance.ratchet_delta(bound, results), ([], [], []))
-
-    def test_a_citation_the_change_adds_still_fails(self) -> None:
-        base, _, _ = self._stack()
+    def test_a_merged_citation_resolves(self) -> None:
+        self._stack()
+        self._git(self.root, "merge", "-q", "--no-ff", "-m", "land", "feature")
         self._git(self.root, "branch", "-q", "-D", "feature")
-        _write(self.root, "backlog.md", (self.root / "backlog.md").read_text() + "- deadbeef1\n")
-        baseline = {"<meta>": {self.CLS: 0}, "member": {self.CLS: 1}}
-        results = self._measure()
-        self.assertEqual(results["<meta>"][self.CLS], 2)
+        self.assertEqual(
+            self._remeasure(), {"<meta>": {self.CLS: 0}, "member": {self.CLS: 1}}
+        )
 
-        bound, _ = conformance.drift_bounded_baseline(baseline, results, base, self.root)
-        self.assertEqual(bound["<meta>"][self.CLS], 1)
-        regressions, _, _ = conformance.ratchet_delta(bound, results)
-        self.assertEqual(regressions, [f"<meta>/{self.CLS}: 1 -> 2"])
+    def test_a_tagged_citation_resolves(self) -> None:
+        self._stack()
+        member = self.root / "repos" / "member"
+        self._git(member, "tag", "v1", "feature")
+        self._git(member, "branch", "-q", "-D", "feature")
+        self.assertEqual(
+            self._remeasure(), {"<meta>": {self.CLS: 1}, "member": {self.CLS: 0}}
+        )
 
-    def test_no_drift_leaves_the_committed_bound(self) -> None:
+    def _origin_store(self) -> tuple[str, str]:
+        """A store whose origin refs name a default and a working branch.
+
+        Local `main` is moved onto the working-branch commit, so a resolver
+        that consulted local branches beside origin would resolve it.
+        """
+        self._git(self.root, "init", "-q", "-b", "main")
+        trunk = self._commit(self.root, "README.md", "root\n")
+        branch_only = self._branch_only_commit(self.root)
+        self._git(self.root, "update-ref", "refs/remotes/origin/feature", branch_only)
+        self._git(self.root, "update-ref", "refs/heads/main", branch_only)
+        return trunk, branch_only
+
+    def test_origin_head_names_the_default(self) -> None:
+        trunk, branch_only = self._origin_store()
+        self._git(self.root, "update-ref", "refs/remotes/origin/trunk", trunk)
+        self._git(
+            self.root, "symbolic-ref", "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/trunk",
+        )
+        stores = conformance.board_lint.object_stores(self.root)
+        self.assertEqual(
+            conformance.board_lint.resolve_hashes({trunk[:9], branch_only[:9]}, stores),
+            {trunk[:9]},
+        )
+
+    def test_origin_main_is_the_default_without_origin_head(self) -> None:
+        # The CI superproject: origin branches fetched, no `origin/HEAD`.
+        trunk, branch_only = self._origin_store()
+        self._git(self.root, "update-ref", "refs/remotes/origin/main", trunk)
+        stores = conformance.board_lint.object_stores(self.root)
+        self.assertEqual(
+            conformance.board_lint.resolve_hashes({trunk[:9], branch_only[:9]}, stores),
+            {trunk[:9]},
+        )
+
+    def test_origin_refs_without_a_default_stop_the_scan(self) -> None:
+        trunk, _ = self._origin_store()
+        self._git(self.root, "update-ref", "refs/remotes/origin/trunk", trunk)
+        stores = conformance.board_lint.object_stores(self.root)
+        with self.assertRaisesRegex(RuntimeError, "origin refs name no default branch"):
+            conformance.board_lint.resolve_hashes({trunk[:9]}, stores)
+
+    def test_an_unreadable_store_stops_the_scan(self) -> None:
+        self._git(self.root, "init", "-q", "-b", "main")
+        trunk = self._commit(self.root, "README.md", "root\n")
+        (self.root / ".git" / "HEAD").write_text("garbage\n")
+        stores = [self.root]
+        with self.assertRaisesRegex(RuntimeError, "cannot list refs"):
+            conformance.board_lint.resolve_hashes({trunk[:9]}, stores)
+
+    def test_an_unwalkable_history_stops_the_scan(self) -> None:
+        self._git(self.root, "init", "-q", "-b", "main")
+        parent = self._commit(self.root, "README.md", "root\n")
+        tip = self._commit(self.root, "second.txt", "second\n")
+        # Refs still list, but the walk from `main` reaches a missing parent.
+        missing = self.root / ".git" / "objects" / parent[:2] / parent[2:]
+        missing.chmod(0o644)  # git stores loose objects read-only
+        missing.unlink()
+        stores = [self.root]
+        with self.assertRaisesRegex(RuntimeError, "cannot walk landed history"):
+            conformance.board_lint.resolve_hashes({tip[:9]}, stores)
+
+    def test_a_branch_deletion_leaves_the_drift_bound_unraised(self) -> None:
         base, _, _ = self._stack()
-        baseline = {"<meta>": {self.CLS: 0}, "member": {self.CLS: 0}}
-        results = self._measure()
-        self.assertEqual(results, baseline)
+        baseline = self._measure()
+        self._git(self.root, "branch", "-q", "-D", "feature")
+        self._git(self.root / "repos" / "member", "branch", "-q", "-D", "feature")
+        results = self._remeasure()
         bound, notes = conformance.drift_bounded_baseline(baseline, results, base, self.root)
         self.assertEqual((bound, notes), (baseline, []))
 

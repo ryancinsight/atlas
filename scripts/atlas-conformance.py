@@ -2198,11 +2198,13 @@ def ratchet_delta(
     return regressions, host, tightenings
 
 
-# The one class whose count depends on remote refs rather than on the scanned
-# tree: a cited hash resolves while some origin branch or tag reaches it, so a
-# member deleting a branch raises the count with no change to any citation.
-# On 2026-09-23 `<meta>` went 119 -> 126 in seven hours on every open pull
-# request while the boards stood still.
+# The class `--drift-base` bounds. It resolved through every origin branch
+# until citations moved onto landed history (`board_lint._landed_refs`), and
+# since then no branch deletion can raise it; only a deleted tag or a
+# rewritten default branch still can. The owned pre-push hook and its member
+# copies still pass the flag; the flag and this bound are deleted after a hook
+# publish that stops passing it
+# (ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09).
 REF_DRIFT_CLASS = "unresolved_references"
 
 

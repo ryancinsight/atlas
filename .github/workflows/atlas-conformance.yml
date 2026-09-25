@@ -82,8 +82,10 @@ jobs:
           # scan can run. Direct members are sufficient for this job.
           submodules: false
           lfs: false
-          # The artifact-budget step ratchets against the PR base, so the
-          # base ref must be reachable; blobless keeps the fetch small.
+          # The artifact-budget step ratchets against the PR base, and the
+          # unresolved_references resolver walks origin's default branch and
+          # tags; a full-depth checkout fetches every branch and tag, and
+          # blobless keeps the fetch small.
           fetch-depth: 0
           filter: blob:none
 
@@ -99,18 +101,6 @@ jobs:
         run: |
           git config --global fetch.filter blob:none
           git -c protocol.version=2 submodule update --init --force
-
-      - name: Fetch superproject refs for hash resolution
-        shell: bash
-        # actions/checkout leaves the superproject store without every
-        # origin branch and tag, and the unresolved_references resolver
-        # enumerates refs/remotes/origin/* and refs/tags/* (falling back to
-        # refs/heads/*) before listing reachable commits. Without a full
-        # ref fetch a cited hash that resolves in the development stack can
-        # count as unresolved in CI and vice versa; the ratchet then tracks
-        # checkout behavior instead of citation health.
-        run: |
-          git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*'
 
       - name: Setup Python 3.11
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
@@ -131,15 +121,12 @@ jobs:
 
       - name: Conformance check (ratchet must hold)
         shell: bash
-        env:
-          # A pull request is bounded by its base tree re-measured under the
-          # same refs, so a member deleting a cited branch cannot fail every
-          # open pull request; the push run keeps the absolute bound and is
-          # where that drift is reported.
-          DRIFT_BASE: ${{ github.event.pull_request.base.sha }}
+        # Every class is a function of the scanned tree: cited hashes resolve
+        # through default branches and tags only, which a branch deletion
+        # cannot shrink, so no run needs a base to bound drift against.
         run: |
           set +e
-          python3 scripts/atlas-conformance.py check ${DRIFT_BASE:+--drift-base "$DRIFT_BASE"} > "$RUNNER_TEMP/conformance-check.log" 2>&1
+          python3 scripts/atlas-conformance.py check > "$RUNNER_TEMP/conformance-check.log" 2>&1
           status=$?
           set -e
           cat "$RUNNER_TEMP/conformance-check.log"
