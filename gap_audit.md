@@ -844,3 +844,21 @@ not this entry.
 ## Finding 2026-09-24: member pre-push reads the secret scanner from the live stack tree
 
 `scripts/git-hooks/pre-push` runs `$repo_root/../../scripts/atlas-secret-scan.py`, the file checked out in the shared stack tree, while its debt ratchet extracts the checker from the stack's fetched default. With the tree on a branch older than the scanner, member pushes skip the scan: CFDrs#459, kwavers#850 and Moirai#471 all did on 2026-09-24. Re-open trigger: the hook extracts the scanner from `$stack_baseline`, as it does the checker.
+
+## Finding 2026-09-25: cfd-math `ParallelAssembly::from_elements` is dead public surface
+
+No stack consumer, caller, test, or doctest anywhere in the fleet; `cfd-math` is
+a publishable crate, so removal is breaking — delete at the next major or add
+the first consumer. Evidence: `git grep from_elements` over CFDrs `origin/main`
+finds only its definition (`crates/cfd-math/src/sparse/assembly.rs`). Re-open
+trigger: a first consumer appears, or the next major removes it.
+
+## Finding 2026-09-25: apollo-sft recovery bench fixture costs 137 s against its own 60 s budget
+
+`benches/recovery.rs` builds its input signal with O(N·K) trig at N = 2^20,
+K = 16 before any measurement starts; `cargo test --benches` smoke measured
+137.51 s against the instrument's own `BUDGET_SECS = 60` (the budget breach is
+fixture design, not measured code — the bench header already scopes it as a
+local instrument, never a CI job). Re-open trigger: the fixture is generated
+without per-sample trig loops, or N shrinks with the scaling-ratio claim
+preserved.
