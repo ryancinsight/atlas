@@ -1,8 +1,8 @@
 <a id="atlas-build-source-identity"></a>
 ## ATLAS-BUILD-SOURCE-IDENTITY — Detect stale artifacts across source trees [patch] — todo
-- **Outcome:** shared-cache gates consume artifacts from their recorded source tree and revision.
-- **Scope:** Atlas build entry points and checkout coordination; preserve one shared target directory and peer work.
-- **Evidence:** Apollo's release macro DLL contains a scratch-checkout path and the old parser diagnostic while the canonical source accepts `scheduled_pairs`; [retained artifacts](output/apollo-square-transpose/integration/composite-schedules/macro-artifact/) establish the mismatch.
-- **Acceptance:** reproduce the source-tree transition, detect stale package artifacts before accepting a gate, rebuild only affected packages, and retain source/artifact identities without changing workloads or cache roots.
-- **Dependencies:** reconcile the live scratch-checkout producer without discarding its unique work; [Apollo integration](repos/apollo/backlog.md#apollo-codelet-schedule-controls) repairs its affected release artifact now.
-- **Verification:** deterministic source-transition regression, ordinary shared-cache reuse, and concurrent-owner preservation checks.
+- Status: todo; priority: correctness; scope: ADR 0064, shared source/artifact provenance, build entry points, and checkout coordination.
+- Outcome: shared-cache gates consume artifacts from their recorded source tree and revision while preserving one target directory and peer work.
+- Evidence: Apollo's retained release macro artifact records no source-tree identity; Cargo's shared proc-macro fingerprint reused the prior revision.
+- Acceptance: reproduce a source transition, reject stale artifacts before gate acceptance, rebuild only affected packages, and retain source/artifact identities without changing workloads or cache roots.
+- Dependencies: compose the core with the live pre-push lease in PR #277; Apollo's release-artifact repair is delivered.
+- Verification: deterministic source-transition regression, ordinary shared-cache reuse, and concurrent-owner preservation checks; next: integrate the leased hook and run the full gate.
