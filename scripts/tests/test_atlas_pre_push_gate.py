@@ -856,7 +856,16 @@ class BlameClassifierTestCase(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("dependency graph is broken", stderr)
 
-    @unittest.skipUnless(shutil.which("cygpath"), "needs cygpath")
+    def test_locked_metadata_failure_reports_the_overlay_environment(self) -> None:
+        log = (
+            "error: cargo metadata failed for Cargo.toml: cannot update the lock file "
+            "because --locked was passed\n"
+        )
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            code, stderr = self._gate(GateFixture(pathlib.Path(temp)), log)
+        self.assertEqual(code, 0, stderr)
+        self.assertIn("dependency graph is broken", stderr)
+
     def test_windows_drive_path_outside_repo_reports_environment(self) -> None:
         """cygpath spells a converted path with an upper-case drive letter
         while the classifier's drive-path case is lower case, so an existing
