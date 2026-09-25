@@ -44,8 +44,8 @@ repos/apollo/crates/apollo-wavelet/src/domain/spectrum/coefficients.rs:11:14  # 
 repos/apollo/crates/apollo-wavelet/src/domain/spectrum/coefficients.rs:17:77  # apollo
 repos/coeus/crates/coeus-autograd/src/gradcheck.rs:343:19  # coeus
 repos/coeus/crates/coeus-autograd/src/gradcheck.rs:360:22  # coeus
-repos/coeus/crates/coeus-dist/src/local.rs:122:10  # coeus
-repos/coeus/crates/coeus-dist/src/local.rs:469:28  # coeus
+repos/coeus/crates/coeus-dist/src/local.rs:118:10  # coeus
+repos/coeus/crates/coeus-dist/src/local/collectives.rs:348:28  # coeus
 repos/coeus/crates/coeus-leto/src/dispatch/structural.rs:148:13  # coeus
 repos/coeus/crates/coeus-leto/src/dispatch/structural.rs:186:13  # coeus
 repos/coeus/crates/coeus-python/src/ops/shape.rs:220:17  # coeus
