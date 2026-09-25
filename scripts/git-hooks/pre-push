@@ -496,8 +496,13 @@ if [ -n "$gate_tip" ] && [ -n "$checkout_tip" ] && [ -n "$pushed_tip" ] \
     exit 1
   fi
 fi
+# The root Cargo.lock is the one path left out: the stack overlay rewrites it
+# on every build (derived state, not an edit), the lockfile check above reads
+# the pushed revision's lock, the source-identity build ignores it
+# (`--ignore-path`), and a lane gates with `--locked` against the committed
+# lock and restores the working one on exit.
 if [ -n "$gate_tip" ] && [ "$publication_push" -eq 0 ]; then
-  checkout_status="$(git status --porcelain=v1 --untracked-files=all)"
+  checkout_status="$(git status --porcelain=v1 --untracked-files=all -- . ':(exclude)Cargo.lock')"
   if [ -n "$checkout_status" ]; then
     echo "pre-push: BLOCKED -- checkout has uncommitted changes not present in the pushed revision" >&2
     echo "Commit or remove them before pushing; no artifact was accepted." >&2

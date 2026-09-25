@@ -1450,21 +1450,22 @@ class LaneGateTestCase(unittest.TestCase):
         )
         return proc.returncode, proc.stderr.decode("utf-8", errors="replace")
 
-    def test_a_lane_uses_exported_manifest_when_live_manifest_is_missing(self) -> None:
+    def test_a_lane_missing_a_tracked_manifest_is_refused_before_gating(self) -> None:
         _, fixture, lane = self._lane(overlay=True)
         (lane / "crates" / "foo" / "Cargo.toml").unlink()
         code, err = self._run_in_lane(fixture, lane)
-        self.assertEqual(code, 0, err)
-        self.assertIn("clippy", fixture.calls.read_text(encoding="utf-8"))
+        self.assertEqual(code, 1, err)
+        self.assertIn("checkout has uncommitted changes", err)
+        calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.is_file() else ""
+        self.assertNotIn("clippy", calls)
 
-    def test_a_lane_runs_the_exported_safety_checker_when_live_copy_is_missing(self) -> None:
+    def test_a_lane_runs_the_committed_safety_checker(self) -> None:
         _, fixture, lane = self._lane(overlay=True)
         checker = lane / "scripts" / "safety_ratchet.py"
         checker.parent.mkdir(parents=True, exist_ok=True)
         checker.write_text("import sys; sys.exit(1)\n", encoding="utf-8")
         subprocess.run(["git", "-C", str(lane), *_IDENT, "add", "scripts/safety_ratchet.py"], check=True)
         subprocess.run(["git", "-C", str(lane), *_IDENT, "commit", "-q", "-m", "checker"], check=True)
-        checker.unlink()
         code, err = self._run_in_lane(fixture, lane)
         self.assertEqual(code, 1, err)
         self.assertIn("SAFETY ratchet fails", err)
@@ -1881,6 +1882,27 @@ class CheckoutIdentityTestCase(unittest.TestCase):
             self.assertIn("checkout has uncommitted changes", stderr)
             calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.is_file() else ""
             self.assertNotIn("-p foo", calls)
+
+    def test_an_overlay_rewritten_lock_does_not_block_the_gate(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            root = fixture.root
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "checkout", "-q", "-b", "feat"], check=True
+            )
+            (root / "crates" / "foo" / "src" / "lib.rs").write_text("pub fn f() {}\n// pushed\n")
+            subprocess.run(
+                ["git", "-C", str(root), *_IDENT, "commit", "-q", "-am", "pushed"], check=True
+            )
+            working = "# flattened by the overlay\n"
+            (root / "Cargo.lock").write_text(working)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("checkout has uncommitted changes", stderr)
+            self.assertIn("-p foo", fixture.calls.read_text(encoding="utf-8"))
+            self.assertEqual((root / "Cargo.lock").read_text(), working)
 
     def test_a_hook_publication_from_another_checkout_is_accepted(self) -> None:
         """The publisher pushes `ci/sync-stack-hooks` without checking it out."""
