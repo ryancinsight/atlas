@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import stat
 import subprocess
 from pathlib import Path
 from typing import Callable, Sequence
@@ -37,57 +36,6 @@ def _canonical(path: Path, *, strict: bool = False) -> Path:
         raise BuildIdentityError(f"cannot resolve {path}: {error}") from error
 
 
-def resolve_target_root(path: Path) -> Path:
-    target = Path(path)
-    if ".." in target.parts:
-        raise BuildIdentityError(f"target directory contains a parent traversal: {target}")
-    if target.drive and not target.is_absolute():
-        raise BuildIdentityError(f"target directory is drive-relative: {target}")
-
-    absolute = target if target.is_absolute() else Path.cwd() / target
-    components = absolute.parts
-    current = Path(absolute.anchor)
-    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
-    try:
-        anchor = current.lstat()
-    except OSError as error:
-        raise BuildIdentityError(
-            f"cannot inspect target directory anchor {current}: {error}"
-        ) from error
-    if stat.S_ISLNK(anchor.st_mode) or (
-        reparse_flag and getattr(anchor, "st_file_attributes", 0) & reparse_flag
-    ):
-        raise BuildIdentityError(
-            f"target directory contains a symlink or reparse point: {current}"
-        )
-    if not stat.S_ISDIR(anchor.st_mode):
-        raise BuildIdentityError(f"target directory anchor is not a directory: {current}")
-    for index, component in enumerate(components[1:]):
-        current /= component
-        try:
-            entry = current.lstat()
-        except FileNotFoundError:
-            continue
-        except OSError as error:
-            raise BuildIdentityError(
-                f"cannot inspect target directory component {current}: {error}"
-            ) from error
-
-        is_reparse_point = bool(
-            reparse_flag and getattr(entry, "st_file_attributes", 0) & reparse_flag
-        )
-        if stat.S_ISLNK(entry.st_mode) or is_reparse_point:
-            raise BuildIdentityError(
-                f"target directory contains a symlink or reparse point: {current}"
-            )
-        if index < len(components) - 2 and not stat.S_ISDIR(entry.st_mode):
-            raise BuildIdentityError(
-                f"target directory parent is not a directory: {current}"
-            )
-
-    return Path(os.path.normpath(str(absolute)))
-
-
 def _feed_framed(digest: "hashlib._Hash", data: bytes) -> None:
     digest.update(len(data).to_bytes(8, "big"))
     digest.update(data)
@@ -105,7 +53,7 @@ def _file_digest(path: Path) -> str:
 
 
 def validate_artifact_paths(target_dir: Path, paths: Sequence[Path]) -> tuple[Path, ...]:
-    canonical_target = resolve_target_root(target_dir)
+    canonical_target = _canonical(target_dir)
     selected: set[Path] = set()
     for path in paths:
         resolved = _canonical(path)
@@ -126,10 +74,10 @@ def artifact_identity(
     target: str = "host",
     manifest: Path | None = None,
     metadata_cwd: Path | None = None,
-    artifact_packages: Sequence[str] = (),
+    related_packages: Sequence[str] = (),
 ) -> dict[str, object]:
     _canonical(root, strict=True)
-    target_dir = resolve_target_root(target_dir)
+    target_dir = _canonical(target_dir)
     selected = set(validate_artifact_paths(target_dir, paths))
 
     if not selected:
@@ -141,7 +89,7 @@ def artifact_identity(
                 target,
                 manifest,
                 metadata_cwd,
-                artifact_packages,
+                related_packages,
             )
         )
 
@@ -353,7 +301,6 @@ def dependency_snapshot(
             )
             pending.append(dependency_id)
     records: list[dict[str, object]] = []
-    artifact_packages: set[str] = set()
     clean_packages: set[str] = set()
     clean_sources: dict[str, str] = {}
     for package_id in sorted(reachable):
@@ -397,13 +344,11 @@ def dependency_snapshot(
                 )
             clean_sources[name] = package_id
             clean_packages.add(name)
-        artifact_packages.add(str(record["name"]))
         records.append(record)
     snapshot = {
         "root": roots[0],
         "packages": records,
         "edges": sorted(edges, key=lambda value: json.dumps(value, sort_keys=True)),
-        "artifact_packages": sorted(artifact_packages),
         "clean_packages": sorted(clean_packages),
     }
     snapshot["digest"] = hashlib.sha256(
@@ -419,15 +364,15 @@ def discover_artifacts(
     target: str = "host",
     manifest: Path | None = None,
     metadata_cwd: Path | None = None,
-    artifact_packages: Sequence[str] = (),
+    related_packages: Sequence[str] = (),
 ) -> tuple[Path, ...]:
-    target_dir = resolve_target_root(target_dir)
+    target_dir = _canonical(target_dir)
     owners = (
         _workspace_artifact_owners(manifest, metadata_cwd)
         if manifest is not None
         else {package: frozenset({_normalize_stem(package)})}
     )
-    requested_packages = set((package, *artifact_packages))
+    requested_packages = set((package, *related_packages))
     selected: set[Path] = set()
     dep_dirs = [target_dir / profile / "deps"]
     if target != "host":

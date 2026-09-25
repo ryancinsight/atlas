@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import subprocess
+import uuid
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +16,6 @@ from atlas_build_artifacts import (
     artifact_identity,
     dependency_snapshot,
     discover_artifacts,
-    resolve_target_root,
     validate_artifact_paths,
 )
 from atlas_build_lease import (
@@ -26,7 +26,6 @@ from atlas_build_lease import (
     package_target_lease_path,
     package_target_lease_scopes,
 )
-import atlas_build_record as records
 from atlas_build_source import (
     SourceIdentity,
     environment_digest,
@@ -34,6 +33,7 @@ from atlas_build_source import (
     toolchain_identity,
 )
 
+VERSION = 3
 DEFAULT_LEASE_SECONDS = 900
 
 
@@ -118,7 +118,7 @@ def build_spec(
     if not package:
         raise IdentityError("package must not be empty")
     canonical_root = _canonical(root, strict=True)
-    canonical_target = resolve_target_root(target_dir)
+    canonical_target = _canonical(target_dir)
     if canonical_target == canonical_root:
         raise IdentityError("target directory must differ from the source root")
     normalized_command = [str(argument) for argument in command]
@@ -152,7 +152,6 @@ def _dependency_data(
             "root": package,
             "packages": [],
             "edges": [],
-            "artifact_packages": [package],
             "clean_packages": [package],
         }
     else:
@@ -180,8 +179,121 @@ def _dependency_data(
     return snapshot
 
 
+def _spec_key(spec: BuildSpec) -> str:
+    scope = spec.as_dict()
+    scope.pop("source")
+    scope.pop("dependency_digest")
+    encoded = json.dumps(scope, sort_keys=True, separators=(",", ":")).encode()
+    return _sha256_bytes(encoded)
+
+
+def record_path(spec: BuildSpec) -> Path:
+    return Path(spec.target_dir) / ".atlas" / "source-identity" / f"{_spec_key(spec)}.json"
+
+
+def _sibling_matches(spec: BuildSpec) -> bool:
+    build = spec.as_dict()
+    build.pop("command_key")
+    directory = record_path(spec).parent
+    if not directory.is_dir():
+        return False
+    for candidate in directory.glob("*.json"):
+        try:
+            record = read_record(candidate)
+        except IdentityError:
+            continue
+        if record is None:
+            continue
+        other = record.get("build")
+        if not isinstance(other, dict):
+            continue
+        other = dict(other)
+        other.pop("command_key", None)
+        if other == build and record.get("source") == spec.source.as_dict():
+            return True
+    return False
+
+
 def lease_path(spec: BuildSpec) -> Path:
     return package_target_lease_path(spec.package, Path(spec.target_dir))
+
+
+def read_record(path: Path) -> dict[str, object] | None:
+    if not path.exists():
+        return None
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise IdentityError(f"malformed source identity record {path}: {error}") from error
+    version = value.get("version") if isinstance(value, dict) else None
+    if type(version) is int and version in {1, 2}:
+        return None
+    if not isinstance(value, dict) or type(version) is not int or version != VERSION:
+        raise IdentityError(f"unsupported source identity record: {path}")
+    source = value.get("source")
+    build = value.get("build")
+    artifact = value.get("artifact")
+    dependencies = value.get("dependencies")
+    if (
+        not isinstance(source, dict)
+        or not isinstance(build, dict)
+        or not isinstance(artifact, dict)
+        or not isinstance(dependencies, dict)
+    ):
+        raise IdentityError(f"malformed source identity record: {path}")
+    if any(type(source.get(key)) is not str for key in ("root", "revision", "tree_digest")):
+        raise IdentityError(f"malformed source identity record: {path}")
+    if type(source.get("dirty")) is not bool:
+        raise IdentityError(f"malformed source identity record: {path}")
+    if any(
+        type(build.get(key)) is not str
+        for key in (
+            "package",
+            "profile",
+            "target",
+            "features",
+            "toolchain",
+            "target_dir",
+            "command_key",
+            "environment_digest",
+            "dependency_digest",
+        )
+    ):
+        raise IdentityError(f"malformed source identity record: {path}")
+    files = artifact.get("files")
+    if type(files) is not dict or any(type(key) is not str or type(value) is not str for key, value in files.items()):
+        raise IdentityError(f"malformed source identity record: {path}")
+    if type(artifact.get("digest")) is not str:
+        raise IdentityError(f"malformed source identity record: {path}")
+    if (
+        type(dependencies.get("root")) is not str
+        or type(dependencies.get("digest")) is not str
+        or type(dependencies.get("packages")) is not list
+        or type(dependencies.get("edges")) is not list
+        or type(dependencies.get("clean_packages")) is not list
+        or any(type(value) is not str for value in dependencies["clean_packages"])
+    ):
+        raise IdentityError(f"malformed source identity record: {path}")
+    return value
+
+
+def _write_atomic(path: Path, value: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    payload = json.dumps(value, sort_keys=True, indent=2) + "\n"
+    try:
+        temporary.write_text(payload, encoding="utf-8", newline="\n")
+        os.replace(temporary, path)
+    except OSError as error:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError as cleanup_error:
+            raise IdentityError(
+                f"cannot write source identity record {path}: {error}; cleanup failed: {cleanup_error}"
+            ) from error
+        raise IdentityError(f"cannot write source identity record {path}: {error}") from error
+
+
 def _run_checked(command: Sequence[str], root: Path, environment: dict[str, str]) -> None:
     try:
         result = subprocess.run(_resolve_command(command), cwd=root, env=environment, check=False)
@@ -211,7 +323,7 @@ def run_build(
         raise IdentityError("a build command is required")
     root = _canonical(root, strict=True)
     manifest = _canonical(manifest, strict=True)
-    target_dir = resolve_target_root(target_dir)
+    target_dir = _canonical(target_dir)
     artifact_paths = validate_artifact_paths(target_dir, artifact_paths)
     execution_root = _canonical(command_cwd or root, strict=True)
     dependencies = _dependency_data(
@@ -284,7 +396,7 @@ def run_build(
                     target,
                     manifest,
                     execution_root,
-                    tuple(str(value) for value in dependencies["artifact_packages"]),
+                    tuple(str(value) for value in dependencies["clean_packages"]),
                 )
             except IdentityError:
                 stale = True
@@ -336,7 +448,7 @@ def run_build(
             target,
             manifest,
             execution_root,
-            tuple(str(value) for value in dependencies["artifact_packages"]),
+            tuple(str(value) for value in dependencies["clean_packages"]),
         )
         paths = tuple(
             target_dir / relative for relative in artifact["files"]
@@ -368,7 +480,7 @@ def check_record(
     command_key: str | None = None,
     ignore_paths: Sequence[Path] = (),
 ) -> tuple[int, dict[str, object]]:
-    target_dir = resolve_target_root(target_dir)
+    target_dir = _canonical(target_dir)
     artifact_paths = validate_artifact_paths(target_dir, artifact_paths)
     if manifest is None and not artifact_paths:
         raise IdentityError("manifest is required for dependency closure resolution")
@@ -401,7 +513,7 @@ def check_record(
             target_dir,
             spec.source.root,
             spec.source.revision,
-            tuple(str(value) for value in dependencies["artifact_packages"]),
+            tuple(str(value) for value in dependencies["clean_packages"]),
         ):
             if not probes.enter_context(LeaseProbe(lock)):
                 acquired = False
