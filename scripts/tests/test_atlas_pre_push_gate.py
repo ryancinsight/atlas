@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Integration tests for the owned member pre-push gate.
 
-`scripts/git-hooks/pre-push` is the single source every member consumes
-(ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09). These tests drive
+`scripts/git-hooks/pre-push` is the single source every member's
+`.githooks/pre-push` copies. These tests drive
 the script itself in fixture git repositories with stub `cargo`/`lockfile`
 tools, so the range logic, the package mapper, and the blame classifier
 are verified without a toolchain or network.
