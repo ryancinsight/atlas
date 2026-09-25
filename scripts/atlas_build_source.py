@@ -30,6 +30,15 @@ class SourceIdentity:
 
 
 def _git(root: Path, *arguments: str) -> bytes:
+    environment = os.environ.copy()
+    for key in (
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_PREFIX",
+        "GIT_COMMON_DIR",
+    ):
+        environment.pop(key, None)
     try:
         result = subprocess.run(
             ["git", *arguments],
@@ -38,6 +47,7 @@ def _git(root: Path, *arguments: str) -> bytes:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             timeout=60,
+            env=environment,
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise BuildIdentityError(f"cannot run git in {root}: {error}") from error

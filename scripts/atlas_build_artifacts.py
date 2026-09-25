@@ -36,6 +36,11 @@ def _canonical(path: Path, *, strict: bool = False) -> Path:
         raise BuildIdentityError(f"cannot resolve {path}: {error}") from error
 
 
+def _feed_framed(digest: "hashlib._Hash", data: bytes) -> None:
+    digest.update(len(data).to_bytes(8, "big"))
+    digest.update(data)
+
+
 def _file_digest(path: Path) -> str:
     digest = hashlib.sha256()
     try:
@@ -103,6 +108,56 @@ def artifact_identity(
     return {"files": files, "digest": digest}
 
 
+def _is_within(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def _package_source_digest(root: Path) -> str:
+    canonical_root = _canonical(root, strict=True)
+    if not canonical_root.is_dir():
+        raise BuildIdentityError(f"package source is not a directory: {canonical_root}")
+    digest = hashlib.sha256()
+    paths = sorted(
+        (
+            path
+            for path in canonical_root.rglob("*")
+            if ".git" not in path.relative_to(canonical_root).parts
+        ),
+        key=lambda path: path.relative_to(canonical_root).as_posix(),
+    )
+    for path in paths:
+        relative = path.relative_to(canonical_root).as_posix()
+        if path.is_symlink():
+            try:
+                target = path.readlink().as_posix()
+                resolved = path.resolve(strict=True)
+            except OSError as error:
+                raise BuildIdentityError(
+                    f"cannot resolve package source symlink {path}: {error}"
+                ) from error
+            if not _is_within(resolved, canonical_root):
+                raise BuildIdentityError(
+                    f"package source symlink escapes its package root: {path}"
+                )
+            _feed_framed(digest, b"symlink")
+            _feed_framed(digest, relative.encode("utf-8"))
+            _feed_framed(digest, target.encode("utf-8"))
+            continue
+        if not path.is_file():
+            continue
+        _feed_framed(digest, b"file")
+        _feed_framed(digest, relative.encode("utf-8"))
+        try:
+            _feed_framed(digest, path.read_bytes())
+        except OSError as error:
+            raise BuildIdentityError(f"cannot read package source {path}: {error}") from error
+    return digest.hexdigest()
+
+
 def _normalize_stem(value: str) -> str:
     return value.replace("-", "_")
 
@@ -119,6 +174,7 @@ def _cargo_metadata(
         "metadata",
         "--format-version",
         "1",
+        "--locked",
         "--manifest-path",
         str(manifest),
     ]
@@ -205,7 +261,9 @@ def dependency_snapshot(
         nodes = {
             str(value["id"]): value
             for value in metadata["resolve"]["nodes"]
-            if isinstance(value, dict) and "id" in value
+            if isinstance(value, dict)
+            and "id" in value
+            and isinstance(value.get("deps"), list)
         }
     except (KeyError, TypeError) as error:
         raise BuildIdentityError(f"Cargo metadata has no resolved dependency graph for {manifest}") from error
@@ -229,7 +287,7 @@ def dependency_snapshot(
             continue
         reachable.add(package_id)
         node = nodes[package_id]
-        for dependency in node.get("dependencies", []):
+        for dependency in node["deps"]:
             dependency_id = str(dependency["pkg"])
             edges.append(
                 {
@@ -250,8 +308,8 @@ def dependency_snapshot(
         if value is None:
             raise BuildIdentityError(f"Cargo metadata is missing package {package_id}")
         source = value.get("source")
+        manifest_path = Path(str(value["manifest_path"]))
         if source is None:
-            manifest_path = Path(str(value["manifest_path"]))
             identity_value = source_identity(manifest_path.parent)
             record = {
                 "id": package_id,
@@ -275,6 +333,7 @@ def dependency_snapshot(
                 ),
                 "kind": kind,
                 "source": source_text,
+                "content_digest": _package_source_digest(manifest_path.parent),
             }
         if record["kind"] != "registry":
             name = str(record["name"])

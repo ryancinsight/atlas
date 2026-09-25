@@ -41,7 +41,13 @@ def git(root: Path, *arguments: str) -> str:
 
 def init_repo(root: Path, source: str) -> None:
     root.mkdir(parents=True)
-    (root / "Cargo.toml").write_text("[package]\nname = \"demo\"\n", encoding="utf-8")
+    (root / "Cargo.toml").write_text(
+        "[package]\nname = \"demo\"\nversion = \"0.1.0\"\n", encoding="utf-8"
+    )
+    (root / "Cargo.lock").write_text(
+        "version = 4\n\n[[package]]\nname = \"demo\"\nversion = \"0.1.0\"\n",
+        encoding="utf-8",
+    )
     (root / "src").mkdir()
     (root / "src/lib.rs").write_text(source, encoding="utf-8")
     git(root, "init", "-q")
@@ -431,8 +437,8 @@ class BuildIdentityTestCase(unittest.TestCase):
             "workspace_members": ["root 0.1.0"],
             "resolve": {
                 "nodes": [
-                    {"id": "root 0.1.0", "dependencies": [{"pkg": "path+dep 0.1.0", "dep_kinds": []}]},
-                    {"id": "path+dep 0.1.0", "dependencies": []},
+                    {"id": "root 0.1.0", "deps": [{"pkg": "path+dep 0.1.0", "dep_kinds": []}]},
+                    {"id": "path+dep 0.1.0", "deps": []},
                 ]
             },
         }
@@ -451,6 +457,66 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertNotEqual(first["digest"], second["digest"])
         self.assertEqual(first["clean_packages"], ["demo", "dep"])
+
+    def test_registry_package_content_changes_change_the_dependency_snapshot(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        registry_root = self.base / "registry"
+        (registry_root / "src").mkdir(parents=True)
+        (registry_root / "Cargo.toml").write_text(
+            "[package]\nname = \"dep\"\nversion = \"0.1.0\"\n", encoding="utf-8"
+        )
+        source = registry_root / "src" / "lib.rs"
+        source.write_text("pub fn value() -> u8 { 1 }\n", encoding="utf-8")
+        metadata = {
+            "packages": [
+                {
+                    "id": "root 0.1.0",
+                    "name": "demo",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str((self.root / "Cargo.toml").resolve()),
+                },
+                {
+                    "id": "registry dep",
+                    "name": "dep",
+                    "version": "0.1.0",
+                    "source": "registry+https://example.invalid/dep",
+                    "manifest_path": str((registry_root / "Cargo.toml").resolve()),
+                },
+            ],
+            "workspace_members": ["root 0.1.0"],
+            "resolve": {
+                "nodes": [
+                    {"id": "root 0.1.0", "deps": [{"pkg": "registry dep", "dep_kinds": []}]},
+                    {"id": "registry dep", "deps": []},
+                ]
+            },
+        }
+        with patch.object(artifacts, "_cargo_metadata", return_value=metadata):
+            first = artifacts.dependency_snapshot(
+                self.root / "Cargo.toml",
+                "demo",
+                self.root,
+                lambda path: {"root": path.as_posix(), "revision": "a"},
+            )
+            source.write_text("pub fn value() -> u8 { 2 }\n", encoding="utf-8")
+            second = artifacts.dependency_snapshot(
+                self.root / "Cargo.toml",
+                "demo",
+                self.root,
+                lambda path: {"root": path.as_posix(), "revision": "a"},
+            )
+        self.assertNotEqual(first["digest"], second["digest"])
+        first_registry = next(
+            package for package in first["packages"] if package["name"] == "dep"
+        )
+        second_registry = next(
+            package for package in second["packages"] if package["name"] == "dep"
+        )
+        self.assertNotEqual(
+            first_registry["content_digest"],
+            second_registry["content_digest"],
+        )
 
     def test_outside_artifact_is_rejected_before_cleaning(self) -> None:
         init_repo(self.root, "fn main() {}\n")
