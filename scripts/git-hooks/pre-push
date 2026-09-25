@@ -501,10 +501,23 @@ is_hook_publication() {
 }
 publication_push=0
 if [ -n "$gate_tip" ] && [ -n "$checkout_tip" ] && [ -n "$pushed_tip" ] \
-  && [ "$checkout_tip" != "$pushed_tip" ] \
-  && is_hook_publication "${gate_range_base:-}" "$pushed_tip"; then
-  publication_push=1
-  echo "pre-push: canonical hook publication accepted from committed revision $pushed_tip" >&2
+  && [ "$checkout_tip" != "$pushed_tip" ]; then
+  if is_hook_publication "${gate_range_base:-}" "$pushed_tip"; then
+    publication_push=1
+    echo "pre-push: canonical hook publication accepted from committed revision $pushed_tip" >&2
+  else
+    echo "pre-push: BLOCKED -- pushed revision $pushed_tip differs from checkout $checkout_tip" >&2
+    echo "Run the gate from a checkout of the pushed revision; no artifact was accepted." >&2
+    exit 1
+  fi
+fi
+if [ -n "$gate_tip" ] && [ "$publication_push" -eq 0 ]; then
+  checkout_status="$(git status --porcelain=v1 --untracked-files=all)"
+  if [ -n "$checkout_status" ]; then
+    echo "pre-push: BLOCKED -- checkout has uncommitted changes not present in the pushed revision" >&2
+    echo "Commit or remove them before pushing; no artifact was accepted." >&2
+    exit 1
+  fi
 fi
 if [ -n "$gate_range_base" ]; then
   gate_base="$gate_range_base"
@@ -710,27 +723,6 @@ if [ -z "${gate_packages// /}" ]; then
   echo "pre-push: no package owns the changed files; local gate not needed" >&2
   cleanup_gate_cwd
   exit 0
-fi
-
-# Everything above reads the pushed revision; the package gate below builds
-# the working tree. Its verdict is only about the pushed revision when the
-# two are the same tree, so a different or dirty checkout stops here rather
-# than accepting an artifact built from something the push does not carry.
-if [ -n "$gate_tip" ] && [ -n "$checkout_tip" ] && [ -n "$pushed_tip" ] \
-  && [ "$checkout_tip" != "$pushed_tip" ]; then
-  echo "pre-push: BLOCKED -- pushed revision $pushed_tip differs from checkout $checkout_tip" >&2
-  echo "Run the gate from a checkout of the pushed revision; no artifact was accepted." >&2
-  cleanup_gate_cwd
-  exit 1
-fi
-if [ -n "$gate_tip" ]; then
-  checkout_status="$(git status --porcelain=v1 --untracked-files=all)"
-  if [ -n "$checkout_status" ]; then
-    echo "pre-push: BLOCKED -- checkout has uncommitted changes not present in the pushed revision" >&2
-    echo "Commit or remove them before pushing; no artifact was accepted." >&2
-    cleanup_gate_cwd
-    exit 1
-  fi
 fi
 
 # Run one gate step and say whose failure it was.
