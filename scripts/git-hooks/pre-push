@@ -350,11 +350,11 @@ elif [ -n "$stack_baseline" ] && [ -n "$python_bin" ] \
   && outside_checkout git -C "$stack_root" cat-file -e "$stack_baseline:scripts/atlas-conformance.py" 2>/dev/null; then
   # The member is the registered directory sharing this checkout's object
   # store, so a lane (`worktrees/<repo>-<branch>`) resolves to its repository.
-  own_store="$(outside_checkout git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
+  own_store="$(cd "$repo_root" && cd "$(outside_checkout git -C "$repo_root" rev-parse --git-common-dir 2>/dev/null)" && pwd)"
   conformance_member=""
   for candidate in "$stack_root/repos/${repo_root##*/}" "$stack_root"/repos/*; do
     [ -d "$candidate" ] || continue
-    candidate_store="$(outside_checkout git -C "$candidate" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || continue
+    candidate_store="$(cd "$candidate" 2>/dev/null && cd "$(outside_checkout git -C "$candidate" rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd)" || continue
     if [ "$candidate_store" = "$own_store" ]; then
       conformance_member="${candidate##*/}"
       break
