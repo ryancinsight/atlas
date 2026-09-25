@@ -24,7 +24,6 @@
 <a id="atlas-book-figure-closure-2026-08-21"></a>- [ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21](backlog/atlas-book-figure-closure-2026-08-21.md) — Restore generated validation figures [patch] — in-progress
 <a id="atlas-book-staging-2026-08-20"></a>- [ATLAS-BOOK-STAGING-2026-08-20](backlog/atlas-book-staging-2026-08-20.md) — Preserve Cargo artifact identity in mdBook gates [patch] — in-progress
 <a id="atlas-branch-inventory-001"></a>- [ATLAS-BRANCH-INVENTORY-001](backlog/atlas-branch-inventory-001.md) — Burn down stack branch inventories [git-hygiene] [patch] — in-progress
-<a id="atlas-build-source-identity"></a>- [ATLAS-BUILD-SOURCE-IDENTITY](backlog/atlas-build-source-identity.md) — Detect stale artifacts across source trees [patch] — todo
 <a id="atlas-build-structure-001"></a>- [ATLAS-BUILD-STRUCTURE-001](backlog/atlas-build-structure-001.md) — Consolidate leaf binaries; compiler-last dev profiles [patch] — in-progress
 <a id="atlas-cfdrs-allocator-2026-08-20"></a>- [ATLAS-CFDRS-ALLOCATOR-2026-08-20](backlog/atlas-cfdrs-allocator-2026-08-20.md) — Remove library global allocator [major][arch] — in-progress
 <a id="atlas-cfdrs-athena-migration-001"></a>- [ATLAS-CFDRS-ATHENA-MIGRATION-001](backlog/atlas-cfdrs-athena-migration-001.md) — Stage B: CFDrs to Athena [major] [arch] — in-progress
@@ -100,7 +99,6 @@
 <a id="atlas-overlay-005"></a>- [ATLAS-OVERLAY-005](backlog/atlas-overlay-005.md) — Clear first-party rev pins across the stack [patch] — in-progress
 <a id="atlas-overlay-gen-stale-1"></a>- [ATLAS-OVERLAY-GEN-STALE-1](backlog/atlas-overlay-gen-stale-1.md) — Cross-repo path deps on member mainlines [arch] — todo
 <a id="atlas-pm-artifact-budgets"></a>- [ATLAS-PM-ARTIFACT-BUDGETS](backlog/atlas-pm-artifact-budgets.md) — Stack PM artifacts run eight to sixteen times their budget [patch] — in-progress
-<a id="atlas-prepush-hook-forked-across-members-2026-09-09"></a>- [ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09](backlog/atlas-prepush-hook-forked-across-members-2026-09-09.md) — One gate, twenty-three copies, six versions [patch] [ci] — in-progress
 <a id="atlas-privacy-naming-1"></a>- [ATLAS-PRIVACY-NAMING-1](backlog/atlas-privacy-naming-1.md) — Remove confidential consumer identity from stack artifacts [patch] — in-progress
 <a id="prometheus-promotion"></a>- [ATLAS-PROMETHEUS-PROMOTION-2026-09-03](backlog/prometheus-promotion.md) — Create and register `prometheus` (species mass balance) [arch][minor] — in-progress
 <a id="proteus-elastic-ssot"></a>- [ATLAS-PROTEUS-ELASTIC-SSOT-2026-09-03](backlog/proteus-elastic-ssot.md) — Proteus owns the isotropic modulus conversion contract [minor] — in-progress

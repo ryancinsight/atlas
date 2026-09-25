@@ -483,6 +483,37 @@ def workflow_yaml_is_valid(text: str) -> bool:
     return True
 
 
+def workflow_triggers(text: str) -> set[str] | None:
+    """The workflow's declared trigger event names, or None when unparseable.
+
+    PyYAML's YAML 1.1 resolver parses the bare top-level key ``on:`` as the
+    boolean ``True`` rather than the string ``"on"``, so both are checked. A
+    string, list, or mapping of triggers normalizes to a set of event names.
+    Returns None when PyYAML is unavailable, the file does not parse, or the
+    document is not a mapping, so callers fall back to conservative text
+    matching for a file this cannot verify (mirrors workflow_yaml_is_valid).
+    """
+    loader = _yaml_loader()
+    if loader is None:
+        return None
+    try:
+        doc = _yaml.load(text, Loader=loader)
+    except Exception:
+        return None
+    if not isinstance(doc, dict):
+        return None
+    trigger = doc.get("on", doc.get(True))
+    if trigger is None:
+        return set()
+    if isinstance(trigger, str):
+        return {trigger}
+    if isinstance(trigger, list):
+        return {str(item) for item in trigger}
+    if isinstance(trigger, dict):
+        return {str(key) for key in trigger}
+    return set()
+
+
 def is_reusable_workflow_caller(text: str) -> bool:
     """Return whether a workflow delegates all jobs to reusable workflows.
 
@@ -587,7 +618,11 @@ def scan_workflows(repo: Path, c: dict[str, int]) -> None:
             c["workflow_missing_permissions"] += 1
         if not workflow_yaml_is_valid(text):
             c["workflow_malformed_yaml"] += 1
-        if "pull_request_target" in text or "workflow_run" in text:
+        triggers = workflow_triggers(text)
+        if triggers is None:
+            if "pull_request_target" in text or "workflow_run" in text:
+                c["pull_request_target_use"] += 1
+        elif triggers & {"pull_request_target", "workflow_run"}:
             c["pull_request_target_use"] += 1
 
 
