@@ -12,6 +12,7 @@
 <a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
 <a id="atlas-apollo-stockham-policy-050c"></a>- [ATLAS-APOLLO-STOCKHAM-POLICY-050C](backlog/atlas-apollo-stockham-policy-050c.md) — Parameterize the dispatch-policy matrix [minor] — in-progress
 <a id="atlas-arch-005"></a>- [ATLAS-ARCH-005](backlog/atlas-arch-005.md) — Replace closed-set dyn dispatch in per-timestep paths [arch] — in-progress
+<a id="atlas-nightly-probe-consolidation"></a>- [ATLAS-NIGHTLY-PROBE-CONSOLIDATION](backlog/atlas-nightly-probe-consolidation.md) — One nightly-rustc probe for the stack [patch] — todo
 <a id="atlas-r7-closure-mapping-2026-09-24"></a>- [ATLAS-R7-CLOSURE-MAPPING-2026-09-24](backlog/atlas-r7-closure-mapping-2026-09-24.md) — Map closure members in the live R7 scan [patch] — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — in-progress
 <a id="atlas-arch-008-running-in-place-225"></a>- [ATLAS-ARCH-008-RUNNING-IN-PLACE-225](backlog/atlas-arch-008-running-in-place-225.md) — The conversion converts and re-accumulates at the same rate [patch] — in-progress
@@ -92,7 +93,6 @@
 <a id="atlas-mnemosyne-default-recheck-2026-08-19"></a>- [ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-19](backlog/atlas-mnemosyne-default-recheck-2026-08-19.md) — moving default remains open — todo
 <a id="mnemosyne-pin-campaign-stranded"></a>- [ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06](backlog/mnemosyne-pin-campaign-stranded.md) — A provider-pin campaign stalled undelivered in five members [patch] — todo
 <a id="atlas-modality-003"></a>- [ATLAS-MODALITY-003](backlog/atlas-modality-003.md) — Optical-transport and RF/EM promotion watchpoint [arch] — blocked
-<a id="moirai-06-sweep"></a>- [ATLAS-MOIRAI-06-SWEEP-2026-09-06](backlog/moirai-06-sweep.md) — Moirai 0.6.0 landed without its forward sweep [patch] — in-progress
 <a id="atlas-moirai-accelerator-route-2026-08-21"></a>- [ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21](backlog/atlas-moirai-accelerator-route-2026-08-21.md) — Execute accelerator routes [major] [arch] — in-progress
 <a id="atlas-multiphysics-adoption-100"></a>- [ATLAS-MULTIPHYSICS-ADOPTION-100](backlog/atlas-multiphysics-adoption-100.md) — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in-progress
 <a id="next-steps"></a>- [ATLAS-NEXT-STEPS-2026-09-03](backlog/next-steps.md) — Sequenced plan toward the suite [arch] — todo
