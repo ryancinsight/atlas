@@ -4,7 +4,7 @@
 - Date: 2026-09-24
 - Revision: 2026-09-25 — Accepted the locked dependency-content, closure-lease, and artifact-package design.
 - Class: `[arch]`
-- Item: [ATLAS-BUILD-SOURCE-IDENTITY](../../backlog.md#atlas-build-source-identity)
+- Item: ATLAS-BUILD-SOURCE-IDENTITY (closed; delivered by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296) and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
 
 ## Context
 
@@ -64,7 +64,8 @@ The core regression suite covers a source transition, matching-source reuse, dif
 
 ## References
 
-- [ATLAS-BUILD-SOURCE-IDENTITY](../../backlog.md#atlas-build-source-identity)
+- [PR #295](https://github.com/ryancinsight/atlas/pull/295)
+- [PR #296](https://github.com/ryancinsight/atlas/pull/296)
 - [PR #277](https://github.com/ryancinsight/atlas/pull/277)
 - [PR #299](https://github.com/ryancinsight/atlas/pull/299)
 - [scripts/atlas_build_identity.py](../../scripts/atlas_build_identity.py)
