@@ -28,6 +28,7 @@ from atlas_build_lease import (
     SHARED,
     LeaseHeldError,
     OwnerLease,
+    acquire_waiting,
     package_target_lease_path,
     peek_owner,
 )
@@ -116,13 +117,14 @@ MODE_HOLDER = (
     "import sys, time\n"
     "from pathlib import Path\n"
     "sys.path.insert(0, sys.argv[1])\n"
-    "from atlas_build_lease import OwnerLease\n"
-    "lease = OwnerLease(Path(sys.argv[2]), {'root': sys.argv[5], 'revision': 'holder-revision',"
+    "from atlas_build_lease import OwnerLease, acquire_waiting\n"
+    "for _ in range(int(sys.argv[6])):\n"
+    "    lease = OwnerLease(Path(sys.argv[2]), {'root': sys.argv[5], 'revision': 'holder-revision',"
     " 'package': 'dep'}, 600, mode=sys.argv[3])\n"
-    "lease.__enter__()\n"
-    "print('held', flush=True)\n"
-    "time.sleep(float(sys.argv[4]))\n"
-    "lease.__exit__(None, None, None)\n"
+    "    acquire_waiting(lease, 120)\n"
+    "    print('held', flush=True)\n"
+    "    time.sleep(float(sys.argv[4]))\n"
+    "    lease.__exit__(None, None, None)\n"
 )
 
 # The lock call of every checker before lease modes: an exclusive lock on
@@ -148,18 +150,39 @@ LEGACY_LOCKER = (
 
 
 def start_holder(
-    test: unittest.TestCase, lock: Path, mode: str, hold_seconds: float, name: str = "holder-root"
+    test: unittest.TestCase,
+    lock: Path,
+    mode: str,
+    hold_seconds: float,
+    name: str = "holder-root",
+    repeat: int = 1,
+    wait_until_held: bool = True,
 ) -> subprocess.Popen:
-    """Hold `lock` in `mode` from a separate process for `hold_seconds`."""
+    """Hold `lock` in `mode` from a separate process, `repeat` times back to back.
+
+    Each round waits its turn, holds for `hold_seconds`, releases, and asks
+    again at once: the pattern of a push hook re-running its steps.
+    """
     holder = subprocess.Popen(
-        [sys.executable, "-c", MODE_HOLDER, str(SCRIPT.parent), str(lock), mode, str(hold_seconds), name],
+        [
+            sys.executable,
+            "-c",
+            MODE_HOLDER,
+            str(SCRIPT.parent),
+            str(lock),
+            mode,
+            str(hold_seconds),
+            name,
+            str(repeat),
+        ],
         stdout=subprocess.PIPE,
         text=True,
     )
     test.addCleanup(holder.wait, 60)
     test.addCleanup(holder.kill)
     test.addCleanup(holder.stdout.close)
-    test.assertEqual(holder.stdout.readline().strip(), "held")
+    if wait_until_held:
+        test.assertEqual(holder.stdout.readline().strip(), "held")
     return holder
 
 
@@ -315,6 +338,150 @@ class LeaseModeTestCase(unittest.TestCase):
         for process in takers:
             process.wait(60)
         self.assertEqual(faults, [0] * 3)
+
+    def waited(self, lock: Path, mode: str) -> float:
+        started = time.monotonic()
+        lease = acquire_waiting(OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60, mode=mode), 60)
+        elapsed = time.monotonic() - started
+        lease.__exit__(None, None, None)
+        return elapsed
+
+    def test_a_repeating_exclusive_holder_does_not_starve_a_waiter(self) -> None:
+        # Twelve back-to-back 1 s holds: without arrival order the holder asks
+        # again the instant it releases and the polling waiter never gets in.
+        for mode in (EXCLUSIVE, SHARED):
+            with self.subTest(waiter=mode):
+                lock = self.lock(f"repeat-{mode}")
+                holder = start_holder(self, lock, EXCLUSIVE, 1, repeat=12)
+                # A waiting reader also holds back the writer's next round.
+                self.assertLess(self.waited(lock, mode), 6)
+                holder.kill()
+                holder.wait(60)
+
+    def test_a_stream_of_shared_readers_does_not_starve_a_writer(self) -> None:
+        # Two readers overlap, so the lease is never free of a shared holder.
+        lock = self.lock("stream")
+        start_holder(self, lock, SHARED, 1, name="reader-a", repeat=12)
+        time.sleep(0.5)
+        start_holder(self, lock, SHARED, 1, name="reader-b", repeat=12)
+        self.assertLess(self.waited(lock, EXCLUSIVE), 6)
+
+    def test_a_crashed_holder_or_waiter_gives_up_its_place(self) -> None:
+        lock = self.lock("crash")
+        holder = start_holder(self, lock, SHARED, 60)
+        waiter = start_holder(self, lock, EXCLUSIVE, 60, name="waiter", wait_until_held=False)
+        queue = lock.with_name(f"{lock.stem}.queue")
+        deadline = time.monotonic() + 30
+        while len(list(queue.glob("*.ticket"))) < 2:
+            self.assertLess(time.monotonic(), deadline, "the waiter never queued")
+            time.sleep(0.05)
+        for process in (waiter, holder):
+            process.kill()
+            process.wait(60)
+        self.assertLess(self.waited(lock, SHARED), 2)
+        self.assertEqual(list(queue.glob("*.ticket")), [])
+
+    def test_dead_tickets_of_every_mode_are_collected(self) -> None:
+        lock = self.lock("collect")
+        queue = lock.with_name(f"{lock.stem}.queue")
+        queue.mkdir()
+        now = time.monotonic_ns()
+        for index in range(20):
+            mode = "x" if index % 2 else "s"
+            arrival = now + (index - 10) * 1_000_000_000
+            (queue / f"{arrival:020d}-{mode}-1-dead{index}.ticket").write_bytes(b" {}")
+        # A shared request, which only waits on exclusive tickets, still
+        # collects the dead shared ones, including those after its own.
+        self.assertLess(self.waited(lock, SHARED), 2)
+        self.assertEqual(list(queue.glob("*.ticket")), [])
+
+    def test_a_ticket_locked_by_a_peer_before_its_requester_is_retried(self) -> None:
+        # The window between creating a ticket and locking it is too short to
+        # hit by chance, so a real peer process takes its probe lock inside it.
+        lock = self.lock("race")
+        real_try_lock = lease_module._try_lock
+        probes: list[subprocess.Popen] = []
+        probe = (
+            "import sys, time\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "import atlas_build_lease as lease\n"
+            "handle = open(sys.argv[2], 'rb')\n"
+            "assert lease._try_lock(handle, 'shared')\n"
+            "print('held', flush=True)\n"
+            "time.sleep(0.3)\n"
+        )
+
+        def contended(handle, mode=EXCLUSIVE):
+            if not probes and str(handle.name).endswith(".ticket") and mode == EXCLUSIVE:
+                process = subprocess.Popen(
+                    [sys.executable, "-c", probe, str(SCRIPT.parent), str(handle.name)],
+                    stdout=subprocess.PIPE,
+                    text=True,
+                )
+                self.addCleanup(process.wait, 60)
+                self.addCleanup(process.kill)
+                self.addCleanup(process.stdout.close)
+                self.assertEqual(process.stdout.readline().strip(), "held")
+                probes.append(process)
+            return real_try_lock(handle, mode)
+
+        with patch.object(lease_module, "_try_lock", side_effect=contended):
+            self.assertLess(self.waited(lock, EXCLUSIVE), 5)
+        self.assertEqual(len(probes), 1)
+        probes[0].wait(60)
+        self.waited(lock, SHARED)
+        self.assertEqual(list(lock.with_name(f"{lock.stem}.queue").glob("*.ticket")), [])
+
+    def test_a_ticket_survives_peers_probing_it_as_it_is_created(self) -> None:
+        # A peer's liveness check can lock a ticket between its creation and
+        # its requester's lock; the requester must retry, not fail.
+        lock = self.lock("probed")
+        queue = lock.with_name(f"{lock.stem}.queue")
+        queue.mkdir()
+        prober = (
+            "import sys, time\n"
+            "from pathlib import Path\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "import atlas_build_lease as lease\n"
+            "queue = Path(sys.argv[2])\n"
+            "print('probing', flush=True)\n"
+            "end = time.monotonic() + 4\n"
+            "while time.monotonic() < end:\n"
+            "    for path in queue.glob('*.ticket'):\n"
+            "        try:\n"
+            "            handle = path.open('rb')\n"
+            "        except OSError:\n"
+            "            continue\n"
+            "        try:\n"
+            "            if lease._try_lock(handle, 'shared'):\n"
+            "                time.sleep(0.002)\n"
+            "                lease._unlock(handle)\n"
+            "        finally:\n"
+            "            handle.close()\n"
+        )
+        probers = []
+        for _ in range(3):
+            process = subprocess.Popen(
+                [sys.executable, "-c", prober, str(SCRIPT.parent), str(queue)],
+                stdout=subprocess.PIPE,
+                text=True,
+            )
+            self.addCleanup(process.wait, 60)
+            self.addCleanup(process.kill)
+            self.addCleanup(process.stdout.close)
+            self.assertEqual(process.stdout.readline().strip(), "probing")
+            probers.append(process)
+        end = time.monotonic() + 3
+        taken = 0
+        while time.monotonic() < end:
+            self.assertLess(self.waited(lock, EXCLUSIVE), 2)
+            taken += 1
+        self.assertGreater(taken, 10)
+        for process in probers:
+            process.wait(60)
+        # A release a probe held open stays behind, dead, for the next request.
+        self.waited(lock, SHARED)
+        self.assertEqual(list(queue.glob("*.ticket")), [])
 
     @unittest.skipUnless(os.name == "nt", "LockFileEx error codes are Windows-only")
     def test_lock_failures_other_than_contention_are_raised(self) -> None:

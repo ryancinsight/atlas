@@ -18,7 +18,11 @@ class BuildIdentityError(RuntimeError):
 
 
 class LeaseHeldError(BuildIdentityError):
-    """A live process holds the lease."""
+    """A live process holds the lease, or an earlier request is queued for it."""
+
+    def __init__(self, message: str, holder: dict[str, object] | None = None) -> None:
+        super().__init__(message)
+        self.holder = holder or {}
 
 
 # The OS lock covers byte 0 only, and the owner record starts at byte 1: a
@@ -169,10 +173,116 @@ def _write_record(handle: Any, record: dict[str, object]) -> None:
     os.fsync(handle.fileno())
 
 
+_TICKET_MODES = {EXCLUSIVE: "x", SHARED: "s"}
+_TICKET_ATTEMPTS = 100
+_UNLINK_ATTEMPTS = 20
+_RETRY_SECONDS = 0.005
+
+
+def _queue_dir(path: Path) -> Path:
+    return path.with_name(f"{path.stem}.queue")
+
+
+def _unlink(path: Path, attempts: int = 1) -> None:
+    # Windows refuses while a peer's liveness check has the file open; that
+    # check closes within milliseconds, and an unlocked ticket left behind is
+    # collected by the next scan.
+    for attempt in range(attempts):
+        try:
+            path.unlink()
+            return
+        except FileNotFoundError:
+            return
+        except PermissionError:
+            if attempt + 1 < attempts:
+                time.sleep(_RETRY_SECONDS)
+
+
+def _ticket_is_live(path: Path) -> bool:
+    """A ticket is live while its requester holds its lock; a dead one is removed."""
+    try:
+        handle = path.open("rb")
+    except (FileNotFoundError, PermissionError):
+        # Gone, or on Windows pending deletion by its requester's release.
+        return False
+    try:
+        # Shared, against the requester's exclusive lock: concurrent checks
+        # then never make a dead ticket look held to one another.
+        if not _try_lock(handle, SHARED):
+            return True
+        _unlock(handle)
+    finally:
+        handle.close()
+    _unlink(path)
+    return False
+
+
+class _Ticket:
+    """A request's place in a lease's arrival order.
+
+    The file is named by the system-wide monotonic clock at arrival and locked
+    by its requester until it releases the lease. A requester that loses the
+    race between creating and locking its file, to a peer's liveness check
+    or collection, retries under a new name with the same arrival.
+    """
+
+    def __init__(self, path: Path, mode: str, owner: dict[str, object]) -> None:
+        directory = _queue_dir(path)
+        directory.mkdir(parents=True, exist_ok=True)
+        self.arrival = time.monotonic_ns()
+        for _ in range(_TICKET_ATTEMPTS):
+            name = f"{self.arrival:020d}-{_TICKET_MODES[mode]}-{os.getpid()}-{uuid.uuid4().hex}"
+            candidate = directory / f"{name}.ticket"
+            handle = candidate.open("x+b")
+            try:
+                if _try_lock(handle):
+                    if os.path.samestat(os.fstat(handle.fileno()), os.stat(candidate)):
+                        _write_record(handle, {**owner, "mode": mode})
+                        self.path, self.handle = candidate, handle
+                        return
+                    _unlock(handle)
+            except FileNotFoundError:
+                _unlock(handle)
+            except BaseException:
+                handle.close()
+                _unlink(candidate)
+                raise
+            handle.close()
+            _unlink(candidate)
+            time.sleep(_RETRY_SECONDS)
+        raise BuildIdentityError(f"cannot queue for source identity lease {path}")
+
+    def ahead(self, mode: str) -> list[dict[str, object]]:
+        """Live earlier requests this one may not pass, collecting dead tickets.
+
+        An exclusive request waits for every earlier request, a shared one for
+        earlier exclusive requests only: readers that arrived together share,
+        and a waiting writer holds back every later reader.
+        """
+        blockers = []
+        for other in sorted(self.path.parent.glob("*.ticket")):
+            if other == self.path or not _ticket_is_live(other):
+                continue
+            if other.name < self.path.name and (
+                mode == EXCLUSIVE or f"-{_TICKET_MODES[EXCLUSIVE]}-" in other.name
+            ):
+                blockers.append(peek_owner(other) or {})
+        return blockers
+
+    def close(self) -> None:
+        try:
+            _unlock(self.handle)
+        finally:
+            self.handle.close()
+            _unlink(self.path, _UNLINK_ATTEMPTS)
+
+
 class OwnerLease:
     """A lease on one build scope, held shared (reading) or exclusive (writing).
 
-    Only an exclusive holder writes the owner record.
+    Requests are served in arrival order through `_Ticket`; the OS lock on
+    byte 0 of the lease file stays the authority on who holds it. Only an
+    exclusive holder writes the owner record.
     """
 
     def __init__(
@@ -187,17 +297,32 @@ class OwnerLease:
         self.seconds = seconds
         self.mode = mode
         self.handle = None
+        self.ticket: _Ticket | None = None
         self.held = False
 
-    def __enter__(self) -> OwnerLease:
+    def attempt(self) -> OwnerLease:
+        """Take the lease if this request's turn has come and no holder conflicts."""
+        if self.ticket is None:
+            self.ticket = _Ticket(self.path, self.mode, self.owner)
+        ahead = self.ticket.ahead(self.mode)
         handle = _open_lease(self.path)
         if not _try_lock(handle, self.mode):
             handle.close()
-            current = peek_owner(self.path) or {}
-            owner = current.get("root", "unknown")
-            revision = current.get("revision", "unknown")
+            # Earlier tickets name live holders of either mode; the record
+            # names only the last exclusive holder, or one without a ticket.
+            current = ahead[0] if ahead else peek_owner(self.path) or {}
             raise LeaseHeldError(
-                f"source identity is owned by {owner} at {revision}; retry after it releases"
+                f"source identity is owned by {current.get('root', 'unknown')} at "
+                f"{current.get('revision', 'unknown')}; retry after it releases",
+                current,
+            )
+        if ahead:
+            _unlock(handle)
+            handle.close()
+            raise LeaseHeldError(
+                f"source identity is queued behind {ahead[0].get('root', 'unknown')} at "
+                f"{ahead[0].get('revision', 'unknown')}; retry after it releases",
+                ahead[0],
             )
         token = uuid.uuid4().hex
         try:
@@ -219,17 +344,32 @@ class OwnerLease:
         self.held = True
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        if not self.held or self.handle is None:
-            return
+    def dequeue(self) -> None:
+        if self.ticket is not None:
+            ticket, self.ticket = self.ticket, None
+            ticket.close()
+
+    def __enter__(self) -> OwnerLease:
         try:
-            _unlock(self.handle)
-            self.handle.close()
-        except OSError as error:
-            raise BuildIdentityError(f"cannot release source identity lease {self.path}") from error
+            return self.attempt()
+        except BaseException:
+            self.dequeue()
+            raise
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        try:
+            if self.held and self.handle is not None:
+                try:
+                    _unlock(self.handle)
+                    self.handle.close()
+                except OSError as error:
+                    raise BuildIdentityError(
+                        f"cannot release source identity lease {self.path}"
+                    ) from error
         finally:
             self.held = False
             self.handle = None
+            self.dequeue()
 
 
 class LeaseProbe:
@@ -296,24 +436,34 @@ def peek_owner(path: Path) -> dict[str, object] | None:
 
 
 def acquire_waiting(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
-    """Enter `lease`, waiting while a live owner holds it.
+    """Enter `lease`, waiting while a live owner holds it or an earlier request is queued.
 
-    The wait ends when the owner releases or after `wait_seconds`; the latter
-    raises without taking the lease. The OS lock proves the owner is alive, so
-    its recorded `expires_ns` only reports: a build that outlives it is still
-    waited out. Callers acquire several leases in sorted scope order, so
-    waiting holders never form a cycle.
+    The request keeps one ticket for the whole wait, so a holder that releases
+    and asks again queues behind it. The wait ends when the lease is taken or
+    after `wait_seconds`; the latter raises without taking the lease. The OS
+    lock proves the owner is alive, so its recorded `expires_ns` only reports.
+    Callers acquire several leases in sorted scope order: a request waits only
+    on holders of its own lease, which wait only on later leases, or on
+    earlier requests for the same lease, so no wait forms a cycle.
     """
+    try:
+        return _wait_for(lease, wait_seconds)
+    except BaseException:
+        lease.dequeue()
+        raise
+
+
+def _wait_for(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
     deadline_ns = time.monotonic_ns() + int(wait_seconds * 1_000_000_000)
     delay = _WAIT_FIRST_SECONDS
     announced = None
     while True:
         try:
-            return lease.__enter__()
-        except LeaseHeldError:
+            return lease.attempt()
+        except LeaseHeldError as error:
             if wait_seconds <= 0:
                 raise
-            current = peek_owner(lease.path) or {}
+            current = error.holder
         owner = current.get("root", "unknown")
         revision = current.get("revision", "unknown")
         remaining_ns = deadline_ns - time.monotonic_ns()
