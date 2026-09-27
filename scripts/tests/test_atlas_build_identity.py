@@ -26,6 +26,7 @@ sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
 import atlas_build_lease as lease_module
 import atlas_build_lock as lock_module
+import atlas_build_queue as queue_module
 import atlas_build_source as build_source
 from atlas_build_lease import (
     EXCLUSIVE,
@@ -423,7 +424,7 @@ class LeaseModeTestCase(unittest.TestCase):
         # The window between creating a ticket and locking it is too short to
         # hit by chance, so a real peer process takes its probe lock inside it.
         lock = self.lock("race")
-        real_try_lock = lease_module._try_lock
+        real_try_lock = queue_module._try_lock
         probes: list[subprocess.Popen] = []
         probe = (
             "import sys, time\n"
@@ -449,7 +450,7 @@ class LeaseModeTestCase(unittest.TestCase):
                 probes.append(process)
             return real_try_lock(handle, mode)
 
-        with patch.object(lease_module, "_try_lock", side_effect=contended):
+        with patch.object(queue_module, "_try_lock", side_effect=contended):
             self.assertLess(self.waited(lock, EXCLUSIVE), 5)
         self.assertEqual(len(probes), 1)
         probes[0].wait(60)
