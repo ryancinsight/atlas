@@ -33,7 +33,6 @@ on:
       # (`semver-gate.yml`) could not be seen until something else landed.
       - '.github/workflows/**'
       - 'backlog.md'
-      - 'checklist.md'
       - 'gap_audit.md'
   # For the `pin-drift` job only. Drift is a function of what the *members*
   # publish, so no atlas event can announce it: a member merging a pull request

@@ -139,3 +139,6 @@
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="ritk-shared-tree-stale-basis-213"></a>- [RITK-SHARED-TREE-STALE-BASIS-213](backlog/ritk-shared-tree-stale-basis-213.md) — ritk's shared tree is checked out 58 commits behind origin [patch] — in-progress
+<a id="atlas-moirai-seqcst-002"></a>- [ATLAS-MOIRAI-SEQCST-002](backlog/atlas-moirai-seqcst-002.md) — Weakest-ordering audit for Moirai atomics [patch] — todo
+<a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
+<a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
