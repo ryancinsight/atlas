@@ -1517,6 +1517,46 @@ class LaneGateTestCase(unittest.TestCase):
                 (lane / "Cargo.toml").resolve(),
             )
 
+    def test_a_new_member_gates_each_package_once_by_its_exact_name(self) -> None:
+        """A root-manifest change gates every member under its exact name.
+
+        The membership listing is printed by Python; on Windows its text-mode
+        stdout ends each line with CRLF, and bash keeps the CR, so a push that
+        added a member gated `helios-core\\r` beside `helios-core` and the
+        identity checker found no package of that name (helios#112).
+        """
+        stack, fixture, lane = self._lane(overlay=True)
+        _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
+        _write(
+            lane / "crates" / "bar" / "Cargo.toml",
+            '[package]\nname = "bar"\nversion = "0.1.0"\nedition = "2021"\n',
+        )
+        _write(lane / "crates" / "bar" / "src" / "lib.rs", "pub fn h() {}\n")
+        subprocess.run(["git", "-C", str(lane), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(lane), *_IDENT, "commit", "-qm", "member"], check=True)
+        log = stack / "identity-packages.log"
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            "import pathlib, sys\n"
+            f"log = pathlib.Path({str(log)!r})\n"
+            "package = sys.argv[sys.argv.index('--package') + 1]\n"
+            "with log.open('a', encoding='utf-8', newline='') as stream:\n"
+            "    stream.write(repr(package) + '\\n')\n",
+        )
+        fixture.set_workspace_packages(["foo", "bar"], lane)
+        packages = ["foo", "bar"]
+        original = fixture.set_workspace_packages
+        fixture.set_workspace_packages = lambda names, root=None: original(packages, root)
+        code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
+        self.assertEqual(code, 0, err)
+        # Split on LF only: splitlines() would also split at the stray CR.
+        gating = [line for line in err.split("\n") if line.startswith("pre-push: gating ")]
+        self.assertEqual(len(gating), 1, err)
+        gated = gating[0].removeprefix("pre-push: gating ").split(" ")
+        self.assertEqual(sorted(gated), ["bar", "foo"], repr(gating[0]))
+        recorded = {line for line in log.read_text(encoding="utf-8").splitlines()}
+        self.assertEqual(recorded, {"'bar'", "'foo'"})
+
     def test_a_lane_reproduce_line_is_a_runnable_command(self) -> None:
         """The lane manifest is a separate argument, not glued to the flag.
 
