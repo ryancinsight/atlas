@@ -40,7 +40,6 @@
 <a id="atlas-check-figures-ci-verify-defer"></a>- [ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER](backlog/atlas-check-figures-ci-verify-defer.md) — End-to-end CI verification of `prebook check-figures` [minor] — todo
 <a id="atlas-ci-runner-saturation-2026-08-25"></a>- [ATLAS-CI-RUNNER-SATURATION-2026-08-25](backlog/atlas-ci-runner-saturation-2026-08-25.md) — Hosted-runner queue depth delays every merge gate [patch] — in-progress
 <a id="atlas-code-index-001"></a>- [ATLAS-CODE-INDEX-001](backlog/atlas-code-index-001.md) — Search-ladder infrastructure for context economy [patch] — in-progress
-<a id="atlas-coeus-branch-inventory-2026-09-09"></a>- [ATLAS-COEUS-BRANCH-INVENTORY-2026-09-09](backlog/atlas-coeus-branch-inventory-2026-09-09.md) — Fifteen coeus branches hold unique work nobody is finishing [patch] — in-progress
 <a id="atlas-coeus-nlls-004"></a>- [ATLAS-COEUS-NLLS-004](backlog/atlas-coeus-nlls-004.md) — original specification — todo
 <a id="atlas-conformance-ratchet-2026-08-19"></a>- [ATLAS-CONFORMANCE-RATCHET-2026-08-19](backlog/atlas-conformance-ratchet-2026-08-19.md) — exact provider regressions [patch] — blocked
 <a id="atlas-conformance-submodule-status-2026-08-19"></a>- [ATLAS-CONFORMANCE-SUBMODULE-STATUS-2026-08-19](backlog/atlas-conformance-submodule-status-2026-08-19.md) — classify provider dirt after root status [patch] — in-progress
@@ -86,7 +85,6 @@
 <a id="atlas-kwavers-vis-config-2026-08-25"></a>- [ATLAS-KWAVERS-VIS-CONFIG-2026-08-25](backlog/atlas-kwavers-vis-config-2026-08-25.md) — Make visualization selection and quality single-source [major] — blocked
 <a id="atlas-lane-audit-001"></a>- [ATLAS-LANE-AUDIT-001](backlog/atlas-lane-audit-001.md) — Lane-root sweep results and residuals [patch] — in-progress
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — in-progress
-<a id="atlas-leto-peer-wip"></a>- [ATLAS-LETO-PEER-WIP](backlog/atlas-leto-peer-wip.md) — Leto uncommitted peer WIP [patch] — blocked
 <a id="atlas-mnemosyne-default-recheck-2026-08-18"></a>- [ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-18](backlog/atlas-mnemosyne-default-recheck-2026-08-18.md) — moving default remains open — in-progress
 <a id="atlas-mnemosyne-default-recheck-2026-08-19"></a>- [ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-19](backlog/atlas-mnemosyne-default-recheck-2026-08-19.md) — moving default remains open — todo
 <a id="mnemosyne-pin-campaign-stranded"></a>- [ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06](backlog/mnemosyne-pin-campaign-stranded.md) — A provider-pin campaign stalled undelivered in five members [patch] — todo
