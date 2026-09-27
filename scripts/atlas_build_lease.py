@@ -220,11 +220,11 @@ def peek_owner(path: Path) -> dict[str, object] | None:
 def acquire_waiting(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
     """Enter `lease`, waiting while a live owner holds it.
 
-    The wait ends when the owner releases, when the owner's recorded
-    `expires_ns` passes while it still holds the lock, or after `wait_seconds`,
-    whichever is first; the last two raise without taking the lease. Callers
-    acquire several leases in sorted scope order, so waiting holders never
-    form a cycle.
+    The wait ends when the owner releases or after `wait_seconds`; the latter
+    raises without taking the lease. The OS lock proves the owner is alive, so
+    its recorded `expires_ns` only reports: a build that outlives it is still
+    waited out. Callers acquire several leases in sorted scope order, so
+    waiting holders never form a cycle.
     """
     deadline_ns = time.monotonic_ns() + int(wait_seconds * 1_000_000_000)
     delay = _WAIT_FIRST_SECONDS
@@ -239,13 +239,11 @@ def acquire_waiting(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
         owner = current.get("root", "unknown")
         revision = current.get("revision", "unknown")
         remaining_ns = deadline_ns - time.monotonic_ns()
-        expires_ns = current.get("expires_ns")
-        if type(expires_ns) is int:
-            remaining_ns = min(remaining_ns, expires_ns - time.time_ns())
         if remaining_ns <= 0:
             raise BuildIdentityError(
                 f"source identity lease {lease.path.name} is still held by {owner} at "
-                f"{revision} after waiting up to its expiry; no artifact was touched"
+                f"{revision} after waiting {wait_seconds:g} s (--lease-wait-seconds); "
+                "no artifact was touched"
             )
         if announced != (owner, revision):
             print(
