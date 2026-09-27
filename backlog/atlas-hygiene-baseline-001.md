@@ -4,3 +4,10 @@
 - outcome: the committed scanner covers all debt classes with a non-increasing per-repo baseline; fleet check reports zero violations.
 - state (2026-09-08): 6 violations remain (down from 26): `ritk` and part of `kwavers/oversized_files` are proven-stale baseline rows; `kwavers`'s remainder is a live peer's build/lane; `apollo/{manifest_implementation, existence_only_assertions}` is skipped — apollo is at its two-tree bound.
 - next: (1) `check` compares the working-copy baseline to itself post-`generate` — read the committed blob or refuse a dirty baseline; (2) `generate` prints no diff on a raised row — add previous-value output; (3) `reexport_shims` double-counts `cfg`-gated alias arms — count each group once.
+
+## 2026-09-22 — leoneuro-rs optimizer split deferred (dependency pin crisis)
+
+- Target `crates/leoneuro-plan/src/optimizer.rs` (5407 lines, largest production file in the atlas) mapped for a `optimizer/{tuning,modes,search,source,response,geometry,selection,tests}` facade split, but **blocked**: member does not resolve.
+- Root cause: fleet-wide kwavers pin roll to `f532b0e` (11 pins) landed before that rev exists anywhere — not on `ryancinsight/kwavers` (HEAD `703b864f`), not in cargo's git db; last resolvable pin is `f8079d2b`.
+- Secondary: `leoneuro-io`'s ritk pin `a505262b` requires `moirai-runtime ^0.5.0`, but Moirai remote now serves only 0.6.0.
+- Peer process has uncommitted pin edits inside `repos/leoneuro-rs` (Cargo.lock, leoneuro-io) — actively mid-roll. Revisit the split after the kwavers rev is pushed upstream and the moirai 0.5→0.6 roll completes.

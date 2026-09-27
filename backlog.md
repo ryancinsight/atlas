@@ -86,6 +86,7 @@
 <a id="atlas-kwavers-vis-config-2026-08-25"></a>- [ATLAS-KWAVERS-VIS-CONFIG-2026-08-25](backlog/atlas-kwavers-vis-config-2026-08-25.md) — Make visualization selection and quality single-source [major] — blocked
 <a id="atlas-lane-audit-001"></a>- [ATLAS-LANE-AUDIT-001](backlog/atlas-lane-audit-001.md) — Lane-root sweep results and residuals [patch] — in-progress
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — in-progress
+<a id="atlas-leoneuro-burn-pin-sweep-2026-09-25"></a>- [ATLAS-LEONEURO-BURN-PIN-SWEEP-2026-09-25](backlog/atlas-leoneuro-burn-pin-sweep-2026-09-25.md) — Removing burn from leoneuro is a whole-provider pin sweep, not a pin bump [patch] — todo
 <a id="atlas-leto-peer-wip"></a>- [ATLAS-LETO-PEER-WIP](backlog/atlas-leto-peer-wip.md) — Leto uncommitted peer WIP [patch] — blocked
 <a id="atlas-mnemosyne-default-recheck-2026-08-18"></a>- [ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-18](backlog/atlas-mnemosyne-default-recheck-2026-08-18.md) — moving default remains open — in-progress
 <a id="atlas-mnemosyne-default-recheck-2026-08-19"></a>- [ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-19](backlog/atlas-mnemosyne-default-recheck-2026-08-19.md) — moving default remains open — todo
