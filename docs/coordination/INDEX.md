@@ -33,7 +33,7 @@
 
 ### RN-CC-05 references
 
-- **Parent-SHA: forward-propagation audit discipline (RN-CC-05 + RN-CC-04 self-carry)**: see `D:/atlas/gap_audit.md` `### RN-CC-04 self-carry discipline: retroactive disclosure (post-536366e)` for the substantive disclosure; `D:/atlas/backlog.md` `### RN-CC-05 (transitive parent-SHA chain breach detection + audit-discipline establishment)` for the audit-discipline registration; `D:/atlas/checklist.md` `### Pre-commit discipline row: Parent-SHA line-block + forward audit hooks` for the per-batch forward-propagation hooks. Cross-validate via `rg -F "Parent-SHA:" D:/atlas/gap_audit.md D:/atlas/backlog.md D:/atlas/checklist.md D:/atlas/docs/coordination/` (expect >=4 line-hits post-RN-CC-05; >=2 was the user-specified forward-propagation threshold).
+- **Parent-SHA: forward-propagation audit discipline (RN-CC-05 + RN-CC-04 self-carry)**: stale cross-reference — the `gap_audit.md`/`backlog.md` headings this once cited were already empty stubs by the 2026-09-21 board compaction, and the `checklist.md` row it also cited is gone with that file's 2026-09-26 removal (folded into per-item files; no still-open step survived). No live Parent-SHA discipline record remains at any of these anchors; re-derive from `git log --grep "Parent-SHA:"` if this discipline is still wanted.
 
 ## References
 

@@ -861,7 +861,6 @@ atlas/
 │   └── gitlink-coherence/           # gitlink/pin drift checker
 ├── worktrees/                       # canonical root for member-repo worktree lanes
 ├── backlog.md                       # shared state and ownership board
-├── checklist.md                     # owner-keyed execution steps
 ├── gap_audit.md                     # unresolved material risk and audit patterns
 ├── CHANGELOG.md
 ├── .gitmodules                      # authoritative package set and remotes

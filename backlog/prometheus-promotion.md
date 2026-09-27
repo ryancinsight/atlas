@@ -5,3 +5,4 @@ Charter: [ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md). Path: [ADR 005
 - **next — P2 (Ask-User):** create `ryancinsight/prometheus` repo; eleven local commits (`aea52ff..4c176ef`) push once it exists.
 - **next — P8 (queued):** replaces Kwavers chemistry network layer across two callers plus `kwavers-therapy`; Kwavers keeps its transport. Blocked: Kwavers at its two-tree bound.
 - **next — P7, P9 (Ask-User):** register as A7; publish after P8.
+- **Acceptance (standing):** no `nalgebra`/`ndarray`/`rayon`/`num-traits` in either repo's dependency graph (enforced by `deny.toml` bans); generic over `T: RealField` with every oracle at `f32`/`f64`; no dependency on an integrator or another balance domain except through Harmonia (architecture test).
