@@ -26,6 +26,7 @@ sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
 import atlas_build_lease as lease_module
 import atlas_build_lock as lock_module
+import atlas_build_source as build_source
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
@@ -66,10 +67,39 @@ def init_repo(root: Path, source: str) -> None:
     (root / "src").mkdir()
     (root / "src/lib.rs").write_text(source, encoding="utf-8")
     git(root, "init", "-q")
+    disable_maintenance(root)
     git(root, "config", "user.name", "Atlas test")
     git(root, "config", "user.email", "atlas-test@example.invalid")
     git(root, "add", ".")
     git(root, "commit", "-q", "-m", "source")
+
+
+def disable_maintenance(root: Path) -> None:
+    """No detached `gc --auto` or maintenance may write into `.git` while the
+    fixture's temporary directory is removed (a Linux runner failed teardown
+    with `Directory not empty: .git`)."""
+    git(root, "config", "gc.auto", "0")
+    git(root, "config", "maintenance.auto", "false")
+
+
+def gate_export(source: Path, export: Path) -> str:
+    """Export `source`'s HEAD the way the pre-push gate does; return its revision.
+
+    `git archive` into a fresh repository that borrows the source's objects,
+    `HEAD` set to the revision and the index read from its tree.
+    """
+    revision = git(source, "rev-parse", "HEAD")
+    export.mkdir(parents=True)
+    archive = subprocess.run(["git", "archive", f"{revision}^{{tree}}"], cwd=source,
+                             check=True, capture_output=True, timeout=60).stdout
+    subprocess.run(["tar", "-x", "-C", export.as_posix()], input=archive, check=True, timeout=60)
+    git(export, "init", "-q")
+    disable_maintenance(export)
+    objects = git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") + "/objects"
+    (export / ".git" / "objects" / "info" / "alternates").write_bytes(objects.encode() + b"\n")
+    git(export, "update-ref", "HEAD", revision)
+    git(export, "read-tree", "HEAD")
+    return revision
 
 
 def write_script(path: Path, body: str) -> None:
@@ -425,17 +455,60 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(value["status"], "match")
 
-    def test_a_different_source_root_is_a_different_identity(self) -> None:
+    def test_the_same_revision_at_another_root_reuses_and_cleans_nothing(self) -> None:
+        """Each pre-push run exports the pushed revision to a new temporary path.
+
+        A record keyed on that path was stale on every run, so every push
+        cleaned the whole non-registry closure (101 packages for kwavers) and
+        re-pushing one sha cleaned again. The revision decides, not the path.
+        """
         init_repo(self.root, "fn main() {}\n")
-        self.build(source_token="a")
-        other = self.base / "source-b"
-        init_repo(other, "fn main() {}\n")
+        first_export = self.base / "export-1" / "member"
+        second_export = self.base / "export-2" / "member"
+        revision = gate_export(self.root, first_export)
+        self.assertEqual(gate_export(self.root, second_export), revision)
+        first = self.build(root=first_export, source_token="same")
+        self.assertEqual(first.status, "rebuilt")
         self.clean_log.unlink()
-        result = self.build(root=other, source_token="b")
-        self.assertEqual(result.status, "rebuilt")
-        self.assertTrue(self.clean_log.exists())
-        record = json.loads(result.record_path.read_text(encoding="utf-8"))
-        self.assertEqual(record["source"]["root"], other.resolve().as_posix())
+        second = self.build(root=second_export, source_token="same")
+        self.assertEqual(second.status, "reused")
+        self.assertFalse(second.cleaned)
+        self.assertFalse(self.clean_log.exists())
+        record = json.loads(second.record_path.read_text(encoding="utf-8"))
+        self.assertEqual(record["source"]["revision"], revision)
+        self.assertEqual(record["source"]["root"], second_export.resolve().as_posix())
+
+    def test_a_fresh_gate_export_is_identified_without_rehashing_it(self) -> None:
+        """An export's read-tree index carries no stat data, and `git diff HEAD`
+        re-hashed all of it: 348 s for kwavers, past the 60 s git timeout."""
+        init_repo(self.root, "fn main() {}\n")
+        bulk = self.root / "data"
+        bulk.mkdir()
+        for index in range(2000):
+            (bulk / f"part-{index:04}.txt").write_text(f"{index}\n" * 64, encoding="utf-8")
+        git(self.root, "add", "data")
+        git(self.root, "commit", "-qm", "bulk")
+        export = self.base / "export" / "member"
+        revision = gate_export(self.root, export)
+        calls: list[tuple[str, ...]] = []
+        real_git = build_source._git
+
+        def recording_git(root: Path, *arguments: str) -> bytes:
+            calls.append(arguments)
+            return real_git(root, *arguments)
+
+        with patch.object(build_source, "_git", side_effect=recording_git):
+            started = time.monotonic()
+            found = build_source.source_identity(export)
+            elapsed = time.monotonic() - started
+        self.assertNotIn("diff", [arguments[0] for arguments in calls])
+        self.assertEqual(found.revision, revision)
+        self.assertFalse(found.dirty)
+        self.assertLess(elapsed, 30.0)
+        # Only an index never stat'ed is trusted: once refreshed, edits are diffed.
+        subprocess.run(["git", "update-index", "-q", "--refresh"], cwd=export, timeout=60)
+        (export / "src/lib.rs").write_text("fn main() { edited(); }\n", encoding="utf-8")
+        self.assertTrue(build_source.source_identity(export).dirty)
 
     def test_an_active_owner_blocks_cleaning_and_preserves_the_artifact(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -836,6 +909,41 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertNotEqual(first["digest"], second["digest"])
         self.assertEqual(first["clean_packages"], ["demo", "dep"])
+
+    def test_dependency_snapshot_is_independent_of_the_export_path(self) -> None:
+        """Cargo spells a path package's ID with its absolute directory."""
+        snapshots = []
+        for name in ("export-1", "export-2"):
+            workspace = (self.base / name / "member").resolve()
+            member = workspace / "crates" / "demo"
+            member.mkdir(parents=True)
+            (member / "Cargo.toml").write_text("[package]\nname = \"demo\"\n", encoding="utf-8")
+            helper = workspace / "crates" / "helper"
+            helper.mkdir(parents=True)
+            (helper / "Cargo.toml").write_text("[package]\nname = \"helper\"\n", encoding="utf-8")
+            demo_id = f"path+file:///{member.as_posix()}#demo@0.1.0"
+            helper_id = f"path+file:///{helper.as_posix()}#helper@0.1.0"
+            metadata = {
+                "workspace_root": str(workspace),
+                "packages": [
+                    {"id": demo_id, "name": "demo", "version": "0.1.0", "source": None,
+                     "manifest_path": str(member / "Cargo.toml")},
+                    {"id": helper_id, "name": "helper", "version": "0.1.0", "source": None,
+                     "manifest_path": str(helper / "Cargo.toml")},
+                ],
+                "workspace_members": [demo_id, helper_id],
+                "resolve": {"nodes": [
+                    {"id": demo_id, "deps": [{"pkg": helper_id, "dep_kinds": []}]},
+                    {"id": helper_id, "deps": []},
+                ]},
+            }
+            with patch.object(artifacts, "_cargo_metadata", return_value=metadata):
+                snapshots.append(artifacts.dependency_snapshot(
+                    workspace / "Cargo.toml", "demo", workspace,
+                    lambda path: {"revision": "same"},
+                ))
+        self.assertEqual(snapshots[0]["digest"], snapshots[1]["digest"])
+        self.assertEqual(snapshots[0]["root"], "workspace:crates/demo#demo@0.1.0")
 
     def test_registry_package_content_changes_change_the_dependency_snapshot(self) -> None:
         init_repo(self.root, "fn main() {}\n")
