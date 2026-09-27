@@ -67,6 +67,10 @@ errors[0-9]*.txt
 cargolog*.txt
 *.stderr
 repos/leoneuro-rs/
+# The pre-clone backup of the same private consumer: an untracked artifact copy
+# with no `.git`, so the stack gates (which walk `repos/*` looking for a
+# `Cargo.toml`) must not treat it as a member.
+repos/leoneuro-rs.__preclone_backup__/
 # `repos/prometheus/` is no longer ignored: prometheus registered its
 # Phase 0 and is a recorded submodule in `.gitmodules`.
 
