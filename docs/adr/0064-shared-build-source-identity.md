@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-24
 - Revision: 2026-09-25 — Accepted the locked dependency-content, closure-lease, and artifact-package design.
+- Revision: 2026-09-27 — The pre-push gate builds an export of the pushed revision instead of refusing a push that differs from the checkout: private-index pushes from shared trees were refused on a peer's branch and dirt (ritk, kwavers).
 - Revision: 2026-09-27 — The waiter no longer ends at the owner's recorded expiry: a live helios hook build outlived its lease and a waiting push was refused although the OS lock proved the owner alive.
 - Revision: 2026-09-26 — The owner record moved past the locked byte, the pre-push entry point waits for a live owner up to its expiry, and an unlocked lease is reclaimed whatever its content; Windows pushes were refused against owners that read as unknown and against 35-hour-old probe leases with no expiry.
 - Class: `[arch]`
@@ -32,7 +33,7 @@ The lease key is (package name, target directory), without the source revision o
 
 ### Build entry points
 
-The shared identity module is the single policy surface. The member pre-push gate refuses a pushed revision that differs from the checkout, invokes the module for each changed package before accepting clippy, tests, or documentation, and passes the member manifest in linked-worktree mode. One stable command key per package lets those steps share a record. The integration composes with the existing conformance push guard in PR #277; it must not duplicate that guard or hand-edit member hook copies. Other build entry points use the same module when they compile packages, rather than implementing a second provenance format.
+The shared identity module is the single policy surface. The member pre-push gate builds an export of the pushed revision (`git archive <sha>^{tree}`) in a temporary directory outside the stack's `[patch]` overlay, never the checkout, which a shared tree holds on a peer's branch or dirty. The export is a repository whose `HEAD` is the pushed commit and whose object store is the member's, so the module records the pushed revision as the source; the gate invokes the module with the export as `--root` for each changed package before accepting clippy, tests, or documentation, all under `--locked` against the committed lock. One stable command key per package lets those steps share a record. The integration composes with the existing conformance push guard in PR #277; it must not duplicate that guard or hand-edit member hook copies. Other build entry points use the same module when they compile packages, rather than implementing a second provenance format.
 
 The module records artifact hashes after the command. It does not treat Cargo fingerprint JSON as a public schema, and it does not claim that a missing `.fingerprint` directory proves source identity.
 
@@ -64,7 +65,7 @@ The module records artifact hashes after the command. It does not treat Cargo fi
 
 ## Verification
 
-The core regression suite covers a source transition, matching-source reuse, different-root identity, dependency-closure transitions and cleanup, active-owner preservation, owner naming across processes, the pre-push wait for a live owner past its recorded expiry and its wait bound, expired and unlocked malformed lease recovery, dirty and ignored-source identity, build-environment dimensions, target-directory exclusion, and artifact-boundary rejection. The integrated hook regression additionally proves that a stale package is rebuilt once per source transition, an unrelated package artifact is preserved, a pushed-revision mismatch is refused, overlay lock rewrites are restored, linked worktrees receive the member manifest, environment failures are not accepted, and a live owner blocks cleaning without changing source files. Focused Python tests, the full scripts suite, pre-push hook tests, conformance, the ARCH-008 oracle, and the pin-drift gate are required before merge.
+The core regression suite covers a source transition, matching-source reuse, different-root identity, dependency-closure transitions and cleanup, active-owner preservation, owner naming across processes, the pre-push wait for a live owner past its recorded expiry and its wait bound, expired and unlocked malformed lease recovery, dirty and ignored-source identity, build-environment dimensions, target-directory exclusion, and artifact-boundary rejection. The integrated hook regression additionally proves that a stale package is rebuilt once per source transition, an unrelated package artifact is preserved, a push from a checkout on another branch with dirty files and a divergent lock is judged on the pushed content, the export's manifest reaches every step, environment failures are not accepted, and a live owner blocks cleaning without changing source files. Focused Python tests, the full scripts suite, pre-push hook tests, conformance, the ARCH-008 oracle, and the pin-drift gate are required before merge.
 
 ## References
 
