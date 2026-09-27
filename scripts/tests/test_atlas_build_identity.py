@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -125,24 +126,23 @@ MODE_HOLDER = (
     "lease.__exit__(None, None, None)\n"
 )
 
-# The lock call of every checker before lease modes: an exclusive lock on
-# byte 0, `msvcrt.locking` on Windows and `flock` on POSIX.
-LEGACY_LOCKER = (
-    "import os, sys, time\n"
-    "handle = open(sys.argv[1], 'a+b')\n"
-    "handle.seek(0)\n"
+# The lease module as every checker ran it before lease modes (atlas
+# f96b218, byte for byte): the fleet's hooks keep running it until they fetch.
+LEASE_WITHOUT_MODES = Path(__file__).resolve().parent / "fixtures" / "lease_without_modes.py"
+LEGACY_TAKER = (
+    "import importlib.util, sys, time\n"
+    "from pathlib import Path\n"
+    "spec = importlib.util.spec_from_file_location('lease_without_modes', sys.argv[1])\n"
+    "module = importlib.util.module_from_spec(spec)\n"
+    "spec.loader.exec_module(module)\n"
+    "lease = module.OwnerLease(Path(sys.argv[2]), {'root': 'legacy', 'revision': 'r'}, 60)\n"
     "try:\n"
-    "    if os.name == 'nt':\n"
-    "        import msvcrt\n"
-    "        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)\n"
-    "    else:\n"
-    "        import fcntl\n"
-    "        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)\n"
-    "except OSError:\n"
+    "    lease.__enter__()\n"
+    "except module.LeaseHeldError:\n"
     "    print('refused', flush=True)\n"
     "    sys.exit(0)\n"
     "print('held', flush=True)\n"
-    "if sys.argv[2] == 'hold':\n"
+    "if sys.argv[3] == 'hold':\n"
     "    time.sleep(60)\n"
 )
 
@@ -164,9 +164,16 @@ def start_holder(
 
 
 def legacy_lock(test: unittest.TestCase, lock: Path, hold: bool) -> tuple[str, subprocess.Popen]:
-    """Take `lock` the way a pre-mode checker does; report `held` or `refused`."""
+    """Take `lock` with the pre-mode lease module; `held`, `refused`, or '' if it crashed."""
     process = subprocess.Popen(
-        [sys.executable, "-c", LEGACY_LOCKER, str(lock), "hold" if hold else "probe"],
+        [
+            sys.executable,
+            "-c",
+            LEGACY_TAKER,
+            str(LEASE_WITHOUT_MODES),
+            str(lock),
+            "hold" if hold else "probe",
+        ],
         stdout=subprocess.PIPE,
         text=True,
     )
@@ -233,23 +240,26 @@ class LeaseModeTestCase(unittest.TestCase):
                 self.assertEqual(legacy_lock(self, lock, hold=False)[0], "held")
 
     def test_concurrent_takers_see_contention_never_a_fault(self) -> None:
-        # Truncating the record to zero bytes let a concurrent opener see an
-        # empty file and write into the locked byte: PermissionError on Windows.
+        # Five takers running this module and one running the pre-mode module
+        # (which faults against a second copy of itself) race on one lease.
+        # A record cut to zero bytes before it was rewritten, or a new lease
+        # left empty while held, let an opener write into the locked byte.
         lock = self.lock("storm")
         storm = (
-            "import sys, time\n"
+            "import importlib.util, sys, time\n"
             "from pathlib import Path\n"
-            "sys.path.insert(0, sys.argv[1])\n"
-            "from atlas_build_lease import OwnerLease, LeaseHeldError\n"
+            "spec = importlib.util.spec_from_file_location('taker', sys.argv[1])\n"
+            "module = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(module)\n"
             "faults = 0\n"
             "end = time.monotonic() + 3\n"
             "while time.monotonic() < end:\n"
-            "    lease = OwnerLease(Path(sys.argv[2]), {'root': 'storm', 'revision': 'r'}, 60)\n"
+            "    lease = module.OwnerLease(Path(sys.argv[2]), {'root': 'storm', 'revision': 'r'}, 60)\n"
             "    try:\n"
             "        lease.__enter__()\n"
-            "    except LeaseHeldError:\n"
+            "    except module.LeaseHeldError:\n"
             "        continue\n"
-            "    except Exception as error:\n"
+            "    except Exception:\n"
             "        faults += 1\n"
             "        continue\n"
             "    lease.__exit__(None, None, None)\n"
@@ -257,64 +267,30 @@ class LeaseModeTestCase(unittest.TestCase):
         )
         workers = [
             subprocess.Popen(
-                [sys.executable, "-c", storm, str(SCRIPT.parent), str(lock)],
+                [sys.executable, "-c", storm, str(module), str(lock)],
                 stdout=subprocess.PIPE,
                 text=True,
             )
-            for _ in range(6)
+            for module in (*[SCRIPT.parent / "atlas_build_lease.py"] * 5, LEASE_WITHOUT_MODES)
         ]
         faults = [int(worker.communicate(timeout=60)[0].strip()) for worker in workers]
         self.assertEqual(faults, [0] * 6)
 
-    def test_a_rewritten_record_never_empties_the_lease_for_legacy_openers(self) -> None:
-        # Earlier checkers open with append and write a byte into a file they
-        # find empty; a record cut to zero bytes before it was rewritten sent
-        # that write into a holder's locked byte.
-        lock = self.lock("legacy-openers")
-        OwnerLease(lock, {"root": "first", "revision": "r"}, 60).__enter__().__exit__(None, None, None)
-        opener = (
-            "import sys, time\n"
-            "faults = 0\n"
-            "end = time.monotonic() + 3\n"
-            "while time.monotonic() < end:\n"
-            "    try:\n"
-            "        with open(sys.argv[1], 'a+b') as handle:\n"
-            "            handle.seek(0, 2)\n"
-            "            if handle.tell() == 0:\n"
-            "                handle.write(b'\\0')\n"
-            "                handle.flush()\n"
-            "    except OSError:\n"
-            "        faults += 1\n"
-            "print(faults, flush=True)\n"
-        )
-        taker = (
-            "import sys, time\n"
-            "from pathlib import Path\n"
-            "sys.path.insert(0, sys.argv[1])\n"
-            "from atlas_build_lease import OwnerLease, LeaseHeldError\n"
-            "end = time.monotonic() + 3\n"
-            "while time.monotonic() < end:\n"
-            "    lease = OwnerLease(Path(sys.argv[2]), {'root': 'taker', 'revision': 'r'}, 60)\n"
-            "    try:\n"
-            "        lease.__enter__()\n"
-            "    except LeaseHeldError:\n"
-            "        continue\n"
-            "    lease.__exit__(None, None, None)\n"
-        )
-        takers = [
-            subprocess.Popen([sys.executable, "-c", taker, str(SCRIPT.parent), str(lock)])
-            for _ in range(3)
-        ]
-        openers = [
-            subprocess.Popen(
-                [sys.executable, "-c", opener, str(lock)], stdout=subprocess.PIPE, text=True
-            )
-            for _ in range(3)
-        ]
-        faults = [int(process.communicate(timeout=60)[0].strip()) for process in openers]
-        for process in takers:
-            process.wait(60)
-        self.assertEqual(faults, [0] * 3)
+    @unittest.skipUnless(os.name == "nt", "only Windows refuses to delete an open file")
+    def test_a_failing_lock_call_closes_its_handle(self) -> None:
+        lock = self.lock("fault")
+        fault = OSError(1, "injected lock fault")
+        with patch.object(lease_module, "_try_lock", side_effect=fault):
+            for take in (
+                lambda: OwnerLease(lock, {"root": "r", "revision": "r"}, 60, mode=SHARED).__enter__(),
+                lambda: lease_module.LeaseProbe(lock).__enter__(),
+            ):
+                lock.parent.mkdir(exist_ok=True)
+                with self.assertRaises(OSError):
+                    take()
+                # The exception keeps its frame, and so any leaked handle,
+                # alive; Windows refuses to remove a directory holding one.
+                shutil.rmtree(lock.parent)
 
     @unittest.skipUnless(os.name == "nt", "LockFileEx error codes are Windows-only")
     def test_lock_failures_other_than_contention_are_raised(self) -> None:
