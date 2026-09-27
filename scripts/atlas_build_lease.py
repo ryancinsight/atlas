@@ -17,7 +17,11 @@ class BuildIdentityError(RuntimeError):
 
 
 class LeaseHeldError(BuildIdentityError):
-    """A live process holds the lease."""
+    """A live process holds the lease, or an earlier request is queued for it."""
+
+    def __init__(self, message: str, holder: dict[str, object] | None = None) -> None:
+        super().__init__(message)
+        self.holder = holder or {}
 
 
 # The OS lock covers byte 0 only, and the owner record starts at byte 1: a
@@ -59,20 +63,72 @@ def package_target_lease_scopes(
     ]
 
 
-def _try_lock(handle: Any) -> bool:
-    handle.seek(0)
-    if os.name == "nt":
-        import msvcrt
+EXCLUSIVE = "exclusive"
+SHARED = "shared"
+_TICKET_MODES = {EXCLUSIVE: "x", SHARED: "s"}
+# A dead ticket is removed only once it is this old: younger, it may belong to
+# a requester between creating the file and locking it.
+_DEAD_TICKET_SECONDS = 10
 
-        try:
-            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-        except OSError:
-            return False
-        return True
+
+if os.name == "nt":
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    class _Overlapped(ctypes.Structure):
+        _fields_ = [
+            ("Internal", ctypes.c_void_p),
+            ("InternalHigh", ctypes.c_void_p),
+            ("Offset", wintypes.DWORD),
+            ("OffsetHigh", wintypes.DWORD),
+            ("hEvent", wintypes.HANDLE),
+        ]
+
+    _KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _KERNEL32.LockFileEx.argtypes = [
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.POINTER(_Overlapped),
+    ]
+    _KERNEL32.LockFileEx.restype = wintypes.BOOL
+    _KERNEL32.UnlockFileEx.argtypes = [
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.POINTER(_Overlapped),
+    ]
+    _KERNEL32.UnlockFileEx.restype = wintypes.BOOL
+    _LOCKFILE_FAIL_IMMEDIATELY = 0x1
+    _LOCKFILE_EXCLUSIVE_LOCK = 0x2
+
+
+def _try_lock(handle: Any, mode: str = EXCLUSIVE) -> bool:
+    """Lock byte 0 of `handle` without blocking.
+
+    Windows uses `LockFileEx`, whose byte-range locks interoperate with the
+    `msvcrt.locking` exclusive locks earlier holders take. POSIX uses `flock`,
+    which earlier holders also use; `fcntl` record locks would not see them.
+    """
+    if os.name == "nt":
+        flags = _LOCKFILE_FAIL_IMMEDIATELY
+        if mode == EXCLUSIVE:
+            flags |= _LOCKFILE_EXCLUSIVE_LOCK
+        overlapped = _Overlapped()
+        return bool(
+            _KERNEL32.LockFileEx(
+                msvcrt.get_osfhandle(handle.fileno()), flags, 0, 1, 0, ctypes.byref(overlapped)
+            )
+        )
     import fcntl
 
+    operation = fcntl.LOCK_EX if mode == EXCLUSIVE else fcntl.LOCK_SH
     try:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(handle.fileno(), operation | fcntl.LOCK_NB)
     except OSError:
         return False
     return True
@@ -80,10 +136,11 @@ def _try_lock(handle: Any) -> bool:
 
 def _unlock(handle: Any) -> None:
     if os.name == "nt":
-        import msvcrt
-
-        handle.seek(0)
-        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        overlapped = _Overlapped()
+        if not _KERNEL32.UnlockFileEx(
+            msvcrt.get_osfhandle(handle.fileno()), 0, 1, 0, ctypes.byref(overlapped)
+        ):
+            raise OSError(ctypes.get_last_error(), "UnlockFileEx failed")
         return
     import fcntl
 
@@ -101,69 +158,200 @@ def _open_lease(path: Path):
     return handle
 
 
+def _write_record(handle: Any, record: dict[str, object]) -> None:
+    handle.seek(0)
+    handle.truncate()
+    handle.write(b" " * RECORD_OFFSET)
+    handle.write(json.dumps(record, sort_keys=True, separators=(",", ":")).encode())
+    handle.flush()
+    os.fsync(handle.fileno())
+
+
+def _queue_dir(path: Path) -> Path:
+    return path.with_name(f"{path.stem}.queue")
+
+
+class _Ticket:
+    """A requester's place in a lease's arrival order.
+
+    The ticket file is named by a system-wide monotonic arrival time and
+    locked by its requester until it releases the lease, so an unlocked ticket
+    belongs to a process that has gone.
+    """
+
+    def __init__(self, path: Path, mode: str, owner: dict[str, object]) -> None:
+        directory = _queue_dir(path)
+        directory.mkdir(parents=True, exist_ok=True)
+        self.arrival = time.monotonic_ns()
+        name = f"{self.arrival:020d}-{_TICKET_MODES[mode]}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+        self.path = directory / f"{name}.ticket"
+        self.handle = self.path.open("x+b")
+        self.handle.write(b"\0")
+        self.handle.flush()
+        if not _try_lock(self.handle):
+            self.handle.close()
+            raise BuildIdentityError(f"cannot lock source identity ticket {self.path}")
+        _write_record(self.handle, {**owner, "mode": mode})
+
+    def ahead(self, mode: str) -> list[dict[str, object]]:
+        """Live earlier requests this one must not pass.
+
+        An exclusive request waits for every earlier request; a shared one
+        only for earlier exclusive requests, so readers that arrived together
+        share while a waiting writer holds back later readers.
+        """
+        blockers = []
+        for other in sorted(self.path.parent.glob("*.ticket")):
+            if other.name >= self.path.name:
+                break
+            if mode == SHARED and f"-{_TICKET_MODES[EXCLUSIVE]}-" not in other.name:
+                continue
+            if _ticket_is_live(other, self.arrival):
+                blockers.append(peek_owner(other) or {})
+        return blockers
+
+    def close(self) -> None:
+        try:
+            _unlock(self.handle)
+        finally:
+            self.handle.close()
+        try:
+            self.path.unlink()
+        except OSError:
+            # A peer checking liveness has it open; unlocked, it reads as dead.
+            pass
+
+
+def _ticket_is_live(path: Path, now: int) -> bool:
+    try:
+        handle = path.open("rb")
+    except OSError:
+        return False
+    try:
+        if not _try_lock(handle):
+            return True
+        _unlock(handle)
+    finally:
+        handle.close()
+    arrival = int(path.name.split("-", 1)[0])
+    if now - arrival > _DEAD_TICKET_SECONDS * 1_000_000_000:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+    return False
+
+
 class OwnerLease:
-    def __init__(self, path: Path, owner: dict[str, object], seconds: int) -> None:
+    """A lease on one build scope, held shared (reading) or exclusive.
+
+    Requests are served in arrival order through `_Ticket`; the OS lock on
+    byte 0 of the lease file remains the authority on who holds it.
+    """
+
+    def __init__(
+        self, path: Path, owner: dict[str, object], seconds: int, mode: str = EXCLUSIVE
+    ) -> None:
         if seconds <= 0:
             raise BuildIdentityError("lease duration must be positive")
+        if mode not in _TICKET_MODES:
+            raise BuildIdentityError(f"unknown lease mode {mode}")
         self.path = path
         self.owner = owner
         self.seconds = seconds
+        self.mode = mode
         self.handle = None
+        self.ticket: _Ticket | None = None
         self.held = False
 
-    def __enter__(self) -> OwnerLease:
+    def enqueue(self) -> None:
+        if self.ticket is None:
+            self.ticket = _Ticket(self.path, self.mode, self.owner)
+
+    def attempt(self) -> OwnerLease:
+        """Take the lease if this request's turn has come and no holder conflicts."""
+        self.enqueue()
+        assert self.ticket is not None
+        ahead = self.ticket.ahead(self.mode)
         handle = _open_lease(self.path)
-        if not _try_lock(handle):
+        if not _try_lock(handle, self.mode):
             handle.close()
-            current = peek_owner(self.path) or {}
-            owner = current.get("root", "unknown")
-            revision = current.get("revision", "unknown")
+            # Earlier tickets name live holders of either mode; the lease
+            # record names only the last exclusive one, or a legacy holder.
+            current = ahead[0] if ahead else peek_owner(self.path) or {}
             raise LeaseHeldError(
-                f"source identity is owned by {owner} at {revision}; retry after it releases"
+                f"source identity is owned by {current.get('root', 'unknown')} at "
+                f"{current.get('revision', 'unknown')}; retry after it releases",
+                current,
             )
-        token = uuid.uuid4().hex
-        payload = {
-            **self.owner,
-            "token": token,
-            "expires_ns": time.time_ns() + self.seconds * 1_000_000_000,
-        }
-        try:
-            handle.seek(0)
-            handle.truncate()
-            handle.write(b" " * RECORD_OFFSET)
-            handle.write(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
-            handle.flush()
-            os.fsync(handle.fileno())
-        except OSError as error:
+        if ahead:
             _unlock(handle)
             handle.close()
-            raise BuildIdentityError(f"cannot write source identity lease {self.path}: {error}") from error
+            raise LeaseHeldError(
+                f"source identity is queued behind {ahead[0].get('root', 'unknown')} at "
+                f"{ahead[0].get('revision', 'unknown')}; retry after it releases",
+                ahead[0],
+            )
+        token = uuid.uuid4().hex
+        if self.mode == EXCLUSIVE:
+            try:
+                _write_record(
+                    handle,
+                    {
+                        **self.owner,
+                        "token": token,
+                        "expires_ns": time.time_ns() + self.seconds * 1_000_000_000,
+                    },
+                )
+            except OSError as error:
+                _unlock(handle)
+                handle.close()
+                raise BuildIdentityError(
+                    f"cannot write source identity lease {self.path}: {error}"
+                ) from error
         self.handle = handle
         self.owner = {**self.owner, "token": token}
         self.held = True
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        if not self.held or self.handle is None:
-            return
+    def dequeue(self) -> None:
+        if self.ticket is not None:
+            ticket, self.ticket = self.ticket, None
+            ticket.close()
+
+    def __enter__(self) -> OwnerLease:
         try:
-            _unlock(self.handle)
-            self.handle.close()
-        except OSError as error:
-            raise BuildIdentityError(f"cannot release source identity lease {self.path}") from error
+            return self.attempt()
+        except BaseException:
+            self.dequeue()
+            raise
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        try:
+            if self.held and self.handle is not None:
+                try:
+                    _unlock(self.handle)
+                    self.handle.close()
+                except OSError as error:
+                    raise BuildIdentityError(
+                        f"cannot release source identity lease {self.path}"
+                    ) from error
         finally:
             self.held = False
             self.handle = None
+            self.dequeue()
 
 
 class LeaseProbe:
+    """A shared, unqueued look at whether a lease can be read now."""
+
     def __init__(self, path: Path) -> None:
         self.path = path
         self.handle = None
 
     def __enter__(self) -> bool:
         handle = _open_lease(self.path)
-        if not _try_lock(handle):
+        if not _try_lock(handle, SHARED):
             handle.close()
             return False
         self.handle = handle
@@ -218,40 +406,46 @@ def peek_owner(path: Path) -> dict[str, object] | None:
 
 
 def acquire_waiting(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
-    """Enter `lease`, waiting while a live owner holds it.
+    """Enter `lease`, waiting while a live owner holds it or an earlier request is queued.
 
-    The wait ends when the owner releases or after `wait_seconds`; the latter
-    raises without taking the lease. The OS lock proves the owner is alive, so
-    its recorded `expires_ns` only reports: a build that outlives it is still
-    waited out. Callers acquire several leases in sorted scope order, so
-    waiting holders never form a cycle.
+    The request keeps one ticket for the whole wait, so a holder that releases
+    and asks again queues behind it. The wait ends when the lease is taken or
+    after `wait_seconds`; the latter raises without taking the lease. The OS
+    lock proves the owner is alive, so its recorded `expires_ns` only reports.
+    Callers acquire several leases in sorted scope order: a request waits only
+    on holders of its own lease, which wait only on later leases, or on
+    earlier requests for the same lease, so no wait forms a cycle.
     """
     deadline_ns = time.monotonic_ns() + int(wait_seconds * 1_000_000_000)
     delay = _WAIT_FIRST_SECONDS
     announced = None
-    while True:
-        try:
-            return lease.__enter__()
-        except LeaseHeldError:
-            if wait_seconds <= 0:
-                raise
-            current = peek_owner(lease.path) or {}
-        owner = current.get("root", "unknown")
-        revision = current.get("revision", "unknown")
-        remaining_ns = deadline_ns - time.monotonic_ns()
-        if remaining_ns <= 0:
-            raise BuildIdentityError(
-                f"source identity lease {lease.path.name} is still held by {owner} at "
-                f"{revision} after waiting {wait_seconds:g} s (--lease-wait-seconds); "
-                "no artifact was touched"
-            )
-        if announced != (owner, revision):
-            print(
-                f"atlas-build-identity waiting: lease {lease.path.name} held by {owner} at "
-                f"{revision}; waiting up to {remaining_ns / 1e9:.0f} s",
-                file=sys.stderr,
-                flush=True,
-            )
-            announced = (owner, revision)
-        time.sleep(min(delay, remaining_ns / 1e9))
-        delay = min(delay * 2, _WAIT_MAX_SECONDS)
+    try:
+        while True:
+            try:
+                return lease.attempt()
+            except LeaseHeldError as error:
+                if wait_seconds <= 0:
+                    raise
+                current = error.holder
+            owner = current.get("root", "unknown")
+            revision = current.get("revision", "unknown")
+            remaining_ns = deadline_ns - time.monotonic_ns()
+            if remaining_ns <= 0:
+                raise BuildIdentityError(
+                    f"source identity lease {lease.path.name} is still held by {owner} at "
+                    f"{revision} after waiting {wait_seconds:g} s (--lease-wait-seconds); "
+                    "no artifact was touched"
+                )
+            if announced != (owner, revision):
+                print(
+                    f"atlas-build-identity waiting: lease {lease.path.name} held by {owner} at "
+                    f"{revision}; waiting up to {remaining_ns / 1e9:.0f} s",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                announced = (owner, revision)
+            time.sleep(min(delay, remaining_ns / 1e9))
+            delay = min(delay * 2, _WAIT_MAX_SECONDS)
+    except BaseException:
+        lease.dequeue()
+        raise

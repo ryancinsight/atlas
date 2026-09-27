@@ -22,7 +22,15 @@ SPEC = importlib.util.spec_from_file_location("atlas_build_identity", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
-from atlas_build_lease import OwnerLease, package_target_lease_path, peek_owner
+from atlas_build_lease import (
+    EXCLUSIVE,
+    SHARED,
+    LeaseHeldError,
+    OwnerLease,
+    acquire_waiting,
+    package_target_lease_path,
+    peek_owner,
+)
 
 identity = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = identity
@@ -101,6 +109,59 @@ def hold_lease(
     test.addCleanup(holder.kill)
     test.addCleanup(holder.stdout.close)
     test.assertEqual(holder.stdout.readline().strip(), "held")
+    return holder
+
+
+MODE_HOLDER = (
+    "import sys, time\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from atlas_build_lease import OwnerLease, acquire_waiting\n"
+    "for _ in range(int(sys.argv[5])):\n"
+    "    lease = OwnerLease(Path(sys.argv[2]), {'root': sys.argv[6], 'revision': 'holder-revision',"
+    " 'package': 'dep'}, 600, mode=sys.argv[3])\n"
+    "    acquire_waiting(lease, 120)\n"
+    "    print('held', flush=True)\n"
+    "    time.sleep(float(sys.argv[4]))\n"
+    "    lease.__exit__(None, None, None)\n"
+    "print('done', flush=True)\n"
+)
+
+
+def start_holder(
+    test: unittest.TestCase,
+    lock: Path,
+    mode: str,
+    hold_seconds: float,
+    repeat: int = 1,
+    name: str = "holder-root",
+    wait_until_held: bool = True,
+) -> subprocess.Popen:
+    """Take `lock` in `mode` from a separate process, `repeat` times back to back.
+
+    Each round waits its turn, holds for `hold_seconds`, releases, and asks
+    again at once: the pattern of a push hook re-running its steps.
+    """
+    holder = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            MODE_HOLDER,
+            str(SCRIPT.parent),
+            str(lock),
+            mode,
+            str(hold_seconds),
+            str(repeat),
+            name,
+        ],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    test.addCleanup(holder.wait, 60)
+    test.addCleanup(holder.kill)
+    test.addCleanup(holder.stdout.close)
+    if wait_until_held:
+        test.assertEqual(holder.stdout.readline().strip(), "held")
     return holder
 
 
@@ -290,6 +351,114 @@ class BuildIdentityTestCase(unittest.TestCase):
             self.assertFalse(self.clean_log.exists())
         finally:
             owner.__exit__(None, None, None)
+
+    def dependency_build(self, source_token: str) -> identity.BuildResult:
+        """Build `demo` with a path dependency `dep` in its clean closure."""
+        snapshot = {
+            "root": "demo",
+            "packages": [],
+            "edges": [],
+            "clean_packages": ["demo", "dep"],
+            "digest": "dependency-digest",
+        }
+        with (
+            patch.object(identity, "_dependency_data", return_value=snapshot),
+            patch.object(
+                identity,
+                "artifact_identity",
+                side_effect=lambda *arguments: {
+                    "files": {"debug/deps/libdemo-abcdef.rlib": self.artifact.read_text(encoding="utf-8")},
+                    "digest": self.artifact.read_text(encoding="utf-8"),
+                },
+            ),
+        ):
+            return self.build(source_token=source_token)
+
+    def test_shared_readers_of_a_built_dependency_proceed_together(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        self.assertEqual(self.dependency_build("first").status, "rebuilt")
+        dep = package_target_lease_path("dep", identity._canonical(self.target))
+        start_holder(self, dep, SHARED, 60)
+        self.clean_log.unlink(missing_ok=True)
+        started = time.monotonic()
+        result = self.dependency_build("first")
+        self.assertEqual(result.status, "reused")
+        self.assertLess(time.monotonic() - started, 30)
+        self.assertFalse(self.clean_log.exists())
+
+    def test_a_shared_reader_blocks_cleaning_its_dependency(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        self.assertEqual(self.dependency_build("first").status, "rebuilt")
+        self.artifact.write_text("changed elsewhere", encoding="utf-8")
+        dep = package_target_lease_path("dep", identity._canonical(self.target))
+        start_holder(self, dep, SHARED, 60)
+        self.clean_log.unlink(missing_ok=True)
+        with self.assertRaises(identity.IdentityError) as caught:
+            self.dependency_build("intruder")
+        self.assertIn("holder-root", str(caught.exception))
+        self.assertFalse(self.clean_log.exists())
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "changed elsewhere")
+
+    def test_shared_and_exclusive_holders_exclude_each_other(self) -> None:
+        for held, requested in ((SHARED, EXCLUSIVE), (EXCLUSIVE, SHARED)):
+            with self.subTest(held=held, requested=requested):
+                lock = package_target_lease_path(f"dep-{held}", self.target)
+                holder = start_holder(self, lock, held, 60)
+                with self.assertRaises(LeaseHeldError) as caught:
+                    OwnerLease(lock, {"root": "second", "revision": "r"}, 60, mode=requested).__enter__()
+                self.assertIn("holder-root", str(caught.exception))
+                holder.kill()
+                holder.wait(60)
+        lock = package_target_lease_path("dep-together", self.target)
+        start_holder(self, lock, SHARED, 60)
+        second = OwnerLease(lock, {"root": "second", "revision": "r"}, 60, mode=SHARED)
+        second.__enter__()
+        second.__exit__(None, None, None)
+
+    def test_a_repeating_exclusive_holder_does_not_starve_a_waiter(self) -> None:
+        # Twelve back-to-back 1 s holds: without arrival order the holder asks
+        # again the instant it releases and the polling waiter never gets in.
+        lock = package_target_lease_path("dep", self.target)
+        start_holder(self, lock, EXCLUSIVE, 1, repeat=12)
+        started = time.monotonic()
+        lease = acquire_waiting(OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60), 60)
+        elapsed = time.monotonic() - started
+        lease.__exit__(None, None, None)
+        self.assertLess(elapsed, 6)
+
+    def test_a_stream_of_shared_readers_does_not_starve_a_writer(self) -> None:
+        # Two readers overlap so the lease is never free of a shared holder.
+        lock = package_target_lease_path("dep", self.target)
+        start_holder(self, lock, SHARED, 1, repeat=12, name="reader-a")
+        time.sleep(0.5)
+        start_holder(self, lock, SHARED, 1, repeat=12, name="reader-b")
+        started = time.monotonic()
+        lease = acquire_waiting(
+            OwnerLease(lock, {"root": "writer", "revision": "r"}, 60, mode=EXCLUSIVE), 60
+        )
+        elapsed = time.monotonic() - started
+        lease.__exit__(None, None, None)
+        self.assertLess(elapsed, 6)
+
+    def test_a_crashed_holder_or_waiter_releases_its_place(self) -> None:
+        lock = package_target_lease_path("dep", self.target)
+        holder = start_holder(self, lock, SHARED, 60)
+        waiter = start_holder(self, lock, EXCLUSIVE, 60, name="waiter", wait_until_held=False)
+        queue = lock.with_name(f"{lock.stem}.queue")
+        deadline = time.monotonic() + 30
+        while len(list(queue.glob("*.ticket"))) < 2:
+            self.assertLess(time.monotonic(), deadline, "the waiter never queued")
+            time.sleep(0.05)
+        waiter.kill()
+        waiter.wait(60)
+        holder.kill()
+        holder.wait(60)
+        started = time.monotonic()
+        lease = acquire_waiting(OwnerLease(lock, {"root": "next", "revision": "r"}, 60, mode=SHARED), 30)
+        self.assertLess(time.monotonic() - started, 2)
+        self.assertEqual(peek_owner(lease.ticket.path)["root"], "next")
+        lease.__exit__(None, None, None)
+        self.assertFalse(identity.lease_is_held(lock))
 
     def test_an_expired_owner_is_recovered(self) -> None:
         init_repo(self.root, "fn main() {}\n")
