@@ -1019,12 +1019,14 @@ class CommandLineTestCase(unittest.TestCase):
     def test_the_pre_push_waits_for_a_live_owner_to_release(self) -> None:
         lock = package_target_lease_path("demo", identity._canonical(self.target))
         started = time.monotonic()
-        hold_lease(self, lock, self.target, 60, 2)
+        # Held past the waiter's own setup (source identity, cargo metadata),
+        # which took over 2 s on a loaded host and found the lease released.
+        hold_lease(self, lock, self.target, 60, 6)
         stderr = io.StringIO()
         with redirect_stderr(stderr):
             code = self.pre_push()
         self.assertEqual(code, 0, stderr.getvalue())
-        self.assertGreaterEqual(time.monotonic() - started, 2)
+        self.assertGreaterEqual(time.monotonic() - started, 6)
         self.assertIn("held by holder-root at holder-revision", stderr.getvalue())
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 

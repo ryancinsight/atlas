@@ -19,6 +19,8 @@ import shutil
 import stat
 import subprocess
 import tempfile
+import time
+import tomllib
 import unittest
 
 SCRIPT = (
@@ -1987,6 +1989,267 @@ class PushedRevisionGateTestCase(unittest.TestCase):
             calls = fixture.calls.read_text(encoding="utf-8")
             self.assertIn("fmt --all --manifest-path", calls)
             self.assertNotIn("clippy", calls, "fmt gates before the compile steps")
+
+
+def _commit_all(root: pathlib.Path, message: str) -> str:
+    subprocess.run(["git", "-C", str(root), *_IDENT, "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(root), *_IDENT, "commit", "-q", "-m", message], check=True)
+    return _git(root, "rev-parse", "HEAD")
+
+
+class PushShapeTestCase(unittest.TestCase):
+    """Every ref a push carries is judged, and only what it carries."""
+
+    def test_every_ref_of_a_multi_ref_push_is_gated(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            fixture.set_cargo_behavior("fmt-by-content")
+            lib = fixture.root / "crates" / "foo" / "src" / "lib.rs"
+            _git(fixture.root, "switch", "-q", "-c", "good")
+            lib.write_text("pub fn f() {}\npub fn g() {}\n", encoding="utf-8")
+            _commit_all(fixture.root, "good")
+            _git(fixture.root, "switch", "-q", "-c", "bad", "main")
+            lib.write_text("pub fn f() {} // UNFORMATTED\n", encoding="utf-8")
+            bad = _commit_all(fixture.root, "bad")
+            _git(fixture.root, "switch", "-q", "good")
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("good") + fixture.push_line_new_branch("bad")
+            )
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn(f"`cargo fmt --check` fails on {bad}", stderr)
+
+    def test_an_orphan_branch_is_judged_on_its_own_content(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            fixture.set_cargo_behavior("fmt-by-content")
+            root = fixture.root
+            # An orphan keeps the tree but shares no history with main.
+            _git(root, "checkout", "-q", "--orphan", "orphan")
+            _write(root / "crates" / "foo" / "src" / "lib.rs", "pub fn f() {} // UNFORMATTED\n")
+            orphan = _commit_all(root, "orphan")
+            _git(root, "switch", "-q", "main")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("orphan"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn(f"`cargo fmt --check` fails on {orphan}", stderr)
+
+    def test_a_deletion_only_push_gates_nothing(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            fixture.set_cargo_behavior("fmt-by-content")
+            _git(fixture.root, "switch", "-q", "-c", "bad")
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn f() {} // UNFORMATTED\n", encoding="utf-8"
+            )
+            _commit_all(fixture.root, "bad")
+            main = _git(fixture.root, "rev-parse", "main")
+
+            code, stderr = fixture.run_hook(f"(delete) {ZERO} refs/heads/old {main}\n")
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("carries no commits; nothing to gate", stderr)
+            self.assertFalse(fixture.calls.exists(), "cargo ran for a deletion")
+
+
+class ExportHygieneTestCase(unittest.TestCase):
+    """Exports are exact, confined, and never outlive the run."""
+
+    def test_symlinks_are_exported_without_being_followed(self) -> None:
+        """A dangling in-tree link and a link to a directory outside the tree.
+
+        Git Bash tar refused the dangling link and deep-copied the outside
+        directory; the export writes links as links, or as files where
+        `core.symlinks` is false.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp) / "member")
+            outside = pathlib.Path(temp) / "outside"
+            _write(outside / "secret.txt", "outside\n")
+            root = fixture.root
+            _git(root, "switch", "-q", "-c", "links")
+            (root / "crates" / "foo" / "src" / "lib.rs").write_text("pub fn g() {}\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+            for name, target in (("dangling", "missing/file"), ("escape", "../../outside")):
+                blob = subprocess.run(
+                    ["git", "-C", str(root), "hash-object", "-w", "--stdin"],
+                    input=target.encode(), capture_output=True, check=True,
+                ).stdout.decode().strip()
+                subprocess.run(
+                    ["git", "-C", str(root), "update-index", "--add", "--cacheinfo",
+                     f"120000,{blob},crates/foo/{name}"],
+                    check=True,
+                )
+            subprocess.run(["git", "-C", str(root), *_IDENT, "commit", "-q", "-m", "links"], check=True)
+            stub = fixture.bin / "cargo"
+            stub.write_text(
+                stub.read_text(encoding="utf-8").replace(
+                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n',
+                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                    'for link in crates/foo/escape crates/foo/dangling; do\n'
+                    '  if [ -L "$link" ]; then kind=link; elif [ -d "$link" ]; then kind=copied;'
+                    ' elif [ -f "$link" ]; then kind=file; else kind=absent; fi\n'
+                    '  echo "$link $kind" >> "$FIXTURE_ROOT/links.log"\n'
+                    "done\n",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("links"))
+
+            self.assertEqual(code, 0, stderr)
+            kinds = set((fixture.root / "links.log").read_text(encoding="utf-8").splitlines())
+            for link in ("crates/foo/escape", "crates/foo/dangling"):
+                self.assertTrue({f"{link} link", f"{link} file"} & kinds, kinds)
+                self.assertNotIn(f"{link} copied", kinds)
+                self.assertNotIn(f"{link} absent", kinds)
+
+    def test_stack_config_is_mirrored_without_any_patch_form(self) -> None:
+        """Every `[patch]` form leaves; everything else, and the target, stays."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack = pathlib.Path(temp)
+            fixture = GateFixture(stack / "repos" / "member")
+            target = (stack / "shared-target").as_posix()
+            _write(
+                stack / ".cargo" / "config.toml",
+                "patch.dotted-registry.top = { path = \"top-level-dotted\" }\n"
+                "[build]\n"
+                f"target-dir = '{target}'\n"
+                "[patch.crates-io]\n"
+                "a = { path = \"x\" }\n"
+                "[ patch . \"https://g/x\" ]\n"
+                "b = { path = \"y\" }\n"
+                "[profile.dev]\n"
+                "opt-level = 0\n"
+                "[target.x86_64-pc-windows-msvc]\n"
+                "rustflags = [\n"
+                "  \"-Clink-arg=/x\",\n"
+                "]\n"
+                "[patch.\"https://g/w\"]\n"
+                "list = [\n"
+                "[1, 2],\n"
+                "]\n"
+                "g = { path = \"leaked-after-array-line\" }\n",
+            )
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text("pub fn g() {}\n", encoding="utf-8")
+            _commit_all(fixture.root, "feat")
+            stub = fixture.bin / "cargo"
+            stub.write_text(
+                stub.read_text(encoding="utf-8").replace(
+                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n',
+                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                    'printf "%s" "${CARGO_TARGET_DIR:-}" > "$FIXTURE_ROOT/observed-target"\n'
+                    'dir="$PWD"\n'
+                    'while [ "$dir" != "/" ] && [ "$dir" != "." ]; do\n'
+                    '  [ -f "$dir/.cargo/config.toml" ] && cp "$dir/.cargo/config.toml" "$FIXTURE_ROOT/mirrored.toml"\n'
+                    '  parent="$(dirname "$dir")"; [ "$parent" = "$dir" ] && break; dir="$parent"\n'
+                    "done\n",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("feat"), {"CARGO_TARGET_DIR": ""}
+            )
+
+            self.assertEqual(code, 0, stderr)
+            mirrored_text = (fixture.root / "mirrored.toml").read_text(encoding="utf-8")
+            self.assertNotIn("leaked-after-array-line", mirrored_text)
+            self.assertNotIn("top-level-dotted", mirrored_text)
+            mirrored = tomllib.loads(mirrored_text)
+            self.assertNotIn("patch", mirrored)
+            self.assertEqual(mirrored["profile"]["dev"]["opt-level"], 0)
+            self.assertEqual(
+                mirrored["target"]["x86_64-pc-windows-msvc"]["rustflags"], ["-Clink-arg=/x"]
+            )
+            self.assertEqual(
+                pathlib.Path((fixture.root / "observed-target").read_text(encoding="utf-8")).resolve(),
+                pathlib.Path(target).resolve(),
+            )
+
+    def test_a_failed_checker_rename_without_a_winner_keeps_the_checker(self) -> None:
+        """A rename can fail with no concurrent winner; the copy is still usable."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, log, stack_head, _, _ = DebtRatchetTestCase._stack(self, temp, 0)
+            cache = pathlib.Path(temp) / ".git" / "atlas-checker"
+            cache.mkdir()
+            # A plain file where the copy belongs: the rename fails, and no
+            # complete copy won it.
+            (cache / stack_head).write_text("not a checker\n", encoding="utf-8")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("could not extract", stderr)
+            self.assertTrue(log.is_file(), "the ratchet did not run")
+
+    def test_stale_exports_of_dead_runs_are_swept(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp) / "member")
+            tmp = pathlib.Path(temp) / "tmp"
+            stale = tmp / "pre-push-gate.dead01"
+            young = tmp / "pre-push-lock.young1"
+            for directory in (stale, young):
+                _write(directory / "tree" / "big.bin", "x")
+            (stale / ".pre-push-owner").write_text("999999\n", encoding="utf-8")
+            hour_ago = time.time() - 7200
+            os.utime(stale, (hour_ago, hour_ago))
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("main").replace("refs/heads/main", "refs/heads/copy"),
+                {"TMPDIR": tmp.as_posix(), "SKIP_LOCAL_GATE": "1"},
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertFalse(stale.exists(), "a dead run's export survived")
+            self.assertTrue(young.exists(), "a recent export was removed")
+
+    def test_an_interrupted_lock_check_leaves_no_export(self) -> None:
+        """TERM while the lock export exists: the trap removes it."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp) / "member")
+            tmp = pathlib.Path(temp) / "tmp"
+            tmp.mkdir()
+            ready = pathlib.Path(temp) / "lock-check-started"
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            _write(
+                fixture.root / "scripts" / "lockfile.py",
+                f"import pathlib, time\npathlib.Path({str(ready)!r}).write_text('go')\ntime.sleep(15)\n",
+            )
+            (fixture.root / "Cargo.lock").write_text("# lock\n# touched\n", encoding="utf-8")
+            _commit_all(fixture.root, "lock")
+            env = dict(os.environ)
+            env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+            env["TMPDIR"] = tmp.as_posix()
+            proc = subprocess.Popen(
+                ["bash", str(SCRIPT)], cwd=str(fixture.root), env=env,
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+            proc.stdin.write(fixture.push_line_new_branch("feat").encode())
+            proc.stdin.close()
+            deadline = time.monotonic() + 60
+            while not ready.exists() and time.monotonic() < deadline:
+                time.sleep(0.1)
+            self.assertTrue(ready.exists(), "the lock check never started")
+            self.assertTrue(any(tmp.glob("pre-push-lock.*")))
+            if os.name == "nt":
+                # The hook's bash is an MSYS process: signal it by its MSYS pid,
+                # as a terminal's Ctrl-C or a killed parent does.
+                listing = subprocess.run(["ps", "-W"], capture_output=True, text=True).stdout
+                pids = [line.split()[0] for line in listing.splitlines()[1:]
+                        if len(line.split()) > 3 and line.split()[3] == str(proc.pid)]
+                self.assertTrue(pids, listing)
+                subprocess.run(["bash", "-c", f"kill -TERM {pids[0]}"], check=True)
+            else:
+                proc.terminate()
+            # bash runs the trap once the foreground checker returns.
+            proc.communicate(timeout=120)
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertEqual(list(tmp.glob("pre-push-lock.*")), [])
 
 
 class SourceIdentityGateTestCase(unittest.TestCase):
