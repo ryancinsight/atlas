@@ -24,6 +24,7 @@ assert SPEC is not None and SPEC.loader is not None
 sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
 import atlas_build_lease as lease_module
+import atlas_build_lock as lock_module
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
@@ -248,6 +249,7 @@ class LeaseModeTestCase(unittest.TestCase):
         storm = (
             "import importlib.util, sys, time\n"
             "from pathlib import Path\n"
+            "sys.path.insert(0, str(Path(sys.argv[1]).parent))\n"
             "spec = importlib.util.spec_from_file_location('taker', sys.argv[1])\n"
             "module = importlib.util.module_from_spec(spec)\n"
             "spec.loader.exec_module(module)\n"
@@ -280,7 +282,7 @@ class LeaseModeTestCase(unittest.TestCase):
     def test_a_failing_lock_call_closes_its_handle(self) -> None:
         lock = self.lock("fault")
         fault = OSError(1, "injected lock fault")
-        with patch.object(lease_module, "_try_lock", side_effect=fault):
+        with patch.object(lock_module, "_try_lock", side_effect=fault):
             for take in (
                 lambda: OwnerLease(lock, {"root": "r", "revision": "r"}, 60, mode=SHARED).__enter__(),
                 lambda: lease_module.LeaseProbe(lock).__enter__(),
@@ -299,12 +301,12 @@ class LeaseModeTestCase(unittest.TestCase):
         self.addCleanup(os.close, write)
         with os.fdopen(read, "rb") as pipe:
             with self.assertRaises(OSError) as caught:
-                lease_module._try_lock(pipe, SHARED)
+                lock_module._try_lock(pipe, SHARED)
             self.assertNotEqual(caught.exception.winerror, 33)
         lock = self.lock("unlocked")
-        with lease_module._open_lease(lock) as handle:
+        with lock_module._open_lease(lock) as handle:
             with self.assertRaises(OSError) as caught:
-                lease_module._unlock(handle)
+                lock_module._unlock(handle)
         # ERROR_NOT_LOCKED, carried as the Windows error, not in the errno slot.
         self.assertEqual(caught.exception.winerror, 158)
 
