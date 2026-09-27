@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,7 +22,7 @@ SPEC = importlib.util.spec_from_file_location("atlas_build_identity", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
-from atlas_build_lease import OwnerLease, package_target_lease_path
+from atlas_build_lease import OwnerLease, package_target_lease_path, peek_owner
 
 identity = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = identity
@@ -62,11 +65,52 @@ def write_script(path: Path, body: str) -> None:
     path.write_text(body, encoding="utf-8")
 
 
+HOLDER = (
+    "import sys, time\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from atlas_build_lease import OwnerLease\n"
+    "lease = OwnerLease(Path(sys.argv[2]), {'root': 'holder-root', 'revision': 'holder-revision',"
+    " 'package': 'demo', 'target_dir': sys.argv[3]}, int(sys.argv[4]))\n"
+    "lease.__enter__()\n"
+    "print('held', flush=True)\n"
+    "time.sleep(float(sys.argv[5]))\n"
+    "lease.__exit__(None, None, None)\n"
+)
+
+
+def hold_lease(
+    test: unittest.TestCase, lock: Path, target: Path, lease_seconds: int, hold_seconds: float
+) -> subprocess.Popen:
+    """Hold `lock` from a separate process until `hold_seconds` pass."""
+    holder = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            HOLDER,
+            str(SCRIPT.parent),
+            str(lock),
+            target.as_posix(),
+            str(lease_seconds),
+            str(hold_seconds),
+        ],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    test.addCleanup(holder.wait, 60)
+    test.addCleanup(holder.kill)
+    test.addCleanup(holder.stdout.close)
+    test.assertEqual(holder.stdout.readline().strip(), "held")
+    return holder
+
+
 class BuildIdentityTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-")
         self.addCleanup(self.temp.cleanup)
-        self.base = Path(self.temp.name)
+        # Resolved: run_build canonicalizes the target, and an 8.3 short TEMP
+        # (RYANCL~1) otherwise names a different lease path than the fixture.
+        self.base = Path(self.temp.name).resolve()
         self.root = self.base / "source-a"
         self.target = self.base / "shared-target"
         self.artifact = self.target / "debug" / "deps" / "libdemo-abcdef.rlib"
@@ -270,16 +314,71 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(result.status, "rebuilt")
         self.assertFalse(identity.lease_is_held(lock))
 
-    def test_malformed_owner_fails_closed(self) -> None:
+    def test_an_unlocked_malformed_owner_is_reclaimed(self) -> None:
+        # The OS lock is the ownership authority: an unlocked record cannot
+        # name a live owner, and a writer killed mid-record leaves one partial.
         init_repo(self.root, "fn main() {}\n")
         with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
             spec = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
         lock = identity.lease_path(spec)
         lock.parent.mkdir(parents=True, exist_ok=True)
         lock.write_text("not-json", encoding="utf-8")
-        with self.assertRaises(identity.IdentityError):
-            self.build(source_token="blocked")
-        self.assertFalse(self.clean_log.exists())
+        self.assertFalse(identity.lease_is_held(lock))
+        result = self.build(source_token="reclaimed")
+        self.assertEqual(result.status, "rebuilt")
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "reclaimed")
+
+    def test_an_unlocked_owner_without_expiry_is_reclaimed(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            spec = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+        lock = identity.lease_path(spec)
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text(
+            json.dumps(
+                {
+                    "root": "probe",
+                    "revision": "probe",
+                    "package": "demo",
+                    "target_dir": str(self.target),
+                    "token": "probe-token",
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.assertFalse(identity.lease_is_held(lock))
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            code, value = identity.check_record(
+                self.root,
+                "demo",
+                self.target,
+                artifact_paths=[self.artifact],
+                manifest=self.root / "Cargo.toml",
+            )
+        self.assertEqual((code, value["status"]), (2, "missing"))
+        result = self.build(source_token="reclaimed")
+        self.assertEqual(result.status, "rebuilt")
+
+    def test_a_held_owner_is_named_to_another_process(self) -> None:
+        lock = package_target_lease_path("demo", self.target)
+        hold_lease(self, lock, self.target, 60, 60)
+        self.assertTrue(identity.lease_is_held(lock))
+        second = OwnerLease(lock, {"root": "second", "revision": "second", "package": "demo"}, 60)
+        with self.assertRaises(identity.IdentityError) as caught:
+            second.__enter__()
+        self.assertIn("owned by holder-root at holder-revision", str(caught.exception))
+
+    def test_a_record_from_before_the_offset_is_still_read(self) -> None:
+        # Holders that predate RECORD_OFFSET wrote the record at byte 0.
+        lock = package_target_lease_path("demo", self.target)
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        record = {"root": "legacy-root", "revision": "legacy-revision"}
+        lock.write_text(json.dumps(record), encoding="utf-8")
+        self.assertEqual(peek_owner(lock), record)
+        lock.write_text(" " + json.dumps(record), encoding="utf-8")
+        self.assertEqual(peek_owner(lock), record)
+        lock.write_text("{partial", encoding="utf-8")
+        self.assertIsNone(peek_owner(lock))
 
     def test_toolchain_identity_runs_in_the_source_root(self) -> None:
         completed = subprocess.CompletedProcess(["rustc"], 0, "rustc 1.95.0\n", "")
@@ -753,53 +852,90 @@ class CommandLineTestCase(unittest.TestCase):
             return
         self._run_checked(command, cwd, environment)
 
-    def test_the_pre_push_invocation_parses_and_runs(self) -> None:
+    def setUp(self) -> None:
         cli_path = Path(__file__).resolve().parents[1] / "atlas-build-identity.py"
         cli_spec = importlib.util.spec_from_file_location("atlas_build_identity_cli", cli_path)
         assert cli_spec is not None and cli_spec.loader is not None
-        cli = importlib.util.module_from_spec(cli_spec)
-        cli_spec.loader.exec_module(cli)
-        with tempfile.TemporaryDirectory(prefix="atlas-build-identity-cli-") as temp:
-            base = Path(temp)
-            root = base / "member"
-            init_repo(root, "fn main() {}\n")
-            target = base / "target"
-            artifact = target / "debug" / "deps" / "libdemo-cli.rlib"
-            build = base / "build.py"
-            write_script(
-                build,
-                "from pathlib import Path\n"
-                f"path = Path({str(artifact)!r})\n"
-                "path.parent.mkdir(parents=True, exist_ok=True)\n"
-                "path.write_text('built', encoding='utf-8')\n",
-            )
-            with (
-                patch.object(cli, "run_build", wraps=identity.run_build) as run_build,
-                patch.object(identity, "toolchain_identity", return_value="rustc-test"),
-                patch.object(identity, "_run_checked", side_effect=self._skip_cargo_clean),
-            ):
-                code = cli.main([
-                    "run",
-                    "--root", str(root),
-                    "--package", "demo",
-                    "--target-dir", str(target),
-                    "--profile", "debug",
-                    "--target", "host",
-                    "--manifest", str(root / "Cargo.toml"),
-                    "--command-cwd", str(root),
-                    "--command-key", "atlas-pre-push:demo",
-                    "--ignore-path", str(root / "Cargo.lock"),
-                    "--manifest", str(root / "Cargo.toml"),
-                    "--",
-                    sys.executable, str(build),
-                ])
-            self.assertEqual(code, 0)
-            kwargs = run_build.call_args.kwargs
-            self.assertEqual(kwargs["command_key"], "atlas-pre-push:demo")
-            self.assertEqual(kwargs["command_cwd"], root)
-            self.assertEqual(kwargs["ignore_paths"], [root / "Cargo.lock"])
-            self.assertEqual(artifact.read_text(encoding="utf-8"), "built")
+        self.cli = importlib.util.module_from_spec(cli_spec)
+        cli_spec.loader.exec_module(self.cli)
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-cli-")
+        self.addCleanup(temp.cleanup)
+        base = Path(temp.name)
+        self.root = base / "member"
+        init_repo(self.root, "fn main() {}\n")
+        self.target = base / "target"
+        self.artifact = self.target / "debug" / "deps" / "libdemo-cli.rlib"
+        self.build = base / "build.py"
+        write_script(
+            self.build,
+            "from pathlib import Path\n"
+            f"path = Path({str(self.artifact)!r})\n"
+            "path.parent.mkdir(parents=True, exist_ok=True)\n"
+            "path.write_text('built', encoding='utf-8')\n",
+        )
 
+    def pre_push(self) -> int:
+        """Run the entry point with the member pre-push hook's exact arguments."""
+        root = self.root
+        with (
+            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.object(identity, "_run_checked", side_effect=self._skip_cargo_clean),
+        ):
+            return self.cli.main([
+                "run",
+                "--root", str(root),
+                "--package", "demo",
+                "--target-dir", str(self.target),
+                "--profile", "debug",
+                "--target", "host",
+                "--manifest", str(root / "Cargo.toml"),
+                "--command-cwd", str(root),
+                "--command-key", "atlas-pre-push:demo",
+                "--ignore-path", str(root / "Cargo.lock"),
+                "--manifest", str(root / "Cargo.toml"),
+                "--",
+                sys.executable, str(self.build),
+            ])
+
+    def test_the_pre_push_invocation_parses_and_runs(self) -> None:
+        with patch.object(self.cli, "run_build", wraps=identity.run_build) as run_build:
+            code = self.pre_push()
+        self.assertEqual(code, 0)
+        kwargs = run_build.call_args.kwargs
+        self.assertEqual(kwargs["command_key"], "atlas-pre-push:demo")
+        self.assertEqual(kwargs["command_cwd"], self.root)
+        self.assertEqual(kwargs["ignore_paths"], [self.root / "Cargo.lock"])
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
+
+    def test_the_pre_push_waits_for_a_live_owner_to_release(self) -> None:
+        lock = package_target_lease_path("demo", identity._canonical(self.target))
+        started = time.monotonic()
+        hold_lease(self, lock, self.target, 60, 2)
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            code = self.pre_push()
+        self.assertEqual(code, 0, stderr.getvalue())
+        self.assertGreaterEqual(time.monotonic() - started, 2)
+        self.assertIn("held by holder-root at holder-revision", stderr.getvalue())
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
+
+    def test_the_pre_push_wait_ends_at_the_owner_expiry(self) -> None:
+        lock = package_target_lease_path("demo", identity._canonical(self.target))
+        started = time.monotonic()
+        hold_lease(self, lock, self.target, 2, 60)
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            code = self.pre_push()
+        elapsed = time.monotonic() - started
+        self.assertEqual(code, 1)
+        # The owner's 2 s lease bounds the wait, far inside its 60 s hold.
+        self.assertGreaterEqual(elapsed, 1)
+        self.assertLess(elapsed, 30)
+        self.assertIn(
+            "still held by holder-root at holder-revision after waiting up to its expiry",
+            stderr.getvalue(),
+        )
+        self.assertFalse(self.artifact.exists())
 
 if __name__ == "__main__":
     unittest.main()

@@ -22,6 +22,7 @@ from atlas_build_lease import (
     BuildIdentityError,
     LeaseProbe,
     OwnerLease,
+    acquire_waiting,
     lease_is_held,
     package_target_lease_path,
     package_target_lease_scopes,
@@ -318,6 +319,7 @@ def run_build(
     command_cwd: Path | None = None,
     command_key: str | None = None,
     ignore_paths: Sequence[Path] = (),
+    lease_wait_seconds: float = 0,
 ) -> BuildResult:
     if not command:
         raise IdentityError("a build command is required")
@@ -358,7 +360,9 @@ def run_build(
             spec.source.revision,
             tuple(str(value) for value in dependencies["clean_packages"]),
         ):
-            leases.enter_context(OwnerLease(lock, owner, lease_seconds))
+            leases.push(
+                acquire_waiting(OwnerLease(lock, owner, lease_seconds), lease_wait_seconds)
+            )
         locked_dependencies = _dependency_data(
             manifest,
             package,
