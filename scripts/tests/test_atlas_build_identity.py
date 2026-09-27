@@ -874,7 +874,7 @@ class CommandLineTestCase(unittest.TestCase):
             "path.write_text('built', encoding='utf-8')\n",
         )
 
-    def pre_push(self) -> int:
+    def pre_push(self, *options: str) -> int:
         """Run the entry point with the member pre-push hook's exact arguments."""
         root = self.root
         with (
@@ -893,6 +893,7 @@ class CommandLineTestCase(unittest.TestCase):
                 "--command-key", "atlas-pre-push:demo",
                 "--ignore-path", str(root / "Cargo.lock"),
                 "--manifest", str(root / "Cargo.toml"),
+                *options,
                 "--",
                 sys.executable, str(self.build),
             ])
@@ -919,20 +920,33 @@ class CommandLineTestCase(unittest.TestCase):
         self.assertIn("held by holder-root at holder-revision", stderr.getvalue())
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 
-    def test_the_pre_push_wait_ends_at_the_owner_expiry(self) -> None:
+    def test_the_pre_push_waits_out_an_owner_past_its_expiry(self) -> None:
+        # A 1 s lease held for 4 s: the lock, not the recorded expiry, says
+        # the owner is alive, so the waiter keeps waiting and then proceeds.
         lock = package_target_lease_path("demo", identity._canonical(self.target))
         started = time.monotonic()
-        hold_lease(self, lock, self.target, 2, 60)
+        hold_lease(self, lock, self.target, 1, 4)
         stderr = io.StringIO()
         with redirect_stderr(stderr):
             code = self.pre_push()
+        self.assertEqual(code, 0, stderr.getvalue())
+        self.assertGreaterEqual(time.monotonic() - started, 4)
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
+
+    def test_the_pre_push_wait_ends_at_the_wait_bound(self) -> None:
+        lock = package_target_lease_path("demo", identity._canonical(self.target))
+        hold_lease(self, lock, self.target, 600, 60)
+        started = time.monotonic()
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            code = self.pre_push("--lease-wait-seconds", "2")
         elapsed = time.monotonic() - started
         self.assertEqual(code, 1)
-        # The owner's 2 s lease bounds the wait, far inside its 60 s hold.
-        self.assertGreaterEqual(elapsed, 1)
+        self.assertGreaterEqual(elapsed, 2)
+        # The holder's 600 s lease and 60 s hold both outlast the bound.
         self.assertLess(elapsed, 30)
         self.assertIn(
-            "still held by holder-root at holder-revision after waiting up to its expiry",
+            "still held by holder-root at holder-revision after waiting 2 s (--lease-wait-seconds)",
             stderr.getvalue(),
         )
         self.assertFalse(self.artifact.exists())

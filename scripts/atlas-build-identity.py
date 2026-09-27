@@ -35,7 +35,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "--lease-wait-seconds",
                 type=float,
                 default=DEFAULT_LEASE_SECONDS,
-                help="longest wait for a live owner; the owner's expiry bounds it further",
+                help="longest wait for a live owner, whatever its recorded expiry",
             )
     args = parser.parse_args(argv)
     try:
