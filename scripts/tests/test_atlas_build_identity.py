@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -74,15 +75,23 @@ def write_script(path: Path, body: str) -> None:
     path.write_text(body, encoding="utf-8")
 
 
+# Holds for argv[5] seconds counted from a waiter's arrival in the queue, not
+# from its own start: a wall-clock hold raced the waiter's metadata work, and a
+# loaded host reached the lease after the holder had already left (the
+# waiting line then never printed).
 HOLDER = (
     "import sys, time\n"
     "from pathlib import Path\n"
     "sys.path.insert(0, sys.argv[1])\n"
     "from atlas_build_lease import OwnerLease\n"
-    "lease = OwnerLease(Path(sys.argv[2]), {'root': 'holder-root', 'revision': 'holder-revision',"
+    "lock = Path(sys.argv[2])\n"
+    "lease = OwnerLease(lock, {'root': 'holder-root', 'revision': 'holder-revision',"
     " 'package': 'demo', 'target_dir': sys.argv[3]}, int(sys.argv[4]))\n"
     "lease.__enter__()\n"
     "print('held', flush=True)\n"
+    "queue = lock.with_name(lock.stem + '.queue')\n"
+    "while len(list(queue.glob('*.ticket'))) < 2:\n"
+    "    time.sleep(0.01)\n"
     "time.sleep(float(sys.argv[5]))\n"
     "lease.__exit__(None, None, None)\n"
 )
@@ -127,24 +136,23 @@ MODE_HOLDER = (
     "    lease.__exit__(None, None, None)\n"
 )
 
-# The lock call of every checker before lease modes: an exclusive lock on
-# byte 0, `msvcrt.locking` on Windows and `flock` on POSIX.
-LEGACY_LOCKER = (
-    "import os, sys, time\n"
-    "handle = open(sys.argv[1], 'a+b')\n"
-    "handle.seek(0)\n"
+# The lease module as every checker ran it before lease modes (atlas
+# f96b218, byte for byte): the fleet's hooks keep running it until they fetch.
+LEASE_WITHOUT_MODES = Path(__file__).resolve().parent / "fixtures" / "lease_without_modes.py"
+LEGACY_TAKER = (
+    "import importlib.util, sys, time\n"
+    "from pathlib import Path\n"
+    "spec = importlib.util.spec_from_file_location('lease_without_modes', sys.argv[1])\n"
+    "module = importlib.util.module_from_spec(spec)\n"
+    "spec.loader.exec_module(module)\n"
+    "lease = module.OwnerLease(Path(sys.argv[2]), {'root': 'legacy', 'revision': 'r'}, 60)\n"
     "try:\n"
-    "    if os.name == 'nt':\n"
-    "        import msvcrt\n"
-    "        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)\n"
-    "    else:\n"
-    "        import fcntl\n"
-    "        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)\n"
-    "except OSError:\n"
+    "    lease.__enter__()\n"
+    "except module.LeaseHeldError:\n"
     "    print('refused', flush=True)\n"
     "    sys.exit(0)\n"
     "print('held', flush=True)\n"
-    "if sys.argv[2] == 'hold':\n"
+    "if sys.argv[3] == 'hold':\n"
     "    time.sleep(60)\n"
 )
 
@@ -187,9 +195,16 @@ def start_holder(
 
 
 def legacy_lock(test: unittest.TestCase, lock: Path, hold: bool) -> tuple[str, subprocess.Popen]:
-    """Take `lock` the way a pre-mode checker does; report `held` or `refused`."""
+    """Take `lock` with the pre-mode lease module; `held`, `refused`, or '' if it crashed."""
     process = subprocess.Popen(
-        [sys.executable, "-c", LEGACY_LOCKER, str(lock), "hold" if hold else "probe"],
+        [
+            sys.executable,
+            "-c",
+            LEGACY_TAKER,
+            str(LEASE_WITHOUT_MODES),
+            str(lock),
+            "hold" if hold else "probe",
+        ],
         stdout=subprocess.PIPE,
         text=True,
     )
@@ -256,23 +271,26 @@ class LeaseModeTestCase(unittest.TestCase):
                 self.assertEqual(legacy_lock(self, lock, hold=False)[0], "held")
 
     def test_concurrent_takers_see_contention_never_a_fault(self) -> None:
-        # Truncating the record to zero bytes let a concurrent opener see an
-        # empty file and write into the locked byte: PermissionError on Windows.
+        # Five takers running this module and one running the pre-mode module
+        # (which faults against a second copy of itself) race on one lease.
+        # A record cut to zero bytes before it was rewritten, or a new lease
+        # left empty while held, let an opener write into the locked byte.
         lock = self.lock("storm")
         storm = (
-            "import sys, time\n"
+            "import importlib.util, sys, time\n"
             "from pathlib import Path\n"
-            "sys.path.insert(0, sys.argv[1])\n"
-            "from atlas_build_lease import OwnerLease, LeaseHeldError\n"
+            "spec = importlib.util.spec_from_file_location('taker', sys.argv[1])\n"
+            "module = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(module)\n"
             "faults = 0\n"
             "end = time.monotonic() + 3\n"
             "while time.monotonic() < end:\n"
-            "    lease = OwnerLease(Path(sys.argv[2]), {'root': 'storm', 'revision': 'r'}, 60)\n"
+            "    lease = module.OwnerLease(Path(sys.argv[2]), {'root': 'storm', 'revision': 'r'}, 60)\n"
             "    try:\n"
             "        lease.__enter__()\n"
-            "    except LeaseHeldError:\n"
+            "    except module.LeaseHeldError:\n"
             "        continue\n"
-            "    except Exception as error:\n"
+            "    except Exception:\n"
             "        faults += 1\n"
             "        continue\n"
             "    lease.__exit__(None, None, None)\n"
@@ -280,64 +298,14 @@ class LeaseModeTestCase(unittest.TestCase):
         )
         workers = [
             subprocess.Popen(
-                [sys.executable, "-c", storm, str(SCRIPT.parent), str(lock)],
+                [sys.executable, "-c", storm, str(module), str(lock)],
                 stdout=subprocess.PIPE,
                 text=True,
             )
-            for _ in range(6)
+            for module in (*[SCRIPT.parent / "atlas_build_lease.py"] * 5, LEASE_WITHOUT_MODES)
         ]
         faults = [int(worker.communicate(timeout=60)[0].strip()) for worker in workers]
         self.assertEqual(faults, [0] * 6)
-
-    def test_a_rewritten_record_never_empties_the_lease_for_legacy_openers(self) -> None:
-        # Earlier checkers open with append and write a byte into a file they
-        # find empty; a record cut to zero bytes before it was rewritten sent
-        # that write into a holder's locked byte.
-        lock = self.lock("legacy-openers")
-        OwnerLease(lock, {"root": "first", "revision": "r"}, 60).__enter__().__exit__(None, None, None)
-        opener = (
-            "import sys, time\n"
-            "faults = 0\n"
-            "end = time.monotonic() + 3\n"
-            "while time.monotonic() < end:\n"
-            "    try:\n"
-            "        with open(sys.argv[1], 'a+b') as handle:\n"
-            "            handle.seek(0, 2)\n"
-            "            if handle.tell() == 0:\n"
-            "                handle.write(b'\\0')\n"
-            "                handle.flush()\n"
-            "    except OSError:\n"
-            "        faults += 1\n"
-            "print(faults, flush=True)\n"
-        )
-        taker = (
-            "import sys, time\n"
-            "from pathlib import Path\n"
-            "sys.path.insert(0, sys.argv[1])\n"
-            "from atlas_build_lease import OwnerLease, LeaseHeldError\n"
-            "end = time.monotonic() + 3\n"
-            "while time.monotonic() < end:\n"
-            "    lease = OwnerLease(Path(sys.argv[2]), {'root': 'taker', 'revision': 'r'}, 60)\n"
-            "    try:\n"
-            "        lease.__enter__()\n"
-            "    except LeaseHeldError:\n"
-            "        continue\n"
-            "    lease.__exit__(None, None, None)\n"
-        )
-        takers = [
-            subprocess.Popen([sys.executable, "-c", taker, str(SCRIPT.parent), str(lock)])
-            for _ in range(3)
-        ]
-        openers = [
-            subprocess.Popen(
-                [sys.executable, "-c", opener, str(lock)], stdout=subprocess.PIPE, text=True
-            )
-            for _ in range(3)
-        ]
-        faults = [int(process.communicate(timeout=60)[0].strip()) for process in openers]
-        for process in takers:
-            process.wait(60)
-        self.assertEqual(faults, [0] * 3)
 
     def waited(self, lock: Path, mode: str) -> float:
         started = time.monotonic()
@@ -394,6 +362,25 @@ class LeaseModeTestCase(unittest.TestCase):
         # collects the dead shared ones, including those after its own.
         self.assertLess(self.waited(lock, SHARED), 2)
         self.assertEqual(list(queue.glob("*.ticket")), [])
+
+    @unittest.skipIf(os.name == "nt", "Windows cannot delete a file its requester holds open")
+    def test_a_waiting_ticket_removed_by_a_peer_is_recreated_in_its_place(self) -> None:
+        # A peer that saw the ticket unlocked just before its requester locked
+        # it can still unlink it on POSIX; the requester's next attempt puts
+        # it back with its original arrival.
+        lock = self.lock("unlinked")
+        start_holder(self, lock, EXCLUSIVE, 60)
+        waiter = OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60)
+        with self.assertRaises(LeaseHeldError):
+            waiter.attempt()
+        self.addCleanup(waiter.dequeue)
+        arrival = waiter.ticket.path.name.split("-", 1)[0]
+        os.unlink(waiter.ticket.path)
+        with self.assertRaises(LeaseHeldError):
+            waiter.attempt()
+        names = [path.name for path in lock.with_name(f"{lock.stem}.queue").glob("*.ticket")]
+        self.assertIn(waiter.ticket.path.name, names)
+        self.assertTrue(waiter.ticket.path.name.startswith(f"{arrival}-x-"))
 
     def test_a_ticket_locked_by_a_peer_before_its_requester_is_retried(self) -> None:
         # The window between creating a ticket and locking it is too short to
@@ -483,6 +470,22 @@ class LeaseModeTestCase(unittest.TestCase):
         self.waited(lock, SHARED)
         self.assertEqual(list(queue.glob("*.ticket")), [])
 
+    @unittest.skipUnless(os.name == "nt", "only Windows refuses to delete an open file")
+    def test_a_failing_lock_call_closes_its_handle(self) -> None:
+        lock = self.lock("fault")
+        fault = OSError(1, "injected lock fault")
+        with patch.object(lease_module, "_try_lock", side_effect=fault):
+            for take in (
+                lambda: OwnerLease(lock, {"root": "r", "revision": "r"}, 60, mode=SHARED).__enter__(),
+                lambda: lease_module.LeaseProbe(lock).__enter__(),
+            ):
+                lock.parent.mkdir(exist_ok=True)
+                with self.assertRaises(OSError):
+                    take()
+                # The exception keeps its frame, and so any leaked handle,
+                # alive; Windows refuses to remove a directory holding one.
+                shutil.rmtree(lock.parent)
+
     @unittest.skipUnless(os.name == "nt", "LockFileEx error codes are Windows-only")
     def test_lock_failures_other_than_contention_are_raised(self) -> None:
         # A pipe cannot be byte-range locked: that is a fault, not a holder.
@@ -556,6 +559,33 @@ def start_script(test: unittest.TestCase, script: str, *arguments: str) -> subpr
     return process
 
 
+# A shared reader of `dep` whose build, once the run's own command signals,
+# rewrites a recorded dependency file in place: it opens the file with no
+# read sharing, which is how rustc's rewrite makes a concurrent hash fail
+# with PermissionError on Windows, and holds it past the run's recording.
+IN_PLACE_REWRITER = (
+    "import ctypes, sys, time\n"
+    "from ctypes import wintypes\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from atlas_build_lease import OwnerLease\n"
+    "lease = OwnerLease(Path(sys.argv[2]), {'root': 'in-place-rewriter', 'revision': 'r'}, 600, mode='shared')\n"
+    "lease.__enter__()\n"
+    "print('held', flush=True)\n"
+    "trigger = Path(sys.argv[4])\n"
+    "while not trigger.exists():\n"
+    "    time.sleep(0.01)\n"
+    "kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)\n"
+    "kernel32.CreateFileW.restype = wintypes.HANDLE\n"
+    "handle = kernel32.CreateFileW(sys.argv[3], 0xC0000000, 0, None, 3, 0x80, None)\n"
+    "assert handle != wintypes.HANDLE(-1).value, ctypes.get_last_error()\n"
+    "Path(str(trigger) + '.ack').write_text('writing', encoding='utf-8')\n"
+    "time.sleep(3)\n"
+    "kernel32.CloseHandle(handle)\n"
+    "lease.__exit__(None, None, None)\n"
+)
+
+
 class BuildIdentityTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-")
@@ -579,7 +609,13 @@ class BuildIdentityTestCase(unittest.TestCase):
             "path.write_text(os.environ['SOURCE_TOKEN'], encoding='utf-8')\n"
             "mutate = os.environ.get('MUTATE_SOURCE')\n"
             "if mutate:\n"
-            "    Path(mutate).write_text('changed during build\\n', encoding='utf-8')\n",
+            "    Path(mutate).write_text('changed during build\\n', encoding='utf-8')\n"
+            "trigger = os.environ.get('PEER_TRIGGER')\n"
+            "if trigger:\n"
+            "    import time\n"
+            "    Path(trigger).write_text('go', encoding='utf-8')\n"
+            "    while not Path(trigger + '.ack').exists():\n"
+            "        time.sleep(0.01)\n",
         )
         write_script(
             self.clean_script,
@@ -744,7 +780,11 @@ class BuildIdentityTestCase(unittest.TestCase):
             owner.__exit__(None, None, None)
 
     def dependency_build(
-        self, source_token: str, wait: float = 0, discover: bool = False
+        self,
+        source_token: str,
+        wait: float = 0,
+        discover: bool = False,
+        environment: dict[str, str] | None = None,
     ) -> identity.BuildResult:
         """Build `demo`, whose clean closure holds a path dependency `dep`."""
         snapshot = {
@@ -765,6 +805,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                     "ARTIFACT": str(self.artifact),
                     "SOURCE_TOKEN": source_token,
                     "CLEAN_LOG": str(self.clean_log),
+                    **(environment or {}),
                 },
             ),
         ):
@@ -821,6 +862,25 @@ class BuildIdentityTestCase(unittest.TestCase):
             rounds += 1
         self.assertGreater(rounds, 2)
         self.assertFalse(self.clean_log.exists())
+
+    @unittest.skipUnless(os.name == "nt", "only Windows refuses reads during a rewrite")
+    def test_a_dependency_rewritten_in_place_during_the_command_is_not_hashed(self) -> None:
+        # Cargo rewrites a dependency's recorded files under the same name
+        # whenever it rebuilds it, even for a touched file with unchanged
+        # content. A reader that re-hashed them after its command failed a
+        # build that had succeeded ("cannot hash artifact").
+        init_repo(self.root, "fn main() {}\n")
+        recorded = self.artifact.parent / "libdep-recorded.rlib"
+        recorded.write_bytes(b"dependency")
+        self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
+        trigger = self.base / "rewrite"
+        start_script(self, IN_PLACE_REWRITER, str(self.dep_lock()), str(recorded), str(trigger))
+        result = self.dependency_build(
+            "first", wait=2, discover=True, environment={"PEER_TRIGGER": str(trigger)}
+        )
+        self.assertEqual(result.status, "reused")
+        self.assertTrue(Path(f"{trigger}.ack").exists())
+        self.assertIn("debug/deps/libdep-recorded.rlib", json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"])
 
     def test_a_stale_run_rechecks_after_taking_its_leases_exclusive(self) -> None:
         # Between releasing its shared leases and taking them exclusive, a
@@ -1486,8 +1546,8 @@ class CommandLineTestCase(unittest.TestCase):
 
     def test_the_pre_push_waits_for_a_live_owner_to_release(self) -> None:
         lock = package_target_lease_path("demo", identity._canonical(self.target))
-        started = time.monotonic()
         hold_lease(self, lock, self.target, 60, 2)
+        started = time.monotonic()
         stderr = io.StringIO()
         with redirect_stderr(stderr):
             code = self.pre_push()
@@ -1497,16 +1557,18 @@ class CommandLineTestCase(unittest.TestCase):
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 
     def test_the_pre_push_waits_out_an_owner_past_its_expiry(self) -> None:
-        # A 1 s lease held for 4 s: the lock, not the recorded expiry, says
-        # the owner is alive, so the waiter keeps waiting and then proceeds.
+        # A 1 s lease held 4 s past the waiter's arrival: the lock, not the
+        # recorded expiry, says the owner is alive, so the waiter keeps
+        # waiting and then proceeds.
         lock = package_target_lease_path("demo", identity._canonical(self.target))
-        started = time.monotonic()
         hold_lease(self, lock, self.target, 1, 4)
+        started = time.monotonic()
         stderr = io.StringIO()
         with redirect_stderr(stderr):
             code = self.pre_push()
         self.assertEqual(code, 0, stderr.getvalue())
         self.assertGreaterEqual(time.monotonic() - started, 4)
+        self.assertIn("held by holder-root at holder-revision", stderr.getvalue())
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 
     def test_the_pre_push_wait_ends_at_the_wait_bound(self) -> None:

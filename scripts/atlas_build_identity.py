@@ -14,6 +14,7 @@ import time
 from typing import Sequence
 
 from atlas_build_artifacts import (
+    artifact_digest,
     artifact_identity,
     dependency_snapshot,
     discover_artifacts,
@@ -474,19 +475,21 @@ def run_build(
         if final_dependencies != dependencies:
             raise IdentityError("dependency graph changed while the build was running")
         if matched and not artifact_paths:
-            # Dependencies were read under shared leases while other readers
-            # may write new variants beside them: record the files the old
-            # record named, and discover only this package's own.
-            own = discover_artifacts(
-                target_dir, package, profile, target, manifest, execution_root
-            )
-            artifact = recorded_artifact_identity(
+            # Only the package held exclusive is hashed again. Another
+            # reader's Cargo may be rewriting a dependency's files in place
+            # right now, so they keep the digests verified before the
+            # command; the next run's comparison re-hashes them.
+            own = recorded_artifact_identity(
                 target_dir,
                 [
-                    *existing["artifact"]["files"],
-                    *(path.relative_to(target_dir).as_posix() for path in own),
+                    path.relative_to(target_dir).as_posix()
+                    for path in discover_artifacts(
+                        target_dir, package, profile, target, manifest, execution_root
+                    )
                 ],
             )
+            files = {**existing["artifact"]["files"], **own["files"]}
+            artifact = {"files": files, "digest": artifact_digest(files)}
         else:
             artifact = artifact_identity(
                 root,

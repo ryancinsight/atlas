@@ -155,11 +155,43 @@ def _unlock(handle: Any) -> None:
 
 
 def _open_lease(path: Path):
-    # Read-write without append and without writing anything: an opener that
-    # initialized an empty file wrote to byte 0, which a holder's lock refuses.
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o644)
-    return os.fdopen(descriptor, "r+b")
+    try:
+        if os.fstat(descriptor).st_size == 0:
+            # A lock is never held on an empty file: an earlier checker that
+            # finds one empty writes byte 0 and crashes on the lock. The byte
+            # is written before any lock is taken, so the write is refused
+            # only when a holder wrote its own byte and locked it meanwhile.
+            try:
+                os.write(descriptor, b"\0")
+            except PermissionError:
+                pass
+        return os.fdopen(descriptor, "r+b")
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _release(handle: Any, locked: bool) -> None:
+    try:
+        if locked:
+            _unlock(handle)
+    finally:
+        handle.close()
+
+
+def _take(path: Path, mode: str):
+    """Open `path` locked in `mode`, or None when a holder conflicts; never leaks."""
+    handle = _open_lease(path)
+    try:
+        if _try_lock(handle, mode):
+            return handle
+    except BaseException:
+        handle.close()
+        raise
+    handle.close()
+    return None
 
 
 def _write_record(handle: Any, record: dict[str, object]) -> None:
@@ -223,34 +255,40 @@ class _Ticket:
     The file is named by the system-wide monotonic clock at arrival and locked
     by its requester until it releases the lease. A requester that loses the
     race between creating and locking its file, to a peer's liveness check
-    or collection, retries under a new name with the same arrival.
+    or collection, retries under a new name with the same arrival; one whose
+    locked file a peer's collection removed anyway (POSIX unlinks open files)
+    re-creates it with the same arrival at its next attempt.
     """
 
     def __init__(self, path: Path, mode: str, owner: dict[str, object]) -> None:
-        directory = _queue_dir(path)
-        directory.mkdir(parents=True, exist_ok=True)
+        self.directory = _queue_dir(path)
+        self.directory.mkdir(parents=True, exist_ok=True)
+        self.lease = path
+        self.mode = mode
+        self.record = {**owner, "mode": mode}
         self.arrival = time.monotonic_ns()
+        self._create()
+
+    def _create(self) -> None:
         for _ in range(_TICKET_ATTEMPTS):
-            name = f"{self.arrival:020d}-{_TICKET_MODES[mode]}-{os.getpid()}-{uuid.uuid4().hex}"
-            candidate = directory / f"{name}.ticket"
+            name = f"{self.arrival:020d}-{_TICKET_MODES[self.mode]}-{os.getpid()}-{uuid.uuid4().hex}"
+            candidate = self.directory / f"{name}.ticket"
             handle = candidate.open("x+b")
+            locked = False
             try:
-                if _try_lock(handle):
-                    if os.path.samestat(os.fstat(handle.fileno()), os.stat(candidate)):
-                        _write_record(handle, {**owner, "mode": mode})
-                        self.path, self.handle = candidate, handle
-                        return
-                    _unlock(handle)
-            except FileNotFoundError:
-                _unlock(handle)
+                locked = _try_lock(handle)
+                if locked and _names(candidate, handle):
+                    _write_record(handle, self.record)
+                    self.path, self.handle = candidate, handle
+                    return
             except BaseException:
-                handle.close()
+                _release(handle, locked)
                 _unlink(candidate)
                 raise
-            handle.close()
+            _release(handle, locked)
             _unlink(candidate)
             time.sleep(_RETRY_SECONDS)
-        raise BuildIdentityError(f"cannot queue for source identity lease {path}")
+        raise BuildIdentityError(f"cannot queue for source identity lease {self.lease}")
 
     def ahead(self, mode: str) -> list[dict[str, object]]:
         """Live earlier requests this one may not pass, collecting dead tickets.
@@ -259,8 +297,11 @@ class _Ticket:
         earlier exclusive requests only: readers that arrived together share,
         and a waiting writer holds back every later reader.
         """
+        if not _names(self.path, self.handle):
+            _release(self.handle, locked=True)
+            self._create()
         blockers = []
-        for other in sorted(self.path.parent.glob("*.ticket")):
+        for other in sorted(self.directory.glob("*.ticket")):
             if other == self.path or not _ticket_is_live(other):
                 continue
             if other.name < self.path.name and (
@@ -271,10 +312,17 @@ class _Ticket:
 
     def close(self) -> None:
         try:
-            _unlock(self.handle)
+            _release(self.handle, locked=True)
         finally:
-            self.handle.close()
             _unlink(self.path, _UNLINK_ATTEMPTS)
+
+
+def _names(path: Path, handle: Any) -> bool:
+    """Whether `path` still names the file `handle` has open."""
+    try:
+        return os.path.samestat(os.fstat(handle.fileno()), os.stat(path))
+    except FileNotFoundError:
+        return False
 
 
 class OwnerLease:
@@ -305,9 +353,8 @@ class OwnerLease:
         if self.ticket is None:
             self.ticket = _Ticket(self.path, self.mode, self.owner)
         ahead = self.ticket.ahead(self.mode)
-        handle = _open_lease(self.path)
-        if not _try_lock(handle, self.mode):
-            handle.close()
+        handle = _take(self.path, self.mode)
+        if handle is None:
             # Earlier tickets name live holders of either mode; the record
             # names only the last exclusive holder, or one without a ticket.
             current = ahead[0] if ahead else peek_owner(self.path) or {}
@@ -317,8 +364,7 @@ class OwnerLease:
                 current,
             )
         if ahead:
-            _unlock(handle)
-            handle.close()
+            _release(handle, locked=True)
             raise LeaseHeldError(
                 f"source identity is queued behind {ahead[0].get('root', 'unknown')} at "
                 f"{ahead[0].get('revision', 'unknown')}; retry after it releases",
@@ -336,8 +382,7 @@ class OwnerLease:
                     },
                 )
         except OSError as error:
-            _unlock(handle)
-            handle.close()
+            _release(handle, locked=True)
             raise BuildIdentityError(f"cannot write source identity lease {self.path}: {error}") from error
         self.handle = handle
         self.owner = {**self.owner, "token": token}
@@ -380,9 +425,8 @@ class LeaseProbe:
         self.handle = None
 
     def __enter__(self) -> bool:
-        handle = _open_lease(self.path)
-        if not _try_lock(handle, SHARED):
-            handle.close()
+        handle = _take(self.path, SHARED)
+        if handle is None:
             return False
         self.handle = handle
         return True

@@ -119,10 +119,13 @@ def recorded_artifact_identity(target_dir: Path, relative_paths: Iterable[str]) 
         if not _is_within(_canonical(path), target_dir):
             raise BuildIdentityError(f"artifact is outside the shared target: {path}")
         files[relative] = _file_digest(path)
-    digest = hashlib.sha256(
+    return {"files": files, "digest": artifact_digest(files)}
+
+
+def artifact_digest(files: dict[str, str]) -> str:
+    return hashlib.sha256(
         json.dumps(files, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
-    return {"files": files, "digest": digest}
 
 
 def _is_within(path: Path, parent: Path) -> bool:
