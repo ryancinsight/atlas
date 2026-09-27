@@ -2227,7 +2227,7 @@ class ExportHygieneTestCase(unittest.TestCase):
             env["TMPDIR"] = tmp.as_posix()
             proc = subprocess.Popen(
                 ["bash", str(SCRIPT)], cwd=str(fixture.root), env=env,
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             proc.stdin.write(fixture.push_line_new_branch("feat").encode())
             proc.stdin.close()
@@ -2247,7 +2247,7 @@ class ExportHygieneTestCase(unittest.TestCase):
             else:
                 proc.terminate()
             # bash runs the trap once the foreground checker returns.
-            proc.communicate(timeout=120)
+            proc.wait(timeout=120)
             self.assertNotEqual(proc.returncode, 0)
             self.assertEqual(list(tmp.glob("pre-push-lock.*")), [])
 
