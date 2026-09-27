@@ -56,10 +56,19 @@ def init_repo(root: Path, source: str) -> None:
     (root / "src").mkdir()
     (root / "src/lib.rs").write_text(source, encoding="utf-8")
     git(root, "init", "-q")
+    disable_maintenance(root)
     git(root, "config", "user.name", "Atlas test")
     git(root, "config", "user.email", "atlas-test@example.invalid")
     git(root, "add", ".")
     git(root, "commit", "-q", "-m", "source")
+
+
+def disable_maintenance(root: Path) -> None:
+    """No detached `gc --auto` or maintenance may write into `.git` while the
+    fixture's temporary directory is removed (a Linux runner failed teardown
+    with `Directory not empty: .git`)."""
+    git(root, "config", "gc.auto", "0")
+    git(root, "config", "maintenance.auto", "false")
 
 
 def gate_export(source: Path, export: Path) -> str:
@@ -74,6 +83,7 @@ def gate_export(source: Path, export: Path) -> str:
                              check=True, capture_output=True, timeout=60).stdout
     subprocess.run(["tar", "-x", "-C", export.as_posix()], input=archive, check=True, timeout=60)
     git(export, "init", "-q")
+    disable_maintenance(export)
     objects = git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") + "/objects"
     (export / ".git" / "objects" / "info" / "alternates").write_bytes(objects.encode() + b"\n")
     git(export, "update-ref", "HEAD", revision)
