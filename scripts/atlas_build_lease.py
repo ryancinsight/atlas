@@ -22,10 +22,15 @@ from atlas_build_lock import (
     _unlock,
     _write_record,
 )
+from atlas_build_queue import Ticket
 
 
 class LeaseHeldError(BuildIdentityError):
-    """A live process holds the lease."""
+    """A live process holds the lease, or an earlier request is queued for it."""
+
+    def __init__(self, message: str, holder: dict[str, object] | None = None) -> None:
+        super().__init__(message)
+        self.holder = holder or {}
 
 
 _WAIT_FIRST_SECONDS = 0.1
@@ -65,7 +70,9 @@ def package_target_lease_scopes(
 class OwnerLease:
     """A lease on one build scope, held shared (reading) or exclusive (writing).
 
-    Only an exclusive holder writes the owner record.
+    Requests are served in arrival order through `Ticket`; the OS lock on
+    byte 0 of the lease file stays the authority on who holds it. Only an
+    exclusive holder writes the owner record.
     """
 
     def __init__(
@@ -80,16 +87,30 @@ class OwnerLease:
         self.seconds = seconds
         self.mode = mode
         self.handle = None
+        self.ticket: Ticket | None = None
         self.held = False
 
-    def __enter__(self) -> OwnerLease:
+    def attempt(self) -> OwnerLease:
+        """Take the lease if this request's turn has come and no holder conflicts."""
+        if self.ticket is None:
+            self.ticket = Ticket(self.path, self.mode, self.owner)
+        ahead = [peek_owner(path) or {} for path in self.ticket.ahead(self.mode)]
         handle = _take(self.path, self.mode)
         if handle is None:
-            current = peek_owner(self.path) or {}
-            owner = current.get("root", "unknown")
-            revision = current.get("revision", "unknown")
+            # Earlier tickets name live holders of either mode; the record
+            # names only the last exclusive holder, or one without a ticket.
+            current = ahead[0] if ahead else peek_owner(self.path) or {}
             raise LeaseHeldError(
-                f"source identity is owned by {owner} at {revision}; retry after it releases"
+                f"source identity is owned by {current.get('root', 'unknown')} at "
+                f"{current.get('revision', 'unknown')}; retry after it releases",
+                current,
+            )
+        if ahead:
+            _release(handle, locked=True)
+            raise LeaseHeldError(
+                f"source identity is queued behind {ahead[0].get('root', 'unknown')} at "
+                f"{ahead[0].get('revision', 'unknown')}; retry after it releases",
+                ahead[0],
             )
         token = uuid.uuid4().hex
         try:
@@ -110,17 +131,32 @@ class OwnerLease:
         self.held = True
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        if not self.held or self.handle is None:
-            return
+    def dequeue(self) -> None:
+        if self.ticket is not None:
+            ticket, self.ticket = self.ticket, None
+            ticket.close()
+
+    def __enter__(self) -> OwnerLease:
         try:
-            _unlock(self.handle)
-            self.handle.close()
-        except OSError as error:
-            raise BuildIdentityError(f"cannot release source identity lease {self.path}") from error
+            return self.attempt()
+        except BaseException:
+            self.dequeue()
+            raise
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        try:
+            if self.held and self.handle is not None:
+                try:
+                    _unlock(self.handle)
+                    self.handle.close()
+                except OSError as error:
+                    raise BuildIdentityError(
+                        f"cannot release source identity lease {self.path}"
+                    ) from error
         finally:
             self.held = False
             self.handle = None
+            self.dequeue()
 
 
 class LeaseProbe:
@@ -186,24 +222,34 @@ def peek_owner(path: Path) -> dict[str, object] | None:
 
 
 def acquire_waiting(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
-    """Enter `lease`, waiting while a live owner holds it.
+    """Enter `lease`, waiting while a live owner holds it or an earlier request is queued.
 
-    The wait ends when the owner releases or after `wait_seconds`; the latter
-    raises without taking the lease. The OS lock proves the owner is alive, so
-    its recorded `expires_ns` only reports: a build that outlives it is still
-    waited out. Callers acquire several leases in sorted scope order, so
-    waiting holders never form a cycle.
+    The request keeps one ticket for the whole wait, so a holder that releases
+    and asks again queues behind it. The wait ends when the lease is taken or
+    after `wait_seconds`; the latter raises without taking the lease. The OS
+    lock proves the owner is alive, so its recorded `expires_ns` only reports.
+    Callers acquire several leases in sorted scope order: a request waits only
+    on holders of its own lease, which wait only on later leases, or on
+    earlier requests for the same lease, so no wait forms a cycle.
     """
+    try:
+        return _wait_for(lease, wait_seconds)
+    except BaseException:
+        lease.dequeue()
+        raise
+
+
+def _wait_for(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
     deadline_ns = time.monotonic_ns() + int(wait_seconds * 1_000_000_000)
     delay = _WAIT_FIRST_SECONDS
     announced = None
     while True:
         try:
-            return lease.__enter__()
-        except LeaseHeldError:
+            return lease.attempt()
+        except LeaseHeldError as error:
             if wait_seconds <= 0:
                 raise
-            current = peek_owner(lease.path) or {}
+            current = error.holder
         owner = current.get("root", "unknown")
         revision = current.get("revision", "unknown")
         remaining_ns = deadline_ns - time.monotonic_ns()
