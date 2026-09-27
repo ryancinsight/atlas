@@ -4,30 +4,27 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import time
 import uuid
 from pathlib import Path
+from typing import Any
 
-from atlas_build_lock import (
-    BuildIdentityError,
-    EXCLUSIVE,
-    SHARED,
-    RECORD_OFFSET,
-    _MODES,
-    _open_lease,
-    _release,
-    _take,
-    _try_lock,
-    _unlock,
-    _write_record,
-)
+
+class BuildIdentityError(RuntimeError):
+    """A source identity cannot be established or safely used."""
 
 
 class LeaseHeldError(BuildIdentityError):
     """A live process holds the lease."""
 
 
+# The OS lock covers byte 0 only, and the owner record starts at byte 1: a
+# Windows byte-range lock refuses reads of the locked range from every other
+# handle, so a record at byte 0 made every live owner read as unknown. Keeping
+# the lock on byte 0 keeps exclusion with holders that predate the offset.
+RECORD_OFFSET = 1
 _WAIT_FIRST_SECONDS = 0.1
 _WAIT_MAX_SECONDS = 5.0
 
@@ -62,29 +59,62 @@ def package_target_lease_scopes(
     ]
 
 
+def _try_lock(handle: Any) -> bool:
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+
+        try:
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        except OSError:
+            return False
+        return True
+    import fcntl
+
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return False
+    return True
+
+
+def _unlock(handle: Any) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def _open_lease(path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("a+b")
+    handle.seek(0, os.SEEK_END)
+    if handle.tell() == 0:
+        handle.write(b"\0")
+        handle.flush()
+    handle.seek(0)
+    return handle
+
+
 class OwnerLease:
-    """A lease on one build scope, held shared (reading) or exclusive (writing).
-
-    Only an exclusive holder writes the owner record.
-    """
-
-    def __init__(
-        self, path: Path, owner: dict[str, object], seconds: int, mode: str = EXCLUSIVE
-    ) -> None:
+    def __init__(self, path: Path, owner: dict[str, object], seconds: int) -> None:
         if seconds <= 0:
             raise BuildIdentityError("lease duration must be positive")
-        if mode not in _MODES:
-            raise BuildIdentityError(f"unknown lease mode {mode}")
         self.path = path
         self.owner = owner
         self.seconds = seconds
-        self.mode = mode
         self.handle = None
         self.held = False
 
     def __enter__(self) -> OwnerLease:
-        handle = _take(self.path, self.mode)
-        if handle is None:
+        handle = _open_lease(self.path)
+        if not _try_lock(handle):
+            handle.close()
             current = peek_owner(self.path) or {}
             owner = current.get("root", "unknown")
             revision = current.get("revision", "unknown")
@@ -92,18 +122,21 @@ class OwnerLease:
                 f"source identity is owned by {owner} at {revision}; retry after it releases"
             )
         token = uuid.uuid4().hex
+        payload = {
+            **self.owner,
+            "token": token,
+            "expires_ns": time.time_ns() + self.seconds * 1_000_000_000,
+        }
         try:
-            if self.mode == EXCLUSIVE:
-                _write_record(
-                    handle,
-                    {
-                        **self.owner,
-                        "token": token,
-                        "expires_ns": time.time_ns() + self.seconds * 1_000_000_000,
-                    },
-                )
+            handle.seek(0)
+            handle.truncate()
+            handle.write(b" " * RECORD_OFFSET)
+            handle.write(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
+            handle.flush()
+            os.fsync(handle.fileno())
         except OSError as error:
-            _release(handle, locked=True)
+            _unlock(handle)
+            handle.close()
             raise BuildIdentityError(f"cannot write source identity lease {self.path}: {error}") from error
         self.handle = handle
         self.owner = {**self.owner, "token": token}
@@ -124,15 +157,14 @@ class OwnerLease:
 
 
 class LeaseProbe:
-    """A shared look at a lease: a check only reads the artifacts."""
-
     def __init__(self, path: Path) -> None:
         self.path = path
         self.handle = None
 
     def __enter__(self) -> bool:
-        handle = _take(self.path, SHARED)
-        if handle is None:
+        handle = _open_lease(self.path)
+        if not _try_lock(handle):
+            handle.close()
             return False
         self.handle = handle
         return True
