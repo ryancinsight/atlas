@@ -31,6 +31,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         command.add_argument("command", nargs=argparse.REMAINDER)
         if mode == "run":
             command.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_SECONDS)
+            command.add_argument(
+                "--lease-wait-seconds",
+                type=float,
+                default=DEFAULT_LEASE_SECONDS,
+                help="longest wait for a live owner; the owner's expiry bounds it further",
+            )
     args = parser.parse_args(argv)
     try:
         command = tuple(args.command)
@@ -64,6 +70,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.features,
             args.artifact,
             lease_seconds=args.lease_seconds,
+            lease_wait_seconds=args.lease_wait_seconds,
             command_cwd=args.command_cwd,
             command_key=args.command_key,
             ignore_paths=args.ignore_path,

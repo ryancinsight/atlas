@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -13,6 +14,19 @@ from typing import Any
 
 class BuildIdentityError(RuntimeError):
     """A source identity cannot be established or safely used."""
+
+
+class LeaseHeldError(BuildIdentityError):
+    """A live process holds the lease."""
+
+
+# The OS lock covers byte 0 only, and the owner record starts at byte 1: a
+# Windows byte-range lock refuses reads of the locked range from every other
+# handle, so a record at byte 0 made every live owner read as unknown. Keeping
+# the lock on byte 0 keeps exclusion with holders that predate the offset.
+RECORD_OFFSET = 1
+_WAIT_FIRST_SECONDS = 0.1
+_WAIT_MAX_SECONDS = 5.0
 
 
 def package_target_lease_path(package: str, target_dir: Path) -> Path:
@@ -87,34 +101,6 @@ def _open_lease(path: Path):
     return handle
 
 
-def _read_owner(handle: Any, path: Path) -> dict[str, object] | None:
-    try:
-        handle.seek(0)
-        raw = handle.read()
-    except OSError as error:
-        raise BuildIdentityError(f"cannot read source identity lease {path}: {error}") from error
-    if raw in (b"", b"\0"):
-        return None
-    try:
-        value = json.loads(raw)
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise BuildIdentityError(f"malformed source identity lease {path}") from error
-    if not isinstance(value, dict):
-        raise BuildIdentityError(f"malformed source identity lease {path}")
-    required = {
-        "root": str,
-        "revision": str,
-        "package": str,
-        "target_dir": str,
-        "token": str,
-        "expires_ns": int,
-    }
-    for key, expected in required.items():
-        if type(value.get(key)) is not expected:
-            raise BuildIdentityError(f"malformed source identity lease {path}")
-    return value
-
-
 class OwnerLease:
     def __init__(self, path: Path, owner: dict[str, object], seconds: int) -> None:
         if seconds <= 0:
@@ -128,22 +114,13 @@ class OwnerLease:
     def __enter__(self) -> OwnerLease:
         handle = _open_lease(self.path)
         if not _try_lock(handle):
-            try:
-                current = _read_owner(handle, self.path)
-                owner = current.get("root", "unknown") if current else "unknown"
-                revision = current.get("revision", "unknown") if current else "unknown"
-            except BuildIdentityError:
-                owner = revision = "unknown"
             handle.close()
-            raise BuildIdentityError(
+            current = peek_owner(self.path) or {}
+            owner = current.get("root", "unknown")
+            revision = current.get("revision", "unknown")
+            raise LeaseHeldError(
                 f"source identity is owned by {owner} at {revision}; retry after it releases"
             )
-        try:
-            _read_owner(handle, self.path)
-        except BuildIdentityError:
-            _unlock(handle)
-            handle.close()
-            raise
         token = uuid.uuid4().hex
         payload = {
             **self.owner,
@@ -153,6 +130,7 @@ class OwnerLease:
         try:
             handle.seek(0)
             handle.truncate()
+            handle.write(b" " * RECORD_OFFSET)
             handle.write(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
             handle.flush()
             os.fsync(handle.fileno())
@@ -188,12 +166,6 @@ class LeaseProbe:
         if not _try_lock(handle):
             handle.close()
             return False
-        try:
-            _read_owner(handle, self.path)
-        except BuildIdentityError:
-            _unlock(handle)
-            handle.close()
-            raise
         self.handle = handle
         return True
 
@@ -216,8 +188,72 @@ def lease_is_held(path: Path) -> bool:
     try:
         if _try_lock(handle):
             _unlock(handle)
-            _read_owner(handle, path)
             return False
         return True
     finally:
         handle.close()
+
+
+def peek_owner(path: Path) -> dict[str, object] | None:
+    """Read a lease's owner record without taking its lock.
+
+    Diagnostic only: `None` when the record is absent, partial, or malformed.
+    A holder that predates `RECORD_OFFSET` wrote its record at byte 0, so the
+    byte past the lock is its `{`.
+    """
+    try:
+        with path.open("rb") as handle:
+            handle.seek(RECORD_OFFSET)
+            raw = handle.read()
+    except OSError:
+        return None
+    for candidate in (raw, b"{" + raw):
+        try:
+            value = json.loads(candidate)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if isinstance(value, dict):
+            return value
+    return None
+
+
+def acquire_waiting(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
+    """Enter `lease`, waiting while a live owner holds it.
+
+    The wait ends when the owner releases, when the owner's recorded
+    `expires_ns` passes while it still holds the lock, or after `wait_seconds`,
+    whichever is first; the last two raise without taking the lease. Callers
+    acquire several leases in sorted scope order, so waiting holders never
+    form a cycle.
+    """
+    deadline_ns = time.monotonic_ns() + int(wait_seconds * 1_000_000_000)
+    delay = _WAIT_FIRST_SECONDS
+    announced = None
+    while True:
+        try:
+            return lease.__enter__()
+        except LeaseHeldError:
+            if wait_seconds <= 0:
+                raise
+            current = peek_owner(lease.path) or {}
+        owner = current.get("root", "unknown")
+        revision = current.get("revision", "unknown")
+        remaining_ns = deadline_ns - time.monotonic_ns()
+        expires_ns = current.get("expires_ns")
+        if type(expires_ns) is int:
+            remaining_ns = min(remaining_ns, expires_ns - time.time_ns())
+        if remaining_ns <= 0:
+            raise BuildIdentityError(
+                f"source identity lease {lease.path.name} is still held by {owner} at "
+                f"{revision} after waiting up to its expiry; no artifact was touched"
+            )
+        if announced != (owner, revision):
+            print(
+                f"atlas-build-identity waiting: lease {lease.path.name} held by {owner} at "
+                f"{revision}; waiting up to {remaining_ns / 1e9:.0f} s",
+                file=sys.stderr,
+                flush=True,
+            )
+            announced = (owner, revision)
+        time.sleep(min(delay, remaining_ns / 1e9))
+        delay = min(delay * 2, _WAIT_MAX_SECONDS)
