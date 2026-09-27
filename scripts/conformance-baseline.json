@@ -426,7 +426,7 @@
     "missing_deny_docs": 14,
     "nextest_budget_missing": 0,
     "orphan_modules": 0,
-    "oversized_files": 77,
+    "oversized_files": 76,
     "oversized_tracked_images": 0,
     "pm_lines_over_budget": 0,
     "print_dbg": 0,

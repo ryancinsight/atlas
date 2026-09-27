@@ -862,3 +862,14 @@ fixture design, not measured code — the bench header already scopes it as a
 local instrument, never a CI job). Re-open trigger: the fixture is generated
 without per-sample trig loops, or N shrinks with the scaling-ratio claim
 preserved.
+
+## Finding 2026-09-25: the hook publisher compares member working trees, not their defaults
+
+`atlas-lock-form.py publish-hooks` decides drift from the bytes in
+`repos/<member>/.githooks/`, so a stale local checkout reports `current` for a
+member whose default has diverged, and a reused `ci/sync-stack-hooks` branch
+then yields a pull request carrying another writer's hook. On 2026-09-25 that
+republished the canonical hook as a no-op onto branches already holding a UTF-16
+copy, leaving 24 members with a hook no shell can execute. Re-open trigger: the
+comparison reads `origin/HEAD` in the member, as the `sync-hooks --check`
+contract already states.
