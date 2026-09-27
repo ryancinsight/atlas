@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from contextlib import redirect_stderr
@@ -75,6 +76,9 @@ def write_script(path: Path, body: str) -> None:
     path.write_text(body, encoding="utf-8")
 
 
+# Holds until argv[6] exists, or for argv[5] seconds without one. A hold
+# timed from the holder's own start raced the waiter's metadata reads: on a
+# loaded host the waiter reached the lease after it was free and never waited.
 HOLDER = (
     "import sys, time\n"
     "from pathlib import Path\n"
@@ -84,15 +88,23 @@ HOLDER = (
     " 'package': 'demo', 'target_dir': sys.argv[3]}, int(sys.argv[4]))\n"
     "lease.__enter__()\n"
     "print('held', flush=True)\n"
-    "time.sleep(float(sys.argv[5]))\n"
+    "release = Path(sys.argv[6]) if len(sys.argv) > 6 else None\n"
+    "end = time.monotonic() + float(sys.argv[5])\n"
+    "while time.monotonic() < end and not (release and release.exists()):\n"
+    "    time.sleep(0.01)\n"
     "lease.__exit__(None, None, None)\n"
 )
 
 
 def hold_lease(
-    test: unittest.TestCase, lock: Path, target: Path, lease_seconds: int, hold_seconds: float
+    test: unittest.TestCase,
+    lock: Path,
+    target: Path,
+    lease_seconds: int,
+    hold_seconds: float,
+    release: Path | None = None,
 ) -> subprocess.Popen:
-    """Hold `lock` from a separate process until `hold_seconds` pass."""
+    """Hold `lock` from a separate process until `release` exists or `hold_seconds` pass."""
     holder = subprocess.Popen(
         [
             sys.executable,
@@ -103,6 +115,7 @@ def hold_lease(
             target.as_posix(),
             str(lease_seconds),
             str(hold_seconds),
+            *([str(release)] if release else []),
         ],
         stdout=subprocess.PIPE,
         text=True,
@@ -1131,29 +1144,40 @@ class CommandLineTestCase(unittest.TestCase):
         self.assertEqual(kwargs["ignore_paths"], [self.root / "Cargo.lock"])
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 
-    def test_the_pre_push_waits_for_a_live_owner_to_release(self) -> None:
+    def pre_push_released(self, lease_seconds: int, held_on: float) -> tuple[int, str]:
+        """Run the pre-push entry point against a holder that releases only after
+        the run has printed its waiting line and `held_on` more seconds pass."""
         lock = package_target_lease_path("demo", identity._canonical(self.target))
-        started = time.monotonic()
-        hold_lease(self, lock, self.target, 60, 2)
+        release = self.target.parent / "release-holder"
+        hold_lease(self, lock, self.target, lease_seconds, 120, release)
         stderr = io.StringIO()
+        result: list[int] = []
         with redirect_stderr(stderr):
-            code = self.pre_push()
-        self.assertEqual(code, 0, stderr.getvalue())
-        self.assertGreaterEqual(time.monotonic() - started, 2)
-        self.assertIn("held by holder-root at holder-revision", stderr.getvalue())
+            run = threading.Thread(target=lambda: result.append(self.pre_push()))
+            run.start()
+            deadline = time.monotonic() + 60
+            while "atlas-build-identity waiting:" not in stderr.getvalue():
+                self.assertTrue(run.is_alive(), stderr.getvalue())
+                self.assertLess(time.monotonic(), deadline, "the run never waited")
+                time.sleep(0.01)
+            time.sleep(held_on)
+            self.assertTrue(run.is_alive(), "the run stopped waiting while the lease was held")
+            release.write_text("release", encoding="utf-8")
+            run.join(120)
+        return result[0], stderr.getvalue()
+
+    def test_the_pre_push_waits_for_a_live_owner_to_release(self) -> None:
+        code, stderr = self.pre_push_released(60, 0.5)
+        self.assertEqual(code, 0, stderr)
+        self.assertIn("held by holder-root at holder-revision", stderr)
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 
     def test_the_pre_push_waits_out_an_owner_past_its_expiry(self) -> None:
-        # A 1 s lease held for 4 s: the lock, not the recorded expiry, says
-        # the owner is alive, so the waiter keeps waiting and then proceeds.
-        lock = package_target_lease_path("demo", identity._canonical(self.target))
-        started = time.monotonic()
-        hold_lease(self, lock, self.target, 1, 4)
-        stderr = io.StringIO()
-        with redirect_stderr(stderr):
-            code = self.pre_push()
-        self.assertEqual(code, 0, stderr.getvalue())
-        self.assertGreaterEqual(time.monotonic() - started, 4)
+        # A 1 s lease still held 2 s after the run began waiting: the lock,
+        # not the recorded expiry, says the owner is alive, so the run keeps
+        # waiting and then proceeds.
+        code, stderr = self.pre_push_released(1, 2)
+        self.assertEqual(code, 0, stderr)
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 
     def test_the_pre_push_wait_ends_at_the_wait_bound(self) -> None:
