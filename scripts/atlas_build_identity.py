@@ -74,6 +74,37 @@ class BuildSpec:
         }
 
 
+def _content(record: object) -> object:
+    """A source or build record without the checkout path it was read from.
+
+    The pre-push gate builds a fresh export of the pushed revision at a new
+    temporary path on every run, so a record keyed on that path was stale on
+    every push and cleaned the whole non-registry closure. Content -- the
+    revision, the tree digest, the build dimensions -- decides staleness; the
+    root stays in the record for diagnostics and lease ownership only.
+    """
+    if not isinstance(record, dict):
+        return record
+    value = {key: item for key, item in record.items() if key != "root"}
+    if isinstance(value.get("source"), dict):
+        value["source"] = _content(value["source"])
+    return value
+
+
+def _record_matches(
+    existing: dict[str, object],
+    spec: BuildSpec,
+    dependencies: dict[str, object],
+    artifact: dict[str, object],
+) -> bool:
+    return (
+        _content(existing.get("source")) == _content(spec.source.as_dict())
+        and _content(existing.get("build")) == _content(spec.as_dict())
+        and existing.get("dependencies") == dependencies
+        and existing.get("artifact") == artifact
+    )
+
+
 @dataclass(frozen=True)
 class BuildResult:
     status: str
@@ -166,9 +197,8 @@ def _dependency_data(
         def identify_source(path: Path) -> dict[str, object]:
             canonical_path = _canonical(path)
             if canonical_path not in source_cache:
-                source_cache[canonical_path] = source_identity(
-                    canonical_path, (target_dir,), ignore_paths
-                ).as_dict()
+                identified = source_identity(canonical_path, (target_dir,), ignore_paths)
+                source_cache[canonical_path] = _content(identified.as_dict())
             return source_cache[canonical_path]
 
         snapshot = dependency_snapshot(
@@ -215,7 +245,9 @@ def _sibling_matches(spec: BuildSpec) -> bool:
             continue
         other = dict(other)
         other.pop("command_key", None)
-        if other == build and record.get("source") == spec.source.as_dict():
+        if _content(other) == _content(build) and _content(record.get("source")) == _content(
+            spec.source.as_dict()
+        ):
             return True
     return False
 
@@ -426,11 +458,8 @@ def run_build(
                 "source or dependency inputs changed while acquiring the package leases"
             )
         existing = read_record(record)
-        matched = existing is not None and (
-            existing.get("source") == spec.source.as_dict()
-            and existing.get("build") == spec.as_dict()
-            and existing.get("dependencies") == dependencies
-            and existing.get("artifact") == _recorded_artifact(existing, target_dir, artifact_paths)
+        matched = existing is not None and _record_matches(
+            existing, spec, dependencies, _recorded_artifact(existing, target_dir, artifact_paths)
         )
         return existing, matched
 
@@ -574,11 +603,8 @@ def check_record(
         existing = read_record(record_file)
         if existing is None:
             return 2, {"status": "missing", "record": record_file.as_posix()}
-        matches = (
-            existing.get("source") == spec.source.as_dict()
-            and existing.get("build") == spec.as_dict()
-            and existing.get("dependencies") == dependencies
-            and existing.get("artifact") == _recorded_artifact(existing, target_dir, artifact_paths)
+        matches = _record_matches(
+            existing, spec, dependencies, _recorded_artifact(existing, target_dir, artifact_paths)
         )
         return (0 if matches else 2), {
             "status": "match" if matches else "stale",

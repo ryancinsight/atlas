@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from contextlib import redirect_stderr
@@ -24,6 +25,9 @@ assert SPEC is not None and SPEC.loader is not None
 sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
 import atlas_build_lease as lease_module
+import atlas_build_lock as lock_module
+import atlas_build_queue as queue_module
+import atlas_build_source as build_source
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
@@ -65,42 +69,74 @@ def init_repo(root: Path, source: str) -> None:
     (root / "src").mkdir()
     (root / "src/lib.rs").write_text(source, encoding="utf-8")
     git(root, "init", "-q")
+    disable_maintenance(root)
     git(root, "config", "user.name", "Atlas test")
     git(root, "config", "user.email", "atlas-test@example.invalid")
     git(root, "add", ".")
     git(root, "commit", "-q", "-m", "source")
 
 
+def disable_maintenance(root: Path) -> None:
+    """No detached `gc --auto` or maintenance may write into `.git` while the
+    fixture's temporary directory is removed (a Linux runner failed teardown
+    with `Directory not empty: .git`)."""
+    git(root, "config", "gc.auto", "0")
+    git(root, "config", "maintenance.auto", "false")
+
+
+def gate_export(source: Path, export: Path) -> str:
+    """Export `source`'s HEAD the way the pre-push gate does; return its revision.
+
+    `git archive` into a fresh repository that borrows the source's objects,
+    `HEAD` set to the revision and the index read from its tree.
+    """
+    revision = git(source, "rev-parse", "HEAD")
+    export.mkdir(parents=True)
+    archive = subprocess.run(["git", "archive", f"{revision}^{{tree}}"], cwd=source,
+                             check=True, capture_output=True, timeout=60).stdout
+    subprocess.run(["tar", "-x", "-C", export.as_posix()], input=archive, check=True, timeout=60)
+    git(export, "init", "-q")
+    disable_maintenance(export)
+    objects = git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") + "/objects"
+    (export / ".git" / "objects" / "info" / "alternates").write_bytes(objects.encode() + b"\n")
+    git(export, "update-ref", "HEAD", revision)
+    git(export, "read-tree", "HEAD")
+    return revision
+
+
 def write_script(path: Path, body: str) -> None:
     path.write_text(body, encoding="utf-8")
 
 
-# Holds for argv[5] seconds counted from a waiter's arrival in the queue, not
-# from its own start: a wall-clock hold raced the waiter's metadata work, and a
-# loaded host reached the lease after the holder had already left (the
-# waiting line then never printed).
+# Holds until argv[6] exists, or for argv[5] seconds without one. A hold
+# timed from the holder's own start raced the waiter's metadata reads: on a
+# loaded host the waiter reached the lease after it was free and never waited.
 HOLDER = (
     "import sys, time\n"
     "from pathlib import Path\n"
     "sys.path.insert(0, sys.argv[1])\n"
     "from atlas_build_lease import OwnerLease\n"
-    "lock = Path(sys.argv[2])\n"
-    "lease = OwnerLease(lock, {'root': 'holder-root', 'revision': 'holder-revision',"
+    "lease = OwnerLease(Path(sys.argv[2]), {'root': 'holder-root', 'revision': 'holder-revision',"
     " 'package': 'demo', 'target_dir': sys.argv[3]}, int(sys.argv[4]))\n"
     "lease.__enter__()\n"
     "print('held', flush=True)\n"
-    "queue = lock.with_name(lock.stem + '.queue')\n"
-    "while len(list(queue.glob('*.ticket'))) < 2:\n"
+    "release = Path(sys.argv[6]) if len(sys.argv) > 6 else None\n"
+    "end = time.monotonic() + float(sys.argv[5])\n"
+    "while time.monotonic() < end and not (release and release.exists()):\n"
     "    time.sleep(0.01)\n"
-    "time.sleep(float(sys.argv[5]))\n"
     "lease.__exit__(None, None, None)\n"
 )
 
 
 def hold_lease(
-    test: unittest.TestCase, lock: Path, target: Path, lease_seconds: int, hold_seconds: float
+    test: unittest.TestCase,
+    lock: Path,
+    target: Path,
+    lease_seconds: int,
+    hold_seconds: float,
+    release: Path | None = None,
 ) -> subprocess.Popen:
-    """Hold `lock` from a separate process until `hold_seconds` pass."""
+    """Hold `lock` from a separate process until `release` exists or `hold_seconds` pass."""
     holder = subprocess.Popen(
         [
             sys.executable,
@@ -111,6 +147,7 @@ def hold_lease(
             target.as_posix(),
             str(lease_seconds),
             str(hold_seconds),
+            *([str(release)] if release else []),
         ],
         stdout=subprocess.PIPE,
         text=True,
@@ -279,6 +316,7 @@ class LeaseModeTestCase(unittest.TestCase):
         storm = (
             "import importlib.util, sys, time\n"
             "from pathlib import Path\n"
+            "sys.path.insert(0, str(Path(sys.argv[1]).parent))\n"
             "spec = importlib.util.spec_from_file_location('taker', sys.argv[1])\n"
             "module = importlib.util.module_from_spec(spec)\n"
             "spec.loader.exec_module(module)\n"
@@ -386,7 +424,7 @@ class LeaseModeTestCase(unittest.TestCase):
         # The window between creating a ticket and locking it is too short to
         # hit by chance, so a real peer process takes its probe lock inside it.
         lock = self.lock("race")
-        real_try_lock = lease_module._try_lock
+        real_try_lock = queue_module._try_lock
         probes: list[subprocess.Popen] = []
         probe = (
             "import sys, time\n"
@@ -412,7 +450,7 @@ class LeaseModeTestCase(unittest.TestCase):
                 probes.append(process)
             return real_try_lock(handle, mode)
 
-        with patch.object(lease_module, "_try_lock", side_effect=contended):
+        with patch.object(queue_module, "_try_lock", side_effect=contended):
             self.assertLess(self.waited(lock, EXCLUSIVE), 5)
         self.assertEqual(len(probes), 1)
         probes[0].wait(60)
@@ -474,7 +512,7 @@ class LeaseModeTestCase(unittest.TestCase):
     def test_a_failing_lock_call_closes_its_handle(self) -> None:
         lock = self.lock("fault")
         fault = OSError(1, "injected lock fault")
-        with patch.object(lease_module, "_try_lock", side_effect=fault):
+        with patch.object(lock_module, "_try_lock", side_effect=fault):
             for take in (
                 lambda: OwnerLease(lock, {"root": "r", "revision": "r"}, 60, mode=SHARED).__enter__(),
                 lambda: lease_module.LeaseProbe(lock).__enter__(),
@@ -493,12 +531,12 @@ class LeaseModeTestCase(unittest.TestCase):
         self.addCleanup(os.close, write)
         with os.fdopen(read, "rb") as pipe:
             with self.assertRaises(OSError) as caught:
-                lease_module._try_lock(pipe, SHARED)
+                lock_module._try_lock(pipe, SHARED)
             self.assertNotEqual(caught.exception.winerror, 33)
         lock = self.lock("unlocked")
-        with lease_module._open_lease(lock) as handle:
+        with lock_module._open_lease(lock) as handle:
             with self.assertRaises(OSError) as caught:
-                lease_module._unlock(handle)
+                lock_module._unlock(handle)
         # ERROR_NOT_LOCKED, carried as the Windows error, not in the errno slot.
         self.assertEqual(caught.exception.winerror, 158)
 
@@ -693,17 +731,60 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(value["status"], "match")
 
-    def test_a_different_source_root_is_a_different_identity(self) -> None:
+    def test_the_same_revision_at_another_root_reuses_and_cleans_nothing(self) -> None:
+        """Each pre-push run exports the pushed revision to a new temporary path.
+
+        A record keyed on that path was stale on every run, so every push
+        cleaned the whole non-registry closure (101 packages for kwavers) and
+        re-pushing one sha cleaned again. The revision decides, not the path.
+        """
         init_repo(self.root, "fn main() {}\n")
-        self.build(source_token="a")
-        other = self.base / "source-b"
-        init_repo(other, "fn main() {}\n")
+        first_export = self.base / "export-1" / "member"
+        second_export = self.base / "export-2" / "member"
+        revision = gate_export(self.root, first_export)
+        self.assertEqual(gate_export(self.root, second_export), revision)
+        first = self.build(root=first_export, source_token="same")
+        self.assertEqual(first.status, "rebuilt")
         self.clean_log.unlink()
-        result = self.build(root=other, source_token="b")
-        self.assertEqual(result.status, "rebuilt")
-        self.assertTrue(self.clean_log.exists())
-        record = json.loads(result.record_path.read_text(encoding="utf-8"))
-        self.assertEqual(record["source"]["root"], other.resolve().as_posix())
+        second = self.build(root=second_export, source_token="same")
+        self.assertEqual(second.status, "reused")
+        self.assertFalse(second.cleaned)
+        self.assertFalse(self.clean_log.exists())
+        record = json.loads(second.record_path.read_text(encoding="utf-8"))
+        self.assertEqual(record["source"]["revision"], revision)
+        self.assertEqual(record["source"]["root"], second_export.resolve().as_posix())
+
+    def test_a_fresh_gate_export_is_identified_without_rehashing_it(self) -> None:
+        """An export's read-tree index carries no stat data, and `git diff HEAD`
+        re-hashed all of it: 348 s for kwavers, past the 60 s git timeout."""
+        init_repo(self.root, "fn main() {}\n")
+        bulk = self.root / "data"
+        bulk.mkdir()
+        for index in range(2000):
+            (bulk / f"part-{index:04}.txt").write_text(f"{index}\n" * 64, encoding="utf-8")
+        git(self.root, "add", "data")
+        git(self.root, "commit", "-qm", "bulk")
+        export = self.base / "export" / "member"
+        revision = gate_export(self.root, export)
+        calls: list[tuple[str, ...]] = []
+        real_git = build_source._git
+
+        def recording_git(root: Path, *arguments: str) -> bytes:
+            calls.append(arguments)
+            return real_git(root, *arguments)
+
+        with patch.object(build_source, "_git", side_effect=recording_git):
+            started = time.monotonic()
+            found = build_source.source_identity(export)
+            elapsed = time.monotonic() - started
+        self.assertNotIn("diff", [arguments[0] for arguments in calls])
+        self.assertEqual(found.revision, revision)
+        self.assertFalse(found.dirty)
+        self.assertLess(elapsed, 30.0)
+        # Only an index never stat'ed is trusted: once refreshed, edits are diffed.
+        subprocess.run(["git", "update-index", "-q", "--refresh"], cwd=export, timeout=60)
+        (export / "src/lib.rs").write_text("fn main() { edited(); }\n", encoding="utf-8")
+        self.assertTrue(build_source.source_identity(export).dirty)
 
     def test_an_active_owner_blocks_cleaning_and_preserves_the_artifact(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -1236,6 +1317,41 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertNotEqual(first["digest"], second["digest"])
         self.assertEqual(first["clean_packages"], ["demo", "dep"])
 
+    def test_dependency_snapshot_is_independent_of_the_export_path(self) -> None:
+        """Cargo spells a path package's ID with its absolute directory."""
+        snapshots = []
+        for name in ("export-1", "export-2"):
+            workspace = (self.base / name / "member").resolve()
+            member = workspace / "crates" / "demo"
+            member.mkdir(parents=True)
+            (member / "Cargo.toml").write_text("[package]\nname = \"demo\"\n", encoding="utf-8")
+            helper = workspace / "crates" / "helper"
+            helper.mkdir(parents=True)
+            (helper / "Cargo.toml").write_text("[package]\nname = \"helper\"\n", encoding="utf-8")
+            demo_id = f"path+file:///{member.as_posix()}#demo@0.1.0"
+            helper_id = f"path+file:///{helper.as_posix()}#helper@0.1.0"
+            metadata = {
+                "workspace_root": str(workspace),
+                "packages": [
+                    {"id": demo_id, "name": "demo", "version": "0.1.0", "source": None,
+                     "manifest_path": str(member / "Cargo.toml")},
+                    {"id": helper_id, "name": "helper", "version": "0.1.0", "source": None,
+                     "manifest_path": str(helper / "Cargo.toml")},
+                ],
+                "workspace_members": [demo_id, helper_id],
+                "resolve": {"nodes": [
+                    {"id": demo_id, "deps": [{"pkg": helper_id, "dep_kinds": []}]},
+                    {"id": helper_id, "deps": []},
+                ]},
+            }
+            with patch.object(artifacts, "_cargo_metadata", return_value=metadata):
+                snapshots.append(artifacts.dependency_snapshot(
+                    workspace / "Cargo.toml", "demo", workspace,
+                    lambda path: {"revision": "same"},
+                ))
+        self.assertEqual(snapshots[0]["digest"], snapshots[1]["digest"])
+        self.assertEqual(snapshots[0]["root"], "workspace:crates/demo#demo@0.1.0")
+
     def test_registry_package_content_changes_change_the_dependency_snapshot(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         registry_root = self.base / "registry"
@@ -1544,31 +1660,40 @@ class CommandLineTestCase(unittest.TestCase):
         self.assertEqual(kwargs["ignore_paths"], [self.root / "Cargo.lock"])
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 
-    def test_the_pre_push_waits_for_a_live_owner_to_release(self) -> None:
+    def pre_push_released(self, lease_seconds: int, held_on: float) -> tuple[int, str]:
+        """Run the pre-push entry point against a holder that releases only after
+        the run has printed its waiting line and `held_on` more seconds pass."""
         lock = package_target_lease_path("demo", identity._canonical(self.target))
-        hold_lease(self, lock, self.target, 60, 2)
-        started = time.monotonic()
+        release = self.target.parent / "release-holder"
+        hold_lease(self, lock, self.target, lease_seconds, 120, release)
         stderr = io.StringIO()
+        result: list[int] = []
         with redirect_stderr(stderr):
-            code = self.pre_push()
-        self.assertEqual(code, 0, stderr.getvalue())
-        self.assertGreaterEqual(time.monotonic() - started, 2)
-        self.assertIn("held by holder-root at holder-revision", stderr.getvalue())
+            run = threading.Thread(target=lambda: result.append(self.pre_push()))
+            run.start()
+            deadline = time.monotonic() + 60
+            while "atlas-build-identity waiting:" not in stderr.getvalue():
+                self.assertTrue(run.is_alive(), stderr.getvalue())
+                self.assertLess(time.monotonic(), deadline, "the run never waited")
+                time.sleep(0.01)
+            time.sleep(held_on)
+            self.assertTrue(run.is_alive(), "the run stopped waiting while the lease was held")
+            release.write_text("release", encoding="utf-8")
+            run.join(120)
+        return result[0], stderr.getvalue()
+
+    def test_the_pre_push_waits_for_a_live_owner_to_release(self) -> None:
+        code, stderr = self.pre_push_released(60, 0.5)
+        self.assertEqual(code, 0, stderr)
+        self.assertIn("held by holder-root at holder-revision", stderr)
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 
     def test_the_pre_push_waits_out_an_owner_past_its_expiry(self) -> None:
-        # A 1 s lease held 4 s past the waiter's arrival: the lock, not the
-        # recorded expiry, says the owner is alive, so the waiter keeps
+        # A 1 s lease still held 2 s after the run began waiting: the lock,
+        # not the recorded expiry, says the owner is alive, so the run keeps
         # waiting and then proceeds.
-        lock = package_target_lease_path("demo", identity._canonical(self.target))
-        hold_lease(self, lock, self.target, 1, 4)
-        started = time.monotonic()
-        stderr = io.StringIO()
-        with redirect_stderr(stderr):
-            code = self.pre_push()
-        self.assertEqual(code, 0, stderr.getvalue())
-        self.assertGreaterEqual(time.monotonic() - started, 4)
-        self.assertIn("held by holder-root at holder-revision", stderr.getvalue())
+        code, stderr = self.pre_push_released(1, 2)
+        self.assertEqual(code, 0, stderr)
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 
     def test_the_pre_push_wait_ends_at_the_wait_bound(self) -> None:

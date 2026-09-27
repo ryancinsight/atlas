@@ -2,19 +2,27 @@
 
 from __future__ import annotations
 
-import errno
 import hashlib
 import json
-import os
 import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Any
 
-
-class BuildIdentityError(RuntimeError):
-    """A source identity cannot be established or safely used."""
+from atlas_build_lock import (
+    BuildIdentityError,
+    EXCLUSIVE,
+    SHARED,
+    RECORD_OFFSET,
+    _MODES,
+    _open_lease,
+    _release,
+    _take,
+    _try_lock,
+    _unlock,
+    _write_record,
+)
+from atlas_build_queue import Ticket
 
 
 class LeaseHeldError(BuildIdentityError):
@@ -25,14 +33,6 @@ class LeaseHeldError(BuildIdentityError):
         self.holder = holder or {}
 
 
-# The OS lock covers byte 0 only, and the owner record starts at byte 1: a
-# Windows byte-range lock refuses reads of the locked range from every other
-# handle, so a record at byte 0 made every live owner read as unknown. Keeping
-# the lock on byte 0 keeps exclusion with holders that predate the offset.
-RECORD_OFFSET = 1
-EXCLUSIVE = "exclusive"
-SHARED = "shared"
-_MODES = (EXCLUSIVE, SHARED)
 _WAIT_FIRST_SECONDS = 0.1
 _WAIT_MAX_SECONDS = 5.0
 
@@ -67,268 +67,10 @@ def package_target_lease_scopes(
     ]
 
 
-if os.name == "nt":
-    import ctypes
-    import msvcrt
-    from ctypes import wintypes
-
-    class _Overlapped(ctypes.Structure):
-        _fields_ = [
-            ("Internal", ctypes.c_void_p),
-            ("InternalHigh", ctypes.c_void_p),
-            ("Offset", wintypes.DWORD),
-            ("OffsetHigh", wintypes.DWORD),
-            ("hEvent", wintypes.HANDLE),
-        ]
-
-    _KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    _KERNEL32.LockFileEx.argtypes = [
-        wintypes.HANDLE,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        ctypes.POINTER(_Overlapped),
-    ]
-    _KERNEL32.LockFileEx.restype = wintypes.BOOL
-    _KERNEL32.UnlockFileEx.argtypes = [
-        wintypes.HANDLE,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        ctypes.POINTER(_Overlapped),
-    ]
-    _KERNEL32.UnlockFileEx.restype = wintypes.BOOL
-    _LOCKFILE_FAIL_IMMEDIATELY = 0x1
-    _LOCKFILE_EXCLUSIVE_LOCK = 0x2
-    # The one failure that means another handle holds a conflicting lock.
-    _ERROR_LOCK_VIOLATION = 33
-
-
-def _try_lock(handle: Any, mode: str = EXCLUSIVE) -> bool:
-    """Lock byte 0 of `handle` in `mode` without blocking.
-
-    Returns False only when another holder conflicts; any other failure is
-    raised. Windows uses `LockFileEx`, which has a shared mode and whose
-    byte-range locks conflict with the `msvcrt.locking` exclusive locks of
-    earlier holders. POSIX uses `flock`, the call earlier holders used;
-    `fcntl` record locks would not see theirs.
-    """
-    if mode not in _MODES:
-        raise BuildIdentityError(f"unknown lease mode {mode}")
-    if os.name == "nt":
-        flags = _LOCKFILE_FAIL_IMMEDIATELY
-        if mode == EXCLUSIVE:
-            flags |= _LOCKFILE_EXCLUSIVE_LOCK
-        overlapped = _Overlapped()
-        if _KERNEL32.LockFileEx(
-            msvcrt.get_osfhandle(handle.fileno()), flags, 0, 1, 0, ctypes.byref(overlapped)
-        ):
-            return True
-        code = ctypes.get_last_error()
-        if code == _ERROR_LOCK_VIOLATION:
-            return False
-        raise ctypes.WinError(code)
-    import fcntl
-
-    operation = fcntl.LOCK_EX if mode == EXCLUSIVE else fcntl.LOCK_SH
-    try:
-        fcntl.flock(handle.fileno(), operation | fcntl.LOCK_NB)
-    except OSError as error:
-        if error.errno in (errno.EWOULDBLOCK, errno.EAGAIN):
-            return False
-        raise
-    return True
-
-
-def _unlock(handle: Any) -> None:
-    if os.name == "nt":
-        overlapped = _Overlapped()
-        if not _KERNEL32.UnlockFileEx(
-            msvcrt.get_osfhandle(handle.fileno()), 0, 1, 0, ctypes.byref(overlapped)
-        ):
-            raise ctypes.WinError(ctypes.get_last_error())
-        return
-    import fcntl
-
-    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-
-
-def _open_lease(path: Path):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o644)
-    try:
-        if os.fstat(descriptor).st_size == 0:
-            # A lock is never held on an empty file: an earlier checker that
-            # finds one empty writes byte 0 and crashes on the lock. The byte
-            # is written before any lock is taken, so the write is refused
-            # only when a holder wrote its own byte and locked it meanwhile.
-            try:
-                os.write(descriptor, b"\0")
-            except PermissionError:
-                pass
-        return os.fdopen(descriptor, "r+b")
-    except BaseException:
-        os.close(descriptor)
-        raise
-
-
-def _release(handle: Any, locked: bool) -> None:
-    try:
-        if locked:
-            _unlock(handle)
-    finally:
-        handle.close()
-
-
-def _take(path: Path, mode: str):
-    """Open `path` locked in `mode`, or None when a holder conflicts; never leaks."""
-    handle = _open_lease(path)
-    try:
-        if _try_lock(handle, mode):
-            return handle
-    except BaseException:
-        handle.close()
-        raise
-    handle.close()
-    return None
-
-
-def _write_record(handle: Any, record: dict[str, object]) -> None:
-    # Overwrite, then cut the tail: truncating first left an empty file that
-    # a concurrent opener read as never initialized.
-    handle.seek(0)
-    handle.write(b" " * RECORD_OFFSET)
-    handle.write(json.dumps(record, sort_keys=True, separators=(",", ":")).encode())
-    handle.truncate()
-    handle.flush()
-    os.fsync(handle.fileno())
-
-
-_TICKET_MODES = {EXCLUSIVE: "x", SHARED: "s"}
-_TICKET_ATTEMPTS = 100
-_UNLINK_ATTEMPTS = 20
-_RETRY_SECONDS = 0.005
-
-
-def _queue_dir(path: Path) -> Path:
-    return path.with_name(f"{path.stem}.queue")
-
-
-def _unlink(path: Path, attempts: int = 1) -> None:
-    # Windows refuses while a peer's liveness check has the file open; that
-    # check closes within milliseconds, and an unlocked ticket left behind is
-    # collected by the next scan.
-    for attempt in range(attempts):
-        try:
-            path.unlink()
-            return
-        except FileNotFoundError:
-            return
-        except PermissionError:
-            if attempt + 1 < attempts:
-                time.sleep(_RETRY_SECONDS)
-
-
-def _ticket_is_live(path: Path) -> bool:
-    """A ticket is live while its requester holds its lock; a dead one is removed."""
-    try:
-        handle = path.open("rb")
-    except (FileNotFoundError, PermissionError):
-        # Gone, or on Windows pending deletion by its requester's release.
-        return False
-    try:
-        # Shared, against the requester's exclusive lock: concurrent checks
-        # then never make a dead ticket look held to one another.
-        if not _try_lock(handle, SHARED):
-            return True
-        _unlock(handle)
-    finally:
-        handle.close()
-    _unlink(path)
-    return False
-
-
-class _Ticket:
-    """A request's place in a lease's arrival order.
-
-    The file is named by the system-wide monotonic clock at arrival and locked
-    by its requester until it releases the lease. A requester that loses the
-    race between creating and locking its file, to a peer's liveness check
-    or collection, retries under a new name with the same arrival; one whose
-    locked file a peer's collection removed anyway (POSIX unlinks open files)
-    re-creates it with the same arrival at its next attempt.
-    """
-
-    def __init__(self, path: Path, mode: str, owner: dict[str, object]) -> None:
-        self.directory = _queue_dir(path)
-        self.directory.mkdir(parents=True, exist_ok=True)
-        self.lease = path
-        self.mode = mode
-        self.record = {**owner, "mode": mode}
-        self.arrival = time.monotonic_ns()
-        self._create()
-
-    def _create(self) -> None:
-        for _ in range(_TICKET_ATTEMPTS):
-            name = f"{self.arrival:020d}-{_TICKET_MODES[self.mode]}-{os.getpid()}-{uuid.uuid4().hex}"
-            candidate = self.directory / f"{name}.ticket"
-            handle = candidate.open("x+b")
-            locked = False
-            try:
-                locked = _try_lock(handle)
-                if locked and _names(candidate, handle):
-                    _write_record(handle, self.record)
-                    self.path, self.handle = candidate, handle
-                    return
-            except BaseException:
-                _release(handle, locked)
-                _unlink(candidate)
-                raise
-            _release(handle, locked)
-            _unlink(candidate)
-            time.sleep(_RETRY_SECONDS)
-        raise BuildIdentityError(f"cannot queue for source identity lease {self.lease}")
-
-    def ahead(self, mode: str) -> list[dict[str, object]]:
-        """Live earlier requests this one may not pass, collecting dead tickets.
-
-        An exclusive request waits for every earlier request, a shared one for
-        earlier exclusive requests only: readers that arrived together share,
-        and a waiting writer holds back every later reader.
-        """
-        if not _names(self.path, self.handle):
-            _release(self.handle, locked=True)
-            self._create()
-        blockers = []
-        for other in sorted(self.directory.glob("*.ticket")):
-            if other == self.path or not _ticket_is_live(other):
-                continue
-            if other.name < self.path.name and (
-                mode == EXCLUSIVE or f"-{_TICKET_MODES[EXCLUSIVE]}-" in other.name
-            ):
-                blockers.append(peek_owner(other) or {})
-        return blockers
-
-    def close(self) -> None:
-        try:
-            _release(self.handle, locked=True)
-        finally:
-            _unlink(self.path, _UNLINK_ATTEMPTS)
-
-
-def _names(path: Path, handle: Any) -> bool:
-    """Whether `path` still names the file `handle` has open."""
-    try:
-        return os.path.samestat(os.fstat(handle.fileno()), os.stat(path))
-    except FileNotFoundError:
-        return False
-
-
 class OwnerLease:
     """A lease on one build scope, held shared (reading) or exclusive (writing).
 
-    Requests are served in arrival order through `_Ticket`; the OS lock on
+    Requests are served in arrival order through `Ticket`; the OS lock on
     byte 0 of the lease file stays the authority on who holds it. Only an
     exclusive holder writes the owner record.
     """
@@ -345,14 +87,14 @@ class OwnerLease:
         self.seconds = seconds
         self.mode = mode
         self.handle = None
-        self.ticket: _Ticket | None = None
+        self.ticket: Ticket | None = None
         self.held = False
 
     def attempt(self) -> OwnerLease:
         """Take the lease if this request's turn has come and no holder conflicts."""
         if self.ticket is None:
-            self.ticket = _Ticket(self.path, self.mode, self.owner)
-        ahead = self.ticket.ahead(self.mode)
+            self.ticket = Ticket(self.path, self.mode, self.owner)
+        ahead = [peek_owner(path) or {} for path in self.ticket.ahead(self.mode)]
         handle = _take(self.path, self.mode)
         if handle is None:
             # Earlier tickets name live holders of either mode; the record

@@ -265,6 +265,32 @@ def _artifact_owner(filename: str, owners: dict[str, frozenset[str]], requested:
     return matches[0] if len(matches) == 1 else None
 
 
+def _stable_package_ids(
+    packages: dict[str, dict], workspace_root: object
+) -> dict[str, str]:
+    """Path-package IDs relative to the workspace root.
+
+    Cargo names a path package by its absolute manifest directory
+    (`path+file:///<dir>#<version>`), so the same workspace exported to two
+    directories yields two snapshots of one dependency graph. Packages
+    inside the workspace are renamed to their workspace-relative directory;
+    anything else keeps cargo's ID.
+    """
+    if not isinstance(workspace_root, str) or not workspace_root:
+        return {}
+    base = _canonical(Path(workspace_root))
+    stable: dict[str, str] = {}
+    for package_id, value in packages.items():
+        if value.get("source") is not None:
+            continue
+        directory = _canonical(Path(str(value["manifest_path"]))).parent
+        if not _is_within(directory, base):
+            continue
+        relative = directory.relative_to(base).as_posix()
+        stable[package_id] = f"workspace:{relative}#{value['name']}@{value['version']}"
+    return stable
+
+
 def dependency_snapshot(
     manifest: Path,
     package: str,
@@ -298,6 +324,7 @@ def dependency_snapshot(
     ]
     if len(roots) != 1 or roots[0] not in nodes:
         raise BuildIdentityError(f"Cargo metadata has no unique root package {package}")
+    stable = _stable_package_ids(packages, metadata.get("workspace_root"))
     reachable: set[str] = set()
     edges: list[dict[str, object]] = []
     pending = [roots[0]]
@@ -311,8 +338,8 @@ def dependency_snapshot(
             dependency_id = str(dependency["pkg"])
             edges.append(
                 {
-                    "from": package_id,
-                    "to": dependency_id,
+                    "from": stable.get(package_id, package_id),
+                    "to": stable.get(dependency_id, dependency_id),
                     "dep_kinds": sorted(
                         dependency.get("dep_kinds", []),
                         key=lambda value: json.dumps(value, sort_keys=True),
@@ -332,7 +359,7 @@ def dependency_snapshot(
         if source is None:
             identity_value = source_identity(manifest_path.parent)
             record = {
-                "id": package_id,
+                "id": stable.get(package_id, package_id),
                 "name": str(value["name"]),
                 "version": str(value["version"]),
                 "features": sorted(
@@ -358,15 +385,15 @@ def dependency_snapshot(
         if record["kind"] != "registry":
             name = str(record["name"])
             previous = clean_sources.get(name)
-            if previous is not None and previous != package_id:
+            if previous is not None and previous != stable.get(package_id, package_id):
                 raise BuildIdentityError(
                     f"dependency package name {name} has multiple non-registry sources"
                 )
-            clean_sources[name] = package_id
+            clean_sources[name] = stable.get(package_id, package_id)
             clean_packages.add(name)
         records.append(record)
     snapshot = {
-        "root": roots[0],
+        "root": stable.get(roots[0], roots[0]),
         "packages": records,
         "edges": sorted(edges, key=lambda value: json.dumps(value, sort_keys=True)),
         "clean_packages": sorted(clean_packages),
