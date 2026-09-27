@@ -2233,8 +2233,6 @@ def ratchet_delta(
     return regressions, host, tightenings
 
 
-REF_DRIFT_CLASS = "unresolved_references"
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", nargs="?", default="report",

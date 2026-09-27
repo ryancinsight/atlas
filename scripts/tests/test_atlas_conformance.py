@@ -2157,7 +2157,7 @@ class CitationResolutionTests(unittest.TestCase):
         "GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z",
         "GIT_COMMITTER_DATE": "2026-01-01T00:00:00Z",
     }
-    CLS = conformance.REF_DRIFT_CLASS
+    CLS = "unresolved_references"
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="atlas-ref-drift-")
