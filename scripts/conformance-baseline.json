@@ -950,11 +950,11 @@
     "workspace_lints_missing": 0
   },
   "leto": {
-    "allow_sites": 12,
+    "allow_sites": 11,
     "balance_domain_edges": 0,
     "bare_git_dependency": 0,
     "board_checklist_files": 1,
-    "board_items_outside_status_set": 12,
+    "board_items_outside_status_set": 11,
     "board_items_without_anchor": 6,
     "board_items_without_priority": 11,
     "cache_retention_policy_missing": 0,
@@ -976,7 +976,7 @@
     "missing_deny_docs": 3,
     "nextest_budget_missing": 0,
     "orphan_modules": 0,
-    "oversized_files": 23,
+    "oversized_files": 21,
     "oversized_tracked_images": 0,
     "pm_lines_over_budget": 0,
     "print_dbg": 0,
