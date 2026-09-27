@@ -7,7 +7,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Iterable, Sequence
 
 from atlas_build_lease import BuildIdentityError
 
@@ -95,12 +95,29 @@ def artifact_identity(
 
     if not selected:
         raise BuildIdentityError(f"no artifact found for {package} in {target_dir / profile}")
-    files = {}
-    for path in sorted(selected):
+    relative = []
+    for path in selected:
         try:
-            relative = path.relative_to(target_dir).as_posix()
+            relative.append(path.relative_to(target_dir).as_posix())
         except ValueError as error:
             raise BuildIdentityError(f"artifact is outside the shared target: {path}") from error
+    return recorded_artifact_identity(target_dir, relative)
+
+
+def recorded_artifact_identity(target_dir: Path, relative_paths: Iterable[str]) -> dict[str, object]:
+    """Hash exactly the named artifacts, without discovering others.
+
+    A shared reader compares a dependency against the files its record
+    names: a variant another reader's build writes beside them is not part
+    of that comparison, so it cannot tear it. A missing or unreadable file
+    raises.
+    """
+    target_dir = _canonical(target_dir)
+    files = {}
+    for relative in sorted(set(relative_paths)):
+        path = target_dir / relative
+        if not _is_within(_canonical(path), target_dir):
+            raise BuildIdentityError(f"artifact is outside the shared target: {path}")
         files[relative] = _file_digest(path)
     digest = hashlib.sha256(
         json.dumps(files, sort_keys=True, separators=(",", ":")).encode()

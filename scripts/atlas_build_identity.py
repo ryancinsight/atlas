@@ -10,15 +10,19 @@ import uuid
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
+import time
 from typing import Sequence
 
 from atlas_build_artifacts import (
     artifact_identity,
     dependency_snapshot,
     discover_artifacts,
+    recorded_artifact_identity,
     validate_artifact_paths,
 )
 from atlas_build_lease import (
+    EXCLUSIVE,
+    SHARED,
     BuildIdentityError,
     LeaseProbe,
     OwnerLease,
@@ -215,6 +219,28 @@ def _sibling_matches(spec: BuildSpec) -> bool:
     return False
 
 
+def _recorded_artifact(
+    existing: dict[str, object], target_dir: Path, artifact_paths: Sequence[Path]
+) -> dict[str, object] | None:
+    """The record's artifacts as they are now, or None when one cannot be read.
+
+    Only the files the record names are hashed, so a variant another build
+    writes beside them does not change the result.
+    """
+    recorded = existing.get("artifact")
+    if not isinstance(recorded, dict) or not isinstance(recorded.get("files"), dict):
+        return None
+    names = recorded["files"].keys()
+    if artifact_paths and set(names) != {
+        path.relative_to(target_dir).as_posix() for path in artifact_paths
+    }:
+        return None
+    try:
+        return recorded_artifact_identity(target_dir, names)
+    except IdentityError:
+        return None
+
+
 def lease_path(spec: BuildSpec) -> Path:
     return package_target_lease_path(spec.package, Path(spec.target_dir))
 
@@ -352,24 +378,35 @@ def run_build(
     environment = dict(os.environ)
     environment["CARGO_TARGET_DIR"] = target_dir.as_posix()
     cleaned = False
-    with ExitStack() as leases:
-        for lock, owner in package_target_lease_scopes(
-            spec.package,
-            target_dir,
-            spec.source.root,
-            spec.source.revision,
-            tuple(str(value) for value in dependencies["clean_packages"]),
-        ):
-            leases.push(
-                acquire_waiting(OwnerLease(lock, owner, lease_seconds), lease_wait_seconds)
-            )
+    clean_packages = tuple(str(value) for value in dependencies["clean_packages"])
+    scopes = package_target_lease_scopes(
+        spec.package, target_dir, spec.source.root, spec.source.revision, clean_packages
+    )
+    # One bound for the whole run, across every lease and both phases.
+    deadline_ns = time.monotonic_ns() + int(lease_wait_seconds * 1_000_000_000)
+
+    def acquire(exclusive: bool) -> ExitStack:
+        # The command writes its own package; dependencies are only read
+        # unless the record shows the run must clean or rebuild them.
+        stack = ExitStack()
+        try:
+            for lock, owner in scopes:
+                mode = EXCLUSIVE if exclusive or owner["package"] == spec.package else SHARED
+                stack.push(
+                    acquire_waiting(
+                        OwnerLease(lock, owner, lease_seconds, mode),
+                        lease_wait_seconds,
+                        deadline_ns,
+                    )
+                )
+        except BaseException:
+            stack.close()
+            raise
+        return stack
+
+    def locked_record() -> tuple[dict[str, object] | None, bool]:
         locked_dependencies = _dependency_data(
-            manifest,
-            package,
-            target_dir,
-            execution_root,
-            ignore_paths,
-            bool(artifact_paths),
+            manifest, package, target_dir, execution_root, ignore_paths, bool(artifact_paths)
         )
         locked_spec = build_spec(
             root,
@@ -388,40 +425,38 @@ def run_build(
                 "source or dependency inputs changed while acquiring the package leases"
             )
         existing = read_record(record)
-        stale = existing is None and not _sibling_matches(spec)
-        if existing is not None:
-            try:
-                current_artifact = artifact_identity(
-                    root,
-                    target_dir,
-                    package,
-                    profile,
-                    artifact_paths,
-                    target,
-                    manifest,
-                    execution_root,
-                    tuple(str(value) for value in dependencies["clean_packages"]),
-                )
-            except IdentityError:
-                stale = True
-            else:
-                stale = (
-                    existing.get("source") != spec.source.as_dict()
-                    or existing.get("build") != spec.as_dict()
-                    or existing.get("dependencies") != dependencies
-                    or existing.get("artifact") != current_artifact
-                )
+        matched = existing is not None and (
+            existing.get("source") == spec.source.as_dict()
+            and existing.get("build") == spec.as_dict()
+            and existing.get("dependencies") == dependencies
+            and existing.get("artifact") == _recorded_artifact(existing, target_dir, artifact_paths)
+        )
+        return existing, matched
+
+    with ExitStack() as leases:
+        shared = leases.enter_context(acquire(exclusive=False))
+        existing, matched = locked_record()
+        if not matched:
+            # Anything but an exact match may write dependency artifacts, so
+            # it runs exclusive. Releasing before asking again, rather than
+            # upgrading in place, keeps two upgraders from each holding the
+            # shared lease the other waits for; the record is read again
+            # because a holder may have rebuilt it meanwhile.
+            shared.close()
+            leases.enter_context(acquire(exclusive=True))
+            existing, matched = locked_record()
+        stale = not matched and (existing is not None or not _sibling_matches(spec))
         if stale:
             if clean_command is not None:
                 _run_checked(clean_command, execution_root, environment)
             else:
-                for clean_package in dependencies["clean_packages"]:
+                for clean_package in clean_packages:
                     _run_checked(
                         [
                             *_cargo_command(),
                             "clean",
                             "-p",
-                            str(clean_package),
+                            clean_package,
                             "--manifest-path",
                             str(manifest),
                         ],
@@ -434,26 +469,36 @@ def run_build(
         if final_source.as_dict() != spec.source.as_dict():
             raise IdentityError("source tree changed while the build was running")
         final_dependencies = _dependency_data(
-            manifest,
-            package,
-            target_dir,
-            execution_root,
-            ignore_paths,
-            bool(artifact_paths),
+            manifest, package, target_dir, execution_root, ignore_paths, bool(artifact_paths)
         )
         if final_dependencies != dependencies:
             raise IdentityError("dependency graph changed while the build was running")
-        artifact = artifact_identity(
-            root,
-            target_dir,
-            package,
-            profile,
-            artifact_paths,
-            target,
-            manifest,
-            execution_root,
-            tuple(str(value) for value in dependencies["clean_packages"]),
-        )
+        if matched and not artifact_paths:
+            # Dependencies were read under shared leases while other readers
+            # may write new variants beside them: record the files the old
+            # record named, and discover only this package's own.
+            own = discover_artifacts(
+                target_dir, package, profile, target, manifest, execution_root
+            )
+            artifact = recorded_artifact_identity(
+                target_dir,
+                [
+                    *existing["artifact"]["files"],
+                    *(path.relative_to(target_dir).as_posix() for path in own),
+                ],
+            )
+        else:
+            artifact = artifact_identity(
+                root,
+                target_dir,
+                package,
+                profile,
+                artifact_paths,
+                target,
+                manifest,
+                execution_root,
+                clean_packages,
+            )
         paths = tuple(
             target_dir / relative for relative in artifact["files"]
         )
@@ -526,22 +571,11 @@ def check_record(
         existing = read_record(record_file)
         if existing is None:
             return 2, {"status": "missing", "record": record_file.as_posix()}
-        current = artifact_identity(
-            root,
-            target_dir,
-            package,
-            profile,
-            artifact_paths,
-            target,
-            manifest,
-            execution_root,
-            tuple(str(value) for value in dependencies["clean_packages"]),
-        )
         matches = (
             existing.get("source") == spec.source.as_dict()
             and existing.get("build") == spec.as_dict()
             and existing.get("dependencies") == dependencies
-            and existing.get("artifact") == current
+            and existing.get("artifact") == _recorded_artifact(existing, target_dir, artifact_paths)
         )
         return (0 if matches else 2), {
             "status": "match" if matches else "stale",

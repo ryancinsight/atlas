@@ -435,7 +435,9 @@ def peek_owner(path: Path) -> dict[str, object] | None:
     return None
 
 
-def acquire_waiting(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
+def acquire_waiting(
+    lease: OwnerLease, wait_seconds: float, deadline_ns: int | None = None
+) -> OwnerLease:
     """Enter `lease`, waiting while a live owner holds it or an earlier request is queued.
 
     The request keeps one ticket for the whole wait, so a holder that releases
@@ -444,17 +446,20 @@ def acquire_waiting(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
     lock proves the owner is alive, so its recorded `expires_ns` only reports.
     Callers acquire several leases in sorted scope order: a request waits only
     on holders of its own lease, which wait only on later leases, or on
-    earlier requests for the same lease, so no wait forms a cycle.
+    earlier requests for the same lease, so no wait forms a cycle. A caller
+    taking several leases passes one `deadline_ns` (monotonic) to bound them
+    together; `wait_seconds` then only names the bound in the refusal.
     """
+    if deadline_ns is None:
+        deadline_ns = time.monotonic_ns() + int(wait_seconds * 1_000_000_000)
     try:
-        return _wait_for(lease, wait_seconds)
+        return _wait_for(lease, wait_seconds, deadline_ns)
     except BaseException:
         lease.dequeue()
         raise
 
 
-def _wait_for(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
-    deadline_ns = time.monotonic_ns() + int(wait_seconds * 1_000_000_000)
+def _wait_for(lease: OwnerLease, wait_seconds: float, deadline_ns: int) -> OwnerLease:
     delay = _WAIT_FIRST_SECONDS
     announced = None
     while True:
