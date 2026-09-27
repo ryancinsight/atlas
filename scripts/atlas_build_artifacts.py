@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import subprocess
+from enum import Enum
 from pathlib import Path
 from typing import Callable, Sequence
 
@@ -27,6 +28,24 @@ ARTIFACT_SUFFIXES = frozenset(
         ".wasm",
     }
 )
+
+
+
+class Lockfile(Enum):
+    """Whether Cargo may rewrite `Cargo.lock` while resolving metadata.
+
+    The metadata graph must be the one the identified command builds. A command
+    run under the stack's `[patch]` overlay rewrites the lock by construction,
+    so its metadata cannot be read `--locked`: the committed lock names the git
+    sources the overlay replaces, and Cargo refuses the rewrite. Outside the
+    overlay the committed lock is the graph, and `--locked` asserts it.
+    """
+
+    LOCKED = "locked"
+    WRITABLE = "writable"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 def _canonical(path: Path, *, strict: bool = False) -> Path:
@@ -75,6 +94,7 @@ def artifact_identity(
     manifest: Path | None = None,
     metadata_cwd: Path | None = None,
     related_packages: Sequence[str] = (),
+    lockfile: Lockfile = Lockfile.LOCKED,
 ) -> dict[str, object]:
     _canonical(root, strict=True)
     target_dir = _canonical(target_dir)
@@ -90,6 +110,7 @@ def artifact_identity(
                 manifest,
                 metadata_cwd,
                 related_packages,
+                lockfile,
             )
         )
 
@@ -167,6 +188,7 @@ def _cargo_metadata(
     metadata_cwd: Path | None = None,
     *,
     no_deps: bool = True,
+    lockfile: Lockfile = Lockfile.LOCKED,
 ) -> dict[str, object]:
     cargo = (os.environ["CARGO"],) if os.environ.get("CARGO") else ("cargo",)
     arguments = [
@@ -174,10 +196,11 @@ def _cargo_metadata(
         "metadata",
         "--format-version",
         "1",
-        "--locked",
         "--manifest-path",
         str(manifest),
     ]
+    if lockfile is Lockfile.LOCKED:
+        arguments.append("--locked")
     if no_deps:
         arguments.append("--no-deps")
     try:
@@ -207,9 +230,11 @@ def _cargo_metadata(
 
 
 def _workspace_artifact_owners(
-    manifest: Path, metadata_cwd: Path | None = None
+    manifest: Path,
+    metadata_cwd: Path | None = None,
+    lockfile: Lockfile = Lockfile.LOCKED,
 ) -> dict[str, frozenset[str]]:
-    metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False)
+    metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False, lockfile=lockfile)
     try:
         owners: dict[str, frozenset[str]] = {}
         for package in metadata["packages"]:
@@ -250,8 +275,9 @@ def dependency_snapshot(
     package: str,
     metadata_cwd: Path | None,
     source_identity: Callable[[Path], object],
+    lockfile: Lockfile = Lockfile.LOCKED,
 ) -> dict[str, object]:
-    metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False)
+    metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False, lockfile=lockfile)
     try:
         packages = {
             str(value["id"]): value
@@ -365,10 +391,11 @@ def discover_artifacts(
     manifest: Path | None = None,
     metadata_cwd: Path | None = None,
     related_packages: Sequence[str] = (),
+    lockfile: Lockfile = Lockfile.LOCKED,
 ) -> tuple[Path, ...]:
     target_dir = _canonical(target_dir)
     owners = (
-        _workspace_artifact_owners(manifest, metadata_cwd)
+        _workspace_artifact_owners(manifest, metadata_cwd, lockfile)
         if manifest is not None
         else {package: frozenset({_normalize_stem(package)})}
     )

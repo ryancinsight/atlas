@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+from atlas_build_artifacts import Lockfile
 from atlas_build_identity import DEFAULT_LEASE_SECONDS, IdentityError, check_record, run_build
 
 
@@ -28,6 +29,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         command.add_argument("--command-key", help="stable key for the build dimensions")
         command.add_argument("--ignore-path", type=Path, action="append", default=[])
         command.add_argument("--artifact", type=Path, action="append", default=[])
+        command.add_argument(
+            "--lockfile",
+            type=Lockfile,
+            choices=tuple(Lockfile),
+            default=Lockfile.LOCKED,
+            help="'writable' when the command resolves under the stack overlay",
+        )
         command.add_argument("command", nargs=argparse.REMAINDER)
         if mode == "run":
             command.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_SECONDS)
@@ -56,6 +64,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.command_cwd,
                 args.command_key,
                 args.ignore_path,
+                args.lockfile,
             )
             print(json.dumps(value, sort_keys=True))
             return code
@@ -74,6 +83,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             command_cwd=args.command_cwd,
             command_key=args.command_key,
             ignore_paths=args.ignore_path,
+            lockfile=args.lockfile,
         )
         print(
             json.dumps(

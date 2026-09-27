@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-24
 - Revision: 2026-09-25 — Accepted the locked dependency-content, closure-lease, and artifact-package design.
+- Revision: 2026-09-27 — Metadata resolves under the gated command's lock policy (`--lockfile writable` in place under the overlay, `locked` in a lane), and a dependency's source identity receives only the ignored paths inside its own repository: every main-tree push of an overlaid member was refused by a `--locked` metadata read, then by the root's ignored lock handed to sibling trees.
 - Revision: 2026-09-27 — The waiter no longer ends at the owner's recorded expiry: a live helios hook build outlived its lease and a waiting push was refused although the OS lock proved the owner alive.
 - Revision: 2026-09-26 — The owner record moved past the locked byte, the pre-push entry point waits for a live owner up to its expiry, and an unlocked lease is reclaimed whatever its content; Windows pushes were refused against owners that read as unknown and against 35-hour-old probe leases with no expiry.
 - Class: `[arch]`
@@ -42,7 +43,8 @@ The module records artifact hashes after the command. It does not treat Cargo fi
 - A source path or artifact outside the shared target is rejected before any clean.
 - A full Cargo metadata graph is required when artifacts are discovered implicitly; an unresolved or name-ambiguous dependency closure fails closed.
 - A build-affecting environment change produces a different record scope.
-- A lockfile rewrite caused by the development overlay is excluded from the source digest only after the pushed lock has been checked and the working copy is restored.
+- A lockfile rewrite caused by the development overlay is excluded from the source digest only after the pushed lock has been checked and the working copy is restored. A command run in place under the overlay rewrites the lock by construction, so its metadata is read with `--lockfile writable`; outside the overlay the committed lock is the graph and the read stays `--locked`.
+- Ignored paths belong to the identified root: a path dependency in a sibling repository, which the overlay puts in the closure, receives only the ignored paths inside its own repository.
 - A live owner conflict returns a diagnostic naming the owner and revision and performs no destructive action.
 - A failed build leaves the previous record unchanged and releases the lease.
 - A missing or malformed record fails closed rather than accepting an unknown artifact.

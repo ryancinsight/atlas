@@ -114,13 +114,18 @@ def _diff_bytes(top: Path, ignored: Sequence[Path]) -> bytes:
     return _git(top, *arguments)
 
 
+def source_top(path: Path) -> Path:
+    """The repository whose working tree holds `path`."""
+    return Path(os.fsdecode(_git(path, "rev-parse", "--show-toplevel").strip())).resolve()
+
+
 def source_identity(
     root: Path,
     excluded_roots: Sequence[Path] = (),
     ignored_paths: Sequence[Path] = (),
 ) -> SourceIdentity:
     root = _canonical(root, strict=True)
-    top = Path(os.fsdecode(_git(root, "rev-parse", "--show-toplevel").strip())).resolve()
+    top = source_top(root)
     revision = os.fsdecode(_git(top, "rev-parse", "HEAD").strip())
     excluded = tuple(_canonical(path) for path in excluded_roots)
     ignored = tuple(_canonical(path) for path in ignored_paths)

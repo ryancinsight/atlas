@@ -1495,16 +1495,23 @@ class LaneGateTestCase(unittest.TestCase):
         """
         stack, fixture, lane = self._lane(overlay=True)
         log = stack / "identity-commands.log"
+        lockfile_log = stack / "identity-lockfile.log"
         _write(
             stack / "scripts" / "atlas-build-identity.py",
             "import pathlib, sys\n"
             f"log = pathlib.Path({str(log)!r})\n"
+            f"lockfile_log = pathlib.Path({str(lockfile_log)!r})\n"
             "command = sys.argv[sys.argv.index('--') + 1:]\n"
             "with log.open('a', encoding='utf-8') as stream:\n"
-            "    stream.write(' '.join(command) + '\\n')\n",
+            "    stream.write(' '.join(command) + '\\n')\n"
+            "with lockfile_log.open('a', encoding='utf-8') as stream:\n"
+            "    stream.write(sys.argv[sys.argv.index('--lockfile') + 1] + '\\n')\n",
         )
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
+        # A lane resolves the committed lock outside the overlay, so its
+        # identity metadata stays `--locked`.
+        self.assertEqual(set(lockfile_log.read_text(encoding="utf-8").split()), {"locked"})
         commands = [line.split() for line in log.read_text(encoding="utf-8").splitlines()]
         self.assertTrue(any("clippy" in command for command in commands), commands)
         for command in commands:
@@ -1973,6 +1980,9 @@ class SourceIdentityGateTestCase(unittest.TestCase):
             self.assertEqual(
                 pathlib.Path(first[first.index("--ignore-path") + 1]).name, "Cargo.lock"
             )
+            # In place the command resolves under the overlay, which rewrites
+            # the lock; a `--locked` metadata read refused every main-tree push.
+            self.assertEqual(first[first.index("--lockfile") + 1], "writable")
             self.assertEqual(
                 pathlib.Path(first[first.index("--target-dir") + 1]).resolve(),
                 (stack / "target").resolve(),

@@ -601,6 +601,63 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertNotEqual(first["digest"], second["digest"])
         self.assertEqual(first["clean_packages"], ["demo", "dep"])
 
+    def test_ignored_root_paths_do_not_reach_sibling_repositories(self) -> None:
+        """Under the stack overlay a path dependency lives in a sibling repository.
+
+        The root's ignored lock is foreign there, and handing it to the
+        sibling's source identity refused every main-tree push; in the root's
+        own repository it still hides the overlay's lock rewrite.
+        """
+        init_repo(self.root, "fn main() {}\n")
+        sibling = self.base / "sibling"
+        init_repo(sibling, "pub fn f() {}\n")
+        metadata = {
+            "packages": [
+                {
+                    "id": "root 0.1.0",
+                    "name": "demo",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str((self.root / "Cargo.toml").resolve()),
+                },
+                {
+                    "id": "path+sibling 0.1.0",
+                    "name": "sibling",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str((sibling / "Cargo.toml").resolve()),
+                },
+            ],
+            "workspace_members": ["root 0.1.0"],
+            "resolve": {
+                "nodes": [
+                    {"id": "root 0.1.0", "deps": [{"pkg": "path+sibling 0.1.0", "dep_kinds": []}]},
+                    {"id": "path+sibling 0.1.0", "deps": []},
+                ]
+            },
+        }
+
+        def snapshot() -> dict[str, object]:
+            return identity._dependency_data(
+                self.root / "Cargo.toml",
+                "demo",
+                self.target,
+                self.root,
+                (self.root / "Cargo.lock",),
+                False,
+                artifacts.Lockfile.WRITABLE,
+            )
+
+        with patch.object(artifacts, "_cargo_metadata", return_value=metadata):
+            before = snapshot()
+            (self.root / "Cargo.lock").write_text("rewritten by the overlay\n", encoding="utf-8")
+            rewritten = snapshot()
+            (sibling / "src/lib.rs").write_text("pub fn g() {}\n", encoding="utf-8")
+            sibling_changed = snapshot()
+        self.assertEqual(before["clean_packages"], ["demo", "sibling"])
+        self.assertEqual(before, rewritten)
+        self.assertNotEqual(rewritten["digest"], sibling_changed["digest"])
+
     def test_registry_package_content_changes_change_the_dependency_snapshot(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         registry_root = self.base / "registry"
@@ -721,6 +778,69 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(second.status, "reused")
         clean_commands = [command for command in commands if list(command[1:3]) == ["clean", "-p"]]
         self.assertEqual([command[3] for command in clean_commands], ["demo", "dep"])
+
+    def test_metadata_is_locked_only_when_the_lockfile_is_locked(self) -> None:
+        """Under the stack overlay the command rewrites the lock by construction,
+        so a `--locked` metadata read refused every main-tree push."""
+        calls: list[list[str]] = []
+
+        def run(arguments: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+            calls.append(list(arguments))
+            return subprocess.CompletedProcess(arguments, 0, stdout="{}", stderr="")
+
+        manifest = self.root / "Cargo.toml"
+        with patch.object(artifacts.subprocess, "run", side_effect=run):
+            artifacts._cargo_metadata(manifest, lockfile=artifacts.Lockfile.LOCKED)
+            artifacts._cargo_metadata(manifest, lockfile=artifacts.Lockfile.WRITABLE)
+        self.assertIn("--locked", calls[0])
+        self.assertNotIn("--locked", calls[1])
+        self.assertEqual(
+            [value for value in calls[0] if value != "--locked"], calls[1]
+        )
+
+    def test_the_lockfile_reaches_every_metadata_read(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        snapshot = {
+            "root": "demo",
+            "packages": [],
+            "edges": [],
+            "clean_packages": ["demo"],
+            "digest": "dependency-digest",
+        }
+        artifact_value = {"files": {"debug/deps/libdemo-123.rlib": "digest"}, "digest": "artifact"}
+        with (
+            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.object(identity, "dependency_snapshot", return_value=snapshot) as dependencies,
+            patch.object(identity, "artifact_identity", return_value=artifact_value) as artifacts_read,
+            patch.object(identity, "_run_checked"),
+        ):
+            for _ in range(2):
+                identity.run_build(
+                    self.root,
+                    self.root / "Cargo.toml",
+                    "demo",
+                    self.target,
+                    [sys.executable, "-c", "pass"],
+                    lockfile=artifacts.Lockfile.WRITABLE,
+                )
+            identity.check_record(
+                self.root,
+                "demo",
+                self.target,
+                manifest=self.root / "Cargo.toml",
+                command=[sys.executable, "-c", "pass"],
+                lockfile=artifacts.Lockfile.WRITABLE,
+            )
+        self.assertEqual(dependencies.call_count, 7)
+        self.assertEqual(
+            {call.args[4] for call in dependencies.call_args_list},
+            {artifacts.Lockfile.WRITABLE},
+        )
+        self.assertEqual(artifacts_read.call_count, 4)
+        self.assertEqual(
+            {call.kwargs["lockfile"] for call in artifacts_read.call_args_list},
+            {artifacts.Lockfile.WRITABLE},
+        )
 
     def test_older_record_versions_are_stale(self) -> None:
         record = self.base / "old-record.json"
@@ -906,7 +1026,14 @@ class CommandLineTestCase(unittest.TestCase):
         self.assertEqual(kwargs["command_key"], "atlas-pre-push:demo")
         self.assertEqual(kwargs["command_cwd"], self.root)
         self.assertEqual(kwargs["ignore_paths"], [self.root / "Cargo.lock"])
+        self.assertEqual(kwargs["lockfile"], artifacts.Lockfile.LOCKED)
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
+
+    def test_the_pre_push_lockfile_choice_reaches_the_build(self) -> None:
+        with patch.object(self.cli, "run_build", wraps=identity.run_build) as run_build:
+            code = self.pre_push("--lockfile", "writable")
+        self.assertEqual(code, 0)
+        self.assertEqual(run_build.call_args.kwargs["lockfile"], artifacts.Lockfile.WRITABLE)
 
     def test_the_pre_push_waits_for_a_live_owner_to_release(self) -> None:
         lock = package_target_lease_path("demo", identity._canonical(self.target))

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Sequence
 
 from atlas_build_artifacts import (
+    Lockfile,
     artifact_identity,
     dependency_snapshot,
     discover_artifacts,
@@ -31,6 +32,7 @@ from atlas_build_source import (
     SourceIdentity,
     environment_digest,
     source_identity,
+    source_top,
     toolchain_identity,
 )
 
@@ -147,6 +149,7 @@ def _dependency_data(
     metadata_cwd: Path,
     ignore_paths: Sequence[Path],
     has_explicit_artifacts: bool,
+    lockfile: Lockfile,
 ) -> dict[str, object]:
     if has_explicit_artifacts:
         snapshot: dict[str, object] = {
@@ -158,11 +161,19 @@ def _dependency_data(
     else:
         source_cache: dict[Path, dict[str, object]] = {}
 
+        ignored = tuple(_canonical(path) for path in ignore_paths)
+
         def identify_source(path: Path) -> dict[str, object]:
+            # Ignored paths name the identified root's files. Under the stack
+            # overlay the closure also holds sibling repositories' trees, where
+            # the root's paths do not exist and would be rejected as foreign.
             canonical_path = _canonical(path)
             if canonical_path not in source_cache:
+                top = source_top(canonical_path)
                 source_cache[canonical_path] = source_identity(
-                    canonical_path, (target_dir,), ignore_paths
+                    canonical_path,
+                    (target_dir,),
+                    tuple(value for value in ignored if value.is_relative_to(top)),
                 ).as_dict()
             return source_cache[canonical_path]
 
@@ -171,6 +182,7 @@ def _dependency_data(
             package,
             metadata_cwd,
             identify_source,
+            lockfile,
         )
     snapshot = dict(snapshot)
     snapshot.pop("digest", None)
@@ -320,6 +332,7 @@ def run_build(
     command_key: str | None = None,
     ignore_paths: Sequence[Path] = (),
     lease_wait_seconds: float = 0,
+    lockfile: Lockfile = Lockfile.LOCKED,
 ) -> BuildResult:
     if not command:
         raise IdentityError("a build command is required")
@@ -335,6 +348,7 @@ def run_build(
         execution_root,
         ignore_paths,
         bool(artifact_paths),
+        lockfile,
     )
     spec = build_spec(
         root,
@@ -370,6 +384,7 @@ def run_build(
             execution_root,
             ignore_paths,
             bool(artifact_paths),
+            lockfile,
         )
         locked_spec = build_spec(
             root,
@@ -401,6 +416,7 @@ def run_build(
                     manifest,
                     execution_root,
                     tuple(str(value) for value in dependencies["clean_packages"]),
+                    lockfile=lockfile,
                 )
             except IdentityError:
                 stale = True
@@ -440,6 +456,7 @@ def run_build(
             execution_root,
             ignore_paths,
             bool(artifact_paths),
+            lockfile,
         )
         if final_dependencies != dependencies:
             raise IdentityError("dependency graph changed while the build was running")
@@ -453,6 +470,7 @@ def run_build(
             manifest,
             execution_root,
             tuple(str(value) for value in dependencies["clean_packages"]),
+            lockfile=lockfile,
         )
         paths = tuple(
             target_dir / relative for relative in artifact["files"]
@@ -483,6 +501,7 @@ def check_record(
     command_cwd: Path | None = None,
     command_key: str | None = None,
     ignore_paths: Sequence[Path] = (),
+    lockfile: Lockfile = Lockfile.LOCKED,
 ) -> tuple[int, dict[str, object]]:
     target_dir = _canonical(target_dir)
     artifact_paths = validate_artifact_paths(target_dir, artifact_paths)
@@ -496,6 +515,7 @@ def check_record(
         execution_root,
         ignore_paths,
         bool(artifact_paths),
+        lockfile,
     )
     spec = build_spec(
         root,
@@ -536,6 +556,7 @@ def check_record(
             manifest,
             execution_root,
             tuple(str(value) for value in dependencies["clean_packages"]),
+            lockfile=lockfile,
         )
         matches = (
             existing.get("source") == spec.source.as_dict()
