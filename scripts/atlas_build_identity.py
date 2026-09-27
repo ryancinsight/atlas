@@ -20,8 +20,6 @@ from atlas_build_artifacts import (
 )
 from atlas_build_lease import (
     BuildIdentityError,
-    EXCLUSIVE,
-    SHARED,
     LeaseProbe,
     OwnerLease,
     acquire_waiting,
@@ -354,33 +352,17 @@ def run_build(
     environment = dict(os.environ)
     environment["CARGO_TARGET_DIR"] = target_dir.as_posix()
     cleaned = False
-    scopes = package_target_lease_scopes(
-        spec.package,
-        target_dir,
-        spec.source.root,
-        spec.source.revision,
-        tuple(str(value) for value in dependencies["clean_packages"]),
-    )
-
-    def acquire(exclusive: bool) -> ExitStack:
-        # Dependencies are only read unless they must be cleaned, so they are
-        # shared until staleness is known; the package the command builds is
-        # always exclusive.
-        stack = ExitStack()
-        try:
-            for lock, owner in scopes:
-                mode = EXCLUSIVE if exclusive or owner["package"] == spec.package else SHARED
-                stack.push(
-                    acquire_waiting(
-                        OwnerLease(lock, owner, lease_seconds, mode), lease_wait_seconds
-                    )
-                )
-        except BaseException:
-            stack.close()
-            raise
-        return stack
-
-    def locked_stale() -> bool:
+    with ExitStack() as leases:
+        for lock, owner in package_target_lease_scopes(
+            spec.package,
+            target_dir,
+            spec.source.root,
+            spec.source.revision,
+            tuple(str(value) for value in dependencies["clean_packages"]),
+        ):
+            leases.push(
+                acquire_waiting(OwnerLease(lock, owner, lease_seconds), lease_wait_seconds)
+            )
         locked_dependencies = _dependency_data(
             manifest,
             package,
@@ -429,18 +411,6 @@ def run_build(
                     or existing.get("dependencies") != dependencies
                     or existing.get("artifact") != current_artifact
                 )
-        return stale
-
-    with ExitStack() as leases:
-        held = leases.enter_context(acquire(exclusive=False))
-        stale = locked_stale()
-        if stale:
-            # Cleaning needs every scope exclusive. Releasing before asking
-            # again, rather than upgrading in place, keeps two upgraders from
-            # each holding the shared lease the other waits on.
-            held.close()
-            leases.enter_context(acquire(exclusive=True))
-            stale = locked_stale()
         if stale:
             if clean_command is not None:
                 _run_checked(clean_command, execution_root, environment)

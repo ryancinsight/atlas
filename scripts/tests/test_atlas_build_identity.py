@@ -22,12 +22,12 @@ SPEC = importlib.util.spec_from_file_location("atlas_build_identity", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
+import atlas_build_lease as lease_module
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
     LeaseHeldError,
     OwnerLease,
-    acquire_waiting,
     package_target_lease_path,
     peek_owner,
 )
@@ -116,53 +116,221 @@ MODE_HOLDER = (
     "import sys, time\n"
     "from pathlib import Path\n"
     "sys.path.insert(0, sys.argv[1])\n"
-    "from atlas_build_lease import OwnerLease, acquire_waiting\n"
-    "for _ in range(int(sys.argv[5])):\n"
-    "    lease = OwnerLease(Path(sys.argv[2]), {'root': sys.argv[6], 'revision': 'holder-revision',"
+    "from atlas_build_lease import OwnerLease\n"
+    "lease = OwnerLease(Path(sys.argv[2]), {'root': sys.argv[5], 'revision': 'holder-revision',"
     " 'package': 'dep'}, 600, mode=sys.argv[3])\n"
-    "    acquire_waiting(lease, 120)\n"
-    "    print('held', flush=True)\n"
-    "    time.sleep(float(sys.argv[4]))\n"
-    "    lease.__exit__(None, None, None)\n"
-    "print('done', flush=True)\n"
+    "lease.__enter__()\n"
+    "print('held', flush=True)\n"
+    "time.sleep(float(sys.argv[4]))\n"
+    "lease.__exit__(None, None, None)\n"
+)
+
+# The lock call of every checker before lease modes: an exclusive lock on
+# byte 0, `msvcrt.locking` on Windows and `flock` on POSIX.
+LEGACY_LOCKER = (
+    "import os, sys, time\n"
+    "handle = open(sys.argv[1], 'a+b')\n"
+    "handle.seek(0)\n"
+    "try:\n"
+    "    if os.name == 'nt':\n"
+    "        import msvcrt\n"
+    "        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)\n"
+    "    else:\n"
+    "        import fcntl\n"
+    "        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)\n"
+    "except OSError:\n"
+    "    print('refused', flush=True)\n"
+    "    sys.exit(0)\n"
+    "print('held', flush=True)\n"
+    "if sys.argv[2] == 'hold':\n"
+    "    time.sleep(60)\n"
 )
 
 
 def start_holder(
-    test: unittest.TestCase,
-    lock: Path,
-    mode: str,
-    hold_seconds: float,
-    repeat: int = 1,
-    name: str = "holder-root",
-    wait_until_held: bool = True,
+    test: unittest.TestCase, lock: Path, mode: str, hold_seconds: float, name: str = "holder-root"
 ) -> subprocess.Popen:
-    """Take `lock` in `mode` from a separate process, `repeat` times back to back.
-
-    Each round waits its turn, holds for `hold_seconds`, releases, and asks
-    again at once: the pattern of a push hook re-running its steps.
-    """
+    """Hold `lock` in `mode` from a separate process for `hold_seconds`."""
     holder = subprocess.Popen(
-        [
-            sys.executable,
-            "-c",
-            MODE_HOLDER,
-            str(SCRIPT.parent),
-            str(lock),
-            mode,
-            str(hold_seconds),
-            str(repeat),
-            name,
-        ],
+        [sys.executable, "-c", MODE_HOLDER, str(SCRIPT.parent), str(lock), mode, str(hold_seconds), name],
         stdout=subprocess.PIPE,
         text=True,
     )
     test.addCleanup(holder.wait, 60)
     test.addCleanup(holder.kill)
     test.addCleanup(holder.stdout.close)
-    if wait_until_held:
-        test.assertEqual(holder.stdout.readline().strip(), "held")
+    test.assertEqual(holder.stdout.readline().strip(), "held")
     return holder
+
+
+def legacy_lock(test: unittest.TestCase, lock: Path, hold: bool) -> tuple[str, subprocess.Popen]:
+    """Take `lock` the way a pre-mode checker does; report `held` or `refused`."""
+    process = subprocess.Popen(
+        [sys.executable, "-c", LEGACY_LOCKER, str(lock), "hold" if hold else "probe"],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    test.addCleanup(process.wait, 60)
+    test.addCleanup(process.kill)
+    test.addCleanup(process.stdout.close)
+    return process.stdout.readline().strip(), process
+
+
+def request(lock: Path, mode: str) -> str:
+    lease = OwnerLease(lock, {"root": "requester", "revision": "r"}, 60, mode=mode)
+    try:
+        lease.__enter__()
+    except LeaseHeldError:
+        return "refused"
+    lease.__exit__(None, None, None)
+    return "granted"
+
+
+class LeaseModeTestCase(unittest.TestCase):
+    """Shared and exclusive leases, across processes and across checker versions."""
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-lease-mode-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+
+    def lock(self, name: str) -> Path:
+        path = self.base / name / "scope.lock"
+        path.parent.mkdir(parents=True)
+        return path
+
+    def test_shared_holders_share_and_exclude_writers(self) -> None:
+        for held, requested, expected in (
+            (SHARED, SHARED, "granted"),
+            (SHARED, EXCLUSIVE, "refused"),
+            (EXCLUSIVE, SHARED, "refused"),
+            (EXCLUSIVE, EXCLUSIVE, "refused"),
+        ):
+            with self.subTest(held=held, requested=requested):
+                lock = self.lock(f"{held}-{requested}")
+                holder = start_holder(self, lock, held, 60)
+                self.assertEqual(request(lock, requested), expected)
+                holder.kill()
+                holder.wait(60)
+                self.assertEqual(request(lock, requested), "granted")
+
+    def test_legacy_and_moded_holders_exclude_each_other(self) -> None:
+        for mode in (SHARED, EXCLUSIVE):
+            with self.subTest(legacy="holds", requested=mode):
+                lock = self.lock(f"legacy-holds-{mode}")
+                state, legacy = legacy_lock(self, lock, hold=True)
+                self.assertEqual(state, "held")
+                self.assertEqual(request(lock, mode), "refused")
+                legacy.kill()
+                legacy.wait(60)
+                self.assertEqual(request(lock, mode), "granted")
+            with self.subTest(moded=mode, requested="legacy"):
+                lock = self.lock(f"moded-holds-{mode}")
+                holder = start_holder(self, lock, mode, 60)
+                self.assertEqual(legacy_lock(self, lock, hold=False)[0], "refused")
+                holder.kill()
+                holder.wait(60)
+                self.assertEqual(legacy_lock(self, lock, hold=False)[0], "held")
+
+    def test_concurrent_takers_see_contention_never_a_fault(self) -> None:
+        # Truncating the record to zero bytes let a concurrent opener see an
+        # empty file and write into the locked byte: PermissionError on Windows.
+        lock = self.lock("storm")
+        storm = (
+            "import sys, time\n"
+            "from pathlib import Path\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "from atlas_build_lease import OwnerLease, LeaseHeldError\n"
+            "faults = 0\n"
+            "end = time.monotonic() + 3\n"
+            "while time.monotonic() < end:\n"
+            "    lease = OwnerLease(Path(sys.argv[2]), {'root': 'storm', 'revision': 'r'}, 60)\n"
+            "    try:\n"
+            "        lease.__enter__()\n"
+            "    except LeaseHeldError:\n"
+            "        continue\n"
+            "    except Exception as error:\n"
+            "        faults += 1\n"
+            "        continue\n"
+            "    lease.__exit__(None, None, None)\n"
+            "print(faults, flush=True)\n"
+        )
+        workers = [
+            subprocess.Popen(
+                [sys.executable, "-c", storm, str(SCRIPT.parent), str(lock)],
+                stdout=subprocess.PIPE,
+                text=True,
+            )
+            for _ in range(6)
+        ]
+        faults = [int(worker.communicate(timeout=60)[0].strip()) for worker in workers]
+        self.assertEqual(faults, [0] * 6)
+
+    def test_a_rewritten_record_never_empties_the_lease_for_legacy_openers(self) -> None:
+        # Earlier checkers open with append and write a byte into a file they
+        # find empty; a record cut to zero bytes before it was rewritten sent
+        # that write into a holder's locked byte.
+        lock = self.lock("legacy-openers")
+        OwnerLease(lock, {"root": "first", "revision": "r"}, 60).__enter__().__exit__(None, None, None)
+        opener = (
+            "import sys, time\n"
+            "faults = 0\n"
+            "end = time.monotonic() + 3\n"
+            "while time.monotonic() < end:\n"
+            "    try:\n"
+            "        with open(sys.argv[1], 'a+b') as handle:\n"
+            "            handle.seek(0, 2)\n"
+            "            if handle.tell() == 0:\n"
+            "                handle.write(b'\\0')\n"
+            "                handle.flush()\n"
+            "    except OSError:\n"
+            "        faults += 1\n"
+            "print(faults, flush=True)\n"
+        )
+        taker = (
+            "import sys, time\n"
+            "from pathlib import Path\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "from atlas_build_lease import OwnerLease, LeaseHeldError\n"
+            "end = time.monotonic() + 3\n"
+            "while time.monotonic() < end:\n"
+            "    lease = OwnerLease(Path(sys.argv[2]), {'root': 'taker', 'revision': 'r'}, 60)\n"
+            "    try:\n"
+            "        lease.__enter__()\n"
+            "    except LeaseHeldError:\n"
+            "        continue\n"
+            "    lease.__exit__(None, None, None)\n"
+        )
+        takers = [
+            subprocess.Popen([sys.executable, "-c", taker, str(SCRIPT.parent), str(lock)])
+            for _ in range(3)
+        ]
+        openers = [
+            subprocess.Popen(
+                [sys.executable, "-c", opener, str(lock)], stdout=subprocess.PIPE, text=True
+            )
+            for _ in range(3)
+        ]
+        faults = [int(process.communicate(timeout=60)[0].strip()) for process in openers]
+        for process in takers:
+            process.wait(60)
+        self.assertEqual(faults, [0] * 3)
+
+    @unittest.skipUnless(os.name == "nt", "LockFileEx error codes are Windows-only")
+    def test_lock_failures_other_than_contention_are_raised(self) -> None:
+        # A pipe cannot be byte-range locked: that is a fault, not a holder.
+        read, write = os.pipe()
+        self.addCleanup(os.close, write)
+        with os.fdopen(read, "rb") as pipe:
+            with self.assertRaises(OSError) as caught:
+                lease_module._try_lock(pipe, SHARED)
+            self.assertNotEqual(caught.exception.winerror, 33)
+        lock = self.lock("unlocked")
+        with lease_module._open_lease(lock) as handle:
+            with self.assertRaises(OSError) as caught:
+                lease_module._unlock(handle)
+        # ERROR_NOT_LOCKED, carried as the Windows error, not in the errno slot.
+        self.assertEqual(caught.exception.winerror, 158)
 
 
 class BuildIdentityTestCase(unittest.TestCase):
@@ -352,114 +520,6 @@ class BuildIdentityTestCase(unittest.TestCase):
         finally:
             owner.__exit__(None, None, None)
 
-    def dependency_build(self, source_token: str) -> identity.BuildResult:
-        """Build `demo` with a path dependency `dep` in its clean closure."""
-        snapshot = {
-            "root": "demo",
-            "packages": [],
-            "edges": [],
-            "clean_packages": ["demo", "dep"],
-            "digest": "dependency-digest",
-        }
-        with (
-            patch.object(identity, "_dependency_data", return_value=snapshot),
-            patch.object(
-                identity,
-                "artifact_identity",
-                side_effect=lambda *arguments: {
-                    "files": {"debug/deps/libdemo-abcdef.rlib": self.artifact.read_text(encoding="utf-8")},
-                    "digest": self.artifact.read_text(encoding="utf-8"),
-                },
-            ),
-        ):
-            return self.build(source_token=source_token)
-
-    def test_shared_readers_of_a_built_dependency_proceed_together(self) -> None:
-        init_repo(self.root, "fn main() {}\n")
-        self.assertEqual(self.dependency_build("first").status, "rebuilt")
-        dep = package_target_lease_path("dep", identity._canonical(self.target))
-        start_holder(self, dep, SHARED, 60)
-        self.clean_log.unlink(missing_ok=True)
-        started = time.monotonic()
-        result = self.dependency_build("first")
-        self.assertEqual(result.status, "reused")
-        self.assertLess(time.monotonic() - started, 30)
-        self.assertFalse(self.clean_log.exists())
-
-    def test_a_shared_reader_blocks_cleaning_its_dependency(self) -> None:
-        init_repo(self.root, "fn main() {}\n")
-        self.assertEqual(self.dependency_build("first").status, "rebuilt")
-        self.artifact.write_text("changed elsewhere", encoding="utf-8")
-        dep = package_target_lease_path("dep", identity._canonical(self.target))
-        start_holder(self, dep, SHARED, 60)
-        self.clean_log.unlink(missing_ok=True)
-        with self.assertRaises(identity.IdentityError) as caught:
-            self.dependency_build("intruder")
-        self.assertIn("holder-root", str(caught.exception))
-        self.assertFalse(self.clean_log.exists())
-        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "changed elsewhere")
-
-    def test_shared_and_exclusive_holders_exclude_each_other(self) -> None:
-        for held, requested in ((SHARED, EXCLUSIVE), (EXCLUSIVE, SHARED)):
-            with self.subTest(held=held, requested=requested):
-                lock = package_target_lease_path(f"dep-{held}", self.target)
-                holder = start_holder(self, lock, held, 60)
-                with self.assertRaises(LeaseHeldError) as caught:
-                    OwnerLease(lock, {"root": "second", "revision": "r"}, 60, mode=requested).__enter__()
-                self.assertIn("holder-root", str(caught.exception))
-                holder.kill()
-                holder.wait(60)
-        lock = package_target_lease_path("dep-together", self.target)
-        start_holder(self, lock, SHARED, 60)
-        second = OwnerLease(lock, {"root": "second", "revision": "r"}, 60, mode=SHARED)
-        second.__enter__()
-        second.__exit__(None, None, None)
-
-    def test_a_repeating_exclusive_holder_does_not_starve_a_waiter(self) -> None:
-        # Twelve back-to-back 1 s holds: without arrival order the holder asks
-        # again the instant it releases and the polling waiter never gets in.
-        lock = package_target_lease_path("dep", self.target)
-        start_holder(self, lock, EXCLUSIVE, 1, repeat=12)
-        started = time.monotonic()
-        lease = acquire_waiting(OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60), 60)
-        elapsed = time.monotonic() - started
-        lease.__exit__(None, None, None)
-        self.assertLess(elapsed, 6)
-
-    def test_a_stream_of_shared_readers_does_not_starve_a_writer(self) -> None:
-        # Two readers overlap so the lease is never free of a shared holder.
-        lock = package_target_lease_path("dep", self.target)
-        start_holder(self, lock, SHARED, 1, repeat=12, name="reader-a")
-        time.sleep(0.5)
-        start_holder(self, lock, SHARED, 1, repeat=12, name="reader-b")
-        started = time.monotonic()
-        lease = acquire_waiting(
-            OwnerLease(lock, {"root": "writer", "revision": "r"}, 60, mode=EXCLUSIVE), 60
-        )
-        elapsed = time.monotonic() - started
-        lease.__exit__(None, None, None)
-        self.assertLess(elapsed, 6)
-
-    def test_a_crashed_holder_or_waiter_releases_its_place(self) -> None:
-        lock = package_target_lease_path("dep", self.target)
-        holder = start_holder(self, lock, SHARED, 60)
-        waiter = start_holder(self, lock, EXCLUSIVE, 60, name="waiter", wait_until_held=False)
-        queue = lock.with_name(f"{lock.stem}.queue")
-        deadline = time.monotonic() + 30
-        while len(list(queue.glob("*.ticket"))) < 2:
-            self.assertLess(time.monotonic(), deadline, "the waiter never queued")
-            time.sleep(0.05)
-        waiter.kill()
-        waiter.wait(60)
-        holder.kill()
-        holder.wait(60)
-        started = time.monotonic()
-        lease = acquire_waiting(OwnerLease(lock, {"root": "next", "revision": "r"}, 60, mode=SHARED), 30)
-        self.assertLess(time.monotonic() - started, 2)
-        self.assertEqual(peek_owner(lease.ticket.path)["root"], "next")
-        lease.__exit__(None, None, None)
-        self.assertFalse(identity.lease_is_held(lock))
-
     def test_an_expired_owner_is_recovered(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
@@ -548,6 +608,22 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(peek_owner(lock), record)
         lock.write_text("{partial", encoding="utf-8")
         self.assertIsNone(peek_owner(lock))
+
+    def test_a_check_reads_beside_a_shared_holder(self) -> None:
+        # A check only reads, so a shared holder does not make it "owned".
+        init_repo(self.root, "fn main() {}\n")
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            spec = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+        start_holder(self, identity.lease_path(spec), SHARED, 60)
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            code, value = identity.check_record(
+                self.root,
+                "demo",
+                self.target,
+                artifact_paths=[self.artifact],
+                manifest=self.root / "Cargo.toml",
+            )
+        self.assertEqual((code, value["status"]), (2, "missing"))
 
     def test_toolchain_identity_runs_in_the_source_root(self) -> None:
         completed = subprocess.CompletedProcess(["rustc"], 0, "rustc 1.95.0\n", "")
