@@ -154,6 +154,32 @@ def changed_packages(
     return names
 
 
+def owned_by(
+    paths: Iterable[str], manifest: Path, metadata_cwd: Path | None, packages: Sequence[str]
+) -> set[str]:
+    """The subset of `paths` whose artifact target belongs to one of `packages`.
+
+    Mirrors `changed_packages`'s file-to-package attribution so a leftover
+    record entry for a package a narrowed run cleaned -- and did not
+    rediscover under its old name -- can be told apart from an entry
+    belonging to a package the run never touched. An unattributable path
+    (an unrecognized name, or one belonging to a package outside `packages`)
+    is not included: the caller decides its own fallback for those.
+    """
+    owners = {
+        name: stems
+        for name, stems in _workspace_artifact_owners(manifest, metadata_cwd).items()
+        if name in packages
+    }
+    owned: set[str] = set()
+    for relative in paths:
+        parts = relative.split("/")
+        unit = parts[parts.index(".fingerprint") + 1] if ".fingerprint" in parts else parts[-1]
+        if _artifact_owner(unit, owners, "") is not None:
+            owned.add(relative)
+    return owned
+
+
 # Recorded in place of a digest when a dependency file never read the same
 # twice in a row: it compares unequal to any real digest, so the next run
 # cleans that file's package, never the whole closure.

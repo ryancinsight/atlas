@@ -5,13 +5,15 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import uuid
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 import time
-from typing import Sequence
+from typing import Iterable, Sequence
+from urllib.parse import unquote
 
 from atlas_build_artifacts import (
     artifact_digest,
@@ -19,6 +21,7 @@ from atlas_build_artifacts import (
     changed_packages,
     dependency_snapshot,
     discover_artifacts,
+    owned_by,
     SETTLE_SECONDS,
     recorded_artifact_identity,
     settled_digest,
@@ -382,8 +385,103 @@ def _dimensions(build: object) -> object:
     return {key: value for key, value in content.items() if key not in ("source", "dependency_digest")}
 
 
+_WORKSPACE_PATH_ID = re.compile(r"^workspace:(?P<relative>.*)#[^#]+@[^#]+$")
+_CARGO_PATH_ID = re.compile(r"^path\+file://(?P<path>.+)#[^#]+@[^#]+$")
+
+# A name-only diff is checked for filenames, never TOML sections: a build
+# script, a toolchain pin, a Cargo manifest or lockfile, or anything under a
+# `.cargo` directory can all reconfigure how a dependency compiles (profile,
+# features, patches, linker flags) without the dependency's own recorded
+# content moving at all.
+_BUILD_CONFIGURATION_NAMES = frozenset({"Cargo.toml", "Cargo.lock", "build.rs"})
+
+
+def _touches_build_configuration(paths: Iterable[str]) -> bool:
+    for relative in paths:
+        relative = relative.strip()
+        if not relative:
+            continue
+        parts = relative.split("/")
+        name = parts[-1]
+        if name in _BUILD_CONFIGURATION_NAMES or name.startswith("rust-toolchain"):
+            return True
+        if ".cargo" in parts[:-1]:
+            return True
+    return False
+
+
+def _path_record_manifest_dir(record_id: str, workspace_root: Path) -> Path | None:
+    """The absolute manifest directory a path record's stable id names.
+
+    A workspace-relative id (`workspace:<relative>#<name>@<version>`)
+    resolves against `workspace_root`, which this run's own `root` -- the
+    workspace `dependency_snapshot` was computed against -- approximates.
+    Cargo's own `path+file://` id, kept for a path package outside the
+    workspace, embeds the absolute manifest directory directly. Neither
+    pattern matching means the id is not one this run can resolve to a
+    filesystem path.
+    """
+    workspace_match = _WORKSPACE_PATH_ID.match(record_id)
+    if workspace_match:
+        return (workspace_root / workspace_match.group("relative")).resolve()
+    path_match = _CARGO_PATH_ID.match(record_id)
+    if path_match:
+        raw = unquote(path_match.group("path"))
+        if len(raw) > 2 and raw[0] == "/" and raw[2] == ":":
+            raw = raw[1:]  # `/C:/...` (URL form) -> `C:/...`
+        return Path(raw)
+    return None
+
+
+def _path_repository_safe_to_narrow(
+    record_id: str,
+    existing_identity: object,
+    current_identity: object,
+    workspace_root: Path,
+) -> bool:
+    """Whether a path record's identity change is provably a non-build-config edit.
+
+    A path record's identity is the identity of its whole containing
+    repository, so a change reconfiguring how dependencies build -- a
+    profile, a feature, a build script, a toolchain pin -- moves it exactly
+    like an ordinary source edit. Narrowing on identity alone is safe only
+    when the actual file-level diff between the two recorded revisions
+    touches no such file. A dirty tree on either side means the diff is not
+    fully captured by a revision-to-revision comparison (its uncommitted
+    files are not on either side's compared range), and a revision this
+    repository cannot resolve, or a `git diff` that fails outright, means
+    the diff cannot be established at all: both are treated as unsafe, never
+    as a reason to search harder.
+    """
+    if not isinstance(existing_identity, dict) or not isinstance(current_identity, dict):
+        return False
+    if existing_identity.get("dirty") or current_identity.get("dirty"):
+        return False
+    existing_revision = existing_identity.get("revision")
+    current_revision = current_identity.get("revision")
+    if not isinstance(existing_revision, str) or not isinstance(current_revision, str):
+        return False
+    if existing_revision == current_revision:
+        return True
+    manifest_dir = _path_record_manifest_dir(record_id, workspace_root)
+    if manifest_dir is None or not manifest_dir.is_dir():
+        return False
+    try:
+        top = subprocess.run(
+            ["git", "-C", str(manifest_dir), "rev-parse", "--show-toplevel"],
+            check=True, capture_output=True, text=True, timeout=60,
+        ).stdout.strip()
+        diff = subprocess.run(
+            ["git", "-C", top, "diff", "--name-only", existing_revision, current_revision, "--"],
+            check=True, capture_output=True, text=True, timeout=60,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return not _touches_build_configuration(diff.splitlines())
+
+
 def _path_only_dependency_diff(
-    existing: dict[str, object], current: dict[str, object]
+    existing: dict[str, object], current: dict[str, object], workspace_root: Path
 ) -> set[str] | None:
     """The path-record names two dependency snapshots disagree on, or None.
 
@@ -397,7 +495,15 @@ def _path_only_dependency_diff(
     dependency, every edge, and the clean-package set stay exactly the
     packages they were: nothing reachable through a non-path record could
     have moved. None means the disagreement reaches further than that and the
-    whole closure must clean.
+    whole closure must clean: a real-Cargo counterexample showed a path
+    record differing in `features` alone (feature unification from an
+    unrelated manifest edit) left a sibling's rebuilt variant unrecorded, so
+    every field but `identity` must still agree, and a real-Cargo
+    counterexample showed the run's own identity-only change touching its
+    Cargo.toml (a profile edit) silently reconfigured a git dependency's
+    build, so an identity difference narrows only when
+    `_path_repository_safe_to_narrow` proves the underlying diff untouched
+    build configuration.
     """
     if existing.get("root") != current.get("root"):
         return None
@@ -420,6 +526,17 @@ def _path_only_dependency_diff(
             continue
         if existing_record.get("kind") != "path" or current_record.get("kind") != "path":
             return None
+        existing_rest = {key: value for key, value in existing_record.items() if key != "identity"}
+        current_rest = {key: value for key, value in current_record.items() if key != "identity"}
+        if existing_rest != current_rest:
+            return None
+        if not _path_repository_safe_to_narrow(
+            str(package_id),
+            existing_record.get("identity"),
+            current_record.get("identity"),
+            workspace_root,
+        ):
+            return None
         changed.add(str(current_record.get("name")))
     return changed
 
@@ -432,6 +549,7 @@ def _narrowed_clean(
     manifest: Path,
     execution_root: Path,
     clean_packages: tuple[str, ...],
+    root: Path,
 ) -> tuple[str, ...] | None:
     """The packages a mismatched record must clean, or None for the whole closure.
 
@@ -455,7 +573,7 @@ def _narrowed_clean(
     if existing_dependencies == dependencies:
         path_changed: set[str] = set()
     elif isinstance(existing_dependencies, dict):
-        path_changed = _path_only_dependency_diff(existing_dependencies, dependencies)
+        path_changed = _path_only_dependency_diff(existing_dependencies, dependencies, root)
         if path_changed is None:
             return None
     else:
@@ -582,7 +700,7 @@ def run_build(
         if clean_command is not None:
             return clean_packages
         narrowed = _narrowed_clean(
-            existing, current, spec, dependencies, manifest, execution_root, clean_packages
+            existing, current, spec, dependencies, manifest, execution_root, clean_packages, root
         )
         return clean_packages if narrowed is None else narrowed
 
@@ -688,9 +806,21 @@ def run_build(
                     )
                 ],
             )
+            # A package this run cleaned but did not rediscover here (a new
+            # metadata hash replaced its old filename) had its old file
+            # deleted by that clean: keeping its pre-command digest would
+            # carry a name-only entry for a file that no longer exists. Only
+            # a package this run never cleaned -- genuinely held shared --
+            # may fall back to settling its named file's digest.
+            cleaned_leftovers = owned_by(
+                (relative for relative in existing["artifact"]["files"] if relative not in own["files"]),
+                manifest,
+                execution_root,
+                tuple(held | {spec.package}),
+            )
             files = {}
             for relative, verified in existing["artifact"]["files"].items():
-                if relative in own["files"]:
+                if relative in own["files"] or relative in cleaned_leftovers:
                     continue
                 # Each file gets up to SETTLE_SECONDS, never past the run's
                 # wait deadline; at least two reads are always attempted.
