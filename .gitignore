@@ -13,6 +13,11 @@ target-*/
 *.log
 tmp/
 scratch/
+# Atlas-root session scratch (`atlas-phase` and siblings): hook logs, saved
+# patches, and a spare `bin/python3` shim a session may create. A `scratch/`
+# rule above does not match a dotted directory name, so without this every
+# session leaves an untracked root directory the status command reports.
+/.scratch/
 # Derived pytest basetemp some suites point at the root; never content.
 .oracle-tmp/
 
