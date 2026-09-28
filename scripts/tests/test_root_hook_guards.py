@@ -217,17 +217,37 @@ class RootHookGuardTests(unittest.TestCase):
             self.assertIn("canonical member checkout is absent", missing_member.stdout + missing_member.stderr)
 
     def test_separate_git_dir_resolves_the_configured_worktree_root(self) -> None:
-        """Canonical discovery follows Git's separate worktree metadata."""
+        """Both hooks follow explicit separate-dir metadata, independent of order."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             worktree = root / "canonical"
-            metadata = root / "metadata.git"
+            metadata = root / "metadata" / "repo.git"
+            metadata.parent.mkdir()
             subprocess.run(
                 ["git", "init", "-q", "-b", "main", "--separate-git-dir", str(metadata), str(worktree)],
                 check=True, capture_output=True, text=True,
             )
+            install_hook(worktree)
+            for name in (
+                "atlas-artifact-budget.py", "atlas-secret-scan.py", "atlas-refspec-guard.py",
+            ):
+                shutil.copyfile(ROOT / "scripts" / name, worktree / "scripts" / name)
+            shutil.copyfile(PRE_PUSH, worktree / ".githooks" / "pre-push")
+            (worktree / ".githooks" / "pre-push").chmod(0o755)
             subprocess.run(
-                ["git", "-C", str(worktree), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--allow-empty", "-qm", "root"],
+                ["git", "-C", str(worktree), "add", ".githooks", "scripts"],
+                check=True, capture_output=True, text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(worktree), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "root"],
+                check=True, capture_output=True, text=True,
+            )
+            subprocess.run(
+                ["git", "--git-dir", str(metadata), "config", "core.worktree", str(worktree)],
+                check=True, capture_output=True, text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(worktree), "config", "core.hooksPath", ".githooks"],
                 check=True, capture_output=True, text=True,
             )
             lane = root / "lane"
@@ -239,27 +259,38 @@ class RootHookGuardTests(unittest.TestCase):
                 ["git", "-C", str(lane), "rev-parse", "--path-format=absolute", "--git-common-dir"],
                 check=True, capture_output=True, text=True,
             ).stdout.strip()
-            self.assertTrue(common.endswith("metadata.git"))
-            candidates = []
-            for candidate in root.iterdir():
-                if not candidate.is_dir() or candidate.resolve() == metadata.resolve():
-                    continue
-                probe = subprocess.run(
-                    ["git", "-C", str(candidate), "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                    capture_output=True, text=True,
-                )
-                git_dir = subprocess.run(
-                    ["git", "-C", str(candidate), "rev-parse", "--path-format=absolute", "--git-dir"],
-                    capture_output=True, text=True,
-                )
-                if (
-                    probe.returncode == 0
-                    and git_dir.returncode == 0
-                    and Path(probe.stdout.strip()).resolve() == Path(common).resolve()
-                    and Path(git_dir.stdout.strip()).resolve() == metadata.resolve()
-                ):
-                    candidates.append(candidate)
-            self.assertEqual(candidates, [worktree])
+            self.assertTrue(common.endswith("repo.git"))
+            configured = subprocess.run(
+                ["git", "--git-dir", common, "config", "--path", "core.worktree"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            self.assertEqual(Path(configured).resolve(), worktree.resolve())
+
+            environment = {
+                key: value for key, value in os.environ.items()
+                if not key.startswith("GIT_")
+            }
+            environment["_ATLAS_HOOK_TRAMPOLINE_DEFERRED"] = "1"
+            pre_commit = subprocess.run(
+                ["bash", str(worktree / ".githooks" / "pre-commit")],
+                cwd=lane, env=environment, capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(pre_commit.returncode, 0, pre_commit.stdout + pre_commit.stderr)
+
+            target = lane / "target" / "release"
+            target.mkdir(parents=True)
+            auditor = target / "gitlink-coherence"
+            auditor.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+            auditor.chmod(0o755)
+            subprocess.run(
+                ["git", "-C", str(lane), "update-ref", "refs/remotes/origin/main", "HEAD"],
+                check=True, capture_output=True, text=True,
+            )
+            pre_push = subprocess.run(
+                ["bash", str(worktree / ".githooks" / "pre-push")],
+                cwd=lane, env=environment, input="", capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(pre_push.returncode, 0, pre_push.stdout + pre_push.stderr)
 
     def test_merge_allows_inherited_board_and_gitlink_changes_only(self) -> None:
         """A real merge may combine independently valid board and pin commits."""

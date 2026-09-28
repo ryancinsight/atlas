@@ -1857,6 +1857,46 @@ class MaterializedMemberTests(unittest.TestCase):
             self.assertEqual(recorded["print_dbg"], 1, "the pinned revision's one println!")
             self.assertEqual(live["print_dbg"], 2, "the live tree's two dbg!")
 
+    def test_pinned_member_scan_uses_revision_config_after_live_mutation(self) -> None:
+        """A pinned scan keeps policy inputs at the materialized root revision."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            stack = Path(temp)
+            provider, _, second = self._provider(stack)
+            self._git(stack, "init", "-q", "-b", "main")
+            self._git(stack, "config", "user.email", "t@example.invalid")
+            self._git(stack, "config", "user.name", "t")
+            _write(stack, ".cargo/config.toml", "[build]\ntarget-dir = \"target\"\n")
+            _write(
+                stack,
+                "scripts/data/atlas-cache-retention.toml",
+                "retention_days = 7\n",
+            )
+            self._git(
+                stack,
+                "update-index",
+                "--add",
+                "--cacheinfo",
+                f"160000,{second},repos/alpha",
+            )
+            self._git(stack, "add", ".cargo", "scripts/data")
+            root_commit = self._git(stack, "write-tree")
+            root_commit = self._git(stack, "commit-tree", root_commit, "-m", "pin alpha")
+
+            observed: list[str] = []
+
+            def scan_pinned(*args: object, **kwargs: object) -> dict[str, int]:
+                _ = args
+                config_root = kwargs["config_root"]
+                assert isinstance(config_root, Path)
+                _write(stack, ".cargo/config.toml", "[build]\ntarget-dir = \"live\"\n")
+                observed.append((config_root / ".cargo/config.toml").read_text())
+                return {}
+
+            with patch.object(conformance, "scan_repo", side_effect=scan_pinned):
+                conformance.scan_member(stack, "alpha", root_commit)
+
+            self.assertEqual(observed, ["[build]\ntarget-dir = \"target\"\n"])
+
     def test_a_gitlink_absent_from_the_object_store_is_an_error(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             provider, first, _ = self._provider(Path(temp))

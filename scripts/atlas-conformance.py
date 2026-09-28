@@ -1958,7 +1958,7 @@ def materialize_member(
 ) -> tuple[Path, Path]:
     """Return `(content, live)` for a provider whose recorded gitlink is `expected`.
 
-    The recorded revision is always extracted with `git archive` into
+    The recorded revision is always materialized from its Git tree into
     `scratch`, even when the checkout appears clean. Returning a live checkout
     would let a concurrent write change the bytes after the revision was
     selected and would make the scan non-deterministic.
@@ -2052,7 +2052,12 @@ def scan_member(
     expected = gitlink_revision(root_revision, f"repos/{name}", stack_root)
     with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as scratch:
         content, live = materialize_member(member, expected, Path(scratch))
-        return scan_repo(content, live_repo=live, revision=expected)
+        config_root, _ = materialize_member(
+            stack_root, root_revision, Path(scratch)
+        )
+        return scan_repo(
+            content, live_repo=live, revision=expected, config_root=config_root
+        )
 
 
 def scan_stack(
@@ -2061,9 +2066,8 @@ def scan_stack(
     """Scan every registered member.
 
     With `root_revision`, each member is scanned at the gitlink that revision
-    records — from the checkout when it is clean and at that commit, else from
-    an archived snapshot (`materialize_member`).     Without it, the live trees
-    are scanned as they are (`--worktree`). A registered member with no
+    records from materialized Git snapshots (`materialize_member`). Without it,
+    the live trees are scanned as they are (`--worktree`). A registered member with no
     recorded gitlink (promotion mid-flight) is skipped with a stderr
     warning before the materialization gate: it has no pinned revision
     to measure, a clean checkout has no directory for it at all, and one
@@ -2570,8 +2574,16 @@ def main() -> int:
                     prefix="atlas-conformance-", dir=store
                 ) as scratch:
                     content = link_snapshot(member, pushed, Path(scratch))
+                    baseline_root = args.baseline_rev or "HEAD"
+                    config_root, _ = materialize_member(
+                        ROOT, baseline_root, Path(scratch)
+                    )
                     results = {args.repo: scan_repo(
-                        content, live_repo=member, revision=pushed, member=args.repo
+                        content,
+                        live_repo=member,
+                        revision=pushed,
+                        member=args.repo,
+                        config_root=config_root,
                     )}
         elif args.repo:
             member = ROOT / "repos" / args.repo
