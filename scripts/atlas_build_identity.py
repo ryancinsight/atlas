@@ -16,12 +16,9 @@ from typing import Sequence
 from atlas_build_artifacts import (
     artifact_digest,
     artifact_identity,
-    changed_packages,
     dependency_snapshot,
     discover_artifacts,
-    SETTLE_SECONDS,
     recorded_artifact_identity,
-    settled_digest,
     validate_artifact_paths,
 )
 from atlas_build_lease import (
@@ -440,7 +437,7 @@ def run_build(
             raise
         return stack
 
-    def locked_record() -> tuple[dict[str, object] | None, bool, dict[str, object] | None]:
+    def locked_record() -> tuple[dict[str, object] | None, bool]:
         locked_dependencies = _dependency_data(
             manifest, package, target_dir, execution_root, ignore_paths, bool(artifact_paths)
         )
@@ -461,14 +458,14 @@ def run_build(
                 "source or dependency inputs changed while acquiring the package leases"
             )
         existing = read_record(record)
-        if existing is None:
-            return None, False, None
-        current = _recorded_artifact(existing, target_dir, artifact_paths)
-        return existing, _record_matches(existing, spec, dependencies, current), current
+        matched = existing is not None and _record_matches(
+            existing, spec, dependencies, _recorded_artifact(existing, target_dir, artifact_paths)
+        )
+        return existing, matched
 
     with ExitStack() as leases:
         shared = leases.enter_context(acquire(exclusive=False))
-        existing, matched, current = locked_record()
+        existing, matched = locked_record()
         if not matched:
             # Anything but an exact match may write dependency artifacts, so
             # it runs exclusive. Releasing before asking again, rather than
@@ -477,30 +474,12 @@ def run_build(
             # because a holder may have rebuilt it meanwhile.
             shared.close()
             leases.enter_context(acquire(exclusive=True))
-            existing, matched, current = locked_record()
+            existing, matched = locked_record()
         stale = not matched and (existing is not None or not _sibling_matches(spec))
         if stale:
             if clean_command is not None:
                 _run_checked(clean_command, execution_root, environment)
             else:
-                targets = clean_packages
-                if (
-                    existing is not None
-                    and current is not None
-                    and _record_matches(existing, spec, dependencies, existing.get("artifact"))
-                ):
-                    # Only artifact bytes changed. Cleaning the packages that
-                    # own them is enough: Cargo rebuilds every unit whose
-                    # dependency it rebuilds, so their dependents follow.
-                    narrowed = changed_packages(
-                        existing["artifact"]["files"],
-                        current["files"],
-                        manifest,
-                        execution_root,
-                        clean_packages,
-                    )
-                    if narrowed:
-                        targets = tuple(sorted(narrowed))
                 # One invocation for the whole closure: each `cargo clean`
                 # walks the entire shared target whatever it deletes, so one
                 # call per package held the closure's exclusive leases for
@@ -513,7 +492,7 @@ def run_build(
                         "clean",
                         *(
                             argument
-                            for clean_package in targets
+                            for clean_package in clean_packages
                             for argument in ("-p", clean_package)
                         ),
                         "--manifest-path",
@@ -533,13 +512,10 @@ def run_build(
         if final_dependencies != dependencies:
             raise IdentityError("dependency graph changed while the build was running")
         if matched and not artifact_paths:
-            # The command rebuilt dependency files in place (a fresh export
-            # has fresh mtimes, and rustc embeds its path in the bytes), so
-            # every file the record names is hashed again once two reads
-            # agree. Another reader's Cargo may be rewriting one: a file that
-            # never settles is recorded unverified, and one that cannot be
-            # read at all keeps its pre-command digest. Only the package held
-            # exclusive is discovered afresh.
+            # Only the package held exclusive is hashed again. Another
+            # reader's Cargo may be rewriting a dependency's files in place
+            # right now, so they keep the digests verified before the
+            # command; the next run's comparison re-hashes them.
             own = recorded_artifact_identity(
                 target_dir,
                 [
@@ -549,14 +525,7 @@ def run_build(
                     )
                 ],
             )
-            files = {}
-            for relative, verified in existing["artifact"]["files"].items():
-                # Each file gets up to SETTLE_SECONDS, never past the run's
-                # wait deadline; at least two reads are always attempted.
-                budget = min(time.monotonic_ns() + int(SETTLE_SECONDS * 1_000_000_000), deadline_ns)
-                settled = settled_digest(target_dir / relative, budget)
-                files[relative] = verified if settled is None else settled
-            files.update(own["files"])
+            files = {**existing["artifact"]["files"], **own["files"]}
             artifact = {"files": files, "digest": artifact_digest(files)}
         else:
             artifact = artifact_identity(

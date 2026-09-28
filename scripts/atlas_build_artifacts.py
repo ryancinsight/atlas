@@ -7,7 +7,6 @@ import json
 import os
 import re
 import subprocess
-import time
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
@@ -122,81 +121,6 @@ def recorded_artifact_identity(target_dir: Path, relative_paths: Iterable[str]) 
             raise BuildIdentityError(f"artifact is outside the shared target: {path}")
         files[relative] = _file_digest(path)
     return {"files": files, "digest": artifact_digest(files)}
-
-
-def changed_packages(
-    recorded: dict[str, str],
-    current: dict[str, str],
-    manifest: Path,
-    metadata_cwd: Path | None,
-    packages: Sequence[str],
-) -> set[str] | None:
-    """The packages owning the artifact files whose digests changed.
-
-    None when a changed file cannot be attributed to exactly one of
-    `packages`; the caller then cleans them all.
-    """
-    changed = [relative for relative, digest in recorded.items() if current.get(relative) != digest]
-    owners = {
-        name: stems
-        for name, stems in _workspace_artifact_owners(manifest, metadata_cwd).items()
-        if name in packages
-    }
-    names: set[str] = set()
-    for relative in changed:
-        parts = relative.split("/")
-        # `<profile>/deps/<file>` names the file, `.../.fingerprint/<unit>/<file>` the unit.
-        unit = parts[parts.index(".fingerprint") + 1] if ".fingerprint" in parts else parts[-1]
-        owner = _artifact_owner(unit, owners, "")
-        if owner is None:
-            return None
-        names.add(owner)
-    return names
-
-
-# Recorded in place of a digest when a dependency file never read the same
-# twice in a row: it compares unequal to any real digest, so the next run
-# cleans that file's package, never the whole closure.
-UNVERIFIED = "unverified"
-# A dependency file another reader's Cargo is rewriting refuses reads on
-# Windows, or changes under them, while rustc writes it; one second outlasts
-# a rewrite of the artifacts a gate step reads.
-SETTLE_SECONDS = 1.0
-_SETTLE_INTERVAL = 0.02
-
-
-def settled_digest(path: Path, deadline_ns: int) -> str | None:
-    """The file's digest once two consecutive reads agree.
-
-    Reads repeat until two in a row succeed with one digest and the file's
-    size and modification time unchanged across both, or until `deadline_ns`
-    (monotonic) passes after at least two attempts. Returns `UNVERIFIED`
-    when reads succeeded but never agreed, and None when none succeeded.
-    """
-    previous = None
-    read = False
-    attempts = 0
-    while True:
-        attempts += 1
-        try:
-            before = path.stat()
-            digest = _file_digest(path)
-            after = path.stat()
-        except (OSError, BuildIdentityError):
-            current = None
-        else:
-            read = True
-            state = (before.st_size, before.st_mtime_ns)
-            current = (digest, state) if state == (after.st_size, after.st_mtime_ns) else None
-        if current is not None and current == previous:
-            return current[0]
-        settling = current is not None and previous is None
-        previous = current
-        if attempts >= 2 and time.monotonic_ns() >= deadline_ns:
-            return UNVERIFIED if read else None
-        if not settling:
-            # The first good read is confirmed at once; anything else waits.
-            time.sleep(_SETTLE_INTERVAL)
 
 
 def artifact_digest(files: dict[str, str]) -> str:

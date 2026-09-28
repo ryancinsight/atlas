@@ -2598,21 +2598,21 @@ class SecondOutputRootTestCase(unittest.TestCase):
 
 class HostStateGateTests(unittest.TestCase):
     """Host state gates a working-tree audit and does not gate a judgement
-    about a named revision. The rule is one boolean and it decides whether a
-    push is refused, so every scan shape is pinned against the shipped
+    about a named revision. The selected scan intent decides whether host
+    state is a gate, so every scan shape is pinned against the shipped
     function rather than a restatement of it."""
 
     #: A single host row over the class that described the blocking push.
     HOST = [("leto", "excess_worktrees", 0, 1)]
 
-    def _exit_code(self, *, worktree: bool = False, revision: str | None = None,
-                   member_revision: str | None = None,
-                   regressions: list = ()) -> int:
-        """The `check` mode's exit code for one argument shape."""
-        gates = conformance.host_state_gates(
-            worktree=worktree, revision=revision,
-            member_revision=member_revision,
-        )
+    def _exit_code(
+        self,
+        intent: conformance.HostStateIntent,
+        *,
+        regressions: list = (),
+    ) -> int:
+        """The `check` mode's exit code for one selected scan intent."""
+        gates = conformance.host_state_gates(intent)
         return int(bool(regressions or (self.HOST and gates)))
 
     def test_a_named_stack_revision_does_not_gate_on_the_pushing_machine(self) -> None:
@@ -2621,39 +2621,56 @@ class HostStateGateTests(unittest.TestCase):
         # cannot appear in the counts at all; refusing the push over one
         # refuses it on a peer's state. Observed: a push with 0 regressions
         # and 0 tightenings blocked on `leto/excess_worktrees`.
-        self.assertEqual(self._exit_code(revision="deadbeef"), 0)
+        self.assertEqual(
+            self._exit_code(conformance.HostStateIntent.REVISION_JUDGEMENT), 0
+        )
 
     def test_a_pushed_member_revision_does_not_gate(self) -> None:
         # The shape a member's own pre-push uses. Same reasoning: the pushed
         # tree is materialized, and a lane in the local checkout is the
         # machine's, not the commit's.
-        self.assertEqual(self._exit_code(member_revision="deadbeef"), 0)
+        self.assertEqual(
+            self._exit_code(conformance.HostStateIntent.REVISION_JUDGEMENT), 0
+        )
 
     def test_the_default_scan_gates(self) -> None:
         # The bare default measures the working tree, and a developer running
         # it by hand should be told to sweep. A CI runner measures zero for
         # every host class by construction, which is why the committed
         # baselines record zero.
-        self.assertEqual(self._exit_code(), 1)
+        self.assertEqual(
+            self._exit_code(conformance.HostStateIntent.LIVE_AUDIT), 1
+        )
 
-    def test_a_worktree_audit_gates(self) -> None:
+    def test_a_worktree_audit_gates_even_with_a_stack_revision(self) -> None:
         # `--worktree` is the deliberate live audit: its whole point is to
-        # report this machine's state, so it must fail on it.
-        self.assertEqual(self._exit_code(worktree=True), 1)
+        # report this machine's state, so it must fail on it. The root
+        # revision is ignored by this scan branch.
+        self.assertEqual(
+            self._exit_code(conformance.HostStateIntent.LIVE_AUDIT), 1
+        )
+
+    def test_a_live_member_path_gates_even_with_a_stack_revision(self) -> None:
+        # `--revision` names stack content and has no effect on the explicit
+        # member checkout. Without `--member-revision`, that checkout is live.
+        self.assertEqual(
+            self._exit_code(conformance.HostStateIntent.LIVE_AUDIT), 1
+        )
 
     def test_a_real_regression_still_fails_every_shape(self) -> None:
         # The relaxation is scoped to host rows alone. A class the revision
         # actually raises must fail the revision scans too, or the fix has
         # opened a hole rather than closed one.
         raised = [("leto", "unwrap_production", 0, 1)]
-        for label, kwargs in (
-            ("stack revision", {"revision": "deadbeef"}),
-            ("member revision", {"member_revision": "deadbeef"}),
-            ("default scan", {}),
-            ("worktree audit", {"worktree": True}),
+        for label, intent in (
+            ("stack revision", conformance.HostStateIntent.REVISION_JUDGEMENT),
+            ("member revision", conformance.HostStateIntent.REVISION_JUDGEMENT),
+            ("default scan", conformance.HostStateIntent.LIVE_AUDIT),
+            ("worktree audit", conformance.HostStateIntent.LIVE_AUDIT),
+            ("live member path", conformance.HostStateIntent.LIVE_AUDIT),
         ):
             with self.subTest(shape=label):
-                self.assertEqual(self._exit_code(regressions=raised, **kwargs), 1)
+                self.assertEqual(self._exit_code(intent, regressions=raised), 1)
 
     def test_a_revision_scan_still_reports_the_host_row(self) -> None:
         # Not gating is not hiding: the row is printed with the note that
@@ -2661,6 +2678,165 @@ class HostStateGateTests(unittest.TestCase):
         # reader even when it does not fail the run.
         self.assertIn("root_sprawl_untracked", conformance.HOST_OBSERVED_CLASSES)
         self.assertIn("excess_worktrees", conformance.HOST_OBSERVED_CLASSES)
+
+    def test_check_gates_host_state_for_live_member_path(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-host-member-") as temp:
+            member = Path(temp)
+            baseline = Path(temp) / "baseline.json"
+            baseline.write_text(
+                json.dumps({"demo": {"excess_worktrees": 0}}),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+            with (
+                patch.object(conformance, "BASELINE", baseline),
+                patch.object(
+                    conformance, "scan_repo",
+                    return_value={"excess_worktrees": 1},
+                ) as scan_repo,
+                patch.object(
+                    sys, "argv",
+                    [str(SCRIPT), "check", "--json", "--repo", "demo",
+                     "--member-path", str(member), "--revision", "deadbeef"],
+                ),
+                redirect_stdout(output),
+            ):
+                result = conformance.main()
+
+        self.assertEqual(result, 1)
+        scan_repo.assert_called_once_with(member.resolve(), member="demo")
+        self.assertEqual(
+            json.loads(output.getvalue())["host_regressions"],
+            ["demo/excess_worktrees: 0 -> 1"],
+        )
+
+    def test_check_gates_worktree_when_a_stack_revision_is_named(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-host-stack-") as temp:
+            baseline = Path(temp) / "baseline.json"
+            baseline.write_text(
+                json.dumps({"demo": {"excess_worktrees": 0}}),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+            with (
+                patch.object(conformance, "BASELINE", baseline),
+                patch.object(
+                    conformance, "scan_stack",
+                    return_value={"demo": {"excess_worktrees": 1}},
+                ) as scan_stack,
+                patch.object(
+                    sys, "argv",
+                    [str(SCRIPT), "check", "--json", "--worktree",
+                     "--revision", "deadbeef"],
+                ),
+                redirect_stdout(output),
+            ):
+                result = conformance.main()
+
+        self.assertEqual(result, 1)
+        scan_stack.assert_called_once_with(conformance.ROOT)
+        self.assertEqual(
+            json.loads(output.getvalue())["host_regressions"],
+            ["demo/excess_worktrees: 0 -> 1"],
+        )
+
+    def test_check_gates_single_member_worktree_when_stack_revision_is_named(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-host-repo-worktree-") as temp:
+            stack = Path(temp)
+            (stack / "repos" / "demo").mkdir(parents=True)
+            baseline = Path(temp) / "baseline.json"
+            baseline.write_text(
+                json.dumps({"demo": {"excess_worktrees": 0}}),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+            with (
+                patch.object(conformance, "ROOT", stack),
+                patch.object(conformance, "BASELINE", baseline),
+                patch.object(conformance, "require_materialized_providers"),
+                patch.object(conformance, "git_output", return_value="deadbeef"),
+                patch.object(
+                    conformance, "scan_member",
+                    return_value={"excess_worktrees": 1},
+                ) as scan_member,
+                patch.object(
+                    sys, "argv",
+                    [str(SCRIPT), "check", "--json", "--repo", "demo",
+                     "--worktree", "--revision", "deadbeef"],
+                ),
+                redirect_stdout(output),
+            ):
+                result = conformance.main()
+
+        self.assertEqual(result, 1)
+        scan_member.assert_called_once_with(stack, "demo", None)
+        self.assertEqual(
+            json.loads(output.getvalue())["host_regressions"],
+            ["demo/excess_worktrees: 0 -> 1"],
+        )
+
+    def test_check_reports_host_rows_but_still_gates_real_revision_debt(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-host-revision-") as temp:
+            stack = Path(temp)
+            (stack / "repos" / "demo").mkdir(parents=True)
+            baseline = Path(temp) / "baseline.json"
+            baseline.write_text(
+                json.dumps({"demo": {
+                    "excess_worktrees": 0,
+                    "print_dbg": 0,
+                }}),
+                encoding="utf-8",
+            )
+
+            def run_check(scanned: dict) -> tuple[int, dict]:
+                output = io.StringIO()
+                with (
+                    patch.object(conformance, "ROOT", stack),
+                    patch.object(conformance, "BASELINE", baseline),
+                    patch.object(conformance, "require_materialized_providers"),
+                    patch.object(conformance, "git_output", return_value="deadbeef"),
+                    patch.object(conformance, "scan_member", return_value=scanned),
+                    patch.object(
+                        sys, "argv",
+                        [str(SCRIPT), "check", "--json", "--repo", "demo",
+                         "--revision", "deadbeef"],
+                    ),
+                    redirect_stdout(output),
+                ):
+                    result = conformance.main()
+                return result, json.loads(output.getvalue())
+
+            host_only, host_payload = run_check({"excess_worktrees": 1})
+            raised, raised_payload = run_check({
+                "excess_worktrees": 1,
+                "print_dbg": 1,
+            })
+
+        self.assertEqual(host_only, 0)
+        self.assertEqual(
+            host_payload["host_regressions"],
+            ["demo/excess_worktrees: 0 -> 1"],
+        )
+        self.assertEqual(raised, 1)
+        self.assertEqual(
+            raised_payload["regressions"], ["demo/print_dbg: 0 -> 1"]
+        )
+
+    def test_check_rejects_conflicting_member_revision_and_worktree(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-host-flags-") as temp:
+            errors = io.StringIO()
+            with (
+                patch.object(
+                    sys, "argv",
+                    [str(SCRIPT), "check", "--repo", "demo", "--member-path",
+                     temp, "--member-revision", "HEAD", "--worktree"],
+                ),
+                redirect_stderr(errors),
+            ):
+                result = conformance.main()
+
+        self.assertEqual(result, 2)
+        self.assertIn("cannot be combined", errors.getvalue())
 
 
 if __name__ == "__main__":
