@@ -250,10 +250,12 @@ debt_gate() {
     fi
 
     for member in $changed; do
-        [ -d "${atlas_root}/repos/${member}" ] || continue
+        [ -d "${member_root}/repos/${member}" ] || continue
         if ! output="$(unset GIT_DIR GIT_WORK_TREE; "$python_bin" \
                 "${atlas_root}/scripts/atlas-conformance.py" \
-                check --repo "$member" --revision "$tip" 2>&1)"; then
+                check --repo "$member" \
+                --member-path "${member_root}/repos/${member}" \
+                --member-revision "$tip" 2>&1)"; then
             echo "pre-push: BLOCKED -- advancing ${member} raises a debt class." >&2
             echo "$output" >&2
             echo >&2
