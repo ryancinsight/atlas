@@ -25,7 +25,9 @@ def install_hook(repo: Path) -> None:
     (repo / "scripts").mkdir()
     for name in (
         "atlas-stale-side-guard.py", "atlas_stale_side_git.py",
-        "atlas_stale_side_basis.py", "atlas_git_process.py", "stale-side-waivers.json",
+        "atlas_stale_side_basis.py", "atlas_git_process.py",
+        "atlas_build_process_capture.py", "atlas_build_process_group.py",
+        "atlas_build_process_windows.py", "stale-side-waivers.json",
         "atlas-provider-integration-audit.py", "atlas_stack.py",
     ):
         shutil.copyfile(ROOT / "scripts" / name, repo / "scripts" / name)

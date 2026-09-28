@@ -1,5 +1,6 @@
 <a id="atlas-kwavers-alloc-probe-deny-docs-2026-08-21"></a>
 ## ATLAS-KWAVERS-ALLOC-PROBE-DENY-DOCS-2026-08-21 — Pilot deny(missing_docs) [patch] — in-progress
 - **outcome:** `kwavers-alloc-probe` compiles with `#![deny(missing_docs)]`, the first of 118 flagged crates to adopt it, demonstrating the pattern for the remaining 117 (114 of which need per-crate doc work first).
-- **next:** merge [kwavers PR #598](https://github.com/ryancinsight/kwavers/pull/598) at exact head `aa5ab2bc94ba31dbd5f7438aaef41195e9bf5c8e` once its hosted checks (CI/CD, Architecture Validation, benchmark regression, Legacy Migration Audit, Deploy mdBook) go terminal — all were still `queued` after 56 min of observation, no runner had picked up a job.
-- **Acceptance:** hosted checks green at the exact PR head; no pointer advance or bypass until then.
+- **delivered:** kwavers PR #598 merged (extended to `kwavers-alloc-probe`, `kwavers-mesh`, `kwavers-field`; 3 of 118 flagged crates).
+- **next:** extend `#![deny(missing_docs)]` to the remaining 114 flagged crates that still need per-crate doc work (tracked by the `missing_deny_docs` class in ATLAS-HYGIENE-BASELINE-001; not a safe mechanical sweep — see gap_audit history).
+- **Acceptance:** each migrated crate compiles under the directive with focused gates green at its exact head.

@@ -8,7 +8,6 @@
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — in-progress
 <a id="atlas-apollo-python-surface-2026-08-20"></a>- [ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20](backlog/atlas-apollo-python-surface-2026-08-20.md) — Ship the typed Python surface [patch] — in-progress
-<a id="apollo-quarantine-lift"></a>- [ATLAS-APOLLO-QUARANTINE-LIFT-2026-09-08](backlog/apollo-quarantine-lift.md) — Apollo's moirai rev pin can now be removed [patch] — todo
 <a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
 <a id="atlas-apollo-stockham-policy-050c"></a>- [ATLAS-APOLLO-STOCKHAM-POLICY-050C](backlog/atlas-apollo-stockham-policy-050c.md) — Parameterize the dispatch-policy matrix [minor] — in-progress
 <a id="atlas-arch-005"></a>- [ATLAS-ARCH-005](backlog/atlas-arch-005.md) — Replace closed-set dyn dispatch in per-timestep paths [arch] — in-progress
@@ -25,7 +24,6 @@
 <a id="atlas-book-figure-closure-2026-08-21"></a>- [ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21](backlog/atlas-book-figure-closure-2026-08-21.md) — Restore generated validation figures [patch] — in-progress
 <a id="atlas-book-staging-2026-08-20"></a>- [ATLAS-BOOK-STAGING-2026-08-20](backlog/atlas-book-staging-2026-08-20.md) — Preserve Cargo artifact identity in mdBook gates [patch] — in-progress
 <a id="atlas-branch-inventory-001"></a>- [ATLAS-BRANCH-INVENTORY-001](backlog/atlas-branch-inventory-001.md) — Burn down stack branch inventories [git-hygiene] [patch] — in-progress
-<a id="atlas-build-source-identity"></a>- [ATLAS-BUILD-SOURCE-IDENTITY](backlog/atlas-build-source-identity.md) — Detect stale artifacts across source trees [patch] — todo
 <a id="atlas-build-structure-001"></a>- [ATLAS-BUILD-STRUCTURE-001](backlog/atlas-build-structure-001.md) — Consolidate leaf binaries; compiler-last dev profiles [patch] — in-progress
 <a id="atlas-cfdrs-allocator-2026-08-20"></a>- [ATLAS-CFDRS-ALLOCATOR-2026-08-20](backlog/atlas-cfdrs-allocator-2026-08-20.md) — Remove library global allocator [major][arch] — in-progress
 <a id="atlas-cfdrs-athena-migration-001"></a>- [ATLAS-CFDRS-ATHENA-MIGRATION-001](backlog/atlas-cfdrs-athena-migration-001.md) — Stage B: CFDrs to Athena [major] [arch] — in-progress
@@ -42,7 +40,6 @@
 <a id="atlas-check-figures-ci-verify-defer"></a>- [ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER](backlog/atlas-check-figures-ci-verify-defer.md) — End-to-end CI verification of `prebook check-figures` [minor] — todo
 <a id="atlas-ci-runner-saturation-2026-08-25"></a>- [ATLAS-CI-RUNNER-SATURATION-2026-08-25](backlog/atlas-ci-runner-saturation-2026-08-25.md) — Hosted-runner queue depth delays every merge gate [patch] — in-progress
 <a id="atlas-code-index-001"></a>- [ATLAS-CODE-INDEX-001](backlog/atlas-code-index-001.md) — Search-ladder infrastructure for context economy [patch] — in-progress
-<a id="atlas-coeus-branch-inventory-2026-09-09"></a>- [ATLAS-COEUS-BRANCH-INVENTORY-2026-09-09](backlog/atlas-coeus-branch-inventory-2026-09-09.md) — Fifteen coeus branches hold unique work nobody is finishing [patch] — in-progress
 <a id="atlas-coeus-nlls-004"></a>- [ATLAS-COEUS-NLLS-004](backlog/atlas-coeus-nlls-004.md) — original specification — todo
 <a id="atlas-conformance-ratchet-2026-08-19"></a>- [ATLAS-CONFORMANCE-RATCHET-2026-08-19](backlog/atlas-conformance-ratchet-2026-08-19.md) — exact provider regressions [patch] — blocked
 <a id="atlas-conformance-submodule-status-2026-08-19"></a>- [ATLAS-CONFORMANCE-SUBMODULE-STATUS-2026-08-19](backlog/atlas-conformance-submodule-status-2026-08-19.md) — classify provider dirt after root status [patch] — in-progress
@@ -88,7 +85,6 @@
 <a id="atlas-kwavers-vis-config-2026-08-25"></a>- [ATLAS-KWAVERS-VIS-CONFIG-2026-08-25](backlog/atlas-kwavers-vis-config-2026-08-25.md) — Make visualization selection and quality single-source [major] — blocked
 <a id="atlas-lane-audit-001"></a>- [ATLAS-LANE-AUDIT-001](backlog/atlas-lane-audit-001.md) — Lane-root sweep results and residuals [patch] — in-progress
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — in-progress
-<a id="atlas-leto-peer-wip"></a>- [ATLAS-LETO-PEER-WIP](backlog/atlas-leto-peer-wip.md) — Leto uncommitted peer WIP [patch] — blocked
 <a id="atlas-mnemosyne-default-recheck-2026-08-18"></a>- [ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-18](backlog/atlas-mnemosyne-default-recheck-2026-08-18.md) — moving default remains open — in-progress
 <a id="atlas-mnemosyne-default-recheck-2026-08-19"></a>- [ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-19](backlog/atlas-mnemosyne-default-recheck-2026-08-19.md) — moving default remains open — todo
 <a id="mnemosyne-pin-campaign-stranded"></a>- [ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06](backlog/mnemosyne-pin-campaign-stranded.md) — A provider-pin campaign stalled undelivered in five members [patch] — todo
@@ -143,3 +139,7 @@
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="ritk-shared-tree-stale-basis-213"></a>- [RITK-SHARED-TREE-STALE-BASIS-213](backlog/ritk-shared-tree-stale-basis-213.md) — ritk's shared tree is checked out 58 commits behind origin [patch] — in-progress
+<a id="atlas-build-record-001"></a>- [ATLAS-BUILD-RECORD-001](backlog/atlas-build-record-001.md) — Validate shared build identity records [patch] — todo
+<a id="atlas-moirai-seqcst-002"></a>- [ATLAS-MOIRAI-SEQCST-002](backlog/atlas-moirai-seqcst-002.md) — Weakest-ordering audit for Moirai atomics [patch] — todo
+<a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
+<a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo

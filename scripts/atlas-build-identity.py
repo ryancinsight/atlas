@@ -9,7 +9,10 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from atlas_build_identity import DEFAULT_LEASE_SECONDS, IdentityError, check_record, run_build
+from atlas_build_identity import DEFAULT_LEASE_SECONDS
+from atlas_build_check import check_record
+from atlas_build_lease import BuildIdentityError
+from atlas_build_run import run_build
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -80,7 +83,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         return 0
-    except IdentityError as error:
+    except BuildIdentityError as error:
         print(f"atlas-build-identity: {error}", file=sys.stderr)
         return 1
 

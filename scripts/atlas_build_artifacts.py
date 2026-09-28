@@ -5,29 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import subprocess
+import re
 from pathlib import Path
 from typing import Callable, Sequence
 
+from atlas_git_process import GitProcessError, execute_process
 from atlas_build_lease import BuildIdentityError
-
-ARTIFACT_SUFFIXES = frozenset(
-    {
-        ".a",
-        ".d",
-        ".dll",
-        ".dylib",
-        ".exe",
-        ".json",
-        ".lib",
-        ".pdb",
-        ".rlib",
-        ".rmeta",
-        ".so",
-        ".wasm",
-    }
-)
-
+from atlas_build_target import TargetDirectory
 
 def _canonical(path: Path, *, strict: bool = False) -> Path:
     try:
@@ -41,10 +25,10 @@ def _feed_framed(digest: "hashlib._Hash", data: bytes) -> None:
     digest.update(data)
 
 
-def _file_digest(path: Path) -> str:
+def _file_digest(target: TargetDirectory, path: Path) -> str:
     digest = hashlib.sha256()
     try:
-        with path.open("rb") as stream:
+        with target.open_file(path) as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(chunk)
     except OSError as error:
@@ -52,22 +36,26 @@ def _file_digest(path: Path) -> str:
     return digest.hexdigest()
 
 
-def validate_artifact_paths(target_dir: Path, paths: Sequence[Path]) -> tuple[Path, ...]:
-    canonical_target = _canonical(target_dir)
+def _validated_paths(
+    target: TargetDirectory, paths: Sequence[Path]
+) -> tuple[Path, ...]:
     selected: set[Path] = set()
     for path in paths:
-        resolved = _canonical(path)
-        try:
-            resolved.relative_to(canonical_target)
-        except ValueError as error:
-            raise BuildIdentityError(f"artifact is outside the shared target: {resolved}") from error
-        selected.add(resolved)
+        target.validate_path(path)
+        relative = target.relative_path(path)
+        selected.add(target.path / relative)
     return tuple(sorted(selected))
+
+
+def validate_artifact_paths(
+    target: TargetDirectory, paths: Sequence[Path]
+) -> tuple[Path, ...]:
+    return _validated_paths(target, paths)
 
 
 def artifact_identity(
     root: Path,
-    target_dir: Path,
+    target_root: TargetDirectory,
     package: str,
     profile: str,
     paths: Sequence[Path],
@@ -77,13 +65,12 @@ def artifact_identity(
     related_packages: Sequence[str] = (),
 ) -> dict[str, object]:
     _canonical(root, strict=True)
-    target_dir = _canonical(target_dir)
-    selected = set(validate_artifact_paths(target_dir, paths))
-
+    target_dir = target_root.path
+    selected = set(_validated_paths(target_root, paths))
     if not selected:
         selected.update(
             discover_artifacts(
-                target_dir,
+                target_root.command_path,
                 package,
                 profile,
                 target,
@@ -92,16 +79,16 @@ def artifact_identity(
                 related_packages,
             )
         )
+        selected = set(_validated_paths(target_root, tuple(selected)))
 
     if not selected:
-        raise BuildIdentityError(f"no artifact found for {package} in {target_dir / profile}")
+        raise BuildIdentityError(
+            f"no artifact found for {package} in {target_dir / profile}"
+        )
     files = {}
     for path in sorted(selected):
-        try:
-            relative = path.relative_to(target_dir).as_posix()
-        except ValueError as error:
-            raise BuildIdentityError(f"artifact is outside the shared target: {path}") from error
-        files[relative] = _file_digest(path)
+        relative = target_root.relative_path(path).as_posix()
+        files[relative] = _file_digest(target_root, path)
     digest = hashlib.sha256(
         json.dumps(files, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -162,6 +149,30 @@ def _normalize_stem(value: str) -> str:
     return value.replace("-", "_")
 
 
+_CARGO_HASH_SUFFIX = re.compile(r"-[0-9a-f]{16}\Z")
+_VERSIONED_SHARED_LIBRARY = re.compile(r"\.so(?:\.\d+(?:\.\d+)*)?\Z", re.IGNORECASE)
+
+
+def _artifact_stem(filename: str) -> str | None:
+    name = filename.casefold()
+    prefixed_extensions = (".rlib", ".rmeta", ".so", ".dylib", ".a")
+    plain_extensions = (".dll.lib", ".dll", ".lib", ".exe", ".wasm", ".d", ".pdb")
+    for extension in prefixed_extensions:
+        if name.endswith(extension):
+            return filename[: -len(extension)].removeprefix("lib")
+    if _VERSIONED_SHARED_LIBRARY.search(name):
+        suffix = _VERSIONED_SHARED_LIBRARY.search(name)
+        if suffix is None:
+            return None
+        return filename[: suffix.start()].removeprefix("lib")
+    for extension in plain_extensions:
+        if name.endswith(extension):
+            return filename[: -len(extension)]
+    if "." in filename:
+        return None
+    return filename
+
+
 def _cargo_metadata(
     manifest: Path,
     metadata_cwd: Path | None = None,
@@ -181,24 +192,18 @@ def _cargo_metadata(
     if no_deps:
         arguments.append("--no-deps")
     try:
-        result = subprocess.run(
+        result = execute_process(
             arguments,
             cwd=metadata_cwd or manifest.parent,
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
             timeout=60,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
         )
-    except (OSError, subprocess.SubprocessError) as error:
+    except GitProcessError as error:
         raise BuildIdentityError(f"cannot read package metadata from {manifest}: {error}") from error
     if result.returncode != 0:
-        detail = result.stderr.strip()
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise BuildIdentityError(f"cargo metadata failed for {manifest}: {detail}")
     try:
-        value = json.loads(result.stdout)
+        value = json.loads(result.stdout.decode("utf-8", errors="replace"))
     except json.JSONDecodeError as error:
         raise BuildIdentityError(f"malformed cargo metadata for {manifest}") from error
     if not isinstance(value, dict):
@@ -230,19 +235,37 @@ def _workspace_artifact_owners(
 
 
 def _artifact_owner(filename: str, owners: dict[str, frozenset[str]], requested: str) -> str | None:
-    stem = filename[3:] if filename.startswith("lib") else filename
-    stem = _normalize_stem(stem.split(".", 1)[0])
+    stem = _artifact_stem(filename)
+    if stem is None:
+        return None
+    if _CARGO_HASH_SUFFIX.search(stem):
+        stem = stem[:-17]
+    stem = _normalize_stem(stem)
     matches = [
-        owner
+        (owner, candidate)
         for owner, stems in owners.items()
-        if any(
-            stem == candidate
-            or stem.startswith(f"{candidate}_")
-            or stem.startswith(f"{candidate}-")
-            for candidate in stems
-        )
+        for candidate in stems
+        if stem == candidate
     ]
-    return matches[0] if len(matches) == 1 else None
+    requested_matches = [match for match in matches if match[0] == requested]
+    if not requested_matches:
+        return None
+    longest = max(len(candidate) for _, candidate in matches)
+    best = {owner for owner, candidate in matches if len(candidate) == longest}
+    if len(best) != 1:
+        raise BuildIdentityError(
+            f"artifact {filename} has ambiguous Cargo owners: {', '.join(sorted(best))}"
+        )
+    return next(iter(best))
+
+
+def _belongs_to_requested(
+    filename: str, owners: dict[str, frozenset[str]], requested: set[str]
+) -> bool:
+    return any(
+        _artifact_owner(filename, owners, package) == package
+        for package in sorted(requested)
+    )
 
 
 def dependency_snapshot(
@@ -303,6 +326,7 @@ def dependency_snapshot(
     records: list[dict[str, object]] = []
     clean_packages: set[str] = set()
     clean_sources: dict[str, str] = {}
+    git_source_identities: dict[str, object] = {}
     for package_id in sorted(reachable):
         value = packages.get(package_id)
         if value is None:
@@ -324,7 +348,7 @@ def dependency_snapshot(
         else:
             source_text = str(source)
             kind = "git" if source_text.startswith("git+") else "registry"
-            record = {
+            source_record: dict[str, object] = {
                 "id": package_id,
                 "name": str(value["name"]),
                 "version": str(value["version"]),
@@ -333,8 +357,18 @@ def dependency_snapshot(
                 ),
                 "kind": kind,
                 "source": source_text,
-                "content_digest": _package_source_digest(manifest_path.parent),
             }
+            if kind == "git":
+                identity_value = git_source_identities.get(source_text)
+                if identity_value is None:
+                    identity_value = source_identity(manifest_path.parent)
+                    git_source_identities[source_text] = identity_value
+                source_record["identity"] = identity_value
+            else:
+                source_record["content_digest"] = _package_source_digest(
+                    manifest_path.parent
+                )
+            record = source_record
         if record["kind"] != "registry":
             name = str(record["name"])
             previous = clean_sources.get(name)
@@ -366,7 +400,9 @@ def discover_artifacts(
     metadata_cwd: Path | None = None,
     related_packages: Sequence[str] = (),
 ) -> tuple[Path, ...]:
-    target_dir = _canonical(target_dir)
+    target_dir = Path(target_dir)
+    if not target_dir.is_absolute():
+        target_dir = Path.cwd() / target_dir
     owners = (
         _workspace_artifact_owners(manifest, metadata_cwd)
         if manifest is not None
@@ -374,6 +410,18 @@ def discover_artifacts(
     )
     requested_packages = set((package, *related_packages))
     selected: set[Path] = set()
+    profile_dirs = [target_dir / profile]
+    if target != "host":
+        profile_dirs.append(target_dir / target / profile)
+    for profile_dir in profile_dirs:
+        if not profile_dir.is_dir():
+            continue
+        for path in profile_dir.iterdir():
+            if (
+                path.is_file()
+                and _belongs_to_requested(path.name, owners, requested_packages)
+            ):
+                selected.add(path)
     dep_dirs = [target_dir / profile / "deps"]
     if target != "host":
         dep_dirs.append(target_dir / target / profile / "deps")
@@ -383,10 +431,22 @@ def discover_artifacts(
         for path in deps.iterdir():
             if (
                 path.is_file()
-                and path.suffix in ARTIFACT_SUFFIXES
-                and _artifact_owner(path.name, owners, package) in requested_packages
+                and _belongs_to_requested(path.name, owners, requested_packages)
             ):
-                selected.add(path.resolve())
+                selected.add(path)
+
+    example_dirs = [target_dir / profile / "examples"]
+    if target != "host":
+        example_dirs.append(target_dir / target / profile / "examples")
+    for examples in example_dirs:
+        if not examples.is_dir():
+            continue
+        for path in examples.iterdir():
+            if (
+                path.is_file()
+                and _belongs_to_requested(path.name, owners, requested_packages)
+            ):
+                selected.add(path)
     fingerprint_dirs = [
         target_dir / profile / ".fingerprint",
         target_dir / ".fingerprint",
@@ -399,9 +459,23 @@ def discover_artifacts(
         for directory in fingerprints.iterdir():
             if (
                 directory.is_dir()
-                and _artifact_owner(directory.name, owners, package) in requested_packages
+                and _belongs_to_requested(directory.name, owners, requested_packages)
             ):
                 selected.update(
-                    path.resolve() for path in directory.rglob("*") if path.is_file()
+                    path for path in directory.rglob("*") if path.is_file()
+                )
+    build_dirs = [target_dir / profile / "build"]
+    if target != "host":
+        build_dirs.append(target_dir / target / profile / "build")
+    for builds in build_dirs:
+        if not builds.is_dir():
+            continue
+        for directory in builds.iterdir():
+            if (
+                directory.is_dir()
+                and _belongs_to_requested(directory.name, owners, requested_packages)
+            ):
+                selected.update(
+                    path for path in directory.rglob("*") if path.is_file()
                 )
     return tuple(sorted(selected))
