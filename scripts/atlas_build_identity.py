@@ -480,19 +480,27 @@ def run_build(
             if clean_command is not None:
                 _run_checked(clean_command, execution_root, environment)
             else:
-                for clean_package in clean_packages:
-                    _run_checked(
-                        [
-                            *_cargo_command(),
-                            "clean",
-                            "-p",
-                            clean_package,
-                            "--manifest-path",
-                            str(manifest),
-                        ],
-                        execution_root,
-                        environment,
-                    )
+                # One invocation for the whole closure: each `cargo clean`
+                # walks the entire shared target whatever it deletes, so one
+                # call per package held the closure's exclusive leases for
+                # minutes per package (about 2.5 min each on the stack
+                # target) and a stale metis record stalled every push that
+                # shared its dependencies for over an hour.
+                _run_checked(
+                    [
+                        *_cargo_command(),
+                        "clean",
+                        *(
+                            argument
+                            for clean_package in clean_packages
+                            for argument in ("-p", clean_package)
+                        ),
+                        "--manifest-path",
+                        str(manifest),
+                    ],
+                    execution_root,
+                    environment,
+                )
             cleaned = True
         _run_checked(command, execution_root, environment)
         final_source = source_identity(root, (target_dir,), ignore_paths)

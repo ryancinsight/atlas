@@ -1539,8 +1539,15 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertEqual(first.status, "rebuilt")
         self.assertEqual(second.status, "reused")
-        clean_commands = [command for command in commands if list(command[1:3]) == ["clean", "-p"]]
-        self.assertEqual([command[3] for command in clean_commands], ["demo", "dep"])
+        clean_commands = [command for command in commands if list(command[1:2]) == ["clean"]]
+        # One walk of the shared target for the whole closure, not one per package.
+        self.assertEqual(len(clean_commands), 1, clean_commands)
+        packages = [
+            clean_commands[0][index + 1]
+            for index, argument in enumerate(clean_commands[0])
+            if argument == "-p"
+        ]
+        self.assertEqual(packages, ["demo", "dep"])
 
     def test_older_record_versions_are_stale(self) -> None:
         record = self.base / "old-record.json"

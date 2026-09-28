@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-24
+- Revision: 2026-09-27 — A stale record cleans its closure with one `cargo clean` carrying every `-p`: each invocation walks the whole shared target (about 2.5 min on the stack target), and one call per package held a metis gate's exclusive closure leases for over an hour, stalling every push sharing its dependencies.
 - Revision: 2026-09-25 — Accepted the locked dependency-content, closure-lease, and artifact-package design.
 - Revision: 2026-09-27 — A run reads its dependencies under shared leases and compares only the artifacts its record names; it runs exclusive whenever that record does not match exactly, and one wait bound covers the whole run. Every lease had been exclusive, so one hook's long test run blocked every other build that read the same dependency.
 - Revision: 2026-09-27 — Lease requests are served in arrival order: a coeus hook re-running its steps re-took the aequitas lease the instant it released it, and a polling helios push waited out its full bound three times.
