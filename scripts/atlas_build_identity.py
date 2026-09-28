@@ -366,6 +366,51 @@ def _run_checked(command: Sequence[str], root: Path, environment: dict[str, str]
         raise IdentityError(f"command failed with exit code {result.returncode}: {' '.join(command)}")
 
 
+def _dimensions(build: object) -> object:
+    """A build record's dimensions, without the source compared on its own."""
+    content = _content(build)
+    if not isinstance(content, dict):
+        return content
+    return {key: value for key, value in content.items() if key != "source"}
+
+
+def _narrowed_clean(
+    existing: dict[str, object] | None,
+    current: dict[str, object] | None,
+    spec: BuildSpec,
+    dependencies: dict[str, object],
+    manifest: Path,
+    execution_root: Path,
+    clean_packages: tuple[str, ...],
+) -> tuple[str, ...] | None:
+    """The packages a mismatched record must clean, or None for the whole closure.
+
+    With the build dimensions and the dependency closure unchanged, the
+    dependencies' inputs are unchanged: a new source for the identified package
+    cannot alter their artifacts. The run then cleans its own package when its
+    source changed and each package whose recorded artifact bytes changed (Cargo
+    rebuilds every unit that depends on a unit it rebuilds, so dependents
+    follow). Cleaning the closure on every source change rebuilt every
+    first-party dependency under exclusive leases on each push and serialized
+    every gate sharing them.
+    """
+    if existing is None or current is None:
+        return None
+    if (
+        _dimensions(existing.get("build")) != _dimensions(spec.as_dict())
+        or existing.get("dependencies") != dependencies
+    ):
+        return None
+    changed = changed_packages(
+        existing["artifact"]["files"], current["files"], manifest, execution_root, clean_packages
+    )
+    if changed is None:
+        return None
+    if _content(existing.get("source")) != _content(spec.source.as_dict()):
+        changed.add(spec.package)
+    return tuple(sorted(changed)) if changed else None
+
+
 def run_build(
     root: Path,
     manifest: Path,
@@ -421,13 +466,17 @@ def run_build(
     # One bound for the whole run, across every lease and both phases.
     deadline_ns = time.monotonic_ns() + int(lease_wait_seconds * 1_000_000_000)
 
-    def acquire(exclusive: bool) -> ExitStack:
-        # The command writes its own package; dependencies are only read
-        # unless the record shows the run must clean or rebuild them.
+    def acquire(exclusive: frozenset[str]) -> ExitStack:
+        # The command writes its own package; a dependency is only read
+        # unless the record shows the run must clean or rebuild it.
         stack = ExitStack()
         try:
             for lock, owner in scopes:
-                mode = EXCLUSIVE if exclusive or owner["package"] == spec.package else SHARED
+                mode = (
+                    EXCLUSIVE
+                    if owner["package"] == spec.package or owner["package"] in exclusive
+                    else SHARED
+                )
                 stack.push(
                     acquire_waiting(
                         OwnerLease(lock, owner, lease_seconds, mode),
@@ -466,41 +515,44 @@ def run_build(
         current = _recorded_artifact(existing, target_dir, artifact_paths)
         return existing, _record_matches(existing, spec, dependencies, current), current
 
+    def clean_targets(
+        existing: dict[str, object] | None, current: dict[str, object] | None
+    ) -> tuple[str, ...]:
+        # A caller's clean command is opaque, so it may touch the whole closure.
+        if clean_command is not None:
+            return clean_packages
+        narrowed = _narrowed_clean(
+            existing, current, spec, dependencies, manifest, execution_root, clean_packages
+        )
+        return clean_packages if narrowed is None else narrowed
+
     with ExitStack() as leases:
-        shared = leases.enter_context(acquire(exclusive=False))
+        shared = leases.enter_context(acquire(frozenset()))
         existing, matched, current = locked_record()
         if not matched:
-            # Anything but an exact match may write dependency artifacts, so
-            # it runs exclusive. Releasing before asking again, rather than
-            # upgrading in place, keeps two upgraders from each holding the
-            # shared lease the other waits for; the record is read again
-            # because a holder may have rebuilt it meanwhile.
+            # A mismatch may write the artifacts of the packages it cleans, so
+            # those run exclusive; every other dependency stays shared. Releasing
+            # before asking again, rather than upgrading in place, keeps two
+            # upgraders from each holding the shared lease the other waits
+            # for; the record is read again because a holder may have rebuilt
+            # it meanwhile.
+            held = frozenset(clean_targets(existing, current))
             shared.close()
-            leases.enter_context(acquire(exclusive=True))
+            exclusive = leases.enter_context(acquire(held))
             existing, matched, current = locked_record()
+            # The re-read may name packages the first read did not: widen to
+            # them and read again, so nothing is cleaned under a shared lease.
+            while not matched and not held.issuperset(clean_targets(existing, current)):
+                held = held | frozenset(clean_targets(existing, current))
+                exclusive.close()
+                exclusive = leases.enter_context(acquire(held))
+                existing, matched, current = locked_record()
         stale = not matched and (existing is not None or not _sibling_matches(spec))
         if stale:
             if clean_command is not None:
                 _run_checked(clean_command, execution_root, environment)
             else:
-                targets = clean_packages
-                if (
-                    existing is not None
-                    and current is not None
-                    and _record_matches(existing, spec, dependencies, existing.get("artifact"))
-                ):
-                    # Only artifact bytes changed. Cleaning the packages that
-                    # own them is enough: Cargo rebuilds every unit whose
-                    # dependency it rebuilds, so their dependents follow.
-                    narrowed = changed_packages(
-                        existing["artifact"]["files"],
-                        current["files"],
-                        manifest,
-                        execution_root,
-                        clean_packages,
-                    )
-                    if narrowed:
-                        targets = tuple(sorted(narrowed))
+                targets = clean_targets(existing, current)
                 # One invocation for the whole closure: each `cargo clean`
                 # walks the entire shared target whatever it deletes, so one
                 # call per package held the closure's exclusive leases for

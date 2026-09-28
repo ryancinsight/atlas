@@ -1133,7 +1133,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         recorded.write_bytes(b"rebuilt from another path")
         self.assertEqual(self.cleaned_packages("first"), ["dep"])
 
-    def test_a_changed_source_cleans_the_whole_closure_whatever_changed_on_disk(self) -> None:
+    def test_a_changed_source_cleans_its_package_and_changed_dependencies(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         recorded = self.artifact.parent / "libdep-0ecdeded.rlib"
         recorded.write_bytes(b"dependency")
@@ -1141,6 +1141,29 @@ class BuildIdentityTestCase(unittest.TestCase):
         (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
         recorded.write_bytes(b"rebuilt from another path")
         self.assertEqual(self.cleaned_packages("second"), ["demo", "dep"])
+
+    def test_a_changed_source_alone_cleans_only_its_own_package(self) -> None:
+        # With the dependency closure unchanged, a new source for `demo`
+        # cannot alter `dep`'s artifacts, so `dep` is neither cleaned nor
+        # rebuilt. Cleaning the closure here rebuilt every first-party
+        # dependency on each push.
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def test_a_changed_source_alone_reads_its_dependencies_shared(self) -> None:
+        # A peer holding `dep` shared does not block a run whose only change
+        # is its own source: the run holds `dep` shared too. Taking the whole
+        # closure exclusive on every source change serialized every gate that
+        # shared a dependency.
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
+        start_holder(self, self.dep_lock(), SHARED, 60)
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
 
     def test_a_stale_run_rechecks_after_taking_its_leases_exclusive(self) -> None:
         # Between releasing its shared leases and taking them exclusive, a
