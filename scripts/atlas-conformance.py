@@ -2462,15 +2462,47 @@ def drift_bounded_baseline(
     return bounded, notes
 
 
+def host_state_gates(*, worktree: bool, revision: str | None,
+                     member_revision: str | None) -> bool:
+    """Whether this machine's checkout state should fail the run.
+
+    Host state gates an *audit of the working tree* and does not gate a
+    *judgement about a revision*. The two are told apart by which revision
+    the caller named:
+
+    - `--revision <rev>` (the stack root revision) and `--member-revision
+      <rev>` (a member's pushed commit) are how both pre-push gates ask the
+      question. They materialize the counted content from an object store.
+    - The bare default scan, `--member-path` naming a checkout read in place,
+      and a deliberate `--worktree` audit all measure the working tree, and
+      for those a forked `target/` or a stray lane is a real fact worth
+      failing on. A CI runner measures zero for both by construction, which
+      is why every committed baseline records zero.
+
+    Refusing a *push* over host state refuses it on a peer's state. Observed
+    on atlas PR #341: `debt_gate` in `.githooks/pre-push` ran
+    `check --repo leto --revision <tip>` over a pin advance, which materializes
+    leto from the gitlink, and the run failed on `leto/excess_worktrees` -- a
+    lane a live peer had been working in for two hours -- carrying
+    `0 regression(s), 0 tightening(s)`. The same shape reached a member's own
+    pre-push through `--member-revision`.
+    """
+    return not revision and not member_revision
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", nargs="?", default="report",
                         choices=["report", "generate", "check"])
     parser.add_argument(
         "--revision",
-        default="HEAD",
+        default=None,
         metavar="REV",
-        help="scan this root Git revision and its recorded provider gitlinks",
+        help="scan this root Git revision and its recorded provider gitlinks "
+        "(default HEAD). Naming a revision marks the run as a judgement "
+        "about that revision, which is what both pre-push gates do, so host "
+        "state -- this machine's lanes, forked caches, scratch files -- is "
+        "reported but does not fail it.",
     )
     parser.add_argument(
         "--worktree",
@@ -2581,14 +2613,14 @@ def main() -> int:
                 return 2
             require_materialized_providers(ROOT, {args.repo})
             root_revision = None if args.worktree else git_output(
-                "rev-parse", "--verify", f"{args.revision}^{{commit}}"
+                "rev-parse", "--verify", f"{args.revision or 'HEAD'}^{{commit}}"
             ).strip()
             results = {args.repo: scan_member(ROOT, args.repo, root_revision)}
         elif args.worktree:
             results = scan_stack(ROOT)
         else:
             root_revision = git_output(
-                "rev-parse", "--verify", f"{args.revision}^{{commit}}"
+                "rev-parse", "--verify", f"{args.revision or 'HEAD'}^{{commit}}"
             ).strip()
             results = scan_stack(ROOT, root_revision)
     except RuntimeError as exc:
@@ -2688,10 +2720,11 @@ def main() -> int:
     else:
         bound = base
     regressions, host, _ = ratchet_delta(bound, results)
-    # A revision scan judges what the push carries; the live checkout's lanes,
-    # forked caches, and scratch files are not in it, and refusing a push over
-    # them refuses it on a peer's state.
-    host_gates = args.member_revision is None
+    host_gates = host_state_gates(
+        worktree=args.worktree,
+        revision=args.revision,
+        member_revision=args.member_revision,
+    )
     failed = bool(regressions or (host and host_gates))
     if args.json:
         print(json.dumps({
@@ -2731,8 +2764,8 @@ def main() -> int:
             "Sweep the tree or close the lane; do not regenerate the "
             "baseline over them."
             + ("" if host_gates else
-               " They do not fail a --member-revision check, which judges "
-               "only the revision's content.")
+               " They do not fail a revision scan, which judges only the "
+               "revision's content.")
         )
     print(
         f"{len(regressions)} regression(s), {len(host)} host-state row(s), "
