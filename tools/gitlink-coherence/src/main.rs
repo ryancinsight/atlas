@@ -19,7 +19,7 @@ use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
 
 use atlas_gitlink_coherence_gate::coherence::{audit, audit_one};
 use atlas_gitlink_coherence_gate::error::Error;
@@ -29,12 +29,15 @@ use atlas_gitlink_coherence_gate::report::{Format, Report};
 const USAGE: &str = "\
 usage:
   gitlink-coherence audit [--atlas-root <path>] \
+                          [--member-root <path>] \
+                          [--revision <commit>] \
                           [--format human|markdown|json] \
                           [--target-repo <bare-name>] \
                           [--fetch]
 
 Reads <atlas-root>/.gitmodules and probes each pinned gitlink for coherence
-against the member's `origin/main`. By default the probe is fully read-only
+at the named metadata revision, or `HEAD` when no revision is supplied, against
+the member's `origin/main`. By default the probe is fully read-only
 (no `git fetch`); pass `--fetch` to refresh `refs/remotes/origin/main` from
 each member's remote before probing (no working-tree mutation).
 
@@ -63,6 +66,8 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
     let parsed = parse_arguments(arguments)?;
     let Parsed {
         atlas_root,
+        member_root,
+        revision,
         format,
         target_repo,
         fetch,
@@ -72,8 +77,8 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
         // most friendly default for the on-host usage pattern.
         env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
     });
-    let gitmodules_path = atlas_root.join(".gitmodules");
-    let bytes = fs::read(&gitmodules_path).map_err(Error::MissingGitmodules)?;
+    let member_root = member_root.unwrap_or_else(|| atlas_root.clone());
+    let bytes = read_gitmodules(&atlas_root, revision.as_deref())?;
     let text = String::from_utf8(bytes).map_err(|err| Error::GitExit {
         context: "read .gitmodules",
         code: 0,
@@ -88,12 +93,18 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
             let sub = table
                 .find_by_bare_name(bare)
                 .ok_or_else(|| Error::UnknownTargetRepo(bare.to_string()))?;
-            let probe = audit_one(&atlas_root, sub, fetch)?;
+            let probe = audit_one(&atlas_root, &member_root, sub, fetch, revision.as_deref())?;
             atlas_gitlink_coherence_gate::coherence::Coherence {
                 probes: vec![probe],
             }
         }
-        None => audit(&atlas_root, &table, fetch)?,
+        None => audit(
+            &atlas_root,
+            &member_root,
+            &table,
+            fetch,
+            revision.as_deref(),
+        )?,
     };
 
     let report = Report::from(&coherence);
@@ -105,8 +116,33 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
     }
 }
 
+fn read_gitmodules(atlas_root: &std::path::Path, revision: Option<&str>) -> Result<Vec<u8>, Error> {
+    let Some(revision) = revision else {
+        return fs::read(atlas_root.join(".gitmodules")).map_err(Error::MissingGitmodules);
+    };
+    let spec = format!("{revision}:.gitmodules");
+    let output = Command::new("git")
+        .args(["-C", &atlas_root.to_string_lossy(), "show", &spec])
+        .output()
+        .map_err(|source| Error::GitInvocation {
+            context: "show .gitmodules",
+            stderr: String::new(),
+            source,
+        })?;
+    if !output.status.success() {
+        return Err(Error::GitExit {
+            context: "show .gitmodules",
+            code: output.status.code().unwrap_or(1),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        });
+    }
+    Ok(output.stdout)
+}
+
 struct Parsed {
     atlas_root: Option<PathBuf>,
+    member_root: Option<PathBuf>,
+    revision: Option<String>,
     format: Format,
     target_repo: Option<String>,
     /// Whether to `git fetch` each member before probing.
@@ -115,6 +151,8 @@ struct Parsed {
 
 fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, Error> {
     let mut atlas_root: Option<PathBuf> = None;
+    let mut member_root: Option<PathBuf> = None;
+    let mut revision: Option<String> = None;
     let mut format: Format = Format::Human;
     let mut target_repo: Option<String> = None;
     let mut fetch: bool = false;
@@ -138,6 +176,24 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
                     stderr: "--atlas-root requires a path argument".to_string(),
                 })?;
                 atlas_root = Some(PathBuf::from(v));
+            }
+            "--member-root" => {
+                idx += 1;
+                let v = args.get(idx).ok_or_else(|| Error::GitExit {
+                    context: "argv",
+                    code: 0,
+                    stderr: "--member-root requires a path argument".to_string(),
+                })?;
+                member_root = Some(PathBuf::from(v));
+            }
+            "--revision" => {
+                idx += 1;
+                let v = args.get(idx).ok_or_else(|| Error::GitExit {
+                    context: "argv",
+                    code: 0,
+                    stderr: "--revision requires a commit argument".to_string(),
+                })?;
+                revision = Some(v.to_string_lossy().into_owned());
             }
             "--format" => {
                 idx += 1;
@@ -196,6 +252,8 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
     }
     Ok(Parsed {
         atlas_root,
+        member_root,
+        revision,
         format,
         target_repo,
         fetch,
@@ -236,6 +294,40 @@ mod tests {
             error.to_string().contains("no unique"),
             "diagnostic was: {error}"
         );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn named_revision_reads_its_committed_gitmodules() {
+        let root = std::env::temp_dir().join(format!(
+            "gitlink-coherence-revision-test-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| {
+            let status = Command::new("git")
+                .args([
+                    "-C",
+                    root.to_str().unwrap(),
+                    "-c",
+                    "user.name=Test",
+                    "-c",
+                    "user.email=test@example.invalid",
+                ])
+                .args(args)
+                .status()
+                .unwrap();
+            assert!(status.success(), "git command failed: {args:?}");
+        };
+        git(&["init", "-q", "-b", "main"]);
+        fs::write(root.join(".gitmodules"), "old\n").unwrap();
+        git(&["add", ".gitmodules"]);
+        git(&["commit", "-qm", "old"]);
+        fs::write(root.join(".gitmodules"), "new\n").unwrap();
+
+        assert_eq!(read_gitmodules(&root, Some("HEAD")).unwrap(), b"old\n");
+        assert_eq!(fs::read(root.join(".gitmodules")).unwrap(), b"new\n");
         let _ = fs::remove_dir_all(root);
     }
 }
