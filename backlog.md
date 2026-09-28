@@ -145,4 +145,3 @@
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Run the stack-owned lockfile checker, not member copies [patch] — todo
 <a id="atlas-audit-wave-landing-2026-09-26"></a>- [ATLAS-AUDIT-WAVE-LANDING-2026-09-26](backlog/atlas-audit-wave-landing-2026-09-26.md) — Land the four undelivered audit commits on their members' default branches [patch] — todo
-<a id="atlas-debt-gate-host-state-2026-09-28"></a>- [ATLAS-DEBT-GATE-HOST-STATE-2026-09-28](backlog/atlas-debt-gate-host-state-2026-09-28.md) — A stack-revision push is gated on the pusher's checkout state [correctness] [patch] — todo

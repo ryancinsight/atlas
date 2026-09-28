@@ -62,6 +62,7 @@ import tempfile
 import threading
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
+from enum import Enum
 from pathlib import Path
 
 try:
@@ -2462,8 +2463,14 @@ def drift_bounded_baseline(
     return bounded, notes
 
 
-def host_state_gates(*, worktree: bool, revision: str | None,
-                     member_revision: str | None) -> bool:
+class HostStateIntent(Enum):
+    """Whether host-observed rows are part of this scan's acceptance gate."""
+
+    LIVE_AUDIT = "live_audit"
+    REVISION_JUDGEMENT = "revision_judgement"
+
+
+def host_state_gates(intent: HostStateIntent) -> bool:
     """Whether this machine's checkout state should fail the run.
 
     Host state gates an *audit of the working tree* and does not gate a
@@ -2471,13 +2478,14 @@ def host_state_gates(*, worktree: bool, revision: str | None,
     the caller named:
 
     - `--revision <rev>` (the stack root revision) and `--member-revision
-      <rev>` (a member's pushed commit) are how both pre-push gates ask the
-      question. They materialize the counted content from an object store.
-    - The bare default scan, `--member-path` naming a checkout read in place,
-      and a deliberate `--worktree` audit all measure the working tree, and
-      for those a forked `target/` or a stray lane is a real fact worth
-      failing on. A CI runner measures zero for both by construction, which
-      is why every committed baseline records zero.
+      <rev>` (a member's pushed commit) select committed content. Host state
+      is reported but does not fail a judgement about that content.
+    - The bare default scan, `--member-path` without `--member-revision`,
+      and `--worktree` read live checkout state. For those, a forked `target/`
+      or a stray lane is a real fact worth failing on. `--worktree` takes
+      precedence over a named stack revision because it selects live trees.
+      A CI runner measures zero for host state by construction, which is why
+      every committed baseline records zero.
 
     Refusing a *push* over host state refuses it on a peer's state. Observed
     on atlas PR #341: `debt_gate` in `.githooks/pre-push` ran
@@ -2487,7 +2495,7 @@ def host_state_gates(*, worktree: bool, revision: str | None,
     `0 regression(s), 0 tightening(s)`. The same shape reached a member's own
     pre-push through `--member-revision`.
     """
-    return not revision and not member_revision
+    return intent is HostStateIntent.LIVE_AUDIT
 
 
 def main() -> int:
@@ -2502,7 +2510,8 @@ def main() -> int:
         "(default HEAD). Naming a revision marks the run as a judgement "
         "about that revision, which is what both pre-push gates do, so host "
         "state -- this machine's lanes, forked caches, scratch files -- is "
-        "reported but does not fail it.",
+        "reported but does not fail it unless --worktree or a live "
+        "--member-path selects checkout content.",
     )
     parser.add_argument(
         "--worktree",
@@ -2573,6 +2582,10 @@ def main() -> int:
     if args.member_revision is not None and args.member_path is None:
         print("--member-revision names a commit of the --member-path checkout; "
               "give both", file=sys.stderr)
+        return 2
+    if args.worktree and args.member_revision is not None:
+        print("--worktree selects checkout content and cannot be combined "
+              "with --member-revision", file=sys.stderr)
         return 2
     if mode == "generate" and args.repo:
         print("refusing to generate a baseline from a single repo; omit --repo",
@@ -2720,11 +2733,17 @@ def main() -> int:
     else:
         bound = base
     regressions, host, _ = ratchet_delta(bound, results)
-    host_gates = host_state_gates(
-        worktree=args.worktree,
-        revision=args.revision,
-        member_revision=args.member_revision,
-    )
+    if args.member_path is not None:
+        host_state_intent = (
+            HostStateIntent.REVISION_JUDGEMENT
+            if args.member_revision is not None
+            else HostStateIntent.LIVE_AUDIT
+        )
+    elif args.revision is not None and not args.worktree:
+        host_state_intent = HostStateIntent.REVISION_JUDGEMENT
+    else:
+        host_state_intent = HostStateIntent.LIVE_AUDIT
+    host_gates = host_state_gates(host_state_intent)
     failed = bool(regressions or (host and host_gates))
     if args.json:
         print(json.dumps({
