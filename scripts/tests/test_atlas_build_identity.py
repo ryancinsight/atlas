@@ -1435,15 +1435,18 @@ class BuildIdentityTestCase(unittest.TestCase):
         # them to compare equal. The record does name doc-unit fingerprint
         # files (`doc-lib-*`/`output-doc-lib-*` alongside the compile-unit
         # ones in a package's `.fingerprint/<pkg>-<hash>/` directory,
-        # confirmed by a real run), so excluding a rustdoc-only flag here
-        # is not "rustdoc's output is untracked" -- it is that the flag is
-        # not a pre-emptive build dimension: a run whose record otherwise
-        # matches still re-verifies every named file's current bytes, and
-        # rustdoc rewriting its own fingerprint files under a changed flag
-        # is exactly such a mismatch, cleaning on the next run rather than
-        # silently accepting a stale doc artifact. Splitting the shared
-        # record here made a real three-step push clean the whole closure
-        # on every push instead of once.
+        # confirmed by a real run), so excluding a rustdoc-only flag here is
+        # not "rustdoc's output is untracked" -- it is that Cargo's own
+        # per-unit fingerprint for a `doc` unit already incorporates that
+        # unit's effective rustdoc flags, so `cargo doc` unconditionally
+        # re-invokes rustdoc (rewriting those fingerprint files) whenever
+        # the flags differ, before this identity scheme ever reads the
+        # result; `run_build`'s matched branch then adopts whatever bytes
+        # Cargo just wrote into the record rather than checking them
+        # against a prior expectation, because Cargo already enforced
+        # freshness. Splitting the shared record here made a real
+        # three-step push clean the whole closure on every push instead of
+        # once.
         init_repo(self.root, "fn main() {}\n")
         with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
             clippy = identity.build_spec(
@@ -1519,6 +1522,76 @@ class BuildIdentityTestCase(unittest.TestCase):
         included.write_text('[build]\nrustflags = ["--cfg", "bar"]\n', encoding="utf-8")
         second = build_source.cargo_config_digest(execution_root, arguments)
         self.assertNotEqual(first, second)
+
+    def test_a_bom_prefixed_config_include_is_followed(self) -> None:
+        # Cargo's own config parser accepts a leading UTF-8 BOM; this digest
+        # must strip it before parsing rather than treating a BOM-only
+        # config as unparseable and silently dropping its `include`.
+        execution_root = self.base / "execution-bom"
+        (execution_root / ".cargo").mkdir(parents=True)
+        included = execution_root / ".cargo" / "included.toml"
+        included.write_text("[profile.dev]\nopt-level = 0\n", encoding="utf-8")
+        (execution_root / ".cargo" / "config.toml").write_bytes(
+            b"\xef\xbb\xbf" + b'include = ["included.toml"]\n'
+        )
+        first = build_source.cargo_config_digest(execution_root)
+        included.write_text("[profile.dev]\nopt-level = 3\n", encoding="utf-8")
+        second = build_source.cargo_config_digest(execution_root)
+        self.assertNotEqual(first, second)
+
+    def test_a_config_tomllib_cannot_parse_fails_closed(self) -> None:
+        # Cargo's TOML grammar is looser than `tomllib`'s strict TOML 1.0:
+        # it accepts a trailing comma after an inline table's last element
+        # and an inline table split across lines, both of which `tomllib`
+        # rejects. Silently returning on that parse failure would under-hash
+        # a config whose `include` this digest can no longer see; it must
+        # instead fail closed by raising, naming the offending file, so the
+        # gap is surfaced as an environment failure rather than a silent
+        # staleness hole.
+        for label, text in (
+            ("trailing comma", b'include = [{ path = "extra.toml", },]\n'),
+            (
+                "multi-line inline table",
+                b'include = [\n  { path = "extra.toml",\n    optional = true },\n]\n',
+            ),
+        ):
+            with self.subTest(label):
+                execution_root = self.base / f"execution-unparseable-{label.replace(' ', '-')}"
+                (execution_root / ".cargo").mkdir(parents=True)
+                (execution_root / ".cargo" / "extra.toml").write_text(
+                    "[profile.dev]\nopt-level = 0\n", encoding="utf-8"
+                )
+                (execution_root / ".cargo" / "config.toml").write_bytes(text)
+                with self.assertRaises(identity.IdentityError):
+                    build_source.cargo_config_digest(execution_root)
+
+    def test_an_inline_env_cargo_home_is_used_for_the_home_config(self) -> None:
+        # `env CARGO_HOME=<h> cargo ...` changes which `config.toml` Cargo
+        # reads for its home configuration; `build_spec` must resolve
+        # `CARGO_HOME` from that same inline prefix, not only `os.environ`,
+        # or an override the command itself sets is invisible to the
+        # configuration digest.
+        init_repo(self.root, "fn main() {}\n")
+        home = self.base / "cargo-home"
+        (home).mkdir(parents=True)
+        (home / "config.toml").write_text(
+            '[build]\nrustflags = ["--cfg", "foo"]\n', encoding="utf-8"
+        )
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            first = identity.build_spec(
+                self.root, "demo", self.target, "debug", "host", "",
+                command=["env", f"CARGO_HOME={home}", "cargo", "check"],
+                execution_root=self.root,
+            )
+            (home / "config.toml").write_text(
+                '[build]\nrustflags = ["--cfg", "foo", "--cfg", "bar"]\n', encoding="utf-8"
+            )
+            second = identity.build_spec(
+                self.root, "demo", self.target, "debug", "host", "",
+                command=["env", f"CARGO_HOME={home}", "cargo", "check"],
+                execution_root=self.root,
+            )
+        self.assertNotEqual(first.cargo_config_digest, second.cargo_config_digest)
 
     def test_an_included_config_cycle_does_not_hang(self) -> None:
         # An included file naming its own includer, directly or through a

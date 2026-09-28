@@ -216,6 +216,13 @@ def build_spec(
         normalized_command, separators=(",", ":")
     )
     resolved_execution_root = _canonical(execution_root if execution_root is not None else root)
+    # Computed once and shared: a leading `env NAME=VALUE ...` prefix (e.g.
+    # `env CARGO_HOME=<h> cargo ...`) must be visible to both digests, not
+    # only to `environment_digest` -- `cargo_config_digest` resolves
+    # `$CARGO_HOME` through this same merged mapping, never `os.environ`
+    # alone, or a build's own `CARGO_HOME` override would look for its
+    # config at the ambient `CARGO_HOME` instead.
+    merged_environment = {**os.environ, **_inline_environment(normalized_command)}
     return BuildSpec(
         source=source_identity(canonical_root, (canonical_target,), ignore_paths),
         package=package,
@@ -225,11 +232,9 @@ def build_spec(
         toolchain=toolchain_identity(root),
         target_dir=canonical_target.as_posix(),
         command_key=normalized_key,
-        environment_digest=environment_digest(
-            {**os.environ, **_inline_environment(normalized_command)}
-        ),
+        environment_digest=environment_digest(merged_environment),
         cargo_config_digest=cargo_config_digest(
-            resolved_execution_root, _config_arguments(normalized_command)
+            resolved_execution_root, _config_arguments(normalized_command), merged_environment
         ),
         dependency_digest=dependency_digest,
     )
