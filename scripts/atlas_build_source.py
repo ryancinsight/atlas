@@ -187,26 +187,130 @@ def toolchain_identity(root: Path) -> str:
     return " ".join(result.stdout.split())
 
 
+#  `CARGO_TARGET_DIR` is already the record's own `target_dir` dimension
+# (canonicalized to a real path, never compared as an environment string,
+# and the shared-cache root the pre-push gate always sets identically), so
+# including it here would only add a second, differently-spelled copy of
+# the same dimension.
+_EXCLUDED_ENVIRONMENT_KEYS = frozenset({"CARGO_TARGET_DIR"})
+
+
 def environment_digest(environment: Mapping[str, str] | None = None) -> str:
+    """A digest of the environment variables that change how Cargo builds.
+
+    `CARGO_BUILD_*` (target, rustflags, jobs, ...) and `CARGO_TARGET_*`
+    (per-triple rustflags and runners) are covered by prefix, alongside the
+    existing `CARGO_PROFILE_*` prefix and the fixed single-variable set: a
+    `CARGO_BUILD_RUSTFLAGS` recompiling every dependency at a different
+    codegen setting was previously invisible here, matching this run's
+    exact-comparison record to one built under a different value.
+    """
     source = os.environ if environment is None else environment
     keys = {
         key
         for key in source
-        if key.startswith("CARGO_PROFILE_")
-        or key
-        in {
-            "CARGO",
-            "CARGO_BUILD_TARGET",
-            "CARGO_ENCODED_RUSTFLAGS",
-            "CARGO_INCREMENTAL",
-            "RUSTC",
-            "RUSTC_WORKSPACE_WRAPPER",
-            "RUSTC_WRAPPER",
-            "RUSTDOCFLAGS",
-            "RUSTFLAGS",
-        }
+        if key not in _EXCLUDED_ENVIRONMENT_KEYS
+        and (
+            key.startswith("CARGO_PROFILE_")
+            or key.startswith("CARGO_BUILD_")
+            or key.startswith("CARGO_TARGET_")
+            or key
+            in {
+                "CARGO",
+                "CARGO_ENCODED_RUSTFLAGS",
+                "CARGO_INCREMENTAL",
+                "RUSTC",
+                "RUSTC_WORKSPACE_WRAPPER",
+                "RUSTC_WRAPPER",
+                "RUSTDOCFLAGS",
+                "RUSTFLAGS",
+            }
+        )
     }
     values = {key: _sha256_bytes(str(source[key]).encode()) for key in sorted(keys)}
     return _sha256_bytes(
         json.dumps(values, sort_keys=True, separators=(",", ":")).encode()
     )
+
+
+def _cargo_home(environment: Mapping[str, str] | None = None) -> Path:
+    source = os.environ if environment is None else environment
+    configured = source.get("CARGO_HOME")
+    return Path(configured) if configured else Path.home() / ".cargo"
+
+
+def cargo_config_digest(
+    execution_root: Path,
+    config_arguments: Sequence[str] = (),
+    environment: Mapping[str, str] | None = None,
+) -> str:
+    """A digest of every Cargo configuration source that shapes this build.
+
+    Cargo merges `.cargo/config.toml` (falling back to the legacy
+    `.cargo/config`) from every directory between the execution root and
+    the filesystem root, closer files overriding farther ones, plus
+    `$CARGO_HOME/config.toml` and any `--config` argument on the command
+    line. None of these live inside the package's own repository -- the
+    pre-push gate mirrors the stack's shared config a directory above the
+    export -- so no git diff of that repository can ever see one of them
+    change; a profile or rustflags edit there recompiles a dependency while
+    every record naming it stays byte-identical.
+
+    Each directory config is framed by its depth from the execution root
+    and its filename, never its absolute path: the pre-push gate exports
+    each push to a fresh temporary directory, so a path-keyed digest would
+    make a config file committed inside the repository itself look new on
+    every push, reintroducing the exact whole-closure-every-push staleness
+    this identity scheme exists to avoid. Depth is stable across exports
+    with the same relative layout (a stack config one directory above an
+    `export-N` sibling is depth 1 on every push) while still distinguishing
+    a config at one level from a same-named, differently-positioned one.
+    `$CARGO_HOME` does not move export to export, so its digest carries no
+    path either, only its content. A `--config` argument naming an existing
+    file is hashed by content; an inline directive (`key=value` or TOML)
+    has no file to read, so its literal text is hashed instead. Read
+    failures are surfaced rather than silently skipped: a config file this
+    run cannot read is a build input it cannot account for.
+    """
+    digest = hashlib.sha256()
+    directory = _canonical(execution_root)
+    depth = 0
+    while True:
+        for name in (".cargo/config.toml", ".cargo/config"):
+            path = directory / name
+            if path.is_file():
+                _feed_framed(digest, b"dir")
+                _feed_framed(digest, str(depth).encode("ascii"))
+                _feed_framed(digest, name.encode("ascii"))
+                try:
+                    _feed_framed(digest, path.read_bytes())
+                except OSError as error:
+                    raise BuildIdentityError(f"cannot read cargo config {path}: {error}") from error
+        parent = directory.parent
+        if parent == directory:
+            break
+        directory = parent
+        depth += 1
+    home = _cargo_home(environment)
+    for name in ("config.toml", "config"):
+        path = home / name
+        if path.is_file():
+            _feed_framed(digest, b"home")
+            _feed_framed(digest, name.encode("ascii"))
+            try:
+                _feed_framed(digest, path.read_bytes())
+            except OSError as error:
+                raise BuildIdentityError(f"cannot read cargo home config {path}: {error}") from error
+    for argument in config_arguments:
+        text = str(argument)
+        candidate = Path(text)
+        if candidate.is_file():
+            _feed_framed(digest, b"arg-file")
+            try:
+                _feed_framed(digest, candidate.read_bytes())
+            except OSError as error:
+                raise BuildIdentityError(f"cannot read cargo --config file {candidate}: {error}") from error
+        else:
+            _feed_framed(digest, b"arg-inline")
+            _feed_framed(digest, text.encode("utf-8"))
+    return digest.hexdigest()

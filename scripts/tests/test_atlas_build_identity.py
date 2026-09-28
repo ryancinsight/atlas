@@ -1897,6 +1897,130 @@ class RepeatedExportPushTestCase(unittest.TestCase):
         # command rebuilt, so the next push finds its record true.
         self.assertEqual(self.push(4, stable_path=False), [["d", "p"], [], [], []])
 
+    def test_a_committed_cargo_config_does_not_go_stale_across_export_paths(self) -> None:
+        # `cargo_config_digest` frames a directory config by its depth from
+        # the execution root and its filename, never its absolute path.
+        # Framing the absolute path instead would make a `.cargo/config.toml`
+        # committed inside the repository -- present at the same relative
+        # position on every push -- look like a new config every push (a new
+        # export path is a new absolute path), reintroducing the every-push
+        # staleness this identity scheme exists to remove.
+        (self.source / ".cargo").mkdir()
+        (self.source / ".cargo" / "config.toml").write_text(
+            "[build]\njobs = 1\n", encoding="utf-8"
+        )
+        git(self.source, "add", ".cargo/config.toml")
+        git(self.source, "commit", "-qm", "commit cargo config")
+        self.assertEqual(self.push(4, stable_path=False), [["d", "p"], [], [], []])
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class EffectiveCargoConfigurationTestCase(unittest.TestCase):
+    """A `.cargo/config.toml` one directory *above* the export (exactly
+    where the pre-push hook mirrors the stack's shared config, outside the
+    exported repository) or a `CARGO_BUILD_*` environment variable can
+    reconfigure how a git dependency compiles -- a different profile, a
+    different `RUSTFLAGS` -- while every repository's git history stays
+    untouched and the run's own source does not change either. Before
+    `cargo_config_digest`/the widened `environment_digest`, an *exact-match*
+    run (source, dependency closure, and prior build dimensions all
+    unchanged) reused its existing record and artifact even though Cargo
+    itself recompiled the dependency under the new configuration: this
+    class asserts the record can no longer match across that change.
+    """
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-cargo-config-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in ("CARGO_TARGET_DIR", "RUSTFLAGS", "CARGO_BUILD_RUSTFLAGS")
+        }
+        self.environment["CARGO_HOME"] = str(self.base / "cargo-home")
+
+        self.d = self.base / "drepo"
+        for relative, text in {
+            "Cargo.toml": '[package]\nname = "d"\nversion = "0.1.0"\nedition = "2021"\n[workspace]\n',
+            "src/lib.rs": "pub fn d() -> u32 { 1 }\n",
+        }.items():
+            (self.d / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.d / relative).write_text(text, encoding="utf-8")
+        git(self.d, "init", "-q")
+        git(self.d, "config", "user.name", "Atlas test")
+        git(self.d, "config", "user.email", "atlas-test@example.invalid")
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.d, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        git(self.d, "add", ".")
+        git(self.d, "commit", "-q", "-m", "d")
+
+        # The exported repository lives one level below `stack/`, mirroring
+        # the pre-push hook writing the stack config to `$gate_parent/.cargo`.
+        self.stack = self.base / "stack"
+        self.source = self.stack / "source"
+        for relative, text in {
+            "Cargo.toml": (
+                '[package]\nname = "p"\nversion = "0.1.0"\nedition = "2021"\n[workspace]\n'
+                f'[dependencies]\nd = {{ git = "{self.d.as_uri()}" }}\n'
+            ),
+            "src/lib.rs": "pub fn p() -> u32 { d::d() }\n",
+        }.items():
+            (self.source / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.source / relative).write_text(text, encoding="utf-8")
+        subprocess.run(
+            ["cargo", "generate-lockfile"],
+            cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        git(self.source, "init", "-q")
+        git(self.source, "config", "user.name", "Atlas test")
+        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "source")
+
+    def push(self, pushes: int, *, reconfigure_before: int, mode: str) -> list[identity.BuildResult]:
+        # No source edit at `reconfigure_before`: on main (no narrowing),
+        # a source edit alone already forces a whole-closure rebuild and
+        # would mask exactly the bug this class exists to catch -- an
+        # otherwise *exact-match* push that only Cargo's own configuration
+        # changed.
+        results: list[identity.BuildResult] = []
+        with patch.dict(os.environ, self.environment, clear=True):
+            for push in range(pushes):
+                if push == reconfigure_before:
+                    if mode == "profile":
+                        (self.stack / ".cargo").mkdir(exist_ok=True)
+                        (self.stack / ".cargo" / "config.toml").write_text(
+                            '[profile.dev.package."*"]\nopt-level = 1\n', encoding="utf-8"
+                        )
+                    else:
+                        os.environ["CARGO_BUILD_RUSTFLAGS"] = "-Cdebug-assertions=off"
+                export = self.stack / f"export-{push}"
+                if export.exists():
+                    _clear_readonly_tree(export)
+                shutil.copytree(self.source, export, copy_function=shutil.copy)
+                results.append(
+                    identity.run_build(
+                        export, export / "Cargo.toml", "p", self.base / "target",
+                        ["cargo", "check", "-p", "p", "-q", "--offline"], command_cwd=export,
+                    )
+                )
+        return results
+
+    def assert_reconfiguration_is_never_silently_reused(self, mode: str) -> None:
+        results = self.push(3, reconfigure_before=2, mode=mode)
+        self.assertEqual([r.status for r in results], ["rebuilt", "reused", "rebuilt"])
+        self.assertNotEqual(results[1].record_path, results[2].record_path)
+
+    def test_a_stack_config_profile_change_is_never_silently_reused(self) -> None:
+        self.assert_reconfiguration_is_never_silently_reused("profile")
+
+    def test_a_build_rustflags_change_is_never_silently_reused(self) -> None:
+        self.assert_reconfiguration_is_never_silently_reused("env")
+
 
 class CommandLineTestCase(unittest.TestCase):
     """The entry point accepts the exact argument shape the member pre-push passes."""
