@@ -44,7 +44,9 @@ class StaleSideGuardTestCase(unittest.TestCase):
     """A temp repository, its waiver file, and a helper to run the guard."""
 
     def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
+        # `ignore_cleanup_errors` (see tearDown): a returned-but-still-running
+        # git background process can write into `.git` during removal.
+        self._tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         root = Path(self._tmp.name)
         self.repo = root / "repo"
         self.repo.mkdir()
@@ -62,7 +64,15 @@ class StaleSideGuardTestCase(unittest.TestCase):
         self.git("config", "core.autocrlf", "false")
 
     def tearDown(self) -> None:
-        self._tmp.cleanup()
+        # `ignore_cleanup_errors` (set in setUp) covers the rmtree race with a
+        # still-running git background process; the try/except covers a
+        # platform that surfaces the same condition as something other than
+        # `OSError`. Nothing here is user data -- a temp tree of throwaway
+        # repositories.
+        try:
+            self._tmp.cleanup()
+        except OSError:
+            pass
 
     # -- harness -----------------------------------------------------------
 
