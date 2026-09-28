@@ -2596,5 +2596,72 @@ class SecondOutputRootTestCase(unittest.TestCase):
         self.assertIn("second_output_root", conformance.HOST_OBSERVED_CLASSES)
 
 
+class HostStateGateTests(unittest.TestCase):
+    """Host state gates a working-tree audit and does not gate a judgement
+    about a named revision. The rule is one boolean and it decides whether a
+    push is refused, so every scan shape is pinned against the shipped
+    function rather than a restatement of it."""
+
+    #: A single host row over the class that described the blocking push.
+    HOST = [("leto", "excess_worktrees", 0, 1)]
+
+    def _exit_code(self, *, worktree: bool = False, revision: str | None = None,
+                   member_revision: str | None = None,
+                   regressions: list = ()) -> int:
+        """The `check` mode's exit code for one argument shape."""
+        gates = conformance.host_state_gates(
+            worktree=worktree, revision=revision,
+            member_revision=member_revision,
+        )
+        return int(bool(regressions or (self.HOST and gates)))
+
+    def test_a_named_stack_revision_does_not_gate_on_the_pushing_machine(self) -> None:
+        # What `debt_gate` in `.githooks/pre-push` runs over a moved pin. The
+        # member is materialized from the gitlink, so a lane on this machine
+        # cannot appear in the counts at all; refusing the push over one
+        # refuses it on a peer's state. Observed: a push with 0 regressions
+        # and 0 tightenings blocked on `leto/excess_worktrees`.
+        self.assertEqual(self._exit_code(revision="deadbeef"), 0)
+
+    def test_a_pushed_member_revision_does_not_gate(self) -> None:
+        # The shape a member's own pre-push uses. Same reasoning: the pushed
+        # tree is materialized, and a lane in the local checkout is the
+        # machine's, not the commit's.
+        self.assertEqual(self._exit_code(member_revision="deadbeef"), 0)
+
+    def test_the_default_scan_gates(self) -> None:
+        # The bare default measures the working tree, and a developer running
+        # it by hand should be told to sweep. A CI runner measures zero for
+        # every host class by construction, which is why the committed
+        # baselines record zero.
+        self.assertEqual(self._exit_code(), 1)
+
+    def test_a_worktree_audit_gates(self) -> None:
+        # `--worktree` is the deliberate live audit: its whole point is to
+        # report this machine's state, so it must fail on it.
+        self.assertEqual(self._exit_code(worktree=True), 1)
+
+    def test_a_real_regression_still_fails_every_shape(self) -> None:
+        # The relaxation is scoped to host rows alone. A class the revision
+        # actually raises must fail the revision scans too, or the fix has
+        # opened a hole rather than closed one.
+        raised = [("leto", "unwrap_production", 0, 1)]
+        for label, kwargs in (
+            ("stack revision", {"revision": "deadbeef"}),
+            ("member revision", {"member_revision": "deadbeef"}),
+            ("default scan", {}),
+            ("worktree audit", {"worktree": True}),
+        ):
+            with self.subTest(shape=label):
+                self.assertEqual(self._exit_code(regressions=raised, **kwargs), 1)
+
+    def test_a_revision_scan_still_reports_the_host_row(self) -> None:
+        # Not gating is not hiding: the row is printed with the note that
+        # says it belongs to the machine, so the information reaches the
+        # reader even when it does not fail the run.
+        self.assertIn("root_sprawl_untracked", conformance.HOST_OBSERVED_CLASSES)
+        self.assertIn("excess_worktrees", conformance.HOST_OBSERVED_CLASSES)
+
+
 if __name__ == "__main__":
     unittest.main()
