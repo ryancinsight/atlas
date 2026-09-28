@@ -225,7 +225,7 @@ status=$?
 # to the members that actually changed, so an ordinary push costs nothing and
 # an advance costs about ten seconds per moved member.
 debt_gate() {
-    local tip="$1" changed python_bin member output base
+    local tip="$1" changed python_bin member output base member_revision
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
     # there would skip the gate on the pushes it most needs to see.
@@ -251,11 +251,16 @@ debt_gate() {
 
     for member in $changed; do
         [ -d "${member_root}/repos/${member}" ] || continue
+        member_revision="$(git -C "$atlas_root" ls-tree "$tip" -- "repos/${member}" | cut -d" " -f3)"
+        [ -n "$member_revision" ] || {
+            echo "pre-push: BLOCKED -- pushed tip has no gitlink for ${member}." >&2
+            return 1
+        }
         if ! output="$(unset GIT_DIR GIT_WORK_TREE; "$python_bin" \
                 "${atlas_root}/scripts/atlas-conformance.py" \
                 check --repo "$member" \
                 --member-path "${member_root}/repos/${member}" \
-                --member-revision "$tip" 2>&1)"; then
+                --member-revision "$member_revision" 2>&1)"; then
             echo "pre-push: BLOCKED -- advancing ${member} raises a debt class." >&2
             echo "$output" >&2
             echo >&2
