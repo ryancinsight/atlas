@@ -175,6 +175,8 @@ MODE_HOLDER = (
 
 # The lease module as every checker ran it before lease modes (atlas
 # f96b218, byte for byte): the fleet's hooks keep running it until they fetch.
+# Remove it, and the interop tests that load it, once every member's pinned
+# atlas checker is at or past #320: no hook then runs the pre-mode protocol.
 LEASE_WITHOUT_MODES = Path(__file__).resolve().parent / "fixtures" / "lease_without_modes.py"
 LEGACY_TAKER = (
     "import importlib.util, sys, time\n"
@@ -420,6 +422,29 @@ class LeaseModeTestCase(unittest.TestCase):
         self.assertIn(waiter.ticket.path.name, names)
         self.assertTrue(waiter.ticket.path.name.startswith(f"{arrival}-x-"))
 
+    def test_a_ticket_no_longer_named_by_its_path_is_recreated_in_its_place(self) -> None:
+        # The POSIX race above, through the seam that detects it, so Windows,
+        # which cannot unlink an open file, exercises the re-creation too.
+        lock = self.lock("renamed")
+        start_holder(self, lock, EXCLUSIVE, 60)
+        waiter = OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60)
+        with self.assertRaises(LeaseHeldError):
+            waiter.attempt()
+        self.addCleanup(waiter.dequeue)
+        first = waiter.ticket.path
+        real_names = queue_module._names
+        with patch.object(
+            queue_module,
+            "_names",
+            side_effect=lambda path, handle: path != first and real_names(path, handle),
+        ):
+            with self.assertRaises(LeaseHeldError):
+                waiter.attempt()
+        self.assertNotEqual(waiter.ticket.path, first)
+        self.assertEqual(waiter.ticket.path.name.split("-", 1)[0], first.name.split("-", 1)[0])
+        names = [path.name for path in lock.with_name(f"{lock.stem}.queue").glob("*.ticket")]
+        self.assertIn(waiter.ticket.path.name, names)
+
     def test_a_ticket_locked_by_a_peer_before_its_requester_is_retried(self) -> None:
         # The window between creating a ticket and locking it is too short to
         # hit by chance, so a real peer process takes its probe lock inside it.
@@ -522,6 +547,22 @@ class LeaseModeTestCase(unittest.TestCase):
                     take()
                 # The exception keeps its frame, and so any leaked handle,
                 # alive; Windows refuses to remove a directory holding one.
+                shutil.rmtree(lock.parent)
+
+    @unittest.skipUnless(os.name == "nt", "only Windows refuses to delete an open file")
+    def test_a_failing_release_closes_its_handle(self) -> None:
+        for mode, take in (
+            (EXCLUSIVE, lambda lock: OwnerLease(lock, {"root": "r", "revision": "r"}, 60)),
+            (SHARED, lambda lock: lease_module.LeaseProbe(lock)),
+        ):
+            with self.subTest(mode=mode):
+                lock = self.lock(f"release-{mode}")
+                held = take(lock)
+                held.__enter__()
+                with patch.object(lock_module, "_unlock", side_effect=OSError(158, "injected")):
+                    # The lease's ticket is released through the same failing call.
+                    with self.assertRaises((identity.IdentityError, OSError)):
+                        held.__exit__(None, None, None)
                 shutil.rmtree(lock.parent)
 
     @unittest.skipUnless(os.name == "nt", "LockFileEx error codes are Windows-only")

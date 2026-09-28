@@ -147,8 +147,7 @@ class OwnerLease:
         try:
             if self.held and self.handle is not None:
                 try:
-                    _unlock(self.handle)
-                    self.handle.close()
+                    _release(self.handle, locked=True)
                 except OSError as error:
                     raise BuildIdentityError(
                         f"cannot release source identity lease {self.path}"
@@ -177,8 +176,7 @@ class LeaseProbe:
         if self.handle is None:
             return
         try:
-            _unlock(self.handle)
-            self.handle.close()
+            _release(self.handle, locked=True)
         except OSError as error:
             raise BuildIdentityError(f"cannot release source identity lease {self.path}") from error
         finally:
