@@ -1036,8 +1036,126 @@ def _cached_text(path: Path) -> str | None:
     return cache[key]
 
 
+def _literal_end(text: str, start: int) -> int:
+    """Index just past the string or char literal opening at `start`.
+
+    `text[start]` is `"` or `'`. A `'` is only a char literal when a closing
+    quote follows the one-character body; otherwise it is a lifetime
+    (`'static`, `'a`), which has no terminator to scan for. Escapes are
+    consumed as a unit so `'\\''` and `"a\\"b"` close where they mean to.
+    """
+    quote = text[start]
+    i = start + 1
+    n = len(text)
+    if quote == "'":
+        if i < n and text[i] == "\\":
+            return min(n, i + 2)
+        return min(n, i + 1) if i < n and text[i + 1 : i + 2] == "'" else start
+    while i < n:
+        if text[i] == "\\":
+            i += 2
+        elif text[i] == '"':
+            return i + 1
+        else:
+            i += 1
+    return n
+
+
+def _raw_string_end(text: str, start: int) -> int | None:
+    """Index just past the raw string beginning at `start`, or `None`.
+
+    `start` is the `r` of an `r".."` / `r#".."#` literal, optionally `b`- or
+    `br`-prefixed, with the opening quote or first `#` immediately after it.
+    A raw string's contents are never a comment: an `r"https://host"` operand
+    contains `//` that a naive strip would read as a line comment.
+    """
+    n = len(text)
+    j = start + 1
+    while j < n and text[j] in "r#":
+        j += 1
+    if j >= n or text[j] != '"':
+        return None
+    hashes = j - start - 1
+    terminator = '"' + "#" * hashes
+    end = text.find(terminator, j + 1)
+    return n if end < 0 else end + len(terminator)
+
+
+def strip_comments(text: str) -> str:
+    """Blank every Rust comment in `text`, keeping every offset and newline.
+
+    Two properties are load-bearing and both are why this is not a regex
+    substitution or a line filter.
+
+    *Offsets survive.* `_walk_mods` indexes back into the matched text for the
+    `#[path = ..]` attribute belonging to a declaration, so a strip that
+    shortened the string would slide the attribute out from under it.
+    Blanking in place (newlines kept, so line numbers hold too) leaves every
+    index valid and every match position a real code position.
+
+    *Literals survive.* `"https://host"` and `r#"a // b"#` contain `//` that a
+    naive scan reads as a line comment, and blanking from there to the newline
+    erases real code on the same line. That failure is silent and in the
+    dangerous direction: these counts are a ratchet, and a ratchet that
+    undercounts is a floor that no longer holds. String and char literals, raw
+    string hashes, and `'a` lifetimes are therefore scanned past rather than
+    blanked.
+
+    This is what makes a commented-out declaration stop being one. `MOD_DECL`
+    has no line-start anchor, so `// pub mod poiseuille_bifurcation;` read as
+    a live module edge: the walk believed it had reached the file, and
+    `orphan_modules` — whose entire job is surfacing files rustc never
+    compiled — reported zero for a 386-line file that no build ever built.
+    The mirror image was worse: deleting that comment as a
+    `commented_out_code` cleanup *raised* the class, so the ratchet penalised
+    the correct action (audit §3.4).
+
+    It is equally what makes prose about a code token stop counting as the
+    token. A doc comment arguing *against* `SeqCst` ("lost under any ordering
+    (SeqCst included)") is reasoning, not a use of it, and counting it meant
+    the class could not reach zero without deleting the happens-before
+    rationale — 45 of moirai's 80 recorded sites were comment text (audit
+    §3.3).
+    """
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        if text.startswith("//", i):
+            end = text.find("\n", i)
+            end = n if end < 0 else end
+        elif text.startswith("/*", i):
+            depth, end = 1, i + 2
+            while end < n and depth:
+                if text.startswith("/*", end):
+                    depth, end = depth + 1, end + 2
+                elif text.startswith("*/", end):
+                    depth, end = depth - 1, end + 2
+                else:
+                    end += 1
+        elif text[i] in "rb" and (raw_end := _raw_string_end(text, i)) is not None:
+            i = raw_end
+            continue
+        elif text[i] in "\"'" and (lit_end := _literal_end(text, i)) > i:
+            i = lit_end
+            continue
+        else:
+            i += 1
+            continue
+        for k in range(i, min(end, n)):
+            if out[k] != "\n":
+                out[k] = " "
+        i = end
+    return "".join(out)
+
+
 def _walk_mods(root: Path, seen: set[Path]) -> None:
-    """Depth-first close the module and include graphs from one crate root."""
+    """Depth-first close the module and include graphs from one crate root.
+
+    The graph is read from `strip_comments` output, so a declaration that was
+    commented out is not an edge. Reaching fewer files can only *raise*
+    `orphan_modules` — which is the point: a file no edge names is a file
+    rustc, clippy and the test runner never built.
+    """
     root = root.resolve()
     if root in seen or not root.is_file():
         return
@@ -1045,8 +1163,9 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
     text = _cached_text(root)
     if text is None:
         return
-    for m in MOD_DECL.finditer(text):
-        attr = PATH_ATTR.search(text[:m.start()].rstrip())
+    code = strip_comments(text)
+    for m in MOD_DECL.finditer(code):
+        attr = PATH_ATTR.search(code[:m.start()].rstrip())
         for cand in _child_candidates(root, m.group(1), attr.group(1) if attr else None):
             if cand.is_file():
                 _walk_mods(cand, seen)
@@ -1056,7 +1175,7 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
          if (parent / "Cargo.toml").is_file()),
         root.parent,
     )
-    for match in INCLUDE_PATH.finditer(text):
+    for match in INCLUDE_PATH.finditer(code):
         relative = match.group("relative")
         included = match.group("concat") or relative
         owner = crate_root if match.group("concat") else root.parent
@@ -1295,7 +1414,7 @@ def executable_source_dirs(
     return roots
 
 
-CFG_ATTR_OPEN = re.compile(r"#\[\s*cfg\s*\(")
+CFG_ATTR_OPEN = re.compile(r"#!?\[\s*cfg\s*\(")
 CFG_PREDICATE_TOKEN = re.compile(r"[A-Za-z_]\w*|\(|\)")
 
 
@@ -1409,20 +1528,24 @@ def split_test_region(text: str) -> tuple[str, str]:
             break
         if not cfg_predicate_is_test_gated(text[match.end():close - 1]):
             continue
+        # An inner attribute (`#![cfg(test)]`) is file-scoped: rustc compiles
+        # the whole file only under that predicate, so the whole file is test
+        # text. `_item_end` would instead stop at the first top-level `;`, and
+        # the regex previously could not match `#![` at all -- so a
+        # whole-file test module was counted as production in full. gaia's
+        # `csg/boolean/indexed_tests.rs` is 1041 lines carrying 34 `.unwrap()`
+        # that never run outside the test configuration, and its recorded
+        # `unwrap_production` floor sat 34 above the truth (audit §3.2).
+        if text.startswith("#!", match.start()):
+            production.append(text[cursor:match.start()])
+            tests.append(text[match.start():])
+            return "".join(production), "".join(tests)
         item_end = _item_end(text, attribute_end + 1)
         production.append(text[cursor:match.start()])
         tests.append(text[match.start():item_end])
         cursor = item_end
     production.append(text[cursor:])
     return "".join(production), "".join(tests)
-
-
-def strip_doc_comments(text: str) -> str:
-    """Drop `///` and `//!` lines: their code fences are doctests, not production."""
-    return "\n".join(
-        ln for ln in text.splitlines()
-        if not ln.lstrip().startswith(("///", "//!"))
-    )
 
 
 LANE_KERNEL_IMPL = re.compile(r"impl(?:<[^>]*>)?\s+LaneKernel\s*<")
@@ -1699,15 +1822,22 @@ def scan_repo(
             "benches" in path.parts or any(
                 source in path.parents for source in executable_dirs
             )
-        # Doc-comment bodies are doctests, i.e. test code. Counting `.unwrap()`
-        # inside `///` lines reported 23 "production unwraps" for a repo whose
-        # workspace denies `unwrap_used` outright — every one was a doc example.
-        # `prod_code` is built once and shared by the two doc-stripped classes.
-        prod_code = strip_doc_comments(prod)
+        # Every class that counts a *code* token reads `prod_code`, the
+        # comment-free production text, never the raw `prod` region. Two
+        # reasons, both measured: doc-comment bodies are doctests, so a
+        # `.unwrap()` inside a `///` example is documentation, not a
+        # production panic (23 such "unwraps" were reported for a repo whose
+        # workspace denies `unwrap_used` outright); and prose *about* a token
+        # is not a use of it — a doc comment arguing against `SeqCst` raised
+        # that class, and 45 of moirai's 80 recorded sites were comment text
+        # (audit §3.3). `unwrap_production`, `seqcst_production` and
+        # `print_dbg` are the three such classes, and all three read this one
+        # region so the rule cannot be re-introduced on a fourth.
+        prod_code = strip_comments(prod)
         c["unwrap_production"] += prod_code.count(".unwrap()")
         c["allow_sites"] += prod.count("#[allow(")
         c["crate_level_allows"] += len(CRATE_LEVEL_ALLOW.findall(prod))
-        c["seqcst_production"] += len(SEQCST.findall(prod))
+        c["seqcst_production"] += len(SEQCST.findall(prod_code))
         c["markers"] += len(MARKER.findall(prod))
         c["reexport_shims"] += reexport_shims(prod)
         c["type_suffixed_fns"] += sum(
@@ -1718,11 +1848,10 @@ def scan_repo(
             1 for ln in prod.splitlines() if COMMENTED_CODE.match(ln)
         )
         if not is_bin:
-            # Doc-comment bodies are doctests, i.e. test code — the same
-            # reason `unwrap_production` strips them above. A `println!`
-            # inside a `//! ```ignore` example (consus-zarr's chunk-key
-            # loop) is documentation prose, not library debug output.
-            # `prod_code` is the once-built doc-stripped text from above.
+            # Over the comment-free region, for the same reason
+            # `unwrap_production` reads it: a `println!` inside a
+            # `//! ```ignore` example (consus-zarr's chunk-key loop) is
+            # documentation prose, not library debug output.
             hits = len(PRINT_DBG.findall(prod_code))
             # Exempt `println!("cargo:...")` in build.rs — the canonical
             # Cargo build-script protocol.  These are required build
