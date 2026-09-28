@@ -11,7 +11,6 @@
 <a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
 <a id="atlas-arch-005"></a>- [ATLAS-ARCH-005](backlog/atlas-arch-005.md) — Replace closed-set dyn dispatch in per-timestep paths [arch] — in-progress
 <a id="atlas-nightly-probe-consolidation"></a>- [ATLAS-NIGHTLY-PROBE-CONSOLIDATION](backlog/atlas-nightly-probe-consolidation.md) — One nightly-rustc probe for the stack [patch] — todo
-<a id="atlas-r7-closure-mapping-2026-09-24"></a>- [ATLAS-R7-CLOSURE-MAPPING-2026-09-24](backlog/atlas-r7-closure-mapping-2026-09-24.md) — Map closure members in the live R7 scan [patch] — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — in-progress
 <a id="atlas-arch-008-running-in-place-225"></a>- [ATLAS-ARCH-008-RUNNING-IN-PLACE-225](backlog/atlas-arch-008-running-in-place-225.md) — The conversion converts and re-accumulates at the same rate [patch] — in-progress
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
@@ -144,4 +143,3 @@
 <a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Run the stack-owned lockfile checker, not member copies [patch] — todo
-<a id="atlas-audit-wave-landing-2026-09-26"></a>- [ATLAS-AUDIT-WAVE-LANDING-2026-09-26](backlog/atlas-audit-wave-landing-2026-09-26.md) — Land the four undelivered audit commits on their members' default branches [patch] — todo
