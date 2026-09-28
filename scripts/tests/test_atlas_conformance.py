@@ -1280,6 +1280,38 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(results["<meta>"]["member_gate_versions"], 3)
 
+    def test_recorded_hook_versions_ignore_dirty_owned_source(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            member = root / "repos" / "alpha"
+            member.mkdir(parents=True)
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+
+            def git(repo, *arguments):
+                return subprocess.run(
+                    ["git", "-C", str(repo), *ident, *arguments],
+                    check=True, capture_output=True, text=True, timeout=10,
+                ).stdout.strip()
+
+            git(root, "init", "-q", "-b", "main")
+            git(member, "init", "-q", "-b", "main")
+            _write(member, ".githooks/pre-push", "owned\n")
+            git(member, "add", ".githooks/pre-push")
+            git(member, "commit", "-q", "-m", "hook")
+            member_revision = git(member, "rev-parse", "HEAD")
+            _write(root, ".gitmodules", '[submodule "alpha"]\n path = repos/alpha\n')
+            _write(root, "scripts/git-hooks/pre-push", "owned\n")
+            git(root, "add", ".gitmodules", "scripts/git-hooks/pre-push")
+            git(root, "update-index", "--add", "--cacheinfo",
+                f"160000,{member_revision},repos/alpha")
+            git(root, "commit", "-q", "-m", "matching hooks")
+            revision = git(root, "rev-parse", "HEAD")
+            _write(root, "scripts/git-hooks/pre-push", "different live source\n")
+            recorded = conformance.scan_stack(root, revision)["<meta>"]
+            live = conformance.scan_stack(root)["<meta>"]
+            self.assertEqual(recorded["member_gate_versions"], 1)
+            self.assertEqual(live["member_gate_versions"], 2)
+
     def test_stack_scan_rejects_unmaterialized_provider(self) -> None:
         """An empty gitlink directory cannot masquerade as a clean provider."""
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
