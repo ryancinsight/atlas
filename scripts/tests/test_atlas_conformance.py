@@ -2432,7 +2432,7 @@ class CitationResolutionTests(unittest.TestCase):
         "GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z",
         "GIT_COMMITTER_DATE": "2026-01-01T00:00:00Z",
     }
-    CLS = conformance.REF_DRIFT_CLASS
+    CLS = "unresolved_references"
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="atlas-ref-drift-")
@@ -2591,14 +2591,12 @@ class CitationResolutionTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "cannot walk landed history"):
             conformance.board_lint.resolve_hashes({tip[:9]}, stores)
 
-    def test_a_branch_deletion_leaves_the_drift_bound_unraised(self) -> None:
-        base, _, _ = self._stack()
-        baseline = self._measure()
-        self._git(self.root, "branch", "-q", "-D", "feature")
-        self._git(self.root / "repos" / "member", "branch", "-q", "-D", "feature")
-        results = self._remeasure()
-        bound, notes = conformance.drift_bounded_baseline(baseline, results, base, self.root)
-        self.assertEqual((bound, notes), (baseline, []))
+    def test_branch_only_citation_counts_as_a_ratchet_regression(self) -> None:
+        baseline = {"member": {self.CLS: 0}}
+        results = {"member": {self.CLS: 1}}
+        regressions, host, tightenings = conformance.ratchet_delta(baseline, results)
+        self.assertEqual(regressions, [f"member/{self.CLS}: 0 -> 1"])
+        self.assertEqual((host, tightenings), ([], []))
 
 
 class SecondOutputRootTestCase(unittest.TestCase):
