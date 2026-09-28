@@ -1784,9 +1784,7 @@ class DetectorPrecisionTests(unittest.TestCase):
 
 
 class MaterializedMemberTests(unittest.TestCase):
-    """A member checkout that is dirty or behind its recorded gitlink is
-    scanned from an archived snapshot of that gitlink, never from its live
-    state; a clean checkout at the gitlink is scanned in place."""
+    """Member scans always read an immutable snapshot of the recorded gitlink."""
 
     def _git(self, repo: Path, *args: str) -> str:
         return subprocess.run(
@@ -1809,11 +1807,17 @@ class MaterializedMemberTests(unittest.TestCase):
         second = self._git(provider, "rev-parse", "HEAD")
         return provider, first, second
 
-    def test_clean_checkout_at_the_gitlink_scans_in_place(self) -> None:
+    def test_clean_checkout_at_the_gitlink_still_gets_a_snapshot(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             provider, _, second = self._provider(Path(temp))
             content, live = conformance.materialize_member(provider, second, Path(temp) / "scratch")
-            self.assertEqual((content, live), (provider, provider))
+            self.assertEqual(live, provider)
+            self.assertEqual(content, Path(temp) / "scratch" / "alpha")
+            _write(provider, "src/lib.rs", "pub fn alpha() { dbg!(1); }\n")
+            self.assertEqual(
+                (content / "src/lib.rs").read_text(encoding="utf-8"),
+                'pub fn alpha() { println!("debt"); }\n',
+            )
 
     def test_behind_or_dirty_checkout_scans_the_recorded_snapshot(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:

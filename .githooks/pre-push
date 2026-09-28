@@ -138,13 +138,22 @@ if [ -z "$atlas_root" ]; then
     exit 1
 fi
 canonical_stack_root() {
-    local common_dir git_dir
+    local common_dir candidate candidate_common parent
     common_dir="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-    git_dir="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-dir 2>/dev/null)" || return 1
-    case "$git_dir" in
-        "$common_dir"/worktrees/*) dirname "$common_dir" ;;
-        *) git -C "$atlas_root" rev-parse --show-toplevel ;;
-    esac
+    if [ "$(basename "$common_dir")" = ".git" ]; then
+        dirname "$common_dir"
+        return 0
+    fi
+    parent="$(dirname "$common_dir")"
+    for candidate in "$parent"/*; do
+        [ -d "$candidate" ] || continue
+        candidate_common="$(git -C "$candidate" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+        if [ "$candidate_common" = "$common_dir" ]; then
+            git -C "$candidate" rev-parse --show-toplevel
+            return 0
+        fi
+    done
+    git -C "$atlas_root" rev-parse --show-toplevel
 }
 member_root="$(canonical_stack_root)" || {
     echo "pre-push: BLOCKED -- cannot resolve the canonical Atlas root from Git metadata." >&2

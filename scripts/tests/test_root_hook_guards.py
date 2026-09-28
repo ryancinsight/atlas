@@ -226,15 +226,40 @@ class RootHookGuardTests(unittest.TestCase):
                 ["git", "init", "-q", "-b", "main", "--separate-git-dir", str(metadata), str(worktree)],
                 check=True, capture_output=True, text=True,
             )
+            subprocess.run(
+                ["git", "-C", str(worktree), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--allow-empty", "-qm", "root"],
+                check=True, capture_output=True, text=True,
+            )
+            lane = root / "lane"
+            subprocess.run(
+                ["git", "-C", str(worktree), "worktree", "add", "-q", "-b", "lane", str(lane)],
+                check=True, capture_output=True, text=True,
+            )
             common = subprocess.run(
-                ["git", "-C", str(worktree), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                ["git", "-C", str(lane), "rev-parse", "--path-format=absolute", "--git-common-dir"],
                 check=True, capture_output=True, text=True,
             ).stdout.strip()
-            resolved = subprocess.run(
-                ["git", "-C", str(worktree), "rev-parse", "--show-toplevel"],
-                check=True, capture_output=True, text=True,
-            ).stdout.strip()
-            self.assertEqual(Path(resolved).resolve(), worktree.resolve())
+            self.assertTrue(common.endswith("metadata.git"))
+            candidates = []
+            for candidate in root.iterdir():
+                if not candidate.is_dir() or candidate.resolve() == metadata.resolve():
+                    continue
+                probe = subprocess.run(
+                    ["git", "-C", str(candidate), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                    capture_output=True, text=True,
+                )
+                git_dir = subprocess.run(
+                    ["git", "-C", str(candidate), "rev-parse", "--path-format=absolute", "--git-dir"],
+                    capture_output=True, text=True,
+                )
+                if (
+                    probe.returncode == 0
+                    and git_dir.returncode == 0
+                    and Path(probe.stdout.strip()).resolve() == Path(common).resolve()
+                    and Path(git_dir.stdout.strip()).resolve() == metadata.resolve()
+                ):
+                    candidates.append(candidate)
+            self.assertEqual(candidates, [worktree])
 
     def test_merge_allows_inherited_board_and_gitlink_changes_only(self) -> None:
         """A real merge may combine independently valid board and pin commits."""
@@ -299,6 +324,12 @@ class RootHookGuardTests(unittest.TestCase):
             self.assertEqual(git("commit", "-qm", "Update board").returncode, 0)
             conflict = git("merge", "--no-commit", "fix/pin", check=False)
             self.assertEqual(conflict.returncode, 0, conflict.stdout + conflict.stderr)
+            stack_script = repo / "scripts" / "atlas_stack.py"
+            stack_script.write_text(stack_script.read_text(encoding="utf-8") + "\n# peer edit\n", encoding="utf-8")
+            unstaged = git("commit", "-qm", "Reject unstaged merge content", check=False)
+            self.assertNotEqual(unstaged.returncode, 0)
+            self.assertIn("unstaged tracked content", unstaged.stdout + unstaged.stderr)
+            stack_script.write_text(git("show", "HEAD:scripts/atlas_stack.py").stdout, encoding="utf-8")
             (repo / "unrelated.txt").write_text("new\n", encoding="utf-8")
             git("add", "unrelated.txt")
             unrelated = git("commit", "-qm", "Reject unrelated merge content", check=False)

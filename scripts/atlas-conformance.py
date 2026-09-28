@@ -1763,6 +1763,7 @@ def scan_repo(
     member_for_package: dict[str, str] | None = None,
     revision: str | None = None,
     member: str | None = None,
+    config_root: Path | None = None,
 ) -> dict[str, int]:
     """Count every debt class in `repo`'s content.
 
@@ -1781,6 +1782,7 @@ def scan_repo(
     because it has no archive-wide mapping.
     """
     live_repo = live_repo or repo
+    config_root = config_root or ROOT
     _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
     has_cargo = (repo / "Cargo.toml").is_file()
@@ -1885,12 +1887,12 @@ def scan_repo(
     # covered. A member that builds into an unmanaged directory is outside
     # every eviction cadence by construction.
     if has_cargo:
-        config = ROOT / ".cargo" / "config.toml"
+        config = config_root / ".cargo" / "config.toml"
         routed = False
         if config.is_file():
             match = TARGET_DIR_SETTING.search(config.read_text(errors="replace"))
             routed = match is not None and Path(match.group(1)).name == "target"
-        policy = ROOT / "scripts" / "data" / "atlas-cache-retention.toml"
+        policy = config_root / "scripts" / "data" / "atlas-cache-retention.toml"
         if not routed or not policy.is_file():
             c["cache_retention_policy_missing"] = 1
     c["orphan_modules"] = count_orphan_modules(repo, manifests)
@@ -1956,24 +1958,14 @@ def materialize_member(
 ) -> tuple[Path, Path]:
     """Return `(content, live)` for a provider whose recorded gitlink is `expected`.
 
-    A clean checkout at `expected` is its own snapshot. Otherwise the recorded
-    revision is extracted with `git archive` into `scratch` (fetching first
-    when the object is absent), so a peer holding the checkout behind or
-    dirty never blocks a recorded-revision scan and never leaks its state
-    into the counts: members of this stack are routinely behind — eight of
-    twenty-five the day the clean-checkout gate was written.
+    The recorded revision is always extracted with `git archive` into
+    `scratch`, even when the checkout appears clean. Returning a live checkout
+    would let a concurrent write change the bytes after the revision was
+    selected and would make the scan non-deterministic.
     """
-    actual = git_output("rev-parse", "HEAD", cwd=provider).strip()
-    dirty = git_output("status", "--porcelain", "--ignore-submodules=all", cwd=provider).strip()
-    if actual == expected and not dirty:
-        return provider, provider
     try:
-        payload = archive(provider, expected, timeout=ARCHIVE_TIMEOUT_SECONDS)
-    except GitProcessError as exc:
-        if exc.timed_out:
-            raise RuntimeError(
-                f"repos/{provider.name}: archive exceeded its deadline for {expected[:12]}"
-            ) from exc
+        content = link_snapshot(provider, expected, scratch)
+    except RuntimeError as exc:
         try:
             fetched = execute_git(
                 provider,
@@ -1990,20 +1982,14 @@ def materialize_member(
             raise RuntimeError(
                 f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
                 f"provider's object store: fetch failed: {detail or 'unknown Git error'}"
-            )
+            ) from exc
         try:
-            payload = archive(provider, expected, timeout=ARCHIVE_TIMEOUT_SECONDS)
-        except GitProcessError as retry_exc:
+            content = link_snapshot(provider, expected, scratch)
+        except RuntimeError as retry_exc:
             raise RuntimeError(
                 f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
                 f"provider's object store: {retry_exc}"
             ) from retry_exc
-    content = scratch / provider.name
-    content.mkdir(parents=True)
-    extract_archive(payload, content)
-    # The provider gate accepts a checkout by its `.git` marker; the snapshot
-    # carries one so the same gate admits it.
-    (content / ".git").write_text(f"gitdir: archived {expected}\n", encoding="utf-8")
     return content, provider
 
 
@@ -2115,6 +2101,14 @@ def scan_stack(
         repos = require_materialized_providers(stack_root, members)
         if repos:
             with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as scratch:
+                stack_content = stack_root
+                if root_revision is not None:
+                    stack_expected = git_output(
+                        "rev-parse", f"{root_revision}^{{commit}}", cwd=stack_root
+                    ).strip()
+                    stack_content, _ = materialize_member(
+                        stack_root, stack_expected, Path(scratch)
+                    )
                 targets = []
                 targeted: list[Path] = []
                 skipped = []
@@ -2186,6 +2180,7 @@ def scan_stack(
                             live_repo=target[1],
                             member_for_package=member_for_package,
                             revision=target[2],
+                            config_root=stack_content,
                         ),
                         targets,
                     )
@@ -2197,7 +2192,7 @@ def scan_stack(
                 # materialized content paths so a recorded-revision scan
                 # measures pinned state, never live dirt.
                 gate_hashes = set()
-                owned_gate = stack_root / "scripts" / "git-hooks" / "pre-push"
+                owned_gate = stack_content / "scripts" / "git-hooks" / "pre-push"
                 if owned_gate.is_file():
                     gate_hashes.add(_hook_version(owned_gate.read_bytes()))
                 for target in targets:
