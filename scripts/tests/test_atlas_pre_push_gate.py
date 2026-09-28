@@ -22,6 +22,7 @@ import tempfile
 import time
 import tomllib
 import unittest
+import weakref
 
 SCRIPT = (
     pathlib.Path(__file__).resolve().parents[1] / "git-hooks" / "pre-push"
@@ -167,6 +168,12 @@ class GateFixture:
         self.bin = root / "bin"
         self.bin.mkdir(parents=True)
         self.calls: pathlib.Path = root / "calls.log"
+        # The hook's temporary root: its reusable export lives there, so a
+        # test run never leaves one in the host's temporary directory. It
+        # sits outside the fixture, as the host's does outside a stack: an
+        # export under the stack would read the stack's own cargo config.
+        self.tmp: pathlib.Path = pathlib.Path(tempfile.mkdtemp(prefix="gate-tmp-")).resolve()
+        weakref.finalize(self, shutil.rmtree, str(self.tmp), True)
         self.lockfile_calls: pathlib.Path = root / "lockfile-calls.log"
         self.layout = layout
         _git_init_repo(root)
@@ -405,6 +412,7 @@ class GateFixture:
         env = dict(os.environ)
         env["PATH"] = str(self.bin) + os.pathsep + env.get("PATH", "")
         env["CARGO"] = str(self.cargo_launcher)
+        env["TMPDIR"] = self.tmp.as_posix()
         if extra_env:
             env.update(extra_env)
         # Bytes, not text: on Windows a text-mode pipe translates `\n` to
@@ -1487,6 +1495,7 @@ class LaneGateTestCase(unittest.TestCase):
             _write(fixture.bin / "metadata.json", json.dumps(metadata))
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+        env["TMPDIR"] = fixture.tmp.as_posix()
         env.pop("CARGO_TARGET_DIR", None)
         env.update(extra_env or {})
         _publish_stack_scripts(lane.parents[1])
@@ -1820,10 +1829,10 @@ class DebtRatchetTestCase(unittest.TestCase):
             self.assertFalse(stray.exists(), "the working-tree checker ran")
             # A second push reuses the extracted revision.
             cache = pathlib.Path(temp) / ".git" / "atlas-checker"
-            self.assertEqual(len([p for p in cache.iterdir() if p.is_dir()]), 1)
+            self.assertEqual(len([p for p in cache.iterdir() if p.is_dir() and not p.name.startswith(".")]), 1)
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
             assert_gated_on_the_export(self, code, stderr, fixture)
-            self.assertEqual(len([p for p in cache.iterdir() if p.is_dir()]), 1)
+            self.assertEqual(len([p for p in cache.iterdir() if p.is_dir() and not p.name.startswith(".")]), 1)
 
     @staticmethod
     def _git_push(fixture: GateFixture, cwd: pathlib.Path, *refspec: str) -> tuple:
@@ -1832,6 +1841,7 @@ class DebtRatchetTestCase(unittest.TestCase):
         """
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+        env["TMPDIR"] = fixture.tmp.as_posix()
         # The fixture's package metadata names the main tree, so the compile
         # gate is out of scope; the ratchet precedes it and this variable does
         # not skip it.
@@ -2235,7 +2245,7 @@ class ExportHygieneTestCase(unittest.TestCase):
             while not ready.exists() and time.monotonic() < deadline:
                 time.sleep(0.1)
             self.assertTrue(ready.exists(), "the lock check never started")
-            self.assertTrue(any(tmp.glob("pre-push-lock.*")))
+            self.assertTrue(any(tmp.glob("pl.*")))
             if os.name == "nt":
                 # The hook's bash is an MSYS process: signal it by its MSYS pid,
                 # as a terminal's Ctrl-C or a killed parent does.
@@ -2249,7 +2259,203 @@ class ExportHygieneTestCase(unittest.TestCase):
             # bash runs the trap once the foreground checker returns.
             proc.wait(timeout=120)
             self.assertNotEqual(proc.returncode, 0)
-            self.assertEqual(list(tmp.glob("pre-push-lock.*")), [])
+            self.assertEqual(list(tmp.glob("pl.*")), [])
+
+
+def _live_msys_pid(test: unittest.TestCase) -> str:
+    """The pid of a live shell as the hook's `kill -0` sees it."""
+    holder = subprocess.Popen(
+        ["bash", "-c", "echo $$; exec sleep 120"], stdout=subprocess.PIPE, text=True
+    )
+    test.addCleanup(holder.wait, 30)
+    test.addCleanup(holder.kill)
+    test.addCleanup(holder.stdout.close)
+    return holder.stdout.readline().strip()
+
+
+class ExportSourceTestCase(unittest.TestCase):
+    """The export is written through the member, reused, and never too long."""
+
+    def test_a_partial_clone_exports_blobs_it_never_fetched(self) -> None:
+        """13 of 28 members are `blob:none` clones; the export fetches on demand."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp) / "member")
+            upstream = fixture.root / "upstream.git"
+            _git(upstream, "config", "uploadpack.allowFilter", "true")
+            _git(upstream, "config", "uploadpack.allowAnySHA1InWant", "true")
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn fetched_on_demand() {}\n", encoding="utf-8"
+            )
+            pushed = _commit_all(fixture.root, "feat")
+            _git(fixture.root, "push", "-q", "origin", "feat")
+            partial = pathlib.Path(temp) / "partial"
+            subprocess.run(
+                ["git", "clone", "-q", "--filter=blob:none", upstream.as_uri(), str(partial)],
+                check=True,
+            )
+            for key, value in (("gc.auto", "0"), ("maintenance.auto", "false")):
+                _git(partial, "config", key, value)
+            missing = subprocess.run(
+                ["git", "-C", str(partial), "cat-file", "-e", f"{pushed}:crates/foo/src/lib.rs"],
+                env=dict(os.environ, GIT_NO_LAZY_FETCH="1"), capture_output=True,
+            )
+            self.assertNotEqual(missing.returncode, 0, "the fixture's blob is already local")
+            env = dict(os.environ)
+            env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+            env["CARGO"] = str(fixture.cargo_launcher)
+            env["TMPDIR"] = (pathlib.Path(temp) / "tmp").as_posix()
+            (pathlib.Path(temp) / "tmp").mkdir()
+
+            proc = subprocess.run(
+                ["bash", str(SCRIPT)], cwd=str(partial), env=env, capture_output=True,
+                input=f"refs/heads/feat {pushed} refs/heads/feat {ZERO}\n".encode(),
+            )
+
+            stderr = proc.stderr.decode("utf-8", errors="replace")
+            self.assertEqual(proc.returncode, 0, stderr)
+            self.assertIn("gating foo", stderr)
+
+    @unittest.skipUnless(os.name == "nt", "the 260-character path limit is Windows'")
+    def test_a_path_past_the_windows_limit_is_exported(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            root = fixture.root
+            _git(root, "config", "core.longpaths", "true")
+            _git(root, "switch", "-q", "-c", "deep")
+            deep = "crates/foo/tests/" + "d" * 110 + "/" + "e" * 110 + ".txt"
+            blob = subprocess.run(
+                ["git", "-C", str(root), "hash-object", "-w", "--stdin"],
+                input=b"deep\n", capture_output=True, check=True,
+            ).stdout.decode().strip()
+            _git(root, "update-index", "--add", "--cacheinfo", f"100644,{blob},{deep}")
+            subprocess.run(["git", "-C", str(root), *_IDENT, "commit", "-q", "-m", "deep"], check=True)
+            self.assertGreater(len(str(fixture.tmp.resolve())) + len(deep), 260)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("deep"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating foo", stderr)
+
+    def test_a_re_push_reuses_the_export_and_its_file_times(self) -> None:
+        """Cargo fingerprints the export path; a new one per push rebuilt it all."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            stub = fixture.bin / "cargo"
+            stub.write_text(
+                stub.read_text(encoding="utf-8").replace(
+                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n',
+                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                    'if [ "$1" = clippy ]; then\n'
+                    '  echo "$here $(stat -c %Y crates/foo/Cargo.toml)" >> "$FIXTURE_ROOT/exports.log"\n'
+                    "fi\n",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn g() {}\n", encoding="utf-8"
+            )
+            _commit_all(fixture.root, "feat")
+            line = fixture.push_line_new_branch("feat")
+
+            first_code, first = fixture.run_hook(line)
+            time.sleep(1.1)
+            second_code, second = fixture.run_hook(line)
+
+            self.assertEqual((first_code, second_code), (0, 0), first + second)
+            runs = (fixture.root / "exports.log").read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(runs), 2, runs)
+            self.assertEqual(runs[0], runs[1], "the export moved or rewrote an unchanged file")
+
+    def test_a_held_export_is_not_shared(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text("pub fn g() {}\n", encoding="utf-8")
+            _commit_all(fixture.root, "feat")
+            fixture.run_hook(fixture.push_line_new_branch("feat"))
+            locks = list(fixture.tmp.glob("pg-*"))
+            stable = [path for path in locks if path.is_dir() and not path.name.endswith(".lock")]
+            self.assertEqual(len(stable), 1, locks)
+            _write(stable[0].with_name(stable[0].name + ".lock") / "pid", _live_msys_pid(self) + "\n")
+            (fixture.root / "cwd.log").unlink()
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("export is in use", stderr)
+            for cwd in (fixture.root / "cwd.log").read_text(encoding="utf-8").split():
+                self.assertNotIn(stable[0].name, cwd)
+
+    def test_a_crate_without_tests_passes_the_test_step(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            stub = fixture.bin / "cargo"
+            stub.write_text(
+                stub.read_text(encoding="utf-8").replace(
+                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n',
+                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                    'if [ "$1" = nextest ]; then\n'
+                    '  case " $* " in *" --no-tests=pass "*) exit 0 ;; esac\n'
+                    '  echo "error: no tests to run" >&2; exit 4\n'
+                    "fi\n",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text("pub fn g() {}\n", encoding="utf-8")
+            _commit_all(fixture.root, "feat")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("tests fail for", stderr)
+
+
+class TemporaryOwnershipTestCase(unittest.TestCase):
+    """Nothing a live or older run may still use is removed."""
+
+    def test_an_ownerless_export_younger_than_a_day_survives(self) -> None:
+        """An older hook records no owner and may still be building there."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            older = fixture.tmp / "pre-push-gate.old326"
+            dead = fixture.tmp / "pl.dead01"
+            _write(older / "tree" / "Cargo.toml", "[workspace]\n")
+            _write(dead / "tree" / "Cargo.toml", "[workspace]\n")
+            (dead / ".pre-push-owner").write_text("999999\n", encoding="utf-8")
+            two_hours_ago = time.time() - 7200
+            os.utime(older, (two_hours_ago, two_hours_ago))
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("main").replace("refs/heads/main", "refs/heads/copy"),
+                {"SKIP_LOCAL_GATE": "1"},
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertTrue(older.exists(), "an ownerless export in use was swept")
+            self.assertFalse(dead.exists(), "a dead run's export survived")
+
+    def test_a_checker_copy_in_use_is_not_pruned(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, log, _, _, _ = DebtRatchetTestCase._stack(self, temp, 0)
+            cache = pathlib.Path(temp) / ".git" / "atlas-checker"
+            in_use = cache / ("a" * 40)
+            unused = cache / ("b" * 40)
+            for copy in (in_use, unused):
+                _write(copy / "scripts" / "atlas_stack.py", "ROOT = None\n")
+                two_hours_ago = time.time() - 7200
+                os.utime(copy, (two_hours_ago, two_hours_ago))
+            _write(cache / ".users" / f"{in_use.name}.{_live_msys_pid(self)}", "")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertTrue(in_use.exists(), "a copy a live gate reads was pruned")
+            self.assertFalse(unused.exists(), "an unused old copy survived")
 
 
 class SourceIdentityGateTestCase(unittest.TestCase):
