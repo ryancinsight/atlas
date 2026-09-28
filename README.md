@@ -859,7 +859,7 @@ atlas/
 │   ├── checkout-path-dependencies/  # Rust backend for the composite action
 │   ├── criterion-regression/        # cross-package benchmark regression classifier
 │   └── gitlink-coherence/           # gitlink/pin drift checker
-├── worktrees/                       # canonical root for member-repo worktree lanes
+├── worktrees/                       # member-repo lanes; created only by scripts/atlas-lane.py
 ├── backlog.md                       # shared state and ownership board
 ├── gap_audit.md                     # unresolved material risk and audit patterns
 ├── CHANGELOG.md
@@ -1145,6 +1145,9 @@ nobody is looking at cannot rot silently:
   `--dry-run` prints the diffs and opens nothing.
 - `python scripts/atlas-lane-audit.py` — the two-tree worktree bound and lane
   placement per member.
+- `python scripts/atlas-lane.py create|repoint|close|export` — the only way to
+  make a worktree (ADR 0066): refuses a third tree, a lane outside
+  `worktrees/`, and detached HEAD; A/B baselines use `export`, a tree archive.
 - `python scripts/atlas-conformance.py check` — the non-increasing debt
   ratchet over every member at its recorded gitlink (`--worktree` for a live
   audit, `--repo NAME` for one member); a new detector lands with its baseline

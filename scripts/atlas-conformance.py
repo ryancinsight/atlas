@@ -77,7 +77,8 @@ from atlas_git_process import (
     extract_archive,
 )
 from atlas_stack import (
-    ROOT, WORKTREE_BOUND, is_git_ignored, registered_member_names, staleness_note,
+    ROOT, WORKTREE_BOUND, canonical_lane, is_git_ignored, registered_member_names,
+    staleness_note,
 )
 
 GIT_TIMEOUT_SECONDS = 60
@@ -324,6 +325,7 @@ CLASSES = [
     "workflow_malformed_yaml", "pull_request_target_use",
     "missing_cargo_lock", "orphan_modules",
     "seqcst_production", "crate_level_allows", "excess_worktrees",
+    "worktrees_outside_lane_root", "detached_lanes",
     "lane_kernel_uninlined", "toolchain_request_overridden",
     "default_branch_cancel_in_progress", "substrate_contract_violations",
     "balance_domain_edges", "bare_git_dependency",
@@ -730,17 +732,15 @@ def count_root_sprawl(
     return carried, untracked
 
 
-def count_excess_worktrees(repo: Path) -> int:
-    """Registered working trees beyond [`WORKTREE_BOUND`] (main plus one lane).
+def linked_worktrees(repo: Path) -> list[Path]:
+    """The registration directories under `.git/worktrees/`, one per lane.
 
-    Reads the entries under `.git/worktrees/`, one per *linked* worktree; the
-    primary checkout has no entry, which is why the bound is reduced by one
-    before subtracting. Registration is the right thing to count: a directory
-    left behind by a removed worktree is not a tree, and a tree whose
-    directory was hand-deleted still is one until `git worktree prune` runs.
-    Both were present in the stack when this was written.
+    The primary checkout has no entry. Registration is the right thing to
+    count: a directory left behind by a removed worktree is not a tree, and a
+    tree whose directory was hand-deleted still is one until `git worktree
+    prune` runs. Both were present in the stack when this was written.
 
-    Zero when there is nothing to read, so a non-repository contributes no
+    Empty when there is nothing to read, so a non-repository contributes no
     violation it cannot substantiate.
     """
     git_dir = repo / ".git"
@@ -755,9 +755,33 @@ def count_excess_worktrees(repo: Path) -> int:
                 git_dir = (repo / gitdir_ref[len("gitdir:"):].strip()).resolve()
     wt_dir = git_dir / "worktrees"
     if not wt_dir.is_dir():
-        return 0
-    linked = sum(1 for entry in wt_dir.iterdir() if entry.is_dir())
-    return max(0, linked - (WORKTREE_BOUND - 1))
+        return []
+    return sorted(entry for entry in wt_dir.iterdir() if entry.is_dir())
+
+
+def count_excess_worktrees(repo: Path) -> int:
+    """Registered working trees beyond [`WORKTREE_BOUND`] (main plus one lane)."""
+    return max(0, len(linked_worktrees(repo)) - (WORKTREE_BOUND - 1))
+
+
+def count_lane_placement(repo: Path) -> tuple[int, int]:
+    """(lanes outside the canonical lane roots, lanes on detached HEAD).
+
+    Both generators behind ATLAS-LANE-SPRAWL-222 made exactly these: an A/B
+    run left one detached tree per baseline revision under `tmp/`, and an
+    audit fanned out `D:/<member>-audit` trees. The lane is read from its
+    registration (`gitdir` names `<lane>/.git`, `HEAD` holds a symbolic ref
+    unless detached), so a hand-deleted lane still counts until pruned.
+    """
+    outside = detached = 0
+    for entry in linked_worktrees(repo):
+        gitdir = (entry / "gitdir").read_text(errors="replace").strip()
+        if gitdir and not canonical_lane(Path(gitdir).parent.resolve()):
+            outside += 1
+        head = entry / "HEAD"
+        if head.is_file() and not head.read_text(errors="replace").startswith("ref:"):
+            detached += 1
+    return outside, detached
 
 
 # Directories the stack used as a run-output segregation root before
@@ -1618,10 +1642,11 @@ def scan_repo(
 ) -> dict[str, int]:
     """Count every debt class in `repo`'s content.
 
-    `live_repo` is the checkout whose registration state the two live-only
-    classes read (`excess_worktrees` from `.git/worktrees`, `target_forks`
-    from the directory listing) when `repo` is an archived snapshot of a
-    recorded revision rather than the checkout itself.
+    `live_repo` is the checkout whose registration state the live-only
+    classes read (`excess_worktrees` and the lane-placement classes from
+    `.git/worktrees`, `target_forks` from the directory listing) when `repo`
+    is an archived snapshot of a recorded revision rather than the checkout
+    itself.
 
     `member_for_package` maps each `[package] name` to the member
     repository it lives under; the architecture test uses it to
@@ -1713,6 +1738,9 @@ def scan_repo(
         repo, live_repo, member
     )
     c["excess_worktrees"] = count_excess_worktrees(live_repo)
+    c["worktrees_outside_lane_root"], c["detached_lanes"] = count_lane_placement(
+        live_repo
+    )
     c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
     c["crlf_stored_blobs"] = count_crlf_stored_blobs(
@@ -2202,6 +2230,8 @@ def baseline_raises(
 HOST_OBSERVED_CLASSES = (
     "target_forks",
     "excess_worktrees",
+    "worktrees_outside_lane_root",
+    "detached_lanes",
     "root_sprawl_untracked",
     "second_output_root",
 )
