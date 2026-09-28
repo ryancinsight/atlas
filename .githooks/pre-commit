@@ -48,6 +48,7 @@ board_staged="$(staged | grep -E '^(backlog|checklist)\.md$' || true)"
 # under repos/<name>/ (books, docs, scripts) must flow freely.
 pointer_staged="$(git diff --cached --raw | awk '$1 == ":160000" || $2 == "160000" || ($3 == "160000" && $4 != "000000") || ($3 != "160000" && $4 == "160000") {print $6}' || true)"
 pointer_staged="$(echo "$pointer_staged" | grep -E '^repos/' || true)"
+merge_in_progress="$(git rev-parse -q --verify MERGE_HEAD 2>/dev/null || true)"
 
 # Git exports GIT_DIR/GIT_INDEX_FILE/GIT_WORK_TREE to hooks; a bare
 # `git -C <submodule>` then resolves against this superproject's object
@@ -56,7 +57,40 @@ pointer_staged="$(echo "$pointer_staged" | grep -E '^repos/' || true)"
 # Root probes must retain the commit index, including `git commit --only`'s
 # temporary index. Only member probes discard it.
 unset GIT_DIR GIT_WORK_TREE
-member_git() { (unset GIT_INDEX_FILE; git -C "$@"); }
+
+# A linked Atlas worktree materializes a gitlink as an empty directory until
+# someone initializes that member in the lane.  The canonical main worktree
+# already owns the member checkout and its object store; use it for a
+# read-only ref probe instead of treating the lane directory as the Atlas
+# superproject.  The hook never initializes or changes the member checkout.
+canonical_stack_root() {
+  local common_dir
+  common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
+  dirname "$common_dir"
+}
+
+member_checkout() {
+  local path="$1" candidate main_root
+  candidate="$ROOT/$path"
+  if [ -e "$candidate/.git" ]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  main_root="$(canonical_stack_root)" || return 1
+  candidate="$main_root/$path"
+  if [ -e "$candidate/.git" ]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  return 1
+}
+
+member_git() {
+  local path="$1" checkout
+  shift
+  checkout="$(member_checkout "$path")" || return 1
+  (unset GIT_INDEX_FILE; git -C "$checkout" "$@")
+}
 
 # Staged gitlink coherence.
 #
@@ -108,7 +142,7 @@ if [ "$gitlink_defect" != 0 ]; then
 fi
 
 # R2 - board sync stays pure.
-if [ -n "$board_staged" ]; then
+if [ -z "$merge_in_progress" ] && [ -n "$board_staged" ]; then
   pollution="$(staged | grep -vE '^(backlog|checklist)\.md$' | grep -E '^repos/|Cargo\.lock$|^\.github/workflows/' || true)"
   if [ -n "$pollution" ]; then
     echo "[pre-commit] R2: board sync must not carry these staged paths:" >&2
@@ -119,7 +153,7 @@ if [ -n "$board_staged" ]; then
 fi
 
 # R3 - pointer advances stay pure (content goes in sibling commits).
-if [ -n "$pointer_staged" ]; then
+if [ -z "$merge_in_progress" ] && [ -n "$pointer_staged" ]; then
   non_pointer="$(staged | grep -vFf <(printf '%s\n' $pointer_staged) || true)"
   if [ -n "$non_pointer" ]; then
     echo "[pre-commit] R3: pointer-advance commit carries non-pointer paths:" >&2
@@ -166,8 +200,34 @@ echo "[pre-commit] Atlas docs dead-link check (§7 #5, STRICT mode — blocks co
 #
 # The glob mirrors .github/workflows/docs.yml — keep the two in step. A book
 # added to one and not the other is a silently ungated book; the glob means
-# new provider books are gated by both automatically.
-"$python_bin" scripts/check_mdbook_links.py repos/*/docs/book
+# new provider books are gated by both automatically.  Read each staged
+# gitlink object instead of a member working tree: linked lanes normally leave
+# those directories uninitialized, and a canonical checkout can carry
+# unrelated work in progress.
+book_roots=()
+book_archive_dir="$(mktemp -d)" || exit 1
+trap 'rm -rf "$book_archive_dir"' EXIT
+while IFS=$'\t' read -r mode sha path; do
+  [ "$mode" = "160000" ] || continue
+  member_root="$book_archive_dir/${path#repos/}"
+  mkdir -p "$member_root"
+  if ! member_git "$path" archive --format=tar "$sha" > "$member_root/member.tar"; then
+    echo "[pre-commit] $path: cannot archive staged gitlink ${sha:0:10} for book checks." >&2
+    exit 1
+  fi
+  if ! tar -xf "$member_root/member.tar" -C "$member_root"; then
+    echo "[pre-commit] $path: cannot extract staged gitlink ${sha:0:10} for book checks." >&2
+    exit 1
+  fi
+  rm -f "$member_root/member.tar"
+  book="$member_root/docs/book"
+  [ -d "$book" ] && book_roots+=("$book")
+done < <(git ls-files --stage | awk '$1 == "160000" {print $1 "\t" $2 "\t" $4}')
+if [ "${#book_roots[@]}" -eq 0 ]; then
+  echo "[pre-commit] no provider book roots are present in staged gitlinks." >&2
+  exit 1
+fi
+"$python_bin" scripts/check_mdbook_links.py "${book_roots[@]}"
 fi
 
 # Atlas provider-integration closure guard.

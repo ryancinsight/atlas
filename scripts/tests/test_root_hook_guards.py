@@ -26,7 +26,7 @@ def install_hook(repo: Path) -> None:
     for name in (
         "atlas-stale-side-guard.py", "atlas_stale_side_git.py",
         "atlas_stale_side_basis.py", "atlas_git_process.py", "stale-side-waivers.json",
-        "atlas-provider-integration-audit.py", "atlas_stack.py",
+        "atlas-provider-integration-audit.py", "atlas_stack.py", "check_mdbook_links.py",
     ):
         shutil.copyfile(ROOT / "scripts" / name, repo / "scripts" / name)
     (repo / ".githooks").mkdir()
@@ -124,6 +124,169 @@ class RootHookGuardTests(unittest.TestCase):
                     self.assertEqual(git("show", f"HEAD:{selected_name}").stdout, "novel\n")
                     self.assertEqual(git("show", ":other.txt").stdout, "old\n")
                     self.assertEqual(git("show", "HEAD:other.txt").stdout, "current\n")
+
+    def test_linked_lane_uses_the_canonical_member_checkout_for_gitlinks(self) -> None:
+        """An uninitialized lane must validate its staged gitlink from main."""
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary) / "atlas"
+            member = repo / "repos" / "demo"
+            lane = Path(temporary) / "lane"
+            repo.mkdir()
+            environment = {
+                key: value for key, value in os.environ.items()
+                if not key.startswith("GIT_")
+            }
+            environment.update(
+                GIT_CONFIG_NOSYSTEM="1",
+                GIT_CONFIG_GLOBAL=str(repo / "gitconfig"),
+            )
+            (repo / "gitconfig").write_text("", encoding="utf-8")
+
+            def git(path: Path, *arguments: str, check: bool = True) -> subprocess.CompletedProcess:
+                return subprocess.run(
+                    [
+                        "git", "-C", str(path), "-c", "user.name=Test",
+                        "-c", "user.email=test@example.invalid", *arguments,
+                    ],
+                    env=environment, check=check, capture_output=True,
+                    text=True, encoding="utf-8", timeout=30,
+                )
+
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "core.autocrlf", "false")
+            member.mkdir(parents=True)
+            git(member, "init", "-q", "-b", "main")
+            (member / "value.txt").write_text("first\n", encoding="utf-8")
+            book = member / "docs" / "book"
+            book.mkdir(parents=True)
+            (book / "SUMMARY.md").write_text(
+                "# Summary\n\n[Chapter](chapter.md)\n", encoding="utf-8",
+            )
+            (book / "chapter.md").write_text("# Chapter\n", encoding="utf-8")
+            git(member, "add", "value.txt")
+            git(member, "add", "docs")
+            git(member, "commit", "-qm", "first")
+            first = git(member, "rev-parse", "HEAD").stdout.strip()
+            git(member, "update-ref", "refs/remotes/origin/main", first)
+            git(member, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+
+            install_hook(repo)
+            (repo / ".gitmodules").write_text(
+                '[submodule "repos/demo"]\n\tpath = repos/demo\n\turl = https://example.invalid/demo.git\n',
+                encoding="utf-8",
+            )
+            git(repo, "add", ".githooks", "scripts", ".gitmodules")
+            git(repo, "update-index", "--add", "--cacheinfo", f"160000,{first},repos/demo")
+            git(repo, "commit", "-qm", "Record demo")
+            git(repo, "config", "core.hooksPath", ".githooks")
+            git(repo, "worktree", "add", "-q", "-b", "fix/lane", str(lane))
+            (lane / "repos" / "demo").mkdir(parents=True, exist_ok=True)
+
+            (member / "value.txt").write_text("second\n", encoding="utf-8")
+            git(member, "add", "value.txt")
+            git(member, "commit", "-qm", "second")
+            second = git(member, "rev-parse", "HEAD").stdout.strip()
+            git(member, "update-ref", "refs/remotes/origin/main", second)
+            git(lane, "update-index", "--cacheinfo", f"160000,{second},repos/demo")
+            result = git(lane, "commit", "-qm", "Advance demo", check=False)
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                f"160000 commit {second}\trepos/demo",
+                git(lane, "ls-tree", "HEAD", "repos/demo").stdout,
+            )
+
+            shutil.rmtree(member / "docs")
+            checker = lane / "scripts" / "check_mdbook_links.py"
+            checker.write_text(
+                checker.read_text(encoding="utf-8") + "\n# exercise linked-lane docs check\n",
+                encoding="utf-8",
+            )
+            git(lane, "add", "scripts/check_mdbook_links.py")
+            docs_guard = git(lane, "commit", "-qm", "Run docs guard", check=False)
+            self.assertEqual(docs_guard.returncode, 0, docs_guard.stdout + docs_guard.stderr)
+
+    def test_merge_allows_inherited_board_and_gitlink_changes_only(self) -> None:
+        """A real merge may combine independently valid board and pin commits."""
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary) / "atlas"
+            member = repo / "repos" / "demo"
+            repo.mkdir()
+            environment = {
+                key: value for key, value in os.environ.items()
+                if not key.startswith("GIT_")
+            }
+            environment.update(
+                GIT_CONFIG_NOSYSTEM="1",
+                GIT_CONFIG_GLOBAL=str(repo / "gitconfig"),
+            )
+            (repo / "gitconfig").write_text("", encoding="utf-8")
+
+            def git(*arguments: str, check: bool = True) -> subprocess.CompletedProcess:
+                return subprocess.run(
+                    [
+                        "git", "-C", str(repo), "-c", "user.name=Test",
+                        "-c", "user.email=test@example.invalid", *arguments,
+                    ],
+                    env=environment, check=check, capture_output=True,
+                    text=True, encoding="utf-8", timeout=30,
+                )
+
+            git("init", "-q", "-b", "main")
+            git("config", "core.autocrlf", "false")
+            member.mkdir(parents=True)
+            git("-C", str(member), "init", "-q", "-b", "main")
+            (member / "value.txt").write_text("first\n", encoding="utf-8")
+            git("-C", str(member), "add", "value.txt")
+            git("-C", str(member), "commit", "-qm", "first")
+            first = git("-C", str(member), "rev-parse", "HEAD").stdout.strip()
+            git("-C", str(member), "update-ref", "refs/remotes/origin/main", first)
+            git("-C", str(member), "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+
+            install_hook(repo)
+            (repo / ".gitmodules").write_text(
+                '[submodule "repos/demo"]\n\tpath = repos/demo\n\turl = https://example.invalid/demo.git\n',
+                encoding="utf-8",
+            )
+            (repo / "backlog.md").write_text("base\n", encoding="utf-8")
+            git("add", ".githooks", "scripts", ".gitmodules", "backlog.md")
+            git("update-index", "--add", "--cacheinfo", f"160000,{first},repos/demo")
+            git("commit", "-qm", "Record demo")
+
+            git("switch", "-qc", "fix/pin")
+            (member / "value.txt").write_text("second\n", encoding="utf-8")
+            git("-C", str(member), "add", "value.txt")
+            git("-C", str(member), "commit", "-qm", "second")
+            second = git("-C", str(member), "rev-parse", "HEAD").stdout.strip()
+            git("-C", str(member), "update-ref", "refs/remotes/origin/main", second)
+            (repo / "backlog.md").write_text("pin\n", encoding="utf-8")
+            git("add", "backlog.md")
+            git("update-index", "--cacheinfo", f"160000,{second},repos/demo")
+            self.assertEqual(git("commit", "-qm", "Advance demo").returncode, 0)
+
+            git("switch", "-q", "main")
+            git("config", "core.hooksPath", ".githooks")
+            (repo / "backlog.md").write_text("main\n", encoding="utf-8")
+            git("add", "backlog.md")
+            self.assertEqual(git("commit", "-qm", "Update board").returncode, 0)
+            conflict = git("merge", "--no-commit", "fix/pin", check=False)
+            self.assertNotEqual(conflict.returncode, 0)
+            (repo / "backlog.md").write_text("resolved\n", encoding="utf-8")
+            git("add", "backlog.md")
+            merged = git("commit", "-qm", "Merge pin", check=False)
+            self.assertEqual(merged.returncode, 0, merged.stdout + merged.stderr)
+
+            (member / "value.txt").write_text("third\n", encoding="utf-8")
+            git("-C", str(member), "add", "value.txt")
+            git("-C", str(member), "commit", "-qm", "third")
+            third = git("-C", str(member), "rev-parse", "HEAD").stdout.strip()
+            git("-C", str(member), "update-ref", "refs/remotes/origin/main", third)
+            (repo / "backlog.md").write_text("ordinary\n", encoding="utf-8")
+            git("add", "backlog.md")
+            git("update-index", "--cacheinfo", f"160000,{third},repos/demo")
+            ordinary = git("commit", "-qm", "Mix board and pin", check=False)
+            self.assertNotEqual(ordinary.returncode, 0)
+            self.assertIn("R2", ordinary.stdout + ordinary.stderr)
 
     def test_pre_push_runs_the_pin_advance_debt_gate(self) -> None:
         text = PRE_PUSH.read_text(encoding="utf-8")

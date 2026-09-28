@@ -76,7 +76,7 @@
 <a id="kwavers-elastic-collision"></a>- [ATLAS-KWAVERS-ELASTIC-COLLISION-2026-09-03](backlog/kwavers-elastic-collision.md) — Step 2b is peer-owned; I collided with it [patch] — blocked
 <a id="atlas-kwavers-hephaestus-contract-2026-08-21"></a>- [ATLAS-KWAVERS-HEPHAESTUS-CONTRACT-2026-08-21](backlog/atlas-kwavers-hephaestus-contract-2026-08-21.md) — Define the neutral visualization handoff [major][arch] — in-progress
 <a id="atlas-kwavers-metadata-2026-08-19"></a>- [ATLAS-KWAVERS-METADATA-2026-08-19](backlog/atlas-kwavers-metadata-2026-08-19.md) — Python surface consistency — blocked
-<a id="atlas-kwavers-parameter-structs-20260928"></a>- [ATLAS-KWAVERS-PARAMETER-STRUCTS-20260928](backlog/atlas-kwavers-parameter-structs-20260928.md) — Collapse 260 too_many_arguments suppressions into parameter structs [minor] — todo
+<a id="atlas-kwavers-parameter-structs-20260928"></a>- [ATLAS-KWAVERS-PARAMETER-STRUCTS-20260928](backlog/atlas-kwavers-parameter-structs-20260928.md) — Collapse 260 `clippy::too_many_arguments` suppressions into parameter structs [minor] — todo
 <a id="atlas-kwavers-python-generator-2026-08-21"></a>- [ATLAS-KWAVERS-PYTHON-GENERATOR-2026-08-21](backlog/atlas-kwavers-python-generator-2026-08-21.md) — Add defaults and NumPy protocols [minor] — in-progress
 <a id="atlas-kwavers-python-gil-2026-08-21"></a>- [ATLAS-KWAVERS-PYTHON-GIL-2026-08-21](backlog/atlas-kwavers-python-gil-2026-08-21.md) — Detach Simulation.run [minor] — in-progress
 <a id="atlas-kwavers-python-surface-2026-08-21"></a>- [ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21](backlog/atlas-kwavers-python-surface-2026-08-21.md) — Complete typed and concurrent PyO3 surface [minor] — in-progress
