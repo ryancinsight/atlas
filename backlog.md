@@ -142,3 +142,4 @@
 <a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Run the stack-owned lockfile checker, not member copies [patch] — todo
+<a id="atlas-audit-wave-landing-2026-09-26"></a>- [ATLAS-AUDIT-WAVE-LANDING-2026-09-26](backlog/atlas-audit-wave-landing-2026-09-26.md) — Land the four undelivered audit commits on their members' default branches [patch] — todo

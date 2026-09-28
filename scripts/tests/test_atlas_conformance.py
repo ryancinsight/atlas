@@ -1479,7 +1479,198 @@ class AtlasConformanceTestCase(unittest.TestCase):
 class DetectorPrecisionTests(unittest.TestCase):
     """Prose that begins with a keyword is not commented-out code; absence
     is not an existence-only assertion; compound cfg predicates gate test
-    regions item by item; comment lines may sit between stacked attributes."""
+    regions item by item; comment lines may sit between stacked attributes.
+
+    Also the three precision defects the 2026-09-26 audit measured: a
+    whole-file `#![cfg(test)]` is test code, a commented-out `mod` is not a
+    module edge, and prose naming an ordering is not a use of it.
+    """
+
+    def test_a_whole_file_cfg_test_attribute_gates_the_whole_file(self) -> None:
+        # gaia/src/application/csg/boolean/indexed_tests.rs opens with the
+        # inner attribute `#![cfg(test)]` and is declared without a cfg gate
+        # on the parent `mod`. An inner attribute is file-scoped, so every
+        # line of it is test code; the class counted all 1041 lines -- and
+        # their 34 `.unwrap()` -- as production, leaving gaia's recorded
+        # `unwrap_production` floor 34 above the truth.
+        source = (
+            "#![cfg(test)]\n"
+            "\n"
+            "use super::Indexed;\n"
+            "\n"
+            "#[test]\n"
+            "fn builds() {\n"
+            "    let shape = Indexed::new().unwrap();\n"
+            "    assert!(shape.is_valid());\n"
+            "}\n"
+        )
+        production, tests = conformance.split_test_region(source)
+        self.assertEqual(production, "")
+        self.assertIn("Indexed::new().unwrap()", tests)
+        self.assertEqual(len(conformance.SEQCST.findall(production)), 0)
+
+    def test_an_outer_cfg_test_attribute_still_scopes_to_its_item(self) -> None:
+        # The inner-attribute case must not swallow the outer one: an outer
+        # `#[cfg(test)]` gates its own item and nothing after it.
+        source = (
+            "fn production() {}\n"
+            "#[cfg(test)]\n"
+            "mod tests;\n"
+            "fn after() {}\n"
+        )
+        production, tests = conformance.split_test_region(source)
+        self.assertIn("fn production()", production)
+        self.assertIn("fn after()", production)
+        self.assertIn("mod tests;", tests)
+        self.assertNotIn("fn after()", tests)
+
+    def test_a_commented_out_module_declaration_is_not_an_edge(self) -> None:
+        # `MOD_DECL` has no line-start anchor, so `// pub mod
+        # poiseuille_bifurcation;` read as a live edge. The walk then
+        # "reached" a 386-line file rustc had never compiled, and
+        # `orphan_modules` -- the class that exists to surface exactly that --
+        # reported zero. Deleting the comment as a cleanup then *raised* the
+        # class, so the ratchet penalised the correct action.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "pub mod live;\n"
+                "// pub mod dead;\n"
+                "/* pub mod also_dead; */\n",
+            )
+            _write(root, "src/live.rs", "pub const LIVE: usize = 1;\n")
+            _write(root, "src/dead.rs", "pub const DEAD: usize = 2;\n")
+            _write(root, "src/also_dead.rs", "pub const ALSO: usize = 3;\n")
+
+            orphans = conformance.count_orphan_modules(root)
+
+        self.assertEqual(orphans, 2)
+
+    def test_strip_comments_leaves_string_and_char_literals_intact(self) -> None:
+        # `"https://host"` and `r#"a // b"#` contain `//` that a naive
+        # comment strip reads as a line comment, and blanking from there to
+        # the newline erases the rest of the line's real code. That failure is
+        # silent and runs the wrong way for a ratchet: a class that
+        # undercounts has a floor that no longer holds. A `'` that opens a
+        # lifetime (`'static`) is not a char literal either.
+        source = (
+            "fn f() {\n"
+            '    let u = "https://example.com/x".len();\n'
+            '    let v = r#"a // b"#.len();\n'
+            "    let w = '\"';\n"
+            "    let x = b'/';\n"
+            "    let l: &'static str = \"s\";\n"
+            "    let y = real.unwrap();\n"
+            "    let z = f(Ordering::SeqCst);\n"
+            "}\n"
+        )
+        stripped = conformance.strip_comments(source)
+        self.assertEqual(stripped, source)
+        self.assertEqual(stripped.count(".unwrap()"), 1)
+        self.assertEqual(len(conformance.SEQCST.findall(stripped)), 1)
+
+    def test_a_comment_naming_a_code_token_is_not_that_token(self) -> None:
+        # The three code-token classes -- `unwrap_production`,
+        # `seqcst_production` and `print_dbg` -- read one comment-free
+        # region, so prose about a token cannot raise any of them. A `//`
+        # comment (not just a `///` doc comment) is where moirai's ordering
+        # rationale lives, so a doc-comment-only strip is not enough.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "// Ordering::SeqCst would additionally fence the store.\n"
+                "/* println!(\"debug\"); */\n"
+                "/// let shape = Indexed::new().unwrap();\n"
+                "use std::sync::atomic::{AtomicU64, Ordering};\n"
+                "static BARRIER: AtomicU64 = AtomicU64::new(0);\n"
+                "pub fn barrier() -> u64 {\n"
+                "    BARRIER.fetch_add(1, Ordering::SeqCst)\n"
+                "}\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["seqcst_production"], 1)
+        self.assertEqual(counts["print_dbg"], 0)
+        self.assertEqual(counts["unwrap_production"], 0)
+
+    def test_a_url_operand_does_not_hide_code_on_its_line(self) -> None:
+        # `_walk_mods` reads declarations from the stripped text, so a
+        # same-line string containing `//` must not truncate the line and
+        # strand a module edge the walk would otherwise close.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                'const HOMEPAGE: &str = "https://example.com";\n'
+                "pub mod live;\n",
+            )
+            _write(root, "src/live.rs", "pub const LIVE: usize = 1;\n")
+
+            orphans = conformance.count_orphan_modules(root)
+
+        self.assertEqual(orphans, 0)
+
+    def test_strip_comments_preserves_offsets_and_line_numbers(self) -> None:
+        # `_walk_mods` reads the `#[path = ..]` attribute by indexing back
+        # into the matched text from the declaration's own offset, so the
+        # strip has to blank comments in place rather than delete them.
+        source = (
+            "// leading comment\n"
+            "#[path = \"driver_stub.rs\"]\n"
+            "/* block\n"
+            "   spanning lines */\n"
+            "pub mod driver;\n"
+        )
+        stripped = conformance.strip_comments(source)
+        self.assertEqual(len(stripped), len(source))
+        self.assertEqual(
+            stripped.count("\n"), source.count("\n")
+        )
+        declaration = conformance.MOD_DECL.search(stripped)
+        self.assertIsNotNone(declaration)
+        # The attribute is still found ahead of the declaration it belongs to,
+        # across the block comment that separates them.
+        self.assertIn(
+            "driver_stub.rs",
+            stripped[: declaration.start()].rstrip(),
+        )
+        self.assertNotIn("block", stripped)
+        self.assertIn("pub mod driver;", stripped)
+
+    def test_prose_naming_an_ordering_is_not_a_use_of_it(self) -> None:
+        # A doc comment that argues against `SeqCst` is prose about the
+        # ordering, not a use of it. Counting it meant the class could not
+        # reach zero without deleting the happens-before rationale -- 45 of
+        # moirai's 80 recorded sites were comment text.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "//! A publish is lost under any ordering (SeqCst included),\n"
+                "//! so this counter needs no happens-before edge.\n"
+                "use std::sync::atomic::{AtomicU64, Ordering};\n"
+                "static SENT: AtomicU64 = AtomicU64::new(0);\n"
+                "static BARRIER: AtomicU64 = AtomicU64::new(0);\n"
+                "pub fn sent() -> u64 {\n"
+                "    SENT.fetch_add(1, Ordering::Relaxed);\n"
+                "    BARRIER.fetch_add(1, Ordering::SeqCst)\n"
+                "}\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["seqcst_production"], 1)
 
     def test_keyword_led_prose_is_not_commented_out_code(self) -> None:
         prose = [
