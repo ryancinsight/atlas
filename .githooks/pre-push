@@ -287,8 +287,15 @@ done
 # a shared tree holds whatever a peer left there -- and `--repo` keeps the scan
 # to the members that actually changed, so an ordinary push costs nothing and
 # an advance costs about ten seconds per moved member.
+#
+# The checker is origin's default branch's, extracted for this run, never
+# the checkout's `scripts/`: the shared tree holds whatever branch a peer
+# left there, and one peer's uncommitted checker change failed an unrelated
+# pin advance on `CFDrs/orphan_modules`, a class main's checker measured
+# clean. Member hooks already run origin's checker the same way.
 debt_gate() {
     local tip="$1" changed python_bin member output base member_revision
+    local checker_rev checker_dir ref status
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
     # there would skip the gate on the pushes it most needs to see.
@@ -312,18 +319,44 @@ debt_gate() {
         return 1
     fi
 
+    checker_rev=""
+    for ref in origin/HEAD origin/main; do
+        checker_rev="$(git -C "$atlas_root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null || true)"
+        [ -n "$checker_rev" ] && break
+    done
+    if [ -z "$checker_rev" ]; then
+        echo "pre-push: BLOCKED -- gitlinks moved and origin names no default branch" >&2
+        echo "to take the debt checker from; fetch origin and push again." >&2
+        return 1
+    fi
+    # Under the git directory, not /tmp: git reports it as a drive path on
+    # Windows, which a native Python opens where an MSYS path fails.
+    checker_dir="$(mktemp -d "$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir)/atlas-debt-checker.XXXXXX")" || {
+        echo "pre-push: BLOCKED -- could not create a directory for the debt checker." >&2
+        return 1
+    }
+    if ! git -C "$atlas_root" archive "$checker_rev" scripts | tar -x -C "$checker_dir" \
+        || [ ! -f "$checker_dir/scripts/atlas-conformance.py" ]; then
+        rm -rf "$checker_dir"
+        echo "pre-push: BLOCKED -- could not extract the debt checker at ${checker_rev:0:12}." >&2
+        return 1
+    fi
+
+    status=0
     for member in $changed; do
         if [ ! -d "${member_root}/repos/${member}" ]; then
             echo "pre-push: BLOCKED -- canonical member checkout is absent: ${member}." >&2
-            return 1
+            status=1
+            break
         fi
         member_revision="$(git -C "$atlas_root" ls-tree "$tip" -- "repos/${member}" | cut -d" " -f3 | cut -f1)"
-        [ -n "$member_revision" ] || {
+        if [ -z "$member_revision" ]; then
             echo "pre-push: BLOCKED -- pushed tip has no gitlink for ${member}." >&2
-            return 1
-        }
+            status=1
+            break
+        fi
         if ! output="$(unset GIT_DIR GIT_WORK_TREE; ATLAS_STACK_ROOT="$member_root" "$python_bin" \
-                "${atlas_root}/scripts/atlas-conformance.py" \
+                "$checker_dir/scripts/atlas-conformance.py" \
                 check --repo "$member" \
                 --member-path "${member_root}/repos/${member}" \
                 --member-revision "$member_revision" \
@@ -333,10 +366,12 @@ debt_gate() {
             echo >&2
             echo "pre-push: fix it in ${member} and advance the pin to the fix, or" >&2
             echo "push with --no-verify if the raise is deliberate and recorded." >&2
-            return 1
+            status=1
+            break
         fi
     done
-    return 0
+    rm -rf "$checker_dir"
+    return "$status"
 }
 
 # Atlas's own PM boards and tracked images, under the same budget gate the
