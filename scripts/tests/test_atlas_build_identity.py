@@ -2566,7 +2566,13 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
-    def push(self, pushes: int, *, change_p_before: int | None) -> list[list[str]]:
+    def push(
+        self,
+        pushes: int,
+        *,
+        change_p_before: int | None = None,
+        change_d_before: int | None = None,
+    ) -> list[list[str]]:
         cleaned: list[list[str]] = []
         run_checked = identity._run_checked
 
@@ -2585,12 +2591,17 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
                         "pub fn p() -> u32 {\n    d::d() + 1\n}\n", encoding="utf-8"
                     )
                     git(self.source, "commit", "-qam", "change p only")
+                if push == change_d_before:
+                    (self.drepo / "src/lib.rs").write_text(
+                        "pub fn d() -> u32 {\n    7\n}\n", encoding="utf-8"
+                    )
+                    git(self.drepo, "commit", "-qam", "change d only")
                 export = self.base / f"export-{push}"
                 if export.exists():
                     _clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
-                identity.run_build(
+                result = identity.run_build(
                     export,
                     export / "Cargo.toml",
                     "p",
@@ -2598,6 +2609,7 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
                     ["cargo", "check", "-p", "p", "-q", "--offline"],
                     command_cwd=export,
                 )
+                self.last_result = result
         return cleaned
 
     def test_a_push_that_changes_only_p_cleans_only_p(self) -> None:
@@ -2608,6 +2620,27 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
         # source; `d`'s repository, and so its path record's identity, does
         # not move, so only `p` -- never `d` -- is due for cleaning.
         self.assertEqual(self.push(3, change_p_before=2), [["d", "p"], [], ["p"]])
+
+    def test_a_narrowed_clean_of_a_dependency_names_its_rediscovered_files(self) -> None:
+        # `d`'s own source changes (not `p`'s): the narrowed clean this time
+        # holds and cleans `d`, never `p`. The record written afterward must
+        # still name `d`'s rediscovered files -- every `libd-*`/`d-*` path
+        # this build actually produced -- rather than recording an empty
+        # attribution for the one package this run held exclusive
+        # (`M9_no_held_discovery`'s failure mode: passing an empty related-
+        # packages tuple to discovery never looks for `d` at all).
+        cleaned = self.push(2, change_d_before=1)
+        self.assertEqual(cleaned, [["d", "p"], ["d"]])
+        record = json.loads(self.last_result.record_path.read_text(encoding="utf-8"))
+        named_d = {
+            Path(relative).name
+            for relative in record["artifact"]["files"]
+            if Path(relative).name.startswith(("libd-", "d-"))
+        }
+        self.assertTrue(named_d)
+        deps_dir = self.base / "target" / "debug" / "deps"
+        on_disk_d = {path.name for path in deps_dir.iterdir() if path.name.startswith(("libd-", "d-"))}
+        self.assertEqual(named_d, on_disk_d)
 
 
 @pytest.mark.slow
