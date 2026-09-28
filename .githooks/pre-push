@@ -140,12 +140,34 @@ fi
 binary="${atlas_root}/target/release/gitlink-coherence"
 [ -x "${binary}.exe" ] && binary="${binary}.exe"
 
-if [ ! -x "$binary" ]; then
+# A present auditor is not necessarily a current one. It lives in a gitignored
+# target tree, so it outlives a checkout that brings newer checker code, and
+# building only on absence let the gate run a binary the tree no longer
+# describes. That is not hypothetical: a stale auditor once failed a git
+# plumbing call with an argument the current source never constructs, and the
+# resulting error read as a defect in the tool rather than as the staleness it
+# was. Recompiling on a source newer than the binary closes that gap; the
+# check is by mtime rather than content because this gate already reads the
+# tree's own timestamps, and a content digest here would cost more than the
+# rebuild it guards.
+auditor_needs_build() {
+    [ -x "$binary" ] || return 0
+    local src
+    for src in "${atlas_root}"/tools/gitlink-coherence/src/*.rs \
+               "${atlas_root}/tools/gitlink-coherence/Cargo.toml" \
+               "${atlas_root}/tools/gitlink-coherence/Cargo.lock"; do
+        [ -e "$src" ] || continue
+        [ "$src" -nt "$binary" ] && return 0
+    done
+    return 1
+}
+
+if auditor_needs_build; then
     # The auditor lives in a gitignored target tree, so a clean checkout or a
     # cache eviction removes it without touching a tracked file. Build it here
     # rather than reporting its absence: an absent checker must not be the
     # difference between a gate and a decoration.
-    echo "pre-push: gitlink auditor not built — building it now." >&2
+    echo "pre-push: gitlink auditor missing or older than its sources — building it now." >&2
     # Build from outside the stack root on purpose. Cargo discovers config from
     # the working directory upward, so building under `atlas_root` applies the
     # stack `[patch]` overlay, whose resolution the committed lockfile does not
