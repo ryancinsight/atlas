@@ -1884,20 +1884,80 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertNotEqual(first.cargo_config_digest, second.cargo_config_digest)
 
     def test_a_command_env_prefix_changes_the_record_scope(self) -> None:
-        # `env RUSTDOCFLAGS=... cargo doc` sets a variable no ambient
+        # `env RUSTFLAGS=... cargo build` sets a variable no ambient
         # `os.environ` snapshot carries; only parsing the leading `env`
-        # prefix lets the record see it move.
+        # prefix lets the record see a *compile-affecting* variable move.
         init_repo(self.root, "fn main() {}\n")
         with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
             first = identity.build_spec(
                 self.root, "demo", self.target, "debug", "host", "",
-                command=["env", "RUSTDOCFLAGS=-Dwarnings", "cargo", "doc"],
+                command=["env", "RUSTFLAGS=-C debuginfo=0", "cargo", "build"],
             )
             second = identity.build_spec(
                 self.root, "demo", self.target, "debug", "host", "",
-                command=["env", "RUSTDOCFLAGS=--cfg docsrs", "cargo", "doc"],
+                command=["env", "RUSTFLAGS=-C debuginfo=2", "cargo", "build"],
             )
         self.assertNotEqual(first.environment_digest, second.environment_digest)
+
+    def test_an_inline_rustdocflags_does_not_split_a_shared_record(self) -> None:
+        # The pre-push hook runs clippy, nextest, and `env RUSTDOCFLAGS=...
+        # cargo doc` under one shared `command_key` for one package, so
+        # `_sibling_matches` (which ignores only the command key) expects
+        # them to compare equal: `discover_artifacts` never looks under
+        # `target/doc`, so this record's tracked (compiled) artifacts are
+        # unaffected by a rustdoc-only flag, and Cargo's own per-unit doc
+        # fingerprint tracks it independently. Splitting the shared record
+        # here made a real three-step push clean the whole closure on every
+        # push instead of once.
+        init_repo(self.root, "fn main() {}\n")
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            clippy = identity.build_spec(
+                self.root, "demo", self.target, "debug", "host", "",
+                command=["cargo", "clippy"], command_key="shared",
+            )
+            doc_a = identity.build_spec(
+                self.root, "demo", self.target, "debug", "host", "",
+                command=["env", "RUSTDOCFLAGS=-D warnings", "cargo", "doc"], command_key="shared",
+            )
+            doc_b = identity.build_spec(
+                self.root, "demo", self.target, "debug", "host", "",
+                command=["env", "RUSTDOCFLAGS=--cfg docsrs", "cargo", "doc"], command_key="shared",
+            )
+        self.assertEqual(clippy.environment_digest, doc_a.environment_digest)
+        self.assertEqual(doc_a.environment_digest, doc_b.environment_digest)
+        self.assertEqual(identity.record_path(clippy), identity.record_path(doc_a))
+
+    def test_an_included_config_file_change_is_detected(self) -> None:
+        # Cargo 1.97 stable follows `include = [...]` in a config file,
+        # resolved relative to the file that names it, and merges the
+        # included file's own settings; an edit confined to the included
+        # file changes the build without changing the including file's own
+        # bytes at all.
+        execution_root = self.base / "execution"
+        (execution_root / ".cargo").mkdir(parents=True)
+        included = execution_root / ".cargo" / "included.toml"
+        included.write_text("[profile.dev]\nopt-level = 0\n", encoding="utf-8")
+        (execution_root / ".cargo" / "config.toml").write_text(
+            'include = "included.toml"\n', encoding="utf-8"
+        )
+        first = build_source.cargo_config_digest(execution_root)
+        included.write_text("[profile.dev]\nopt-level = 3\n", encoding="utf-8")
+        second = build_source.cargo_config_digest(execution_root)
+        self.assertNotEqual(first, second)
+
+    def test_an_included_config_cycle_does_not_hang(self) -> None:
+        # An included file naming its own includer, directly or through a
+        # chain, must not recurse forever.
+        execution_root = self.base / "execution-cycle"
+        (execution_root / ".cargo").mkdir(parents=True)
+        (execution_root / ".cargo" / "config.toml").write_text(
+            'include = "b.toml"\n', encoding="utf-8"
+        )
+        (execution_root / ".cargo" / "b.toml").write_text(
+            'include = "config.toml"\n', encoding="utf-8"
+        )
+        digest = build_source.cargo_config_digest(execution_root)
+        self.assertEqual(len(digest), 64)
 
     def test_source_changes_during_build_are_not_recorded(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -2695,6 +2755,118 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
 
 @pytest.mark.slow
 @unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class SharedCommandKeyThreeStepTestCase(unittest.TestCase):
+    """The pre-push hook's exact sequence for one package: clippy, nextest,
+    then `env RUSTDOCFLAGS=... cargo doc`, all under one `command_key` so
+    they read one shared record. A rustdoc-only environment variable must
+    not split that record into two mutually-stale halves -- a real run of
+    exactly this sequence measured the whole dependency closure (94 files,
+    4.5 MiB) being cleaned on every push instead of once, because the doc
+    step's inline `env` prefix gave it a different `environment_digest`
+    from the clippy and test steps' plain invocations.
+    """
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-shared-key-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.environment = {
+            key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
+        }
+        self.source = self.base / "src_repo"
+        for relative, text in {
+            "Cargo.toml": '[workspace]\nmembers = ["a", "b"]\nresolver = "2"\n',
+            "a/Cargo.toml": (
+                '[package]\nname = "a"\nversion = "0.1.0"\nedition = "2021"\n'
+                "[dependencies]\nb = { path = \"../b\" }\n"
+            ),
+            "a/src/lib.rs": (
+                "//! a\n/// a\npub fn a() -> u32 { b::b() + 1 }\n"
+                "#[test]\nfn t() { assert_eq!(a(), 2); }\n"
+            ),
+            "b/Cargo.toml": '[package]\nname = "b"\nversion = "0.1.0"\nedition = "2021"\n',
+            "b/src/lib.rs": "//! b\n/// b\npub fn b() -> u32 { 1 }\n",
+        }.items():
+            (self.source / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.source / relative).write_text(text, encoding="utf-8")
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        git(self.source, "init", "-q")
+        git(self.source, "config", "user.name", "Atlas test")
+        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "source")
+
+    def push(
+        self, gate: Path, environment: dict[str, str] | None = None
+    ) -> list[tuple[str, str, str]]:
+        """Run the hook's exact three steps for package `a` under one export."""
+        (gate / ".cargo").mkdir(parents=True, exist_ok=True)
+        (gate / ".cargo" / "config.toml").write_text(
+            '[profile.dev]\ndebug = "line-tables-only"\n', encoding="utf-8"
+        )
+        export = gate / "nested" / "ws"
+        if not export.exists():
+            export.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(["git", "clone", "-q", str(self.source), str(export)], check=True)
+        manifest = str(export / "Cargo.toml")
+        steps = [
+            (
+                "clippy",
+                ["cargo", "clippy", "-q", "--manifest-path", manifest, "-p", "a",
+                 "--all-targets", "--locked", "--offline"],
+            ),
+            (
+                "tests",
+                ["cargo", "nextest", "run", "--manifest-path", manifest, "-p", "a",
+                 "--locked", "--offline", "--no-tests=pass",
+                 "--status-level", "none", "--final-status-level", "none"],
+            ),
+            (
+                "rustdoc",
+                ["env", "RUSTDOCFLAGS=-D warnings", "cargo", "doc", "-q", "--no-deps",
+                 "--manifest-path", manifest, "-p", "a", "--locked", "--offline"],
+            ),
+        ]
+        results = []
+        with patch.dict(os.environ, {**self.environment, **(environment or {})}, clear=True):
+            for name, command in steps:
+                result = identity.run_build(
+                    export, export / "Cargo.toml", "a", self.base / "target", command,
+                    command_cwd=export, command_key="atlas-pre-push:a",
+                )
+                results.append((name, result.status, result.record_path.name))
+        return results
+
+    def test_the_three_steps_share_one_record_across_pushes(self) -> None:
+        first = self.push(self.base / "gate1")
+        second = self.push(self.base / "gate2")
+        third = self.push(self.base / "gate3")
+        # Every step of push 1 shares one record path (clippy/tests/doc are
+        # never split); push 2 and push 3 repeat the same commit and must
+        # reuse it with nothing rebuilt.
+        self.assertEqual(len({record for _, _, record in first}), 1)
+        self.assertEqual([status for _, status, _ in second], ["reused", "reused", "reused"])
+        self.assertEqual([status for _, status, _ in third], ["reused", "reused", "reused"])
+        self.assertEqual(
+            {record for _, _, record in second}, {record for _, _, record in first}
+        )
+
+    def test_a_rustflags_change_is_still_detected_under_the_shared_key(self) -> None:
+        first = self.push(self.base / "gate1")
+        second = self.push(
+            self.base / "gate2", environment={"CARGO_BUILD_RUSTFLAGS": "-Cdebug-assertions=off"}
+        )
+        self.assertEqual([status for _, status, _ in second], ["rebuilt", "reused", "reused"])
+        self.assertNotEqual(
+            {record for _, _, record in first}, {record for _, _, record in second}
+        )
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
 class PathDependencyFeatureChangeTestCase(unittest.TestCase):
     """`p` depends on `v` and `x`, each a separate repository; `v` also
     depends on `x`. Enabling `x`'s feature `f` from `p`'s manifest changes
@@ -2886,6 +3058,8 @@ class RootProfileChangeTestCase(unittest.TestCase):
 
     def test_a_profile_edit_cleans_the_whole_closure(self) -> None:
         self.assertEqual(self.push(3, profile_before=2), [["d", "p"], [], ["d", "p"]])
+
+
 
 
 class CommandLineTestCase(unittest.TestCase):
