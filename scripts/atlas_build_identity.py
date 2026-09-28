@@ -47,7 +47,7 @@ from atlas_build_source import (
     toolchain_identity,
 )
 
-VERSION = 3
+VERSION = 4
 DEFAULT_LEASE_SECONDS = 900
 
 
@@ -169,6 +169,32 @@ def _config_arguments(command: Sequence[str]) -> tuple[str, ...]:
     return tuple(arguments)
 
 
+def _inline_environment(command: Sequence[str]) -> dict[str, str]:
+    """The `NAME=VALUE` assignments a leading `env` prefix sets for this command.
+
+    `env RUSTDOCFLAGS=... cargo doc` sets an environment variable no ambient
+    `os.environ` snapshot carries, so `environment_digest` alone cannot see
+    it move; only a leading run of `NAME=VALUE` tokens right after `env` is
+    parsed, matching the shell builtin's own simple form (no `-u`/`-i`/`-C`
+    options), since anything else is not something this identity check
+    can attribute to a specific variable without a shell.
+    """
+    values: dict[str, str] = {}
+    iterator = iter(command)
+    first = next(iterator, None)
+    if first != "env":
+        return values
+    for token in iterator:
+        text = str(token)
+        if "=" not in text or text.startswith("-"):
+            break
+        name, _, value = text.partition("=")
+        if not name:
+            break
+        values[name] = value
+    return values
+
+
 def build_spec(
     root: Path,
     package: str,
@@ -202,7 +228,9 @@ def build_spec(
         toolchain=toolchain_identity(root),
         target_dir=canonical_target.as_posix(),
         command_key=normalized_key,
-        environment_digest=environment_digest(),
+        environment_digest=environment_digest(
+            {**os.environ, **_inline_environment(normalized_command)}
+        ),
         cargo_config_digest=cargo_config_digest(
             resolved_execution_root, _config_arguments(normalized_command)
         ),
@@ -322,7 +350,7 @@ def read_record(path: Path) -> dict[str, object] | None:
     except (OSError, json.JSONDecodeError) as error:
         raise IdentityError(f"malformed source identity record {path}: {error}") from error
     version = value.get("version") if isinstance(value, dict) else None
-    if type(version) is int and version in {1, 2}:
+    if type(version) is int and version in {1, 2, 3}:
         return None
     if not isinstance(value, dict) or type(version) is not int or version != VERSION:
         raise IdentityError(f"unsupported source identity record: {path}")

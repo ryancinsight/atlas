@@ -198,9 +198,14 @@ _EXCLUDED_ENVIRONMENT_KEYS = frozenset({"CARGO_TARGET_DIR"})
 def environment_digest(environment: Mapping[str, str] | None = None) -> str:
     """A digest of the environment variables that change how Cargo builds.
 
-    `CARGO_BUILD_*` (target, rustflags, jobs, ...) and `CARGO_TARGET_*`
-    (per-triple rustflags and runners) are covered by prefix, alongside the
-    existing `CARGO_PROFILE_*` prefix and the fixed single-variable set: a
+    `CARGO_BUILD_*` (target, rustflags, jobs, ...), `CARGO_TARGET_*`
+    (per-triple rustflags and runners), `CARGO_UNSTABLE_*` (nightly `-Z`
+    flags mirrored as env, e.g. `build-std`), and `CARGO_HOST_*` (host-triple
+    rustflags) are covered by prefix, alongside the existing
+    `CARGO_PROFILE_*` prefix and the fixed single-variable set -- which adds
+    `CARGO_ENCODED_RUSTDOCFLAGS` and `RUSTDOC` (both honored by the rustdoc
+    step this identity wraps) and `RUSTC_BOOTSTRAP` (gates unstable rustc
+    flags) to the set already covering `RUSTFLAGS`/`RUSTDOCFLAGS`. A
     `CARGO_BUILD_RUSTFLAGS` recompiling every dependency at a different
     codegen setting was previously invisible here, matching this run's
     exact-comparison record to one built under a different value.
@@ -214,14 +219,19 @@ def environment_digest(environment: Mapping[str, str] | None = None) -> str:
             key.startswith("CARGO_PROFILE_")
             or key.startswith("CARGO_BUILD_")
             or key.startswith("CARGO_TARGET_")
+            or key.startswith("CARGO_UNSTABLE_")
+            or key.startswith("CARGO_HOST_")
             or key
             in {
                 "CARGO",
                 "CARGO_ENCODED_RUSTFLAGS",
+                "CARGO_ENCODED_RUSTDOCFLAGS",
                 "CARGO_INCREMENTAL",
                 "RUSTC",
+                "RUSTC_BOOTSTRAP",
                 "RUSTC_WORKSPACE_WRAPPER",
                 "RUSTC_WRAPPER",
+                "RUSTDOC",
                 "RUSTDOCFLAGS",
                 "RUSTFLAGS",
             }
@@ -268,12 +278,18 @@ def cargo_config_digest(
     `$CARGO_HOME` does not move export to export, so its digest carries no
     path either, only its content. A `--config` argument naming an existing
     file is hashed by content; an inline directive (`key=value` or TOML)
-    has no file to read, so its literal text is hashed instead. Read
-    failures are surfaced rather than silently skipped: a config file this
-    run cannot read is a build input it cannot account for.
+    has no file to read, so its literal text is hashed instead. A relative
+    `--config` path is resolved against the execution root, matching Cargo's
+    own resolution (relative to its `cwd`), never this process's own working
+    directory: the pre-push gate invokes this module from the checkout while
+    passing `--command-cwd` for the export Cargo actually runs in, so the
+    two can differ. Read failures are surfaced rather than silently skipped:
+    a config file this run cannot read is a build input it cannot account
+    for.
     """
     digest = hashlib.sha256()
-    directory = _canonical(execution_root)
+    origin = _canonical(execution_root)
+    directory = origin
     depth = 0
     while True:
         for name in (".cargo/config.toml", ".cargo/config"):
@@ -304,6 +320,8 @@ def cargo_config_digest(
     for argument in config_arguments:
         text = str(argument)
         candidate = Path(text)
+        if not candidate.is_absolute():
+            candidate = origin / candidate
         if candidate.is_file():
             _feed_framed(digest, b"arg-file")
             try:

@@ -1852,6 +1852,53 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertNotEqual(first.environment_digest, second.environment_digest)
         self.assertNotEqual(identity.record_path(first), identity.record_path(second))
 
+    def test_a_relative_config_argument_resolves_against_the_execution_root(self) -> None:
+        # Cargo resolves a relative `--config <path>` against its own `cwd`
+        # (the execution root `--command-cwd` names), never against this
+        # process's own working directory -- which the pre-push hook always
+        # leaves at the checkout, not the export Cargo actually builds in.
+        init_repo(self.root, "fn main() {}\n")
+        execution_root = self.base / "execution"
+        execution_root.mkdir()
+        config = execution_root / "ci.toml"
+        config.write_text("[profile.dev]\nopt-level = 0\n", encoding="utf-8")
+        elsewhere = self.base / "elsewhere"
+        elsewhere.mkdir()
+        previous_cwd = os.getcwd()
+        os.chdir(elsewhere)
+        try:
+            with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+                first = identity.build_spec(
+                    self.root, "demo", self.target, "debug", "host", "",
+                    command=["cargo", "check", "--config", "ci.toml"],
+                    execution_root=execution_root,
+                )
+                config.write_text("[profile.dev]\nopt-level = 3\n", encoding="utf-8")
+                second = identity.build_spec(
+                    self.root, "demo", self.target, "debug", "host", "",
+                    command=["cargo", "check", "--config", "ci.toml"],
+                    execution_root=execution_root,
+                )
+        finally:
+            os.chdir(previous_cwd)
+        self.assertNotEqual(first.cargo_config_digest, second.cargo_config_digest)
+
+    def test_a_command_env_prefix_changes_the_record_scope(self) -> None:
+        # `env RUSTDOCFLAGS=... cargo doc` sets a variable no ambient
+        # `os.environ` snapshot carries; only parsing the leading `env`
+        # prefix lets the record see it move.
+        init_repo(self.root, "fn main() {}\n")
+        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            first = identity.build_spec(
+                self.root, "demo", self.target, "debug", "host", "",
+                command=["env", "RUSTDOCFLAGS=-Dwarnings", "cargo", "doc"],
+            )
+            second = identity.build_spec(
+                self.root, "demo", self.target, "debug", "host", "",
+                command=["env", "RUSTDOCFLAGS=--cfg docsrs", "cargo", "doc"],
+            )
+        self.assertNotEqual(first.environment_digest, second.environment_digest)
+
     def test_source_changes_during_build_are_not_recorded(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         changed = self.root / "src/lib.rs"
@@ -2167,8 +2214,11 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(packages, ["demo", "dep"])
 
     def test_older_record_versions_are_stale(self) -> None:
+        # Version 3 predates `cargo_config_digest`: a record at that version
+        # is gracefully stale, never a hard failure for the field it cannot
+        # have.
         record = self.base / "old-record.json"
-        for version in (1, 2):
+        for version in (1, 2, 3):
             record.write_text(json.dumps({"version": version}), encoding="utf-8")
             self.assertIsNone(identity.read_record(record))
 
