@@ -197,15 +197,35 @@ member_root="$(canonical_stack_root)" || {
     echo "pre-push: BLOCKED -- cannot resolve the canonical Atlas root from Git metadata." >&2
     exit 1
 }
-binary="${atlas_root}/target/release/gitlink-coherence"
+binary=""
+# The auditor is built from origin's default branch, never from the
+# checkout's `tools/`: the shared tree holds whatever branch a peer left
+# there, and a binary that any branch left in `target/release` was reused by
+# every later push whatever source it came from. Each build is keyed by the
+# tree of `tools/gitlink-coherence` it was compiled from, under the git
+# directory, so an unchanged auditor builds once and a changed one rebuilds.
+auditor_rev=""
+for ref in origin/HEAD origin/main; do
+    auditor_rev="$(git -C "$atlas_root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null || true)"
+    [ -n "$auditor_rev" ] && break
+done
+auditor_tree=""
+if [ -n "$auditor_rev" ]; then
+    auditor_tree="$(git -C "$atlas_root" rev-parse --verify --quiet "$auditor_rev:tools/gitlink-coherence" 2>/dev/null || true)"
+fi
+if [ -z "$auditor_tree" ]; then
+    echo "pre-push: BLOCKED — origin's default branch has no gitlink auditor source" >&2
+    echo "(tools/gitlink-coherence) to build; fetch origin and push again." >&2
+    exit 1
+fi
+auditor_dir="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir)/atlas-auditor/$auditor_tree"
+binary="$auditor_dir/gitlink-coherence"
 [ -x "${binary}.exe" ] && binary="${binary}.exe"
 
 if [ ! -x "$binary" ]; then
-    # The auditor lives in a gitignored target tree, so a clean checkout or a
-    # cache eviction removes it without touching a tracked file. Build it here
-    # rather than reporting its absence: an absent checker must not be the
-    # difference between a gate and a decoration.
-    echo "pre-push: gitlink auditor not built — building it now." >&2
+    echo "pre-push: gitlink auditor for ${auditor_rev:0:12} not built — building it now." >&2
+    mkdir -p "${auditor_dir%/*}"
+    auditor_source="$(mktemp -d "${auditor_dir%/*}/.source.XXXXXX" || true)"
     # Build from outside the stack root on purpose. Cargo discovers config from
     # the working directory upward, so building under `atlas_root` applies the
     # stack `[patch]` overlay, whose resolution the committed lockfile does not
@@ -213,11 +233,28 @@ if [ ! -x "$binary" ]; then
     # lockfile and dirties the tree on every push. Outside the overlay the lock
     # resolves standalone, which is the state the lockfile actually records.
     # CARGO_TARGET_DIR must therefore be explicit, since the overlay is also
-    # what would otherwise supply the shared target path.
-    ( cd "$HOME" 2>/dev/null || cd / ; \
-      CARGO_TARGET_DIR="${atlas_root}/target" cargo build --release --locked \
-          --manifest-path "${atlas_root}/tools/gitlink-coherence/Cargo.toml" ) >&2
-    binary="${atlas_root}/target/release/gitlink-coherence"
+    # what would otherwise supply the shared target path: the canonical
+    # root's, so a lane builds into the one stack cache, not a fork of it.
+    if [ -n "$auditor_source" ] \
+        && git -C "$atlas_root" archive "$auditor_tree" | tar -x -C "$auditor_source" \
+        && ( cd "$HOME" 2>/dev/null || cd / ; \
+             CARGO_TARGET_DIR="${member_root}/target" cargo build --release --locked \
+                 --manifest-path "$auditor_source/Cargo.toml" ) >&2; then
+        built="${member_root}/target/release/gitlink-coherence"
+        [ -f "${built}.exe" ] && built="${built}.exe"
+        # Stage then rename: a concurrent push building the same tree either
+        # wins the rename or finds the finished directory.
+        staging="$(mktemp -d "${auditor_dir%/*}/.staging.XXXXXX")"
+        # A directory without the binary is a leftover, never a build in
+        # flight (the rename below is atomic), so it is replaced.
+        if cp "$built" "$staging/" && [ ! -x "$auditor_dir/${built##*/}" ]; then
+            rm -rf "$auditor_dir"
+            mv "$staging" "$auditor_dir" 2>/dev/null || true
+        fi
+        rm -rf "$staging"
+    fi
+    [ -n "$auditor_source" ] && rm -rf "$auditor_source"
+    binary="$auditor_dir/gitlink-coherence"
     [ -x "${binary}.exe" ] && binary="${binary}.exe"
 fi
 
@@ -227,9 +264,9 @@ if [ ! -x "$binary" ]; then
     # comment above cites are exactly what an ungated push lands. A gate that
     # cannot run blocks; it does not wave the change through.
     echo "pre-push: BLOCKED — the gitlink auditor is unavailable and could not" >&2
-    echo "be built, so the coherence gate cannot run. Build it manually with" >&2
-    echo "  cargo build --release --manifest-path tools/gitlink-coherence/Cargo.toml" >&2
-    echo "or push with --no-verify only if you have verified the pins by hand." >&2
+    echo "be built from origin's ${auditor_rev:0:12}, so the coherence gate cannot" >&2
+    echo "run; the cargo output above names the failure. Push with --no-verify" >&2
+    echo "only if you have verified the pins by hand." >&2
     exit 1
 fi
 
@@ -287,8 +324,15 @@ done
 # a shared tree holds whatever a peer left there -- and `--repo` keeps the scan
 # to the members that actually changed, so an ordinary push costs nothing and
 # an advance costs about ten seconds per moved member.
+#
+# The checker is origin's default branch's, extracted for this run, never
+# the checkout's `scripts/`: the shared tree holds whatever branch a peer
+# left there, and one peer's uncommitted checker change failed an unrelated
+# pin advance on `CFDrs/orphan_modules`, a class main's checker measured
+# clean. Member hooks already run origin's checker the same way.
 debt_gate() {
     local tip="$1" changed python_bin member output base member_revision
+    local checker_rev checker_dir ref status
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
     # there would skip the gate on the pushes it most needs to see.
@@ -312,18 +356,44 @@ debt_gate() {
         return 1
     fi
 
+    checker_rev=""
+    for ref in origin/HEAD origin/main; do
+        checker_rev="$(git -C "$atlas_root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null || true)"
+        [ -n "$checker_rev" ] && break
+    done
+    if [ -z "$checker_rev" ]; then
+        echo "pre-push: BLOCKED -- gitlinks moved and origin names no default branch" >&2
+        echo "to take the debt checker from; fetch origin and push again." >&2
+        return 1
+    fi
+    # Under the git directory, not /tmp: git reports it as a drive path on
+    # Windows, which a native Python opens where an MSYS path fails.
+    checker_dir="$(mktemp -d "$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir)/atlas-debt-checker.XXXXXX")" || {
+        echo "pre-push: BLOCKED -- could not create a directory for the debt checker." >&2
+        return 1
+    }
+    if ! git -C "$atlas_root" archive "$checker_rev" scripts | tar -x -C "$checker_dir" \
+        || [ ! -f "$checker_dir/scripts/atlas-conformance.py" ]; then
+        rm -rf "$checker_dir"
+        echo "pre-push: BLOCKED -- could not extract the debt checker at ${checker_rev:0:12}." >&2
+        return 1
+    fi
+
+    status=0
     for member in $changed; do
         if [ ! -d "${member_root}/repos/${member}" ]; then
             echo "pre-push: BLOCKED -- canonical member checkout is absent: ${member}." >&2
-            return 1
+            status=1
+            break
         fi
         member_revision="$(git -C "$atlas_root" ls-tree "$tip" -- "repos/${member}" | cut -d" " -f3 | cut -f1)"
-        [ -n "$member_revision" ] || {
+        if [ -z "$member_revision" ]; then
             echo "pre-push: BLOCKED -- pushed tip has no gitlink for ${member}." >&2
-            return 1
-        }
+            status=1
+            break
+        fi
         if ! output="$(unset GIT_DIR GIT_WORK_TREE; ATLAS_STACK_ROOT="$member_root" "$python_bin" \
-                "${atlas_root}/scripts/atlas-conformance.py" \
+                "$checker_dir/scripts/atlas-conformance.py" \
                 check --repo "$member" \
                 --member-path "${member_root}/repos/${member}" \
                 --member-revision "$member_revision" \
@@ -333,10 +403,12 @@ debt_gate() {
             echo >&2
             echo "pre-push: fix it in ${member} and advance the pin to the fix, or" >&2
             echo "push with --no-verify if the raise is deliberate and recorded." >&2
-            return 1
+            status=1
+            break
         fi
     done
-    return 0
+    rm -rf "$checker_dir"
+    return "$status"
 }
 
 # Atlas's own PM boards and tracked images, under the same budget gate the

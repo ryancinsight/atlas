@@ -848,6 +848,51 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(conformance._file_text_cache(), {})
         self.assertEqual(conformance._cfg_test_decl_cache(), {})
 
+    def test_nextest_retries_nonzero_counts_every_offending_profile(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".config/nextest.toml",
+                "[profile.default]\n"
+                'slow-timeout = { period = "10s", terminate-after = 6 }\n'
+                "[profile.ci]\n"
+                "retries = 0\n"
+                "[profile.local]\n"
+                "retries = 1\n"
+                "[profile.production]\n"
+                "retries = 2\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        # One count per offending profile, so the figure names how much of the
+        # surface hides a failure rather than merely that the file has one.
+        self.assertEqual(counts["nextest_retries_nonzero"], 2)
+
+    def test_nextest_retries_ignores_comments_and_overrides(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".config/nextest.toml",
+                "[profile.default]\n"
+                "# retries must stay 0 in every profile\n"
+                'slow-timeout = { period = "30s", terminate-after = 2 }\n'
+                "[[profile.default.overrides]]\n"
+                'filter = "test(registration)"\n'
+                'slow-timeout = { period = "600s", terminate-after = 5 }\n',
+            )
+
+            counts = conformance.scan_repo(root)
+
+        # The key's name in a comment, and a relaxation block that never sets
+        # it, are both absent from the violation. A text search over "retries"
+        # would count the comment; TOML parsing is what makes this zero.
+        self.assertEqual(counts["nextest_retries_nonzero"], 0)
+
     def test_nested_workspace_lints_table_satisfies_inheritance(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
@@ -1279,6 +1324,38 @@ class AtlasConformanceTestCase(unittest.TestCase):
             results = conformance.scan_stack(root)
 
         self.assertEqual(results["<meta>"]["member_gate_versions"], 3)
+
+    def test_recorded_hook_versions_ignore_dirty_owned_source(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            member = root / "repos" / "alpha"
+            member.mkdir(parents=True)
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+
+            def git(repo, *arguments):
+                return subprocess.run(
+                    ["git", "-C", str(repo), *ident, *arguments],
+                    check=True, capture_output=True, text=True, timeout=10,
+                ).stdout.strip()
+
+            git(root, "init", "-q", "-b", "main")
+            git(member, "init", "-q", "-b", "main")
+            _write(member, ".githooks/pre-push", "owned\n")
+            git(member, "add", ".githooks/pre-push")
+            git(member, "commit", "-q", "-m", "hook")
+            member_revision = git(member, "rev-parse", "HEAD")
+            _write(root, ".gitmodules", '[submodule "alpha"]\n path = repos/alpha\n')
+            _write(root, "scripts/git-hooks/pre-push", "owned\n")
+            git(root, "add", ".gitmodules", "scripts/git-hooks/pre-push")
+            git(root, "update-index", "--add", "--cacheinfo",
+                f"160000,{member_revision},repos/alpha")
+            git(root, "commit", "-q", "-m", "matching hooks")
+            revision = git(root, "rev-parse", "HEAD")
+            _write(root, "scripts/git-hooks/pre-push", "different live source\n")
+            recorded = conformance.scan_stack(root, revision)["<meta>"]
+            live = conformance.scan_stack(root)["<meta>"]
+            self.assertEqual(recorded["member_gate_versions"], 1)
+            self.assertEqual(live["member_gate_versions"], 2)
 
     def test_stack_scan_rejects_unmaterialized_provider(self) -> None:
         """An empty gitlink directory cannot masquerade as a clean provider."""

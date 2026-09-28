@@ -9,8 +9,10 @@ working tree without a board item; these cases fail on that state.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -232,6 +234,10 @@ class RootHookGuardTests(unittest.TestCase):
             shutil.copytree(ROOT / "scripts", worktree / "scripts", dirs_exist_ok=True)
             shutil.copyfile(PRE_PUSH, worktree / ".githooks" / "pre-push")
             (worktree / ".githooks" / "pre-push").chmod(0o755)
+            shutil.copytree(
+                ROOT / "tools" / "gitlink-coherence", worktree / "tools" / "gitlink-coherence",
+                ignore=shutil.ignore_patterns("target"),
+            )
             member = worktree / "repos" / "demo"
             member.mkdir(parents=True)
             subprocess.run(
@@ -261,7 +267,7 @@ class RootHookGuardTests(unittest.TestCase):
                 encoding="utf-8",
             )
             subprocess.run(
-                ["git", "-C", str(worktree), "add", ".githooks", "scripts", ".gitmodules"],
+                ["git", "-C", str(worktree), "add", ".githooks", "scripts", "tools", ".gitmodules"],
                 check=True, capture_output=True, text=True,
             )
             subprocess.run(
@@ -334,10 +340,20 @@ class RootHookGuardTests(unittest.TestCase):
             )
             self.assertEqual(commit.returncode, 0, commit.stdout + commit.stderr)
 
-            target = lane / "target" / "release"
-            target.mkdir(parents=True)
+            subprocess.run(
+                ["git", "-C", str(lane), "update-ref", "refs/remotes/origin/main", "HEAD"],
+                check=True, capture_output=True, text=True,
+            )
+            # The hook runs the auditor built from origin's
+            # tools/gitlink-coherence, cached under the git directory by that
+            # tree; nothing is placed in target/release, which it no longer reads.
+            auditor_tree = subprocess.run(
+                ["git", "-C", str(lane), "rev-parse", "origin/main:tools/gitlink-coherence"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
             auditor_name = "gitlink-coherence.exe" if os.name == "nt" else "gitlink-coherence"
-            auditor = target / auditor_name
+            auditor = Path(common) / "atlas-auditor" / auditor_tree / auditor_name
+            auditor.parent.mkdir(parents=True)
             built_auditor = ROOT / "target" / "release" / auditor_name
             if not built_auditor.is_file():
                 build_environment = dict(os.environ, CARGO_TARGET_DIR=str(ROOT / "target"))
@@ -349,15 +365,13 @@ class RootHookGuardTests(unittest.TestCase):
             self.assertTrue(built_auditor.is_file(), "the real coherence auditor must be built for this hook test")
             shutil.copy2(built_auditor, auditor)
             self.assertFalse((lane / "repos" / "demo" / ".git").exists())
-            subprocess.run(
-                ["git", "-C", str(lane), "update-ref", "refs/remotes/origin/main", "HEAD"],
-                check=True, capture_output=True, text=True,
-            )
             pre_push = subprocess.run(
                 ["bash", str(worktree / ".githooks" / "pre-push")],
                 cwd=lane, env=environment, input="", capture_output=True, text=True, timeout=30,
             )
             self.assertEqual(pre_push.returncode, 0, pre_push.stdout + pre_push.stderr)
+            self.assertNotIn("building it now", pre_push.stderr)
+            self.assertFalse((lane / "target" / "release").exists())
 
     def test_merge_allows_inherited_board_and_gitlink_changes_only(self) -> None:
         """A real merge may combine independently valid board and pin commits."""
@@ -427,7 +441,11 @@ class RootHookGuardTests(unittest.TestCase):
             unstaged = git("commit", "-qm", "Reject unstaged merge content", check=False)
             self.assertNotEqual(unstaged.returncode, 0)
             self.assertIn("unstaged tracked content", unstaged.stdout + unstaged.stderr)
-            stack_script.write_text(git("show", "HEAD:scripts/atlas_stack.py").stdout, encoding="utf-8")
+            # Restore through git, not write_text: on Windows write_text writes CRLF,
+            # which leaves the file dirty and refuses the next commit for the
+            # wrong reason.
+            git("restore", "--source=HEAD", "--worktree", "--", "scripts/atlas_stack.py")
+            self.assertEqual(git("status", "--porcelain", "--", "scripts/atlas_stack.py").stdout, "")
             (repo / "unrelated.txt").write_text("new\n", encoding="utf-8")
             git("add", "unrelated.txt")
             unrelated = git("commit", "-qm", "Reject unrelated merge content", check=False)
@@ -458,6 +476,118 @@ class RootHookGuardTests(unittest.TestCase):
         self.assertIn('debt_gate "$tip" || exit 1', text)
         self.assertIn('budget_gate "$tip" || exit 1', text)
         self.assertIn('secret_gate "$tip" || exit 1', text)
+
+    def _debt_gate_stack(self, temporary: str) -> tuple[Path, dict[str, str], str, str]:
+        """An atlas repository whose checkout and origin disagree on the checker.
+
+        origin/main's checker records `origin` and exits with the status in
+        `CHECKER_STATUS`; the checkout's copy records `checkout` and fails.
+        Returns the repository, its environment, the base and the pushed tip,
+        which advances the one member's gitlink.
+        """
+        repo = Path(temporary) / "atlas"
+        member = repo / "repos" / "demo"
+        member.mkdir(parents=True)
+        environment = {
+            key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+        }
+        environment.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(Path(temporary) / "gitconfig"))
+        (Path(temporary) / "gitconfig").write_text("", encoding="utf-8")
+
+        def git(path: Path, *arguments: str) -> str:
+            return subprocess.run(
+                ["git", "-C", str(path), "-c", "user.name=Test",
+                 "-c", "user.email=test@example.invalid", *arguments],
+                env=environment, check=True, capture_output=True, text=True,
+                encoding="utf-8", timeout=30,
+            ).stdout.strip()
+
+        git(member, "init", "-q", "-b", "main")
+        commits = []
+        for value in ("first", "second"):
+            (member / "value.txt").write_text(value + "\n", encoding="utf-8")
+            git(member, "add", "value.txt")
+            git(member, "commit", "-qm", value)
+            commits.append(git(member, "rev-parse", "HEAD"))
+
+        git(repo, "init", "-q", "-b", "main")
+        checker = repo / "scripts" / "atlas-conformance.py"
+        checker.parent.mkdir()
+        checker.write_text(
+            "import os, pathlib, sys\n"
+            "pathlib.Path(os.environ['CHECKER_LOG']).write_text('origin ' + ' '.join(sys.argv[1:]))\n"
+            "sys.exit(int(os.environ['CHECKER_STATUS']))\n",
+            encoding="utf-8",
+        )
+        git(repo, "add", "scripts")
+        git(repo, "update-index", "--add", "--cacheinfo", f"160000,{commits[0]},repos/demo")
+        git(repo, "commit", "-qm", "Record demo")
+        base = git(repo, "rev-parse", "HEAD")
+        git(repo, "update-ref", "refs/remotes/origin/main", base)
+        git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+        git(repo, "update-index", "--cacheinfo", f"160000,{commits[1]},repos/demo")
+        git(repo, "commit", "-qm", "Advance demo")
+        tip = git(repo, "rev-parse", "HEAD")
+        # The shared checkout's copy: a peer's uncommitted checker change.
+        checker.write_text(
+            "import os, pathlib, sys\n"
+            "pathlib.Path(os.environ['CHECKER_LOG']).write_text('checkout')\n"
+            "sys.exit(1)\n",
+            encoding="utf-8",
+        )
+        return repo, environment, base, tip
+
+    def _run_debt_gate(
+        self, repo: Path, environment: dict[str, str], base: str, tip: str, status: int,
+    ) -> tuple[subprocess.CompletedProcess, str]:
+        function = re.search(r"(?ms)^debt_gate\(\) \{\n.*?^\}\n", PRE_PUSH.read_text(encoding="utf-8"))
+        self.assertIsNotNone(function, "debt_gate() is missing from .githooks/pre-push")
+        log = repo.parent / "checker.log"
+        script = (
+            function.group(0)
+            + 'atlas_root="$1"; member_root="$1"; gate_base="$2"\n'
+            + 'debt_gate "$3"\n'
+        )
+        run_environment = dict(
+            environment, PYTHON=sys.executable, CHECKER_LOG=str(log),
+            CHECKER_STATUS=str(status),
+        )
+        result = subprocess.run(
+            ["bash", "-c", script, "debt_gate", repo.as_posix(), base, tip],
+            env=run_environment, capture_output=True, text=True, encoding="utf-8",
+            timeout=60,
+        )
+        return result, log.read_text(encoding="utf-8") if log.is_file() else ""
+
+    def test_debt_gate_runs_origins_checker_not_the_checkouts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo, environment, base, tip = self._debt_gate_stack(temporary)
+
+            passed, log = self._run_debt_gate(repo, environment, base, tip, 0)
+            self.assertEqual(passed.returncode, 0, passed.stderr)
+            self.assertTrue(log.startswith("origin check --repo demo"), log)
+
+            failed, log = self._run_debt_gate(repo, environment, base, tip, 1)
+            self.assertEqual(failed.returncode, 1, failed.stderr)
+            self.assertTrue(log.startswith("origin "), log)
+            self.assertIn("advancing demo raises a debt class", failed.stderr)
+            git_dir = repo / ".git"
+            self.assertEqual(list(git_dir.glob("atlas-debt-checker.*")), [],
+                             "the extracted checker outlives the run")
+
+    def test_debt_gate_without_an_origin_default_refuses_the_push(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo, environment, base, tip = self._debt_gate_stack(temporary)
+            for ref in ("refs/remotes/origin/HEAD", "refs/remotes/origin/main"):
+                subprocess.run(
+                    ["git", "-C", str(repo), "update-ref", "--no-deref", "-d", ref],
+                    env=environment, check=True, capture_output=True, timeout=30,
+                )
+
+            result, log = self._run_debt_gate(repo, environment, base, tip, 0)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertEqual(log, "", "a checker ran with no origin default")
+            self.assertIn("origin names no default branch", result.stderr)
 
     def test_pre_commit_cites_the_detector_parity_rationale(self) -> None:
         text = PRE_COMMIT.read_text(encoding="utf-8")
