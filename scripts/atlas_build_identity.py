@@ -35,6 +35,7 @@ from atlas_build_lease import (
     package_target_lease_path,
     package_target_lease_scopes,
 )
+from atlas_build_package_source import cached_package_source_digest
 from atlas_build_source import (
     SourceIdentity,
     environment_digest,
@@ -196,6 +197,7 @@ def _dependency_data(
         }
     else:
         source_cache: dict[Path, dict[str, object]] = {}
+        package_source_cache = target_dir / ".atlas" / "source-identity" / "package-source"
 
         def identify_source(path: Path) -> dict[str, object]:
             canonical_path = _canonical(path)
@@ -209,6 +211,7 @@ def _dependency_data(
             package,
             metadata_cwd,
             identify_source,
+            lambda path: cached_package_source_digest(path, package_source_cache),
         )
     snapshot = dict(snapshot)
     snapshot.pop("digest", None)
