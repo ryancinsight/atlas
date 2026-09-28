@@ -1,6 +1,0 @@
-<a id="atlas-apollo-stockham-policy-050c"></a>
-## ATLAS-APOLLO-STOCKHAM-POLICY-050C — Parameterize the dispatch-policy matrix [minor] — in-progress
-- Owner: muse-spark-2026-09-21. Lease: apollo stockham component files + co-located tests/benches only.
-- Outcome: the six `StockhamPrecision` ZST markers and the `unreachable!` backend defaults become derived/unrepresentable (full detail in apollo PR #529 body).
-- Delivered 2026-09-21 as apollo PR #529 (branch `minor/apollo-stockham-policy-050c`, auto-merge armed, OPEN pending hosted gates), commit `8277871c`: premise corrections — TWO `unreachable!` defaults existed (both gone: one moved to a `StockhamPairGroups` subtrait, one deleted with its caller rerouted); the six markers did NOT collapse to one generic (dispatch trees differ in branch structure) — only the two AVX-512 markers collapsed to `StockhamAvx512<B>`. precise/reduced 1165 -> 821 lines; net +90 for a single-sourced decision tree. Gates: apollo-fft 701/701, stockham filters 46/46; AVX-512 paths compile-covered only. ADR 0042 synced.
-- Residuals: collect PR #529 hosted gates (512 paths never execute locally); all-features gate blocked on the moirai peer's in-flight `melinoe_ext.rs`; advance the Atlas apollo gitlink only after green.

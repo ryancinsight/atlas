@@ -9,7 +9,6 @@
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — in-progress
 <a id="atlas-apollo-python-surface-2026-08-20"></a>- [ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20](backlog/atlas-apollo-python-surface-2026-08-20.md) — Ship the typed Python surface [patch] — in-progress
 <a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
-<a id="atlas-apollo-stockham-policy-050c"></a>- [ATLAS-APOLLO-STOCKHAM-POLICY-050C](backlog/atlas-apollo-stockham-policy-050c.md) — Parameterize the dispatch-policy matrix [minor] — in-progress
 <a id="atlas-arch-005"></a>- [ATLAS-ARCH-005](backlog/atlas-arch-005.md) — Replace closed-set dyn dispatch in per-timestep paths [arch] — in-progress
 <a id="atlas-nightly-probe-consolidation"></a>- [ATLAS-NIGHTLY-PROBE-CONSOLIDATION](backlog/atlas-nightly-probe-consolidation.md) — One nightly-rustc probe for the stack [patch] — todo
 <a id="atlas-r7-closure-mapping-2026-09-24"></a>- [ATLAS-R7-CLOSURE-MAPPING-2026-09-24](backlog/atlas-r7-closure-mapping-2026-09-24.md) — Map closure members in the live R7 scan [patch] — todo
