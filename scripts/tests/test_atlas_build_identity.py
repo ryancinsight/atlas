@@ -87,20 +87,20 @@ def disable_maintenance(root: Path) -> None:
 def gate_export(source: Path, export: Path) -> str:
     """Export `source`'s HEAD the way the pre-push gate does; return its revision.
 
-    `git archive` into a fresh repository that borrows the source's objects,
-    `HEAD` set to the revision and the index read from its tree.
+    A repository borrowing the source's objects, its files and index written
+    by `read-tree -u --reset` run in the source, `HEAD` set to the revision.
     """
     revision = git(source, "rev-parse", "HEAD")
     export.mkdir(parents=True)
-    archive = subprocess.run(["git", "archive", f"{revision}^{{tree}}"], cwd=source,
-                             check=True, capture_output=True, timeout=60).stdout
-    subprocess.run(["tar", "-x", "-C", export.as_posix()], input=archive, check=True, timeout=60)
     git(export, "init", "-q")
     disable_maintenance(export)
     objects = git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") + "/objects"
     (export / ".git" / "objects" / "info" / "alternates").write_bytes(objects.encode() + b"\n")
+    subprocess.run(
+        ["git", "read-tree", "-u", "--reset", revision], cwd=source, check=True, timeout=60,
+        env=dict(os.environ, GIT_WORK_TREE=str(export), GIT_INDEX_FILE=str(export / ".git" / "index")),
+    )
     git(export, "update-ref", "HEAD", revision)
-    git(export, "read-tree", "HEAD")
     return revision
 
 
@@ -796,8 +796,8 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(record["source"]["root"], second_export.resolve().as_posix())
 
     def test_a_fresh_gate_export_is_identified_without_rehashing_it(self) -> None:
-        """An export's read-tree index carries no stat data, and `git diff HEAD`
-        re-hashed all of it: 348 s for kwavers, past the 60 s git timeout."""
+        """The export's index carries stat data, so `git diff HEAD` compares
+        stats: a read-tree index without it re-hashed kwavers for 348 s."""
         init_repo(self.root, "fn main() {}\n")
         bulk = self.root / "data"
         bulk.mkdir()
@@ -818,14 +818,23 @@ class BuildIdentityTestCase(unittest.TestCase):
             started = time.monotonic()
             found = build_source.source_identity(export)
             elapsed = time.monotonic() - started
-        self.assertNotIn("diff", [arguments[0] for arguments in calls])
+        self.assertIn("diff", [arguments[0] for arguments in calls])
         self.assertEqual(found.revision, revision)
         self.assertFalse(found.dirty)
         self.assertLess(elapsed, 30.0)
-        # Only an index never stat'ed is trusted: once refreshed, edits are diffed.
-        subprocess.run(["git", "update-index", "-q", "--refresh"], cwd=export, timeout=60)
+
+    def test_an_edited_export_is_dirty_whatever_its_index_holds(self) -> None:
+        """An index read from `HEAD` and never stat'ed proves nothing about
+        the files: a modified file and a deleted one are still dirty."""
+        init_repo(self.root, "fn main() {}\n")
+        export = self.base / "export" / "member"
+        revision = gate_export(self.root, export)
+        git(export, "read-tree", "HEAD")
         (export / "src/lib.rs").write_text("fn main() { edited(); }\n", encoding="utf-8")
-        self.assertTrue(build_source.source_identity(export).dirty)
+        (export / "Cargo.lock").unlink()
+        found = build_source.source_identity(export)
+        self.assertEqual(found.revision, revision)
+        self.assertTrue(found.dirty)
 
     def test_an_active_owner_blocks_cleaning_and_preserves_the_artifact(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -973,7 +982,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         # its hash.
         init_repo(self.root, "fn main() {}\n")
         deps = self.artifact.parent
-        (deps / "libdep-recorded.rlib").write_bytes(b"dependency")
+        (deps / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
         self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
         start_script(self, VARIANT_WRITER, str(self.dep_lock()), str(deps), "6")
         self.clean_log.unlink(missing_ok=True)
@@ -992,7 +1001,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         # content. A reader that re-hashed them after its command failed a
         # build that had succeeded ("cannot hash artifact").
         init_repo(self.root, "fn main() {}\n")
-        recorded = self.artifact.parent / "libdep-recorded.rlib"
+        recorded = self.artifact.parent / "libdep-0ecdeded.rlib"
         recorded.write_bytes(b"dependency")
         self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
         trigger = self.base / "rewrite"
@@ -1002,7 +1011,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         )
         self.assertEqual(result.status, "reused")
         self.assertTrue(Path(f"{trigger}.ack").exists())
-        self.assertIn("debug/deps/libdep-recorded.rlib", json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"])
+        self.assertIn("debug/deps/libdep-0ecdeded.rlib", json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"])
 
     def test_a_stale_run_rechecks_after_taking_its_leases_exclusive(self) -> None:
         # Between releasing its shared leases and taking them exclusive, a
@@ -1358,6 +1367,24 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertNotEqual(first["digest"], second["digest"])
         self.assertEqual(first["clean_packages"], ["demo", "dep"])
 
+    def test_an_artifact_belongs_to_the_target_it_names_exactly(self) -> None:
+        """`mnemosyne-memory`'s library is `mnemosyne`, a prefix of
+        `mnemosyne_build_util`; a prefix match claimed that artifact twice."""
+        owners = {
+            "mnemosyne-memory": frozenset({"mnemosyne_memory", "mnemosyne"}),
+            "mnemosyne-build-util": frozenset({"mnemosyne_build_util"}),
+        }
+        cases = {
+            "libmnemosyne_build_util-0123456789abcdef.rlib": "mnemosyne-build-util",
+            "mnemosyne-build-util-0123456789abcdef": "mnemosyne-build-util",
+            "libmnemosyne-0123456789abcdef.rmeta": "mnemosyne-memory",
+            "mnemosyne_memory-0123456789abcdef.d": "mnemosyne-memory",
+            "libmnemosyne_extra-0123456789abcdef.rlib": None,
+        }
+        for filename, owner in cases.items():
+            with self.subTest(filename=filename):
+                self.assertEqual(artifacts._artifact_owner(filename, owners, "mnemosyne-build-util"), owner)
+
     def test_dependency_snapshot_is_independent_of_the_export_path(self) -> None:
         """Cargo spells a path package's ID with its absolute directory."""
         snapshots = []
@@ -1657,7 +1684,7 @@ class CommandLineTestCase(unittest.TestCase):
         self.root = base / "member"
         init_repo(self.root, "fn main() {}\n")
         self.target = base / "target"
-        self.artifact = self.target / "debug" / "deps" / "libdemo-cli.rlib"
+        self.artifact = self.target / "debug" / "deps" / "libdemo-c1ab.rlib"
         self.build = base / "build.py"
         write_script(
             self.build,
