@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+import time
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
@@ -151,6 +152,51 @@ def changed_packages(
             return None
         names.add(owner)
     return names
+
+
+# Recorded in place of a digest when a dependency file never read the same
+# twice in a row: it compares unequal to any real digest, so the next run
+# cleans that file's package, never the whole closure.
+UNVERIFIED = "unverified"
+# A dependency file another reader's Cargo is rewriting refuses reads on
+# Windows, or changes under them, while rustc writes it; one second outlasts
+# a rewrite of the artifacts a gate step reads.
+SETTLE_SECONDS = 1.0
+_SETTLE_INTERVAL = 0.02
+
+
+def settled_digest(path: Path, deadline_ns: int) -> str | None:
+    """The file's digest once two consecutive reads agree.
+
+    Reads repeat until two in a row succeed with one digest and the file's
+    size and modification time unchanged across both, or until `deadline_ns`
+    (monotonic) passes after at least two attempts. Returns `UNVERIFIED`
+    when reads succeeded but never agreed, and None when none succeeded.
+    """
+    previous = None
+    read = False
+    attempts = 0
+    while True:
+        attempts += 1
+        try:
+            before = path.stat()
+            digest = _file_digest(path)
+            after = path.stat()
+        except (OSError, BuildIdentityError):
+            current = None
+        else:
+            read = True
+            state = (before.st_size, before.st_mtime_ns)
+            current = (digest, state) if state == (after.st_size, after.st_mtime_ns) else None
+        if current is not None and current == previous:
+            return current[0]
+        settling = current is not None and previous is None
+        previous = current
+        if attempts >= 2 and time.monotonic_ns() >= deadline_ns:
+            return UNVERIFIED if read else None
+        if not settling:
+            # The first good read is confirmed at once; anything else waits.
+            time.sleep(_SETTLE_INTERVAL)
 
 
 def artifact_digest(files: dict[str, str]) -> str:

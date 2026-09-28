@@ -19,7 +19,9 @@ from atlas_build_artifacts import (
     changed_packages,
     dependency_snapshot,
     discover_artifacts,
+    SETTLE_SECONDS,
     recorded_artifact_identity,
+    settled_digest,
     validate_artifact_paths,
 )
 from atlas_build_lease import (
@@ -523,10 +525,13 @@ def run_build(
         if final_dependencies != dependencies:
             raise IdentityError("dependency graph changed while the build was running")
         if matched and not artifact_paths:
-            # Only the package held exclusive is hashed again. Another
-            # reader's Cargo may be rewriting a dependency's files in place
-            # right now, so they keep the digests verified before the
-            # command; the next run's comparison re-hashes them.
+            # The command rebuilt dependency files in place (a fresh export
+            # has fresh mtimes, and rustc embeds its path in the bytes), so
+            # every file the record names is hashed again once two reads
+            # agree. Another reader's Cargo may be rewriting one: a file that
+            # never settles is recorded unverified, and one that cannot be
+            # read at all keeps its pre-command digest. Only the package held
+            # exclusive is discovered afresh.
             own = recorded_artifact_identity(
                 target_dir,
                 [
@@ -536,7 +541,14 @@ def run_build(
                     )
                 ],
             )
-            files = {**existing["artifact"]["files"], **own["files"]}
+            files = {}
+            for relative, verified in existing["artifact"]["files"].items():
+                # Each file gets up to SETTLE_SECONDS, never past the run's
+                # wait deadline; at least two reads are always attempted.
+                budget = min(time.monotonic_ns() + int(SETTLE_SECONDS * 1_000_000_000), deadline_ns)
+                settled = settled_digest(target_dir / relative, budget)
+                files[relative] = verified if settled is None else settled
+            files.update(own["files"])
             artifact = {"files": files, "digest": artifact_digest(files)}
         else:
             artifact = artifact_identity(
