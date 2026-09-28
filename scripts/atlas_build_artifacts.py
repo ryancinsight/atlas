@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
@@ -249,19 +250,26 @@ def _workspace_artifact_owners(
     return owners
 
 
+# Cargo writes a 16-digit metadata hash; any hex suffix is accepted so the
+# fixture names (`demo-111`) and real ones are read alike.
+_METADATA_HASH = re.compile(r"-[0-9a-f]+$")
+
+
 def _artifact_owner(filename: str, owners: dict[str, frozenset[str]], requested: str) -> str | None:
-    stem = filename[3:] if filename.startswith("lib") else filename
-    stem = _normalize_stem(stem.split(".", 1)[0])
-    matches = [
-        owner
-        for owner, stems in owners.items()
-        if any(
-            stem == candidate
-            or stem.startswith(f"{candidate}_")
-            or stem.startswith(f"{candidate}-")
-            for candidate in stems
-        )
-    ]
+    """The package whose target the artifact names exactly.
+
+    Cargo names an artifact `<target>-<hex metadata hash>` (a library
+    file adds `lib` and an extension), so the name before the hash is the
+    target, compared whole. A prefix match let `mnemosyne_build_util-<h>`
+    belong to both `mnemosyne-build-util` and `mnemosyne-memory` (whose
+    library is `mnemosyne`), and an artifact claimed twice was claimed by
+    none: a real mnemosyne gate found no artifact and refused the push.
+    """
+    base = _METADATA_HASH.sub("", filename.split(".", 1)[0])
+    names = {_normalize_stem(base)}
+    if base.startswith("lib"):
+        names.add(_normalize_stem(base[3:]))
+    matches = [owner for owner, stems in owners.items() if names & stems]
     return matches[0] if len(matches) == 1 else None
 
 

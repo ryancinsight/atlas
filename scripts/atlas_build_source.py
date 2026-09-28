@@ -114,34 +114,6 @@ def _diff_bytes(top: Path, ignored: Sequence[Path]) -> bytes:
     return _git(top, *arguments)
 
 
-def _is_unrefreshed_export(top: Path) -> bool:
-    """True for a gate export whose index was built from its `HEAD` tree.
-
-    The pre-push gate exports the pushed tree into a private temporary
-    repository that borrows the member's objects (`objects/info/alternates`)
-    and fills its index with `read-tree HEAD`. Such an index carries no stat
-    data, so `git diff HEAD` re-hashed every file of the export -- 348 s for
-    kwavers, past the 60 s git timeout, which refused the push. The export is
-    the pushed tree by construction: an index equal to `HEAD`'s tree whose
-    entries were never stat'ed has had no worktree state recorded against it,
-    and the worktree is what `git archive` wrote.
-    """
-    git_dir = Path(os.fsdecode(_git(top, "rev-parse", "--absolute-git-dir").strip()))
-    if not (git_dir / "objects" / "info" / "alternates").is_file():
-        return False
-    if not (git_dir / "index").is_file():
-        return False
-    head_tree = _git(top, "rev-parse", "HEAD^{tree}").strip()
-    if _git(top, "write-tree").strip() != head_tree:
-        return False
-    stamps = [
-        line.split(b":", 1)[1].strip()
-        for line in _git(top, "ls-files", "--debug").splitlines()
-        if line.lstrip().startswith((b"ctime:", b"mtime:"))
-    ]
-    return bool(stamps) and all(stamp == b"0:0" for stamp in stamps)
-
-
 def source_identity(
     root: Path,
     excluded_roots: Sequence[Path] = (),
@@ -152,7 +124,7 @@ def source_identity(
     revision = os.fsdecode(_git(top, "rev-parse", "HEAD").strip())
     excluded = tuple(_canonical(path) for path in excluded_roots)
     ignored = tuple(_canonical(path) for path in ignored_paths)
-    diff = b"" if _is_unrefreshed_export(top) else _diff_bytes(top, ignored)
+    diff = _diff_bytes(top, ignored)
     untracked_entries: list[tuple[bytes, bytes, Path]] = []
     for marker, arguments in (
         (b"untracked", ("ls-files", "--others", "--exclude-standard", "-z")),
