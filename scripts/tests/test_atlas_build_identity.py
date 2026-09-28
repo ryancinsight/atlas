@@ -1417,16 +1417,33 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertNotEqual(first.environment_digest, second.environment_digest)
 
+    def test_cargo_build_prefixed_rustdoc_inputs_are_also_excluded(self) -> None:
+        # `CARGO_BUILD_RUSTDOCFLAGS`/`CARGO_BUILD_RUSTDOC` are the
+        # `CARGO_BUILD_*`-prefixed spellings of the rustdoc-only inputs
+        # excluded by their bare names; the prefix match must not let them
+        # back in.
+        base = build_source.environment_digest({})
+        for key in ("CARGO_BUILD_RUSTDOCFLAGS", "CARGO_BUILD_RUSTDOC"):
+            with self.subTest(key=key):
+                self.assertEqual(build_source.environment_digest({key: "x"}), base)
+        self.assertNotEqual(build_source.environment_digest({"CARGO_BUILD_RUSTFLAGS": "x"}), base)
+
     def test_an_inline_rustdocflags_does_not_split_a_shared_record(self) -> None:
         # The pre-push hook runs clippy, nextest, and `env RUSTDOCFLAGS=...
         # cargo doc` under one shared `command_key` for one package, so
         # `_sibling_matches` (which ignores only the command key) expects
-        # them to compare equal: `discover_artifacts` never looks under
-        # `target/doc`, so this record's tracked (compiled) artifacts are
-        # unaffected by a rustdoc-only flag, and Cargo's own per-unit doc
-        # fingerprint tracks it independently. Splitting the shared record
-        # here made a real three-step push clean the whole closure on every
-        # push instead of once.
+        # them to compare equal. The record does name doc-unit fingerprint
+        # files (`doc-lib-*`/`output-doc-lib-*` alongside the compile-unit
+        # ones in a package's `.fingerprint/<pkg>-<hash>/` directory,
+        # confirmed by a real run), so excluding a rustdoc-only flag here
+        # is not "rustdoc's output is untracked" -- it is that the flag is
+        # not a pre-emptive build dimension: a run whose record otherwise
+        # matches still re-verifies every named file's current bytes, and
+        # rustdoc rewriting its own fingerprint files under a changed flag
+        # is exactly such a mismatch, cleaning on the next run rather than
+        # silently accepting a stale doc artifact. Splitting the shared
+        # record here made a real three-step push clean the whole closure
+        # on every push instead of once.
         init_repo(self.root, "fn main() {}\n")
         with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
             clippy = identity.build_spec(
@@ -1446,21 +1463,61 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(identity.record_path(clippy), identity.record_path(doc_a))
 
     def test_an_included_config_file_change_is_detected(self) -> None:
-        # Cargo 1.97 stable follows `include = [...]` in a config file,
-        # resolved relative to the file that names it, and merges the
-        # included file's own settings; an edit confined to the included
-        # file changes the build without changing the including file's own
-        # bytes at all.
-        execution_root = self.base / "execution"
+        # Cargo 1.97 stable accepts `include` as a list of strings or a list
+        # of tables (each optionally carrying `optional = true`) -- never a
+        # bare string, which Cargo itself rejects ("expected a list of
+        # strings or a list of tables"). Both accepted forms are exercised
+        # here; either resolves relative to the file that names it and
+        # merges the included file's own settings, so an edit confined to
+        # the included file changes the build without changing the
+        # including file's own bytes at all.
+        for include_line, label in (
+            ('include = ["included.toml"]\n', "list-of-strings"),
+            ('include = [{ path = "included.toml", optional = true }]\n', "list-of-tables"),
+        ):
+            with self.subTest(label):
+                execution_root = self.base / f"execution-{label}"
+                (execution_root / ".cargo").mkdir(parents=True)
+                included = execution_root / ".cargo" / "included.toml"
+                included.write_text("[profile.dev]\nopt-level = 0\n", encoding="utf-8")
+                (execution_root / ".cargo" / "config.toml").write_text(
+                    include_line, encoding="utf-8"
+                )
+                first = build_source.cargo_config_digest(execution_root)
+                included.write_text("[profile.dev]\nopt-level = 3\n", encoding="utf-8")
+                second = build_source.cargo_config_digest(execution_root)
+                self.assertNotEqual(first, second)
+
+    def test_a_bare_string_include_is_not_followed(self) -> None:
+        # Cargo rejects `include = "path"` outright; this digest must not
+        # treat it as a one-element list either, so an edit to the file it
+        # would have named goes undetected exactly as Cargo's own refusal
+        # to build implies (there is no valid build to compare against).
+        execution_root = self.base / "execution-bare-string"
         (execution_root / ".cargo").mkdir(parents=True)
-        included = execution_root / ".cargo" / "included.toml"
-        included.write_text("[profile.dev]\nopt-level = 0\n", encoding="utf-8")
+        named = execution_root / ".cargo" / "named.toml"
+        named.write_text("[profile.dev]\nopt-level = 0\n", encoding="utf-8")
         (execution_root / ".cargo" / "config.toml").write_text(
-            'include = "included.toml"\n', encoding="utf-8"
+            'include = "named.toml"\n', encoding="utf-8"
         )
         first = build_source.cargo_config_digest(execution_root)
-        included.write_text("[profile.dev]\nopt-level = 3\n", encoding="utf-8")
+        named.write_text("[profile.dev]\nopt-level = 3\n", encoding="utf-8")
         second = build_source.cargo_config_digest(execution_root)
+        self.assertEqual(first, second)
+
+    def test_an_inline_config_arguments_include_is_followed(self) -> None:
+        # `--config 'include=["x.toml"]'` is inline TOML text with no file
+        # of its own; its own `include` resolves against the execution
+        # root, matching Cargo's resolution for a command-line `--config`
+        # value.
+        execution_root = self.base / "execution-inline-include"
+        execution_root.mkdir(parents=True)
+        included = execution_root / "x.toml"
+        included.write_text('[build]\nrustflags = ["--cfg", "foo"]\n', encoding="utf-8")
+        arguments = identity._config_arguments(["cargo", "check", "--config", 'include=["x.toml"]'])
+        first = build_source.cargo_config_digest(execution_root, arguments)
+        included.write_text('[build]\nrustflags = ["--cfg", "bar"]\n', encoding="utf-8")
+        second = build_source.cargo_config_digest(execution_root, arguments)
         self.assertNotEqual(first, second)
 
     def test_an_included_config_cycle_does_not_hang(self) -> None:
@@ -1469,10 +1526,10 @@ class BuildIdentityTestCase(unittest.TestCase):
         execution_root = self.base / "execution-cycle"
         (execution_root / ".cargo").mkdir(parents=True)
         (execution_root / ".cargo" / "config.toml").write_text(
-            'include = "b.toml"\n', encoding="utf-8"
+            'include = ["b.toml"]\n', encoding="utf-8"
         )
         (execution_root / ".cargo" / "b.toml").write_text(
-            'include = "config.toml"\n', encoding="utf-8"
+            'include = ["config.toml"]\n', encoding="utf-8"
         )
         digest = build_source.cargo_config_digest(execution_root)
         self.assertEqual(len(digest), 64)
