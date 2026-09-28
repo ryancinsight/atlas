@@ -848,6 +848,51 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(conformance._file_text_cache(), {})
         self.assertEqual(conformance._cfg_test_decl_cache(), {})
 
+    def test_nextest_retries_nonzero_counts_every_offending_profile(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".config/nextest.toml",
+                "[profile.default]\n"
+                'slow-timeout = { period = "10s", terminate-after = 6 }\n'
+                "[profile.ci]\n"
+                "retries = 0\n"
+                "[profile.local]\n"
+                "retries = 1\n"
+                "[profile.production]\n"
+                "retries = 2\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        # One count per offending profile, so the figure names how much of the
+        # surface hides a failure rather than merely that the file has one.
+        self.assertEqual(counts["nextest_retries_nonzero"], 2)
+
+    def test_nextest_retries_ignores_comments_and_overrides(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".config/nextest.toml",
+                "[profile.default]\n"
+                "# retries must stay 0 in every profile\n"
+                'slow-timeout = { period = "30s", terminate-after = 2 }\n'
+                "[[profile.default.overrides]]\n"
+                'filter = "test(registration)"\n'
+                'slow-timeout = { period = "600s", terminate-after = 5 }\n',
+            )
+
+            counts = conformance.scan_repo(root)
+
+        # The key's name in a comment, and a relaxation block that never sets
+        # it, are both absent from the violation. A text search over "retries"
+        # would count the comment; TOML parsing is what makes this zero.
+        self.assertEqual(counts["nextest_retries_nonzero"], 0)
+
     def test_nested_workspace_lints_table_satisfies_inheritance(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)

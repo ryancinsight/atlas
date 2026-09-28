@@ -320,7 +320,8 @@ CLASSES = [
     "root_sprawl", "root_sprawl_untracked",
     "markers", "reexport_shims", "sleep_synced_tests",
     "commented_out_code", "target_forks", "gitattributes_missing",
-    "nextest_budget_missing", "workspace_lints_missing",
+    "nextest_budget_missing", "nextest_retries_nonzero",
+    "workspace_lints_missing",
     "member_namespace_pollution", "tag_pinned_actions",
     "workflow_missing_timeout", "workflow_missing_permissions",
     "workflow_malformed_yaml", "pull_request_target_use",
@@ -1185,6 +1186,34 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
             _walk_mods(candidate, seen)
 
 
+def count_nonzero_nextest_retries(text: str) -> int:
+    """Profiles in a nextest config whose `retries` is not zero.
+
+    A retry reruns a test that already failed and reports whichever attempt
+    finished last, so an intermittent failure passes the gate with its cause
+    never found, and a real failure pays a full extra test latency per
+    occurrence. The rule is zero in every profile, so any nonzero value is a
+    violation wherever it appears.
+
+    Parsed as TOML rather than grepped, so an `overrides` block or a comment
+    that merely mentions the key cannot be miscounted as a profile setting.
+    """
+    if not text:
+        return 0
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return 0
+    profiles = data.get("profile")
+    if not isinstance(profiles, dict):
+        return 0
+    offenders = 0
+    for body in profiles.values():
+        if isinstance(body, dict) and body.get("retries", 0) != 0:
+            offenders += 1
+    return offenders
+
+
 def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int:
     """`.rs` files under a crate `src/` that no source edge reaches.
 
@@ -1898,8 +1927,14 @@ def scan_repo(
     c["orphan_modules"] = count_orphan_modules(repo, manifests)
     if has_cargo:
         nx = repo / ".config" / "nextest.toml"
-        if not (nx.is_file() and "slow-timeout" in nx.read_text(errors="replace")):
+        nx_text = nx.read_text(errors="replace") if nx.is_file() else ""
+        if not ("slow-timeout" in nx_text):
             c["nextest_budget_missing"] = 1
+        # A nonzero `retries` reruns a test that already failed and reports the
+        # later outcome, so a flake passes the gate with its cause never found.
+        # Count every offending profile, not just the file, so the number names
+        # how much of the surface hides a failure.
+        c["nextest_retries_nonzero"] += count_nonzero_nextest_retries(nx_text)
         manifest = (repo / "Cargo.toml").read_text(errors="replace")
         if "[workspace]" in manifest and not WORKSPACE_LINTS_TABLE.search(manifest):
             c["workspace_lints_missing"] = 1
