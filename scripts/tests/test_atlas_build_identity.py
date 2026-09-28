@@ -582,6 +582,89 @@ class LeaseModeTestCase(unittest.TestCase):
         self.assertEqual(caught.exception.winerror, 158)
 
 
+# A shared reader of `dep` that builds new variants of it beside the ones
+# a record names, writing each in slow chunks so a hash can catch it half done.
+VARIANT_WRITER = (
+    "import sys, time\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from atlas_build_lease import OwnerLease\n"
+    "lease = OwnerLease(Path(sys.argv[2]), {'root': 'variant-writer', 'revision': 'r'}, 600, mode='shared')\n"
+    "lease.__enter__()\n"
+    "print('held', flush=True)\n"
+    "deps = Path(sys.argv[3])\n"
+    "end = time.monotonic() + float(sys.argv[4])\n"
+    "variant = 0\n"
+    "while time.monotonic() < end:\n"
+    "    variant += 1\n"
+    "    with (deps / f'libdep-variant{variant}.rlib').open('wb') as stream:\n"
+    "        for _ in range(20):\n"
+    "            stream.write(b'x' * 65536)\n"
+    "            stream.flush()\n"
+    "            time.sleep(0.005)\n"
+    "lease.__exit__(None, None, None)\n"
+)
+
+# A shared reader of `dep` that, once a writer queues for `dep`, rebuilds the
+# artifact to match the record and releases: the rebuild a re-check must see.
+REBUILDING_READER = (
+    "import sys, time\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from atlas_build_lease import OwnerLease\n"
+    "lock = Path(sys.argv[2])\n"
+    "lease = OwnerLease(lock, {'root': 'rebuilding-reader', 'revision': 'r'}, 600, mode='shared')\n"
+    "lease.__enter__()\n"
+    "print('held', flush=True)\n"
+    "queue = lock.with_name(lock.stem + '.queue')\n"
+    "end = time.monotonic() + 60\n"
+    "while time.monotonic() < end and not any('-x-' in path.name for path in queue.glob('*.ticket')):\n"
+    "    time.sleep(0.02)\n"
+    "Path(sys.argv[3]).write_text(sys.argv[4], encoding='utf-8')\n"
+    "lease.__exit__(None, None, None)\n"
+)
+
+
+def start_script(test: unittest.TestCase, script: str, *arguments: str) -> subprocess.Popen:
+    process = subprocess.Popen(
+        [sys.executable, "-c", script, str(SCRIPT.parent), *arguments],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    test.addCleanup(process.wait, 60)
+    test.addCleanup(process.kill)
+    test.addCleanup(process.stdout.close)
+    test.assertEqual(process.stdout.readline().strip(), "held")
+    return process
+
+
+# A shared reader of `dep` whose build, once the run's own command signals,
+# rewrites a recorded dependency file in place: it opens the file with no
+# read sharing, which is how rustc's rewrite makes a concurrent hash fail
+# with PermissionError on Windows, and holds it past the run's recording.
+IN_PLACE_REWRITER = (
+    "import ctypes, sys, time\n"
+    "from ctypes import wintypes\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from atlas_build_lease import OwnerLease\n"
+    "lease = OwnerLease(Path(sys.argv[2]), {'root': 'in-place-rewriter', 'revision': 'r'}, 600, mode='shared')\n"
+    "lease.__enter__()\n"
+    "print('held', flush=True)\n"
+    "trigger = Path(sys.argv[4])\n"
+    "while not trigger.exists():\n"
+    "    time.sleep(0.01)\n"
+    "kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)\n"
+    "kernel32.CreateFileW.restype = wintypes.HANDLE\n"
+    "handle = kernel32.CreateFileW(sys.argv[3], 0xC0000000, 0, None, 3, 0x80, None)\n"
+    "assert handle != wintypes.HANDLE(-1).value, ctypes.get_last_error()\n"
+    "Path(str(trigger) + '.ack').write_text('writing', encoding='utf-8')\n"
+    "time.sleep(3)\n"
+    "kernel32.CloseHandle(handle)\n"
+    "lease.__exit__(None, None, None)\n"
+)
+
+
 class BuildIdentityTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-")
@@ -605,7 +688,13 @@ class BuildIdentityTestCase(unittest.TestCase):
             "path.write_text(os.environ['SOURCE_TOKEN'], encoding='utf-8')\n"
             "mutate = os.environ.get('MUTATE_SOURCE')\n"
             "if mutate:\n"
-            "    Path(mutate).write_text('changed during build\\n', encoding='utf-8')\n",
+            "    Path(mutate).write_text('changed during build\\n', encoding='utf-8')\n"
+            "trigger = os.environ.get('PEER_TRIGGER')\n"
+            "if trigger:\n"
+            "    import time\n"
+            "    Path(trigger).write_text('go', encoding='utf-8')\n"
+            "    while not Path(trigger + '.ack').exists():\n"
+            "        time.sleep(0.01)\n",
         )
         write_script(
             self.clean_script,
@@ -811,6 +900,137 @@ class BuildIdentityTestCase(unittest.TestCase):
             self.assertFalse(self.clean_log.exists())
         finally:
             owner.__exit__(None, None, None)
+
+    def dependency_build(
+        self,
+        source_token: str,
+        wait: float = 0,
+        discover: bool = False,
+        environment: dict[str, str] | None = None,
+    ) -> identity.BuildResult:
+        """Build `demo`, whose clean closure holds a path dependency `dep`."""
+        snapshot = {
+            "root": "demo",
+            "packages": [],
+            "edges": [],
+            "clean_packages": ["demo", "dep"],
+            "digest": "dependency-digest",
+        }
+        owners = {"demo": frozenset({"demo"}), "dep": frozenset({"dep"})}
+        with (
+            patch.object(identity, "_dependency_data", return_value=snapshot),
+            patch.object(artifacts, "_workspace_artifact_owners", return_value=owners),
+            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.dict(
+                os.environ,
+                {
+                    "ARTIFACT": str(self.artifact),
+                    "SOURCE_TOKEN": source_token,
+                    "CLEAN_LOG": str(self.clean_log),
+                    **(environment or {}),
+                },
+            ),
+        ):
+            return identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                "demo",
+                self.target,
+                [sys.executable, str(self.build_script)],
+                artifact_paths=() if discover else [self.artifact],
+                clean_command=[sys.executable, str(self.clean_script)],
+                lease_wait_seconds=wait,
+            )
+
+    def dep_lock(self, package: str = "dep") -> Path:
+        return package_target_lease_path(package, identity._canonical(self.target))
+
+    def test_shared_readers_of_a_built_dependency_proceed_together(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        self.assertEqual(self.dependency_build("first").status, "rebuilt")
+        start_holder(self, self.dep_lock(), SHARED, 60)
+        self.clean_log.unlink(missing_ok=True)
+        self.assertEqual(self.dependency_build("first").status, "reused")
+        self.assertFalse(self.clean_log.exists())
+
+    def test_a_shared_reader_blocks_cleaning_its_dependency(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        self.assertEqual(self.dependency_build("first").status, "rebuilt")
+        self.artifact.write_text("changed elsewhere", encoding="utf-8")
+        start_holder(self, self.dep_lock(), SHARED, 60)
+        self.clean_log.unlink(missing_ok=True)
+        with self.assertRaises(identity.IdentityError) as caught:
+            self.dependency_build("intruder")
+        self.assertIn("holder-root", str(caught.exception))
+        self.assertFalse(self.clean_log.exists())
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "changed elsewhere")
+
+    def test_a_reader_writing_new_variants_does_not_tear_another_readers_check(self) -> None:
+        # Cargo can write new variants of a dependency under a shared lease.
+        # A reader compares only the files its record names, so a variant
+        # written, even half written, beside them neither makes it stale
+        # (which would need the exclusive lease the writer blocks) nor fails
+        # its hash.
+        init_repo(self.root, "fn main() {}\n")
+        deps = self.artifact.parent
+        (deps / "libdep-recorded.rlib").write_bytes(b"dependency")
+        self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
+        start_script(self, VARIANT_WRITER, str(self.dep_lock()), str(deps), "6")
+        self.clean_log.unlink(missing_ok=True)
+        end = time.monotonic() + 4
+        rounds = 0
+        while time.monotonic() < end:
+            self.assertEqual(self.dependency_build("first", wait=2, discover=True).status, "reused")
+            rounds += 1
+        self.assertGreater(rounds, 2)
+        self.assertFalse(self.clean_log.exists())
+
+    @unittest.skipUnless(os.name == "nt", "only Windows refuses reads during a rewrite")
+    def test_a_dependency_rewritten_in_place_during_the_command_is_not_hashed(self) -> None:
+        # Cargo rewrites a dependency's recorded files under the same name
+        # whenever it rebuilds it, even for a touched file with unchanged
+        # content. A reader that re-hashed them after its command failed a
+        # build that had succeeded ("cannot hash artifact").
+        init_repo(self.root, "fn main() {}\n")
+        recorded = self.artifact.parent / "libdep-recorded.rlib"
+        recorded.write_bytes(b"dependency")
+        self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
+        trigger = self.base / "rewrite"
+        start_script(self, IN_PLACE_REWRITER, str(self.dep_lock()), str(recorded), str(trigger))
+        result = self.dependency_build(
+            "first", wait=2, discover=True, environment={"PEER_TRIGGER": str(trigger)}
+        )
+        self.assertEqual(result.status, "reused")
+        self.assertTrue(Path(f"{trigger}.ack").exists())
+        self.assertIn("debug/deps/libdep-recorded.rlib", json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"])
+
+    def test_a_stale_run_rechecks_after_taking_its_leases_exclusive(self) -> None:
+        # Between releasing its shared leases and taking them exclusive, a
+        # peer rebuilt the dependency to match the record: no clean is due.
+        init_repo(self.root, "fn main() {}\n")
+        self.assertEqual(self.dependency_build("first").status, "rebuilt")
+        self.artifact.write_text("tampered", encoding="utf-8")
+        start_script(
+            self, REBUILDING_READER, str(self.dep_lock()), str(self.artifact), "first"
+        )
+        self.clean_log.unlink(missing_ok=True)
+        result = self.dependency_build("first", wait=30)
+        self.assertEqual(result.status, "reused")
+        self.assertFalse(self.clean_log.exists())
+
+    def test_the_wait_bound_covers_every_lease_of_a_run(self) -> None:
+        # `demo` frees after 2 s and `dep` never: with a 3 s bound per lease
+        # the run would wait 5 s, but the bound is for the run.
+        init_repo(self.root, "fn main() {}\n")
+        start_holder(self, self.dep_lock("demo"), EXCLUSIVE, 2)
+        start_holder(self, self.dep_lock("dep"), EXCLUSIVE, 60)
+        started = time.monotonic()
+        with self.assertRaises(identity.IdentityError) as caught:
+            self.dependency_build("first", wait=3)
+        elapsed = time.monotonic() - started
+        self.assertIn("after waiting 3 s", str(caught.exception))
+        self.assertGreaterEqual(elapsed, 2.9)
+        self.assertLess(elapsed, 4.2)
 
     def test_an_expired_owner_is_recovered(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -1273,6 +1493,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             patch.object(identity, "toolchain_identity", return_value="rustc-test"),
             patch.object(identity, "dependency_snapshot", return_value=snapshot),
             patch.object(identity, "artifact_identity", return_value=artifact_value),
+            patch.object(identity, "recorded_artifact_identity", return_value=artifact_value),
             patch.object(identity, "_run_checked", side_effect=run_command),
         ):
             first = identity.run_build(
