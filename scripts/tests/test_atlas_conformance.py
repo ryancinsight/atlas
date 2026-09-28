@@ -415,6 +415,42 @@ class AtlasConformanceTestCase(unittest.TestCase):
             )
             self.assertEqual(conformance.count_excess_worktrees(main), 1)
 
+    def test_lane_placement_counts_trees_outside_the_root_and_detached(self) -> None:
+        """The two generators behind ATLAS-LANE-SPRAWL-222, measured.
+
+        An audit fanned out trees beside the stack and an A/B run left one
+        detached tree per baseline; both read as host state, never as a
+        ratchet regression in repository content.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            main = root / "repos" / "demo"
+            main.mkdir(parents=True)
+            _write(main, "a.txt", "seed\n")
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+            for argv in (["init", "-q", "-b", "main"], ["add", "a.txt"],
+                         ["commit", "-q", "-m", "seed"]):
+                subprocess.run(["git", "-C", str(main), *ident, *argv], check=True)
+
+            def add(*argv: str) -> None:
+                subprocess.run(["git", "-C", str(main), "worktree", "add", "-q", *argv],
+                               check=True, capture_output=True)
+
+            stack = sys.modules["atlas_stack"]
+            with patch.object(stack, "LANE_ROOT", (root / "worktrees").resolve()):
+                add(str(root / "worktrees" / "demo-fix-a"), "-b", "fix/a")
+                self.assertEqual(conformance.count_lane_placement(main), (0, 0))
+                self.assertEqual(conformance.count_excess_worktrees(main), 0)
+
+                add("--detach", str(root / "tmp" / "cal-demo"), "HEAD")
+                add(str(root.parent / f"{root.name}-audit"), "-b", "audit")
+                self.assertEqual(conformance.count_lane_placement(main), (2, 1))
+                self.assertEqual(conformance.count_excess_worktrees(main), 2)
+            shutil.rmtree(root.parent / f"{root.name}-audit")
+        for klass in ("worktrees_outside_lane_root", "detached_lanes"):
+            self.assertIn(klass, conformance.CLASSES)
+            self.assertIn(klass, conformance.HOST_OBSERVED_CLASSES)
+
     def test_excess_worktrees_is_zero_outside_a_repository(self) -> None:
         """A non-repository cannot substantiate a violation, so it reports none."""
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
