@@ -305,7 +305,23 @@ if [ "${#book_roots[@]}" -eq 0 ]; then
   echo "[pre-commit] no provider book roots are present in staged gitlinks." >&2
   exit 1
 fi
-"$python_bin" scripts/check_mdbook_links.py "${book_roots[@]}"
+# `mktemp -d` yields an MSYS path under Git Bash (`/tmp/tmp.X`, or
+# `/c/Users/...` when TMPDIR points into the user profile). Handing that to a
+# native Windows interpreter resolves it against the current drive instead of
+# expanding it: `/c/Users/x/docs/book` becomes `C:\c\Users\x\docs\book` and the
+# checker reports a directory that is not there, failing a commit whose books
+# are fine. Convert at the boundary only -- the shell, tar and the `[ -d ]`
+# tests above all want the MSYS form, and cygpath is absent on POSIX hosts,
+# where the path is already native.
+native_book_roots=()
+for book_root in "${book_roots[@]}"; do
+  if command -v cygpath >/dev/null 2>&1; then
+    native_book_roots+=("$(cygpath -w "$book_root")")
+  else
+    native_book_roots+=("$book_root")
+  fi
+done
+"$python_bin" scripts/check_mdbook_links.py "${native_book_roots[@]}"
 fi
 
 # Atlas provider-integration closure guard.
