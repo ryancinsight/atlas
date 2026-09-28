@@ -163,8 +163,8 @@ impl Coherence {
 /// Decides gitlink coherence for one submodule.
 ///
 /// The probe is implemented over read-only git plumbing:
-///  1. `ls-tree <atlas-meta>/.git HEAD <path>` — extract the recorded gitlink
-///     pin from the atlas-meta tree.
+///  1. `ls-tree <atlas-meta>/.git <revision> <path>` — extract the recorded
+///     gitlink pin from the pushed metadata tree (or `HEAD` by default).
 ///  2. `--git-dir=<atlas-meta>/<submodule.path>/.git rev-parse origin/main` —
 ///     resolve the member's `origin/main`, when it exists. Member git-dirs may
 ///     be either real directories (sibling-clones at
@@ -199,6 +199,7 @@ pub fn audit_one(
     member_root: &Path,
     submodule: &Submodule,
     fetch: bool,
+    revision: Option<&str>,
 ) -> Result<RepoProbe, Error> {
     let atlas_git_dir = atlas_root.join(".git");
     // The member's repository database lives either at
@@ -209,7 +210,7 @@ pub fn audit_one(
     // form, so the member-git-dir resolution here handles both shapes.
     let member_git_dir = member_root.join(&submodule.path).join(".git");
 
-    let recorded = read_recorded_pin(&atlas_git_dir, &submodule.path)?;
+    let recorded = read_recorded_pin(&atlas_git_dir, &submodule.path, revision)?;
     let Some(pin) = recorded else {
         // Registered but never linked: resolve what upstream state exists
         // for the diagnostic without fetching (a network abort here would
@@ -327,22 +328,24 @@ pub fn audit(
     member_root: &Path,
     table: &GitmodulesTable,
     fetch: bool,
+    revision: Option<&str>,
 ) -> Result<Coherence, Error> {
     let mut probes = Vec::with_capacity(table.submodules.len());
     for sub in &table.submodules {
-        probes.push(audit_one(atlas_root, member_root, sub, fetch)?);
+        probes.push(audit_one(atlas_root, member_root, sub, fetch, revision)?);
     }
     Ok(Coherence { probes })
 }
 
 // === Internal plumbing ======================================================
 
-fn read_recorded_pin(atlas_git_dir: &Path, submodule_path: &str) -> Result<Option<String>, Error> {
-    let output = run_git(
-        atlas_git_dir,
-        &["ls-tree", "HEAD", submodule_path],
-        "ls-tree",
-    )?;
+fn read_recorded_pin(
+    atlas_git_dir: &Path,
+    submodule_path: &str,
+    revision: Option<&str>,
+) -> Result<Option<String>, Error> {
+    let tree = revision.unwrap_or("HEAD");
+    let output = run_git(atlas_git_dir, &["ls-tree", tree, submodule_path], "ls-tree")?;
     // ls-tree line: `<mode> <type> <sha>\t<name>`
     // For a gitlink submodule: mode=160000, type=commit, name=<submod path>.
     // For an absent path: ls-tree returns no lines (empty stdout, exit 0).
@@ -671,7 +674,7 @@ mod tests {
         // Without a real member-repo at /repos/test-member/.git under the
         // atlas fixture, ls-tree against the atlas-meta dir (which doesn't
         // actually exist either) raises Error::GitInvocation.
-        let res = audit_one(&atlas_root, &atlas_root, &sub, false);
+        let res = audit_one(&atlas_root, &atlas_root, &sub, false, None);
         assert!(res.is_err(), "expected error when atlas-git-dir absent");
         match res {
             Err(Error::GitInvocation { context, .. } | Error::GitExit { context, .. }) => {
@@ -776,7 +779,7 @@ mod tests {
         };
 
         let probe =
-            audit_one(&root, &root, &sub, false).expect("unlinked must classify, not abort");
+            audit_one(&root, &root, &sub, false, None).expect("unlinked must classify, not abort");
         assert_eq!(probe.class, DefectClass::Unlinked, "{}", probe.note);
         assert!(probe.pin.is_empty());
         let coherence = Coherence {
@@ -794,8 +797,8 @@ mod tests {
             "5741822000000000000000000000000000000000".to_string()
         });
 
-        let probe =
-            audit_one(&root, &root, &sub, false).expect("a foreign pin must classify, not abort");
+        let probe = audit_one(&root, &root, &sub, false, None)
+            .expect("a foreign pin must classify, not abort");
         assert_eq!(probe.class, DefectClass::NotAnObject, "{}", probe.note);
         let coherence = Coherence {
             probes: vec![probe],
@@ -814,7 +817,7 @@ mod tests {
         // must not be caught by the new object check.
         let (root, sub) = atlas_pinning_member_at("published", str::to_string);
 
-        let probe = audit_one(&root, &root, &sub, false).unwrap();
+        let probe = audit_one(&root, &root, &sub, false, None).unwrap();
         assert_eq!(probe.class, DefectClass::Clean, "{}", probe.note);
         let _ = fs::remove_dir_all(root);
     }
@@ -855,15 +858,32 @@ mod tests {
             &["update-index", "--add", "--cacheinfo", &cacheinfo],
         );
         git_in(&metadata, &["commit", "-q", "-m", "pin"]);
+        let pushed_metadata_revision = git_in(&metadata, &["rev-parse", "HEAD"]);
+        let foreign_pin = "5741822000000000000000000000000000000000";
+        let foreign_cacheinfo = format!("160000,{foreign_pin},repos/test-member");
+        git_in(
+            &metadata,
+            &["update-index", "--cacheinfo", &foreign_cacheinfo],
+        );
+        git_in(&metadata, &["commit", "-q", "-m", "unpublished pin"]);
 
         let sub = Submodule {
             name: "repos/test-member".into(),
             path: "repos/test-member".into(),
             url: "https://example/test-member".into(),
         };
-        let probe = audit_one(&metadata, &member_root, &sub, false)
-            .expect("canonical member checkout must be probed from a lane");
+        let probe = audit_one(
+            &metadata,
+            &member_root,
+            &sub,
+            false,
+            Some(&pushed_metadata_revision),
+        )
+        .expect("canonical member checkout must be probed from a lane");
         assert_eq!(probe.class, DefectClass::Clean, "{}", probe.note);
+        let current = audit_one(&metadata, &member_root, &sub, false, None)
+            .expect("current metadata revision must be auditable");
+        assert_eq!(current.class, DefectClass::NotAnObject, "{}", current.note);
         let _ = fs::remove_dir_all(root);
     }
 }

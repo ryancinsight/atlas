@@ -30,12 +30,14 @@ const USAGE: &str = "\
 usage:
   gitlink-coherence audit [--atlas-root <path>] \
                           [--member-root <path>] \
+                          [--revision <commit>] \
                           [--format human|markdown|json] \
                           [--target-repo <bare-name>] \
                           [--fetch]
 
 Reads <atlas-root>/.gitmodules and probes each pinned gitlink for coherence
-against the member's `origin/main`. By default the probe is fully read-only
+at the named metadata revision, or `HEAD` when no revision is supplied, against
+the member's `origin/main`. By default the probe is fully read-only
 (no `git fetch`); pass `--fetch` to refresh `refs/remotes/origin/main` from
 each member's remote before probing (no working-tree mutation).
 
@@ -65,6 +67,7 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
     let Parsed {
         atlas_root,
         member_root,
+        revision,
         format,
         target_repo,
         fetch,
@@ -91,12 +94,18 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
             let sub = table
                 .find_by_bare_name(bare)
                 .ok_or_else(|| Error::UnknownTargetRepo(bare.to_string()))?;
-            let probe = audit_one(&atlas_root, &member_root, sub, fetch)?;
+            let probe = audit_one(&atlas_root, &member_root, sub, fetch, revision.as_deref())?;
             atlas_gitlink_coherence_gate::coherence::Coherence {
                 probes: vec![probe],
             }
         }
-        None => audit(&atlas_root, &member_root, &table, fetch)?,
+        None => audit(
+            &atlas_root,
+            &member_root,
+            &table,
+            fetch,
+            revision.as_deref(),
+        )?,
     };
 
     let report = Report::from(&coherence);
@@ -111,6 +120,7 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
 struct Parsed {
     atlas_root: Option<PathBuf>,
     member_root: Option<PathBuf>,
+    revision: Option<String>,
     format: Format,
     target_repo: Option<String>,
     /// Whether to `git fetch` each member before probing.
@@ -120,6 +130,7 @@ struct Parsed {
 fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, Error> {
     let mut atlas_root: Option<PathBuf> = None;
     let mut member_root: Option<PathBuf> = None;
+    let mut revision: Option<String> = None;
     let mut format: Format = Format::Human;
     let mut target_repo: Option<String> = None;
     let mut fetch: bool = false;
@@ -152,6 +163,15 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
                     stderr: "--member-root requires a path argument".to_string(),
                 })?;
                 member_root = Some(PathBuf::from(v));
+            }
+            "--revision" => {
+                idx += 1;
+                let v = args.get(idx).ok_or_else(|| Error::GitExit {
+                    context: "argv",
+                    code: 0,
+                    stderr: "--revision requires a commit argument".to_string(),
+                })?;
+                revision = Some(v.to_string_lossy().into_owned());
             }
             "--format" => {
                 idx += 1;
@@ -211,6 +231,7 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
     Ok(Parsed {
         atlas_root,
         member_root,
+        revision,
         format,
         target_repo,
         fetch,

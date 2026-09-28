@@ -50,6 +50,27 @@ pointer_staged="$(git diff --cached --raw | awk '$1 == ":160000" || $2 == "16000
 pointer_staged="$(echo "$pointer_staged" | grep -E '^repos/' || true)"
 merge_in_progress="$(git rev-parse -q --verify MERGE_HEAD 2>/dev/null || true)"
 
+# During a merge, inherited paths are already reviewed by one of the two
+# parents. A merge may carry those paths together, but a conflict resolution
+# or any newly staged unrelated path remains subject to R2/R3 purity.
+merge_inherited() {
+  local path="$1"
+  [ -n "$merge_in_progress" ] || return 1
+  git diff --cached --quiet HEAD -- "$path" && return 0
+  git diff --cached --quiet "$merge_in_progress" -- "$path"
+}
+
+if [ -n "$merge_in_progress" ]; then
+  board_staged="$(printf '%s\n' "$board_staged" | while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    merge_inherited "$path" || printf '%s\n' "$path"
+  done)"
+  pointer_staged="$(printf '%s\n' "$pointer_staged" | while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    merge_inherited "$path" || printf '%s\n' "$path"
+  done)"
+fi
+
 # Git exports GIT_DIR/GIT_INDEX_FILE/GIT_WORK_TREE to hooks; a bare
 # `git -C <submodule>` then resolves against this superproject's object
 # store instead of the submodule's, so every per-member ref probe below
@@ -110,6 +131,11 @@ while IFS= read -r path; do
   entry=$(git ls-files --stage -- "$path" 2>/dev/null | head -1)
   [ "${entry%% *}" = "160000" ] || continue
   sha=$(printf '%s' "$entry" | awk '{print $2}')
+  if ! member_checkout "$path" >/dev/null 2>&1; then
+    echo "[pre-commit] $path: canonical member checkout is absent; gitlink not checked." >&2
+    gitlink_defect=1
+    continue
+  fi
   default=$(member_git "$path" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
   default=${default:-main}
   if ! member_git "$path" rev-parse --verify --quiet "origin/${default}" >/dev/null 2>&1; then
@@ -142,7 +168,7 @@ if [ "$gitlink_defect" != 0 ]; then
 fi
 
 # R2 - board sync stays pure.
-if [ -z "$merge_in_progress" ] && [ -n "$board_staged" ]; then
+if [ -n "$board_staged" ]; then
   pollution="$(staged | grep -vE '^(backlog|checklist)\.md$' | grep -E '^repos/|Cargo\.lock$|^\.github/workflows/' || true)"
   if [ -n "$pollution" ]; then
     echo "[pre-commit] R2: board sync must not carry these staged paths:" >&2
@@ -153,7 +179,7 @@ if [ -z "$merge_in_progress" ] && [ -n "$board_staged" ]; then
 fi
 
 # R3 - pointer advances stay pure (content goes in sibling commits).
-if [ -z "$merge_in_progress" ] && [ -n "$pointer_staged" ]; then
+if [ -n "$pointer_staged" ]; then
   non_pointer="$(staged | grep -vFf <(printf '%s\n' $pointer_staged) || true)"
   if [ -n "$non_pointer" ]; then
     echo "[pre-commit] R3: pointer-advance commit carries non-pointer paths:" >&2

@@ -206,6 +206,16 @@ class RootHookGuardTests(unittest.TestCase):
             docs_guard = git(lane, "commit", "-qm", "Run docs guard", check=False)
             self.assertEqual(docs_guard.returncode, 0, docs_guard.stdout + docs_guard.stderr)
 
+            (member / "value.txt").write_text("third\n", encoding="utf-8")
+            git(member, "add", "value.txt")
+            git(member, "commit", "-qm", "third")
+            third = git(member, "rev-parse", "HEAD").stdout.strip()
+            member.rename(member.with_name("demo.missing"))
+            git(lane, "update-index", "--cacheinfo", f"160000,{third},repos/demo")
+            missing_member = git(lane, "commit", "-qm", "Reject missing member", check=False)
+            self.assertNotEqual(missing_member.returncode, 0)
+            self.assertIn("canonical member checkout is absent", missing_member.stdout + missing_member.stderr)
+
     def test_merge_allows_inherited_board_and_gitlink_changes_only(self) -> None:
         """A real merge may combine independently valid board and pin commits."""
         with tempfile.TemporaryDirectory() as temporary:
@@ -259,8 +269,6 @@ class RootHookGuardTests(unittest.TestCase):
             git("-C", str(member), "commit", "-qm", "second")
             second = git("-C", str(member), "rev-parse", "HEAD").stdout.strip()
             git("-C", str(member), "update-ref", "refs/remotes/origin/main", second)
-            (repo / "backlog.md").write_text("pin\n", encoding="utf-8")
-            git("add", "backlog.md")
             git("update-index", "--cacheinfo", f"160000,{second},repos/demo")
             self.assertEqual(git("commit", "-qm", "Advance demo").returncode, 0)
 
@@ -270,9 +278,7 @@ class RootHookGuardTests(unittest.TestCase):
             git("add", "backlog.md")
             self.assertEqual(git("commit", "-qm", "Update board").returncode, 0)
             conflict = git("merge", "--no-commit", "fix/pin", check=False)
-            self.assertNotEqual(conflict.returncode, 0)
-            (repo / "backlog.md").write_text("resolved\n", encoding="utf-8")
-            git("add", "backlog.md")
+            self.assertEqual(conflict.returncode, 0, conflict.stdout + conflict.stderr)
             merged = git("commit", "-qm", "Merge pin", check=False)
             self.assertEqual(merged.returncode, 0, merged.stdout + merged.stderr)
 
