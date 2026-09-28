@@ -952,9 +952,10 @@ class BuildIdentityTestCase(unittest.TestCase):
         discover: bool = False,
         environment: dict[str, str] | None = None,
         clean: bool = True,
+        snapshot: dict[str, object] | None = None,
     ) -> identity.BuildResult:
         """Build `demo`, whose clean closure holds a path dependency `dep`."""
-        snapshot = {
+        snapshot = snapshot or {
             "root": "demo",
             "packages": [],
             "edges": [],
@@ -1110,7 +1111,9 @@ class BuildIdentityTestCase(unittest.TestCase):
             files["debug/deps/libdep-0ecdeded.rlib"], verified["debug/deps/libdep-0ecdeded.rlib"]
         )
 
-    def cleaned_packages(self, source_token: str) -> list[str]:
+    def cleaned_packages(
+        self, source_token: str, snapshot: dict[str, object] | None = None
+    ) -> list[str]:
         """Rebuild through `cargo clean -p`, recording the packages instead of running Cargo."""
         packages: list[str] = []
         run_checked = identity._run_checked
@@ -1122,7 +1125,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             run_checked(command, cwd, environment)
 
         with patch.object(identity, "_run_checked", side_effect=recording):
-            self.dependency_build(source_token, discover=True, clean=False)
+            self.dependency_build(source_token, discover=True, clean=False, snapshot=snapshot)
         return sorted(packages)
 
     def test_changed_dependency_bytes_clean_only_that_dependency(self) -> None:
@@ -1164,6 +1167,78 @@ class BuildIdentityTestCase(unittest.TestCase):
         (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
         start_holder(self, self.dep_lock(), SHARED, 60)
         self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def path_and_git_snapshot(self, token: str) -> dict[str, object]:
+        """`demo` (a path record whose identity moves with its own source)
+        depending on `dep` (a git record whose content is independent of it).
+
+        `packages: []` never exercised the narrowing at all: with no path
+        record in the snapshot, a source-only change always compared the
+        whole `dependencies` dict equal, matched, and never reached
+        `_narrowed_clean`. A first-party dependency patched to a local
+        checkout under the development overlay is reported by cargo as a
+        path record too, so a real dependency snapshot always carries at
+        least the run's own root package as one; this fixture is the
+        minimal one that lets a source-only change disagree on a path
+        record while a git dependency's record, unaffected by it, stays
+        byte-identical.
+        """
+        value = {
+            "root": "demo",
+            "packages": [
+                {
+                    "id": "demo",
+                    "name": "demo",
+                    "version": "0.1.0",
+                    "features": [],
+                    "kind": "path",
+                    "identity": {"root": str(self.root), "revision": token},
+                },
+                {
+                    "id": "git+https://example.invalid/dep#0.1.0",
+                    "name": "dep",
+                    "version": "0.1.0",
+                    "features": [],
+                    "kind": "git",
+                    "source": "git+https://example.invalid/dep#0.1.0",
+                    "content_digest": "stable-content",
+                },
+            ],
+            "edges": [],
+            "clean_packages": ["demo", "dep"],
+        }
+        value["digest"] = f"digest-{token}"
+        return value
+
+    def test_a_changed_path_record_alone_cleans_only_its_own_package(self) -> None:
+        # `demo`'s own path record moves with its source; `dep`'s git record
+        # does not. Comparing the whole snapshot for equality treated the
+        # differing root record as reaching the closure and cleaned `dep` on
+        # every push, serializing every gate sharing a first-party
+        # dependency the overlay patches in as a path record.
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True, snapshot=self.path_and_git_snapshot("first"))
+        (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
+        self.assertEqual(
+            self.cleaned_packages("second", snapshot=self.path_and_git_snapshot("second")),
+            ["demo"],
+        )
+
+    def test_a_changed_path_record_alone_reads_the_git_dependency_shared(self) -> None:
+        # The run holding `dep` shared while cleaning only `demo` proceeds
+        # beside a peer that also holds `dep` shared; the whole-snapshot
+        # comparison this replaces held `dep` exclusive and would refuse
+        # here.
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True, snapshot=self.path_and_git_snapshot("first"))
+        (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
+        start_holder(self, self.dep_lock(), SHARED, 60)
+        self.assertEqual(
+            self.cleaned_packages("second", snapshot=self.path_and_git_snapshot("second")),
+            ["demo"],
+        )
 
     def test_a_stale_run_rechecks_after_taking_its_leases_exclusive(self) -> None:
         # Between releasing its shared leases and taking them exclusive, a
@@ -1913,6 +1988,112 @@ class RepeatedExportPushTestCase(unittest.TestCase):
         # rustc embeds in the dependency's bytes. The run re-hashes what its
         # command rebuilt, so the next push finds its record true.
         self.assertEqual(self.push(4, stable_path=False), [["d", "p"], [], [], []])
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
+    """`p` depends on `d`, a *separate* repository patched in as a path
+    dependency, the shape the development overlay gives every first-party
+    dependency. `d`'s own repository never changes, so its path record's
+    identity -- `source_identity` of `d`'s own repository -- never changes
+    either, even while `p`'s repository does on every push. A record that
+    compared the whole dependency snapshot for equality never noticed that:
+    `p`'s own path record moved with `p`'s repository regardless, so the
+    whole snapshot compared unequal and cleaned `d` on every push that
+    changed only `p` -- the exclusive lease on `d` that serialized every
+    other gate building it.
+    """
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-cross-repo-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.environment = {
+            key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
+        }
+
+        self.drepo = self.base / "drepo"
+        for relative, text in {
+            "Cargo.toml": '[package]\nname = "d"\nversion = "0.1.0"\nedition = "2021"\n'
+            "[workspace]\n",
+            "src/lib.rs": "pub fn d() -> u32 {\n    1\n}\n",
+        }.items():
+            (self.drepo / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.drepo / relative).write_text(text, encoding="utf-8")
+        git(self.drepo, "init", "-q")
+        git(self.drepo, "config", "user.name", "Atlas test")
+        git(self.drepo, "config", "user.email", "atlas-test@example.invalid")
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.drepo, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        git(self.drepo, "add", ".")
+        git(self.drepo, "commit", "-q", "-m", "d")
+
+        self.source = self.base / "source"
+        for relative, text in {
+            "Cargo.toml": (
+                '[package]\nname = "p"\nversion = "0.1.0"\nedition = "2021"\n'
+                "[workspace]\n\n[dependencies]\n"
+                f'd = {{ path = "{self.drepo.as_posix()}" }}\n'
+            ),
+            "src/lib.rs": "pub fn p() -> u32 {\n    d::d()\n}\n",
+        }.items():
+            (self.source / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.source / relative).write_text(text, encoding="utf-8")
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        git(self.source, "init", "-q")
+        git(self.source, "config", "user.name", "Atlas test")
+        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "source")
+
+    def push(self, pushes: int, *, change_p_before: int | None) -> list[list[str]]:
+        cleaned: list[list[str]] = []
+        run_checked = identity._run_checked
+
+        def recording(command, cwd, environment):
+            if list(command[1:3]) == ["clean", "-p"]:
+                cleaned[-1].extend(command[i + 1] for i, value in enumerate(command) if value == "-p")
+            run_checked(command, cwd, environment)
+
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            patch.object(identity, "_run_checked", side_effect=recording),
+        ):
+            for push in range(pushes):
+                if push == change_p_before:
+                    (self.source / "src/lib.rs").write_text(
+                        "pub fn p() -> u32 {\n    d::d() + 1\n}\n", encoding="utf-8"
+                    )
+                    git(self.source, "commit", "-qam", "change p only")
+                export = self.base / f"export-{push}"
+                if export.exists():
+                    _clear_readonly_tree(export)
+                shutil.copytree(self.source, export, copy_function=shutil.copy)
+                cleaned.append([])
+                identity.run_build(
+                    export,
+                    export / "Cargo.toml",
+                    "p",
+                    self.base / "target",
+                    ["cargo", "check", "-p", "p", "-q", "--offline"],
+                    command_cwd=export,
+                )
+        return cleaned
+
+    def test_a_push_that_changes_only_p_cleans_only_p(self) -> None:
+        # Push 0 builds fresh (cleans both: nothing recorded yet). Push 1
+        # repeats the same commit from a fresh export (reused: Cargo's
+        # in-place rebuild writes the bytes it wrote before, as the
+        # single-repo case above already proves). Push 2 changes only `p`'s
+        # source; `d`'s repository, and so its path record's identity, does
+        # not move, so only `p` -- never `d` -- is due for cleaning.
+        self.assertEqual(self.push(3, change_p_before=2), [["d", "p"], [], ["p"]])
 
 
 class CommandLineTestCase(unittest.TestCase):

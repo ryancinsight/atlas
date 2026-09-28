@@ -367,11 +367,61 @@ def _run_checked(command: Sequence[str], root: Path, environment: dict[str, str]
 
 
 def _dimensions(build: object) -> object:
-    """A build record's dimensions, without the source compared on its own."""
+    """A build record's dimensions, without the fields compared on their own.
+
+    `source` is compared against `spec.source` directly. `dependency_digest`
+    is `str(dependencies["digest"])`, so it moves in lockstep with the
+    dependency snapshot and is redundant with comparing `dependencies`
+    itself; keeping it here would fail every narrowing candidate outright,
+    since a snapshot that disagrees only in path-record identity still
+    hashes to a different digest.
+    """
     content = _content(build)
     if not isinstance(content, dict):
         return content
-    return {key: value for key, value in content.items() if key != "source"}
+    return {key: value for key, value in content.items() if key not in ("source", "dependency_digest")}
+
+
+def _path_only_dependency_diff(
+    existing: dict[str, object], current: dict[str, object]
+) -> set[str] | None:
+    """The path-record names two dependency snapshots disagree on, or None.
+
+    A path record's identity is `source_identity` of its whole containing
+    repository (revision plus diff), not of its own subtree: every path
+    package sharing one repository -- the run's own workspace members, and,
+    under the development overlay, a sibling first-party crate patched to a
+    local checkout -- changes identity together whenever any file in that
+    repository changes, whether or not the package itself did. Two snapshots
+    may therefore disagree on path records alone while every git and registry
+    dependency, every edge, and the clean-package set stay exactly the
+    packages they were: nothing reachable through a non-path record could
+    have moved. None means the disagreement reaches further than that and the
+    whole closure must clean.
+    """
+    if existing.get("root") != current.get("root"):
+        return None
+    if existing.get("edges") != current.get("edges"):
+        return None
+    if existing.get("clean_packages") != current.get("clean_packages"):
+        return None
+    existing_packages = existing.get("packages")
+    current_packages = current.get("packages")
+    if not isinstance(existing_packages, list) or not isinstance(current_packages, list):
+        return None
+    existing_by_id = {record.get("id"): record for record in existing_packages}
+    current_by_id = {record.get("id"): record for record in current_packages}
+    if existing_by_id.keys() != current_by_id.keys():
+        return None
+    changed: set[str] = set()
+    for package_id, existing_record in existing_by_id.items():
+        current_record = current_by_id[package_id]
+        if existing_record == current_record:
+            continue
+        if existing_record.get("kind") != "path" or current_record.get("kind") != "path":
+            return None
+        changed.add(str(current_record.get("name")))
+    return changed
 
 
 def _narrowed_clean(
@@ -385,27 +435,37 @@ def _narrowed_clean(
 ) -> tuple[str, ...] | None:
     """The packages a mismatched record must clean, or None for the whole closure.
 
-    With the build dimensions and the dependency closure unchanged, the
-    dependencies' inputs are unchanged: a new source for the identified package
-    cannot alter their artifacts. The run then cleans its own package when its
-    source changed and each package whose recorded artifact bytes changed (Cargo
-    rebuilds every unit that depends on a unit it rebuilds, so dependents
-    follow). Cleaning the closure on every source change rebuilt every
-    first-party dependency under exclusive leases on each push and serialized
-    every gate sharing them.
+    With the build dimensions unchanged and the dependency snapshots equal or
+    disagreeing only in path-record identity (`_path_only_dependency_diff`),
+    every git and registry dependency's inputs are unchanged: a new source for
+    the identified package, or for a sibling repository patched in as a path
+    dependency, cannot alter their artifacts. The run then cleans its own
+    package when its source changed, each path record whose identity changed
+    (its own containing repository moved), and each package whose recorded
+    artifact bytes changed (Cargo rebuilds every unit that depends on a unit
+    it rebuilds, so dependents follow). Cleaning the closure on every source
+    change rebuilt every first-party dependency under exclusive leases on each
+    push and serialized every gate sharing them.
     """
     if existing is None or current is None:
         return None
-    if (
-        _dimensions(existing.get("build")) != _dimensions(spec.as_dict())
-        or existing.get("dependencies") != dependencies
-    ):
+    if _dimensions(existing.get("build")) != _dimensions(spec.as_dict()):
+        return None
+    existing_dependencies = existing.get("dependencies")
+    if existing_dependencies == dependencies:
+        path_changed: set[str] = set()
+    elif isinstance(existing_dependencies, dict):
+        path_changed = _path_only_dependency_diff(existing_dependencies, dependencies)
+        if path_changed is None:
+            return None
+    else:
         return None
     changed = changed_packages(
         existing["artifact"]["files"], current["files"], manifest, execution_root, clean_packages
     )
     if changed is None:
         return None
+    changed = changed | path_changed
     if _content(existing.get("source")) != _content(spec.source.as_dict()):
         changed.add(spec.package)
     return tuple(sorted(changed)) if changed else None
@@ -529,6 +589,7 @@ def run_build(
     with ExitStack() as leases:
         shared = leases.enter_context(acquire(frozenset()))
         existing, matched, current = locked_record()
+        held: frozenset[str] = frozenset()
         if not matched:
             # A mismatch may write the artifacts of the packages it cleans, so
             # those run exclusive; every other dependency stays shared. Releasing
@@ -552,7 +613,10 @@ def run_build(
             if clean_command is not None:
                 _run_checked(clean_command, execution_root, environment)
             else:
-                targets = clean_targets(existing, current)
+                # The widen loop's converged set, never recomputed: every
+                # package this run cleans was held exclusive by that loop, so
+                # cleaning it here can never reach past that set.
+                targets = tuple(sorted(held))
                 # One invocation for the whole closure: each `cargo clean`
                 # walks the entire shared target whatever it deletes, so one
                 # call per package held the closure's exclusive leases for
@@ -584,25 +648,50 @@ def run_build(
         )
         if final_dependencies != dependencies:
             raise IdentityError("dependency graph changed while the build was running")
-        if matched and not artifact_paths:
+        # A narrowed clean held some dependencies only shared: `held` is then
+        # a proper subset of the closure, and the packages it names are the
+        # only ones this run may have rebuilt. Recording like the matched
+        # branch below -- discovering only what was held exclusive, and
+        # re-verifying every other named file by settling rather than
+        # rediscovering it -- keeps the run from walking a dependency another
+        # gate holds only shared (ADR 0064: hash only files the record names,
+        # found by name, never by discovery).
+        narrowed = (
+            not matched
+            and stale
+            and existing is not None
+            and not artifact_paths
+            and frozenset(held) != frozenset(clean_packages)
+        )
+        if (matched or narrowed) and not artifact_paths:
             # The command rebuilt dependency files in place (a fresh export
             # has fresh mtimes, and rustc embeds its path in the bytes), so
             # every file the record names is hashed again once two reads
             # agree. Another reader's Cargo may be rewriting one: a file that
             # never settles is recorded unverified, and one that cannot be
-            # read at all keeps its pre-command digest. Only the package held
-            # exclusive is discovered afresh.
+            # read at all keeps its pre-command digest. Only the packages
+            # held exclusive -- the run's own package always, plus, for a
+            # narrowed clean, every package it cleaned -- are discovered
+            # afresh; a package another gate holds shared is never walked.
             own = recorded_artifact_identity(
                 target_dir,
                 [
                     path.relative_to(target_dir).as_posix()
                     for path in discover_artifacts(
-                        target_dir, package, profile, target, manifest, execution_root
+                        target_dir,
+                        package,
+                        profile,
+                        target,
+                        manifest,
+                        execution_root,
+                        tuple(sorted(held - {spec.package})),
                     )
                 ],
             )
             files = {}
             for relative, verified in existing["artifact"]["files"].items():
+                if relative in own["files"]:
+                    continue
                 # Each file gets up to SETTLE_SECONDS, never past the run's
                 # wait deadline; at least two reads are always attempted.
                 budget = min(time.monotonic_ns() + int(SETTLE_SECONDS * 1_000_000_000), deadline_ns)
