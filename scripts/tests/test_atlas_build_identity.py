@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
 import json
@@ -17,6 +18,8 @@ import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas_build_identity.py"
@@ -665,6 +668,38 @@ IN_PLACE_REWRITER = (
 )
 
 
+# A shared reader of `dep` whose build, once the run's own command signals,
+# rewrites a named dependency file while the run re-hashes it: it holds the
+# file with no read sharing while it writes the new bytes in chunks, as
+# rustc's in-place rewrite does.
+PEER_REWRITER = (
+    "import ctypes, sys, time\n"
+    "from ctypes import wintypes\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from atlas_build_lease import OwnerLease\n"
+    "lease = OwnerLease(Path(sys.argv[2]), {'root': 'peer-rewriter', 'revision': 'r'}, 600, mode='shared')\n"
+    "lease.__enter__()\n"
+    "print('held', flush=True)\n"
+    "target, trigger = Path(sys.argv[3]), Path(sys.argv[4])\n"
+    "while not trigger.exists():\n"
+    "    time.sleep(0.01)\n"
+    "kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)\n"
+    "kernel32.CreateFileW.restype = wintypes.HANDLE\n"
+    "kernel32.WriteFile.argtypes = [wintypes.HANDLE, ctypes.c_char_p, wintypes.DWORD,"
+    " ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p]\n"
+    "handle = kernel32.CreateFileW(str(target), 0x40000000, 0, None, 2, 0x80, None)\n"
+    "assert handle != wintypes.HANDLE(-1).value, ctypes.get_last_error()\n"
+    "Path(str(trigger) + '.ack').write_text('writing', encoding='utf-8')\n"
+    "written = wintypes.DWORD()\n"
+    "for chunk in range(10):\n"
+    "    kernel32.WriteFile(handle, b'rebuilt-%d;' % chunk, 10, ctypes.byref(written), None)\n"
+    "    time.sleep(0.05)\n"
+    "kernel32.CloseHandle(handle)\n"
+    "lease.__exit__(None, None, None)\n"
+)
+
+
 class BuildIdentityTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-")
@@ -916,6 +951,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         wait: float = 0,
         discover: bool = False,
         environment: dict[str, str] | None = None,
+        clean: bool = True,
     ) -> identity.BuildResult:
         """Build `demo`, whose clean closure holds a path dependency `dep`."""
         snapshot = {
@@ -947,7 +983,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 self.target,
                 [sys.executable, str(self.build_script)],
                 artifact_paths=() if discover else [self.artifact],
-                clean_command=[sys.executable, str(self.clean_script)],
+                clean_command=[sys.executable, str(self.clean_script)] if clean else None,
                 lease_wait_seconds=wait,
             )
 
@@ -995,15 +1031,73 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertFalse(self.clean_log.exists())
 
     @unittest.skipUnless(os.name == "nt", "only Windows refuses reads during a rewrite")
-    def test_a_dependency_rewritten_in_place_during_the_command_is_not_hashed(self) -> None:
-        # Cargo rewrites a dependency's recorded files under the same name
-        # whenever it rebuilds it, even for a touched file with unchanged
-        # content. A reader that re-hashed them after its command failed a
-        # build that had succeeded ("cannot hash artifact").
+    def rewritten_during_the_rehash(self, script: str, *arguments: str) -> dict[str, str]:
+        """Record `dep` while a peer rewrites its named file; return the recorded digests."""
         init_repo(self.root, "fn main() {}\n")
         recorded = self.artifact.parent / "libdep-0ecdeded.rlib"
         recorded.write_bytes(b"dependency")
         self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
+        trigger = self.base / "rewrite"
+        start_script(self, script, str(self.dep_lock()), str(recorded), str(trigger), *arguments)
+        result = self.dependency_build(
+            "first", wait=10, discover=True, environment={"PEER_TRIGGER": str(trigger)}
+        )
+        self.assertEqual(result.status, "reused")
+        return json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"]
+
+    @unittest.skipUnless(os.name == "nt", "only Windows refuses reads during a rewrite")
+    def test_a_rewrite_that_refuses_reads_for_part_of_the_window_is_recorded_settled(self) -> None:
+        files = self.rewritten_during_the_rehash(PEER_REWRITER)
+        final = b"".join(b"rebuilt-%d;" % chunk for chunk in range(10))
+        self.assertEqual(
+            files["debug/deps/libdep-0ecdeded.rlib"], hashlib.sha256(final).hexdigest()
+        )
+
+    def test_a_file_that_never_reads_the_same_twice_is_recorded_unverified(self) -> None:
+        # Every read of the named file after the command gives a new digest,
+        # as a file rewritten throughout the budget does; a real rewriter
+        # cannot be timed to defeat every pair of reads.
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
+        reads = iter(range(1_000_000))
+        settle = artifacts.settled_digest
+
+        def unsettled(path, deadline_ns):
+            if path.name != "libdep-0ecdeded.rlib":
+                return settle(path, deadline_ns)
+            with patch.object(artifacts, "_file_digest", side_effect=lambda _: f"read-{next(reads)}"):
+                return settle(path, deadline_ns)
+
+        with patch.object(identity, "settled_digest", side_effect=unsettled):
+            result = self.dependency_build("first", wait=3, discover=True)
+        files = json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"]
+        self.assertEqual(files["debug/deps/libdep-0ecdeded.rlib"], artifacts.UNVERIFIED)
+        self.assertGreater(next(reads), 2)
+
+    def test_an_unverified_file_cleans_only_its_package(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        recorded = self.artifact.parent / "libdep-0ecdeded.rlib"
+        recorded.write_bytes(b"dependency")
+        first = self.dependency_build("first", discover=True)
+        record = json.loads(first.record_path.read_text(encoding="utf-8"))
+        record["artifact"]["files"]["debug/deps/libdep-0ecdeded.rlib"] = artifacts.UNVERIFIED
+        record["artifact"]["digest"] = artifacts.artifact_digest(record["artifact"]["files"])
+        first.record_path.write_text(json.dumps(record), encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("first"), ["dep"])
+
+    @unittest.skipUnless(os.name == "nt", "only Windows refuses reads during a rewrite")
+    def test_a_file_that_cannot_be_read_at_all_keeps_its_verified_digest(self) -> None:
+        # Cargo rewrites a dependency's recorded files under the same name
+        # whenever it rebuilds it. A reader whose re-hash met a rewrite that
+        # never let it read failed a build that had succeeded ("cannot hash
+        # artifact"); it now keeps the digest verified before the command.
+        init_repo(self.root, "fn main() {}\n")
+        recorded = self.artifact.parent / "libdep-0ecdeded.rlib"
+        recorded.write_bytes(b"dependency")
+        first = self.dependency_build("first", discover=True)
+        self.assertEqual(first.status, "rebuilt")
+        verified = json.loads(first.record_path.read_text(encoding="utf-8"))["artifact"]["files"]
         trigger = self.base / "rewrite"
         start_script(self, IN_PLACE_REWRITER, str(self.dep_lock()), str(recorded), str(trigger))
         result = self.dependency_build(
@@ -1011,7 +1105,42 @@ class BuildIdentityTestCase(unittest.TestCase):
         )
         self.assertEqual(result.status, "reused")
         self.assertTrue(Path(f"{trigger}.ack").exists())
-        self.assertIn("debug/deps/libdep-0ecdeded.rlib", json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"])
+        files = json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"]
+        self.assertEqual(
+            files["debug/deps/libdep-0ecdeded.rlib"], verified["debug/deps/libdep-0ecdeded.rlib"]
+        )
+
+    def cleaned_packages(self, source_token: str) -> list[str]:
+        """Rebuild through `cargo clean -p`, recording the packages instead of running Cargo."""
+        packages: list[str] = []
+        run_checked = identity._run_checked
+
+        def recording(command, cwd, environment):
+            if list(command[1:3]) == ["clean", "-p"]:
+                packages.extend(command[i + 1] for i, value in enumerate(command) if value == "-p")
+                return
+            run_checked(command, cwd, environment)
+
+        with patch.object(identity, "_run_checked", side_effect=recording):
+            self.dependency_build(source_token, discover=True, clean=False)
+        return sorted(packages)
+
+    def test_changed_dependency_bytes_clean_only_that_dependency(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        recorded = self.artifact.parent / "libdep-0ecdeded.rlib"
+        recorded.write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        recorded.write_bytes(b"rebuilt from another path")
+        self.assertEqual(self.cleaned_packages("first"), ["dep"])
+
+    def test_a_changed_source_cleans_the_whole_closure_whatever_changed_on_disk(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        recorded = self.artifact.parent / "libdep-0ecdeded.rlib"
+        recorded.write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
+        recorded.write_bytes(b"rebuilt from another path")
+        self.assertEqual(self.cleaned_packages("second"), ["demo", "dep"])
 
     def test_a_stale_run_rechecks_after_taking_its_leases_exclusive(self) -> None:
         # Between releasing its shared leases and taking them exclusive, a
@@ -1666,6 +1795,101 @@ class BuildIdentityTestCase(unittest.TestCase):
                 command_cwd=elsewhere,
             )
         self.assertEqual(Path(marker.read_text(encoding="utf-8")).resolve(), elsewhere.resolve())
+
+
+def _clear_readonly_tree(path: Path) -> None:
+    """Remove a tree whose entries may be read-only (the gate's exports).
+
+    `shutil.rmtree(onexc=)` is 3.12+ and the hosted runners hold 3.11, so the
+    entries are made writable first and removed with the version-agnostic
+    plain form.
+    """
+    if not path.exists():
+        return
+    for root, dirs, files in os.walk(path):
+        for name in (root, *(os.path.join(root, entry) for entry in dirs + files)):
+            os.chmod(name, 0o700)
+    shutil.rmtree(path)
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class RepeatedExportPushTestCase(unittest.TestCase):
+    """Pushes of one commit, each from a fresh export, as the pre-push gate runs them."""
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-exports-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.source = self.base / "source"
+        for relative, text in {
+            "Cargo.toml": '[workspace]\nmembers = ["d", "p"]\nresolver = "2"\n',
+            "d/Cargo.toml": '[package]\nname = "d"\nversion = "0.1.0"\nedition = "2021"\n',
+            "d/src/lib.rs": "pub fn d() -> u32 {\n    1\n}\n",
+            "p/Cargo.toml": '[package]\nname = "p"\nversion = "0.1.0"\nedition = "2021"\n\n'
+            '[dependencies]\nd = { path = "../d" }\n',
+            "p/src/lib.rs": "pub fn p() -> u32 {\n    d::d()\n}\n",
+        }.items():
+            (self.source / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.source / relative).write_text(text, encoding="utf-8")
+        self.environment = {
+            key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
+        }
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        git(self.source, "init", "-q")
+        git(self.source, "config", "user.name", "Atlas test")
+        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "source")
+
+    def push(self, pushes: int, stable_path: bool) -> list[list[str]]:
+        """Build `p` once per push from a fresh copy (fresh mtimes) of the commit.
+
+        Returns, per push, the packages it cleaned. A stable path reuses one
+        export directory, as the gate does per member; otherwise every push
+        gets a new one.
+        """
+        cleaned: list[list[str]] = []
+        run_checked = identity._run_checked
+
+        def recording(command, cwd, environment):
+            if list(command[1:3]) == ["clean", "-p"]:
+                cleaned[-1].extend(command[i + 1] for i, value in enumerate(command) if value == "-p")
+            run_checked(command, cwd, environment)
+
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            patch.object(identity, "_run_checked", side_effect=recording),
+        ):
+            for push in range(pushes):
+                export = self.base / ("export" if stable_path else f"export-{push}")
+                if export.exists():
+                    _clear_readonly_tree(export)
+                shutil.copytree(self.source, export, copy_function=shutil.copy)
+                cleaned.append([])
+                identity.run_build(
+                    export,
+                    export / "Cargo.toml",
+                    "p",
+                    self.base / "target",
+                    ["cargo", "check", "-p", "p", "-q", "--offline"],
+                    command_cwd=export,
+                )
+        return cleaned
+
+    def test_pushes_from_one_export_path_clean_only_the_first(self) -> None:
+        # With the path fixed, Cargo's in-place rebuild of the dependency
+        # (fresh mtimes) writes the bytes it wrote before.
+        self.assertEqual(self.push(4, stable_path=True), [["d", "p"], [], [], []])
+
+    def test_pushes_from_new_export_paths_clean_only_the_first(self) -> None:
+        # The gate as members run it today: a new export path per push, which
+        # rustc embeds in the dependency's bytes. The run re-hashes what its
+        # command rebuilt, so the next push finds its record true.
+        self.assertEqual(self.push(4, stable_path=False), [["d", "p"], [], [], []])
 
 
 class CommandLineTestCase(unittest.TestCase):
