@@ -62,6 +62,46 @@ export GIT_CONFIG_COUNT=1
 export GIT_CONFIG_KEY_0=safe.directory
 export GIT_CONFIG_VALUE_0="$repo_root"
 
+# Every temporary directory this run creates is registered here and removed
+# on any exit. The trap is set before the first one exists: the lock export
+# is created long before the gate, and a push interrupted between the two
+# leaked its export (1.5 GB for ritk). Each directory names its owner, so a
+# later push can sweep what a killed one left behind (see below).
+# Git exports GIT_DIR to hooks; a git process aimed at another repository
+# must not inherit it (Stack tools, below). A subshell and `unset`, not
+# `env -u`: the lock export runs this before an interpreter-free PATH has
+# been refused, and such a PATH need not carry `env`.
+outside_checkout() {
+  (
+    unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR
+    "$@"
+  )
+}
+
+tmp_base="${TMPDIR:-/tmp}"
+run_temps=()
+remove_run_temps() {
+  local temp
+  for temp in ${run_temps[@]+"${run_temps[@]}"}; do
+    rm -rf "$temp" 2>/dev/null || true
+  done
+}
+trap remove_run_temps EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+# new_run_temp <variable> <prefix>: a fresh directory, registered and owned.
+new_run_temp() {
+  local created
+  created="$(mktemp -d "$tmp_base/$2.XXXXXX")"
+  run_temps+=("$created")
+  # The native spelling: Python and cargo read a Git Bash `/tmp/...` path
+  # as a directory on the current drive.
+  created="$(cd "$created" && { pwd -W 2>/dev/null || pwd; })"
+  printf '%s\n' "$$" > "$created/.pre-push-owner"
+  printf -v "$1" '%s' "$created"
+}
+
 # The remote's default branch is whatever the remote says it is: `origin/HEAD`
 # follows a rename, `origin/main` does not (hephaestus defaults to `master`).
 # Echoes the merge-base of `$1` with that branch, or nothing when neither
@@ -87,18 +127,43 @@ default_branch_base() {
 # range git supplies on stdin and skip when nothing in it touches dependency
 # resolution: a push that changes no manifest and no lock cannot make the lock
 # worse than the base already found acceptable.
+#
+# Git names one line per ref. A deletion carries no content, so a push of
+# deletions alone has nothing to judge -- `HEAD` least of all. A push of
+# several refs is several pushes: each is judged in its own run of this
+# hook, since every section below judges one pushed revision and the range
+# leading to it. Judging the first ref alone let a later ref carry anything.
+zero="$(printf '0%.0s' $(seq 40))"
+content_lines=()
+if [ ! -t 0 ]; then
+  while IFS= read -r push_line; do
+    read -r _ push_sha _ <<<"$push_line"
+    [ -n "${push_sha:-}" ] && [ "$push_sha" != "$zero" ] || continue
+    content_lines+=("$push_line")
+  done
+  if [ "${#content_lines[@]}" -eq 0 ]; then
+    echo "pre-push: the push carries no commits; nothing to gate" >&2
+    exit 0
+  fi
+  if [ "${#content_lines[@]}" -gt 1 ]; then
+    refs_status=0
+    for push_line in "${content_lines[@]}"; do
+      echo "pre-push: judging ${push_line%% *}" >&2
+      printf '%s\n' "$push_line" | bash "${BASH_SOURCE[0]}" "$@" || refs_status=1
+    done
+    exit "$refs_status"
+  fi
+fi
+
 touches_dependency_state=unknown
 pushed_tip=""
 # The range this push carries, for the local gate far below. Recorded here
 # because stdin reads once: the gate cannot re-read it.
 gate_tip=""
 gate_range_base=""
-if [ ! -t 0 ]; then
+if [ "${#content_lines[@]}" -eq 1 ]; then
   touches_dependency_state=no
-  zero="$(printf '0%.0s' $(seq 40))"
   while read -r _local_ref local_sha _remote_ref remote_sha; do
-    # A branch deletion carries no content.
-    [ "$local_sha" = "$zero" ] && continue
     if [ "$remote_sha" = "$zero" ]; then
       # New branch: compare against the merge-base with the default branch,
       # so a long series is not read as touching everything. Comparing
@@ -106,7 +171,14 @@ if [ ! -t 0 ]; then
       # the checked-out branch makes the base the pushed tip itself, the
       # range is empty, and a manifest-changing push skips the check.
       base="$(default_branch_base "$local_sha" || true)"
-      [ -z "$base" ] && { touches_dependency_state=unknown; break; }
+      if [ -z "$base" ]; then
+        # No history shared with the default branch (an orphan branch, or
+        # no default branch known): the pushed revision is judged whole.
+        gate_tip="$local_sha"
+        gate_range_base=""
+        touches_dependency_state=unknown
+        break
+      fi
     elif git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
       # Ordinary branch updates extend the remote tip, so only new commits
       # enter the gate range.
@@ -117,7 +189,12 @@ if [ ! -t 0 ]; then
       # from the new tip's default-branch base rather than unrelated mainline
       # changes between the two generated commits.
       base="$(default_branch_base "$local_sha" || true)"
-      [ -z "$base" ] && { touches_dependency_state=unknown; break; }
+      if [ -z "$base" ]; then
+        gate_tip="$local_sha"
+        gate_range_base=""
+        touches_dependency_state=unknown
+        break
+      fi
     fi
     if [ -z "$gate_tip" ]; then
       gate_tip="$local_sha"
@@ -132,7 +209,9 @@ if [ ! -t 0 ]; then
       pushed_tip="$local_sha"
       break
     fi
-  done
+  done <<PUSHED
+${content_lines[0]}
+PUSHED
 fi
 
 # No manifest in the range means the lock cannot have changed: skip its check,
@@ -169,6 +248,74 @@ if [ -z "$python_bin" ]; then
   done
 fi
 
+# export_revision <sha> <dir>: <dir> becomes a checkout of <sha> in a
+# repository of its own that borrows this member's object store, so the
+# identity checker reads the pushed commit as its `HEAD`.
+#
+# The files are written by `read-tree -u` run in the member itself, against
+# the export's index and work tree: the member is where a partial clone's
+# promisor remote lives, so blobs it never fetched are fetched on demand (the
+# export repository alone refused every tree with such a blob: 13 of 28
+# members are `blob:none`). `core.longpaths` lets a deep path exceed 260
+# characters on Windows (kwavers carries 159-character paths), and sparse
+# checkout is off so the whole tree is written. A checkout, not `git archive
+# | tar`: links are written as links (as files where `core.symlinks` is
+# false) and never followed. Run against an existing export, `--reset -u`
+# rewrites only the files that differ, so unchanged files keep their times
+# and cargo's fingerprints stay fresh; files the tree does not track are
+# removed. The index carries stat data, so the identity checker's
+# `git diff HEAD` compares stats instead of re-hashing the tree. Automatic
+# gc and maintenance are off for the member-side read and the fetches it
+# starts: a push must not repack the member it reads (moirai's auto-gc
+# fails on a foreign ref), and the export reads the member's objects.
+export_revision() {
+  local sha="$1" directory="$2" member_git objects
+  member_git="$(git rev-parse --absolute-git-dir)" || return 1
+  objects="$(git rev-parse --path-format=absolute --git-common-dir)/objects" || return 1
+  # `git init` creates the directory: the lock export runs before a PATH
+  # without an interpreter is refused, and such a PATH need not carry mkdir.
+  if [ ! -d "$directory/.git" ]; then
+    outside_checkout git init -q "$directory" || return 1
+  fi
+  printf '%s\n' "$objects" > "$directory/.git/objects/info/alternates" \
+    && outside_checkout git -C "$directory" config core.longpaths true \
+    && outside_checkout git -C "$directory" config gc.auto 0 \
+    && outside_checkout git -C "$directory" config maintenance.auto false \
+    && GIT_DIR="$member_git" GIT_WORK_TREE="$directory" GIT_INDEX_FILE="$directory/.git/index" \
+      git -c core.longpaths=true -c core.sparseCheckout=false -c gc.auto=0 -c maintenance.auto=false \
+        read-tree -u --reset "$sha" \
+    && outside_checkout git -C "$directory" update-ref HEAD "$sha" \
+    && outside_checkout git -C "$directory" clean -ffdxq
+}
+
+# Exports a killed push left behind (ritk's reached 1.5 GB each). A directory
+# naming its owner (`.pre-push-owner`) goes only once that pid is gone. One
+# naming none was written by an older hook that records no owner and may
+# still be building in it -- a run can take most of an hour -- so it goes only
+# after a day.
+if [ -n "$python_bin" ]; then
+  for stale in "$tmp_base"/pre-push-lock.* "$tmp_base"/pre-push-gate.* "$tmp_base"/pl.* "$tmp_base"/pg.* "$tmp_base"/pg-log.*; do
+    [ -e "$stale" ] || continue
+    stale_owner="$(cat "$stale/.pre-push-owner" 2>/dev/null || true)"
+    if [ -n "$stale_owner" ]; then
+      kill -0 "$stale_owner" 2>/dev/null && continue
+    else
+      "$python_bin" -c 'import os, sys, time; sys.exit(time.time() - os.path.getmtime(sys.argv[1]) < 86400)' "$stale" || continue
+    fi
+    rm -rf "$stale" 2>/dev/null || true
+  done
+  # A checkout's reusable export (see the gate below) outlives its runs by
+  # design; one no run has claimed for a week belongs to a checkout that is
+  # gone, and goes unless a live run holds its lock.
+  for stable in "$tmp_base"/pg-??????????; do
+    [ -d "$stable" ] || continue
+    holder="$(cat "$stable.lock/pid" 2>/dev/null || true)"
+    [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null && continue
+    "$python_bin" -c 'import os, sys, time; sys.exit(time.time() - os.path.getmtime(sys.argv[1]) < 7 * 86400)' "$stable" || continue
+    rm -rf "$stable" "$stable.lock" 2>/dev/null || true
+  done
+fi
+
 # The skips above fall through to the code gate, so this whole section runs
 # only when the lock still wants verifying.
 if [ "$skip_lockfile" = "0" ]; then
@@ -179,9 +326,9 @@ if [ "$skip_lockfile" = "0" ]; then
 # wrong state either way. The dependency-source check below reads the same
 # export.
 lock_rev="${pushed_tip:-${gate_tip:-HEAD}}"
-lock_export="$(mktemp -d "${TMPDIR:-/tmp}/pre-push-lock.XXXXXX")"
-if ! git archive "$lock_rev" | tar -x -C "$lock_export"; then
-  rm -rf "$lock_export"
+new_run_temp lock_root pl
+lock_export="$lock_root/tree"
+if ! export_revision "$(git rev-parse --verify "$lock_rev^{commit}")" "$lock_export"; then
   echo "pre-push: could not export $lock_rev for the lockfile check" >&2
   exit 1
 fi
@@ -192,15 +339,12 @@ if [ ! -f "$checker" ]; then
   # absence. The code gate below would still have run, but the lock is what
   # this section is for, and an unverified lock is the failure it exists to
   # stop -- so refuse here; there is no deliberate way through.
-  rm -rf "$lock_export"
   echo "pre-push: scripts/lockfile.py not present; lockfile not verified" >&2
   exit 1
 elif [ -z "$python_bin" ]; then
-  rm -rf "$lock_export"
   echo "pre-push: no python interpreter found; lockfile not verified" >&2
   exit 1
 elif ! (cd "$lock_export" && "$python_bin" "$checker" --check); then
-  rm -rf "$lock_export"
   cat >&2 <<MESSAGE
 
 pre-push: the Cargo.lock in $lock_rev does not resolve under --locked, so
@@ -225,15 +369,13 @@ fi
 # and the lock is rewritten -- so it runs on an export of the pushed revision
 # outside the stack, which is exactly what CI resolves. The working tree is
 # never touched.
-if [ -f "$repo_root/deny.toml" ]; then
+if [ -f "$lock_export/deny.toml" ]; then
   if ! cargo deny --version >/dev/null 2>&1; then
-    rm -rf "$lock_export"
     echo "pre-push: cargo-deny is not installed, so the dependency sources of this" >&2
     echo "lock change are unverified. Install it: cargo install --locked cargo-deny" >&2
     exit 1
   fi
   if ! (cd "$lock_export" && cargo deny --locked check sources >&2); then
-    rm -rf "$lock_export"
     cat >&2 <<MESSAGE
 
 pre-push: the pushed Cargo.lock resolves a source deny.toml does not allow,
@@ -244,7 +386,6 @@ MESSAGE
     exit 1
   fi
 fi
-rm -rf "$lock_export"
 fi
 # End of the lockfile section; the code gate below runs unconditionally.
 
@@ -265,11 +406,7 @@ fi
 # checker process aimed at another repository inherits it and answers about
 # this checkout instead: from a hephaestus lane, the stack's `origin/HEAD`
 # resolved to hephaestus's own and the ratchet was skipped as unreachable.
-# Every such process runs through `outside_checkout`.
-outside_checkout() {
-  env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_PREFIX \
-    -u GIT_COMMON_DIR "$@"
-}
+# Every such process runs through `outside_checkout` (defined at the top).
 stack_root="$(cd "$repo_root/../.." && pwd)"
 stack_top="$(outside_checkout git -C "$stack_root" rev-parse --show-toplevel 2>/dev/null || true)"
 stack_baseline=""
@@ -290,23 +427,43 @@ if [ -n "$stack_baseline" ] \
     staging="$(mktemp -d "$checker_cache/.staging.XXXXXX")"
     outside_checkout git -C "$stack_root" archive "$stack_baseline" scripts | tar -x -C "$staging"
     # A concurrent push may have placed the same revision first; either
-    # copy is the same content, so the rename losing is not an error.
-    mv "$staging" "$checker_dir" 2>/dev/null || rm -rf "$staging"
-    if [ -n "$python_bin" ] && ! "$python_bin" - "$checker_cache" "$stack_baseline" <<'PY'
-import pathlib
-import shutil
-import sys
-import time
-root = pathlib.Path(sys.argv[1])
-keep = sys.argv[2]
-cutoff = time.time() - 3600
-for path in root.iterdir():
-    if path.is_dir() and path.name != keep and path.stat().st_mtime < cutoff:
-        shutil.rmtree(path)
-PY
-    then
-      echo "pre-push: could not prune old checker copies under $checker_cache" >&2
+    # copy is the same content, so losing that race is not an error. A
+    # rename can also fail with no winner (Windows refuses one while any
+    # process holds a file open), and deleting the copy then left no
+    # checker at all; this run uses its own copy and removes it on exit.
+    if ! mv "$staging" "$checker_dir" 2>/dev/null; then
+      if [ -d "$checker_dir/scripts" ]; then
+        rm -rf "$staging"
+      else
+        run_temps+=("$staging")
+        checker_dir="$staging"
+      fi
     fi
+  fi
+  # A run marks the copy it uses for its whole lifetime, and a copy is pruned
+  # only once it is an hour old and no live run marks it: pruning by age
+  # alone deleted copies that running gates were still reading.
+  checker_users="$checker_cache/.users"
+  mkdir -p "$checker_users"
+  checker_marker="$checker_users/${checker_dir##*/}.$$"
+  : > "$checker_marker"
+  run_temps+=("$checker_marker")
+  if [ -n "$python_bin" ]; then
+    for copy in "$checker_cache"/*/; do
+      copy="${copy%/}"
+      [ "$copy" = "$checker_dir" ] && continue
+      "$python_bin" -c 'import os, sys, time; sys.exit(time.time() - os.path.getmtime(sys.argv[1]) < 3600)' "$copy" || continue
+      copy_in_use=0
+      for user in "$checker_users/${copy##*/}".*; do
+        [ -f "$user" ] || continue
+        if kill -0 "${user##*.}" 2>/dev/null; then
+          copy_in_use=1
+        else
+          rm -f "$user"
+        fi
+      done
+      [ "$copy_in_use" -eq 0 ] && rm -rf "$copy"
+    done
   fi
   if [ -d "$checker_dir/scripts" ]; then
     stack_scripts="$checker_dir/scripts"
@@ -386,11 +543,7 @@ fi
 # against every member's object store and only the stack holds them all.
 # Citations resolve through default branches and tags only, so a branch
 # deleted elsewhere cannot refuse a push that cites nothing new.
-if [ ! -t 0 ] && [ -z "$gate_tip" ]; then
-  # Every ref git named was a deletion: there is no revision to judge, and
-  # `HEAD` is not something this push carries.
-  echo "pre-push: the push carries no commits; debt ratchet not needed" >&2
-elif [ -n "$stack_baseline" ] && [ -n "$python_bin" ] \
+if [ -n "$stack_baseline" ] && [ -n "$python_bin" ] \
   && outside_checkout git -C "$stack_root" cat-file -e "$stack_baseline:scripts/atlas-conformance.py" 2>/dev/null; then
   # The member is the registered directory sharing this checkout's object
   # store, so a lane (`worktrees/<repo>-<branch>`) resolves to its repository.
@@ -417,7 +570,7 @@ elif [ -n "$stack_baseline" ] && [ -n "$python_bin" ] \
       echo "debt ratchet not run. Run: git -C $stack_root fetch origin" >&2
     else
       set +e
-      outside_checkout ATLAS_STACK_ROOT="$stack_root" "$python_bin" "$conformance_checker" check \
+      ATLAS_STACK_ROOT="$stack_root" outside_checkout "$python_bin" "$conformance_checker" check \
         --repo "$conformance_member" --member-path "$repo_root" \
         --member-revision "$range_rev" --baseline-rev "$stack_baseline" \
         >&2
@@ -452,14 +605,28 @@ fi
 # large member, and a gate that slow is a gate people bypass. The changed files
 # map to their packages and only those are linted and tested.
 #
-# `cargo fmt` needs no dependency resolution; clippy and nextest do, and how
-# they resolve decides whether this gate is usable at all. Cargo finds the
-# stack's `[patch]` overlay by walking up from the working directory. Main
-# trees keep using that warm overlay, while a linked lane exports the pushed
-# revision to a neutral directory. The export carries the committed
-# `Cargo.lock`, so the lane uses the exact standalone graph CI sees. Every
-# dependency-resolving lane command passes `--locked`; it must never
-# re-resolve the lane's overlay-flattened working lock to current git heads.
+# Every step reads an export of the pushed revision, never the checkout. The
+# checkout is not the push: the stack commits through a private index onto an
+# item branch nobody checked out, and a shared tree holds a peer's branch and
+# uncommitted files. Gating the checkout judged that state -- ritk's fmt
+# failed on a peer's uncommitted layout modules -- and refusing a push whose
+# tip differed from it refused every private-index push.
+#
+# The export is a fresh checkout of the pushed commit (`export_revision`), so
+# every file takes the current time and no cached build of older content
+# passes for this content. It sits in a temporary directory outside the stack,
+# because inside it the stack's `[patch]` overlay redirects this member's
+# packages to its main tree beside the export's own copies ("package collision
+# in the lockfile"). Outside it the export resolves its committed `Cargo.lock`, so
+# every resolving step passes `--locked`, exactly as CI does. The rest of the
+# stack's cargo configuration still applies -- its profile keys hash every
+# shared artifact -- so each `.cargo/config.toml` above the member is copied,
+# `[patch]` tables removed, to the same nesting above the export, and the
+# stack's target directory is exported: the gate uses the one shared cache.
+#
+# The export's repository has the pushed commit as `HEAD`, so the source
+# identity checker records the pushed revision as the build's source --
+# never the checkout's `HEAD`.
 #
 # Bypass deliberately:
 #
@@ -487,146 +654,170 @@ if [ -n "$gate_range_base" ] \
   gate_range_base=""
 fi
 gate_tip_rev="${gate_tip:-HEAD}"
-checkout_tip="$(git rev-parse --verify --quiet HEAD^{commit} || true)"
-pushed_tip="$(git rev-parse --verify --quiet "$gate_tip_rev^{commit}" || true)"
-is_hook_publication() {
-  local publication_base="$1" publication_tip="$2" publication_parent publication_subject publication_paths
-  [ -n "$publication_base" ] || return 1
-  publication_parent="$(git rev-parse --verify --quiet "$publication_tip^" 2>/dev/null || true)"
-  [ "$publication_parent" = "$publication_base" ] || return 1
-  publication_subject="$(git show -s --format=%s "$publication_tip" 2>/dev/null || true)"
-  [ "$publication_subject" = "ci: Sync the stack-owned git hooks" ] || return 1
-  publication_paths="$(git diff --name-only "$publication_base" "$publication_tip" 2>/dev/null || true)"
-  [ -n "$publication_paths" ] || return 1
-  if printf '%s\n' "$publication_paths" | grep -qvE '^\.githooks/(pre-push|pre-commit)$'; then
-    return 1
-  fi
-  return 0
-}
-publication_push=0
-if [ -n "$gate_tip" ] && [ -n "$checkout_tip" ] && [ -n "$pushed_tip" ] \
-  && [ "$checkout_tip" != "$pushed_tip" ]; then
-  if is_hook_publication "${gate_range_base:-}" "$pushed_tip"; then
-    publication_push=1
-    echo "pre-push: canonical hook publication accepted from committed revision $pushed_tip" >&2
-  else
-    echo "pre-push: BLOCKED -- pushed revision $pushed_tip differs from checkout $checkout_tip" >&2
-    echo "Run the gate from a checkout of the pushed revision; no artifact was accepted." >&2
-    exit 1
-  fi
-fi
-# The root Cargo.lock is the one path left out: the stack overlay rewrites it
-# on every build (derived state, not an edit), the lockfile check above reads
-# the pushed revision's lock, the source-identity build ignores it
-# (`--ignore-path`), and a lane gates with `--locked` against the committed
-# lock and restores the working one on exit.
-if [ -n "$gate_tip" ] && [ "$publication_push" -eq 0 ]; then
-  checkout_status="$(git status --porcelain=v1 --untracked-files=all -- . ':(exclude)Cargo.lock')"
-  if [ -n "$checkout_status" ]; then
-    echo "pre-push: BLOCKED -- checkout has uncommitted changes not present in the pushed revision" >&2
-    echo "Commit or remove them before pushing; no artifact was accepted." >&2
-    exit 1
-  fi
+gate_sha="$(git rev-parse --verify --quiet "$gate_tip_rev^{commit}" || true)"
+if [ -z "$gate_sha" ]; then
+  echo "pre-push: cannot resolve the pushed revision $gate_tip_rev" >&2
+  exit 1
 fi
 if [ -n "$gate_range_base" ]; then
   gate_base="$gate_range_base"
 else
-  gate_base="$(default_branch_base "$gate_tip_rev" || true)"
+  gate_base="$(default_branch_base "$gate_sha" || true)"
 fi
 
-if [ -z "$gate_base" ]; then
-  echo "pre-push: no upstream or remote default branch to diff against; local gate skipped" >&2
-  exit 0
-fi
-
-gate_changed="$(git diff --name-only "$gate_base" "$gate_tip_rev" 2>/dev/null || true)"
-if [ "$publication_push" -eq 1 ]; then
-  echo "pre-push: hook-only publication; no package gate needed" >&2
-  exit 0
-fi
-
-# Where cargo runs. A member's main tree runs inside the stack, so the gate
-# builds against the local working trees the overlay provides. A lane (a
-# linked worktree) cannot: the overlay patches this member's packages to its
-# main tree while the lane's workspace defines the same packages, and cargo
-# stops with "package collision in the lockfile" -- a moirai lane push was
-# refused that way as a clippy failure. A lane therefore runs from a directory
-# outside the stack, naming its manifest and the stack's shared target
-# directory, which resolves the committed lock exactly as CI does.
-gate_cwd="$repo_root"
-gate_manifest=""
-gate_lock_arg=""
-cleanup_gate_cwd() {
-  if [ "$gate_cwd" != "$repo_root" ]; then
-    rm -rf "$gate_cwd" 2>/dev/null || true
-  fi
-}
-# `cargo fmt` finds no targets in a virtual manifest named by path, so a lane
-# names every member; in place it reads the workspace from the working
-# directory, and `--all` there would also reach the overlay's patched trees.
-gate_fmt_scope=""
-if [ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]; then
-  overlay_config=""
-  search_dir="$(dirname "$repo_root")"
-  while [ "$search_dir" != "/" ] && [ "$search_dir" != "." ]; do
-    if [ -f "$search_dir/.cargo/config.toml" ]; then
-      overlay_config="$search_dir/.cargo/config.toml"
-      break
-    fi
-    parent="$(dirname "$search_dir")"
-    [ "$parent" = "$search_dir" ] && break
-    search_dir="$parent"
-  done
-  if [ -n "$overlay_config" ]; then
-    if [ -z "${CARGO_TARGET_DIR:-}" ]; then
-      stack_target="$(sed -n 's/^[[:space:]]*target-dir[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' "$overlay_config" | head -1)"
-      case "$stack_target" in
-        "") ;;
-        /*|[A-Za-z]:*) export CARGO_TARGET_DIR="$stack_target" ;;
-        *) export CARGO_TARGET_DIR="$(dirname "$(dirname "$overlay_config")")/$stack_target" ;;
-      esac
-    fi
-    gate_cwd="$(mktemp -d "${TMPDIR:-/tmp}/pre-push-lane.XXXXXX")"
-    if ! git archive "$gate_tip_rev" | tar -x -C "$gate_cwd"; then
-      echo "pre-push: could not export $gate_tip_rev for the lane gate" >&2
-      cleanup_gate_cwd
-      exit 1
-    fi
-    # Leading space: the reproduce lines render as `cargo doc --no-deps$gate_specs`,
-    # and without it the flag joins the subcommand ("--no-deps--manifest-path").
-    gate_manifest=" --manifest-path $gate_cwd/Cargo.toml"
-    gate_fmt_scope="--all"
-    gate_lock_arg=" --locked"
-    echo "pre-push: lane of an overlaid member; gating outside the stack overlay" >&2
-  fi
+if [ -n "$gate_base" ]; then
+  gate_changed="$(git diff --name-only "$gate_base" "$gate_sha" 2>/dev/null || true)"
+else
+  # No history shared with the default branch: every file is new.
+  gate_changed="$(git ls-tree -r --name-only "$gate_sha")"
 fi
 
 if [ -z "$python_bin" ]; then
   echo "pre-push: no python interpreter found; Cargo workspace membership not verified" >&2
   echo "pre-push: push anyway with SKIP_LOCAL_GATE=1 git push" >&2
-  cleanup_gate_cwd
   exit 1
 fi
 
-gate_lock="$repo_root/Cargo.lock"
-gate_lock_backup=""
-if [ -f "$gate_lock" ]; then
-  gate_lock_backup="$(mktemp)"
-  cp -p "$gate_lock" "$gate_lock_backup"
+# The stack's cargo configuration, outermost first: cargo merges every
+# `.cargo/config.toml` above its working directory, the nearest winning.
+stack_configs=()
+search_dir="$(dirname "$repo_root")"
+while :; do
+  if [ -f "$search_dir/.cargo/config.toml" ]; then
+    stack_configs=("$search_dir/.cargo/config.toml" ${stack_configs[@]+"${stack_configs[@]}"})
+  fi
+  parent="$(dirname "$search_dir")"
+  [ "$parent" = "$search_dir" ] && break
+  search_dir="$parent"
+done
+
+# The export lives at one short path per checkout, reused run after run:
+# cargo fingerprints a package by its path, so a new directory per push
+# rebuilt every workspace package (hermes: 419 s for a re-push of one sha,
+# 567 s cold), and a short root keeps deep paths under Windows' limit. A run
+# claims it with a lock naming its pid; while a live run holds it, this run
+# builds in a temporary export instead of waiting, and a dead holder's lock
+# is taken over.
+gate_key="$(printf '%s' "$repo_root" | git hash-object --stdin | cut -c1-10)"
+gate_root="$tmp_base/pg-$gate_key"
+claim_gate_root() {
+  local staged="$gate_root.lock.$$"
+  mkdir -p "$staged" && printf '%s\n' "$$" > "$staged/pid" || return 1
+  if mv -T "$staged" "$gate_root.lock" 2>/dev/null; then
+    run_temps+=("$gate_root.lock")
+    return 0
+  fi
+  rm -rf "$staged"
+  return 1
+}
+if ! claim_gate_root; then
+  gate_holder="$(cat "$gate_root.lock/pid" 2>/dev/null || true)"
+  if [ -n "$gate_holder" ] && ! kill -0 "$gate_holder" 2>/dev/null; then
+    rm -rf "$gate_root.lock"
+  fi
+  if ! claim_gate_root; then
+    echo "pre-push: the checkout's export is in use by pid ${gate_holder:-?}; building in a fresh one" >&2
+    new_run_temp gate_root pg
+  fi
+fi
+mkdir -p "$gate_root"
+# Its age is the time since a run last claimed it (the week-long sweep above).
+touch "$gate_root"
+gate_root="$(cd "$gate_root" && { pwd -W 2>/dev/null || pwd; })"
+gate_log=""
+
+# Mirror each config above the export without its `[patch]` table, and find
+# the shared target directory: the nearest config naming `build.target-dir`,
+# relative to the directory holding its `.cargo`. A TOML parser, not a line
+# filter: `[patch]` has dotted-key and inline forms, a patch table can hold an
+# array whose lines begin with `[`, and a target dir may be single-quoted.
+# Prints the directory to export into, then the target directory or nothing.
+if ! gate_layout="$("$python_bin" - "$gate_root" ${stack_configs[@]+"${stack_configs[@]}"} <<'PY'
+import json
+import pathlib
+import sys
+import tomllib
+
+# LF lines: bash keeps the CR a Windows text-mode stdout adds.
+sys.stdout.reconfigure(newline='\n')
+
+
+def key(name):
+    return json.dumps(name, ensure_ascii=False)
+
+
+def value(item):
+    if isinstance(item, bool):
+        return 'true' if item else 'false'
+    if isinstance(item, (int, float)):
+        return repr(item)
+    if isinstance(item, str):
+        return json.dumps(item, ensure_ascii=False)
+    if isinstance(item, list):
+        return '[' + ', '.join(value(entry) for entry in item) + ']'
+    if isinstance(item, dict):
+        return '{' + ', '.join(f'{key(k)} = {value(v)}' for k, v in item.items()) + '}'
+    return json.dumps(item.isoformat())
+
+
+def table(path, body, lines):
+    scalars = {k: v for k, v in body.items() if not isinstance(v, dict)}
+    if path and (scalars or not body):
+        lines.append('[' + '.'.join(key(part) for part in path) + ']')
+    lines.extend(f'{key(k)} = {value(v)}' for k, v in scalars.items())
+    for name, child in body.items():
+        if isinstance(child, dict):
+            table([*path, name], child, lines)
+
+
+parent = pathlib.Path(sys.argv[1])
+target = ''
+for config in sys.argv[2:]:
+    source = pathlib.Path(config)
+    with source.open('rb') as stream:
+        data = tomllib.load(stream)
+    data.pop('patch', None)
+    build = data.get('build')
+    configured = build.get('target-dir') if isinstance(build, dict) else None
+    if isinstance(configured, str) and configured:
+        chosen = pathlib.Path(configured)
+        target = str(chosen if chosen.is_absolute() else source.parent.parent / chosen)
+    lines = []
+    table([], data, lines)
+    (parent / '.cargo').mkdir(parents=True, exist_ok=True)
+    mirrored = parent / '.cargo' / 'config.toml'
+    content = ('\n'.join(lines) + '\n').encode()
+    if not mirrored.is_file() or mirrored.read_bytes() != content:
+        mirrored.write_bytes(content)
+    parent = parent / 'nested'
+print(parent)
+print(target)
+PY
+)"; then
+  echo "pre-push: could not read the stack's cargo configuration" >&2
+  exit 1
+fi
+{ read -r gate_parent; read -r gate_target || true; } <<<"$gate_layout"
+if [ -z "${CARGO_TARGET_DIR:-}" ]; then
+  export CARGO_TARGET_DIR="${gate_target:-$repo_root/target}"
 fi
 
-restore_gate_lock() {
-  if [ -n "$gate_lock_backup" ] && [ -f "$gate_lock_backup" ]; then
-    if ! cmp -s "$gate_lock_backup" "$gate_lock" 2>/dev/null; then
-      cp -p "$gate_lock_backup" "$gate_lock" || true
-    fi
-    rm -f "$gate_lock_backup" || true
+gate_export="$gate_parent/${repo_root##*/}"
+mkdir -p "$gate_export"
+gate_export="$(cd "$gate_export" && { pwd -W 2>/dev/null || pwd; })"
+# A reused export a killed run left half-written can refuse the update;
+# it is only a cache, so it is rebuilt once from nothing.
+if ! export_revision "$gate_sha" "$gate_export"; then
+  rm -rf "$gate_export" && mkdir -p "$gate_export"
+  if ! export_revision "$gate_sha" "$gate_export"; then
+    echo "pre-push: could not export $gate_sha for the local gate" >&2
+    exit 1
   fi
-  rm -f "${gate_log:-}" 2>/dev/null || true
-  cleanup_gate_cwd
-}
+fi
 
-trap restore_gate_lock EXIT INT TERM
+# Leading space: the steps render as `cargo doc --no-deps$gate_specs`, and
+# without it the flag joins the subcommand ("--no-deps--manifest-path").
+gate_manifest=" --manifest-path $gate_export/Cargo.toml"
 
 # Cargo is the authority on which package manifests belong to this workspace.
 # A nested standalone manifest (cargo-fuzz is the common case) can legally use
@@ -634,8 +825,12 @@ trap restore_gate_lock EXIT INT TERM
 # `--no-deps` reads membership without resolving dependencies or changing the
 # lockfile. Each output record is `<repo-relative manifest><tab><package name>`.
 if ! workspace_members="$(
-  cd "$gate_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest |
+  cd "$gate_export" && cargo metadata --no-deps --format-version 1 $gate_manifest |
     "$python_bin" -c 'import json, os, sys
+# LF records: text-mode stdout on Windows writes CRLF, and bash keeps the CR
+# in the package name, so a new-member push gated `helios-core<CR>` beside
+# `helios-core` and the identity checker found no such package.
+sys.stdout.reconfigure(newline="\n")
 metadata = json.load(sys.stdin)
 members = set(metadata["workspace_members"])
 root = os.path.realpath(sys.argv[1])
@@ -644,11 +839,10 @@ for package in metadata["packages"]:
         continue
     manifest = os.path.realpath(package["manifest_path"])
     relative = os.path.relpath(manifest, root).replace(os.sep, "/")
-    print(f"{relative}\t{package['"'"'name'"'"']}")' "$gate_cwd"
+    print(f"{relative}\t{package['"'"'name'"'"']}")' "$gate_export"
 )"; then
   echo "pre-push: cargo metadata could not establish workspace membership" >&2
   echo "pre-push: push anyway with SKIP_LOCAL_GATE=1 git push" >&2
-  cleanup_gate_cwd
   exit 1
 fi
 
@@ -664,7 +858,7 @@ while IFS= read -r changed_path; do
   package_dir=""
   excluded_manifest=""
   while [ "$owner_dir" != "." ] && [ "$owner_dir" != "/" ]; do
-    manifest="$gate_cwd/$owner_dir/Cargo.toml"
+    manifest="$gate_export/$owner_dir/Cargo.toml"
     if [ -f "$manifest" ]; then
       if grep -qE '^\[package\]' "$manifest" 2>/dev/null; then
         package_dir="$owner_dir"
@@ -683,8 +877,8 @@ while IFS= read -r changed_path; do
     continue
   fi
   if [ -z "$package_dir" ] && [ "$changed_path" = "Cargo.toml" ] \
-    && [ -f "$repo_root/Cargo.toml" ] \
-    && grep -qE '^\[workspace\]' "$repo_root/Cargo.toml" 2>/dev/null; then
+    && [ -f "$gate_export/Cargo.toml" ] \
+    && grep -qE '^\[workspace\]' "$gate_export/Cargo.toml" 2>/dev/null; then
     while IFS=$'\t' read -r _workspace_manifest workspace_package; do
       [ -n "$workspace_package" ] || continue
       case " $gate_packages " in
@@ -695,14 +889,14 @@ while IFS= read -r changed_path; do
     continue
   fi
   if [ -z "$package_dir" ]; then
-    if [ -f "$gate_cwd/Cargo.toml" ] && grep -qE '^\[package\]' "$repo_root/Cargo.toml" 2>/dev/null; then
+    if [ -f "$gate_export/Cargo.toml" ] && grep -qE '^\[package\]' "$gate_export/Cargo.toml" 2>/dev/null; then
       package_dir="."
     else
       continue
     fi
   fi
-  manifest="$gate_cwd/$package_dir/Cargo.toml"
-  relative_manifest="${manifest#"$gate_cwd"/}"
+  manifest="$gate_export/$package_dir/Cargo.toml"
+  relative_manifest="${manifest#"$gate_export"/}"
   relative_manifest="${relative_manifest#./}"
   package_name="$(printf '%s\n' "$workspace_members" | awk -F '\t' -v manifest="$relative_manifest" '$1 == manifest { print $2; exit }')"
   if [ -z "$package_name" ]; then
@@ -730,25 +924,21 @@ The parent gate cannot verify it with a parent-workspace -p argument. Run that
 workspace's configured gate and commit its evidence, or push anyway with
 SKIP_LOCAL_GATE=1 git push.
 MESSAGE
-  cleanup_gate_cwd
   exit 1
 fi
 
 if [ -z "${gate_packages// /}" ]; then
   echo "pre-push: no package owns the changed files; local gate not needed" >&2
-  cleanup_gate_cwd
   exit 0
 fi
 
 # Run one gate step and say whose failure it was.
 #
-# The step runs inside the stack overlay, so its dependency graph is the local
-# working trees rather than the git sources CI resolves. When that graph is
-# broken -- a member whose version requirement lags its provider's, so the
-# overlay cannot patch it and one crate resolves to git while its dependencies
-# resolve local -- the step fails on a crate under `~/.cargo`, nowhere near the
-# push. Reporting that as "your clippy fails" is how a gate loses its
-# credibility and starts getting bypassed.
+# The step resolves the committed lock outside the overlay. When that graph is
+# broken -- a first-party git source CI cannot fetch either, or a lock that
+# does not resolve under `--locked` -- the step fails on a crate under
+# `~/.cargo`, nowhere near the push. Reporting that as "your clippy fails" is
+# how a gate loses its credibility and starts getting bypassed.
 #
 # The verdict defaults to 'ours' and only an affirmative case moves it. A
 # failing test emits no compile diagnostics at all, so "found nothing outside
@@ -784,13 +974,13 @@ normalise_diagnostic_path() {
 classify_gate_step() {
   local log="$1"
   shift
-  if (cd "$gate_cwd" && "$@" >"$log" 2>&1); then
+  if (cd "$gate_export" && "$@" >"$log" 2>&1); then
     echo ok
     return 0
   fi
 
-  # Two workspaces defining one package is the overlay meeting a lane, never
-  # the change: see the lane selection above `gate_specs`.
+  # Two workspaces defining one package is a `[patch]` overlay reaching the
+  # export, never the change: see where the export is built.
   if grep -q 'package collision in the lockfile' "$log"; then
     echo environment
     return 0
@@ -809,7 +999,7 @@ classify_gate_step() {
   fi
 
   local root_normalised inside=0 outside=0 location foreign_crate=0
-  root_normalised="$(normalise_diagnostic_path "$gate_cwd")"
+  root_normalised="$(normalise_diagnostic_path "$gate_export")"
 
   # Only locations under an `error` header count. A crate that fails to compile
   # still emits warnings for whatever did compile, and counting those made the
@@ -861,9 +1051,8 @@ report_broken_graph() {
 
 pre-push: the $step step failed, but every diagnostic points outside this
 repository, so the local dependency graph is broken rather than this change.
-That is usually the stack overlay: a member whose requirement lags its
-provider stays git-sourced while its dependencies resolve locally, and the
-halves disagree.
+That is usually the committed lock: a git source this machine cannot fetch,
+or a lock that no longer resolves under --locked.
 
 The gate could not run, so this push is NOT verified. First diagnostic:
 
@@ -871,31 +1060,29 @@ MESSAGE
   grep -m 1 -A 3 -E '^error' "$log" >&2 || true
   cat >&2 <<'MESSAGE'
 
-Check with `python scripts/atlas-stack-overlay.py check` at the stack root.
+Check with `python scripts/lockfile.py --check` in the member.
 MESSAGE
 }
 
-gate_specs="$gate_manifest"
+gate_package_specs=""
 for package_name in $gate_packages; do
-  gate_specs="$gate_specs -p $package_name"
+  gate_package_specs="$gate_package_specs -p $package_name"
 done
+gate_specs="$gate_manifest$gate_package_specs --locked"
+gate_reproduce="From a checkout of $gate_sha outside the stack overlay:"
 
 identity_checker="${stack_scripts:+$stack_scripts/atlas-build-identity.py}"
 identity_target_dir=""
 identity_target="${CARGO_BUILD_TARGET:-host}"
 identity_enabled=0
-identity_manifest_args=(--manifest "$repo_root/Cargo.toml")
-identity_cargo_manifest_args=()
-if [ -n "$gate_manifest" ]; then
-  identity_cargo_manifest_args=(--manifest-path "$repo_root/Cargo.toml")
-fi
+identity_cargo_manifest_args=(--manifest-path "$gate_export/Cargo.toml")
 if [ -f "$identity_checker" ]; then
   if [ -z "$python_bin" ]; then
     echo "pre-push: source identity checker is present but no python interpreter found" >&2
     exit 1
   fi
   if ! identity_target_dir="$(
-    cd "$gate_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest |
+    cd "$gate_export" && cargo metadata --no-deps --format-version 1 $gate_manifest |
       "$python_bin" -c 'import json, sys
 value = json.load(sys.stdin).get("target_directory")
 if not isinstance(value, str) or not value:
@@ -919,16 +1106,14 @@ run_identity_step() {
   local identity_command
   identity_command=(
     "$python_bin" "$identity_checker" run
-    --root "$repo_root"
+    --root "$gate_export"
     --package "$package_name"
     --target-dir "$identity_target_dir"
     --profile debug
     --target "$identity_target"
-    --manifest "$repo_root/Cargo.toml"
-    --command-cwd "$gate_cwd"
+    --manifest "$gate_export/Cargo.toml"
+    --command-cwd "$gate_export"
     --command-key "atlas-pre-push:$package_name"
-    --ignore-path "$repo_root/Cargo.lock"
-    "${identity_manifest_args[@]}"
     --
     "$@"
   )
@@ -964,12 +1149,12 @@ echo "pre-push: gating${gate_packages}" >&2
 
 # Formatting is workspace-wide and near-instant, and its failure is the
 # cheapest one to find here rather than on a runner.
-if ! (cd "$gate_cwd" && cargo fmt $gate_fmt_scope $gate_manifest -- --check >/dev/null); then
-  cat >&2 <<'MESSAGE'
+if ! (cd "$gate_export" && cargo fmt --all $gate_manifest -- --check >/dev/null); then
+  cat >&2 <<MESSAGE
 
-pre-push: `cargo fmt --check` fails, so the architecture validation would.
+pre-push: \`cargo fmt --check\` fails on $gate_sha, so the architecture validation would.
 
-Run `cargo fmt` and stage the result. To push anyway: SKIP_LOCAL_GATE=1 git push
+Run \`cargo fmt\` and commit the result. To push anyway: SKIP_LOCAL_GATE=1 git push
 MESSAGE
   exit 1
 fi
@@ -979,14 +1164,14 @@ fi
 # then failed CI on a `// SAFETY:` comment two lines above its block, because
 # nothing here ran the ratchet. It is text-only and fast, so it runs before the
 # compile steps; a member without the script has no ratchet to run.
-safety_ratchet="$gate_cwd/scripts/safety_ratchet.py"
+safety_ratchet="$gate_export/scripts/safety_ratchet.py"
 if [ -f "$safety_ratchet" ]; then
   if [ -z "$python_bin" ]; then
     echo "pre-push: scripts/safety_ratchet.py present but no python interpreter found" >&2
     echo "pre-push: push anyway with SKIP_LOCAL_GATE=1 git push" >&2
     exit 1
   fi
-  if ! (cd "$gate_cwd" && "$python_bin" scripts/safety_ratchet.py check >&2); then
+  if ! (cd "$gate_export" && "$python_bin" scripts/safety_ratchet.py check >&2); then
     cat >&2 <<'MESSAGE'
 
 pre-push: the SAFETY ratchet fails, so CI's workspace job would. Put a
@@ -1007,23 +1192,23 @@ fi
 # without extra flags: adding `-D warnings` here would fail on the
 # pre-existing per-crate debt the ratchet exists to burn down, and a gate
 # that fails on debt you did not write is a gate that gets bypassed.
-gate_log="$(mktemp)"
-trap 'rm -f "$gate_log"; restore_gate_lock' EXIT INT TERM
+gate_log="$(mktemp "$tmp_base/pg-log.XXXXXX")"
+run_temps+=("$gate_log")
 
 if [ "$identity_enabled" -eq 1 ]; then
   for package_name in $gate_packages; do
-    run_identity_step "$package_name" clippy cargo clippy "${identity_cargo_manifest_args[@]}" -p "$package_name" --all-targets $gate_lock_arg
+    run_identity_step "$package_name" clippy cargo clippy "${identity_cargo_manifest_args[@]}" -p "$package_name" --all-targets --locked
   done
 else
-  case "$(classify_gate_step "$gate_log" cargo clippy $gate_specs$gate_lock_arg --all-targets)" in
+  case "$(classify_gate_step "$gate_log" cargo clippy $gate_specs --all-targets)" in
     ours)
       cat >&2 <<MESSAGE
 
 pre-push: clippy fails for$gate_packages, so the CI ratchet would.
 
-Reproduce:
+$gate_reproduce
 
-    cargo clippy$gate_specs$gate_lock_arg --all-targets
+    cargo clippy$gate_package_specs --all-targets --locked
 
 To push anyway: SKIP_LOCAL_GATE=1 git push
 MESSAGE
@@ -1039,18 +1224,18 @@ fi
 if command -v cargo-nextest >/dev/null 2>&1; then
   if [ "$identity_enabled" -eq 1 ]; then
     for package_name in $gate_packages; do
-      run_identity_step "$package_name" tests cargo nextest run "${identity_cargo_manifest_args[@]}" -p "$package_name" $gate_lock_arg
+      run_identity_step "$package_name" tests cargo nextest run "${identity_cargo_manifest_args[@]}" -p "$package_name" --locked --no-tests=pass
     done
   else
-    case "$(classify_gate_step "$gate_log" cargo nextest run $gate_specs$gate_lock_arg)" in
+    case "$(classify_gate_step "$gate_log" cargo nextest run $gate_specs --no-tests=pass)" in
       ours)
         cat >&2 <<MESSAGE
 
 pre-push: tests fail for$gate_packages.
 
-Reproduce:
+$gate_reproduce
 
-    cargo nextest run$gate_specs$gate_lock_arg
+    cargo nextest run$gate_package_specs --locked --no-tests=pass
 
 To push anyway: SKIP_LOCAL_GATE=1 git push
 MESSAGE
@@ -1072,18 +1257,18 @@ fi
 # packages are documented here the same way.
 if [ "$identity_enabled" -eq 1 ]; then
   for package_name in $gate_packages; do
-    run_identity_step "$package_name" rustdoc env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps "${identity_cargo_manifest_args[@]}" -p "$package_name" $gate_lock_arg
+    run_identity_step "$package_name" rustdoc env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps "${identity_cargo_manifest_args[@]}" -p "$package_name" --locked
   done
 else
-  case "$(classify_gate_step "$gate_log" env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps $gate_specs$gate_lock_arg)" in
+  case "$(classify_gate_step "$gate_log" env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps $gate_specs)" in
     ours)
       cat >&2 <<MESSAGE
 
 pre-push: rustdoc fails for$gate_packages, so the CI rustdoc shard would.
 
-Reproduce:
+$gate_reproduce
 
-    RUSTDOCFLAGS="-D warnings" cargo doc --no-deps$gate_specs$gate_lock_arg
+    RUSTDOCFLAGS="-D warnings" cargo doc --no-deps$gate_package_specs --locked
 
 To push anyway: SKIP_LOCAL_GATE=1 git push
 MESSAGE

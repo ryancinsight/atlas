@@ -4,4 +4,5 @@ outcome: a decided fix for the recurring pattern where the stack `[patch]` overl
 - Recommended direction (b): have the overlay resolve to each member's last *committed* revision rather than its working tree, making peer WIP invisible stack-wide until committed. This is `[arch]` (revises the development-overlay contract) and needs an ADR.
 - Falsified: option (c) (narrow the overlay per session to repos an agent edits) — a fourth occurrence (2026-08-13) showed churn spread across four repos a branch never touched; narrowing enough to avoid it would defeat the overlay.
 - Current fallback (option a): treat upstream redness as a park-and-switch signal (already the contention-response default), but retrying costs real time since a green run on a churning crate is a peer-quiet window, not evidence.
-- next: draft the ADR for option (b) and implement.
+- Staleness variant (2026-09-26): 25 of 27 member trees sat 16-206 commits behind their origin default (apollo 110), so the overlay built siblings from stale committed code; a coeus agent read apollo's pre-hermes-6ea49ec calls as a landed upstream break that origin had already fixed. Option (b) must pin to the fetched origin default, not the tree's HEAD.
+- next: draft the ADR for option (b) (fetched-origin revisions) and implement.

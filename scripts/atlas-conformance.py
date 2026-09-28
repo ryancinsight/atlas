@@ -62,6 +62,7 @@ import tempfile
 import threading
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
+from enum import Enum
 from pathlib import Path
 
 try:
@@ -76,7 +77,10 @@ from atlas_git_process import (
     execute as execute_git,
     extract_archive,
 )
-from atlas_stack import ROOT, is_git_ignored, registered_member_names, staleness_note
+from atlas_stack import (
+    ROOT, WORKTREE_BOUND, canonical_lane, is_git_ignored, registered_member_names,
+    staleness_note,
+)
 
 GIT_TIMEOUT_SECONDS = 60
 ARCHIVE_TIMEOUT_SECONDS = 120
@@ -322,6 +326,7 @@ CLASSES = [
     "workflow_malformed_yaml", "pull_request_target_use",
     "missing_cargo_lock", "orphan_modules",
     "seqcst_production", "crate_level_allows", "excess_worktrees",
+    "worktrees_outside_lane_root", "detached_lanes",
     "lane_kernel_uninlined", "toolchain_request_overridden",
     "default_branch_cancel_in_progress", "substrate_contract_violations",
     "balance_domain_edges", "bare_git_dependency",
@@ -332,14 +337,6 @@ CLASSES = [
     "board_items_outside_status_set", "board_items_without_anchor",
     "board_items_without_priority", "board_checklist_files",
 ]
-
-#
-# The bound is a creation precondition, so it only holds if something checks
-# it. Nothing did, and the count reached five on one member and 26 lane
-# directories stack-wide before anyone measured. Counting it here makes the
-# audit mechanical: the ratchet then refuses a third tree the same way it
-# refuses any other debt increase.
-WORKTREE_BOUND = 2
 
 # The shared build directory routed through the root `.cargo/config.toml`.
 # The cache-retention policy must cover this directory by name: a member
@@ -736,17 +733,15 @@ def count_root_sprawl(
     return carried, untracked
 
 
-def count_excess_worktrees(repo: Path) -> int:
-    """Registered working trees beyond [`WORKTREE_BOUND`] (main plus one lane).
+def linked_worktrees(repo: Path) -> list[Path]:
+    """The registration directories under `.git/worktrees/`, one per lane.
 
-    Reads the entries under `.git/worktrees/`, one per *linked* worktree; the
-    primary checkout has no entry, which is why the bound is reduced by one
-    before subtracting. Registration is the right thing to count: a directory
-    left behind by a removed worktree is not a tree, and a tree whose
-    directory was hand-deleted still is one until `git worktree prune` runs.
-    Both were present in the stack when this was written.
+    The primary checkout has no entry. Registration is the right thing to
+    count: a directory left behind by a removed worktree is not a tree, and a
+    tree whose directory was hand-deleted still is one until `git worktree
+    prune` runs. Both were present in the stack when this was written.
 
-    Zero when there is nothing to read, so a non-repository contributes no
+    Empty when there is nothing to read, so a non-repository contributes no
     violation it cannot substantiate.
     """
     git_dir = repo / ".git"
@@ -761,9 +756,33 @@ def count_excess_worktrees(repo: Path) -> int:
                 git_dir = (repo / gitdir_ref[len("gitdir:"):].strip()).resolve()
     wt_dir = git_dir / "worktrees"
     if not wt_dir.is_dir():
-        return 0
-    linked = sum(1 for entry in wt_dir.iterdir() if entry.is_dir())
-    return max(0, linked - (WORKTREE_BOUND - 1))
+        return []
+    return sorted(entry for entry in wt_dir.iterdir() if entry.is_dir())
+
+
+def count_excess_worktrees(repo: Path) -> int:
+    """Registered working trees beyond [`WORKTREE_BOUND`] (main plus one lane)."""
+    return max(0, len(linked_worktrees(repo)) - (WORKTREE_BOUND - 1))
+
+
+def count_lane_placement(repo: Path) -> tuple[int, int]:
+    """(lanes outside the canonical lane roots, lanes on detached HEAD).
+
+    Both generators behind ATLAS-LANE-SPRAWL-222 made exactly these: an A/B
+    run left one detached tree per baseline revision under `tmp/`, and an
+    audit fanned out `D:/<member>-audit` trees. The lane is read from its
+    registration (`gitdir` names `<lane>/.git`, `HEAD` holds a symbolic ref
+    unless detached), so a hand-deleted lane still counts until pruned.
+    """
+    outside = detached = 0
+    for entry in linked_worktrees(repo):
+        gitdir = (entry / "gitdir").read_text(errors="replace").strip()
+        if gitdir and not canonical_lane(Path(gitdir).parent.resolve()):
+            outside += 1
+        head = entry / "HEAD"
+        if head.is_file() and not head.read_text(errors="replace").startswith("ref:"):
+            detached += 1
+    return outside, detached
 
 
 # Directories the stack used as a run-output segregation root before
@@ -1018,8 +1037,126 @@ def _cached_text(path: Path) -> str | None:
     return cache[key]
 
 
+def _literal_end(text: str, start: int) -> int:
+    """Index just past the string or char literal opening at `start`.
+
+    `text[start]` is `"` or `'`. A `'` is only a char literal when a closing
+    quote follows the one-character body; otherwise it is a lifetime
+    (`'static`, `'a`), which has no terminator to scan for. Escapes are
+    consumed as a unit so `'\\''` and `"a\\"b"` close where they mean to.
+    """
+    quote = text[start]
+    i = start + 1
+    n = len(text)
+    if quote == "'":
+        if i < n and text[i] == "\\":
+            return min(n, i + 2)
+        return min(n, i + 1) if i < n and text[i + 1 : i + 2] == "'" else start
+    while i < n:
+        if text[i] == "\\":
+            i += 2
+        elif text[i] == '"':
+            return i + 1
+        else:
+            i += 1
+    return n
+
+
+def _raw_string_end(text: str, start: int) -> int | None:
+    """Index just past the raw string beginning at `start`, or `None`.
+
+    `start` is the `r` of an `r".."` / `r#".."#` literal, optionally `b`- or
+    `br`-prefixed, with the opening quote or first `#` immediately after it.
+    A raw string's contents are never a comment: an `r"https://host"` operand
+    contains `//` that a naive strip would read as a line comment.
+    """
+    n = len(text)
+    j = start + 1
+    while j < n and text[j] in "r#":
+        j += 1
+    if j >= n or text[j] != '"':
+        return None
+    hashes = j - start - 1
+    terminator = '"' + "#" * hashes
+    end = text.find(terminator, j + 1)
+    return n if end < 0 else end + len(terminator)
+
+
+def strip_comments(text: str) -> str:
+    """Blank every Rust comment in `text`, keeping every offset and newline.
+
+    Two properties are load-bearing and both are why this is not a regex
+    substitution or a line filter.
+
+    *Offsets survive.* `_walk_mods` indexes back into the matched text for the
+    `#[path = ..]` attribute belonging to a declaration, so a strip that
+    shortened the string would slide the attribute out from under it.
+    Blanking in place (newlines kept, so line numbers hold too) leaves every
+    index valid and every match position a real code position.
+
+    *Literals survive.* `"https://host"` and `r#"a // b"#` contain `//` that a
+    naive scan reads as a line comment, and blanking from there to the newline
+    erases real code on the same line. That failure is silent and in the
+    dangerous direction: these counts are a ratchet, and a ratchet that
+    undercounts is a floor that no longer holds. String and char literals, raw
+    string hashes, and `'a` lifetimes are therefore scanned past rather than
+    blanked.
+
+    This is what makes a commented-out declaration stop being one. `MOD_DECL`
+    has no line-start anchor, so `// pub mod poiseuille_bifurcation;` read as
+    a live module edge: the walk believed it had reached the file, and
+    `orphan_modules` — whose entire job is surfacing files rustc never
+    compiled — reported zero for a 386-line file that no build ever built.
+    The mirror image was worse: deleting that comment as a
+    `commented_out_code` cleanup *raised* the class, so the ratchet penalised
+    the correct action (audit §3.4).
+
+    It is equally what makes prose about a code token stop counting as the
+    token. A doc comment arguing *against* `SeqCst` ("lost under any ordering
+    (SeqCst included)") is reasoning, not a use of it, and counting it meant
+    the class could not reach zero without deleting the happens-before
+    rationale — 45 of moirai's 80 recorded sites were comment text (audit
+    §3.3).
+    """
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        if text.startswith("//", i):
+            end = text.find("\n", i)
+            end = n if end < 0 else end
+        elif text.startswith("/*", i):
+            depth, end = 1, i + 2
+            while end < n and depth:
+                if text.startswith("/*", end):
+                    depth, end = depth + 1, end + 2
+                elif text.startswith("*/", end):
+                    depth, end = depth - 1, end + 2
+                else:
+                    end += 1
+        elif text[i] in "rb" and (raw_end := _raw_string_end(text, i)) is not None:
+            i = raw_end
+            continue
+        elif text[i] in "\"'" and (lit_end := _literal_end(text, i)) > i:
+            i = lit_end
+            continue
+        else:
+            i += 1
+            continue
+        for k in range(i, min(end, n)):
+            if out[k] != "\n":
+                out[k] = " "
+        i = end
+    return "".join(out)
+
+
 def _walk_mods(root: Path, seen: set[Path]) -> None:
-    """Depth-first close the module and include graphs from one crate root."""
+    """Depth-first close the module and include graphs from one crate root.
+
+    The graph is read from `strip_comments` output, so a declaration that was
+    commented out is not an edge. Reaching fewer files can only *raise*
+    `orphan_modules` — which is the point: a file no edge names is a file
+    rustc, clippy and the test runner never built.
+    """
     root = root.resolve()
     if root in seen or not root.is_file():
         return
@@ -1027,8 +1164,9 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
     text = _cached_text(root)
     if text is None:
         return
-    for m in MOD_DECL.finditer(text):
-        attr = PATH_ATTR.search(text[:m.start()].rstrip())
+    code = strip_comments(text)
+    for m in MOD_DECL.finditer(code):
+        attr = PATH_ATTR.search(code[:m.start()].rstrip())
         for cand in _child_candidates(root, m.group(1), attr.group(1) if attr else None):
             if cand.is_file():
                 _walk_mods(cand, seen)
@@ -1038,7 +1176,7 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
          if (parent / "Cargo.toml").is_file()),
         root.parent,
     )
-    for match in INCLUDE_PATH.finditer(text):
+    for match in INCLUDE_PATH.finditer(code):
         relative = match.group("relative")
         included = match.group("concat") or relative
         owner = crate_root if match.group("concat") else root.parent
@@ -1277,7 +1415,7 @@ def executable_source_dirs(
     return roots
 
 
-CFG_ATTR_OPEN = re.compile(r"#\[\s*cfg\s*\(")
+CFG_ATTR_OPEN = re.compile(r"#!?\[\s*cfg\s*\(")
 CFG_PREDICATE_TOKEN = re.compile(r"[A-Za-z_]\w*|\(|\)")
 
 
@@ -1391,20 +1529,24 @@ def split_test_region(text: str) -> tuple[str, str]:
             break
         if not cfg_predicate_is_test_gated(text[match.end():close - 1]):
             continue
+        # An inner attribute (`#![cfg(test)]`) is file-scoped: rustc compiles
+        # the whole file only under that predicate, so the whole file is test
+        # text. `_item_end` would instead stop at the first top-level `;`, and
+        # the regex previously could not match `#![` at all -- so a
+        # whole-file test module was counted as production in full. gaia's
+        # `csg/boolean/indexed_tests.rs` is 1041 lines carrying 34 `.unwrap()`
+        # that never run outside the test configuration, and its recorded
+        # `unwrap_production` floor sat 34 above the truth (audit §3.2).
+        if text.startswith("#!", match.start()):
+            production.append(text[cursor:match.start()])
+            tests.append(text[match.start():])
+            return "".join(production), "".join(tests)
         item_end = _item_end(text, attribute_end + 1)
         production.append(text[cursor:match.start()])
         tests.append(text[match.start():item_end])
         cursor = item_end
     production.append(text[cursor:])
     return "".join(production), "".join(tests)
-
-
-def strip_doc_comments(text: str) -> str:
-    """Drop `///` and `//!` lines: their code fences are doctests, not production."""
-    return "\n".join(
-        ln for ln in text.splitlines()
-        if not ln.lstrip().startswith(("///", "//!"))
-    )
 
 
 LANE_KERNEL_IMPL = re.compile(r"impl(?:<[^>]*>)?\s+LaneKernel\s*<")
@@ -1621,13 +1763,15 @@ def scan_repo(
     member_for_package: dict[str, str] | None = None,
     revision: str | None = None,
     member: str | None = None,
+    config_root: Path | None = None,
 ) -> dict[str, int]:
     """Count every debt class in `repo`'s content.
 
-    `live_repo` is the checkout whose registration state the two live-only
-    classes read (`excess_worktrees` from `.git/worktrees`, `target_forks`
-    from the directory listing) when `repo` is an archived snapshot of a
-    recorded revision rather than the checkout itself.
+    `live_repo` is the checkout whose registration state the live-only
+    classes read (`excess_worktrees` and the lane-placement classes from
+    `.git/worktrees`, `target_forks` from the directory listing) when `repo`
+    is an archived snapshot of a recorded revision rather than the checkout
+    itself.
 
     `member_for_package` maps each `[package] name` to the member
     repository it lives under; the architecture test uses it to
@@ -1638,6 +1782,7 @@ def scan_repo(
     because it has no archive-wide mapping.
     """
     live_repo = live_repo or repo
+    config_root = config_root or ROOT
     _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
     has_cargo = (repo / "Cargo.toml").is_file()
@@ -1680,15 +1825,22 @@ def scan_repo(
             "benches" in path.parts or any(
                 source in path.parents for source in executable_dirs
             )
-        # Doc-comment bodies are doctests, i.e. test code. Counting `.unwrap()`
-        # inside `///` lines reported 23 "production unwraps" for a repo whose
-        # workspace denies `unwrap_used` outright — every one was a doc example.
-        # `prod_code` is built once and shared by the two doc-stripped classes.
-        prod_code = strip_doc_comments(prod)
+        # Every class that counts a *code* token reads `prod_code`, the
+        # comment-free production text, never the raw `prod` region. Two
+        # reasons, both measured: doc-comment bodies are doctests, so a
+        # `.unwrap()` inside a `///` example is documentation, not a
+        # production panic (23 such "unwraps" were reported for a repo whose
+        # workspace denies `unwrap_used` outright); and prose *about* a token
+        # is not a use of it — a doc comment arguing against `SeqCst` raised
+        # that class, and 45 of moirai's 80 recorded sites were comment text
+        # (audit §3.3). `unwrap_production`, `seqcst_production` and
+        # `print_dbg` are the three such classes, and all three read this one
+        # region so the rule cannot be re-introduced on a fourth.
+        prod_code = strip_comments(prod)
         c["unwrap_production"] += prod_code.count(".unwrap()")
         c["allow_sites"] += prod.count("#[allow(")
         c["crate_level_allows"] += len(CRATE_LEVEL_ALLOW.findall(prod))
-        c["seqcst_production"] += len(SEQCST.findall(prod))
+        c["seqcst_production"] += len(SEQCST.findall(prod_code))
         c["markers"] += len(MARKER.findall(prod))
         c["reexport_shims"] += reexport_shims(prod)
         c["type_suffixed_fns"] += sum(
@@ -1699,11 +1851,10 @@ def scan_repo(
             1 for ln in prod.splitlines() if COMMENTED_CODE.match(ln)
         )
         if not is_bin:
-            # Doc-comment bodies are doctests, i.e. test code — the same
-            # reason `unwrap_production` strips them above. A `println!`
-            # inside a `//! ```ignore` example (consus-zarr's chunk-key
-            # loop) is documentation prose, not library debug output.
-            # `prod_code` is the once-built doc-stripped text from above.
+            # Over the comment-free region, for the same reason
+            # `unwrap_production` reads it: a `println!` inside a
+            # `//! ```ignore` example (consus-zarr's chunk-key loop) is
+            # documentation prose, not library debug output.
             hits = len(PRINT_DBG.findall(prod_code))
             # Exempt `println!("cargo:...")` in build.rs — the canonical
             # Cargo build-script protocol.  These are required build
@@ -1719,6 +1870,9 @@ def scan_repo(
         repo, live_repo, member
     )
     c["excess_worktrees"] = count_excess_worktrees(live_repo)
+    c["worktrees_outside_lane_root"], c["detached_lanes"] = count_lane_placement(
+        live_repo
+    )
     c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
     c["crlf_stored_blobs"] = count_crlf_stored_blobs(
@@ -1733,12 +1887,12 @@ def scan_repo(
     # covered. A member that builds into an unmanaged directory is outside
     # every eviction cadence by construction.
     if has_cargo:
-        config = ROOT / ".cargo" / "config.toml"
+        config = config_root / ".cargo" / "config.toml"
         routed = False
         if config.is_file():
             match = TARGET_DIR_SETTING.search(config.read_text(errors="replace"))
             routed = match is not None and Path(match.group(1)).name == "target"
-        policy = ROOT / "scripts" / "data" / "atlas-cache-retention.toml"
+        policy = config_root / "scripts" / "data" / "atlas-cache-retention.toml"
         if not routed or not policy.is_file():
             c["cache_retention_policy_missing"] = 1
     c["orphan_modules"] = count_orphan_modules(repo, manifests)
@@ -1804,24 +1958,14 @@ def materialize_member(
 ) -> tuple[Path, Path]:
     """Return `(content, live)` for a provider whose recorded gitlink is `expected`.
 
-    A clean checkout at `expected` is its own snapshot. Otherwise the recorded
-    revision is extracted with `git archive` into `scratch` (fetching first
-    when the object is absent), so a peer holding the checkout behind or
-    dirty never blocks a recorded-revision scan and never leaks its state
-    into the counts: members of this stack are routinely behind — eight of
-    twenty-five the day the clean-checkout gate was written.
+    The recorded revision is always materialized from its Git tree into
+    `scratch`, even when the checkout appears clean. Returning a live checkout
+    would let a concurrent write change the bytes after the revision was
+    selected and would make the scan non-deterministic.
     """
-    actual = git_output("rev-parse", "HEAD", cwd=provider).strip()
-    dirty = git_output("status", "--porcelain", "--ignore-submodules=all", cwd=provider).strip()
-    if actual == expected and not dirty:
-        return provider, provider
     try:
-        payload = archive(provider, expected, timeout=ARCHIVE_TIMEOUT_SECONDS)
-    except GitProcessError as exc:
-        if exc.timed_out:
-            raise RuntimeError(
-                f"repos/{provider.name}: archive exceeded its deadline for {expected[:12]}"
-            ) from exc
+        content = link_snapshot(provider, expected, scratch)
+    except RuntimeError as exc:
         try:
             fetched = execute_git(
                 provider,
@@ -1838,38 +1982,25 @@ def materialize_member(
             raise RuntimeError(
                 f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
                 f"provider's object store: fetch failed: {detail or 'unknown Git error'}"
-            )
+            ) from exc
         try:
-            payload = archive(provider, expected, timeout=ARCHIVE_TIMEOUT_SECONDS)
-        except GitProcessError as retry_exc:
+            content = link_snapshot(provider, expected, scratch)
+        except RuntimeError as retry_exc:
             raise RuntimeError(
                 f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
                 f"provider's object store: {retry_exc}"
             ) from retry_exc
-    content = scratch / provider.name
-    content.mkdir(parents=True)
-    extract_archive(payload, content)
-    # The provider gate accepts a checkout by its `.git` marker; the snapshot
-    # carries one so the same gate admits it.
-    (content / ".git").write_text(f"gitdir: archived {expected}\n", encoding="utf-8")
     return content, provider
 
 
 def link_snapshot(checkout: Path, revision: str, scratch: Path) -> Path:
-    """Materialize `revision` of `checkout` under `scratch`, reusing unchanged files.
+    """Materialize `revision` of `checkout` under `scratch` from Git blobs.
 
-    Each tracked path whose working-tree content already matches `revision`
-    is hard-linked from the checkout; every other path is written from a
-    temporary index by `checkout-index`, so it carries the line-ending
-    filters a checkout applies, exactly as `git archive` would. Untracked
-    and ignored files never enter, and the checkout's index is not touched.
-
-    `git archive` gives the same content, but every file it extracts is new
-    to the filesystem, and on this Windows host first opening them dominated:
-    a kwavers revision scan took 173 s archived against 24 s in place
-    (2026-09-24), outside any pre-push budget. `scratch` must share the
-    checkout's volume for links to form; a path that cannot be linked is
-    copied, and the copies are reported since they cost that time again.
+    A temporary index reads the requested tree and `checkout-index` writes
+    independent files. Hard-linking the live checkout would let a later
+    working-tree write mutate the supposed revision snapshot, so every file
+    comes from the requested Git tree. Untracked and ignored files never enter,
+    and the checkout's index is not touched.
     """
     listing = git_output("ls-tree", "-r", "-z", "--full-tree", revision, cwd=checkout)
     tracked: list[tuple[str, str]] = []
@@ -1878,62 +2009,28 @@ def link_snapshot(checkout: Path, revision: str, scratch: Path) -> Path:
         mode = meta.split(" ", 1)[0]
         if mode != "160000":
             tracked.append((mode, path))
-    try:
-        diff = execute_git(
-            checkout,
-            ("diff", "--no-renames", "--name-only", "-z", revision, "--"),
-            env=dict(os.environ, GIT_OPTIONAL_LOCKS="0"),
-            timeout=GIT_TIMEOUT_SECONDS,
-        )
-    except GitProcessError as exc:
-        raise RuntimeError(f"{checkout}: cannot diff against {revision[:12]}: {exc}") from exc
-    if diff.returncode:
-        detail = diff.stderr.decode("utf-8", errors="replace").strip()
-        raise RuntimeError(detail or f"{checkout}: cannot diff against {revision[:12]}")
-    differs = set(filter(None, diff.stdout.decode("utf-8", errors="replace").split("\0")))
-    # A symlink is written as the checkout would write it, never linked.
-    written = [path for mode, path in tracked if path in differs or mode == "120000"]
     content = scratch / checkout.name
     content.mkdir(parents=True)
-    made: set[Path] = set()
-    copied = 0
-    for mode, path in tracked:
-        if path in differs or mode == "120000":
-            continue
-        target = content / path
-        if target.parent not in made:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            made.add(target.parent)
-        try:
-            os.link(checkout / path, target)
-        except OSError:
-            shutil.copyfile(checkout / path, target)
-            copied += 1
-    if written:
-        fd, index_path = tempfile.mkstemp(prefix="atlas-snapshot-index-")
-        os.close(fd)
-        try:
-            env = dict(os.environ, GIT_INDEX_FILE=index_path)
-            for args, stdin in (
-                (("read-tree", revision), None),
-                (("checkout-index", f"--prefix={content.as_posix()}/", "-z", "--stdin"),
-                 "\0".join(written).encode("utf-8")),
-            ):
-                result = execute_git(
-                    checkout, args, stdin=stdin, env=env, timeout=ARCHIVE_TIMEOUT_SECONDS
+    fd, index_path = tempfile.mkstemp(prefix="atlas-snapshot-index-")
+    os.close(fd)
+    try:
+        env = dict(os.environ, GIT_INDEX_FILE=index_path)
+        for args in (
+            ("read-tree", revision),
+            ("checkout-index", "--all", f"--prefix={content.as_posix()}/"),
+        ):
+            result = execute_git(
+                checkout, args, env=env, timeout=ARCHIVE_TIMEOUT_SECONDS
+            )
+            if result.returncode:
+                detail = result.stderr.decode("utf-8", errors="replace").strip()
+                raise RuntimeError(
+                    f"{checkout}: {args[0]} at {revision[:12]} failed: {detail}"
                 )
-                if result.returncode:
-                    detail = result.stderr.decode("utf-8", errors="replace").strip()
-                    raise RuntimeError(
-                        f"{checkout}: {args[0]} at {revision[:12]} failed: {detail}"
-                    )
-        except GitProcessError as exc:
-            raise RuntimeError(f"{checkout}: cannot write {revision[:12]}: {exc}") from exc
-        finally:
-            os.unlink(index_path)
-    if copied:
-        print(f"snapshot: {copied} file(s) copied, not linked ({scratch} is on "
-              f"another volume from {checkout})", file=sys.stderr)
+    except GitProcessError as exc:
+        raise RuntimeError(f"{checkout}: cannot write {revision[:12]}: {exc}") from exc
+    finally:
+        os.unlink(index_path)
     (content / ".git").write_text(f"gitdir: archived {revision}\n", encoding="utf-8")
     return content
 
@@ -1955,7 +2052,12 @@ def scan_member(
     expected = gitlink_revision(root_revision, f"repos/{name}", stack_root)
     with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as scratch:
         content, live = materialize_member(member, expected, Path(scratch))
-        return scan_repo(content, live_repo=live, revision=expected)
+        config_root, _ = materialize_member(
+            stack_root, root_revision, Path(scratch)
+        )
+        return scan_repo(
+            content, live_repo=live, revision=expected, config_root=config_root
+        )
 
 
 def scan_stack(
@@ -1964,9 +2066,8 @@ def scan_stack(
     """Scan every registered member.
 
     With `root_revision`, each member is scanned at the gitlink that revision
-    records — from the checkout when it is clean and at that commit, else from
-    an archived snapshot (`materialize_member`).     Without it, the live trees
-    are scanned as they are (`--worktree`). A registered member with no
+    records from materialized Git snapshots (`materialize_member`). Without it,
+    the live trees are scanned as they are (`--worktree`). A registered member with no
     recorded gitlink (promotion mid-flight) is skipped with a stderr
     warning before the materialization gate: it has no pinned revision
     to measure, a clean checkout has no directory for it at all, and one
@@ -2004,6 +2105,14 @@ def scan_stack(
         repos = require_materialized_providers(stack_root, members)
         if repos:
             with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as scratch:
+                stack_content = stack_root
+                if root_revision is not None:
+                    stack_expected = git_output(
+                        "rev-parse", f"{root_revision}^{{commit}}", cwd=stack_root
+                    ).strip()
+                    stack_content, _ = materialize_member(
+                        stack_root, stack_expected, Path(scratch)
+                    )
                 targets = []
                 targeted: list[Path] = []
                 skipped = []
@@ -2075,6 +2184,7 @@ def scan_stack(
                             live_repo=target[1],
                             member_for_package=member_for_package,
                             revision=target[2],
+                            config_root=stack_content,
                         ),
                         targets,
                     )
@@ -2086,7 +2196,7 @@ def scan_stack(
                 # materialized content paths so a recorded-revision scan
                 # measures pinned state, never live dirt.
                 gate_hashes = set()
-                owned_gate = stack_root / "scripts" / "git-hooks" / "pre-push"
+                owned_gate = stack_content / "scripts" / "git-hooks" / "pre-push"
                 if owned_gate.is_file():
                     gate_hashes.add(_hook_version(owned_gate.read_bytes()))
                 for target in targets:
@@ -2208,6 +2318,8 @@ def baseline_raises(
 HOST_OBSERVED_CLASSES = (
     "target_forks",
     "excess_worktrees",
+    "worktrees_outside_lane_root",
+    "detached_lanes",
     "root_sprawl_untracked",
     "second_output_root",
 )
@@ -2233,15 +2345,55 @@ def ratchet_delta(
     return regressions, host, tightenings
 
 
+class HostStateIntent(Enum):
+    """Whether host-observed rows are part of this scan's acceptance gate."""
+
+    LIVE_AUDIT = "live_audit"
+    REVISION_JUDGEMENT = "revision_judgement"
+
+
+def host_state_gates(intent: HostStateIntent) -> bool:
+    """Whether this machine's checkout state should fail the run.
+
+    Host state gates an *audit of the working tree* and does not gate a
+    *judgement about a revision*. The two are told apart by which revision
+    the caller named:
+
+    - `--revision <rev>` (the stack root revision) and `--member-revision
+      <rev>` (a member's pushed commit) select committed content. Host state
+      is reported but does not fail a judgement about that content.
+    - The bare default scan, `--member-path` without `--member-revision`,
+      and `--worktree` read live checkout state. For those, a forked `target/`
+      or a stray lane is a real fact worth failing on. `--worktree` takes
+      precedence over a named stack revision because it selects live trees.
+      A CI runner measures zero for host state by construction, which is why
+      every committed baseline records zero.
+
+    Refusing a *push* over host state refuses it on a peer's state. Observed
+    on atlas PR #341: `debt_gate` in `.githooks/pre-push` ran
+    `check --repo leto --revision <tip>` over a pin advance, which materializes
+    leto from the gitlink, and the run failed on `leto/excess_worktrees` -- a
+    lane a live peer had been working in for two hours -- carrying
+    `0 regression(s), 0 tightening(s)`. The same shape reached a member's own
+    pre-push through `--member-revision`.
+    """
+    return intent is HostStateIntent.LIVE_AUDIT
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", nargs="?", default="report",
                         choices=["report", "generate", "check"])
     parser.add_argument(
         "--revision",
-        default="HEAD",
+        default=None,
         metavar="REV",
-        help="scan this root Git revision and its recorded provider gitlinks",
+        help="scan this root Git revision and its recorded provider gitlinks "
+        "(default HEAD). Naming a revision marks the run as a judgement "
+        "about that revision, which is what both pre-push gates do, so host "
+        "state -- this machine's lanes, forked caches, scratch files -- is "
+        "reported but does not fail it unless --worktree or a live "
+        "--member-path selects checkout content.",
     )
     parser.add_argument(
         "--worktree",
@@ -2305,6 +2457,10 @@ def main() -> int:
         print("--member-revision names a commit of the --member-path checkout; "
               "give both", file=sys.stderr)
         return 2
+    if args.worktree and args.member_revision is not None:
+        print("--worktree selects checkout content and cannot be combined "
+              "with --member-revision", file=sys.stderr)
+        return 2
     if mode == "generate" and args.repo:
         print("refusing to generate a baseline from a single repo; omit --repo",
               file=sys.stderr)
@@ -2334,8 +2490,16 @@ def main() -> int:
                     prefix="atlas-conformance-", dir=store
                 ) as scratch:
                     content = link_snapshot(member, pushed, Path(scratch))
+                    baseline_root = args.baseline_rev or "HEAD"
+                    config_root, _ = materialize_member(
+                        ROOT, baseline_root, Path(scratch)
+                    )
                     results = {args.repo: scan_repo(
-                        content, live_repo=member, revision=pushed, member=args.repo
+                        content,
+                        live_repo=member,
+                        revision=pushed,
+                        member=args.repo,
+                        config_root=config_root,
                     )}
         elif args.repo:
             member = ROOT / "repos" / args.repo
@@ -2344,14 +2508,14 @@ def main() -> int:
                 return 2
             require_materialized_providers(ROOT, {args.repo})
             root_revision = None if args.worktree else git_output(
-                "rev-parse", "--verify", f"{args.revision}^{{commit}}"
+                "rev-parse", "--verify", f"{args.revision or 'HEAD'}^{{commit}}"
             ).strip()
             results = {args.repo: scan_member(ROOT, args.repo, root_revision)}
         elif args.worktree:
             results = scan_stack(ROOT)
         else:
             root_revision = git_output(
-                "rev-parse", "--verify", f"{args.revision}^{{commit}}"
+                "rev-parse", "--verify", f"{args.revision or 'HEAD'}^{{commit}}"
             ).strip()
             results = scan_stack(ROOT, root_revision)
     except RuntimeError as exc:
@@ -2431,10 +2595,17 @@ def main() -> int:
     _, _, tightenings = ratchet_delta(base, results)
     bound = base
     regressions, host, _ = ratchet_delta(bound, results)
-    # A revision scan judges what the push carries; the live checkout's lanes,
-    # forked caches, and scratch files are not in it, and refusing a push over
-    # them refuses it on a peer's state.
-    host_gates = args.member_revision is None
+    if args.member_path is not None:
+        host_state_intent = (
+            HostStateIntent.REVISION_JUDGEMENT
+            if args.member_revision is not None
+            else HostStateIntent.LIVE_AUDIT
+        )
+    elif args.revision is not None and not args.worktree:
+        host_state_intent = HostStateIntent.REVISION_JUDGEMENT
+    else:
+        host_state_intent = HostStateIntent.LIVE_AUDIT
+    host_gates = host_state_gates(host_state_intent)
     failed = bool(regressions or (host and host_gates))
     if args.json:
         print(json.dumps({
@@ -2471,8 +2642,8 @@ def main() -> int:
             "Sweep the tree or close the lane; do not regenerate the "
             "baseline over them."
             + ("" if host_gates else
-               " They do not fail a --member-revision check, which judges "
-               "only the revision's content.")
+               " They do not fail a revision scan, which judges only the "
+               "revision's content.")
         )
     print(
         f"{len(regressions)} regression(s), {len(host)} host-state row(s), "

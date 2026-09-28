@@ -75,6 +75,42 @@ def registered_member_names(
     }
 
 
+# The one lane root (AGENTS.md git_discipline: Worktrees). Lanes live here so
+# they inherit the stack's shared `.cargo` configuration and build cache.
+LANE_ROOT = ROOT / "worktrees"
+
+# Trees per repository: the main tree plus one linked lane. A creation
+# precondition in `atlas-lane.py`; a measured class in the conformance scan,
+# because nothing checked it before and one member reached five trees.
+WORKTREE_BOUND = 2
+
+
+def canonical_lane(path: Path) -> bool:
+    """Whether a linked tree sits under a sanctioned lane root.
+
+    The stack root's `worktrees/`, or a harness-managed `.claude/worktrees/`
+    (a sanctioned lane outside the root, bound by every other lane rule).
+    """
+    parents = {p.name for p in path.parents}
+    return path.is_relative_to(LANE_ROOT) or (
+        "worktrees" in parents and ".claude" in parents
+    )
+
+
+def worktree_entries(repo: Path) -> list[dict[str, str]]:
+    """`git worktree list --porcelain` as records; the first is the main tree."""
+    entries: list[dict[str, str]] = []
+    current: dict[str, str] = {}
+    for line in git(repo, "worktree", "list", "--porcelain").splitlines() + [""]:
+        if line.strip():
+            key, _, value = line.partition(" ")
+            current[key] = value
+        elif current:
+            entries.append(current)
+            current = {}
+    return entries
+
+
 def registered_members(repo: Path | None = None) -> list[Path]:
     repository = ROOT if repo is None else repo
     member_root = repository / "repos"

@@ -8,9 +8,11 @@
 	active = true
 [submodule "repos/athena"]
 	path = repos/athena
-# The current checkout has a directory at `repos/athena/.git`, unlike the
-# other gitlinks. Preserve that local layout until a reproducible migration
-# decision is recorded; this comment does not assert why it exists.
+# This gitlink was previously checked out with a directory at
+# `repos/athena/.git` rather than the gitfile every other member uses. That
+# worktree had been lost, and restoring it with `git submodule update --init
+# repos/athena` at the pinned commit gave it the standard layout, so the
+# anomaly this comment used to preserve is gone.
 	url = https://github.com/ryancinsight/athena
 	active = true
 [submodule "repos/CFDrs"]

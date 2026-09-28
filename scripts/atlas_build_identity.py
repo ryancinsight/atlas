@@ -10,18 +10,27 @@ import uuid
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
+import time
 from typing import Sequence
 
 from atlas_build_artifacts import (
+    artifact_digest,
     artifact_identity,
+    changed_packages,
     dependency_snapshot,
     discover_artifacts,
+    SETTLE_SECONDS,
+    recorded_artifact_identity,
+    settled_digest,
     validate_artifact_paths,
 )
 from atlas_build_lease import (
+    EXCLUSIVE,
+    SHARED,
     BuildIdentityError,
     LeaseProbe,
     OwnerLease,
+    acquire_waiting,
     lease_is_held,
     package_target_lease_path,
     package_target_lease_scopes,
@@ -66,6 +75,37 @@ class BuildSpec:
             "environment_digest": self.environment_digest,
             "dependency_digest": self.dependency_digest,
         }
+
+
+def _content(record: object) -> object:
+    """A source or build record without the checkout path it was read from.
+
+    The pre-push gate builds a fresh export of the pushed revision at a new
+    temporary path on every run, so a record keyed on that path was stale on
+    every push and cleaned the whole non-registry closure. Content -- the
+    revision, the tree digest, the build dimensions -- decides staleness; the
+    root stays in the record for diagnostics and lease ownership only.
+    """
+    if not isinstance(record, dict):
+        return record
+    value = {key: item for key, item in record.items() if key != "root"}
+    if isinstance(value.get("source"), dict):
+        value["source"] = _content(value["source"])
+    return value
+
+
+def _record_matches(
+    existing: dict[str, object],
+    spec: BuildSpec,
+    dependencies: dict[str, object],
+    artifact: dict[str, object],
+) -> bool:
+    return (
+        _content(existing.get("source")) == _content(spec.source.as_dict())
+        and _content(existing.get("build")) == _content(spec.as_dict())
+        and existing.get("dependencies") == dependencies
+        and existing.get("artifact") == artifact
+    )
 
 
 @dataclass(frozen=True)
@@ -160,9 +200,8 @@ def _dependency_data(
         def identify_source(path: Path) -> dict[str, object]:
             canonical_path = _canonical(path)
             if canonical_path not in source_cache:
-                source_cache[canonical_path] = source_identity(
-                    canonical_path, (target_dir,), ignore_paths
-                ).as_dict()
+                identified = source_identity(canonical_path, (target_dir,), ignore_paths)
+                source_cache[canonical_path] = _content(identified.as_dict())
             return source_cache[canonical_path]
 
         snapshot = dependency_snapshot(
@@ -209,9 +248,33 @@ def _sibling_matches(spec: BuildSpec) -> bool:
             continue
         other = dict(other)
         other.pop("command_key", None)
-        if other == build and record.get("source") == spec.source.as_dict():
+        if _content(other) == _content(build) and _content(record.get("source")) == _content(
+            spec.source.as_dict()
+        ):
             return True
     return False
+
+
+def _recorded_artifact(
+    existing: dict[str, object], target_dir: Path, artifact_paths: Sequence[Path]
+) -> dict[str, object] | None:
+    """The record's artifacts as they are now, or None when one cannot be read.
+
+    Only the files the record names are hashed, so a variant another build
+    writes beside them does not change the result.
+    """
+    recorded = existing.get("artifact")
+    if not isinstance(recorded, dict) or not isinstance(recorded.get("files"), dict):
+        return None
+    names = recorded["files"].keys()
+    if artifact_paths and set(names) != {
+        path.relative_to(target_dir).as_posix() for path in artifact_paths
+    }:
+        return None
+    try:
+        return recorded_artifact_identity(target_dir, names)
+    except IdentityError:
+        return None
 
 
 def lease_path(spec: BuildSpec) -> Path:
@@ -318,6 +381,7 @@ def run_build(
     command_cwd: Path | None = None,
     command_key: str | None = None,
     ignore_paths: Sequence[Path] = (),
+    lease_wait_seconds: float = 0,
 ) -> BuildResult:
     if not command:
         raise IdentityError("a build command is required")
@@ -350,22 +414,35 @@ def run_build(
     environment = dict(os.environ)
     environment["CARGO_TARGET_DIR"] = target_dir.as_posix()
     cleaned = False
-    with ExitStack() as leases:
-        for lock, owner in package_target_lease_scopes(
-            spec.package,
-            target_dir,
-            spec.source.root,
-            spec.source.revision,
-            tuple(str(value) for value in dependencies["clean_packages"]),
-        ):
-            leases.enter_context(OwnerLease(lock, owner, lease_seconds))
+    clean_packages = tuple(str(value) for value in dependencies["clean_packages"])
+    scopes = package_target_lease_scopes(
+        spec.package, target_dir, spec.source.root, spec.source.revision, clean_packages
+    )
+    # One bound for the whole run, across every lease and both phases.
+    deadline_ns = time.monotonic_ns() + int(lease_wait_seconds * 1_000_000_000)
+
+    def acquire(exclusive: bool) -> ExitStack:
+        # The command writes its own package; dependencies are only read
+        # unless the record shows the run must clean or rebuild them.
+        stack = ExitStack()
+        try:
+            for lock, owner in scopes:
+                mode = EXCLUSIVE if exclusive or owner["package"] == spec.package else SHARED
+                stack.push(
+                    acquire_waiting(
+                        OwnerLease(lock, owner, lease_seconds, mode),
+                        lease_wait_seconds,
+                        deadline_ns,
+                    )
+                )
+        except BaseException:
+            stack.close()
+            raise
+        return stack
+
+    def locked_record() -> tuple[dict[str, object] | None, bool, dict[str, object] | None]:
         locked_dependencies = _dependency_data(
-            manifest,
-            package,
-            target_dir,
-            execution_root,
-            ignore_paths,
-            bool(artifact_paths),
+            manifest, package, target_dir, execution_root, ignore_paths, bool(artifact_paths)
         )
         locked_spec = build_spec(
             root,
@@ -384,72 +461,115 @@ def run_build(
                 "source or dependency inputs changed while acquiring the package leases"
             )
         existing = read_record(record)
-        stale = existing is None and not _sibling_matches(spec)
-        if existing is not None:
-            try:
-                current_artifact = artifact_identity(
-                    root,
-                    target_dir,
-                    package,
-                    profile,
-                    artifact_paths,
-                    target,
-                    manifest,
-                    execution_root,
-                    tuple(str(value) for value in dependencies["clean_packages"]),
-                )
-            except IdentityError:
-                stale = True
-            else:
-                stale = (
-                    existing.get("source") != spec.source.as_dict()
-                    or existing.get("build") != spec.as_dict()
-                    or existing.get("dependencies") != dependencies
-                    or existing.get("artifact") != current_artifact
-                )
+        if existing is None:
+            return None, False, None
+        current = _recorded_artifact(existing, target_dir, artifact_paths)
+        return existing, _record_matches(existing, spec, dependencies, current), current
+
+    with ExitStack() as leases:
+        shared = leases.enter_context(acquire(exclusive=False))
+        existing, matched, current = locked_record()
+        if not matched:
+            # Anything but an exact match may write dependency artifacts, so
+            # it runs exclusive. Releasing before asking again, rather than
+            # upgrading in place, keeps two upgraders from each holding the
+            # shared lease the other waits for; the record is read again
+            # because a holder may have rebuilt it meanwhile.
+            shared.close()
+            leases.enter_context(acquire(exclusive=True))
+            existing, matched, current = locked_record()
+        stale = not matched and (existing is not None or not _sibling_matches(spec))
         if stale:
             if clean_command is not None:
                 _run_checked(clean_command, execution_root, environment)
             else:
-                for clean_package in dependencies["clean_packages"]:
-                    _run_checked(
-                        [
-                            *_cargo_command(),
-                            "clean",
-                            "-p",
-                            str(clean_package),
-                            "--manifest-path",
-                            str(manifest),
-                        ],
+                targets = clean_packages
+                if (
+                    existing is not None
+                    and current is not None
+                    and _record_matches(existing, spec, dependencies, existing.get("artifact"))
+                ):
+                    # Only artifact bytes changed. Cleaning the packages that
+                    # own them is enough: Cargo rebuilds every unit whose
+                    # dependency it rebuilds, so their dependents follow.
+                    narrowed = changed_packages(
+                        existing["artifact"]["files"],
+                        current["files"],
+                        manifest,
                         execution_root,
-                        environment,
+                        clean_packages,
                     )
+                    if narrowed:
+                        targets = tuple(sorted(narrowed))
+                # One invocation for the whole closure: each `cargo clean`
+                # walks the entire shared target whatever it deletes, so one
+                # call per package held the closure's exclusive leases for
+                # minutes per package (about 2.5 min each on the stack
+                # target) and a stale metis record stalled every push that
+                # shared its dependencies for over an hour.
+                _run_checked(
+                    [
+                        *_cargo_command(),
+                        "clean",
+                        *(
+                            argument
+                            for clean_package in targets
+                            for argument in ("-p", clean_package)
+                        ),
+                        "--manifest-path",
+                        str(manifest),
+                    ],
+                    execution_root,
+                    environment,
+                )
             cleaned = True
         _run_checked(command, execution_root, environment)
         final_source = source_identity(root, (target_dir,), ignore_paths)
         if final_source.as_dict() != spec.source.as_dict():
             raise IdentityError("source tree changed while the build was running")
         final_dependencies = _dependency_data(
-            manifest,
-            package,
-            target_dir,
-            execution_root,
-            ignore_paths,
-            bool(artifact_paths),
+            manifest, package, target_dir, execution_root, ignore_paths, bool(artifact_paths)
         )
         if final_dependencies != dependencies:
             raise IdentityError("dependency graph changed while the build was running")
-        artifact = artifact_identity(
-            root,
-            target_dir,
-            package,
-            profile,
-            artifact_paths,
-            target,
-            manifest,
-            execution_root,
-            tuple(str(value) for value in dependencies["clean_packages"]),
-        )
+        if matched and not artifact_paths:
+            # The command rebuilt dependency files in place (a fresh export
+            # has fresh mtimes, and rustc embeds its path in the bytes), so
+            # every file the record names is hashed again once two reads
+            # agree. Another reader's Cargo may be rewriting one: a file that
+            # never settles is recorded unverified, and one that cannot be
+            # read at all keeps its pre-command digest. Only the package held
+            # exclusive is discovered afresh.
+            own = recorded_artifact_identity(
+                target_dir,
+                [
+                    path.relative_to(target_dir).as_posix()
+                    for path in discover_artifacts(
+                        target_dir, package, profile, target, manifest, execution_root
+                    )
+                ],
+            )
+            files = {}
+            for relative, verified in existing["artifact"]["files"].items():
+                # Each file gets up to SETTLE_SECONDS, never past the run's
+                # wait deadline; at least two reads are always attempted.
+                budget = min(time.monotonic_ns() + int(SETTLE_SECONDS * 1_000_000_000), deadline_ns)
+                settled = settled_digest(target_dir / relative, budget)
+                files[relative] = verified if settled is None else settled
+            files.update(own["files"])
+            artifact = {"files": files, "digest": artifact_digest(files)}
+        else:
+            artifact = artifact_identity(
+                root,
+                target_dir,
+                package,
+                profile,
+                artifact_paths,
+                target,
+                manifest,
+                execution_root,
+                clean_packages,
+            )
         paths = tuple(
             target_dir / relative for relative in artifact["files"]
         )
@@ -522,22 +642,8 @@ def check_record(
         existing = read_record(record_file)
         if existing is None:
             return 2, {"status": "missing", "record": record_file.as_posix()}
-        current = artifact_identity(
-            root,
-            target_dir,
-            package,
-            profile,
-            artifact_paths,
-            target,
-            manifest,
-            execution_root,
-            tuple(str(value) for value in dependencies["clean_packages"]),
-        )
-        matches = (
-            existing.get("source") == spec.source.as_dict()
-            and existing.get("build") == spec.as_dict()
-            and existing.get("dependencies") == dependencies
-            and existing.get("artifact") == current
+        matches = _record_matches(
+            existing, spec, dependencies, _recorded_artifact(existing, target_dir, artifact_paths)
         )
         return (0 if matches else 2), {
             "status": "match" if matches else "stale",
