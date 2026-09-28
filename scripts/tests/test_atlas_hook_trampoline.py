@@ -379,7 +379,16 @@ class HooksPathOverrideComparesTheExecutingFileTestCase(unittest.TestCase):
             # the comparison used the executing file, not the checkout's
             # (deliberately mismatched) `.githooks/pre-push`.
             reported = err.split("SELF_PATH:", 1)[1].splitlines()[0].strip()
-            self.assertNotIn("fd/", reported)
+            # The descriptor this must catch is `/dev/fd/63` -- a
+            # process-substitution path the trampoline reports when it re-execs
+            # through one. Match that whole path, not the bare substring
+            # `fd/`: the reported path's *parent* is a `mkdtemp` name with a
+            # random 8-character suffix, and a suffix ending in `fd` makes
+            # `.../atlas-hook-trampoline-XXXXXXXX/clone/...` contain `fd/`
+            # with no descriptor anywhere near it. That is roughly 1 run in
+            # 1369, and it failed this repository's gate on exactly that
+            # count while the code under test was correct.
+            self.assertNotIn("/dev/fd/", reported)
             self.assertIn("current", reported)
 
 
