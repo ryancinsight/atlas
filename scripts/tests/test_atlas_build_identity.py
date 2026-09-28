@@ -18,6 +18,8 @@ from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas_build_identity.py"
 SPEC = importlib.util.spec_from_file_location("atlas_build_identity", SCRIPT)
@@ -916,6 +918,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         wait: float = 0,
         discover: bool = False,
         environment: dict[str, str] | None = None,
+        clean: bool = True,
     ) -> identity.BuildResult:
         """Build `demo`, whose clean closure holds a path dependency `dep`."""
         snapshot = {
@@ -947,7 +950,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 self.target,
                 [sys.executable, str(self.build_script)],
                 artifact_paths=() if discover else [self.artifact],
-                clean_command=[sys.executable, str(self.clean_script)],
+                clean_command=[sys.executable, str(self.clean_script)] if clean else None,
                 lease_wait_seconds=wait,
             )
 
@@ -1012,6 +1015,38 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(result.status, "reused")
         self.assertTrue(Path(f"{trigger}.ack").exists())
         self.assertIn("debug/deps/libdep-0ecdeded.rlib", json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"])
+
+    def cleaned_packages(self, source_token: str) -> list[str]:
+        """Rebuild through `cargo clean -p`, recording the packages instead of running Cargo."""
+        packages: list[str] = []
+        run_checked = identity._run_checked
+
+        def recording(command, cwd, environment):
+            if list(command[1:3]) == ["clean", "-p"]:
+                packages.append(command[3])
+                return
+            run_checked(command, cwd, environment)
+
+        with patch.object(identity, "_run_checked", side_effect=recording):
+            self.dependency_build(source_token, discover=True, clean=False)
+        return sorted(packages)
+
+    def test_changed_dependency_bytes_clean_only_that_dependency(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        recorded = self.artifact.parent / "libdep-0ecdeded.rlib"
+        recorded.write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        recorded.write_bytes(b"rebuilt from another path")
+        self.assertEqual(self.cleaned_packages("first"), ["dep"])
+
+    def test_a_changed_source_cleans_the_whole_closure_whatever_changed_on_disk(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        recorded = self.artifact.parent / "libdep-0ecdeded.rlib"
+        recorded.write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
+        recorded.write_bytes(b"rebuilt from another path")
+        self.assertEqual(self.cleaned_packages("second"), ["demo", "dep"])
 
     def test_a_stale_run_rechecks_after_taking_its_leases_exclusive(self) -> None:
         # Between releasing its shared leases and taking them exclusive, a
@@ -1659,6 +1694,102 @@ class BuildIdentityTestCase(unittest.TestCase):
                 command_cwd=elsewhere,
             )
         self.assertEqual(Path(marker.read_text(encoding="utf-8")).resolve(), elsewhere.resolve())
+
+
+def _clear_readonly_tree(path: Path) -> None:
+    """Remove a tree whose entries may be read-only (the gate's exports).
+
+    `shutil.rmtree(onexc=)` is 3.12+ and the hosted runners hold 3.11, so the
+    entries are made writable first and removed with the version-agnostic
+    plain form.
+    """
+    if not path.exists():
+        return
+    for root, dirs, files in os.walk(path):
+        for name in (root, *(os.path.join(root, entry) for entry in dirs + files)):
+            os.chmod(name, 0o700)
+    shutil.rmtree(path)
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class RepeatedExportPushTestCase(unittest.TestCase):
+    """Pushes of one commit, each from a fresh export, as the pre-push gate runs them."""
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-exports-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.source = self.base / "source"
+        for relative, text in {
+            "Cargo.toml": '[workspace]\nmembers = ["d", "p"]\nresolver = "2"\n',
+            "d/Cargo.toml": '[package]\nname = "d"\nversion = "0.1.0"\nedition = "2021"\n',
+            "d/src/lib.rs": "pub fn d() -> u32 {\n    1\n}\n",
+            "p/Cargo.toml": '[package]\nname = "p"\nversion = "0.1.0"\nedition = "2021"\n\n'
+            '[dependencies]\nd = { path = "../d" }\n',
+            "p/src/lib.rs": "pub fn p() -> u32 {\n    d::d()\n}\n",
+        }.items():
+            (self.source / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.source / relative).write_text(text, encoding="utf-8")
+        self.environment = {
+            key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
+        }
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        git(self.source, "init", "-q")
+        git(self.source, "config", "user.name", "Atlas test")
+        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "source")
+
+    def push(self, pushes: int, stable_path: bool) -> list[list[str]]:
+        """Build `p` once per push from a fresh copy (fresh mtimes) of the commit.
+
+        Returns, per push, the packages it cleaned. A stable path reuses one
+        export directory, as the gate does per member; otherwise every push
+        gets a new one.
+        """
+        cleaned: list[list[str]] = []
+        run_checked = identity._run_checked
+
+        def recording(command, cwd, environment):
+            if list(command[1:3]) == ["clean", "-p"]:
+                cleaned[-1].append(command[3])
+            run_checked(command, cwd, environment)
+
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            patch.object(identity, "_run_checked", side_effect=recording),
+        ):
+            for push in range(pushes):
+                export = self.base / ("export" if stable_path else f"export-{push}")
+                if export.exists():
+                    _clear_readonly_tree(export)
+                shutil.copytree(self.source, export, copy_function=shutil.copy)
+                cleaned.append([])
+                identity.run_build(
+                    export,
+                    export / "Cargo.toml",
+                    "p",
+                    self.base / "target",
+                    ["cargo", "check", "-p", "p", "-q", "--offline"],
+                    command_cwd=export,
+                )
+        return cleaned
+
+    def test_pushes_from_one_export_path_clean_only_the_first(self) -> None:
+        # With the path fixed, Cargo's in-place rebuild of the dependency
+        # (fresh mtimes) writes the bytes it wrote before.
+        self.assertEqual(self.push(4, stable_path=True), [["d", "p"], [], [], []])
+
+    def test_pushes_from_new_export_paths_clean_only_the_changed_dependency(self) -> None:
+        # A new path is embedded in the dependency's bytes, so its recorded
+        # digest goes stale; the run cleans that dependency, never the closure.
+        cleaned = self.push(4, stable_path=False)
+        self.assertEqual(cleaned[0], ["d", "p"])
+        self.assertTrue(all(later in ([], ["d"]) for later in cleaned[1:]), cleaned)
 
 
 class CommandLineTestCase(unittest.TestCase):

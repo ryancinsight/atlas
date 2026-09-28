@@ -16,6 +16,7 @@ from typing import Sequence
 from atlas_build_artifacts import (
     artifact_digest,
     artifact_identity,
+    changed_packages,
     dependency_snapshot,
     discover_artifacts,
     recorded_artifact_identity,
@@ -437,7 +438,7 @@ def run_build(
             raise
         return stack
 
-    def locked_record() -> tuple[dict[str, object] | None, bool]:
+    def locked_record() -> tuple[dict[str, object] | None, bool, dict[str, object] | None]:
         locked_dependencies = _dependency_data(
             manifest, package, target_dir, execution_root, ignore_paths, bool(artifact_paths)
         )
@@ -458,14 +459,14 @@ def run_build(
                 "source or dependency inputs changed while acquiring the package leases"
             )
         existing = read_record(record)
-        matched = existing is not None and _record_matches(
-            existing, spec, dependencies, _recorded_artifact(existing, target_dir, artifact_paths)
-        )
-        return existing, matched
+        if existing is None:
+            return None, False, None
+        current = _recorded_artifact(existing, target_dir, artifact_paths)
+        return existing, _record_matches(existing, spec, dependencies, current), current
 
     with ExitStack() as leases:
         shared = leases.enter_context(acquire(exclusive=False))
-        existing, matched = locked_record()
+        existing, matched, current = locked_record()
         if not matched:
             # Anything but an exact match may write dependency artifacts, so
             # it runs exclusive. Releasing before asking again, rather than
@@ -474,13 +475,31 @@ def run_build(
             # because a holder may have rebuilt it meanwhile.
             shared.close()
             leases.enter_context(acquire(exclusive=True))
-            existing, matched = locked_record()
+            existing, matched, current = locked_record()
         stale = not matched and (existing is not None or not _sibling_matches(spec))
         if stale:
             if clean_command is not None:
                 _run_checked(clean_command, execution_root, environment)
             else:
-                for clean_package in clean_packages:
+                targets = clean_packages
+                if (
+                    existing is not None
+                    and current is not None
+                    and _record_matches(existing, spec, dependencies, existing.get("artifact"))
+                ):
+                    # Only artifact bytes changed. Cleaning the packages that
+                    # own them is enough: Cargo rebuilds every unit whose
+                    # dependency it rebuilds, so their dependents follow.
+                    narrowed = changed_packages(
+                        existing["artifact"]["files"],
+                        current["files"],
+                        manifest,
+                        execution_root,
+                        clean_packages,
+                    )
+                    if narrowed:
+                        targets = tuple(sorted(narrowed))
+                for clean_package in targets:
                     _run_checked(
                         [
                             *_cargo_command(),

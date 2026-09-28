@@ -123,6 +123,36 @@ def recorded_artifact_identity(target_dir: Path, relative_paths: Iterable[str]) 
     return {"files": files, "digest": artifact_digest(files)}
 
 
+def changed_packages(
+    recorded: dict[str, str],
+    current: dict[str, str],
+    manifest: Path,
+    metadata_cwd: Path | None,
+    packages: Sequence[str],
+) -> set[str] | None:
+    """The packages owning the artifact files whose digests changed.
+
+    None when a changed file cannot be attributed to exactly one of
+    `packages`; the caller then cleans them all.
+    """
+    changed = [relative for relative, digest in recorded.items() if current.get(relative) != digest]
+    owners = {
+        name: stems
+        for name, stems in _workspace_artifact_owners(manifest, metadata_cwd).items()
+        if name in packages
+    }
+    names: set[str] = set()
+    for relative in changed:
+        parts = relative.split("/")
+        # `<profile>/deps/<file>` names the file, `.../.fingerprint/<unit>/<file>` the unit.
+        unit = parts[parts.index(".fingerprint") + 1] if ".fingerprint" in parts else parts[-1]
+        owner = _artifact_owner(unit, owners, "")
+        if owner is None:
+            return None
+        names.add(owner)
+    return names
+
+
 def artifact_digest(files: dict[str, str]) -> str:
     return hashlib.sha256(
         json.dumps(files, sort_keys=True, separators=(",", ":")).encode()
