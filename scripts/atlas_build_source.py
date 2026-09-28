@@ -192,8 +192,13 @@ def toolchain_identity(root: Path) -> str:
 # (canonicalized to a real path, never compared as an environment string,
 # and the shared-cache root the pre-push gate always sets identically), so
 # including it here would only add a second, differently-spelled copy of
-# the same dimension.
-_EXCLUDED_ENVIRONMENT_KEYS = frozenset({"CARGO_TARGET_DIR"})
+# the same dimension. `CARGO_BUILD_RUSTDOCFLAGS`/`CARGO_BUILD_RUSTDOC` are
+# the `CARGO_BUILD_*`-prefixed spellings of the rustdoc-only inputs excluded
+# below by their own names; excluding only the bare names while the prefix
+# match let these two back in would defeat that exclusion for no reason.
+_EXCLUDED_ENVIRONMENT_KEYS = frozenset(
+    {"CARGO_TARGET_DIR", "CARGO_BUILD_RUSTDOCFLAGS", "CARGO_BUILD_RUSTDOC"}
+)
 
 
 def environment_digest(environment: Mapping[str, str] | None = None) -> str:
@@ -211,21 +216,30 @@ def environment_digest(environment: Mapping[str, str] | None = None) -> str:
     different value.
 
     Rustdoc-only inputs -- `RUSTDOCFLAGS`, `CARGO_ENCODED_RUSTDOCFLAGS`,
-    `RUSTDOC` -- are deliberately excluded, even though the pre-push hook's
-    doc step sets one of them. `discover_artifacts` never looks under
-    `target/doc`, so this record's tracked artifacts (the compiled
-    dependency closure) are unaffected by a rustdoc-only flag; Cargo's own
-    per-unit doc fingerprint tracks that flag independently and rebuilds
-    docs on its own when it changes. The hook runs clippy, nextest, and
-    `cargo doc` under one shared `command_key` for one package precisely so
-    they read one record (`_sibling_matches` ignores only the command key,
-    comparing every other build dimension); including a rustdoc-only input
-    here would give the doc step's `env RUSTDOCFLAGS=... cargo doc`
-    invocation a different `environment_digest` from the clippy and test
-    steps' plain invocations, splitting one shared record into two and
-    making each stale to the other -- a real-Cargo run of that exact
-    three-step sequence measured this cleaning the whole dependency closure
-    on every push instead of after the first.
+    `RUSTDOC` (and their `CARGO_BUILD_*`-prefixed spellings, excluded
+    alongside them below) -- are deliberately excluded, even though the
+    pre-push hook's doc step sets one of them, and even though the record
+    *does* name doc-unit fingerprint files (`discover_artifacts` walks a
+    package's whole `.fingerprint/<pkg>-<hash>/` directory, which holds
+    `doc-lib-*`/`output-doc-lib-*` beside the compile-unit files; a real run
+    confirmed both are recorded). Excluding them is still sound: they are
+    not a *pre-emptive* build dimension, so a change to one alone does not
+    by itself force a clean before the command runs, but a run whose record
+    otherwise matches still re-verifies every named file's current bytes
+    (the `matched` branch in `run_build`), and rustdoc rewriting its own
+    fingerprint files under a new flag changes exactly those bytes -- a
+    mismatch, which cleans on the next run rather than silently accepting a
+    stale doc artifact. What exclusion actually buys: the pre-push hook runs
+    clippy, nextest, and `cargo doc` under one shared `command_key` for one
+    package precisely so they read one record (`_sibling_matches` ignores
+    only the command key, comparing every other build dimension); including
+    a rustdoc-only input here would give the doc step's
+    `env RUSTDOCFLAGS=... cargo doc` invocation a different
+    `environment_digest` from the clippy and test steps' plain invocations,
+    splitting one shared record into two and making each stale to the
+    other -- a real-Cargo run of that exact three-step sequence measured
+    this cleaning the whole dependency closure on every push instead of
+    after the first.
     """
     source = os.environ if environment is None else environment
     keys = {
@@ -263,44 +277,70 @@ def _cargo_home(environment: Mapping[str, str] | None = None) -> Path:
     return Path(configured) if configured else Path.home() / ".cargo"
 
 
+def _include_paths(include: object) -> list[str]:
+    """The file paths a config's `include` value names, in Cargo's own forms.
+
+    Cargo 1.97 stable accepts a list of strings (`include = ["a.toml"]`) or a
+    list of tables (`include = [{ path = "a.toml" }]`, each optionally
+    carrying `optional = true`) -- never a bare string, which Cargo itself
+    rejects ("expected a list of strings or a list of tables"). An
+    `optional` entry naming a file that does not exist is not an error for
+    Cargo, and not one here either: the caller's own `is_file()` check
+    already skips a missing path silently, exactly matching that semantic.
+    """
+    if not isinstance(include, list):
+        return []
+    paths: list[str] = []
+    for entry in include:
+        if isinstance(entry, str):
+            paths.append(entry)
+        elif isinstance(entry, dict) and isinstance(entry.get("path"), str):
+            paths.append(entry["path"])
+    return paths
+
+
+def _feed_config_text(
+    digest: "hashlib._Hash", marker: bytes, content: bytes, base: Path, seen: set[Path]
+) -> None:
+    """Hash `content` into `digest`, then recurse into its `include` value.
+
+    Shared by a config file (whose own bytes are `content`) and an inline
+    `--config` TOML argument (which has no file of its own, only `content`):
+    both can carry `include`, resolved against `base` -- the including
+    file's own directory, or the execution root for an inline argument,
+    matching where Cargo resolves each.
+    """
+    _feed_framed(digest, marker)
+    _feed_framed(digest, content)
+    try:
+        data = tomllib.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return
+    for entry in _include_paths(data.get("include")):
+        included = (base / entry).resolve()
+        if included.is_file():
+            _feed_config_file(digest, b"include", included, seen)
+
+
 def _feed_config_file(digest: "hashlib._Hash", marker: bytes, path: Path, seen: set[Path]) -> None:
     """Hash `path` into `digest`, then recurse into its `include` directive.
 
-    Cargo 1.97 stable follows `include = "path"` or `include = ["path", ...]`
-    in a config file, resolved relative to the directory holding that file,
-    and merges the included file's own settings; an edit confined to an
-    included file changes the build without changing the including file's
-    bytes at all. `seen` guards a cycle (an included file naming its own
-    includer, directly or through a chain) and also lets one file reached
-    two ways (an explicit include of a file this walk would find anyway)
-    contribute to the digest only once.
+    An edit confined to an included file changes the build without changing
+    the including file's own bytes at all. `seen` guards a cycle (an
+    included file naming its own includer, directly or through a chain) and
+    also lets one file reached two ways (an explicit include of a file this
+    walk would find anyway) contribute to the digest only once.
     """
     if path in seen:
         _feed_framed(digest, marker)
         _feed_framed(digest, b"seen:" + path.name.encode("utf-8", "surrogateescape"))
         return
     seen.add(path)
-    _feed_framed(digest, marker)
     try:
         content = path.read_bytes()
     except OSError as error:
         raise BuildIdentityError(f"cannot read cargo config {path}: {error}") from error
-    _feed_framed(digest, content)
-    try:
-        data = tomllib.loads(content.decode("utf-8"))
-    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
-        return
-    include = data.get("include")
-    if isinstance(include, str):
-        include = [include]
-    if not isinstance(include, list):
-        return
-    for entry in include:
-        if not isinstance(entry, str):
-            continue
-        included = (path.parent / entry).resolve()
-        if included.is_file():
-            _feed_config_file(digest, b"include", included, seen)
+    _feed_config_text(digest, marker, content, path.parent, seen)
 
 
 def cargo_config_digest(
@@ -375,6 +415,10 @@ def cargo_config_digest(
         if candidate.is_file():
             _feed_config_file(digest, b"arg-file", candidate, seen)
         else:
-            _feed_framed(digest, b"arg-inline")
-            _feed_framed(digest, text.encode("utf-8"))
+            # An inline `--config` value is TOML text with no file of its
+            # own (`--config 'include=["x.toml"]'`, or a dotted key such as
+            # `profile.dev.opt-level=3`); its `include`, if any, resolves
+            # against the execution root, matching Cargo's own resolution
+            # for a command-line `--config` value.
+            _feed_config_text(digest, b"arg-inline", text.encode("utf-8"), origin, seen)
     return digest.hexdigest()
