@@ -256,7 +256,7 @@ debt_gate() {
             echo "pre-push: BLOCKED -- pushed tip has no gitlink for ${member}." >&2
             return 1
         }
-        if ! output="$(unset GIT_DIR GIT_WORK_TREE; "$python_bin" \
+        if ! output="$(unset GIT_DIR GIT_WORK_TREE; ATLAS_STACK_ROOT="$member_root" "$python_bin" \
                 "${atlas_root}/scripts/atlas-conformance.py" \
                 check --repo "$member" \
                 --member-path "${member_root}/repos/${member}" \
