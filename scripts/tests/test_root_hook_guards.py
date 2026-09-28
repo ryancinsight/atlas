@@ -234,16 +234,13 @@ class RootHookGuardTests(unittest.TestCase):
                 shutil.copyfile(ROOT / "scripts" / name, worktree / "scripts" / name)
             shutil.copyfile(PRE_PUSH, worktree / ".githooks" / "pre-push")
             (worktree / ".githooks" / "pre-push").chmod(0o755)
+            (worktree / ".gitmodules").write_text("", encoding="utf-8")
             subprocess.run(
-                ["git", "-C", str(worktree), "add", ".githooks", "scripts"],
+                ["git", "-C", str(worktree), "add", ".githooks", "scripts", ".gitmodules"],
                 check=True, capture_output=True, text=True,
             )
             subprocess.run(
                 ["git", "-C", str(worktree), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "root"],
-                check=True, capture_output=True, text=True,
-            )
-            subprocess.run(
-                ["git", "--git-dir", str(metadata), "config", "core.worktree", str(worktree)],
                 check=True, capture_output=True, text=True,
             )
             subprocess.run(
@@ -261,10 +258,10 @@ class RootHookGuardTests(unittest.TestCase):
             ).stdout.strip()
             self.assertTrue(common.endswith("repo.git"))
             configured = subprocess.run(
-                ["git", "--git-dir", common, "config", "--path", "core.worktree"],
-                check=True, capture_output=True, text=True,
-            ).stdout.strip()
-            self.assertEqual(Path(configured).resolve(), worktree.resolve())
+                ["git", "--git-dir", common, "config", "--get", "core.worktree"],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(configured.stdout, "")
 
             environment = {
                 key: value for key, value in os.environ.items()
@@ -279,9 +276,10 @@ class RootHookGuardTests(unittest.TestCase):
 
             target = lane / "target" / "release"
             target.mkdir(parents=True)
-            auditor = target / "gitlink-coherence"
-            auditor.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
-            auditor.chmod(0o755)
+            auditor = target / "gitlink-coherence.exe"
+            built_auditor = ROOT / "target" / "release" / "gitlink-coherence.exe"
+            self.assertTrue(built_auditor.is_file(), "the real coherence auditor must be built for this hook test")
+            shutil.copy2(built_auditor, auditor)
             subprocess.run(
                 ["git", "-C", str(lane), "update-ref", "refs/remotes/origin/main", "HEAD"],
                 check=True, capture_output=True, text=True,

@@ -83,7 +83,7 @@ unset GIT_DIR GIT_WORK_TREE
 # read-only ref probe instead of treating the lane directory as the Atlas
 # superproject.  The hook never initializes or changes the member checkout.
 canonical_stack_root() {
-  local common_dir configured
+  local common_dir configured ancestor candidate candidate_gitdir
   common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
   if [ "$(basename "$common_dir")" = ".git" ]; then
     dirname "$common_dir"
@@ -94,6 +94,20 @@ canonical_stack_root() {
     git -C "$configured" rev-parse --show-toplevel
     return 0
   fi
+  ancestor="$(dirname "$common_dir")"
+  while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
+    for candidate in "$ancestor"/*; do
+      [ -f "$candidate/.git" ] || continue
+      candidate_gitdir="$(git -C "$candidate" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+      if [ "$candidate_gitdir" = "$common_dir" ] &&
+        [ "$(git -C "$candidate" rev-parse --path-format=absolute --git-dir 2>/dev/null || true)" = "$common_dir" ]; then
+        git -C "$candidate" rev-parse --show-toplevel
+        return 0
+      fi
+    done
+    [ "$ancestor" = "$(dirname "$ancestor")" ] && break
+    ancestor="$(dirname "$ancestor")"
+  done
   return 1
 }
 

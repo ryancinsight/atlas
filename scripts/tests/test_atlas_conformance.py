@@ -1798,6 +1798,12 @@ class MaterializedMemberTests(unittest.TestCase):
         self._git(provider, "init", "-q", "-b", "main")
         self._git(provider, "config", "user.email", "t@example.invalid")
         self._git(provider, "config", "user.name", "t")
+        _write(
+            provider,
+            "Cargo.toml",
+            "[package]\nname = \"alpha\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+        )
+        _write(provider, "Cargo.lock", "version = 4\n")
         _write(provider, "src/lib.rs", "pub fn alpha() {}\n")
         self._git(provider, "add", ".")
         self._git(provider, "commit", "-q", "-m", "one")
@@ -1882,20 +1888,13 @@ class MaterializedMemberTests(unittest.TestCase):
             root_commit = self._git(stack, "write-tree")
             root_commit = self._git(stack, "commit-tree", root_commit, "-m", "pin alpha")
 
-            observed: list[str] = []
+            before = conformance.scan_member(stack, "alpha", root_commit)
+            _write(stack, ".cargo/config.toml", "[build]\ntarget-dir = \"live\"\n")
+            (stack / "scripts/data/atlas-cache-retention.toml").unlink()
+            after = conformance.scan_member(stack, "alpha", root_commit)
 
-            def scan_pinned(*args: object, **kwargs: object) -> dict[str, int]:
-                _ = args
-                config_root = kwargs["config_root"]
-                assert isinstance(config_root, Path)
-                _write(stack, ".cargo/config.toml", "[build]\ntarget-dir = \"live\"\n")
-                observed.append((config_root / ".cargo/config.toml").read_text())
-                return {}
-
-            with patch.object(conformance, "scan_repo", side_effect=scan_pinned):
-                conformance.scan_member(stack, "alpha", root_commit)
-
-            self.assertEqual(observed, ["[build]\ntarget-dir = \"target\"\n"])
+            self.assertEqual(after, before)
+            self.assertEqual(after["cache_retention_policy_missing"], 0)
 
     def test_a_gitlink_absent_from_the_object_store_is_an_error(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:

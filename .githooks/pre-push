@@ -138,7 +138,7 @@ if [ -z "$atlas_root" ]; then
     exit 1
 fi
 canonical_stack_root() {
-    local common_dir configured
+    local common_dir configured ancestor candidate candidate_gitdir
     common_dir="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
     if [ "$(basename "$common_dir")" = ".git" ]; then
         dirname "$common_dir"
@@ -149,6 +149,25 @@ canonical_stack_root() {
         git -C "$configured" rev-parse --show-toplevel
         return 0
     fi
+    # `git init --separate-git-dir` leaves the main worktree's `.git` file as
+    # the only canonical-worktree marker; unlike a linked lane, it points at
+    # the common directory itself. Search only ancestor siblings of Git's
+    # metadata and validate each candidate through Git, so lane ordering and
+    # metadata-parent assumptions cannot select a worktree by position.
+    ancestor="$(dirname "$common_dir")"
+    while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
+        for candidate in "$ancestor"/*; do
+            [ -f "$candidate/.git" ] || continue
+            candidate_gitdir="$(git -C "$candidate" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+            if [ "$candidate_gitdir" = "$common_dir" ] &&
+                [ "$(git -C "$candidate" rev-parse --path-format=absolute --git-dir 2>/dev/null || true)" = "$common_dir" ]; then
+                git -C "$candidate" rev-parse --show-toplevel
+                return 0
+            fi
+        done
+        [ "$ancestor" = "$(dirname "$ancestor")" ] && break
+        ancestor="$(dirname "$ancestor")"
+    done
     return 1
 }
 member_root="$(canonical_stack_root)" || {
