@@ -76,7 +76,9 @@ from atlas_git_process import (
     execute as execute_git,
     extract_archive,
 )
-from atlas_stack import ROOT, is_git_ignored, registered_member_names, staleness_note
+from atlas_stack import (
+    ROOT, WORKTREE_BOUND, is_git_ignored, registered_member_names, staleness_note,
+)
 
 GIT_TIMEOUT_SECONDS = 60
 ARCHIVE_TIMEOUT_SECONDS = 120
@@ -332,14 +334,6 @@ CLASSES = [
     "board_items_outside_status_set", "board_items_without_anchor",
     "board_items_without_priority", "board_checklist_files",
 ]
-
-#
-# The bound is a creation precondition, so it only holds if something checks
-# it. Nothing did, and the count reached five on one member and 26 lane
-# directories stack-wide before anyone measured. Counting it here makes the
-# audit mechanical: the ratchet then refuses a third tree the same way it
-# refuses any other debt increase.
-WORKTREE_BOUND = 2
 
 # The shared build directory routed through the root `.cargo/config.toml`.
 # The cache-retention policy must cover this directory by name: a member

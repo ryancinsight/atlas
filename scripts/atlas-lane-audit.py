@@ -32,32 +32,15 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from atlas_stack import ROOT, git, registered_members
+from atlas_stack import (
+    LANE_ROOT, ROOT, canonical_lane, git, registered_members, worktree_entries,
+)
 
-LANE_ROOT = ROOT / "worktrees"
 ARCHIVE_ROOT_NAME = ".archive"
 
 
-def canonical_lane(path: Path) -> bool:
-    parents = {p.name for p in path.parents}
-    return path.is_relative_to(LANE_ROOT) or (
-        "worktrees" in parents and ".claude" in parents
-    )
-
-
 def audit_repo(repo: Path, violations: list[str]) -> None:
-    entries = []
-    current: dict[str, str] = {}
-    for line in git(repo, "worktree", "list", "--porcelain").splitlines():
-        if not line.strip():
-            if current:
-                entries.append(current)
-            current = {}
-        else:
-            key, _, value = line.partition(" ")
-            current[key] = value
-    if current:
-        entries.append(current)
+    entries = worktree_entries(repo)
     if len(entries) > 2:
         violations.append(
             f"{repo.name}: {len(entries)} working trees (bound is main + one lane)"
