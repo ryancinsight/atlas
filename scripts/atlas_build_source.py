@@ -222,14 +222,21 @@ def environment_digest(environment: Mapping[str, str] | None = None) -> str:
     *does* name doc-unit fingerprint files (`discover_artifacts` walks a
     package's whole `.fingerprint/<pkg>-<hash>/` directory, which holds
     `doc-lib-*`/`output-doc-lib-*` beside the compile-unit files; a real run
-    confirmed both are recorded). Excluding them is still sound: they are
-    not a *pre-emptive* build dimension, so a change to one alone does not
-    by itself force a clean before the command runs, but a run whose record
-    otherwise matches still re-verifies every named file's current bytes
-    (the `matched` branch in `run_build`), and rustdoc rewriting its own
-    fingerprint files under a new flag changes exactly those bytes -- a
-    mismatch, which cleans on the next run rather than silently accepting a
-    stale doc artifact. What exclusion actually buys: the pre-push hook runs
+    confirmed both are recorded). Excluding them from this digest is sound
+    because Cargo's own fingerprint scheme makes the omission moot, not
+    because a later mismatch here would catch a stale one: Cargo's per-unit
+    fingerprint for a `doc` unit already incorporates that unit's own
+    effective rustdoc flags, so `cargo doc` unconditionally re-invokes
+    rustdoc -- rewriting `doc-lib-*`/`output-doc-lib-*` -- whenever those
+    flags differ from the last run, before this scheme ever reads the
+    resulting bytes. There is consequently no stale-doc case for
+    `environment_digest` to guard against: whatever a given `cargo doc` run
+    writes already reflects that run's own flags, so the `matched` branch in
+    `run_build` simply *adopts* those bytes into the record
+    (`files[relative] = settled_digest(...)`, unconditionally, once settled)
+    rather than comparing them against a prior expectation -- adoption, not
+    mismatch detection, because Cargo already did the enforcing before this
+    module looked. What exclusion actually buys: the pre-push hook runs
     clippy, nextest, and `cargo doc` under one shared `command_key` for one
     package precisely so they read one record (`_sibling_matches` ignores
     only the command key, comparing every other build dimension); including
@@ -300,7 +307,12 @@ def _include_paths(include: object) -> list[str]:
 
 
 def _feed_config_text(
-    digest: "hashlib._Hash", marker: bytes, content: bytes, base: Path, seen: set[Path]
+    digest: "hashlib._Hash",
+    marker: bytes,
+    content: bytes,
+    base: Path,
+    seen: set[Path],
+    source: str,
 ) -> None:
     """Hash `content` into `digest`, then recurse into its `include` value.
 
@@ -308,14 +320,38 @@ def _feed_config_text(
     `--config` TOML argument (which has no file of its own, only `content`):
     both can carry `include`, resolved against `base` -- the including
     file's own directory, or the execution root for an inline argument,
-    matching where Cargo resolves each.
+    matching where Cargo resolves each. `source` is a human-readable label
+    for error messages only (the file's path, or a description of the
+    inline argument); it plays no part in the digest.
+
+    A leading UTF-8 BOM is stripped before parsing: Cargo's own config
+    parser accepts one, so a BOM-only difference from an otherwise
+    byte-identical config must not stop this digest from following that
+    config's own `include`. Any parse failure that remains fails closed by
+    raising rather than returning as though the config had no `include`:
+    Cargo's TOML grammar is looser than `tomllib`'s strict TOML 1.0 (Cargo
+    accepts a trailing comma after an inline table's last element and an
+    inline table split across lines; `tomllib` rejects both), so a config
+    `tomllib` cannot parse can still be one Cargo parses and builds with --
+    and silently stopping there would under-hash a config whose `include`
+    this digest can no longer see, exactly the staleness this scheme exists
+    to prevent. The pre-push hook surfaces the raised error as an
+    environment failure naming the offending file.
     """
     _feed_framed(digest, marker)
     _feed_framed(digest, content)
+    text = content
+    if text.startswith(b"\xef\xbb\xbf"):
+        text = text[3:]
     try:
-        data = tomllib.loads(content.decode("utf-8"))
-    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
-        return
+        data = tomllib.loads(text.decode("utf-8"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise BuildIdentityError(
+            f"cannot parse cargo config as TOML ({source}): {error}; rewrite it in "
+            "TOML 1.0 syntax (Cargo's own parser is looser -- a trailing comma after an "
+            "inline table's last element, or an inline table split across lines, are not "
+            "TOML 1.0) so its `include` directive, if any, can be followed"
+        ) from error
     for entry in _include_paths(data.get("include")):
         included = (base / entry).resolve()
         if included.is_file():
@@ -340,7 +376,7 @@ def _feed_config_file(digest: "hashlib._Hash", marker: bytes, path: Path, seen: 
         content = path.read_bytes()
     except OSError as error:
         raise BuildIdentityError(f"cannot read cargo config {path}: {error}") from error
-    _feed_config_text(digest, marker, content, path.parent, seen)
+    _feed_config_text(digest, marker, content, path.parent, seen, str(path))
 
 
 def cargo_config_digest(
@@ -382,9 +418,11 @@ def cargo_config_digest(
     own resolution (relative to its `cwd`), never this process's own working
     directory: the pre-push gate invokes this module from the checkout while
     passing `--command-cwd` for the export Cargo actually runs in, so the
-    two can differ. Read failures are surfaced rather than silently skipped:
-    a config file this run cannot read is a build input it cannot account
-    for.
+    two can differ. Read and parse failures are surfaced rather than
+    silently skipped: a config file this run cannot read, or cannot parse
+    under its own TOML grammar (BOM aside), is a build input it cannot
+    account for, and returning as though it had no `include` would under-
+    hash it instead of reporting the gap.
     """
     digest = hashlib.sha256()
     seen: set[Path] = set()
@@ -420,5 +458,12 @@ def cargo_config_digest(
             # `profile.dev.opt-level=3`); its `include`, if any, resolves
             # against the execution root, matching Cargo's own resolution
             # for a command-line `--config` value.
-            _feed_config_text(digest, b"arg-inline", text.encode("utf-8"), origin, seen)
+            _feed_config_text(
+                digest,
+                b"arg-inline",
+                text.encode("utf-8"),
+                origin,
+                seen,
+                f"inline --config argument {text!r}",
+            )
     return digest.hexdigest()
