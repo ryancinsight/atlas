@@ -38,6 +38,7 @@ from atlas_build_lease import (
 from atlas_build_package_source import cached_package_source_digest
 from atlas_build_source import (
     SourceIdentity,
+    cargo_config_digest,
     environment_digest,
     source_identity,
     toolchain_identity,
@@ -61,6 +62,7 @@ class BuildSpec:
     target_dir: str
     command_key: str
     environment_digest: str
+    cargo_config_digest: str
     dependency_digest: str
 
     def as_dict(self) -> dict[str, object]:
@@ -74,6 +76,7 @@ class BuildSpec:
             "target_dir": self.target_dir,
             "command_key": self.command_key,
             "environment_digest": self.environment_digest,
+            "cargo_config_digest": self.cargo_config_digest,
             "dependency_digest": self.dependency_digest,
         }
 
@@ -144,6 +147,25 @@ def _canonical(path: Path, *, strict: bool = False) -> Path:
         raise IdentityError(f"cannot resolve {path}: {error}") from error
 
 
+def _config_arguments(command: Sequence[str]) -> tuple[str, ...]:
+    """The literal `--config` argument values a command line carries.
+
+    Each names or inlines a Cargo configuration source the discovery walk
+    in `cargo_config_digest` cannot find by directory alone.
+    """
+    arguments: list[str] = []
+    iterator = iter(command)
+    for token in iterator:
+        text = str(token)
+        if text == "--config":
+            value = next(iterator, None)
+            if value is not None:
+                arguments.append(str(value))
+        elif text.startswith("--config="):
+            arguments.append(text[len("--config=") :])
+    return tuple(arguments)
+
+
 def build_spec(
     root: Path,
     package: str,
@@ -155,6 +177,7 @@ def build_spec(
     command_key: str | None = None,
     ignore_paths: Sequence[Path] = (),
     dependency_digest: str = "",
+    execution_root: Path | None = None,
 ) -> BuildSpec:
     if not package:
         raise IdentityError("package must not be empty")
@@ -166,6 +189,7 @@ def build_spec(
     normalized_key = command_key if command_key is not None else json.dumps(
         normalized_command, separators=(",", ":")
     )
+    resolved_execution_root = _canonical(execution_root if execution_root is not None else root)
     return BuildSpec(
         source=source_identity(canonical_root, (canonical_target,), ignore_paths),
         package=package,
@@ -176,6 +200,9 @@ def build_spec(
         target_dir=canonical_target.as_posix(),
         command_key=normalized_key,
         environment_digest=environment_digest(),
+        cargo_config_digest=cargo_config_digest(
+            resolved_execution_root, _config_arguments(normalized_command)
+        ),
         dependency_digest=dependency_digest,
     )
 
@@ -322,6 +349,7 @@ def read_record(path: Path) -> dict[str, object] | None:
             "target_dir",
             "command_key",
             "environment_digest",
+            "cargo_config_digest",
             "dependency_digest",
         )
     ):
@@ -412,6 +440,7 @@ def run_build(
         command_key,
         ignore_paths,
         str(dependencies["digest"]),
+        execution_root,
     )
     record = record_path(spec)
     environment = dict(os.environ)
@@ -458,6 +487,7 @@ def run_build(
             command_key,
             ignore_paths,
             str(locked_dependencies["digest"]),
+            execution_root,
         )
         if locked_dependencies != dependencies or locked_spec.as_dict() != spec.as_dict():
             raise IdentityError(
@@ -627,6 +657,7 @@ def check_record(
         command_key,
         ignore_paths,
         str(dependencies["digest"]),
+        execution_root,
     )
     record_file = record_path(spec)
     with ExitStack() as probes:
