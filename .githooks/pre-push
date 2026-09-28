@@ -137,6 +137,12 @@ if [ -z "$atlas_root" ]; then
     echo "auditor and its related paths cannot be resolved." >&2
     exit 1
 fi
+member_root="$atlas_root"
+case "$atlas_root" in
+    */worktrees/*)
+        member_root="${atlas_root%%/worktrees/*}"
+        ;;
+esac
 binary="${atlas_root}/target/release/gitlink-coherence"
 [ -x "${binary}.exe" ] && binary="${binary}.exe"
 
@@ -206,7 +212,7 @@ gate_base_for() {
     printf '%s' "$base"
 }
 
-report="$("$binary" --atlas-root "$atlas_root" 2>&1)"
+report="$("$binary" --atlas-root "$atlas_root" --member-root "$member_root" 2>&1)"
 status=$?
 
 # Second stage, and only for a push that moves a pin: a gitlink can name a

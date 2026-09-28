@@ -29,6 +29,7 @@ use atlas_gitlink_coherence_gate::report::{Format, Report};
 const USAGE: &str = "\
 usage:
   gitlink-coherence audit [--atlas-root <path>] \
+                          [--member-root <path>] \
                           [--format human|markdown|json] \
                           [--target-repo <bare-name>] \
                           [--fetch]
@@ -63,6 +64,7 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
     let parsed = parse_arguments(arguments)?;
     let Parsed {
         atlas_root,
+        member_root,
         format,
         target_repo,
         fetch,
@@ -72,6 +74,7 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
         // most friendly default for the on-host usage pattern.
         env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
     });
+    let member_root = member_root.unwrap_or_else(|| atlas_root.clone());
     let gitmodules_path = atlas_root.join(".gitmodules");
     let bytes = fs::read(&gitmodules_path).map_err(Error::MissingGitmodules)?;
     let text = String::from_utf8(bytes).map_err(|err| Error::GitExit {
@@ -88,12 +91,12 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
             let sub = table
                 .find_by_bare_name(bare)
                 .ok_or_else(|| Error::UnknownTargetRepo(bare.to_string()))?;
-            let probe = audit_one(&atlas_root, sub, fetch)?;
+            let probe = audit_one(&atlas_root, &member_root, sub, fetch)?;
             atlas_gitlink_coherence_gate::coherence::Coherence {
                 probes: vec![probe],
             }
         }
-        None => audit(&atlas_root, &table, fetch)?,
+        None => audit(&atlas_root, &member_root, &table, fetch)?,
     };
 
     let report = Report::from(&coherence);
@@ -107,6 +110,7 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
 
 struct Parsed {
     atlas_root: Option<PathBuf>,
+    member_root: Option<PathBuf>,
     format: Format,
     target_repo: Option<String>,
     /// Whether to `git fetch` each member before probing.
@@ -115,6 +119,7 @@ struct Parsed {
 
 fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, Error> {
     let mut atlas_root: Option<PathBuf> = None;
+    let mut member_root: Option<PathBuf> = None;
     let mut format: Format = Format::Human;
     let mut target_repo: Option<String> = None;
     let mut fetch: bool = false;
@@ -138,6 +143,15 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
                     stderr: "--atlas-root requires a path argument".to_string(),
                 })?;
                 atlas_root = Some(PathBuf::from(v));
+            }
+            "--member-root" => {
+                idx += 1;
+                let v = args.get(idx).ok_or_else(|| Error::GitExit {
+                    context: "argv",
+                    code: 0,
+                    stderr: "--member-root requires a path argument".to_string(),
+                })?;
+                member_root = Some(PathBuf::from(v));
             }
             "--format" => {
                 idx += 1;
@@ -196,6 +210,7 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
     }
     Ok(Parsed {
         atlas_root,
+        member_root,
         format,
         target_repo,
         fetch,
