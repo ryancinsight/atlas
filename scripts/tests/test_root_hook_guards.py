@@ -216,27 +216,56 @@ class RootHookGuardTests(unittest.TestCase):
             self.assertNotEqual(missing_member.returncode, 0)
             self.assertIn("canonical member checkout is absent", missing_member.stdout + missing_member.stderr)
 
-    def test_separate_git_dir_resolves_the_configured_worktree_root(self) -> None:
-        """Both hooks follow explicit separate-dir metadata, independent of order."""
+    def test_separate_git_dir_resolves_the_canonical_worktree_root(self) -> None:
+        """Both hooks follow Git metadata in a nested separate-dir layout."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            worktree = root / "canonical"
+            worktree = root / "checkouts" / "canonical"
             metadata = root / "metadata" / "repo.git"
             metadata.parent.mkdir()
+            worktree.parent.mkdir()
             subprocess.run(
                 ["git", "init", "-q", "-b", "main", "--separate-git-dir", str(metadata), str(worktree)],
                 check=True, capture_output=True, text=True,
             )
             install_hook(worktree)
-            for name in (
-                "atlas-artifact-budget.py", "atlas-secret-scan.py", "atlas-refspec-guard.py",
-            ):
-                shutil.copyfile(ROOT / "scripts" / name, worktree / "scripts" / name)
+            shutil.copytree(ROOT / "scripts", worktree / "scripts", dirs_exist_ok=True)
             shutil.copyfile(PRE_PUSH, worktree / ".githooks" / "pre-push")
             (worktree / ".githooks" / "pre-push").chmod(0o755)
-            (worktree / ".gitmodules").write_text("", encoding="utf-8")
+            member = worktree / "repos" / "demo"
+            member.mkdir(parents=True)
+            subprocess.run(
+                ["git", "init", "-q", "-b", "main", str(member)],
+                check=True, capture_output=True, text=True,
+            )
+            (member / "value.txt").write_text("first\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(member), "add", "value.txt"], check=True)
+            subprocess.run(
+                ["git", "-C", str(member), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "first"],
+                check=True, capture_output=True, text=True,
+            )
+            first = subprocess.run(
+                ["git", "-C", str(member), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            subprocess.run(
+                ["git", "-C", str(member), "update-ref", "refs/remotes/origin/main", first],
+                check=True, capture_output=True, text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(member), "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"],
+                check=True, capture_output=True, text=True,
+            )
+            (worktree / ".gitmodules").write_text(
+                '[submodule "repos/demo"]\n\tpath = repos/demo\n\turl = https://example.invalid/demo.git\n',
+                encoding="utf-8",
+            )
             subprocess.run(
                 ["git", "-C", str(worktree), "add", ".githooks", "scripts", ".gitmodules"],
+                check=True, capture_output=True, text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(worktree), "update-index", "--add", "--cacheinfo", f"160000,{first},repos/demo"],
                 check=True, capture_output=True, text=True,
             )
             subprocess.run(
@@ -252,6 +281,8 @@ class RootHookGuardTests(unittest.TestCase):
                 ["git", "-C", str(worktree), "worktree", "add", "-q", "-b", "lane", str(lane)],
                 check=True, capture_output=True, text=True,
             )
+            shutil.copyfile(PRE_COMMIT, worktree / ".githooks" / "pre-commit")
+            shutil.copyfile(PRE_COMMIT, lane / ".githooks" / "pre-commit")
             common = subprocess.run(
                 ["git", "-C", str(lane), "rev-parse", "--path-format=absolute", "--git-common-dir"],
                 check=True, capture_output=True, text=True,
@@ -263,23 +294,61 @@ class RootHookGuardTests(unittest.TestCase):
             )
             self.assertEqual(configured.stdout, "")
 
+            (member / "value.txt").write_text("second\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(member), "add", "value.txt"], check=True)
+            subprocess.run(
+                ["git", "-C", str(member), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "second"],
+                check=True, capture_output=True, text=True,
+            )
+            second = subprocess.run(
+                ["git", "-C", str(member), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            subprocess.run(
+                ["git", "-C", str(member), "update-ref", "refs/remotes/origin/main", second],
+                check=True, capture_output=True, text=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(lane), "update-index", "--add", "--cacheinfo", f"160000,{second},repos/demo"],
+                check=True, capture_output=True, text=True,
+            )
+            self.assertIn("repos/demo", subprocess.run(
+                ["git", "-C", str(lane), "diff", "--cached", "--name-only"],
+                check=True, capture_output=True, text=True,
+            ).stdout)
+
             environment = {
                 key: value for key, value in os.environ.items()
                 if not key.startswith("GIT_")
             }
             environment["_ATLAS_HOOK_TRAMPOLINE_DEFERRED"] = "1"
             pre_commit = subprocess.run(
-                ["bash", str(worktree / ".githooks" / "pre-commit")],
+                ["bash", str(lane / ".githooks" / "pre-commit")],
                 cwd=lane, env=environment, capture_output=True, text=True, timeout=30,
             )
             self.assertEqual(pre_commit.returncode, 0, pre_commit.stdout + pre_commit.stderr)
 
+            commit = subprocess.run(
+                ["git", "-C", str(lane), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "advance"],
+                env=environment, capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(commit.returncode, 0, commit.stdout + commit.stderr)
+
             target = lane / "target" / "release"
             target.mkdir(parents=True)
-            auditor = target / "gitlink-coherence.exe"
-            built_auditor = ROOT / "target" / "release" / "gitlink-coherence.exe"
+            auditor_name = "gitlink-coherence.exe" if os.name == "nt" else "gitlink-coherence"
+            auditor = target / auditor_name
+            built_auditor = ROOT / "target" / "release" / auditor_name
+            if not built_auditor.is_file():
+                build_environment = dict(os.environ, CARGO_TARGET_DIR=str(ROOT / "target"))
+                subprocess.run(
+                    ["cargo", "build", "--release", "--locked", "--manifest-path", str(ROOT / "tools/gitlink-coherence/Cargo.toml")],
+                    cwd=Path.home(), env=build_environment, check=True,
+                    capture_output=True, text=True, timeout=180,
+                )
             self.assertTrue(built_auditor.is_file(), "the real coherence auditor must be built for this hook test")
             shutil.copy2(built_auditor, auditor)
+            self.assertFalse((lane / "repos" / "demo" / ".git").exists())
             subprocess.run(
                 ["git", "-C", str(lane), "update-ref", "refs/remotes/origin/main", "HEAD"],
                 check=True, capture_output=True, text=True,

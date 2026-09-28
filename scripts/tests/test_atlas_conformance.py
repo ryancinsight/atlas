@@ -1888,10 +1888,11 @@ class MaterializedMemberTests(unittest.TestCase):
             root_commit = self._git(stack, "write-tree")
             root_commit = self._git(stack, "commit-tree", root_commit, "-m", "pin alpha")
 
-            before = conformance.scan_member(stack, "alpha", root_commit)
-            _write(stack, ".cargo/config.toml", "[build]\ntarget-dir = \"live\"\n")
-            (stack / "scripts/data/atlas-cache-retention.toml").unlink()
-            after = conformance.scan_member(stack, "alpha", root_commit)
+            with patch.object(conformance, "ROOT", stack), patch.object(conformance, "_STORES", None):
+                before = conformance.scan_member(stack, "alpha", root_commit)
+                _write(stack, ".cargo/config.toml", "[build]\ntarget-dir = \"live\"\n")
+                (stack / "scripts/data/atlas-cache-retention.toml").unlink()
+                after = conformance.scan_member(stack, "alpha", root_commit)
 
             self.assertEqual(after, before)
             self.assertEqual(after["cache_retention_policy_missing"], 0)

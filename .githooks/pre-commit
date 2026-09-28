@@ -83,8 +83,9 @@ unset GIT_DIR GIT_WORK_TREE
 # read-only ref probe instead of treating the lane directory as the Atlas
 # superproject.  The hook never initializes or changes the member checkout.
 canonical_stack_root() {
-  local common_dir configured ancestor candidate candidate_gitdir
+  local common_dir common_norm configured ancestor candidate candidate_gitfile candidate_gitdir candidate_norm
   common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
+  common_norm="$(printf '%s' "$common_dir" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')"
   if [ "$(basename "$common_dir")" = ".git" ]; then
     dirname "$common_dir"
     return 0
@@ -94,17 +95,39 @@ canonical_stack_root() {
     git -C "$configured" rev-parse --show-toplevel
     return 0
   fi
-  ancestor="$(dirname "$common_dir")"
-  while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
-    for candidate in "$ancestor"/*; do
-      [ -f "$candidate/.git" ] || continue
-      candidate_gitdir="$(git -C "$candidate" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
-      if [ "$candidate_gitdir" = "$common_dir" ] &&
-        [ "$(git -C "$candidate" rev-parse --path-format=absolute --git-dir 2>/dev/null || true)" = "$common_dir" ]; then
+  scan_candidate() {
+    local root="$1" depth="$2" candidate_gitfile candidate candidate_gitdir candidate_norm child
+    [ "$depth" -le 6 ] || return 1
+    for candidate_gitfile in "$root"/*/.git; do
+      [ -f "$candidate_gitfile" ] || continue
+      candidate_gitfile="${candidate_gitfile//\\//}"
+      candidate="${candidate_gitfile%/.git}"
+      candidate_gitdir="$(sed -n 's/^gitdir: //p' "$candidate/.git" 2>/dev/null || true)"
+      case "$candidate_gitdir" in
+        /*|[A-Za-z]:/*) ;;
+        *) candidate_gitdir="$candidate/$candidate_gitdir" ;;
+      esac
+      candidate_norm="$(printf '%s' "$candidate_gitdir" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')"
+      if [ "$candidate_norm" = "$common_norm" ]; then
         git -C "$candidate" rev-parse --show-toplevel
         return 0
       fi
     done
+    for child in "$root"/*; do
+      [ -d "$child" ] || continue
+      scan_candidate "$child" "$((depth + 1))" && return 0
+    done
+    return 1
+  }
+  ancestor="$(dirname "$ROOT")"
+  while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
+    scan_candidate "$ancestor" 0 && return 0
+    [ "$ancestor" = "$(dirname "$ancestor")" ] && break
+    ancestor="$(dirname "$ancestor")"
+  done
+  ancestor="$(dirname "$(dirname "$common_dir")")"
+  while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
+    scan_candidate "$ancestor" 0 && return 0
     [ "$ancestor" = "$(dirname "$ancestor")" ] && break
     ancestor="$(dirname "$ancestor")"
   done
