@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import subprocess
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -203,12 +204,28 @@ def environment_digest(environment: Mapping[str, str] | None = None) -> str:
     flags mirrored as env, e.g. `build-std`), and `CARGO_HOST_*` (host-triple
     rustflags) are covered by prefix, alongside the existing
     `CARGO_PROFILE_*` prefix and the fixed single-variable set -- which adds
-    `CARGO_ENCODED_RUSTDOCFLAGS` and `RUSTDOC` (both honored by the rustdoc
-    step this identity wraps) and `RUSTC_BOOTSTRAP` (gates unstable rustc
-    flags) to the set already covering `RUSTFLAGS`/`RUSTDOCFLAGS`. A
-    `CARGO_BUILD_RUSTFLAGS` recompiling every dependency at a different
-    codegen setting was previously invisible here, matching this run's
-    exact-comparison record to one built under a different value.
+    `RUSTC_BOOTSTRAP` (gates unstable rustc flags) to the set already
+    covering `RUSTFLAGS`. A `CARGO_BUILD_RUSTFLAGS` recompiling every
+    dependency at a different codegen setting was previously invisible here,
+    matching this run's exact-comparison record to one built under a
+    different value.
+
+    Rustdoc-only inputs -- `RUSTDOCFLAGS`, `CARGO_ENCODED_RUSTDOCFLAGS`,
+    `RUSTDOC` -- are deliberately excluded, even though the pre-push hook's
+    doc step sets one of them. `discover_artifacts` never looks under
+    `target/doc`, so this record's tracked artifacts (the compiled
+    dependency closure) are unaffected by a rustdoc-only flag; Cargo's own
+    per-unit doc fingerprint tracks that flag independently and rebuilds
+    docs on its own when it changes. The hook runs clippy, nextest, and
+    `cargo doc` under one shared `command_key` for one package precisely so
+    they read one record (`_sibling_matches` ignores only the command key,
+    comparing every other build dimension); including a rustdoc-only input
+    here would give the doc step's `env RUSTDOCFLAGS=... cargo doc`
+    invocation a different `environment_digest` from the clippy and test
+    steps' plain invocations, splitting one shared record into two and
+    making each stale to the other -- a real-Cargo run of that exact
+    three-step sequence measured this cleaning the whole dependency closure
+    on every push instead of after the first.
     """
     source = os.environ if environment is None else environment
     keys = {
@@ -225,14 +242,11 @@ def environment_digest(environment: Mapping[str, str] | None = None) -> str:
             in {
                 "CARGO",
                 "CARGO_ENCODED_RUSTFLAGS",
-                "CARGO_ENCODED_RUSTDOCFLAGS",
                 "CARGO_INCREMENTAL",
                 "RUSTC",
                 "RUSTC_BOOTSTRAP",
                 "RUSTC_WORKSPACE_WRAPPER",
                 "RUSTC_WRAPPER",
-                "RUSTDOC",
-                "RUSTDOCFLAGS",
                 "RUSTFLAGS",
             }
         )
@@ -249,6 +263,46 @@ def _cargo_home(environment: Mapping[str, str] | None = None) -> Path:
     return Path(configured) if configured else Path.home() / ".cargo"
 
 
+def _feed_config_file(digest: "hashlib._Hash", marker: bytes, path: Path, seen: set[Path]) -> None:
+    """Hash `path` into `digest`, then recurse into its `include` directive.
+
+    Cargo 1.97 stable follows `include = "path"` or `include = ["path", ...]`
+    in a config file, resolved relative to the directory holding that file,
+    and merges the included file's own settings; an edit confined to an
+    included file changes the build without changing the including file's
+    bytes at all. `seen` guards a cycle (an included file naming its own
+    includer, directly or through a chain) and also lets one file reached
+    two ways (an explicit include of a file this walk would find anyway)
+    contribute to the digest only once.
+    """
+    if path in seen:
+        _feed_framed(digest, marker)
+        _feed_framed(digest, b"seen:" + path.name.encode("utf-8", "surrogateescape"))
+        return
+    seen.add(path)
+    _feed_framed(digest, marker)
+    try:
+        content = path.read_bytes()
+    except OSError as error:
+        raise BuildIdentityError(f"cannot read cargo config {path}: {error}") from error
+    _feed_framed(digest, content)
+    try:
+        data = tomllib.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return
+    include = data.get("include")
+    if isinstance(include, str):
+        include = [include]
+    if not isinstance(include, list):
+        return
+    for entry in include:
+        if not isinstance(entry, str):
+            continue
+        included = (path.parent / entry).resolve()
+        if included.is_file():
+            _feed_config_file(digest, b"include", included, seen)
+
+
 def cargo_config_digest(
     execution_root: Path,
     config_arguments: Sequence[str] = (),
@@ -256,15 +310,20 @@ def cargo_config_digest(
 ) -> str:
     """A digest of every Cargo configuration source that shapes this build.
 
-    Cargo merges `.cargo/config.toml` (falling back to the legacy
-    `.cargo/config`) from every directory between the execution root and
-    the filesystem root, closer files overriding farther ones, plus
-    `$CARGO_HOME/config.toml` and any `--config` argument on the command
-    line. None of these live inside the package's own repository -- the
-    pre-push gate mirrors the stack's shared config a directory above the
-    export -- so no git diff of that repository can ever see one of them
-    change; a profile or rustflags edit there recompiles a dependency while
-    every record naming it stays byte-identical.
+    Cargo merges `.cargo/config.toml` and the legacy `.cargo/config` (Cargo
+    itself prefers the extensionless file when both exist at one level, but
+    this digest hashes whichever are present rather than picking one, so
+    either changing is visible) from every directory between the execution
+    root and the filesystem root, closer files overriding farther ones, plus
+    `$CARGO_HOME/config.toml`/`$CARGO_HOME/config` and any `--config`
+    argument on the command line, and follows each file's own `include`
+    directive (stable since Cargo 1.97) recursively. None of these live
+    inside the package's own repository -- the pre-push gate mirrors the
+    stack's shared config two directories above the export, one `nested`
+    level per layered stack config -- so no git diff of that repository can
+    ever see one of them change; a profile or rustflags edit there
+    recompiles a dependency while every record naming it stays
+    byte-identical.
 
     Each directory config is framed by its depth from the execution root
     and its filename, never its absolute path: the pre-push gate exports
@@ -288,6 +347,7 @@ def cargo_config_digest(
     for.
     """
     digest = hashlib.sha256()
+    seen: set[Path] = set()
     origin = _canonical(execution_root)
     directory = origin
     depth = 0
@@ -295,13 +355,8 @@ def cargo_config_digest(
         for name in (".cargo/config.toml", ".cargo/config"):
             path = directory / name
             if path.is_file():
-                _feed_framed(digest, b"dir")
-                _feed_framed(digest, str(depth).encode("ascii"))
-                _feed_framed(digest, name.encode("ascii"))
-                try:
-                    _feed_framed(digest, path.read_bytes())
-                except OSError as error:
-                    raise BuildIdentityError(f"cannot read cargo config {path}: {error}") from error
+                marker = b"dir:" + str(depth).encode("ascii") + b":" + name.encode("ascii")
+                _feed_config_file(digest, marker, path, seen)
         parent = directory.parent
         if parent == directory:
             break
@@ -311,23 +366,14 @@ def cargo_config_digest(
     for name in ("config.toml", "config"):
         path = home / name
         if path.is_file():
-            _feed_framed(digest, b"home")
-            _feed_framed(digest, name.encode("ascii"))
-            try:
-                _feed_framed(digest, path.read_bytes())
-            except OSError as error:
-                raise BuildIdentityError(f"cannot read cargo home config {path}: {error}") from error
+            _feed_config_file(digest, b"home:" + name.encode("ascii"), path, seen)
     for argument in config_arguments:
         text = str(argument)
         candidate = Path(text)
         if not candidate.is_absolute():
             candidate = origin / candidate
         if candidate.is_file():
-            _feed_framed(digest, b"arg-file")
-            try:
-                _feed_framed(digest, candidate.read_bytes())
-            except OSError as error:
-                raise BuildIdentityError(f"cannot read cargo --config file {candidate}: {error}") from error
+            _feed_config_file(digest, b"arg-file", candidate, seen)
         else:
             _feed_framed(digest, b"arg-inline")
             _feed_framed(digest, text.encode("utf-8"))
