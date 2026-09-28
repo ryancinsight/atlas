@@ -81,6 +81,7 @@ from atlas_stack import (
     ROOT, WORKTREE_BOUND, canonical_lane, is_git_ignored, registered_member_names,
     staleness_note,
 )
+from atlas_scattered_containers_classify import VEC_VEC
 
 GIT_TIMEOUT_SECONDS = 60
 ARCHIVE_TIMEOUT_SECONDS = 120
@@ -337,6 +338,7 @@ CLASSES = [
     "unresolved_references", "second_output_root",
     "board_items_outside_status_set", "board_items_without_anchor",
     "board_items_without_priority", "board_checklist_files",
+    "scattered_containers",
 ]
 
 # The shared build directory routed through the root `.cargo/config.toml`.
@@ -1862,9 +1864,10 @@ def scan_repo(
         # workspace denies `unwrap_used` outright); and prose *about* a token
         # is not a use of it — a doc comment arguing against `SeqCst` raised
         # that class, and 45 of moirai's 80 recorded sites were comment text
-        # (audit §3.3). `unwrap_production`, `seqcst_production` and
-        # `print_dbg` are the three such classes, and all three read this one
-        # region so the rule cannot be re-introduced on a fourth.
+        # (audit §3.3). `unwrap_production`, `seqcst_production`,
+        # `print_dbg` and `scattered_containers` are the four such classes,
+        # and all four read this one region so the rule cannot be
+        # re-introduced on a fifth.
         prod_code = strip_comments(prod)
         c["unwrap_production"] += prod_code.count(".unwrap()")
         c["allow_sites"] += prod.count("#[allow(")
@@ -1891,6 +1894,13 @@ def scan_repo(
             if path.name == "build.rs" and hits:
                 hits -= len(CARGO_PROTOCOL_PRINT.findall(prod_code))
             c["print_dbg"] += hits
+            # ATLAS-ARCH-008: pointer-scattered `Vec<Vec<_>>` containers on
+            # production traversal paths. Shares `VEC_VEC` with
+            # atlas_scattered_containers_classify.py's site classifier
+            # rather than a second regex definition, and the same is_bin
+            # exclusion print_dbg uses, since the classifier's own
+            # test/bench/example split excludes non-production sites.
+            c["scattered_containers"] += len(VEC_VEC.findall(prod_code))
         c["lane_kernel_uninlined"] += count_lane_kernel_uninlined(prod)
         c["existence_only_assertions"] += len(EXISTENCE_ONLY.findall(test))
         c["sleep_synced_tests"] += len(SLEEP.findall(test))

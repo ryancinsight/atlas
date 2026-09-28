@@ -13,7 +13,7 @@
 <a id="atlas-nightly-probe-consolidation"></a>- [ATLAS-NIGHTLY-PROBE-CONSOLIDATION](backlog/atlas-nightly-probe-consolidation.md) — One nightly-rustc probe for the stack [patch] — todo
 <a id="atlas-r7-closure-mapping-2026-09-24"></a>- [ATLAS-R7-CLOSURE-MAPPING-2026-09-24](backlog/atlas-r7-closure-mapping-2026-09-24.md) — Map closure members in the live R7 scan [patch] — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — in-progress
-<a id="atlas-arch-008-running-in-place-225"></a>- [ATLAS-ARCH-008-RUNNING-IN-PLACE-225](backlog/atlas-arch-008-running-in-place-225.md) — The conversion converts and re-accumulates at the same rate [patch] — in-progress
+<a id="atlas-arch-008-running-in-place-225"></a>- [ATLAS-ARCH-008-RUNNING-IN-PLACE-225](backlog/atlas-arch-008-running-in-place-225.md) — The conversion converts and re-accumulates at the same rate [patch] — next
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) — Create and register `ares` (solid momentum balance) [arch][minor] — in-progress
 <a id="atlas-athena-allocation-contract"></a>- [ATLAS-ATHENA-ALLOCATION-CONTRACT](backlog/atlas-athena-allocation-contract.md) — warm solves allocate 4-6 small buffers per call on Linux [patch] — in-progress

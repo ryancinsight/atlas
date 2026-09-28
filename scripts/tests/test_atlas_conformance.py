@@ -511,6 +511,101 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["print_dbg"], 0)
 
+    def test_scattered_containers_counts_a_production_vec_vec_field(self) -> None:
+        # ATLAS-ARCH-008: a `Vec<Vec<_>>` field on a production traversal
+        # path is exactly the pointer-scattered shape the classifier and
+        # this ratchet share one pattern for (`VEC_VEC`).
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "pub struct Grid {\n"
+                "    rows: Vec<Vec<f64>>,\n"
+                "}\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["scattered_containers"], 1)
+
+    def test_scattered_containers_excludes_cfg_test_module(self) -> None:
+        # A site inside a `#[cfg(test)] mod tests` block is test code, not a
+        # production traversal path -- the classifier's own split.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "pub fn noop() {}\n"
+                "\n"
+                "#[cfg(test)]\n"
+                "mod tests {\n"
+                "    fn scratch() -> Vec<Vec<u8>> {\n"
+                "        Vec::new()\n"
+                "    }\n"
+                "}\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["scattered_containers"], 0)
+
+    def test_scattered_containers_excludes_a_comment(self) -> None:
+        # A `Vec<Vec<` appearing only in `//`/`///` prose is not a site --
+        # the same comment-free `prod_code` region every code-token class
+        # reads.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "// A Vec<Vec<f64>> here would pointer-chase per row.\n"
+                "/// Avoid a Vec<Vec<f64>> layout for this accessor.\n"
+                "pub fn noop() {}\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["scattered_containers"], 0)
+
+    def test_scattered_containers_excludes_main_rs_and_benches(self) -> None:
+        # `src/main.rs` and `benches/` are executable/measurement surfaces,
+        # not the traversal paths ATLAS-ARCH-008 tracks -- the same
+        # `is_bin` exclusion `print_dbg` uses.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/main.rs",
+                "fn main() {\n"
+                "    let _rows: Vec<Vec<u8>> = Vec::new();\n"
+                "}\n",
+            )
+            _write(
+                root,
+                "benches/measure.rs",
+                "fn bench() -> Vec<Vec<u8>> { Vec::new() }\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["scattered_containers"], 0)
+
+    def test_generate_refuses_to_raise_scattered_containers(self) -> None:
+        # The generic ratchet (`baseline_raises`) must hold for this class
+        # exactly as it holds for any other: a raised count fails `generate`.
+        previous = {"demo": {"scattered_containers": 2}}
+        current = {"demo": {"scattered_containers": 3}}
+        self.assertEqual(
+            conformance.baseline_raises(previous, current),
+            [("demo", "scattered_containers", 2, 3)],
+        )
+
     def test_build_rs_cargo_protocol_is_exempt_from_print_scan(self) -> None:
         # `println!("cargo:...")` is the canonical Cargo build-script
         # protocol (rerun-if-changed, rustc-cfg, rustc-link-arg).  It is
@@ -1650,11 +1745,12 @@ class DetectorPrecisionTests(unittest.TestCase):
         self.assertEqual(len(conformance.SEQCST.findall(stripped)), 1)
 
     def test_a_comment_naming_a_code_token_is_not_that_token(self) -> None:
-        # The three code-token classes -- `unwrap_production`,
-        # `seqcst_production` and `print_dbg` -- read one comment-free
-        # region, so prose about a token cannot raise any of them. A `//`
-        # comment (not just a `///` doc comment) is where moirai's ordering
-        # rationale lives, so a doc-comment-only strip is not enough.
+        # The four code-token classes -- `unwrap_production`,
+        # `seqcst_production`, `print_dbg` and `scattered_containers` --
+        # read one comment-free region, so prose about a token cannot raise
+        # any of them. A `//` comment (not just a `///` doc comment) is
+        # where moirai's ordering rationale lives, so a doc-comment-only
+        # strip is not enough.
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
             _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
@@ -1664,6 +1760,7 @@ class DetectorPrecisionTests(unittest.TestCase):
                 "// Ordering::SeqCst would additionally fence the store.\n"
                 "/* println!(\"debug\"); */\n"
                 "/// let shape = Indexed::new().unwrap();\n"
+                "// A Vec<Vec<u8>> field here would scatter allocations.\n"
                 "use std::sync::atomic::{AtomicU64, Ordering};\n"
                 "static BARRIER: AtomicU64 = AtomicU64::new(0);\n"
                 "pub fn barrier() -> u64 {\n"
@@ -1676,6 +1773,7 @@ class DetectorPrecisionTests(unittest.TestCase):
         self.assertEqual(counts["seqcst_production"], 1)
         self.assertEqual(counts["print_dbg"], 0)
         self.assertEqual(counts["unwrap_production"], 0)
+        self.assertEqual(counts["scattered_containers"], 0)
 
     def test_a_url_operand_does_not_hide_code_on_its_line(self) -> None:
         # `_walk_mods` reads declarations from the stripped text, so a
