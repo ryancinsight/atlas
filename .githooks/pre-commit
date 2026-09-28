@@ -60,17 +60,6 @@ merge_inherited() {
   git diff --cached --quiet "$merge_in_progress" -- "$path"
 }
 
-if [ -n "$merge_in_progress" ]; then
-  board_staged="$(printf '%s\n' "$board_staged" | while IFS= read -r path; do
-    [ -n "$path" ] || continue
-    merge_inherited "$path" || printf '%s\n' "$path"
-  done)"
-  pointer_staged="$(printf '%s\n' "$pointer_staged" | while IFS= read -r path; do
-    [ -n "$path" ] || continue
-    merge_inherited "$path" || printf '%s\n' "$path"
-  done)"
-fi
-
 # Git exports GIT_DIR/GIT_INDEX_FILE/GIT_WORK_TREE to hooks; a bare
 # `git -C <submodule>` then resolves against this superproject's object
 # store instead of the submodule's, so every per-member ref probe below
@@ -85,9 +74,13 @@ unset GIT_DIR GIT_WORK_TREE
 # read-only ref probe instead of treating the lane directory as the Atlas
 # superproject.  The hook never initializes or changes the member checkout.
 canonical_stack_root() {
-  local common_dir
+  local common_dir git_dir
   common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-  dirname "$common_dir"
+  git_dir="$(git rev-parse --path-format=absolute --git-dir 2>/dev/null)" || return 1
+  case "$git_dir" in
+    "$common_dir"/worktrees/*) dirname "$common_dir" ;;
+    *) git rev-parse --show-toplevel ;;
+  esac
 }
 
 member_checkout() {
@@ -169,7 +162,10 @@ fi
 
 # R2 - board sync stays pure.
 if [ -n "$board_staged" ]; then
-  pollution="$(staged | grep -vE '^(backlog|checklist)\.md$' | grep -E '^repos/|Cargo\.lock$|^\.github/workflows/' || true)"
+  pollution="$(staged | grep -vE '^(backlog|checklist)\.md$' | grep -E '^repos/|Cargo\.lock$|^\.github/workflows/' | while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    merge_inherited "$path" || printf '%s\n' "$path"
+  done)"
   if [ -n "$pollution" ]; then
     echo "[pre-commit] R2: board sync must not carry these staged paths:" >&2
     printf '  %s\n' $pollution >&2
@@ -180,7 +176,12 @@ fi
 
 # R3 - pointer advances stay pure (content goes in sibling commits).
 if [ -n "$pointer_staged" ]; then
-  non_pointer="$(staged | grep -vFf <(printf '%s\n' $pointer_staged) || true)"
+  non_pointer="$(staged | while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    printf '%s\n' "$pointer_staged" | grep -Fxq "$path" && continue
+    merge_inherited "$path" && continue
+    printf '%s\n' "$path"
+  done)"
   if [ -n "$non_pointer" ]; then
     echo "[pre-commit] R3: pointer-advance commit carries non-pointer paths:" >&2
     printf '  %s\n' $non_pointer >&2

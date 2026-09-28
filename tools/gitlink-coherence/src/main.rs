@@ -19,7 +19,7 @@ use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
 
 use atlas_gitlink_coherence_gate::coherence::{audit, audit_one};
 use atlas_gitlink_coherence_gate::error::Error;
@@ -78,8 +78,7 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
         env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
     });
     let member_root = member_root.unwrap_or_else(|| atlas_root.clone());
-    let gitmodules_path = atlas_root.join(".gitmodules");
-    let bytes = fs::read(&gitmodules_path).map_err(Error::MissingGitmodules)?;
+    let bytes = read_gitmodules(&atlas_root, revision.as_deref())?;
     let text = String::from_utf8(bytes).map_err(|err| Error::GitExit {
         context: "read .gitmodules",
         code: 0,
@@ -115,6 +114,29 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
     } else {
         Ok(ExitCode::SUCCESS)
     }
+}
+
+fn read_gitmodules(atlas_root: &std::path::Path, revision: Option<&str>) -> Result<Vec<u8>, Error> {
+    let Some(revision) = revision else {
+        return fs::read(atlas_root.join(".gitmodules")).map_err(Error::MissingGitmodules);
+    };
+    let spec = format!("{revision}:.gitmodules");
+    let output = Command::new("git")
+        .args(["-C", &atlas_root.to_string_lossy(), "show", &spec])
+        .output()
+        .map_err(|source| Error::GitInvocation {
+            context: "show .gitmodules",
+            stderr: String::new(),
+            source,
+        })?;
+    if !output.status.success() {
+        return Err(Error::GitExit {
+            context: "show .gitmodules",
+            code: output.status.code().unwrap_or(1),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        });
+    }
+    Ok(output.stdout)
 }
 
 struct Parsed {
@@ -272,6 +294,40 @@ mod tests {
             error.to_string().contains("no unique"),
             "diagnostic was: {error}"
         );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn named_revision_reads_its_committed_gitmodules() {
+        let root = std::env::temp_dir().join(format!(
+            "gitlink-coherence-revision-test-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| {
+            let status = Command::new("git")
+                .args([
+                    "-C",
+                    root.to_str().unwrap(),
+                    "-c",
+                    "user.name=Test",
+                    "-c",
+                    "user.email=test@example.invalid",
+                ])
+                .args(args)
+                .status()
+                .unwrap();
+            assert!(status.success(), "git command failed: {args:?}");
+        };
+        git(&["init", "-q", "-b", "main"]);
+        fs::write(root.join(".gitmodules"), "old\n").unwrap();
+        git(&["add", ".gitmodules"]);
+        git(&["commit", "-qm", "old"]);
+        fs::write(root.join(".gitmodules"), "new\n").unwrap();
+
+        assert_eq!(read_gitmodules(&root, Some("HEAD")).unwrap(), b"old\n");
+        assert_eq!(fs::read(root.join(".gitmodules")).unwrap(), b"new\n");
         let _ = fs::remove_dir_all(root);
     }
 }

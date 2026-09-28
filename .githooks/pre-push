@@ -138,9 +138,13 @@ if [ -z "$atlas_root" ]; then
     exit 1
 fi
 canonical_stack_root() {
-    local common_dir
+    local common_dir git_dir
     common_dir="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-    dirname "$common_dir"
+    git_dir="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-dir 2>/dev/null)" || return 1
+    case "$git_dir" in
+        "$common_dir"/worktrees/*) dirname "$common_dir" ;;
+        *) git -C "$atlas_root" rev-parse --show-toplevel ;;
+    esac
 }
 member_root="$(canonical_stack_root)" || {
     echo "pre-push: BLOCKED -- cannot resolve the canonical Atlas root from Git metadata." >&2
@@ -275,7 +279,8 @@ debt_gate() {
                 "${atlas_root}/scripts/atlas-conformance.py" \
                 check --repo "$member" \
                 --member-path "${member_root}/repos/${member}" \
-                --member-revision "$member_revision" 2>&1)"; then
+                --member-revision "$member_revision" \
+                --baseline-rev "$gate_base" 2>&1)"; then
             echo "pre-push: BLOCKED -- advancing ${member} raises a debt class." >&2
             echo "$output" >&2
             echo >&2

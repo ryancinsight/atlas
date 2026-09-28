@@ -216,6 +216,26 @@ class RootHookGuardTests(unittest.TestCase):
             self.assertNotEqual(missing_member.returncode, 0)
             self.assertIn("canonical member checkout is absent", missing_member.stdout + missing_member.stderr)
 
+    def test_separate_git_dir_resolves_the_configured_worktree_root(self) -> None:
+        """Canonical discovery follows Git's separate worktree metadata."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            worktree = root / "canonical"
+            metadata = root / "metadata.git"
+            subprocess.run(
+                ["git", "init", "-q", "-b", "main", "--separate-git-dir", str(metadata), str(worktree)],
+                check=True, capture_output=True, text=True,
+            )
+            common = subprocess.run(
+                ["git", "-C", str(worktree), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            resolved = subprocess.run(
+                ["git", "-C", str(worktree), "rev-parse", "--show-toplevel"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            self.assertEqual(Path(resolved).resolve(), worktree.resolve())
+
     def test_merge_allows_inherited_board_and_gitlink_changes_only(self) -> None:
         """A real merge may combine independently valid board and pin commits."""
         with tempfile.TemporaryDirectory() as temporary:
@@ -279,6 +299,13 @@ class RootHookGuardTests(unittest.TestCase):
             self.assertEqual(git("commit", "-qm", "Update board").returncode, 0)
             conflict = git("merge", "--no-commit", "fix/pin", check=False)
             self.assertEqual(conflict.returncode, 0, conflict.stdout + conflict.stderr)
+            (repo / "unrelated.txt").write_text("new\n", encoding="utf-8")
+            git("add", "unrelated.txt")
+            unrelated = git("commit", "-qm", "Reject unrelated merge content", check=False)
+            self.assertNotEqual(unrelated.returncode, 0)
+            self.assertRegex(unrelated.stdout + unrelated.stderr, r"R[23]")
+            git("update-index", "--force-remove", "unrelated.txt")
+            (repo / "unrelated.txt").unlink()
             merged = git("commit", "-qm", "Merge pin", check=False)
             self.assertEqual(merged.returncode, 0, merged.stdout + merged.stderr)
 

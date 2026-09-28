@@ -2265,6 +2265,10 @@ class LinkSnapshotTests(unittest.TestCase):
             self.assertEqual(
                 (linked / "src" / "edited.rs").read_text(), "pub fn committed() {}\n"
             )
+            _write(member, "src/kept.rs", "pub fn mutated_after_snapshot() {}\n")
+            self.assertEqual(
+                (linked / "src" / "kept.rs").read_text(), "pub fn kept() {}\n"
+            )
             self.assertFalse((linked / "scratch.rs").exists())
             # The checkout itself is untouched by the snapshot and its removal.
             shutil.rmtree(linked)
@@ -2273,7 +2277,7 @@ class LinkSnapshotTests(unittest.TestCase):
             )
             self.assertEqual(
                 [e.strip() for e in _git(member, "status", "--porcelain", "-z").split("\0")],
-                ["M src/edited.rs", "D src/removed.rs", "?? scratch.rs", ""],
+                ["M src/edited.rs", "M src/kept.rs", "D src/removed.rs", "?? scratch.rs", ""],
             )
 
 

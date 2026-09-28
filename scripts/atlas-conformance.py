@@ -2008,20 +2008,13 @@ def materialize_member(
 
 
 def link_snapshot(checkout: Path, revision: str, scratch: Path) -> Path:
-    """Materialize `revision` of `checkout` under `scratch`, reusing unchanged files.
+    """Materialize `revision` of `checkout` under `scratch` from Git blobs.
 
-    Each tracked path whose working-tree content already matches `revision`
-    is hard-linked from the checkout; every other path is written from a
-    temporary index by `checkout-index`, so it carries the line-ending
-    filters a checkout applies, exactly as `git archive` would. Untracked
-    and ignored files never enter, and the checkout's index is not touched.
-
-    `git archive` gives the same content, but every file it extracts is new
-    to the filesystem, and on this Windows host first opening them dominated:
-    a kwavers revision scan took 173 s archived against 24 s in place
-    (2026-09-24), outside any pre-push budget. `scratch` must share the
-    checkout's volume for links to form; a path that cannot be linked is
-    copied, and the copies are reported since they cost that time again.
+    A temporary index reads the requested tree and `checkout-index` writes
+    independent files. Hard-linking the live checkout would let a later
+    working-tree write mutate the supposed revision snapshot, so every file
+    comes from the requested Git tree. Untracked and ignored files never enter,
+    and the checkout's index is not touched.
     """
     listing = git_output("ls-tree", "-r", "-z", "--full-tree", revision, cwd=checkout)
     tracked: list[tuple[str, str]] = []
@@ -2030,62 +2023,28 @@ def link_snapshot(checkout: Path, revision: str, scratch: Path) -> Path:
         mode = meta.split(" ", 1)[0]
         if mode != "160000":
             tracked.append((mode, path))
-    try:
-        diff = execute_git(
-            checkout,
-            ("diff", "--no-renames", "--name-only", "-z", revision, "--"),
-            env=dict(os.environ, GIT_OPTIONAL_LOCKS="0"),
-            timeout=GIT_TIMEOUT_SECONDS,
-        )
-    except GitProcessError as exc:
-        raise RuntimeError(f"{checkout}: cannot diff against {revision[:12]}: {exc}") from exc
-    if diff.returncode:
-        detail = diff.stderr.decode("utf-8", errors="replace").strip()
-        raise RuntimeError(detail or f"{checkout}: cannot diff against {revision[:12]}")
-    differs = set(filter(None, diff.stdout.decode("utf-8", errors="replace").split("\0")))
-    # A symlink is written as the checkout would write it, never linked.
-    written = [path for mode, path in tracked if path in differs or mode == "120000"]
     content = scratch / checkout.name
     content.mkdir(parents=True)
-    made: set[Path] = set()
-    copied = 0
-    for mode, path in tracked:
-        if path in differs or mode == "120000":
-            continue
-        target = content / path
-        if target.parent not in made:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            made.add(target.parent)
-        try:
-            os.link(checkout / path, target)
-        except OSError:
-            shutil.copyfile(checkout / path, target)
-            copied += 1
-    if written:
-        fd, index_path = tempfile.mkstemp(prefix="atlas-snapshot-index-")
-        os.close(fd)
-        try:
-            env = dict(os.environ, GIT_INDEX_FILE=index_path)
-            for args, stdin in (
-                (("read-tree", revision), None),
-                (("checkout-index", f"--prefix={content.as_posix()}/", "-z", "--stdin"),
-                 "\0".join(written).encode("utf-8")),
-            ):
-                result = execute_git(
-                    checkout, args, stdin=stdin, env=env, timeout=ARCHIVE_TIMEOUT_SECONDS
+    fd, index_path = tempfile.mkstemp(prefix="atlas-snapshot-index-")
+    os.close(fd)
+    try:
+        env = dict(os.environ, GIT_INDEX_FILE=index_path)
+        for args in (
+            ("read-tree", revision),
+            ("checkout-index", "--all", f"--prefix={content.as_posix()}/"),
+        ):
+            result = execute_git(
+                checkout, args, env=env, timeout=ARCHIVE_TIMEOUT_SECONDS
+            )
+            if result.returncode:
+                detail = result.stderr.decode("utf-8", errors="replace").strip()
+                raise RuntimeError(
+                    f"{checkout}: {args[0]} at {revision[:12]} failed: {detail}"
                 )
-                if result.returncode:
-                    detail = result.stderr.decode("utf-8", errors="replace").strip()
-                    raise RuntimeError(
-                        f"{checkout}: {args[0]} at {revision[:12]} failed: {detail}"
-                    )
-        except GitProcessError as exc:
-            raise RuntimeError(f"{checkout}: cannot write {revision[:12]}: {exc}") from exc
-        finally:
-            os.unlink(index_path)
-    if copied:
-        print(f"snapshot: {copied} file(s) copied, not linked ({scratch} is on "
-              f"another volume from {checkout})", file=sys.stderr)
+    except GitProcessError as exc:
+        raise RuntimeError(f"{checkout}: cannot write {revision[:12]}: {exc}") from exc
+    finally:
+        os.unlink(index_path)
     (content / ".git").write_text(f"gitdir: archived {revision}\n", encoding="utf-8")
     return content
 
