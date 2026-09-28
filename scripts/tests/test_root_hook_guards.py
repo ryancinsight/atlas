@@ -234,6 +234,10 @@ class RootHookGuardTests(unittest.TestCase):
             shutil.copytree(ROOT / "scripts", worktree / "scripts", dirs_exist_ok=True)
             shutil.copyfile(PRE_PUSH, worktree / ".githooks" / "pre-push")
             (worktree / ".githooks" / "pre-push").chmod(0o755)
+            shutil.copytree(
+                ROOT / "tools" / "gitlink-coherence", worktree / "tools" / "gitlink-coherence",
+                ignore=shutil.ignore_patterns("target"),
+            )
             member = worktree / "repos" / "demo"
             member.mkdir(parents=True)
             subprocess.run(
@@ -263,7 +267,7 @@ class RootHookGuardTests(unittest.TestCase):
                 encoding="utf-8",
             )
             subprocess.run(
-                ["git", "-C", str(worktree), "add", ".githooks", "scripts", ".gitmodules"],
+                ["git", "-C", str(worktree), "add", ".githooks", "scripts", "tools", ".gitmodules"],
                 check=True, capture_output=True, text=True,
             )
             subprocess.run(
@@ -336,10 +340,20 @@ class RootHookGuardTests(unittest.TestCase):
             )
             self.assertEqual(commit.returncode, 0, commit.stdout + commit.stderr)
 
-            target = lane / "target" / "release"
-            target.mkdir(parents=True)
+            subprocess.run(
+                ["git", "-C", str(lane), "update-ref", "refs/remotes/origin/main", "HEAD"],
+                check=True, capture_output=True, text=True,
+            )
+            # The hook runs the auditor built from origin's
+            # tools/gitlink-coherence, cached under the git directory by that
+            # tree; nothing is placed in target/release, which it no longer reads.
+            auditor_tree = subprocess.run(
+                ["git", "-C", str(lane), "rev-parse", "origin/main:tools/gitlink-coherence"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
             auditor_name = "gitlink-coherence.exe" if os.name == "nt" else "gitlink-coherence"
-            auditor = target / auditor_name
+            auditor = Path(common) / "atlas-auditor" / auditor_tree / auditor_name
+            auditor.parent.mkdir(parents=True)
             built_auditor = ROOT / "target" / "release" / auditor_name
             if not built_auditor.is_file():
                 build_environment = dict(os.environ, CARGO_TARGET_DIR=str(ROOT / "target"))
@@ -351,15 +365,13 @@ class RootHookGuardTests(unittest.TestCase):
             self.assertTrue(built_auditor.is_file(), "the real coherence auditor must be built for this hook test")
             shutil.copy2(built_auditor, auditor)
             self.assertFalse((lane / "repos" / "demo" / ".git").exists())
-            subprocess.run(
-                ["git", "-C", str(lane), "update-ref", "refs/remotes/origin/main", "HEAD"],
-                check=True, capture_output=True, text=True,
-            )
             pre_push = subprocess.run(
                 ["bash", str(worktree / ".githooks" / "pre-push")],
                 cwd=lane, env=environment, input="", capture_output=True, text=True, timeout=30,
             )
             self.assertEqual(pre_push.returncode, 0, pre_push.stdout + pre_push.stderr)
+            self.assertNotIn("building it now", pre_push.stderr)
+            self.assertFalse((lane / "target" / "release").exists())
 
     def test_merge_allows_inherited_board_and_gitlink_changes_only(self) -> None:
         """A real merge may combine independently valid board and pin commits."""
