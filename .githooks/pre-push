@@ -251,7 +251,7 @@ debt_gate() {
 
     for member in $changed; do
         [ -d "${member_root}/repos/${member}" ] || continue
-        member_revision="$(git -C "$atlas_root" ls-tree "$tip" -- "repos/${member}" | cut -d" " -f3)"
+        member_revision="$(git -C "$atlas_root" ls-tree "$tip" -- "repos/${member}" | cut -d" " -f3 | cut -f1)"
         [ -n "$member_revision" ] || {
             echo "pre-push: BLOCKED -- pushed tip has no gitlink for ${member}." >&2
             return 1
