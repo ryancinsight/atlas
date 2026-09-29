@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+import functools
 import subprocess
 from ctypes import wintypes
 
@@ -56,6 +57,7 @@ class _ExtendedLimitInformation(ctypes.Structure):
     ]
 
 
+@functools.cache
 def _kernel32():
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel32.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
@@ -80,6 +82,7 @@ def _kernel32():
     return kernel32
 
 
+@functools.cache
 def _ntdll():
     ntdll = ctypes.WinDLL("ntdll")
     ntdll.NtGetNextThread.argtypes = [
