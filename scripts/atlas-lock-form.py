@@ -24,7 +24,8 @@ Modes:
                 discovered
     install-hooks
                 per-clone bootstrap: point member `core.hooksPath` at
-                scripts/git-hooks so `staged` runs on every member commit
+                scripts/git-hooks so every member runs the owned pre-commit
+                and pre-push hooks, whatever branch its tree has checked out
 
 `check` is the CI gate. It is deliberately narrow: it flags only a package that
 is *present in the lock* yet locked without a source despite being declared as
@@ -50,6 +51,8 @@ from atlas_git_process import GitProcessError, execute as execute_git  # noqa: E
 from atlas_stack import ROOT, registered_member_names  # noqa: E402
 
 REPOS = ROOT / "repos"
+# Each member's in-tree copy of scripts/git-hooks, written by `sync-hooks`.
+MEMBER_HOOK_COPY = ".githooks"
 SKIP_DIRS = {"target", ".git", "node_modules"}
 PATCH_UNUSED = "[[patch.unused]]"
 FIRST_PARTY_HOST = "github.com/ryancinsight/"
@@ -474,7 +477,7 @@ def cmd_sync_hooks(args) -> int:
         repo = REPOS / member
         if not repo.is_dir():
             continue
-        target_dir = repo / ".githooks"
+        target_dir = repo / MEMBER_HOOK_COPY
         if not target_dir.is_dir():
             absent.append(member)
             continue
@@ -838,9 +841,15 @@ def cmd_install_hooks(_args) -> int:
 
     Local git config, so it is a per-clone bootstrap rather than committed
     state -- the same shape as the meta-repo's own
-    `git config core.hooksPath .githooks`. A member that already sets
-    `core.hooksPath` is reported and left alone: silently retargeting someone
-    else's hooks would disable them.
+    `git config core.hooksPath .githooks`.
+
+    A member pointing at `.githooks` is retargeted: that directory is the
+    copy `sync-hooks` deploys from this same source for standalone clones,
+    but as a relative hooks path it runs whatever copy the checked-out branch
+    carries, so a tree left on an old branch runs an old gate (CFDrs sat 80
+    commits behind on 2026-09-28 and its pre-push failed on the Windows Store
+    `python3` stub). Any other value is reported and left alone: silently
+    retargeting someone else's hooks would disable them.
     """
     hooks = (Path(__file__).resolve().parent / "git-hooks").as_posix()
     installed, skipped = 0, 0
@@ -852,7 +861,7 @@ def cmd_install_hooks(_args) -> int:
             "git", "-C", str(repo), "config", "--local", "--get", "core.hooksPath"
         )
         current = existing.strip()
-        if code == 0 and current and current != hooks:
+        if code == 0 and current and current not in (hooks, MEMBER_HOOK_COPY):
             print(f"{member}: core.hooksPath already set to {current}; left alone")
             skipped += 1
             continue
