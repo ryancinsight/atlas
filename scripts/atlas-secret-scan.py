@@ -29,7 +29,6 @@ command line or shell history.
 from __future__ import annotations
 
 import argparse
-from collections import Counter
 import hashlib
 import re
 import subprocess
@@ -84,37 +83,36 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
 
 
 def added_lines(root: Path, rev: str, base: str | None) -> list[tuple[str, int, str]]:
-    """Return every line from each added or modified blob in the range."""
-    diff_base = base or EMPTY_TREE
-    proc = _git(root, "diff", "--no-renames", "--name-status", "--diff-filter=ACMRT", "-z", diff_base, rev)
+    """`(path, line, text)` for every line `rev` adds over `base`."""
+    proc = _git(root, "diff", "--no-color", "--no-ext-diff", "--unified=0",
+                base or EMPTY_TREE, rev)
     if proc.returncode:
-        raise RuntimeError(f"git diff {diff_base}..{rev} failed: {proc.stderr.decode('utf-8', 'replace').strip()}")
-    fields = proc.stdout.split(b"\0")
+        raise RuntimeError(
+            f"git diff {base or EMPTY_TREE}..{rev} failed: "
+            f"{proc.stderr.decode('utf-8', 'replace').strip()}"
+        )
     lines: list[tuple[str, int, str]] = []
-    for index in range(0, len(fields) - 1, 2):
-        status = fields[index].decode("ascii", "replace")
-        raw_path = fields[index + 1]
-        if not raw_path or status[:1] not in {"A", "C", "M", "R", "T"}:
-            continue
-        path = raw_path.decode("utf-8", "replace")
-        tree_entry = _git(root, "ls-tree", rev, "--", path)
-        if tree_entry.returncode: raise RuntimeError(f"git ls-tree {rev}:{path} failed")
-        if tree_entry.stdout.startswith(b"160000 "): continue
-        blob = _git(root, "show", f"{rev}:{path}")
-        if blob.returncode:
-            raise RuntimeError(f"git show {rev}:{path} failed: {blob.stderr.decode('utf-8', 'replace').strip()}")
-        text = blob.stdout.decode("utf-8", "replace")
-        previous: Counter[str] = Counter()
-        if base:
-            prior = _git(root, "show", f"{base}:{path}")
-            if prior.returncode == 0:
-                previous = Counter(prior.stdout.decode("utf-8", "replace").splitlines())
-        for number, line in enumerate(text.splitlines(), 1):
-            if previous[line]:
-                previous[line] -= 1
-                continue
-            lines.append((path, number, line))
+    path: str | None = None
+    number = 0
+    # A file's header runs from `diff --git` to its first hunk; only there is
+    # a `+++` line a path. Inside a hunk it is an added line that begins
+    # with "++", and reading it as a header would drop the rest of the file.
+    in_header = False
+    for raw in proc.stdout.decode("utf-8", "replace").splitlines():
+        hunk = HUNK.match(raw)
+        if raw.startswith("diff --git "):
+            in_header, path = True, None
+        elif hunk is not None:
+            in_header, number = False, int(hunk.group(1))
+        elif in_header:
+            if raw.startswith("+++ "):
+                target = raw[4:]
+                path = None if target == "/dev/null" else target.removeprefix("b/")
+        elif raw.startswith("+") and path is not None:
+            lines.append((path, number, raw[1:]))
+            number += 1
     return lines
+
 
 def scan(lines: list[tuple[str, int, str]]) -> list[tuple[str, str, int, str]]:
     """`(rule, path, line, secret)` for each credential in `lines`."""
@@ -142,8 +140,14 @@ def allowlist(root: Path, rev: str) -> frozenset[str]:
     )
 
 
-def check(root: Path, rev: str, base: str | None) -> int:
-    allowed = allowlist(root, rev)
+def check(
+    root: Path,
+    rev: str,
+    base: str | None,
+    allowlist_rev: str | None = None,
+) -> int:
+    """Scan ``rev`` using an allowlist from an independently trusted revision."""
+    allowed = allowlist(root, allowlist_rev or rev)
     findings = [
         finding for finding in scan(added_lines(root, rev, base))
         if fingerprint(finding[3]) not in allowed
@@ -170,13 +174,17 @@ def main() -> int:
     run.add_argument("--root", type=Path, default=Path.cwd(), help="repository to scan")
     run.add_argument("--rev", default="HEAD", help="pushed revision")
     run.add_argument("--base", help="base revision; omitted scans the whole revision")
+    run.add_argument(
+        "--allowlist-rev",
+        help="trusted revision supplying .secret-scan-allowlist; defaults to --rev",
+    )
     sub.add_parser("fingerprint", help="print the allowlist fingerprint of standard input")
     args = parser.parse_args()
     if args.mode == "fingerprint":
         print(fingerprint(sys.stdin.read().strip()))
         return 0
     try:
-        return check(args.root, args.rev, args.base)
+        return check(args.root, args.rev, args.base, args.allowlist_rev)
     except RuntimeError as error:
         print(f"secret-scan: {error}", file=sys.stderr)
         return 2

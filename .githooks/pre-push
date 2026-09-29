@@ -100,7 +100,7 @@ _atlas_hook_trampoline "$@" || exit 1
 # commit that is reachable from the member's published default branch. Twice in
 # two days it did not: `repos/leto` was recorded at `a8d9ae93`, the tip of an
 # unmerged `perf/leto-matmul-parity-verdict`, once by each of two sessions. Both
-# times the cause was the same â€” `git add repos/<name>` stages the submodule's
+# times the cause was the same — `git add repos/<name>` stages the submodule's
 # *worktree HEAD*, and under concurrent agents that HEAD is routinely a peer's
 # in-flight branch.
 #
@@ -202,98 +202,26 @@ if [ ! -t 0 ]; then
     push_stream="$(cat)"
 fi
 
-# Rescue branches are durable parking refs. Their first push runs only the
-# credential scan; later updates use the normal gate.
-initial_rescue_tip=""
-initial_rescue_count=0
-all_rescue=1
-if [ -n "$push_stream" ]; then
-    rescue_line=""
-    while read -r local_ref local_sha remote_ref remote_sha; do
-        if [ "$local_sha" != "0000000000000000000000000000000000000000" ] && ! git -C "$atlas_root" cat-file -e "$local_sha^{commit}" 2>/dev/null; then
-            echo "pre-push: BLOCKED -- pushed local commit is unavailable." >&2
-            exit 1
-        fi
-        if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
-            [[ "$remote_sha" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "pre-push: BLOCKED -- malformed deletion SHA." >&2; exit 1; }
-        elif [ "$remote_sha" != "0000000000000000000000000000000000000000" ] && ! git -C "$atlas_root" cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
-            echo "pre-push: BLOCKED -- remote commit is unavailable." >&2
-            exit 1
-        fi
-        if [[ "$local_ref" == refs/heads/rescue/* && "$remote_ref" == "$local_ref" && "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
-            rescue_line="$local_ref $local_sha $remote_ref $remote_sha"
-            initial_rescue_count=$((initial_rescue_count + 1))
-        else
-            all_rescue=0
-            rescue_line=""
-        fi
+# The classifier and credential scan come from the fetched default branch.
+# A pushed branch therefore cannot relax its own first-push gate or allowlist.
+trusted_rescue_ref=""
+for ref in origin/HEAD origin/main; do
+    trusted_rescue_ref="$(git -C "$atlas_root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null || true)"
+    [ -n "$trusted_rescue_ref" ] && break
+done
+if [ -n "$push_stream" ] && [ -n "$trusted_rescue_ref" ] \
+    && git -C "$atlas_root" cat-file -e \
+        "$trusted_rescue_ref:scripts/git-hooks/rescue-push" 2>/dev/null; then
+    rescue_updates=()
+    while IFS= read -r update; do
+        [ -n "$update" ] && rescue_updates+=("$update")
     done <<<"$push_stream"
-    if [ -n "$rescue_line" ]; then
-        read -r _ initial_rescue_tip _ initial_rescue_remote_sha <<<"$rescue_line"
-    fi
-fi
-if [ -n "$initial_rescue_tip" ] \
-    && [ "$initial_rescue_tip" != "0000000000000000000000000000000000000000" ] \
-    && [ "$initial_rescue_remote_sha" = "0000000000000000000000000000000000000000" ] \
-    && [ "$initial_rescue_count" -eq 1 ] \
-    && [ "$all_rescue" -eq 1 ]; then
-    rescue_python="${PYTHON:-}"
-    if [ -z "$rescue_python" ]; then
-        for candidate in python3 python; do
-            if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys" >/dev/null 2>&1; then
-                rescue_python="$candidate"
-                break
-            fi
-        done
-    fi
-    if [ -z "$rescue_python" ]; then
-        echo "pre-push: BLOCKED -- no python interpreter; the rescue push was not scanned." >&2
-        exit 1
-    fi
-    rescue_base="$(git -C "$atlas_root" merge-base origin/main "$initial_rescue_tip" 2>/dev/null || true)"
-    trusted_ref=""
-    for ref in origin/HEAD origin/main; do
-        trusted_ref="$(git -C "$atlas_root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null || true)"
-        [ -n "$trusted_ref" ] && break
-    done
-    if [ -z "$trusted_ref" ] || ! git -C "$atlas_root" cat-file -e "$trusted_ref:scripts/atlas-secret-scan.py" 2>/dev/null; then
-        echo "pre-push: BLOCKED -- the trusted credential scanner is unavailable." >&2
-        exit 1
-    fi
-    rescue_commits=()
-    if [ -n "$rescue_base" ]; then
-        rescue_commit_list="$(git -C "$atlas_root" rev-list --reverse "$rescue_base..$initial_rescue_tip")" || {
-            echo "pre-push: BLOCKED -- could not enumerate the rescue commits." >&2
-            exit 1
-        }
-    else
-        rescue_commit_list="$(git -C "$atlas_root" rev-list --reverse "$initial_rescue_tip")" || {
-            echo "pre-push: BLOCKED -- could not enumerate the rescue commits." >&2
-            exit 1
-        }
-    fi
-    if [ -n "$rescue_commit_list" ]; then
-        while IFS= read -r rescue_commit; do
-            [ -n "$rescue_commit" ] && rescue_commits+=("$rescue_commit")
-        done <<<"$rescue_commit_list"
-    fi
-    for rescue_commit in "${rescue_commits[@]}"; do
-        rescue_parent="$(git -C "$atlas_root" rev-parse --verify --quiet "$rescue_commit^" 2>/dev/null || true)"
-        commit_args=()
-        [ -n "$rescue_parent" ] && commit_args=(--base "$rescue_parent")
-        git -C "$atlas_root" show "$trusted_ref:scripts/atlas-secret-scan.py" | "$rescue_python" - check --root "$atlas_root" --rev "$rescue_commit" "${commit_args[@]}" || exit 1
-    done
-    exit 0
-fi
-if [ -n "$push_stream" ]; then
-    live_push=0
-    while read -r _local_ref local_sha _remote_ref _remote_sha; do
-        [ "$local_sha" != "0000000000000000000000000000000000000000" ] && live_push=1
-    done <<<"$push_stream"
-    if [ "$live_push" -eq 0 ]; then
-        echo "pre-push: deletion refs have no revision to gate" >&2
-        exit 0
-    fi
+    git -C "$atlas_root" show "$trusted_rescue_ref:scripts/git-hooks/rescue-push" \
+        | bash -s -- "$atlas_root" "$atlas_root" "$trusted_rescue_ref" \
+            "$trusted_rescue_ref" "${rescue_updates[@]}"
+    rescue_status=$?
+    [ "$rescue_status" -eq 0 ] && exit 0
+    [ "$rescue_status" -eq 3 ] || exit "$rescue_status"
 fi
 binary=""
 # The auditor is built from origin's default branch, never from the
@@ -312,7 +240,7 @@ if [ -n "$auditor_rev" ]; then
     auditor_tree="$(git -C "$atlas_root" rev-parse --verify --quiet "$auditor_rev:tools/gitlink-coherence" 2>/dev/null || true)"
 fi
 if [ -z "$auditor_tree" ]; then
-    echo "pre-push: BLOCKED â€” origin's default branch has no gitlink auditor source" >&2
+    echo "pre-push: BLOCKED — origin's default branch has no gitlink auditor source" >&2
     echo "(tools/gitlink-coherence) to build; fetch origin and push again." >&2
     exit 1
 fi
@@ -321,13 +249,13 @@ binary="$auditor_dir/gitlink-coherence"
 [ -x "${binary}.exe" ] && binary="${binary}.exe"
 
 if [ ! -x "$binary" ]; then
-    echo "pre-push: gitlink auditor for ${auditor_rev:0:12} not built â€” building it now." >&2
+    echo "pre-push: gitlink auditor for ${auditor_rev:0:12} not built — building it now." >&2
     mkdir -p "${auditor_dir%/*}"
     auditor_source="$(mktemp -d "${auditor_dir%/*}/.source.XXXXXX" || true)"
     # Build from outside the stack root on purpose. Cargo discovers config from
     # the working directory upward, so building under `atlas_root` applies the
     # stack `[patch]` overlay, whose resolution the committed lockfile does not
-    # describe â€” `--locked` then fails, and without it the overlay rewrites the
+    # describe — `--locked` then fails, and without it the overlay rewrites the
     # lockfile and dirties the tree on every push. Outside the overlay the lock
     # resolves standalone, which is the state the lockfile actually records.
     # CARGO_TARGET_DIR must therefore be explicit, since the overlay is also
@@ -361,7 +289,7 @@ if [ ! -x "$binary" ]; then
     # way that matters: the push proceeded ungated, and the two defects the
     # comment above cites are exactly what an ungated push lands. A gate that
     # cannot run blocks; it does not wave the change through.
-    echo "pre-push: BLOCKED â€” the gitlink auditor is unavailable and could not" >&2
+    echo "pre-push: BLOCKED — the gitlink auditor is unavailable and could not" >&2
     echo "be built from origin's ${auditor_rev:0:12}, so the coherence gate cannot" >&2
     echo "run; the cargo output above names the failure. Push with --no-verify" >&2
     echo "only if you have verified the pins by hand." >&2
@@ -541,10 +469,12 @@ budget_gate() {
     return 0
 }
 
-# Credentials are scanned with the trusted scanner from the fetched default
-# branch, over every commit introduced by the pushed tip.
+# Credentials in the lines the push adds (scripts/atlas-secret-scan.py): a
+# secret that reaches a remote is published, so the scan runs before the push
+# rather than in CI. The scanner comes from the pushed revision, as the budget
+# checker does.
 secret_gate() {
-    local tip="$1" base python_bin candidate commit parent
+    local tip="$1" base python_bin candidate
     base="$gate_base"
     python_bin="${PYTHON:-}"
     if [ -z "$python_bin" ]; then
@@ -556,35 +486,14 @@ secret_gate() {
         echo "pre-push: BLOCKED -- no python interpreter; the pushed range was not scanned for credentials." >&2
         return 1
     fi
-    if [ -z "$auditor_rev" ] || ! git -C "$atlas_root" cat-file -e "$auditor_rev:scripts/atlas-secret-scan.py" 2>/dev/null; then
-        echo "pre-push: BLOCKED -- the trusted credential scanner is unavailable." >&2
-        return 1
+    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas-secret-scan.py" 2>/dev/null; then
+        return 0
     fi
-    commits=()
-    if [ -n "$base" ]; then
-        commit_list="$(git -C "$atlas_root" rev-list --reverse "$base..$tip")" || {
-            echo "pre-push: BLOCKED -- could not enumerate the pushed commits." >&2
-            return 1
-        }
-    else
-        commit_list="$(git -C "$atlas_root" rev-list --reverse "$tip")" || {
-            echo "pre-push: BLOCKED -- could not enumerate the pushed commits." >&2
-            return 1
-        }
-    fi
-    if [ -n "$commit_list" ]; then
-        while IFS= read -r commit; do
-            [ -n "$commit" ] && commits+=("$commit")
-        done <<<"$commit_list"
-    fi
-    for commit in "${commits[@]}"; do
-        parent="$(git -C "$atlas_root" rev-parse --verify --quiet "$commit^" 2>/dev/null || true)"
-        args=(check --root "$atlas_root" --rev "$commit")
-        [ -n "$parent" ] && args+=(--base "$parent")
-        git -C "$atlas_root" show "$auditor_rev:scripts/atlas-secret-scan.py" \
-            | "$python_bin" - "${args[@]}" \
-            || { echo "pre-push: BLOCKED -- the push adds a credential; remove it from every commit and rotate it if it ever reached a remote." >&2; return 1; }
-    done
+    local args=()
+    [ -n "$base" ] && args=(--base "$base")
+    git -C "$atlas_root" show "$tip:scripts/atlas-secret-scan.py" \
+        | "$python_bin" - check --root "$atlas_root" --rev "$tip" "${args[@]}" \
+        || { echo "pre-push: BLOCKED -- the push adds a credential; remove it from every commit and rotate it if it ever reached a remote." >&2; return 1; }
     return 0
 }
 
@@ -625,7 +534,7 @@ case "$status" in
         exit 0
         ;;
     1)
-        echo "pre-push: BLOCKED â€” a recorded gitlink does not name a published commit." >&2
+        echo "pre-push: BLOCKED — a recorded gitlink does not name a published commit." >&2
         echo "$report" >&2
         echo >&2
         echo "pre-push: a gitlink must name a commit reachable from the member's" >&2
