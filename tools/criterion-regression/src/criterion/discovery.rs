@@ -60,12 +60,12 @@ pub(super) fn discover(
     })
 }
 
-fn validate_baseline_name(name: &str) -> Result<(), CheckError> {
+pub(crate) fn validate_baseline_name(name: &str) -> Result<(), CheckError> {
     let mut components = Path::new(name).components();
     let is_one_normal_component =
         matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none();
 
-    if name.is_empty() || !is_one_normal_component {
+    if name.is_empty() || name.contains('\0') || !is_one_normal_component {
         return Err(CheckError::InvalidBaselineName(name.to_owned()));
     }
 
