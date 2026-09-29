@@ -942,6 +942,42 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(conformance._file_text_cache(), {})
         self.assertEqual(conformance._cfg_test_decl_cache(), {})
+        self.assertEqual(conformance._resolved_cache(), {})
+        self.assertEqual(conformance._stripped_text_cache(), {})
+
+    def test_the_comment_strip_cache_agrees_with_a_fresh_strip(self) -> None:
+        # The cache exists to serve the module walk and the production-class
+        # pass from one strip. It is keyed on the text, so it must be a pure
+        # memo: a hit and a miss have to agree on every input, including the
+        # ones whose offsets and literals the strip is required to preserve.
+        cases = {
+            "plain": "pub fn f() {}\n",
+            "line comment": "// pub mod gone;\npub mod real;\n",
+            "block comment": "/* pub mod gone; */\npub mod real;\n",
+            "nested block": "/* a /* b */ c */\npub mod real;\n",
+            "url in a literal": 'const U: &str = "https://host/x";\npub mod real;\n',
+            "raw string with slashes": 'const R: &str = r#"a // b"#;\npub mod real;\n',
+            "char literal": "const C: char = '/'; pub mod real;\n",
+            "lifetime": "pub fn f<'a>(x: &'a str) {}\npub mod real;\n",
+            "path attribute": '#[path = "x.rs"]\npub mod real;\n',
+            "no trailing newline": "// trailing comment",
+        }
+        for label, source in cases.items():
+            with self.subTest(label):
+                fresh = conformance.strip_comments(source)
+                self.assertEqual(conformance._stripped(source), fresh)
+                # The second lookup is the path the module walk actually takes.
+                self.assertEqual(conformance._stripped(source), fresh)
+
+    def test_a_distinct_text_does_not_read_another_text_cached_strip(self) -> None:
+        # Keyed on the text, so one file's cached strip cannot answer for
+        # another's production region.
+        first = "// a\npub mod a;\n"
+        second = "// b\npub mod b;\n"
+        self.assertEqual(conformance._stripped(first), conformance.strip_comments(first))
+        self.assertEqual(conformance._stripped(second), conformance.strip_comments(second))
+        self.assertNotEqual(conformance._stripped(first), conformance._stripped(second))
+        self.assertIsNone(conformance._stripped(None))
 
     def test_nextest_retries_nonzero_counts_every_offending_profile(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
