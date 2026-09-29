@@ -9,6 +9,18 @@ use std::path::PathBuf;
 pub enum BudgetError {
     /// The requested wall-clock bound is zero.
     ZeroBound,
+    /// Criterion baseline arguments were requested outside timing mode.
+    CriterionRunRequiresTiming,
+    /// A Criterion baseline name was not exactly one path component.
+    InvalidCriterionBaseline {
+        /// Rejected baseline name.
+        name: String,
+    },
+    /// A Criterion confidence was not finite and strictly inside `(0, 1)`.
+    InvalidCriterionConfidence {
+        /// Rejected confidence text.
+        value: String,
+    },
     /// A retained executable could not be resolved to a regular file.
     RetainedExecutable {
         /// Caller-selected artifact path.
@@ -77,6 +89,18 @@ impl Display for BudgetError {
                     "wall-clock bound must be a positive number of seconds"
                 )
             }
+            Self::CriterionRunRequiresTiming => {
+                write!(
+                    formatter,
+                    "Criterion baseline arguments require timing mode"
+                )
+            }
+            Self::InvalidCriterionBaseline { name } => {
+                write!(formatter, "invalid Criterion baseline name {name:?}")
+            }
+            Self::InvalidCriterionConfidence { value } => {
+                write!(formatter, "invalid Criterion confidence level {value:?}")
+            }
             Self::Metadata {
                 manifest_path,
                 stderr,
@@ -130,7 +154,12 @@ impl Error for BudgetError {
             Self::Spawn { source, .. }
             | Self::Supervise { source, .. }
             | Self::RetainedExecutable { source, .. } => Some(source),
-            Self::ZeroBound | Self::Metadata { .. } | Self::Compile { .. } => None,
+            Self::ZeroBound
+            | Self::CriterionRunRequiresTiming
+            | Self::InvalidCriterionBaseline { .. }
+            | Self::InvalidCriterionConfidence { .. }
+            | Self::Metadata { .. }
+            | Self::Compile { .. } => None,
         }
     }
 }
