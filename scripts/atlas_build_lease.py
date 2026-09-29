@@ -15,6 +15,7 @@ from atlas_build_lock import (
     SHARED,
     RECORD_OFFSET,
     _MODES,
+    _downgrade,
     _open_lease,
     _release,
     _take,
@@ -130,6 +131,33 @@ class OwnerLease:
         self.owner = {**self.owner, "token": token}
         self.held = True
         return self
+
+    def downgrade(self) -> None:
+        """Hold this lease shared from now on, without leaving its place in the queue.
+
+        Later exclusive requests keep waiting and later shared ones may now
+        enter. The owner record, written only by exclusive holders, still
+        names this holder until another exclusive holder replaces it.
+        """
+        if not self.held or self.mode == SHARED:
+            return
+        if self.ticket is not None:
+            # The ticket is what makes a POSIX racer back off, so it must
+            # exist while the lock is converted.
+            self.ticket.refile()
+        try:
+            _downgrade(self.handle)
+        except BuildIdentityError:
+            # A failed POSIX conversion has already unlocked the handle, and
+            # a second `flock` unlock is a no-op; a failed Windows one still
+            # holds the exclusive lock, which closing the handle frees only
+            # at some later time, so it is unlocked here.
+            handle, self.handle, self.held = self.handle, None, False
+            _release(handle, locked=True)
+            raise
+        self.mode = SHARED
+        if self.ticket is not None:
+            self.ticket.downgrade()
 
     def dequeue(self) -> None:
         if self.ticket is not None:

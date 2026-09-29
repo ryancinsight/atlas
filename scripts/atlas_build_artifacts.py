@@ -139,14 +139,24 @@ def changed_packages(
     }
     names: set[str] = set()
     for relative in changed:
-        parts = relative.split("/")
-        # `<profile>/deps/<file>` names the file, `.../.fingerprint/<unit>/<file>` the unit.
-        unit = parts[parts.index(".fingerprint") + 1] if ".fingerprint" in parts else parts[-1]
-        owner = _artifact_owner(unit, owners, "")
+        owner = artifact_package(relative, owners)
         if owner is None:
             return None
         names.add(owner)
     return names
+
+
+def artifact_owners(manifest: Path, metadata_cwd: Path | None = None) -> dict[str, frozenset[str]]:
+    """Each package's artifact stems, read once for several attributions."""
+    return _workspace_artifact_owners(manifest, metadata_cwd)
+
+
+def artifact_package(relative: str, owners: dict[str, frozenset[str]]) -> str | None:
+    """The one package in `owners` that a recorded artifact path belongs to, or None."""
+    parts = relative.split("/")
+    # `<profile>/deps/<file>` names the file, `.../.fingerprint/<unit>/<file>` the unit.
+    unit = parts[parts.index(".fingerprint") + 1] if ".fingerprint" in parts else parts[-1]
+    return _artifact_owner(unit, owners, "")
 
 
 # Recorded in place of a digest when a dependency file never read the same
@@ -450,13 +460,15 @@ def discover_artifacts(
     manifest: Path | None = None,
     metadata_cwd: Path | None = None,
     related_packages: Sequence[str] = (),
+    owners: dict[str, frozenset[str]] | None = None,
 ) -> tuple[Path, ...]:
     target_dir = _canonical(target_dir)
-    owners = (
-        _workspace_artifact_owners(manifest, metadata_cwd)
-        if manifest is not None
-        else {package: frozenset({_normalize_stem(package)})}
-    )
+    if owners is None:
+        owners = (
+            _workspace_artifact_owners(manifest, metadata_cwd)
+            if manifest is not None
+            else {package: frozenset({_normalize_stem(package)})}
+        )
     requested_packages = set((package, *related_packages))
     selected: set[Path] = set()
     dep_dirs = [target_dir / profile / "deps"]
