@@ -497,6 +497,39 @@ class HookDeploymentTestCase(unittest.TestCase):
                 self.assertEqual(list(repos.iterdir()), [])
 
 
+class HookInstallTestCase(unittest.TestCase):
+    def test_member_copies_retarget_to_owned_hooks_and_custom_paths_stay(self) -> None:
+        owned = (SCRIPT.parent / "git-hooks").as_posix()
+        initial = {"unset": None, "copy": ".githooks", "custom": "D:/elsewhere/hooks"}
+        with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as temp:
+            repos = Path(temp)
+            for member, value in initial.items():
+                subprocess.run(
+                    ["git", "init", "-q", str(repos / member)], check=True
+                )
+                if value is not None:
+                    subprocess.run(
+                        ["git", "-C", str(repos / member), "config", "core.hooksPath", value],
+                        check=True,
+                    )
+            with patch.object(_lock_form, "REPOS", repos), patch.object(
+                _lock_form, "registered_member_names", return_value=list(initial)
+            ):
+                self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), 0)
+            configured = {
+                member: subprocess.run(
+                    ["git", "-C", str(repos / member), "config", "--local", "--get",
+                     "core.hooksPath"],
+                    capture_output=True, text=True, check=True,
+                ).stdout.strip()
+                for member in initial
+            }
+        self.assertEqual(
+            configured,
+            {"unset": owned, "copy": owned, "custom": "D:/elsewhere/hooks"},
+        )
+
+
 class PublishRequestTests(unittest.TestCase):
     """One member, one hook request, and a re-run that reuses it."""
 
