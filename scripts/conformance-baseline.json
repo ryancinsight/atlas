@@ -972,7 +972,7 @@
     "worktrees_outside_lane_root": 0
   },
   "kwavers": {
-    "allow_sites": 315,
+    "allow_sites": 311,
     "balance_domain_edges": 0,
     "bare_git_dependency": 0,
     "board_checklist_files": 0,
