@@ -11,7 +11,6 @@
 <a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
 <a id="atlas-arch-005"></a>- [ATLAS-ARCH-005](backlog/atlas-arch-005.md) — Replace closed-set dyn dispatch in per-timestep paths [arch] — in-progress
 <a id="atlas-nightly-probe-consolidation"></a>- [ATLAS-NIGHTLY-PROBE-CONSOLIDATION](backlog/atlas-nightly-probe-consolidation.md) — One nightly-rustc probe for the stack [patch] — todo
-<a id="atlas-r7-closure-mapping-2026-09-24"></a>- [ATLAS-R7-CLOSURE-MAPPING-2026-09-24](backlog/atlas-r7-closure-mapping-2026-09-24.md) — Map closure members in the live R7 scan [patch] — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — in-progress
 <a id="atlas-arch-008-running-in-place-225"></a>- [ATLAS-ARCH-008-RUNNING-IN-PLACE-225](backlog/atlas-arch-008-running-in-place-225.md) — The conversion converts and re-accumulates at the same rate [patch] — next
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
@@ -77,7 +76,7 @@
 <a id="kwavers-elastic-collision"></a>- [ATLAS-KWAVERS-ELASTIC-COLLISION-2026-09-03](backlog/kwavers-elastic-collision.md) — Step 2b is peer-owned; I collided with it [patch] — blocked
 <a id="atlas-kwavers-hephaestus-contract-2026-08-21"></a>- [ATLAS-KWAVERS-HEPHAESTUS-CONTRACT-2026-08-21](backlog/atlas-kwavers-hephaestus-contract-2026-08-21.md) — Define the neutral visualization handoff [major][arch] — in-progress
 <a id="atlas-kwavers-metadata-2026-08-19"></a>- [ATLAS-KWAVERS-METADATA-2026-08-19](backlog/atlas-kwavers-metadata-2026-08-19.md) — Python surface consistency — blocked
-<a id="atlas-kwavers-parameter-structs-20260928"></a>- [ATLAS-KWAVERS-PARAMETER-STRUCTS-20260928](backlog/atlas-kwavers-parameter-structs-20260928.md) — Collapse 260 `clippy::too_many_arguments` suppressions into parameter structs [minor] — todo
+<a id="atlas-kwavers-parameter-structs-20260928"></a>- [ATLAS-KWAVERS-PARAMETER-STRUCTS-20260928](backlog/atlas-kwavers-parameter-structs-20260928.md) — Collapse the `clippy::too_many_arguments` suppressions into parameter structs [minor] — todo
 <a id="atlas-kwavers-python-generator-2026-08-21"></a>- [ATLAS-KWAVERS-PYTHON-GENERATOR-2026-08-21](backlog/atlas-kwavers-python-generator-2026-08-21.md) — Add defaults and NumPy protocols [minor] — in-progress
 <a id="atlas-kwavers-python-gil-2026-08-21"></a>- [ATLAS-KWAVERS-PYTHON-GIL-2026-08-21](backlog/atlas-kwavers-python-gil-2026-08-21.md) — Detach Simulation.run [minor] — in-progress
 <a id="atlas-kwavers-python-surface-2026-08-21"></a>- [ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21](backlog/atlas-kwavers-python-surface-2026-08-21.md) — Complete typed and concurrent PyO3 surface [minor] — in-progress
@@ -115,7 +114,6 @@
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked
 <a id="publish-order-optional-edges"></a>- [ATLAS-PUBLISH-ORDER-OPTIONAL-EDGES-2026-09-04](backlog/publish-order-optional-edges.md) — Decide whether optional dependencies constrain publish order [patch] — in-progress
 <a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — in-progress
-<a id="atlas-ritk-audit-landing-parked-20260928"></a>- [ATLAS-RITK-AUDIT-LANDING-PARKED-20260928](backlog/atlas-ritk-audit-landing-parked-20260928.md) — Land the verified ritk audit commit [patch] — blocked
 <a id="atlas-ritk-fssurf-013"></a>- [ATLAS-RITK-FSSURF-013](backlog/atlas-ritk-fssurf-013.md) — FreeSurfer surface formats and label table [minor] — todo
 <a id="atlas-runner-capacity-001"></a>- [ATLAS-RUNNER-CAPACITY-001](backlog/atlas-runner-capacity-001.md) — Size runner slots to fleet width [infra] [patch] — todo
 <a id="atlas-runner-starvation-2026-09-02"></a>- [ATLAS-RUNNER-STARVATION-2026-09-02](backlog/atlas-runner-starvation-2026-09-02.md) — Hosted runner queue starves every verification run [infra] — todo
@@ -145,5 +143,6 @@
 <a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Run the stack-owned lockfile checker, not member copies [patch] — todo
-<a id="atlas-debt-gate-host-state-2026-09-28"></a>- [ATLAS-DEBT-GATE-HOST-STATE-2026-09-28](backlog/atlas-debt-gate-host-state-2026-09-28.md) — A stack-revision push is gated on the pusher's checkout state [correctness] [patch] — todo
-<a id="atlas-kwavers-krylov-tests-oversized-20260928"></a>- [ATLAS-KWAVERS-KRYLOV-TESTS-OVERSIZED-20260928](backlog/atlas-kwavers-krylov-tests-oversized-20260928.md) — Split `krylov/tests.rs`, which crossed the 500-line limit and blocks the pin [tightening] [patch] — todo
+<a id="atlas-kwavers-krylov-tests-oversized-20260928"></a>- [ATLAS-KWAVERS-KRYLOV-TESTS-OVERSIZED-20260928](backlog/atlas-kwavers-krylov-tests-oversized-20260928.md) — Split `krylov/tests.rs`, which crossed the 500-line limit [tightening] [patch] — todo
+<a id="atlas-hook-rustdoc-doc-false"></a>- [ATLAS-HOOK-RUSTDOC-DOC-FALSE](backlog/atlas-hook-rustdoc-doc-false.md) — Skip the rustdoc identity step for undocumented libs [patch] — todo
+<a id="atlas-secret-scan-allowlist-source"></a>- [ATLAS-SECRET-SCAN-ALLOWLIST-SOURCE](backlog/atlas-secret-scan-allowlist-source.md) — Read the secret allowlist from a trusted revision [patch] — todo
