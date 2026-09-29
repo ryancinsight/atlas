@@ -62,7 +62,6 @@ import tempfile
 import threading
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
-from enum import Enum
 from pathlib import Path
 
 try:
@@ -320,7 +319,8 @@ CLASSES = [
     "root_sprawl", "root_sprawl_untracked",
     "markers", "reexport_shims", "sleep_synced_tests",
     "commented_out_code", "target_forks", "gitattributes_missing",
-    "nextest_budget_missing", "workspace_lints_missing",
+    "nextest_budget_missing", "nextest_retries_nonzero",
+    "workspace_lints_missing",
     "member_namespace_pollution", "tag_pinned_actions",
     "workflow_missing_timeout", "workflow_missing_permissions",
     "workflow_malformed_yaml", "pull_request_target_use",
@@ -1185,6 +1185,34 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
             _walk_mods(candidate, seen)
 
 
+def count_nonzero_nextest_retries(text: str) -> int:
+    """Profiles in a nextest config whose `retries` is not zero.
+
+    A retry reruns a test that already failed and reports whichever attempt
+    finished last, so an intermittent failure passes the gate with its cause
+    never found, and a real failure pays a full extra test latency per
+    occurrence. The rule is zero in every profile, so any nonzero value is a
+    violation wherever it appears.
+
+    Parsed as TOML rather than grepped, so an `overrides` block or a comment
+    that merely mentions the key cannot be miscounted as a profile setting.
+    """
+    if not text:
+        return 0
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return 0
+    profiles = data.get("profile")
+    if not isinstance(profiles, dict):
+        return 0
+    offenders = 0
+    for body in profiles.values():
+        if isinstance(body, dict) and body.get("retries", 0) != 0:
+            offenders += 1
+    return offenders
+
+
 def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int:
     """`.rs` files under a crate `src/` that no source edge reaches.
 
@@ -1763,7 +1791,6 @@ def scan_repo(
     member_for_package: dict[str, str] | None = None,
     revision: str | None = None,
     member: str | None = None,
-    config_root: Path | None = None,
 ) -> dict[str, int]:
     """Count every debt class in `repo`'s content.
 
@@ -1782,7 +1809,6 @@ def scan_repo(
     because it has no archive-wide mapping.
     """
     live_repo = live_repo or repo
-    config_root = config_root or ROOT
     _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
     has_cargo = (repo / "Cargo.toml").is_file()
@@ -1887,19 +1913,25 @@ def scan_repo(
     # covered. A member that builds into an unmanaged directory is outside
     # every eviction cadence by construction.
     if has_cargo:
-        config = config_root / ".cargo" / "config.toml"
+        config = ROOT / ".cargo" / "config.toml"
         routed = False
         if config.is_file():
             match = TARGET_DIR_SETTING.search(config.read_text(errors="replace"))
             routed = match is not None and Path(match.group(1)).name == "target"
-        policy = config_root / "scripts" / "data" / "atlas-cache-retention.toml"
+        policy = ROOT / "scripts" / "data" / "atlas-cache-retention.toml"
         if not routed or not policy.is_file():
             c["cache_retention_policy_missing"] = 1
     c["orphan_modules"] = count_orphan_modules(repo, manifests)
     if has_cargo:
         nx = repo / ".config" / "nextest.toml"
-        if not (nx.is_file() and "slow-timeout" in nx.read_text(errors="replace")):
+        nx_text = nx.read_text(errors="replace") if nx.is_file() else ""
+        if not ("slow-timeout" in nx_text):
             c["nextest_budget_missing"] = 1
+        # A nonzero `retries` reruns a test that already failed and reports the
+        # later outcome, so a flake passes the gate with its cause never found.
+        # Count every offending profile, not just the file, so the number names
+        # how much of the surface hides a failure.
+        c["nextest_retries_nonzero"] += count_nonzero_nextest_retries(nx_text)
         manifest = (repo / "Cargo.toml").read_text(errors="replace")
         if "[workspace]" in manifest and not WORKSPACE_LINTS_TABLE.search(manifest):
             c["workspace_lints_missing"] = 1
@@ -1958,14 +1990,24 @@ def materialize_member(
 ) -> tuple[Path, Path]:
     """Return `(content, live)` for a provider whose recorded gitlink is `expected`.
 
-    The recorded revision is always materialized from its Git tree into
-    `scratch`, even when the checkout appears clean. Returning a live checkout
-    would let a concurrent write change the bytes after the revision was
-    selected and would make the scan non-deterministic.
+    A clean checkout at `expected` is its own snapshot. Otherwise the recorded
+    revision is extracted with `git archive` into `scratch` (fetching first
+    when the object is absent), so a peer holding the checkout behind or
+    dirty never blocks a recorded-revision scan and never leaks its state
+    into the counts: members of this stack are routinely behind — eight of
+    twenty-five the day the clean-checkout gate was written.
     """
+    actual = git_output("rev-parse", "HEAD", cwd=provider).strip()
+    dirty = git_output("status", "--porcelain", "--ignore-submodules=all", cwd=provider).strip()
+    if actual == expected and not dirty:
+        return provider, provider
     try:
-        content = link_snapshot(provider, expected, scratch)
-    except RuntimeError as exc:
+        payload = archive(provider, expected, timeout=ARCHIVE_TIMEOUT_SECONDS)
+    except GitProcessError as exc:
+        if exc.timed_out:
+            raise RuntimeError(
+                f"repos/{provider.name}: archive exceeded its deadline for {expected[:12]}"
+            ) from exc
         try:
             fetched = execute_git(
                 provider,
@@ -1982,25 +2024,38 @@ def materialize_member(
             raise RuntimeError(
                 f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
                 f"provider's object store: fetch failed: {detail or 'unknown Git error'}"
-            ) from exc
+            )
         try:
-            content = link_snapshot(provider, expected, scratch)
-        except RuntimeError as retry_exc:
+            payload = archive(provider, expected, timeout=ARCHIVE_TIMEOUT_SECONDS)
+        except GitProcessError as retry_exc:
             raise RuntimeError(
                 f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
                 f"provider's object store: {retry_exc}"
             ) from retry_exc
+    content = scratch / provider.name
+    content.mkdir(parents=True)
+    extract_archive(payload, content)
+    # The provider gate accepts a checkout by its `.git` marker; the snapshot
+    # carries one so the same gate admits it.
+    (content / ".git").write_text(f"gitdir: archived {expected}\n", encoding="utf-8")
     return content, provider
 
 
 def link_snapshot(checkout: Path, revision: str, scratch: Path) -> Path:
-    """Materialize `revision` of `checkout` under `scratch` from Git blobs.
+    """Materialize `revision` of `checkout` under `scratch`, reusing unchanged files.
 
-    A temporary index reads the requested tree and `checkout-index` writes
-    independent files. Hard-linking the live checkout would let a later
-    working-tree write mutate the supposed revision snapshot, so every file
-    comes from the requested Git tree. Untracked and ignored files never enter,
-    and the checkout's index is not touched.
+    Each tracked path whose working-tree content already matches `revision`
+    is hard-linked from the checkout; every other path is written from a
+    temporary index by `checkout-index`, so it carries the line-ending
+    filters a checkout applies, exactly as `git archive` would. Untracked
+    and ignored files never enter, and the checkout's index is not touched.
+
+    `git archive` gives the same content, but every file it extracts is new
+    to the filesystem, and on this Windows host first opening them dominated:
+    a kwavers revision scan took 173 s archived against 24 s in place
+    (2026-09-24), outside any pre-push budget. `scratch` must share the
+    checkout's volume for links to form; a path that cannot be linked is
+    copied, and the copies are reported since they cost that time again.
     """
     listing = git_output("ls-tree", "-r", "-z", "--full-tree", revision, cwd=checkout)
     tracked: list[tuple[str, str]] = []
@@ -2009,28 +2064,62 @@ def link_snapshot(checkout: Path, revision: str, scratch: Path) -> Path:
         mode = meta.split(" ", 1)[0]
         if mode != "160000":
             tracked.append((mode, path))
+    try:
+        diff = execute_git(
+            checkout,
+            ("diff", "--no-renames", "--name-only", "-z", revision, "--"),
+            env=dict(os.environ, GIT_OPTIONAL_LOCKS="0"),
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+    except GitProcessError as exc:
+        raise RuntimeError(f"{checkout}: cannot diff against {revision[:12]}: {exc}") from exc
+    if diff.returncode:
+        detail = diff.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"{checkout}: cannot diff against {revision[:12]}")
+    differs = set(filter(None, diff.stdout.decode("utf-8", errors="replace").split("\0")))
+    # A symlink is written as the checkout would write it, never linked.
+    written = [path for mode, path in tracked if path in differs or mode == "120000"]
     content = scratch / checkout.name
     content.mkdir(parents=True)
-    fd, index_path = tempfile.mkstemp(prefix="atlas-snapshot-index-")
-    os.close(fd)
-    try:
-        env = dict(os.environ, GIT_INDEX_FILE=index_path)
-        for args in (
-            ("read-tree", revision),
-            ("checkout-index", "--all", f"--prefix={content.as_posix()}/"),
-        ):
-            result = execute_git(
-                checkout, args, env=env, timeout=ARCHIVE_TIMEOUT_SECONDS
-            )
-            if result.returncode:
-                detail = result.stderr.decode("utf-8", errors="replace").strip()
-                raise RuntimeError(
-                    f"{checkout}: {args[0]} at {revision[:12]} failed: {detail}"
+    made: set[Path] = set()
+    copied = 0
+    for mode, path in tracked:
+        if path in differs or mode == "120000":
+            continue
+        target = content / path
+        if target.parent not in made:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            made.add(target.parent)
+        try:
+            os.link(checkout / path, target)
+        except OSError:
+            shutil.copyfile(checkout / path, target)
+            copied += 1
+    if written:
+        fd, index_path = tempfile.mkstemp(prefix="atlas-snapshot-index-")
+        os.close(fd)
+        try:
+            env = dict(os.environ, GIT_INDEX_FILE=index_path)
+            for args, stdin in (
+                (("read-tree", revision), None),
+                (("checkout-index", f"--prefix={content.as_posix()}/", "-z", "--stdin"),
+                 "\0".join(written).encode("utf-8")),
+            ):
+                result = execute_git(
+                    checkout, args, stdin=stdin, env=env, timeout=ARCHIVE_TIMEOUT_SECONDS
                 )
-    except GitProcessError as exc:
-        raise RuntimeError(f"{checkout}: cannot write {revision[:12]}: {exc}") from exc
-    finally:
-        os.unlink(index_path)
+                if result.returncode:
+                    detail = result.stderr.decode("utf-8", errors="replace").strip()
+                    raise RuntimeError(
+                        f"{checkout}: {args[0]} at {revision[:12]} failed: {detail}"
+                    )
+        except GitProcessError as exc:
+            raise RuntimeError(f"{checkout}: cannot write {revision[:12]}: {exc}") from exc
+        finally:
+            os.unlink(index_path)
+    if copied:
+        print(f"snapshot: {copied} file(s) copied, not linked ({scratch} is on "
+              f"another volume from {checkout})", file=sys.stderr)
     (content / ".git").write_text(f"gitdir: archived {revision}\n", encoding="utf-8")
     return content
 
@@ -2052,12 +2141,7 @@ def scan_member(
     expected = gitlink_revision(root_revision, f"repos/{name}", stack_root)
     with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as scratch:
         content, live = materialize_member(member, expected, Path(scratch))
-        config_root, _ = materialize_member(
-            stack_root, root_revision, Path(scratch)
-        )
-        return scan_repo(
-            content, live_repo=live, revision=expected, config_root=config_root
-        )
+        return scan_repo(content, live_repo=live, revision=expected)
 
 
 def scan_stack(
@@ -2066,8 +2150,9 @@ def scan_stack(
     """Scan every registered member.
 
     With `root_revision`, each member is scanned at the gitlink that revision
-    records from materialized Git snapshots (`materialize_member`). Without it,
-    the live trees are scanned as they are (`--worktree`). A registered member with no
+    records — from the checkout when it is clean and at that commit, else from
+    an archived snapshot (`materialize_member`).     Without it, the live trees
+    are scanned as they are (`--worktree`). A registered member with no
     recorded gitlink (promotion mid-flight) is skipped with a stderr
     warning before the materialization gate: it has no pinned revision
     to measure, a clean checkout has no directory for it at all, and one
@@ -2105,14 +2190,6 @@ def scan_stack(
         repos = require_materialized_providers(stack_root, members)
         if repos:
             with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as scratch:
-                stack_content = stack_root
-                if root_revision is not None:
-                    stack_expected = git_output(
-                        "rev-parse", f"{root_revision}^{{commit}}", cwd=stack_root
-                    ).strip()
-                    stack_content, _ = materialize_member(
-                        stack_root, stack_expected, Path(scratch)
-                    )
                 targets = []
                 targeted: list[Path] = []
                 skipped = []
@@ -2184,7 +2261,6 @@ def scan_stack(
                             live_repo=target[1],
                             member_for_package=member_for_package,
                             revision=target[2],
-                            config_root=stack_content,
                         ),
                         targets,
                     )
@@ -2196,7 +2272,7 @@ def scan_stack(
                 # materialized content paths so a recorded-revision scan
                 # measures pinned state, never live dirt.
                 gate_hashes = set()
-                owned_gate = stack_content / "scripts" / "git-hooks" / "pre-push"
+                owned_gate = stack_root / "scripts" / "git-hooks" / "pre-push"
                 if owned_gate.is_file():
                     gate_hashes.add(_hook_version(owned_gate.read_bytes()))
                 for target in targets:
@@ -2345,14 +2421,84 @@ def ratchet_delta(
     return regressions, host, tightenings
 
 
-class HostStateIntent(Enum):
-    """Whether host-observed rows are part of this scan's acceptance gate."""
+# The class `--drift-base` bounds. It resolved through every origin branch
+# until citations moved onto landed history (`board_lint._landed_refs`), and
+# since then no branch deletion can raise it; only a deleted tag or a
+# rewritten default branch still can. The owned pre-push hook and its member
+# copies still pass the flag; atlas#290 deletes the flag and this bound in the
+# same change as the hook that stops passing it, landing with its publish.
+REF_DRIFT_CLASS = "unresolved_references"
 
-    LIVE_AUDIT = "live_audit"
-    REVISION_JUDGEMENT = "revision_judgement"
+
+def unresolved_at(repo: Path, revision: str, stores: list[Path]) -> int:
+    """Count unresolved citations in `revision`'s reference artifacts of `repo`.
+
+    Only the artifacts `board_lint.reference_artifacts` reads are extracted,
+    and they resolve against `stores` -- the same refs the scanned tree is
+    judged against, so the two counts differ only by what the tree cites.
+    """
+    top = git_output("ls-tree", "--name-only", revision, cwd=repo).splitlines()
+    paths = [n for n in top if n.lower() in board_lint.REFERENCE_BOARDS]
+    for sub in ("backlog", "docs/adr"):
+        if git_output("ls-tree", "-d", "--name-only", revision, "--", sub, cwd=repo).strip():
+            paths.append(sub)
+    if not paths:
+        return 0
+    try:
+        payload = archive(repo, revision, paths=tuple(paths), timeout=ARCHIVE_TIMEOUT_SECONDS)
+    except GitProcessError as exc:
+        raise RuntimeError(f"{repo.name}: cannot archive {revision[:12]}: {exc}") from exc
+    with tempfile.TemporaryDirectory(prefix="atlas-ref-drift-") as scratch:
+        extract_archive(payload, Path(scratch))
+        return board_lint.count_unresolved(Path(scratch), stores)
 
 
-def host_state_gates(intent: HostStateIntent) -> bool:
+def drift_bounded_baseline(
+    baseline: dict[str, dict[str, int]],
+    results: dict[str, dict[str, int]],
+    base_revision: str,
+    stack_root: Path = ROOT,
+    member_checkout: Path | None = None,
+) -> tuple[dict[str, dict[str, int]], list[str]]:
+    """Raise each `REF_DRIFT_CLASS` bound to what `base_revision` measures now.
+
+    A pull request is then judged on the citations it adds: the base tree,
+    re-counted under today's refs, absorbs every orphaning that happened
+    outside the change. The committed baseline still binds the default-branch
+    run, which is where drift is reported and paid for. A member with no
+    gitlink at `base_revision` (added by this change) keeps its recorded
+    bound. With `member_checkout`, `base_revision` is a commit of that
+    checkout -- a member gating its own push -- and is measured there.
+    """
+    bounded = {repo: dict(row) for repo, row in baseline.items()}
+    stores = board_lint.object_stores(stack_root)
+    notes = []
+    for repo, counts in results.items():
+        if REF_DRIFT_CLASS not in counts:
+            continue
+        if member_checkout is not None:
+            source, revision = member_checkout, base_revision
+        elif repo == "<meta>":
+            source, revision = stack_root, base_revision
+        else:
+            try:
+                revision = gitlink_revision(base_revision, f"repos/{repo}", stack_root)
+            except RuntimeError:
+                continue
+            source = stack_root / "repos" / repo
+        measured = unresolved_at(source, revision, stores)
+        recorded = bounded.get(repo, {}).get(REF_DRIFT_CLASS, 0)
+        if measured > recorded:
+            bounded.setdefault(repo, {})[REF_DRIFT_CLASS] = measured
+            notes.append(
+                f"{repo}/{REF_DRIFT_CLASS}: baseline {recorded}, "
+                f"base {base_revision[:12]} measures {measured}"
+            )
+    return bounded, notes
+
+
+def host_state_gates(*, worktree: bool, revision: str | None,
+                     member_revision: str | None) -> bool:
     """Whether this machine's checkout state should fail the run.
 
     Host state gates an *audit of the working tree* and does not gate a
@@ -2360,14 +2506,13 @@ def host_state_gates(intent: HostStateIntent) -> bool:
     the caller named:
 
     - `--revision <rev>` (the stack root revision) and `--member-revision
-      <rev>` (a member's pushed commit) select committed content. Host state
-      is reported but does not fail a judgement about that content.
-    - The bare default scan, `--member-path` without `--member-revision`,
-      and `--worktree` read live checkout state. For those, a forked `target/`
-      or a stray lane is a real fact worth failing on. `--worktree` takes
-      precedence over a named stack revision because it selects live trees.
-      A CI runner measures zero for host state by construction, which is why
-      every committed baseline records zero.
+      <rev>` (a member's pushed commit) are how both pre-push gates ask the
+      question. They materialize the counted content from an object store.
+    - The bare default scan, `--member-path` naming a checkout read in place,
+      and a deliberate `--worktree` audit all measure the working tree, and
+      for those a forked `target/` or a stray lane is a real fact worth
+      failing on. A CI runner measures zero for both by construction, which
+      is why every committed baseline records zero.
 
     Refusing a *push* over host state refuses it on a peer's state. Observed
     on atlas PR #341: `debt_gate` in `.githooks/pre-push` ran
@@ -2377,7 +2522,7 @@ def host_state_gates(intent: HostStateIntent) -> bool:
     `0 regression(s), 0 tightening(s)`. The same shape reached a member's own
     pre-push through `--member-revision`.
     """
-    return intent is HostStateIntent.LIVE_AUDIT
+    return not revision and not member_revision
 
 
 def main() -> int:
@@ -2392,8 +2537,7 @@ def main() -> int:
         "(default HEAD). Naming a revision marks the run as a judgement "
         "about that revision, which is what both pre-push gates do, so host "
         "state -- this machine's lanes, forked caches, scratch files -- is "
-        "reported but does not fail it unless --worktree or a live "
-        "--member-path selects checkout content.",
+        "reported but does not fail it.",
     )
     parser.add_argument(
         "--worktree",
@@ -2439,6 +2583,14 @@ def main() -> int:
              "regeneration or a checked-out branch can make any value",
     )
     parser.add_argument(
+        "--drift-base",
+        metavar="REV",
+        help="with `check`, bound unresolved_references by what REV's boards "
+             "measure under the current refs, so a pull request fails only on "
+             "citations it adds; pass the pull request's base commit (a commit "
+             "of the --member-path checkout when that is given)",
+    )
+    parser.add_argument(
         "--accept-raises",
         metavar="REASON",
         help="permit `generate` to raise counts above the committed baseline, "
@@ -2456,10 +2608,6 @@ def main() -> int:
     if args.member_revision is not None and args.member_path is None:
         print("--member-revision names a commit of the --member-path checkout; "
               "give both", file=sys.stderr)
-        return 2
-    if args.worktree and args.member_revision is not None:
-        print("--worktree selects checkout content and cannot be combined "
-              "with --member-revision", file=sys.stderr)
         return 2
     if mode == "generate" and args.repo:
         print("refusing to generate a baseline from a single repo; omit --repo",
@@ -2490,16 +2638,8 @@ def main() -> int:
                     prefix="atlas-conformance-", dir=store
                 ) as scratch:
                     content = link_snapshot(member, pushed, Path(scratch))
-                    baseline_root = args.baseline_rev or "HEAD"
-                    config_root, _ = materialize_member(
-                        ROOT, baseline_root, Path(scratch)
-                    )
                     results = {args.repo: scan_repo(
-                        content,
-                        live_repo=member,
-                        revision=pushed,
-                        member=args.repo,
-                        config_root=config_root,
+                        content, live_repo=member, revision=pushed, member=args.repo
                     )}
         elif args.repo:
             member = ROOT / "repos" / args.repo
@@ -2593,19 +2733,33 @@ def main() -> int:
     else:
         base = json.loads(BASELINE.read_text())
     _, _, tightenings = ratchet_delta(base, results)
-    bound = base
-    regressions, host, _ = ratchet_delta(bound, results)
-    if args.member_path is not None:
-        host_state_intent = (
-            HostStateIntent.REVISION_JUDGEMENT
-            if args.member_revision is not None
-            else HostStateIntent.LIVE_AUDIT
-        )
-    elif args.revision is not None and not args.worktree:
-        host_state_intent = HostStateIntent.REVISION_JUDGEMENT
+    drift = []
+    # A member checkout's pull-request base is a commit of that checkout,
+    # not of the stack root.
+    drift_repo = (
+        args.member_path.resolve() if args.member_path is not None else ROOT
+    )
+    if args.drift_base:
+        try:
+            base_revision = git_output(
+                "rev-parse", "--verify", f"{args.drift_base}^{{commit}}",
+                cwd=drift_repo,
+            ).strip()
+            bound, drift = drift_bounded_baseline(
+                base, results, base_revision,
+                member_checkout=drift_repo if args.member_path is not None else None,
+            )
+        except RuntimeError as exc:
+            print(f"drift base unavailable: {exc}", file=sys.stderr)
+            return 1
     else:
-        host_state_intent = HostStateIntent.LIVE_AUDIT
-    host_gates = host_state_gates(host_state_intent)
+        bound = base
+    regressions, host, _ = ratchet_delta(bound, results)
+    host_gates = host_state_gates(
+        worktree=args.worktree,
+        revision=args.revision,
+        member_revision=args.member_revision,
+    )
     failed = bool(regressions or (host and host_gates))
     if args.json:
         print(json.dumps({
@@ -2613,6 +2767,7 @@ def main() -> int:
             "regressions": regressions,
             "host_regressions": host,
             "tightenings": tightenings,
+            "ref_drift": drift,
         }, indent=1, sort_keys=True))
         return 1 if failed else 0
     for t in tightenings:
@@ -2631,6 +2786,8 @@ def main() -> int:
                 note = staleness_note(member)
                 if note:
                     stale[repo_name] = note
+    for d in drift:
+        print(f"REF DRIFT (outside this change): {d}")
     for r in regressions:
         print(f"RATCHET VIOLATION: {r}{stale.get(r.split('/', 1)[0], '')}")
     for r in host:

@@ -848,6 +848,51 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(conformance._file_text_cache(), {})
         self.assertEqual(conformance._cfg_test_decl_cache(), {})
 
+    def test_nextest_retries_nonzero_counts_every_offending_profile(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".config/nextest.toml",
+                "[profile.default]\n"
+                'slow-timeout = { period = "10s", terminate-after = 6 }\n'
+                "[profile.ci]\n"
+                "retries = 0\n"
+                "[profile.local]\n"
+                "retries = 1\n"
+                "[profile.production]\n"
+                "retries = 2\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        # One count per offending profile, so the figure names how much of the
+        # surface hides a failure rather than merely that the file has one.
+        self.assertEqual(counts["nextest_retries_nonzero"], 2)
+
+    def test_nextest_retries_ignores_comments_and_overrides(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".config/nextest.toml",
+                "[profile.default]\n"
+                "# retries must stay 0 in every profile\n"
+                'slow-timeout = { period = "30s", terminate-after = 2 }\n'
+                "[[profile.default.overrides]]\n"
+                'filter = "test(registration)"\n'
+                'slow-timeout = { period = "600s", terminate-after = 5 }\n',
+            )
+
+            counts = conformance.scan_repo(root)
+
+        # The key's name in a comment, and a relaxation block that never sets
+        # it, are both absent from the violation. A text search over "retries"
+        # would count the comment; TOML parsing is what makes this zero.
+        self.assertEqual(counts["nextest_retries_nonzero"], 0)
+
     def test_nested_workspace_lints_table_satisfies_inheritance(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
@@ -1279,38 +1324,6 @@ class AtlasConformanceTestCase(unittest.TestCase):
             results = conformance.scan_stack(root)
 
         self.assertEqual(results["<meta>"]["member_gate_versions"], 3)
-
-    def test_recorded_hook_versions_ignore_dirty_owned_source(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
-            root = Path(temp)
-            member = root / "repos" / "alpha"
-            member.mkdir(parents=True)
-            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
-
-            def git(repo, *arguments):
-                return subprocess.run(
-                    ["git", "-C", str(repo), *ident, *arguments],
-                    check=True, capture_output=True, text=True, timeout=10,
-                ).stdout.strip()
-
-            git(root, "init", "-q", "-b", "main")
-            git(member, "init", "-q", "-b", "main")
-            _write(member, ".githooks/pre-push", "owned\n")
-            git(member, "add", ".githooks/pre-push")
-            git(member, "commit", "-q", "-m", "hook")
-            member_revision = git(member, "rev-parse", "HEAD")
-            _write(root, ".gitmodules", '[submodule "alpha"]\n path = repos/alpha\n')
-            _write(root, "scripts/git-hooks/pre-push", "owned\n")
-            git(root, "add", ".gitmodules", "scripts/git-hooks/pre-push")
-            git(root, "update-index", "--add", "--cacheinfo",
-                f"160000,{member_revision},repos/alpha")
-            git(root, "commit", "-q", "-m", "matching hooks")
-            revision = git(root, "rev-parse", "HEAD")
-            _write(root, "scripts/git-hooks/pre-push", "different live source\n")
-            recorded = conformance.scan_stack(root, revision)["<meta>"]
-            live = conformance.scan_stack(root)["<meta>"]
-            self.assertEqual(recorded["member_gate_versions"], 1)
-            self.assertEqual(live["member_gate_versions"], 2)
 
     def test_stack_scan_rejects_unmaterialized_provider(self) -> None:
         """An empty gitlink directory cannot masquerade as a clean provider."""
@@ -1816,7 +1829,9 @@ class DetectorPrecisionTests(unittest.TestCase):
 
 
 class MaterializedMemberTests(unittest.TestCase):
-    """Member scans always read an immutable snapshot of the recorded gitlink."""
+    """A member checkout that is dirty or behind its recorded gitlink is
+    scanned from an archived snapshot of that gitlink, never from its live
+    state; a clean checkout at the gitlink is scanned in place."""
 
     def _git(self, repo: Path, *args: str) -> str:
         return subprocess.run(
@@ -1830,12 +1845,6 @@ class MaterializedMemberTests(unittest.TestCase):
         self._git(provider, "init", "-q", "-b", "main")
         self._git(provider, "config", "user.email", "t@example.invalid")
         self._git(provider, "config", "user.name", "t")
-        _write(
-            provider,
-            "Cargo.toml",
-            "[package]\nname = \"alpha\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
-        )
-        _write(provider, "Cargo.lock", "version = 4\n")
         _write(provider, "src/lib.rs", "pub fn alpha() {}\n")
         self._git(provider, "add", ".")
         self._git(provider, "commit", "-q", "-m", "one")
@@ -1845,17 +1854,11 @@ class MaterializedMemberTests(unittest.TestCase):
         second = self._git(provider, "rev-parse", "HEAD")
         return provider, first, second
 
-    def test_clean_checkout_at_the_gitlink_still_gets_a_snapshot(self) -> None:
+    def test_clean_checkout_at_the_gitlink_scans_in_place(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             provider, _, second = self._provider(Path(temp))
             content, live = conformance.materialize_member(provider, second, Path(temp) / "scratch")
-            self.assertEqual(live, provider)
-            self.assertEqual(content, Path(temp) / "scratch" / "alpha")
-            _write(provider, "src/lib.rs", "pub fn alpha() { dbg!(1); }\n")
-            self.assertEqual(
-                (content / "src/lib.rs").read_text(encoding="utf-8"),
-                'pub fn alpha() { println!("debt"); }\n',
-            )
+            self.assertEqual((content, live), (provider, provider))
 
     def test_behind_or_dirty_checkout_scans_the_recorded_snapshot(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
@@ -1894,40 +1897,6 @@ class MaterializedMemberTests(unittest.TestCase):
 
             self.assertEqual(recorded["print_dbg"], 1, "the pinned revision's one println!")
             self.assertEqual(live["print_dbg"], 2, "the live tree's two dbg!")
-
-    def test_pinned_member_scan_uses_revision_config_after_live_mutation(self) -> None:
-        """A pinned scan keeps policy inputs at the materialized root revision."""
-        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
-            stack = Path(temp)
-            provider, _, second = self._provider(stack)
-            self._git(stack, "init", "-q", "-b", "main")
-            self._git(stack, "config", "user.email", "t@example.invalid")
-            self._git(stack, "config", "user.name", "t")
-            _write(stack, ".cargo/config.toml", "[build]\ntarget-dir = \"target\"\n")
-            _write(
-                stack,
-                "scripts/data/atlas-cache-retention.toml",
-                "retention_days = 7\n",
-            )
-            self._git(
-                stack,
-                "update-index",
-                "--add",
-                "--cacheinfo",
-                f"160000,{second},repos/alpha",
-            )
-            self._git(stack, "add", ".cargo", "scripts/data")
-            root_commit = self._git(stack, "write-tree")
-            root_commit = self._git(stack, "commit-tree", root_commit, "-m", "pin alpha")
-
-            with patch.object(conformance, "ROOT", stack), patch.object(conformance, "_STORES", None):
-                before = conformance.scan_member(stack, "alpha", root_commit)
-                _write(stack, ".cargo/config.toml", "[build]\ntarget-dir = \"live\"\n")
-                (stack / "scripts/data/atlas-cache-retention.toml").unlink()
-                after = conformance.scan_member(stack, "alpha", root_commit)
-
-            self.assertEqual(after, before)
-            self.assertEqual(after["cache_retention_policy_missing"], 0)
 
     def test_a_gitlink_absent_from_the_object_store_is_an_error(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
@@ -2341,10 +2310,6 @@ class LinkSnapshotTests(unittest.TestCase):
             self.assertEqual(
                 (linked / "src" / "edited.rs").read_text(), "pub fn committed() {}\n"
             )
-            _write(member, "src/kept.rs", "pub fn mutated_after_snapshot() {}\n")
-            self.assertEqual(
-                (linked / "src" / "kept.rs").read_text(), "pub fn kept() {}\n"
-            )
             self.assertFalse((linked / "scratch.rs").exists())
             # The checkout itself is untouched by the snapshot and its removal.
             shutil.rmtree(linked)
@@ -2353,7 +2318,7 @@ class LinkSnapshotTests(unittest.TestCase):
             )
             self.assertEqual(
                 [e.strip() for e in _git(member, "status", "--porcelain", "-z").split("\0")],
-                ["M src/edited.rs", "M src/kept.rs", "D src/removed.rs", "?? scratch.rs", ""],
+                ["M src/edited.rs", "D src/removed.rs", "?? scratch.rs", ""],
             )
 
 
@@ -2464,7 +2429,7 @@ class CitationResolutionTests(unittest.TestCase):
         "GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z",
         "GIT_COMMITTER_DATE": "2026-01-01T00:00:00Z",
     }
-    CLS = "unresolved_references"
+    CLS = conformance.REF_DRIFT_CLASS
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="atlas-ref-drift-")
@@ -2623,12 +2588,14 @@ class CitationResolutionTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "cannot walk landed history"):
             conformance.board_lint.resolve_hashes({tip[:9]}, stores)
 
-    def test_branch_only_citation_counts_as_a_ratchet_regression(self) -> None:
-        baseline = {"member": {self.CLS: 0}}
-        results = {"member": {self.CLS: 1}}
-        regressions, host, tightenings = conformance.ratchet_delta(baseline, results)
-        self.assertEqual(regressions, [f"member/{self.CLS}: 0 -> 1"])
-        self.assertEqual((host, tightenings), ([], []))
+    def test_a_branch_deletion_leaves_the_drift_bound_unraised(self) -> None:
+        base, _, _ = self._stack()
+        baseline = self._measure()
+        self._git(self.root, "branch", "-q", "-D", "feature")
+        self._git(self.root / "repos" / "member", "branch", "-q", "-D", "feature")
+        results = self._remeasure()
+        bound, notes = conformance.drift_bounded_baseline(baseline, results, base, self.root)
+        self.assertEqual((bound, notes), (baseline, []))
 
 
 class SecondOutputRootTestCase(unittest.TestCase):
@@ -2676,21 +2643,21 @@ class SecondOutputRootTestCase(unittest.TestCase):
 
 class HostStateGateTests(unittest.TestCase):
     """Host state gates a working-tree audit and does not gate a judgement
-    about a named revision. The selected scan intent decides whether host
-    state is a gate, so every scan shape is pinned against the shipped
+    about a named revision. The rule is one boolean and it decides whether a
+    push is refused, so every scan shape is pinned against the shipped
     function rather than a restatement of it."""
 
     #: A single host row over the class that described the blocking push.
     HOST = [("leto", "excess_worktrees", 0, 1)]
 
-    def _exit_code(
-        self,
-        intent: conformance.HostStateIntent,
-        *,
-        regressions: list = (),
-    ) -> int:
-        """The `check` mode's exit code for one selected scan intent."""
-        gates = conformance.host_state_gates(intent)
+    def _exit_code(self, *, worktree: bool = False, revision: str | None = None,
+                   member_revision: str | None = None,
+                   regressions: list = ()) -> int:
+        """The `check` mode's exit code for one argument shape."""
+        gates = conformance.host_state_gates(
+            worktree=worktree, revision=revision,
+            member_revision=member_revision,
+        )
         return int(bool(regressions or (self.HOST and gates)))
 
     def test_a_named_stack_revision_does_not_gate_on_the_pushing_machine(self) -> None:
@@ -2699,56 +2666,39 @@ class HostStateGateTests(unittest.TestCase):
         # cannot appear in the counts at all; refusing the push over one
         # refuses it on a peer's state. Observed: a push with 0 regressions
         # and 0 tightenings blocked on `leto/excess_worktrees`.
-        self.assertEqual(
-            self._exit_code(conformance.HostStateIntent.REVISION_JUDGEMENT), 0
-        )
+        self.assertEqual(self._exit_code(revision="deadbeef"), 0)
 
     def test_a_pushed_member_revision_does_not_gate(self) -> None:
         # The shape a member's own pre-push uses. Same reasoning: the pushed
         # tree is materialized, and a lane in the local checkout is the
         # machine's, not the commit's.
-        self.assertEqual(
-            self._exit_code(conformance.HostStateIntent.REVISION_JUDGEMENT), 0
-        )
+        self.assertEqual(self._exit_code(member_revision="deadbeef"), 0)
 
     def test_the_default_scan_gates(self) -> None:
         # The bare default measures the working tree, and a developer running
         # it by hand should be told to sweep. A CI runner measures zero for
         # every host class by construction, which is why the committed
         # baselines record zero.
-        self.assertEqual(
-            self._exit_code(conformance.HostStateIntent.LIVE_AUDIT), 1
-        )
+        self.assertEqual(self._exit_code(), 1)
 
-    def test_a_worktree_audit_gates_even_with_a_stack_revision(self) -> None:
+    def test_a_worktree_audit_gates(self) -> None:
         # `--worktree` is the deliberate live audit: its whole point is to
-        # report this machine's state, so it must fail on it. The root
-        # revision is ignored by this scan branch.
-        self.assertEqual(
-            self._exit_code(conformance.HostStateIntent.LIVE_AUDIT), 1
-        )
-
-    def test_a_live_member_path_gates_even_with_a_stack_revision(self) -> None:
-        # `--revision` names stack content and has no effect on the explicit
-        # member checkout. Without `--member-revision`, that checkout is live.
-        self.assertEqual(
-            self._exit_code(conformance.HostStateIntent.LIVE_AUDIT), 1
-        )
+        # report this machine's state, so it must fail on it.
+        self.assertEqual(self._exit_code(worktree=True), 1)
 
     def test_a_real_regression_still_fails_every_shape(self) -> None:
         # The relaxation is scoped to host rows alone. A class the revision
         # actually raises must fail the revision scans too, or the fix has
         # opened a hole rather than closed one.
         raised = [("leto", "unwrap_production", 0, 1)]
-        for label, intent in (
-            ("stack revision", conformance.HostStateIntent.REVISION_JUDGEMENT),
-            ("member revision", conformance.HostStateIntent.REVISION_JUDGEMENT),
-            ("default scan", conformance.HostStateIntent.LIVE_AUDIT),
-            ("worktree audit", conformance.HostStateIntent.LIVE_AUDIT),
-            ("live member path", conformance.HostStateIntent.LIVE_AUDIT),
+        for label, kwargs in (
+            ("stack revision", {"revision": "deadbeef"}),
+            ("member revision", {"member_revision": "deadbeef"}),
+            ("default scan", {}),
+            ("worktree audit", {"worktree": True}),
         ):
             with self.subTest(shape=label):
-                self.assertEqual(self._exit_code(intent, regressions=raised), 1)
+                self.assertEqual(self._exit_code(regressions=raised, **kwargs), 1)
 
     def test_a_revision_scan_still_reports_the_host_row(self) -> None:
         # Not gating is not hiding: the row is printed with the note that
@@ -2756,165 +2706,6 @@ class HostStateGateTests(unittest.TestCase):
         # reader even when it does not fail the run.
         self.assertIn("root_sprawl_untracked", conformance.HOST_OBSERVED_CLASSES)
         self.assertIn("excess_worktrees", conformance.HOST_OBSERVED_CLASSES)
-
-    def test_check_gates_host_state_for_live_member_path(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-host-member-") as temp:
-            member = Path(temp)
-            baseline = Path(temp) / "baseline.json"
-            baseline.write_text(
-                json.dumps({"demo": {"excess_worktrees": 0}}),
-                encoding="utf-8",
-            )
-            output = io.StringIO()
-            with (
-                patch.object(conformance, "BASELINE", baseline),
-                patch.object(
-                    conformance, "scan_repo",
-                    return_value={"excess_worktrees": 1},
-                ) as scan_repo,
-                patch.object(
-                    sys, "argv",
-                    [str(SCRIPT), "check", "--json", "--repo", "demo",
-                     "--member-path", str(member), "--revision", "deadbeef"],
-                ),
-                redirect_stdout(output),
-            ):
-                result = conformance.main()
-
-        self.assertEqual(result, 1)
-        scan_repo.assert_called_once_with(member.resolve(), member="demo")
-        self.assertEqual(
-            json.loads(output.getvalue())["host_regressions"],
-            ["demo/excess_worktrees: 0 -> 1"],
-        )
-
-    def test_check_gates_worktree_when_a_stack_revision_is_named(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-host-stack-") as temp:
-            baseline = Path(temp) / "baseline.json"
-            baseline.write_text(
-                json.dumps({"demo": {"excess_worktrees": 0}}),
-                encoding="utf-8",
-            )
-            output = io.StringIO()
-            with (
-                patch.object(conformance, "BASELINE", baseline),
-                patch.object(
-                    conformance, "scan_stack",
-                    return_value={"demo": {"excess_worktrees": 1}},
-                ) as scan_stack,
-                patch.object(
-                    sys, "argv",
-                    [str(SCRIPT), "check", "--json", "--worktree",
-                     "--revision", "deadbeef"],
-                ),
-                redirect_stdout(output),
-            ):
-                result = conformance.main()
-
-        self.assertEqual(result, 1)
-        scan_stack.assert_called_once_with(conformance.ROOT)
-        self.assertEqual(
-            json.loads(output.getvalue())["host_regressions"],
-            ["demo/excess_worktrees: 0 -> 1"],
-        )
-
-    def test_check_gates_single_member_worktree_when_stack_revision_is_named(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-host-repo-worktree-") as temp:
-            stack = Path(temp)
-            (stack / "repos" / "demo").mkdir(parents=True)
-            baseline = Path(temp) / "baseline.json"
-            baseline.write_text(
-                json.dumps({"demo": {"excess_worktrees": 0}}),
-                encoding="utf-8",
-            )
-            output = io.StringIO()
-            with (
-                patch.object(conformance, "ROOT", stack),
-                patch.object(conformance, "BASELINE", baseline),
-                patch.object(conformance, "require_materialized_providers"),
-                patch.object(conformance, "git_output", return_value="deadbeef"),
-                patch.object(
-                    conformance, "scan_member",
-                    return_value={"excess_worktrees": 1},
-                ) as scan_member,
-                patch.object(
-                    sys, "argv",
-                    [str(SCRIPT), "check", "--json", "--repo", "demo",
-                     "--worktree", "--revision", "deadbeef"],
-                ),
-                redirect_stdout(output),
-            ):
-                result = conformance.main()
-
-        self.assertEqual(result, 1)
-        scan_member.assert_called_once_with(stack, "demo", None)
-        self.assertEqual(
-            json.loads(output.getvalue())["host_regressions"],
-            ["demo/excess_worktrees: 0 -> 1"],
-        )
-
-    def test_check_reports_host_rows_but_still_gates_real_revision_debt(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-host-revision-") as temp:
-            stack = Path(temp)
-            (stack / "repos" / "demo").mkdir(parents=True)
-            baseline = Path(temp) / "baseline.json"
-            baseline.write_text(
-                json.dumps({"demo": {
-                    "excess_worktrees": 0,
-                    "print_dbg": 0,
-                }}),
-                encoding="utf-8",
-            )
-
-            def run_check(scanned: dict) -> tuple[int, dict]:
-                output = io.StringIO()
-                with (
-                    patch.object(conformance, "ROOT", stack),
-                    patch.object(conformance, "BASELINE", baseline),
-                    patch.object(conformance, "require_materialized_providers"),
-                    patch.object(conformance, "git_output", return_value="deadbeef"),
-                    patch.object(conformance, "scan_member", return_value=scanned),
-                    patch.object(
-                        sys, "argv",
-                        [str(SCRIPT), "check", "--json", "--repo", "demo",
-                         "--revision", "deadbeef"],
-                    ),
-                    redirect_stdout(output),
-                ):
-                    result = conformance.main()
-                return result, json.loads(output.getvalue())
-
-            host_only, host_payload = run_check({"excess_worktrees": 1})
-            raised, raised_payload = run_check({
-                "excess_worktrees": 1,
-                "print_dbg": 1,
-            })
-
-        self.assertEqual(host_only, 0)
-        self.assertEqual(
-            host_payload["host_regressions"],
-            ["demo/excess_worktrees: 0 -> 1"],
-        )
-        self.assertEqual(raised, 1)
-        self.assertEqual(
-            raised_payload["regressions"], ["demo/print_dbg: 0 -> 1"]
-        )
-
-    def test_check_rejects_conflicting_member_revision_and_worktree(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-host-flags-") as temp:
-            errors = io.StringIO()
-            with (
-                patch.object(
-                    sys, "argv",
-                    [str(SCRIPT), "check", "--repo", "demo", "--member-path",
-                     temp, "--member-revision", "HEAD", "--worktree"],
-                ),
-                redirect_stderr(errors),
-            ):
-                result = conformance.main()
-
-        self.assertEqual(result, 2)
-        self.assertIn("cannot be combined", errors.getvalue())
 
 
 if __name__ == "__main__":

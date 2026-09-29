@@ -1,0 +1,679 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 43e6e04..0c71509 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -807,7 +807,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
+ [[package]]
+ name = "leto"
+ version = "0.43.0"
+-source = "git+https://github.com/ryancinsight/leto.git#227a4933325a282fc3892a0c17887ac9ace0a396"
++source = "git+https://github.com/ryancinsight/leto.git#281cc343447836b8f241dc275ca28b859b124839"
+ dependencies = [
+  "aequitas",
+  "eunomia",
+@@ -819,7 +819,7 @@ dependencies = [
+ [[package]]
+ name = "leto-ops"
+ version = "0.43.0"
+-source = "git+https://github.com/ryancinsight/leto.git#227a4933325a282fc3892a0c17887ac9ace0a396"
++source = "git+https://github.com/ryancinsight/leto.git#281cc343447836b8f241dc275ca28b859b124839"
+ dependencies = [
+  "eunomia",
+  "hermes-simd",
+diff --git a/backlog.md b/backlog.md
+index 1f9d058..d10b996 100644
+--- a/backlog.md
++++ b/backlog.md
+@@ -75,15 +75,22 @@
+ 
+ <a id="heph-device-dot-cross-provider-1"></a>
+ 
+-## HEPH-DEVICE-DOT-CROSS-PROVIDER-1 — Device-resident dot/cross reductions [patch] — todo
++## HEPH-DEVICE-DOT-CROSS-PROVIDER-1 — Device-resident cross product; coeus dot-binding gap [patch] — todo
+ - Priority: feature.
+-- Outcome: `DenseVectorOps`-family dot and cross-product reductions execute
+-  entirely on-device; coeus currently copies full operands to host for these.
+-- Scope: extend the existing dense-vector seam (or add a sibling) on
+-  wgpu/cuda/rocm/metal; no algorithm change, only closing the host fallback.
++- Status: audited (ADR 0064). `DenseVectorOps::dot`/`norm_l2`/`norm_l1`/
++  `norm_max` already dispatch entirely on-device on wgpu (only the reduced
++  scalar downloads) — the reported "coeus copies full operands to host"
++  symptom for `dot` is a coeus-side integration gap (not calling the
++  existing seam), not a hephaestus provider gap; report back to coeus rather
++  than duplicate. `CrossProductOps<D, T>` (host + wgpu) delivered for the
++  half that had no seam at all.
++- Outcome: cross-product batched over flat `(x, y, z)` triples, on-device.
++- Scope: `hephaestus-core`/`hephaestus-host`/`hephaestus-wgpu` delivered;
++  cuda/rocm/metal implementors remain, plus the `assert_backend_contract`
++  aggregate fold once all four backends implement it.
+ - Driver: coeus consumer audit, 2026-09-26.
+-- Verification: differential vs Leto per backend, allocation-free hot path
+-  per performance_engineering, strict Clippy, independent review.
++- Verification: differential vs the standard basis identities (host +
++  real-device wgpu), strict Clippy, independent review.
+ - Last-update: 2026-09-26.
+ 
+ <a id="heph-fused-expr-rocm-metal-1"></a>
+diff --git a/crates/hephaestus-conformance/src/cross_product.rs b/crates/hephaestus-conformance/src/cross_product.rs
+new file mode 100644
+index 0000000..a191ad9
+--- /dev/null
++++ b/crates/hephaestus-conformance/src/cross_product.rs
+@@ -0,0 +1,39 @@
++//! Contract clauses for the device-neutral
++//! [`hephaestus_core::CrossProductOps`] seam.
++//!
++//! Batched fixture of two triples: `i x j = k` and `j x k = i` (the standard
++//! basis identities), each exact in `f32`.
++
++use hephaestus_core::CrossProductOps;
++
++/// Batched cross product against the standard basis identities.
++///
++/// # Panics
++///
++/// Panics with the violated clause when the backend disagrees.
++pub fn assert_cross_product_contract<D, C>(device: &D, ops: &C)
++where
++    D: hephaestus_core::ComputeDevice,
++    C: CrossProductOps<D, f32>,
++{
++    // i = (1,0,0), j = (0,1,0); k = (0,0,1), i = (1,0,0).
++    let a = vec![1.0f32, 0.0, 0.0, 0.0, 1.0, 0.0];
++    let b = vec![0.0f32, 1.0, 0.0, 0.0, 0.0, 1.0];
++    let expected = vec![0.0f32, 0.0, 1.0, 1.0, 0.0, 0.0];
++
++    let a_buf = device.upload(&a).expect("a upload");
++    let b_buf = device.upload(&b).expect("b upload");
++    let out = device.alloc_zeroed::<f32>(6).expect("out alloc");
++
++    ops.cross_into(device, &a_buf, &b_buf, &out)
++        .expect("cross product dispatch");
++
++    let mut got = vec![0.0f32; 6];
++    device.download(&out, &mut got).expect("download");
++    assert_eq!(
++        got,
++        expected,
++        "{}: batched cross product must match the standard basis identities",
++        device.backend_name()
++    );
++}
+diff --git a/crates/hephaestus-conformance/src/lib.rs b/crates/hephaestus-conformance/src/lib.rs
+index 1b9b3f6..af23690 100644
+--- a/crates/hephaestus-conformance/src/lib.rs
++++ b/crates/hephaestus-conformance/src/lib.rs
+@@ -50,6 +50,8 @@ pub mod blocked_qr;
+ pub mod convolution;
+ /// Contract clauses for the [`CrossEntropyOps`](hephaestus_core::CrossEntropyOps) seam.
+ pub mod cross_entropy;
++/// Contract clauses for the [`CrossProductOps`](hephaestus_core::CrossProductOps) seam.
++pub mod cross_product;
+ /// Contract clauses for the
+ /// [`DecompositionOps`](hephaestus_core::DecompositionOps) seam.
+ pub mod decomposition;
+@@ -102,6 +104,7 @@ pub use blocked_lu::assert_blocked_lu_contract;
+ pub use blocked_qr::assert_blocked_qr_contract;
+ pub use convolution::{assert_convolution_contract, assert_convolution_f64_contract};
+ pub use cross_entropy::assert_cross_entropy_contract;
++pub use cross_product::assert_cross_product_contract;
+ pub use decomposition::assert_decomposition_contract;
+ pub use dense_composition::assert_dense_composition_contract;
+ pub use dense_matrix_function::assert_dense_matrix_function_contract;
+diff --git a/crates/hephaestus-core/src/domain/cross_product.rs b/crates/hephaestus-core/src/domain/cross_product.rs
+new file mode 100644
+index 0000000..bdc8d31
+--- /dev/null
++++ b/crates/hephaestus-core/src/domain/cross_product.rs
+@@ -0,0 +1,87 @@
++//! Device-neutral batched 3-vector cross product.
++//!
++//! Companion to [`crate::DenseVectorOps`]'s `dot`/`norm_l2` reductions:
++//! those already dispatch on-device (only their scalar result crosses back
++//! to host), but no seam covered the other common dense-vector primitive —
++//! cross product, whose output is itself a vector, not a scalar. Buffers are
++//! flat and contiguous, matching `DenseVectorOps`'s own convention rather
++//! than `StridedView`'s generality: a cross product is defined triple-wise
++//! over consecutive `(x, y, z)` elements, so a caller with a non-contiguous
++//! batch of 3-vectors materializes it contiguously first, exactly as
++//! `DenseVectorOps` already expects for `dot`/`norm_l2`.
++
++use eunomia::Pod;
++
++use crate::domain::device::ComputeDevice;
++use crate::domain::error::{HephaestusError, Result};
++
++/// Device-neutral batched cross product over flat arrays of 3-vectors.
++///
++/// `a`, `b`, and `out` each hold `n` consecutive `(x, y, z)` triples
++/// (length `3 * n`); `out[3*i..3*i+3] = cross(a[3*i..3*i+3], b[3*i..3*i+3])`
++/// for every `i`.
++///
++/// Implementors are zero-sized per-backend markers, so a bound of
++/// `C: CrossProductOps<D, T>` costs nothing at runtime and every call
++/// monomorphizes to the backend's own kernel dispatch.
++pub trait CrossProductOps<D: ComputeDevice, T: Pod> {
++    /// Write the batched cross product of `a` and `b` into `out`.
++    ///
++    /// # Errors
++    ///
++    /// Returns a typed dispatch error when `a`, `b`, and `out` do not share
++    /// one length that is a multiple of three, when `out` aliases `a` or
++    /// `b`, or when the backend dispatch fails.
++    fn cross_into(
++        &self,
++        device: &D,
++        a: &D::Buffer<T>,
++        b: &D::Buffer<T>,
++        out: &D::Buffer<T>,
++    ) -> Result<()>;
++}
++
++/// Validate that `a_len`, `b_len`, and `out_len` agree and are each a
++/// multiple of three, returning the triple count.
++///
++/// # Errors
++///
++/// Returns [`HephaestusError::InvalidConfiguration`] when the lengths
++/// disagree or are not a multiple of three.
++pub fn validate_cross_product_lengths(a_len: usize, b_len: usize, out_len: usize) -> Result<usize> {
++    if a_len != b_len || a_len != out_len {
++        return Err(HephaestusError::InvalidConfiguration {
++            message: format!(
++                "cross product operand lengths must match: a={a_len}, b={b_len}, out={out_len}"
++            ),
++        });
++    }
++    if !a_len.is_multiple_of(3) {
++        return Err(HephaestusError::InvalidConfiguration {
++            message: format!("cross product operand length {a_len} is not a multiple of three"),
++        });
++    }
++    Ok(a_len / 3)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn accepts_matching_multiple_of_three_lengths() {
++        assert_eq!(validate_cross_product_lengths(6, 6, 6).expect("valid"), 2);
++    }
++
++    #[test]
++    fn rejects_a_length_mismatch() {
++        let err = validate_cross_product_lengths(6, 3, 6).expect_err("mismatch");
++        assert!(matches!(err, HephaestusError::InvalidConfiguration { .. }));
++    }
++
++    #[test]
++    fn rejects_a_non_multiple_of_three() {
++        let err = validate_cross_product_lengths(4, 4, 4).expect_err("not a multiple of 3");
++        assert!(matches!(err, HephaestusError::InvalidConfiguration { .. }));
++    }
++}
+diff --git a/crates/hephaestus-core/src/domain/mod.rs b/crates/hephaestus-core/src/domain/mod.rs
+index a496124..9fffe27 100644
+--- a/crates/hephaestus-core/src/domain/mod.rs
++++ b/crates/hephaestus-core/src/domain/mod.rs
+@@ -8,6 +8,8 @@ pub mod attention;
+ pub mod buffer;
+ /// Device-neutral convolution operands, planning, and dispatch seam.
+ pub mod convolution;
++/// Device-neutral batched 3-vector cross product seam.
++pub mod cross_product;
+ /// Shared CPU-side panel factorisation routines for blocked decomposition.
+ pub mod decomposition;
+ /// Device-neutral dense decomposition seam (ADR 0042).
+diff --git a/crates/hephaestus-core/src/lib.rs b/crates/hephaestus-core/src/lib.rs
+index 9bc1665..84c5d74 100644
+--- a/crates/hephaestus-core/src/lib.rs
++++ b/crates/hephaestus-core/src/lib.rs
+@@ -41,6 +41,7 @@ pub use domain::convolution::{
+     plan_convolution_forward, plan_transposed_convolution_backward,
+     plan_transposed_convolution_forward,
+ };
++pub use domain::cross_product::{CrossProductOps, validate_cross_product_lengths};
+ pub use domain::decomposition::{
+     BlockedCholeskyBackend, BlockedCholeskyFactors, BlockedDecompositionBackend, BlockedLuFactors,
+     BlockedQrBackend, BlockedQrFactors, PanelRegion, TrailingGemm, TrailingHh, TrailingSyrk,
+diff --git a/crates/hephaestus-host/src/cross_product.rs b/crates/hephaestus-host/src/cross_product.rs
+new file mode 100644
+index 0000000..e444693
+--- /dev/null
++++ b/crates/hephaestus-host/src/cross_product.rs
+@@ -0,0 +1,45 @@
++//! Host reference implementor of [`hephaestus_core::CrossProductOps`].
++//!
++//! A direct per-triple loop: the reference substrate favors an obviously
++//! correct implementation over a fast one (crate docs), and the standard
++//! `(x, y, z)` cross-product formula has no numerically interesting
++//! structure to delegate to leto for.
++
++use eunomia::Pod;
++use hephaestus_core::{CrossProductOps, DeviceBuffer, Result, validate_cross_product_lengths};
++
++use crate::operands::require_disjoint_output;
++use crate::{HostBuffer, HostDevice};
++
++/// Host-backed batched cross product for the reference device.
++#[derive(Clone, Copy, Debug, Default)]
++pub struct HostCrossProductOps;
++
++impl<T> CrossProductOps<HostDevice, T> for HostCrossProductOps
++where
++    T: Pod + Copy + core::ops::Mul<Output = T> + core::ops::Sub<Output = T>,
++{
++    fn cross_into(
++        &self,
++        _device: &HostDevice,
++        a: &HostBuffer<T>,
++        b: &HostBuffer<T>,
++        out: &HostBuffer<T>,
++    ) -> Result<()> {
++        require_disjoint_output(a, b, out)?;
++        let a_cells = a.read();
++        let b_cells = b.read();
++        let triples = validate_cross_product_lengths(a_cells.len(), b_cells.len(), out.len())?;
++
++        let mut out_cells = out.write();
++        for i in 0..triples {
++            let base = i * 3;
++            let (ax, ay, az) = (a_cells[base], a_cells[base + 1], a_cells[base + 2]);
++            let (bx, by, bz) = (b_cells[base], b_cells[base + 1], b_cells[base + 2]);
++            out_cells[base] = ay * bz - az * by;
++            out_cells[base + 1] = az * bx - ax * bz;
++            out_cells[base + 2] = ax * by - ay * bx;
++        }
++        Ok(())
++    }
++}
+diff --git a/crates/hephaestus-host/src/lib.rs b/crates/hephaestus-host/src/lib.rs
+index b027ec2..cee11e0 100644
+--- a/crates/hephaestus-host/src/lib.rs
++++ b/crates/hephaestus-host/src/lib.rs
+@@ -15,6 +15,8 @@ mod combine;
+ pub mod convolution;
+ /// Leto-backed mean cross-entropy seam implementor.
+ pub mod cross_entropy;
++/// Direct-loop batched cross-product seam implementor.
++pub mod cross_product;
+ /// Leto as a decomposition-seam implementor.
+ pub mod decomposition;
+ /// Leto-backed dense product, composition, and matrix-function implementors.
+@@ -57,6 +59,7 @@ pub use convolution::{
+     HostConvolutionTransposedBackward, HostConvolutionTransposedForward,
+ };
+ pub use cross_entropy::{HostCrossEntropyBackward, HostCrossEntropyForward, HostCrossEntropyOps};
++pub use cross_product::HostCrossProductOps;
+ pub use decomposition::HostDecompositionOps;
+ pub use dense_product::HostDenseProductOps;
+ pub use dense_vector::{HostDenseVectorOps, HostPreparedDot, HostPreparedNorm};
+diff --git a/crates/hephaestus-host/tests/contracts/cross_product.rs b/crates/hephaestus-host/tests/contracts/cross_product.rs
+new file mode 100644
+index 0000000..eff992f
+--- /dev/null
++++ b/crates/hephaestus-host/tests/contracts/cross_product.rs
+@@ -0,0 +1,9 @@
++//! Host instantiation of the shared cross-product conformance clause.
++
++use hephaestus_conformance::assert_cross_product_contract;
++use hephaestus_host::{HostCrossProductOps, HostDevice};
++
++#[test]
++fn host_satisfies_the_cross_product_contract() {
++    assert_cross_product_contract(&HostDevice::new(), &HostCrossProductOps);
++}
+diff --git a/crates/hephaestus-host/tests/contracts/main.rs b/crates/hephaestus-host/tests/contracts/main.rs
+index 27997b6..8b7a6a1 100644
+--- a/crates/hephaestus-host/tests/contracts/main.rs
++++ b/crates/hephaestus-host/tests/contracts/main.rs
+@@ -5,6 +5,7 @@ mod attention;
+ mod backend;
+ mod convolution;
+ mod cross_entropy;
++mod cross_product;
+ mod decomposition;
+ mod dense_product;
+ mod dense_vector;
+diff --git a/crates/hephaestus-wgpu/src/application/cross_product_seam.rs b/crates/hephaestus-wgpu/src/application/cross_product_seam.rs
+new file mode 100644
+index 0000000..3ec312d
+--- /dev/null
++++ b/crates/hephaestus-wgpu/src/application/cross_product_seam.rs
+@@ -0,0 +1,160 @@
++//! WGPU implementation of [`hephaestus_core::CrossProductOps`].
++//!
++//! One thread per `(x, y, z)` triple; no strided metadata is needed since
++//! `DenseVectorOps`'s own convention (flat, contiguous buffers) applies here
++//! too — the operands are plain `array<T>` bindings and the uniform carries
++//! only the triple count.
++
++use std::any::TypeId;
++
++use eunomia::{Pod, Zeroable};
++use hephaestus_core::{
++    BlockWidth, CrossProductOps, DeviceBuffer, DialectScalar, HephaestusError, Result, Wgsl,
++    validate_cross_product_lengths,
++};
++
++use crate::application::bindings::BindGroupEntries;
++use crate::application::pipeline::{cached_pipeline, encode_compute_pass, workgroups};
++use crate::application::strided::to_u32;
++use crate::infrastructure::buffer::WgpuBuffer;
++use crate::infrastructure::device::WgpuDevice;
++
++/// WGSL `CrossMeta` uniform: `[triple_count, _pad, _pad, _pad]`. A full
++/// `vec4` even for one value: WGSL's uniform address space still requires
++/// the struct's only member aligned to its own size, and matching every
++/// other kernel's convention here means a second field never silently
++/// desynchronizes the layout later (see ADR 0063's `ArgReduceMeta` postmortem).
++#[repr(C)]
++#[derive(Clone, Copy, Pod, Zeroable)]
++struct CrossMeta {
++    offsets: [u32; 4],
++}
++
++const _: () = assert!(core::mem::size_of::<CrossMeta>() == 16);
++
++const WGSL_CROSS_META: &str = r"struct CrossMeta {
++    offsets: vec4<u32>,
++}
++";
++
++struct CrossProductKernel;
++
++fn cross_shader<T: DialectScalar<Wgsl>>(width: BlockWidth) -> String {
++    format!(
++        r#"{meta}
++@group(0) @binding(0) var<uniform> cmeta: CrossMeta;
++@group(0) @binding(1) var<storage, read> a: array<{ty}>;
++@group(0) @binding(2) var<storage, read> b: array<{ty}>;
++@group(0) @binding(3) var<storage, read_write> out: array<{ty}>;
++
++@compute @workgroup_size({wg})
++fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
++    let i = gid.x;
++    if (i >= cmeta.offsets.x) {{
++        return;
++    }}
++    let base = i * 3u;
++    let ax = a[base];
++    let ay = a[base + 1u];
++    let az = a[base + 2u];
++    let bx = b[base];
++    let by = b[base + 1u];
++    let bz = b[base + 2u];
++    out[base] = ay * bz - az * by;
++    out[base + 1u] = az * bx - ax * bz;
++    out[base + 2u] = ax * by - ay * bx;
++}}
++"#,
++        meta = WGSL_CROSS_META,
++        ty = T::TYPE_TOKEN,
++        wg = width.get(),
++    )
++}
++
++/// WGPU device marker implementing [`CrossProductOps`].
++#[derive(Clone, Copy, Debug, Default)]
++pub struct WgpuCrossProductOps;
++
++impl<T> CrossProductOps<WgpuDevice, T> for WgpuCrossProductOps
++where
++    T: DialectScalar<Wgsl> + Pod,
++{
++    fn cross_into(
++        &self,
++        device: &WgpuDevice,
++        a: &WgpuBuffer<T>,
++        b: &WgpuBuffer<T>,
++        out: &WgpuBuffer<T>,
++    ) -> Result<()> {
++        let triples = validate_cross_product_lengths(a.len(), b.len(), out.len())?;
++        if a.aliases(out) || b.aliases(out) {
++            return Err(HephaestusError::DispatchFailed {
++                message: "cross product output must not alias either input".to_string(),
++            });
++        }
++        if triples == 0 {
++            return Ok(());
++        }
++        let block_width = BlockWidth::DEFAULT;
++
++        let meta = CrossMeta {
++            offsets: [to_u32(triples, "triple count")?, 0, 0, 0],
++        };
++        let meta_buffer = device.get_uniform_buffer(WgpuDevice::byte_size::<CrossMeta>(1)?)?;
++        device
++            .queue()
++            .write_buffer(&meta_buffer, 0, eunomia::layout::bytes_of(&meta));
++
++        let pipeline = cached_pipeline(
++            device,
++            (
++                TypeId::of::<CrossProductKernel>(),
++                TypeId::of::<T>(),
++                block_width.get(),
++            ),
++            "hephaestus-cross-product",
++            || cross_shader::<T>(block_width),
++        );
++
++        let groups = workgroups(triples, block_width)?;
++        let mut entries = BindGroupEntries::with_capacity(4);
++        entries.push(wgpu::BindGroupEntry {
++            binding: 0,
++            resource: meta_buffer.as_entire_binding(),
++        });
++        entries.push(wgpu::BindGroupEntry {
++            binding: 1,
++            resource: a.buffer.as_entire_binding(),
++        });
++        entries.push(wgpu::BindGroupEntry {
++            binding: 2,
++            resource: b.buffer.as_entire_binding(),
++        });
++        entries.push(wgpu::BindGroupEntry {
++            binding: 3,
++            resource: out.buffer.as_entire_binding(),
++        });
++        let bind_group = device
++            .inner()
++            .create_bind_group(&wgpu::BindGroupDescriptor {
++                label: Some("hephaestus-cross-product"),
++                layout: &pipeline.get_bind_group_layout(0),
++                entries: &entries,
++            });
++
++        let mut encoder = device
++            .inner()
++            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
++                label: Some("hephaestus-cross-product"),
++            });
++        encode_compute_pass(
++            &mut encoder,
++            &pipeline,
++            &bind_group,
++            groups,
++            "hephaestus-cross-product",
++        );
++        device.queue().submit(Some(encoder.finish()));
++        Ok(())
++    }
++}
+diff --git a/crates/hephaestus-wgpu/src/application/mod.rs b/crates/hephaestus-wgpu/src/application/mod.rs
+index 647c4ff..5a448f4 100644
+--- a/crates/hephaestus-wgpu/src/application/mod.rs
++++ b/crates/hephaestus-wgpu/src/application/mod.rs
+@@ -25,6 +25,8 @@ pub mod attention;
+ pub mod axis_reduction_seam;
+ /// Native WGSL regular and transposed convolution.
+ pub mod convolution;
++/// Device-neutral batched cross-product seam implementation.
++pub mod cross_product_seam;
+ /// Device-neutral decomposition seam implementation.
+ #[cfg(feature = "decomposition")]
+ pub mod decomposition_seam;
+diff --git a/crates/hephaestus-wgpu/src/lib.rs b/crates/hephaestus-wgpu/src/lib.rs
+index e404a0f..d3e8072 100644
+--- a/crates/hephaestus-wgpu/src/lib.rs
++++ b/crates/hephaestus-wgpu/src/lib.rs
+@@ -24,6 +24,7 @@ mod test_support;
+ pub use application::attention::WgpuAttentionOps;
+ pub use application::axis_reduction_seam::WgpuAxisReductionOps;
+ pub use application::convolution::WgpuConvolutionOps;
++pub use application::cross_product_seam::WgpuCrossProductOps;
+ #[cfg(feature = "decomposition")]
+ pub use application::decomposition_seam::WgpuDecompositionOps;
+ pub use application::dense_product_seam::WgpuDenseProductOps;
+diff --git a/crates/hephaestus-wgpu/tests/contracts.rs b/crates/hephaestus-wgpu/tests/contracts.rs
+index 3dee56e..2e199a0 100644
+--- a/crates/hephaestus-wgpu/tests/contracts.rs
++++ b/crates/hephaestus-wgpu/tests/contracts.rs
+@@ -37,6 +37,9 @@ mod contract;
+ #[path = "convolution_contracts.rs"]
+ mod convolution_contracts;
+ 
++#[path = "cross_product_contracts.rs"]
++mod cross_product_contracts;
++
+ #[cfg(feature = "decomposition")]
+ #[path = "decomposition_contracts.rs"]
+ mod decomposition_contracts;
+@@ -275,6 +278,7 @@ contract_cases!(
+     attention_contracts::zero_probability_prefix_preserves_stable_convex_output,
+     axis_reduction_contracts::wgpu_satisfies_the_axis_reduction_contract,
+     convolution_contracts::wgpu_satisfies_the_convolution_contract,
++    cross_product_contracts::wgpu_satisfies_the_cross_product_contract,
+     #[cfg(feature = "decomposition")]
+     decomposition_contracts::non_blocked_decomposition_heap_readbacks_are_provider_owned,
+     #[cfg(feature = "decomposition")]
+@@ -359,7 +363,7 @@ contract_cases!(
+ );
+ 
+ #[cfg(all(not(feature = "decomposition"), not(feature = "sparse")))]
+-const EXPECTED_CONTRACT_CASES: usize = 127;
++const EXPECTED_CONTRACT_CASES: usize = 128;
+ // The four hand-rolled `blocked_lu_*` differential cases folded into the
+ // shared `assert_blocked_lu_contract` clause: four registrations removed,
+ // one added. The four `blocked_cholesky_*` differentials folded into
+@@ -368,21 +372,21 @@ const EXPECTED_CONTRACT_CASES: usize = 127;
+ // further net two below.
+ // The eight feature-gated matrix-function cases become one exact-diagnostic
+ // edge now that their differentials live in `assert_dense_matrix_function_contract`.
+-// `pad_contracts::wgpu_satisfies_the_pad_contract` then adds one unconditional
+-// registration on top of every combination (HEPH-SHAPE-OPS-PROVIDER-1's first
+-// delivered clause).
++// `pad_contracts::wgpu_satisfies_the_pad_contract` and
++// `cross_product_contracts::wgpu_satisfies_the_cross_product_contract` each
++// add one unconditional registration on top of every combination.
+ #[cfg(all(feature = "decomposition", not(feature = "sparse")))]
+-const EXPECTED_CONTRACT_CASES: usize = 174;
++const EXPECTED_CONTRACT_CASES: usize = 175;
+ #[cfg(all(not(feature = "decomposition"), feature = "sparse"))]
+-const EXPECTED_CONTRACT_CASES: usize = 132;
++const EXPECTED_CONTRACT_CASES: usize = 133;
+ #[cfg(all(feature = "decomposition", feature = "sparse"))]
+ // One below the pre-fold counts: the per-backend long-line scan test became a
+ // shared Leto clause instantiated from scan_contracts.rs. Four blocked-LU,
+ // four blocked-Cholesky, and one blocked-QR differential registrations also
+ // moved into shared clauses. The feature-gated matrix-function fold removes
+ // seven more registrations while retaining one exact-diagnostic edge, and
+-// pad adds one more on top.
+-const EXPECTED_CONTRACT_CASES: usize = 176;
++// pad and cross-product each add one more on top.
++const EXPECTED_CONTRACT_CASES: usize = 177;
+ 
+ #[test]
+ fn integration_contract_cases_share_process_devices() {
+diff --git a/crates/hephaestus-wgpu/tests/cross_product_contracts.rs b/crates/hephaestus-wgpu/tests/cross_product_contracts.rs
+new file mode 100644
+index 0000000..6ff7564
+--- /dev/null
++++ b/crates/hephaestus-wgpu/tests/cross_product_contracts.rs
+@@ -0,0 +1,11 @@
++//! WGPU instantiation of the shared cross-product conformance clause.
++
++use hephaestus_conformance::assert_cross_product_contract;
++use hephaestus_wgpu::WgpuCrossProductOps;
++
++pub(super) fn wgpu_satisfies_the_cross_product_contract() {
++    let Some(device) = super::device_or_skip() else {
++        return;
++    };
++    assert_cross_product_contract(&device, &WgpuCrossProductOps);
++}
+diff --git a/docs/adr/0064-device-neutral-cross-product-seam.md b/docs/adr/0064-device-neutral-cross-product-seam.md
+new file mode 100644
+index 0000000..ad0b3bd
+--- /dev/null
++++ b/docs/adr/0064-device-neutral-cross-product-seam.md
+@@ -0,0 +1,57 @@
++# ADR 0064: Device-neutral batched cross-product seam
++
++- Status: Accepted
++- Refs: atlas `backlog.md#heph-device-dot-cross-provider-1`; coeus
++  accelerator-bridge consumer audit (2026-09-26).
++
++## Context
++
++The consumer audit named "device-side dot/cross reductions" as one gap,
++observing that coeus copies full operands to host for these. On inspection,
++`hephaestus_core::DenseVectorOps::dot` (and `norm_l2`/`norm_l1`/`norm_max`)
++already dispatch entirely on-device — `hephaestus-wgpu`'s
++`dot_prepared` reduces on the GPU and downloads only the resulting scalar,
++never the operands. `dot` was not the actual gap; if coeus is round-tripping
++operands for it today, that is a coeus-side integration gap (not binding an
++existing hephaestus seam), out of this repository's scope to fix.
++
++Cross product has no seam at all, in any form. Unlike `dot`/`norm_*`, its
++output is itself a vector (three components per triple), not a scalar
++reduction, so it does not fit `DenseVectorOps`'s reduction-shaped contract —
++a new, narrow seam is the right size for it.
++
++## Decision
++
++`CrossProductOps<D, T>` in `hephaestus-core::domain::cross_product` covers
++exactly the gap: `cross_into(&self, device, a, b, out)` writes the batched
++cross product of two flat arrays of `(x, y, z)` triples. Buffers are flat and
++contiguous — `&D::Buffer<T>`, not `StridedView` — matching `DenseVectorOps`'s
++own convention rather than the strided generality `PadOps`/`ArgReduceOps`
++need: a cross product is defined triple-wise over consecutive elements, and a
++caller holding a non-contiguous batch already has to materialize it
++contiguously to call `dot`/`norm_l2` today, so this seam asks nothing new of
++it.
++
++`HostCrossProductOps` is a direct per-triple loop over the standard formula
++(`out.x = a.y*b.z - a.z*b.y`, etc.) — no leto delegation, since leto has no
++cross-product function to delegate to and the formula has no numerically
++interesting structure worth a library dependency for three multiply-subtract
++pairs.
++
++`WgpuCrossProductOps` follows the same one-thread-per-unit, packed-uniform
++pattern as `PadOps`/`ArgReduceOps` (ADRs 0062/0063), simplified for the flat
++contiguous case: the uniform carries only a triple count, still packed as a
++full `vec4<u32>` even for one value — ADR 0063's alignment postmortem is
++followed here from the start rather than rediscovered.
++
++CUDA, ROCm, and Metal do not implement `CrossProductOps` yet, and — as with
++`PadOps`/`ArgReduceOps` — the seam is not folded into
++`assert_backend_contract`/`BackendUnderTest` this increment.
++
++## Consequences
++
++Coeus can bind `cross_into` on WGPU (and the host reference pair) today.
++CUDA/ROCm/Metal implementations and the aggregate fold are follow-up items.
++The `dot`/`norm_*` half of the originally reported gap needs no hephaestus
++change; closing it is a coeus-side binding task, reported back rather than
++duplicated here.
+diff --git a/docs/adr/README.md b/docs/adr/README.md
+index a41ac0a..bd284e2 100644
+--- a/docs/adr/README.md
++++ b/docs/adr/README.md
+@@ -71,3 +71,4 @@
+ | [0060](0060-pooled-buffer-ownership.md) | Keep pooled buffer ownership inside the provider | Accepted |
+ | [0061](0061-operator-value-semantics.md) | Value semantics for kernel operators | Proposed |
+ | [0062](0062-device-neutral-pad-seam.md) | Device-neutral padding seam | Accepted |
++| [0064](0064-device-neutral-cross-product-seam.md) | Device-neutral batched cross-product seam | Accepted |

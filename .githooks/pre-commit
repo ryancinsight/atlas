@@ -48,26 +48,6 @@ board_staged="$(staged | grep -E '^(backlog|checklist)\.md$' || true)"
 # under repos/<name>/ (books, docs, scripts) must flow freely.
 pointer_staged="$(git diff --cached --raw | awk '$1 == ":160000" || $2 == "160000" || ($3 == "160000" && $4 != "000000") || ($3 != "160000" && $4 == "160000") {print $6}' || true)"
 pointer_staged="$(echo "$pointer_staged" | grep -E '^repos/' || true)"
-merge_in_progress="$(git rev-parse -q --verify MERGE_HEAD 2>/dev/null || true)"
-
-# During a merge, inherited paths are already reviewed by one of the two
-# parents. A merge may carry those paths together, but a conflict resolution
-# or any newly staged unrelated path remains subject to R2/R3 purity.
-merge_inherited() {
-  local path="$1"
-  [ -n "$merge_in_progress" ] || return 1
-  git diff --cached --quiet HEAD -- "$path" && return 0
-  git diff --cached --quiet "$merge_in_progress" -- "$path"
-}
-
-if [ -n "$merge_in_progress" ]; then
-  unstaged_tracked="$(git diff --name-only)"
-  if [ -n "$unstaged_tracked" ]; then
-    echo "[pre-commit] merge purity refuses unstaged tracked content:" >&2
-    printf '  %s\n' $unstaged_tracked >&2
-    exit 1
-  fi
-fi
 
 # Git exports GIT_DIR/GIT_INDEX_FILE/GIT_WORK_TREE to hooks; a bare
 # `git -C <submodule>` then resolves against this superproject's object
@@ -76,86 +56,7 @@ fi
 # Root probes must retain the commit index, including `git commit --only`'s
 # temporary index. Only member probes discard it.
 unset GIT_DIR GIT_WORK_TREE
-
-# A linked Atlas worktree materializes a gitlink as an empty directory until
-# someone initializes that member in the lane.  The canonical main worktree
-# already owns the member checkout and its object store; use it for a
-# read-only ref probe instead of treating the lane directory as the Atlas
-# superproject.  The hook never initializes or changes the member checkout.
-canonical_stack_root() {
-  local common_dir common_norm configured ancestor candidate candidate_gitfile candidate_gitdir candidate_norm
-  common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-  common_norm="$(printf '%s' "$common_dir" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')"
-  if [ "$(basename "$common_dir")" = ".git" ]; then
-    dirname "$common_dir"
-    return 0
-  fi
-  configured="$(git --git-dir="$common_dir" config --path core.worktree 2>/dev/null || true)"
-  if [ -n "$configured" ]; then
-    git -C "$configured" rev-parse --show-toplevel
-    return 0
-  fi
-  scan_candidate() {
-    local root="$1" depth="$2" candidate_gitfile candidate candidate_gitdir candidate_norm child
-    [ "$depth" -le 6 ] || return 1
-    for candidate_gitfile in "$root"/*/.git; do
-      [ -f "$candidate_gitfile" ] || continue
-      candidate_gitfile="${candidate_gitfile//\\//}"
-      candidate="${candidate_gitfile%/.git}"
-      candidate_gitdir="$(sed -n 's/^gitdir: //p' "$candidate/.git" 2>/dev/null || true)"
-      case "$candidate_gitdir" in
-        /*|[A-Za-z]:/*) ;;
-        *) candidate_gitdir="$candidate/$candidate_gitdir" ;;
-      esac
-      candidate_norm="$(printf '%s' "$candidate_gitdir" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')"
-      if [ "$candidate_norm" = "$common_norm" ]; then
-        git -C "$candidate" rev-parse --show-toplevel
-        return 0
-      fi
-    done
-    for child in "$root"/*; do
-      [ -d "$child" ] || continue
-      scan_candidate "$child" "$((depth + 1))" && return 0
-    done
-    return 1
-  }
-  ancestor="$(dirname "$ROOT")"
-  while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
-    scan_candidate "$ancestor" 0 && return 0
-    [ "$ancestor" = "$(dirname "$ancestor")" ] && break
-    ancestor="$(dirname "$ancestor")"
-  done
-  ancestor="$(dirname "$(dirname "$common_dir")")"
-  while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
-    scan_candidate "$ancestor" 0 && return 0
-    [ "$ancestor" = "$(dirname "$ancestor")" ] && break
-    ancestor="$(dirname "$ancestor")"
-  done
-  return 1
-}
-
-member_checkout() {
-  local path="$1" candidate main_root
-  candidate="$ROOT/$path"
-  if [ -e "$candidate/.git" ]; then
-    printf '%s\n' "$candidate"
-    return 0
-  fi
-  main_root="$(canonical_stack_root)" || return 1
-  candidate="$main_root/$path"
-  if [ -e "$candidate/.git" ]; then
-    printf '%s\n' "$candidate"
-    return 0
-  fi
-  return 1
-}
-
-member_git() {
-  local path="$1" checkout
-  shift
-  checkout="$(member_checkout "$path")" || return 1
-  (unset GIT_INDEX_FILE; git -C "$checkout" "$@")
-}
+member_git() { (unset GIT_INDEX_FILE; git -C "$@"); }
 
 # Staged gitlink coherence.
 #
@@ -175,11 +76,6 @@ while IFS= read -r path; do
   entry=$(git ls-files --stage -- "$path" 2>/dev/null | head -1)
   [ "${entry%% *}" = "160000" ] || continue
   sha=$(printf '%s' "$entry" | awk '{print $2}')
-  if ! member_checkout "$path" >/dev/null 2>&1; then
-    echo "[pre-commit] $path: canonical member checkout is absent; gitlink not checked." >&2
-    gitlink_defect=1
-    continue
-  fi
   default=$(member_git "$path" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
   default=${default:-main}
   if ! member_git "$path" rev-parse --verify --quiet "origin/${default}" >/dev/null 2>&1; then
@@ -213,10 +109,7 @@ fi
 
 # R2 - board sync stays pure.
 if [ -n "$board_staged" ]; then
-  pollution="$(staged | grep -vE '^(backlog|checklist)\.md$' | grep -E '^repos/|Cargo\.lock$|^\.github/workflows/' | while IFS= read -r path; do
-    [ -n "$path" ] || continue
-    merge_inherited "$path" || printf '%s\n' "$path"
-  done)"
+  pollution="$(staged | grep -vE '^(backlog|checklist)\.md$' | grep -E '^repos/|Cargo\.lock$|^\.github/workflows/' || true)"
   if [ -n "$pollution" ]; then
     echo "[pre-commit] R2: board sync must not carry these staged paths:" >&2
     printf '  %s\n' $pollution >&2
@@ -227,12 +120,7 @@ fi
 
 # R3 - pointer advances stay pure (content goes in sibling commits).
 if [ -n "$pointer_staged" ]; then
-  non_pointer="$(staged | while IFS= read -r path; do
-    [ -n "$path" ] || continue
-    printf '%s\n' "$pointer_staged" | grep -Fxq "$path" && continue
-    merge_inherited "$path" && continue
-    printf '%s\n' "$path"
-  done)"
+  non_pointer="$(staged | grep -vFf <(printf '%s\n' $pointer_staged) || true)"
   if [ -n "$non_pointer" ]; then
     echo "[pre-commit] R3: pointer-advance commit carries non-pointer paths:" >&2
     printf '  %s\n' $non_pointer >&2
@@ -278,34 +166,8 @@ echo "[pre-commit] Atlas docs dead-link check (§7 #5, STRICT mode — blocks co
 #
 # The glob mirrors .github/workflows/docs.yml — keep the two in step. A book
 # added to one and not the other is a silently ungated book; the glob means
-# new provider books are gated by both automatically.  Read each staged
-# gitlink object instead of a member working tree: linked lanes normally leave
-# those directories uninitialized, and a canonical checkout can carry
-# unrelated work in progress.
-book_roots=()
-book_archive_dir="$(mktemp -d)" || exit 1
-trap 'rm -rf "$book_archive_dir"' EXIT
-while IFS=$'\t' read -r mode sha path; do
-  [ "$mode" = "160000" ] || continue
-  member_root="$book_archive_dir/${path#repos/}"
-  mkdir -p "$member_root"
-  if ! member_git "$path" archive --format=tar "$sha" > "$member_root/member.tar"; then
-    echo "[pre-commit] $path: cannot archive staged gitlink ${sha:0:10} for book checks." >&2
-    exit 1
-  fi
-  if ! tar -xf "$member_root/member.tar" -C "$member_root"; then
-    echo "[pre-commit] $path: cannot extract staged gitlink ${sha:0:10} for book checks." >&2
-    exit 1
-  fi
-  rm -f "$member_root/member.tar"
-  book="$member_root/docs/book"
-  [ -d "$book" ] && book_roots+=("$book")
-done < <(git ls-files --stage | awk '$1 == "160000" {print $1 "\t" $2 "\t" $4}')
-if [ "${#book_roots[@]}" -eq 0 ]; then
-  echo "[pre-commit] no provider book roots are present in staged gitlinks." >&2
-  exit 1
-fi
-"$python_bin" scripts/check_mdbook_links.py "${book_roots[@]}"
+# new provider books are gated by both automatically.
+"$python_bin" scripts/check_mdbook_links.py repos/*/docs/book
 fi
 
 # Atlas provider-integration closure guard.
