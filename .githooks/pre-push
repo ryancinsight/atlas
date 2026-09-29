@@ -214,7 +214,9 @@ if [ -n "$push_stream" ]; then
             echo "pre-push: BLOCKED -- pushed local commit is unavailable." >&2
             exit 1
         fi
-        if [ "$remote_sha" != "0000000000000000000000000000000000000000" ] && ! git -C "$atlas_root" cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+        if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+            [[ "$remote_sha" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "pre-push: BLOCKED -- malformed deletion SHA." >&2; exit 1; }
+        elif [ "$remote_sha" != "0000000000000000000000000000000000000000" ] && ! git -C "$atlas_root" cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
             echo "pre-push: BLOCKED -- remote commit is unavailable." >&2
             exit 1
         fi
