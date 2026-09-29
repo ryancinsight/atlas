@@ -575,6 +575,21 @@ class RootHookGuardTests(unittest.TestCase):
             self.assertEqual(list(git_dir.glob("atlas-debt-checker.*")), [],
                              "the extracted checker outlives the run")
 
+    def test_debt_gate_skips_a_pin_the_default_branch_records(self) -> None:
+        # A branch merging main in carries main's own pin advance; main's
+        # ratchet measured it, so the gate does not measure it again against
+        # the branch's older baseline.
+        with tempfile.TemporaryDirectory() as temporary:
+            repo, environment, base, tip = self._debt_gate_stack(temporary)
+            subprocess.run(
+                ["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", tip],
+                env=environment, check=True, capture_output=True, timeout=30,
+            )
+
+            result, log = self._run_debt_gate(repo, environment, base, tip, 1)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(log, "", "a pin the default branch records was measured again")
+
     def test_debt_gate_without_an_origin_default_refuses_the_push(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repo, environment, base, tip = self._debt_gate_stack(temporary)

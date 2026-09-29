@@ -370,9 +370,16 @@ done
 # left there, and one peer's uncommitted checker change failed an unrelated
 # pin advance on `CFDrs/orphan_modules`, a class main's checker measured
 # clean. Member hooks already run origin's checker the same way.
+#
+# A member whose pushed gitlink is the one origin's default branch records is
+# skipped: that pin landed through the default branch, whose ratchet already
+# measured it against the baseline recording it. Measured here against the
+# branch's older baseline, a branch merging main in read main's own accepted
+# advance as its raise (CFDrs/scattered_containers 0 -> 24 on a branch whose
+# baseline predated the class) and could not push.
 debt_gate() {
     local tip="$1" changed python_bin member output base member_revision
-    local checker_rev checker_dir ref status
+    local checker_rev checker_dir ref status default_revision
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
     # there would skip the gate on the pushes it most needs to see.
@@ -432,6 +439,8 @@ debt_gate() {
             status=1
             break
         fi
+        default_revision="$(git -C "$atlas_root" ls-tree "$checker_rev" -- "repos/${member}" | cut -d" " -f3 | cut -f1)"
+        [ "$member_revision" = "$default_revision" ] && continue
         if ! output="$(unset GIT_DIR GIT_WORK_TREE; ATLAS_STACK_ROOT="$member_root" "$python_bin" \
                 "$checker_dir/scripts/atlas-conformance.py" \
                 check --repo "$member" \
