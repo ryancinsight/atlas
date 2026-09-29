@@ -75,8 +75,6 @@ repos/gaia/src/infrastructure/io/openfoam.rs:206:22  # gaia
 repos/kwavers/crates/kwavers-analysis/src/ml/uncertainty/ensemble_methods/mod.rs:103:32  # kwavers
 repos/kwavers/crates/kwavers-analysis/src/plotting/mod.rs:63:16  # kwavers
 repos/kwavers/crates/kwavers-analysis/src/plotting/mod.rs:181:16  # kwavers
-repos/kwavers/crates/kwavers-analysis/src/signal_processing/doppler/wall_filter/mod.rs:135:60  # kwavers
-repos/kwavers/crates/kwavers-analysis/src/signal_processing/doppler/wall_filter/mod.rs:157:48  # kwavers
 repos/kwavers/crates/kwavers-analysis/src/signal_processing/ulm/tracking/tracker.rs:63:19  # kwavers
 repos/kwavers/crates/kwavers-analysis/src/signal_processing/ulm/tracking/tracker.rs:170:16  # kwavers
 repos/kwavers/crates/kwavers-driver/src/dfm/tracks.rs:186:27  # kwavers
@@ -150,13 +148,8 @@ repos/ritk/crates/ritk-filter/src/mppca/denoise.rs:253:14  # ritk
 repos/ritk/crates/ritk-filter/src/mppca/denoise.rs:267:34  # ritk
 repos/ritk/crates/ritk-image/src/color.rs:200:45  # ritk
 repos/ritk/crates/ritk-image/src/color.rs:207:24  # ritk
-repos/ritk/crates/ritk-io/src/format/dicom/multiframe/reader/volume.rs:315:29  # ritk
-repos/ritk/crates/ritk-io/src/format/dicom/multiframe/writer.rs:374:13  # ritk
+repos/ritk/crates/ritk-io/src/format/dicom/multiframe/writer.rs:303:13  # ritk
 repos/ritk/crates/ritk-io/src/format/dicom/networking/association/mod.rs:28:18  # ritk
-repos/ritk/crates/ritk-io/src/format/dicom/reader/geometry.rs:177:6  # ritk
-repos/ritk/crates/ritk-io/src/format/dicom/reader/loader.rs:264:22  # ritk
-repos/ritk/crates/ritk-io/src/format/dicom/reader/loader.rs:265:33  # ritk
-repos/ritk/crates/ritk-io/src/format/dicom/reader/loader.rs:289:22  # ritk
 repos/ritk/crates/ritk-io/src/format/dicom/seg/reader.rs:300:13  # ritk
 repos/ritk/crates/ritk-io/src/format/dicom/seg/types.rs:107:21  # ritk
 repos/ritk/crates/ritk-io/src/format/dicom/series/loader.rs:193:23  # ritk
@@ -194,7 +187,7 @@ repos/ritk/crates/ritk-vtk/src/io/obj/reader.rs:31:23  # ritk
 repos/ritk/crates/ritk-vtk/src/io/ply/reader.rs:345:15  # ritk
 repos/ritk/crates/ritk-vtk/src/io/polydata/reader.rs:211:13  # ritk
 repos/ritk/crates/ritk-vtk/src/io/polydata_xml/reader.rs:49:45  # ritk
-repos/ritk/crates/ritk-vtk/src/io/read_helpers.rs:107:76  # ritk
-repos/ritk/crates/ritk-vtk/src/io/stl/reader.rs:52:23  # ritk
-repos/ritk/crates/ritk-vtk/src/io/stl/reader.rs:183:15  # ritk
+repos/ritk/crates/ritk-vtk/src/io/read_helpers.rs:70:76  # ritk
+repos/ritk/crates/ritk-vtk/src/io/stl/reader.rs:54:23  # ritk
+repos/ritk/crates/ritk-vtk/src/io/stl/reader.rs:178:15  # ritk
 repos/ritk/crates/ritk-vtk/src/io/unstructured_xml/reader/parse.rs:72:20  # ritk
