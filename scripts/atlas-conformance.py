@@ -972,6 +972,72 @@ def _file_text_cache() -> dict[Path, str | None]:
     return cache
 
 
+def _resolved_cache() -> dict[Path, Path]:
+    """Return the current scan worker's path-resolution cache."""
+    cache = getattr(_scan_local, "resolved", None)
+    if cache is None:
+        cache = {}
+        _scan_local.resolved = cache
+    return cache
+
+
+def _resolved(path: Path) -> Path:
+    """`path.resolve()`, once per scan worker.
+
+    `Path.resolve` is a filesystem round trip, and one scan resolves the same
+    paths thousands of times: `rust_files` resolves every directory entry to
+    test it against the ignore set, `_cached_text` resolves to key the text
+    cache, the module walk resolves to key its visited set, and
+    `declared_cfg_test` resolves each entry and its parents. Profiling one
+    member scan measured 13,215 resolutions for 4,281 distinct paths, 3.4 s
+    of a 28 s scan, none of which can differ within a scan because the tree is
+    not mutated while it is read.
+    """
+    cache = _resolved_cache()
+    got = cache.get(path)
+    if got is None:
+        got = path.resolve()
+        cache[path] = got
+    return got
+
+
+def _stripped_text_cache() -> dict[str, str]:
+    """Return the current scan worker's comment-stripped source cache."""
+    cache = getattr(_scan_local, "stripped", None)
+    if cache is None:
+        cache = {}
+        _scan_local.stripped = cache
+    return cache
+
+
+def _stripped(text: str | None) -> str | None:
+    """`text` with its comments blanked, once per distinct text per worker.
+
+    Two readers want the stripped form: the module-graph walk, so a
+    commented-out `mod` is not an edge, and the production-code class pass, so
+    a doc comment arguing about a token is not a use of it. Over a scan they
+    present the same text for every production file that declares no
+    test-gated item, because that file's production region is the whole file.
+    Profiling one member scan measured 3,459 strips for 1,989 distinct texts.
+
+    Keyed on the text rather than the path, because the two callers do not
+    always hold the same slice: `split_test_region` joins a fresh production
+    string, so a path key would miss on every test-adjacent file. A value key
+    is exactly as correct -- the transform is a pure function of its input --
+    and Python caches a string's hash, so a repeat lookup is a dict hit. One
+    stripped copy per distinct text is the same order of memory
+    `_file_text_cache` already holds in unstripped form.
+    """
+    if text is None:
+        return None
+    cache = _stripped_text_cache()
+    got = cache.get(text)
+    if got is None:
+        got = strip_comments(text)
+        cache[text] = got
+    return got
+
+
 def _cfg_test_decl_cache() -> dict[Path, tuple[frozenset[str], frozenset[Path]]]:
     """Return the current scan worker's cfg-test declaration cache."""
     cache = getattr(_scan_local, "cfg_test_decls", None)
@@ -982,9 +1048,19 @@ def _cfg_test_decl_cache() -> dict[Path, tuple[frozenset[str], frozenset[Path]]]
 
 
 def _clear_scan_caches() -> None:
-    """Drop per-scan read caches so repeated scans see fresh content."""
+    """Drop per-scan read caches so repeated scans see fresh content.
+
+    The resolution cache is cleared for correctness, not only to release
+    memory: a `Path.resolve` result is true only for the tree it was taken
+    from, so a rescan after a checkout moved a path must ask again. The
+    stripped cache is keyed on the text itself, so a changed file is a changed
+    key and cannot be served stale; it is dropped so its memory goes with the
+    rest.
+    """
     _file_text_cache().clear()
     _cfg_test_decl_cache().clear()
+    _resolved_cache().clear()
+    _stripped_text_cache().clear()
 
 
 def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
@@ -1030,7 +1106,7 @@ def _cached_text(path: Path) -> str | None:
     so a shared canonical-path cache turns cold scans' repeated disk I/O and
     transient allocations into one read per file.
     """
-    key = path.resolve()
+    key = _resolved(path)
     cache = _file_text_cache()
     if key not in cache:
         try:
@@ -1085,6 +1161,17 @@ def _raw_string_end(text: str, start: int) -> int | None:
     return n if end < 0 else end + len(terminator)
 
 
+# The only characters `strip_comments` acts on: `/` (both comment openers),
+# `r` and `b` (the raw-string prefixes it tests), and the two quotes. A scan
+# that stepped one character at a time spent 24.5 million `startswith` calls on
+# 2.6 MB of source; searching for the next of these reaches the same positions
+# in one C-level pass per construct instead of per character.
+_STRIP_NEXT = re.compile(r"[/rb\"']")
+# Inside a block comment only these two change the nesting depth, so the body
+# between them needs no per-character reading either.
+_BLOCK_DELIM = re.compile(r"/\*|\*/")
+
+
 def strip_comments(text: str) -> str:
     """Blank every Rust comment in `text`, keeping every offset and newline.
 
@@ -1124,26 +1211,57 @@ def strip_comments(text: str) -> str:
     out = list(text)
     i, n = 0, len(text)
     while i < n:
-        if text.startswith("//", i):
-            end = text.find("\n", i)
-            end = n if end < 0 else end
-        elif text.startswith("/*", i):
-            depth, end = 1, i + 2
-            while end < n and depth:
-                if text.startswith("/*", end):
-                    depth, end = depth + 1, end + 2
-                elif text.startswith("*/", end):
-                    depth, end = depth - 1, end + 2
-                else:
-                    end += 1
-        elif text[i] in "rb" and (raw_end := _raw_string_end(text, i)) is not None:
+        # Jump to the next position that can start something, rather than
+        # testing every character. The positions the old per-character form
+        # acted on are exactly the ones holding `/` (both comment openers
+        # start with it), `r` or `b` (the raw-string prefixes it tests), or a
+        # quote; those three sets are disjoint, so the dispatch below reaches
+        # the same branch for every input. Ordinary code between them needs no
+        # inspection at all: it is copied to `out` unchanged and can never be
+        # mistaken for a comment, because a comment opener needs one of these
+        # characters.
+        match = _STRIP_NEXT.search(text, i)
+        if match is None:
+            break
+        i = match.start()
+        char = text[i]
+        if char == "/":
+            if text.startswith("//", i):
+                end = text.find("\n", i)
+                end = n if end < 0 else end
+            elif text.startswith("/*", i):
+                depth, end = 1, i + 2
+                while end < n and depth:
+                    # Nesting needs a `depth` counter, but the search for the
+                    # next delimiter can still skip a whole comment body: only
+                    # `/*` and `*/` change the count, so no other character in
+                    # between needs reading.
+                    inner = _BLOCK_DELIM.search(text, end)
+                    if inner is None:
+                        end, depth = n, 0
+                        break
+                    end = inner.start()
+                    if text.startswith("/*", end):
+                        depth = depth + 1
+                        end += 2
+                    else:
+                        depth = depth - 1
+                        end += 2
+            else:
+                i += 1
+                continue
+        elif char == "r" or char == "b":
+            if (raw_end := _raw_string_end(text, i)) is None:
+                i += 1
+                continue
             i = raw_end
             continue
-        elif text[i] in "\"'" and (lit_end := _literal_end(text, i)) > i:
-            i = lit_end
-            continue
         else:
-            i += 1
+            lit_end = _literal_end(text, i)
+            if lit_end <= i:
+                i += 1
+                continue
+            i = lit_end
             continue
         for k in range(i, min(end, n)):
             if out[k] != "\n":
@@ -1160,14 +1278,13 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
     `orphan_modules` — which is the point: a file no edge names is a file
     rustc, clippy and the test runner never built.
     """
-    root = root.resolve()
+    root = _resolved(root)
     if root in seen or not root.is_file():
         return
     seen.add(root)
-    text = _cached_text(root)
-    if text is None:
+    code = _stripped(_cached_text(root))
+    if code is None:
         return
-    code = strip_comments(text)
     for m in MOD_DECL.finditer(code):
         attr = PATH_ATTR.search(code[:m.start()].rstrip())
         for cand in _child_candidates(root, m.group(1), attr.group(1) if attr else None):
@@ -1239,7 +1356,7 @@ def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int
         src = manifest.parent / "src"
         if not src.is_dir():
             continue
-        sources.update(p.resolve() for p in src.rglob("*.rs"))
+        sources.update(_resolved(p) for p in src.rglob("*.rs"))
         roots.extend(src / stem for stem in ("lib.rs", "main.rs")
                      if (src / stem).is_file())
         bins = src / "bin"
@@ -1280,7 +1397,7 @@ def declared_cfg_test(entry: Path, _depth: int = 0) -> bool:
     consulted with it.
     """
     parent = entry.parent
-    resolved = entry.resolve()
+    resolved = _resolved(entry)
     stems_to_check = [entry.stem]
     if entry.name in ("mod.rs", "lib.rs"):
         stems_to_check.append(parent.name)
@@ -1407,7 +1524,7 @@ def rust_files(repo: Path):
         d = stack.pop()
         for entry in _iterdir_or_empty(d):
             name = entry.name
-            if entry.resolve() in ignored:
+            if _resolved(entry) in ignored:
                 continue
             if entry.is_dir():
                 if name in PRUNE_DIRS or name.startswith("target"):
@@ -1868,7 +1985,7 @@ def scan_repo(
         # `print_dbg` and `scattered_containers` are the four such classes,
         # and all four read this one region so the rule cannot be
         # re-introduced on a fifth.
-        prod_code = strip_comments(prod)
+        prod_code = _stripped(prod)
         c["unwrap_production"] += prod_code.count(".unwrap()")
         c["allow_sites"] += prod.count("#[allow(")
         c["crate_level_allows"] += len(CRATE_LEVEL_ALLOW.findall(prod))

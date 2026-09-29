@@ -62,9 +62,10 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, String> {
             manifest_path,
             mode,
             bound,
+            criterion_run,
             source,
         } => {
-            let result = budget::enforce(&manifest_path, mode, bound, source)
+            let result = budget::enforce(&manifest_path, mode, bound, &criterion_run, source)
                 .map_err(|error| error.to_string())?;
             print_enforcement(&result);
             Ok(if result.has_failures() {

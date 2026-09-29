@@ -87,6 +87,12 @@ cargo run --locked --manifest-path <atlas>/tools/criterion-regression/Cargo.toml
 cargo run --locked --manifest-path <atlas>/tools/criterion-regression/Cargo.toml -- \
   enforce-budget --manifest-path <atlas>/repos/<repo>/Cargo.toml --mode timing
 
+# Save and compare at the confidence emitted by required-confidence.
+criterion-regression enforce-budget --manifest-path <atlas>/repos/<repo>/Cargo.toml --mode timing \
+  --save-baseline atlas-base --confidence-level "$confidence"
+criterion-regression enforce-budget --manifest-path <atlas>/repos/<repo>/Cargo.toml --mode timing \
+  --baseline atlas-base --confidence-level "$confidence"
+
 # Examples: every CI-safe example completes within 60s
 # (skip GPU/display-bound targets explicitly).
 cargo run --locked --manifest-path <atlas>/tools/criterion-regression/Cargo.toml -- \
@@ -105,6 +111,12 @@ changes to the metadata-resolved workspace root. Retained execution still
 reads Cargo metadata, uses the selected mode's arguments and default bound,
 and honors an explicit `--bound-seconds` exactly as compiled execution does.
 It uses the same supervisor and shared target directory.
+
+`--save-baseline` and `--baseline` are mutually exclusive, require timing mode,
+and require `--confidence-level`. Baseline names are one filesystem component,
+and confidence is finite and strictly between zero and one. These closed options
+append Criterion arguments to the selected binary; they cannot replace that
+binary or the immediate-child supervisor.
 
 Smoke mode passes Criterion's `--test` argument. Custom harnesses must also
 receive their repository's committed smoke configuration: Apollo's harnesses,
