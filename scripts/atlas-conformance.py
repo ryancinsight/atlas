@@ -81,6 +81,7 @@ from atlas_stack import (
     ROOT, WORKTREE_BOUND, canonical_lane, is_git_ignored, registered_member_names,
     staleness_note,
 )
+from atlas_scattered_containers_classify import VEC_VEC
 
 GIT_TIMEOUT_SECONDS = 60
 ARCHIVE_TIMEOUT_SECONDS = 120
@@ -337,6 +338,7 @@ CLASSES = [
     "unresolved_references", "second_output_root",
     "board_items_outside_status_set", "board_items_without_anchor",
     "board_items_without_priority", "board_checklist_files",
+    "scattered_containers",
 ]
 
 # The shared build directory routed through the root `.cargo/config.toml`.
@@ -986,10 +988,10 @@ def _resolved(path: Path) -> Path:
     paths thousands of times: `rust_files` resolves every directory entry to
     test it against the ignore set, `_cached_text` resolves to key the text
     cache, the module walk resolves to key its visited set, and
-    `declared_cfg_test` resolves each entry's parents. Profiling one member
-    scan measured 18,987 resolutions against a few thousand distinct paths,
-    3.4 s of a 28 s scan, and none of them can differ within a scan because
-    the tree is not mutated while it is read.
+    `declared_cfg_test` resolves each entry and its parents. Profiling one
+    member scan measured 13,215 resolutions for 4,281 distinct paths, 3.4 s
+    of a 28 s scan, none of which can differ within a scan because the tree is
+    not mutated while it is read.
     """
     cache = _resolved_cache()
     got = cache.get(path)
@@ -1015,17 +1017,16 @@ def _stripped(text: str | None) -> str | None:
     commented-out `mod` is not an edge, and the production-code class pass, so
     a doc comment arguing about a token is not a use of it. Over a scan they
     present the same text for every production file that declares no
-    test-gated item, because a file's production region is then the whole
-    file. Profiling one member scan measured 4,099 strips for roughly half
-    that many files, 4.4 s of a 28 s scan.
+    test-gated item, because that file's production region is the whole file.
+    Profiling one member scan measured 3,459 strips for 1,989 distinct texts.
 
     Keyed on the text rather than the path, because the two callers do not
     always hold the same slice: `split_test_region` joins a fresh production
     string, so a path key would miss on every test-adjacent file. A value key
     is exactly as correct -- the transform is a pure function of its input --
-    and Python caches a string's hash, so the lookup is a dict hit after the
-    first one. Holding one stripped copy per distinct text is the same order
-    of memory `_file_text_cache` already holds in unstripped form.
+    and Python caches a string's hash, so a repeat lookup is a dict hit. One
+    stripped copy per distinct text is the same order of memory
+    `_file_text_cache` already holds in unstripped form.
     """
     if text is None:
         return None
@@ -1049,12 +1050,12 @@ def _cfg_test_decl_cache() -> dict[Path, tuple[frozenset[str], frozenset[Path]]]
 def _clear_scan_caches() -> None:
     """Drop per-scan read caches so repeated scans see fresh content.
 
-    The resolution cache is here for the same reason as the text cache, not
-    merely to release memory: a `Path.resolve` result is only true for the
-    tree it was taken from, so a rescan after a checkout that moved a path
-    must ask again. The stripped cache is keyed on the text itself, so a
-    changed file is a changed key and cannot be served stale -- it is dropped
-    so its memory is released with the rest.
+    The resolution cache is cleared for correctness, not only to release
+    memory: a `Path.resolve` result is true only for the tree it was taken
+    from, so a rescan after a checkout moved a path must ask again. The
+    stripped cache is keyed on the text itself, so a changed file is a changed
+    key and cannot be served stale; it is dropped so its memory goes with the
+    rest.
     """
     _file_text_cache().clear()
     _cfg_test_decl_cache().clear()
@@ -1160,6 +1161,17 @@ def _raw_string_end(text: str, start: int) -> int | None:
     return n if end < 0 else end + len(terminator)
 
 
+# The only characters `strip_comments` acts on: `/` (both comment openers),
+# `r` and `b` (the raw-string prefixes it tests), and the two quotes. A scan
+# that stepped one character at a time spent 24.5 million `startswith` calls on
+# 2.6 MB of source; searching for the next of these reaches the same positions
+# in one C-level pass per construct instead of per character.
+_STRIP_NEXT = re.compile(r"[/rb\"']")
+# Inside a block comment only these two change the nesting depth, so the body
+# between them needs no per-character reading either.
+_BLOCK_DELIM = re.compile(r"/\*|\*/")
+
+
 def strip_comments(text: str) -> str:
     """Blank every Rust comment in `text`, keeping every offset and newline.
 
@@ -1199,26 +1211,57 @@ def strip_comments(text: str) -> str:
     out = list(text)
     i, n = 0, len(text)
     while i < n:
-        if text.startswith("//", i):
-            end = text.find("\n", i)
-            end = n if end < 0 else end
-        elif text.startswith("/*", i):
-            depth, end = 1, i + 2
-            while end < n and depth:
-                if text.startswith("/*", end):
-                    depth, end = depth + 1, end + 2
-                elif text.startswith("*/", end):
-                    depth, end = depth - 1, end + 2
-                else:
-                    end += 1
-        elif text[i] in "rb" and (raw_end := _raw_string_end(text, i)) is not None:
+        # Jump to the next position that can start something, rather than
+        # testing every character. The positions the old per-character form
+        # acted on are exactly the ones holding `/` (both comment openers
+        # start with it), `r` or `b` (the raw-string prefixes it tests), or a
+        # quote; those three sets are disjoint, so the dispatch below reaches
+        # the same branch for every input. Ordinary code between them needs no
+        # inspection at all: it is copied to `out` unchanged and can never be
+        # mistaken for a comment, because a comment opener needs one of these
+        # characters.
+        match = _STRIP_NEXT.search(text, i)
+        if match is None:
+            break
+        i = match.start()
+        char = text[i]
+        if char == "/":
+            if text.startswith("//", i):
+                end = text.find("\n", i)
+                end = n if end < 0 else end
+            elif text.startswith("/*", i):
+                depth, end = 1, i + 2
+                while end < n and depth:
+                    # Nesting needs a `depth` counter, but the search for the
+                    # next delimiter can still skip a whole comment body: only
+                    # `/*` and `*/` change the count, so no other character in
+                    # between needs reading.
+                    inner = _BLOCK_DELIM.search(text, end)
+                    if inner is None:
+                        end, depth = n, 0
+                        break
+                    end = inner.start()
+                    if text.startswith("/*", end):
+                        depth = depth + 1
+                        end += 2
+                    else:
+                        depth = depth - 1
+                        end += 2
+            else:
+                i += 1
+                continue
+        elif char == "r" or char == "b":
+            if (raw_end := _raw_string_end(text, i)) is None:
+                i += 1
+                continue
             i = raw_end
             continue
-        elif text[i] in "\"'" and (lit_end := _literal_end(text, i)) > i:
-            i = lit_end
-            continue
         else:
-            i += 1
+            lit_end = _literal_end(text, i)
+            if lit_end <= i:
+                i += 1
+                continue
+            i = lit_end
             continue
         for k in range(i, min(end, n)):
             if out[k] != "\n":
@@ -1938,9 +1981,10 @@ def scan_repo(
         # workspace denies `unwrap_used` outright); and prose *about* a token
         # is not a use of it — a doc comment arguing against `SeqCst` raised
         # that class, and 45 of moirai's 80 recorded sites were comment text
-        # (audit §3.3). `unwrap_production`, `seqcst_production` and
-        # `print_dbg` are the three such classes, and all three read this one
-        # region so the rule cannot be re-introduced on a fourth.
+        # (audit §3.3). `unwrap_production`, `seqcst_production`,
+        # `print_dbg` and `scattered_containers` are the four such classes,
+        # and all four read this one region so the rule cannot be
+        # re-introduced on a fifth.
         prod_code = _stripped(prod)
         c["unwrap_production"] += prod_code.count(".unwrap()")
         c["allow_sites"] += prod.count("#[allow(")
@@ -1967,6 +2011,13 @@ def scan_repo(
             if path.name == "build.rs" and hits:
                 hits -= len(CARGO_PROTOCOL_PRINT.findall(prod_code))
             c["print_dbg"] += hits
+            # ATLAS-ARCH-008: pointer-scattered `Vec<Vec<_>>` containers on
+            # production traversal paths. Shares `VEC_VEC` with
+            # atlas_scattered_containers_classify.py's site classifier
+            # rather than a second regex definition, and the same is_bin
+            # exclusion print_dbg uses, since the classifier's own
+            # test/bench/example split excludes non-production sites.
+            c["scattered_containers"] += len(VEC_VEC.findall(prod_code))
         c["lane_kernel_uninlined"] += count_lane_kernel_uninlined(prod)
         c["existence_only_assertions"] += len(EXISTENCE_ONLY.findall(test))
         c["sleep_synced_tests"] += len(SLEEP.findall(test))
