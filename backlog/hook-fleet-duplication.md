@@ -1,5 +1,5 @@
 <a id="hook-fleet-duplication"></a>
-## ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06 - Stack-owned git hooks [patch] - in-progress
+## ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06 - Stack-owned git hooks [patch] - todo
 - **outcome:** `scripts/git-hooks/` is the single source deployed by `atlas-lock-form.py`; member copies remain executable but are never authored independently.
 - **rollout:** 19 sync PRs merged, seven are enqueued, and `consus`/`ritk` already match canonical hook blob `0fc8934833d79075ed4b123819a98c5fc0d6e1b8`.
 - **open:** `kwavers` #815 remains dirty; a fresh-default retry reached the canonical 90-second command deadline while a peer release build held the shared cache, and the timed-out hook process tree required cleanup.

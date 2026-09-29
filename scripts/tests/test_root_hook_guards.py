@@ -441,7 +441,11 @@ class RootHookGuardTests(unittest.TestCase):
             unstaged = git("commit", "-qm", "Reject unstaged merge content", check=False)
             self.assertNotEqual(unstaged.returncode, 0)
             self.assertIn("unstaged tracked content", unstaged.stdout + unstaged.stderr)
-            stack_script.write_text(git("show", "HEAD:scripts/atlas_stack.py").stdout, encoding="utf-8")
+            # Restore through git, not write_text: on Windows write_text writes CRLF,
+            # which leaves the file dirty and refuses the next commit for the
+            # wrong reason.
+            git("restore", "--source=HEAD", "--worktree", "--", "scripts/atlas_stack.py")
+            self.assertEqual(git("status", "--porcelain", "--", "scripts/atlas_stack.py").stdout, "")
             (repo / "unrelated.txt").write_text("new\n", encoding="utf-8")
             git("add", "unrelated.txt")
             unrelated = git("commit", "-qm", "Reject unrelated merge content", check=False)

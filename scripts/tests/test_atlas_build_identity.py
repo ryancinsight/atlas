@@ -29,6 +29,7 @@ sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
 import atlas_build_lease as lease_module
 import atlas_build_lock as lock_module
+import atlas_build_package_source as package_source
 import atlas_build_queue as queue_module
 import atlas_build_source as build_source
 from atlas_build_lease import (
@@ -1486,12 +1487,14 @@ class BuildIdentityTestCase(unittest.TestCase):
                 "demo",
                 self.root,
                 lambda path: {"root": path.as_posix(), "revision": "a"},
+                package_source.package_source_digest,
             )
             second = artifacts.dependency_snapshot(
                 self.root / "Cargo.toml",
                 "demo",
                 self.root,
                 lambda path: {"root": path.as_posix(), "revision": "b"},
+                package_source.package_source_digest,
             )
         self.assertNotEqual(first["digest"], second["digest"])
         self.assertEqual(first["clean_packages"], ["demo", "dep"])
@@ -1545,6 +1548,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 snapshots.append(artifacts.dependency_snapshot(
                     workspace / "Cargo.toml", "demo", workspace,
                     lambda path: {"revision": "same"},
+                    package_source.package_source_digest,
                 ))
         self.assertEqual(snapshots[0]["digest"], snapshots[1]["digest"])
         self.assertEqual(snapshots[0]["root"], "workspace:crates/demo#demo@0.1.0")
@@ -1589,6 +1593,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 "demo",
                 self.root,
                 lambda path: {"root": path.as_posix(), "revision": "a"},
+                package_source.package_source_digest,
             )
             source.write_text("pub fn value() -> u8 { 2 }\n", encoding="utf-8")
             second = artifacts.dependency_snapshot(
@@ -1596,6 +1601,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 "demo",
                 self.root,
                 lambda path: {"root": path.as_posix(), "revision": "a"},
+                package_source.package_source_digest,
             )
         self.assertNotEqual(first["digest"], second["digest"])
         first_registry = next(
