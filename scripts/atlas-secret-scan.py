@@ -140,8 +140,14 @@ def allowlist(root: Path, rev: str) -> frozenset[str]:
     )
 
 
-def check(root: Path, rev: str, base: str | None) -> int:
-    allowed = allowlist(root, rev)
+def check(
+    root: Path,
+    rev: str,
+    base: str | None,
+    allowlist_rev: str | None = None,
+) -> int:
+    """Scan ``rev`` using an allowlist from an independently trusted revision."""
+    allowed = allowlist(root, allowlist_rev or rev)
     findings = [
         finding for finding in scan(added_lines(root, rev, base))
         if fingerprint(finding[3]) not in allowed
@@ -168,13 +174,17 @@ def main() -> int:
     run.add_argument("--root", type=Path, default=Path.cwd(), help="repository to scan")
     run.add_argument("--rev", default="HEAD", help="pushed revision")
     run.add_argument("--base", help="base revision; omitted scans the whole revision")
+    run.add_argument(
+        "--allowlist-rev",
+        help="trusted revision supplying .secret-scan-allowlist; defaults to --rev",
+    )
     sub.add_parser("fingerprint", help="print the allowlist fingerprint of standard input")
     args = parser.parse_args()
     if args.mode == "fingerprint":
         print(fingerprint(sys.stdin.read().strip()))
         return 0
     try:
-        return check(args.root, args.rev, args.base)
+        return check(args.root, args.rev, args.base, args.allowlist_rev)
     except RuntimeError as error:
         print(f"secret-scan: {error}", file=sys.stderr)
         return 2
