@@ -1,5 +1,5 @@
 <a id="ares-promotion"></a>
-## ATLAS-ARES-PROMOTION-2026-09-03 - Create and register `ares` (solid momentum balance) [arch][minor] - in-progress
+## ATLAS-ARES-PROMOTION-2026-09-03 - Create and register `ares` (solid momentum balance) [arch][minor] - blocked
 Charter: [ADR 0057](../docs/adr/0057-ares-phase-0-charter.md). Path: [ADR 0056](../docs/adr/0056-new-construction-promotion-path.md). Boundary: [ADR 0055](../docs/adr/0055-continuum-domain-decomposition.md).
 - **outcome:** `ares` owns small-strain linear elastostatics on Gaia meshes, closed by Proteus, solved by Athena, verified against analytical oracles.
 - **non-goals:** plasticity, contact, finite deformation, dynamics, fracture; no material constants, no direct edge to another balance domain.

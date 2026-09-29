@@ -1,5 +1,5 @@
 <a id="atlas-adr0033-stages"></a>
-## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in-progress
+## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — blocked
 outcome: one Athena-backed Krylov implementation stack-wide; delete the Leto iterative family and Kwavers' three duplicate implementations (ADR 0033).
 - Stage A done (Hephaestus-backend preconditioner still missing, residual gap).
 - next: Stage C — migrate Kwavers off 3 iterative impls (bem/gmres.rs, integration/nonlinear/gmres/, matrix-free jvp.rs — needs `&mut self` → `&self`, only mutation is a scratch-buffer cache).

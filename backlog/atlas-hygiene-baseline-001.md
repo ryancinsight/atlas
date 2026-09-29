@@ -1,5 +1,5 @@
 <a id="atlas-hygiene-baseline-001"></a>
-## ATLAS-HYGIENE-BASELINE-001 — Eleven-class conformance baseline and namespace hygiene [patch] — in-progress
+## ATLAS-HYGIENE-BASELINE-001 — Eleven-class conformance baseline and namespace hygiene [patch] — todo
 - owner: fable-prompt-session. scope: `scripts/atlas-conformance.py`, `scripts/conformance-baseline.json`; per-repo burn-down stays unclaimed.
 - outcome: the committed scanner covers all debt classes with a non-increasing per-repo baseline; fleet check reports zero violations.
 - state (2026-09-08): 6 violations remain (down from 26): `ritk` and part of `kwavers/oversized_files` are proven-stale baseline rows; `kwavers`'s remainder is a live peer's build/lane; `apollo/{manifest_implementation, existence_only_assertions}` is skipped — apollo is at its two-tree bound.
