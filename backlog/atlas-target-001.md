@@ -1,5 +1,5 @@
 <a id="atlas-target-001"></a>
-## ATLAS-TARGET-001 — One build cache, one debug budget [patch] — in-progress (residual)
+## ATLAS-TARGET-001 — One build cache, one debug budget [patch] — todo
 - owner: Codex `/root`. scope: cache trees, profile sections, and Cargo gate routing; no simulation logic. outcome: one shared `target/` cache stack-wide, dev/test debuginfo aligned to line-tables-only/deps-none, no wildcard dev opt-level overrides — delivered for root config, moirai, kwavers (PR #307).
 - delivered in this increment: member cache generation resolves Git's common checkout, and the overlay-free Cargo runner keeps `--manifest-path` before the subcommand separator. The member pre-push hook still needs to recognize a submodule nested in a linked Atlas worktree.
 - residual: audit remaining `[profile.*]`/`.cargo` sections (helios, hermes, CFDrs, coeus, ritk, mnemosyne). CFDrs's `opt-level = 2` test profile is under a dirty peer workspace — re-open once peer work lands.

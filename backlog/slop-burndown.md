@@ -1,5 +1,5 @@
 <a id="slop-burndown"></a>
-## ATLAS-SLOP-BURNDOWN-2026-09-06 - Measured debt burn-down against the conformance ratchet [patch] - in-progress
+## ATLAS-SLOP-BURNDOWN-2026-09-06 - Measured debt burn-down against the conformance ratchet [patch] - todo
 Parent: [`#atlas-hygiene-baseline-001`](backlog.md#atlas-hygiene-baseline-001).
 outcome: every class in `scripts/atlas-conformance.py` sits at or below its recorded baseline, measured against each member's live default branch (not a stale pinned gitlink), with the scan running in CI so the next increase fails immediately.
 Largest classes measured 2026-09-06 (~4,000 sites, 26 members): `unwrap_production` 724, `manifest_implementation` 662, `oversized_files` 614, `allow_sites` 508 — kwavers alone holds a large share of each.
