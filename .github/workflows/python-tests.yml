@@ -93,6 +93,13 @@ jobs:
           channel=$(python3 -c 'import tomllib; print(tomllib.load(open("repos/aequitas/rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
           rustup toolchain install "$channel" --profile minimal
 
+      - name: Install cargo-nextest
+        # The build-identity tests run the hook's three steps, one of which is
+        # `cargo nextest run`; same pin as the members' CI.
+        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
+        with:
+          tool: nextest@0.9.140
+
       - name: Cache Cargo
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
