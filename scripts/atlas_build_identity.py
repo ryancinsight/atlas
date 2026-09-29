@@ -5,13 +5,15 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import uuid
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 import time
-from typing import Sequence
+from typing import Iterable, Sequence
+from urllib.parse import unquote
 
 from atlas_build_artifacts import (
     artifact_digest,
@@ -444,6 +446,226 @@ def _run_checked(command: Sequence[str], root: Path, environment: dict[str, str]
         raise IdentityError(f"command failed with exit code {result.returncode}: {' '.join(command)}")
 
 
+def _dimensions(build: object) -> object:
+    """A build record's dimensions, without the fields compared on their own.
+
+    `source` is compared against `spec.source` directly. `dependency_digest`
+    is `str(dependencies["digest"])`, so it moves in lockstep with the
+    dependency snapshot and is redundant with comparing `dependencies`
+    itself; keeping it here would fail every narrowing candidate outright,
+    since a snapshot that disagrees only in path-record identity still
+    hashes to a different digest.
+    """
+    content = _content(build)
+    if not isinstance(content, dict):
+        return content
+    return {key: value for key, value in content.items() if key not in ("source", "dependency_digest")}
+
+
+_WORKSPACE_PATH_ID = re.compile(r"^workspace:(?P<relative>.*)#[^#]+@[^#]+$")
+_CARGO_PATH_ID = re.compile(r"^path\+file://(?P<path>.+)#[^#]+@[^#]+$")
+
+# A name-only diff is checked for filenames, never TOML sections: a build
+# script, a toolchain pin, a Cargo manifest or lockfile, or anything under a
+# `.cargo` directory can all reconfigure how a dependency compiles (profile,
+# features, patches, linker flags) without the dependency's own recorded
+# content moving at all.
+_BUILD_CONFIGURATION_NAMES = frozenset({"Cargo.toml", "Cargo.lock", "build.rs"})
+
+
+def _touches_build_configuration(paths: Iterable[str]) -> bool:
+    for relative in paths:
+        relative = relative.strip()
+        if not relative:
+            continue
+        parts = relative.split("/")
+        name = parts[-1]
+        if name in _BUILD_CONFIGURATION_NAMES or name.startswith("rust-toolchain"):
+            return True
+        if ".cargo" in parts[:-1]:
+            return True
+    return False
+
+
+def _path_record_manifest_dir(record_id: str, workspace_root: Path) -> Path | None:
+    """The absolute manifest directory a path record's stable id names.
+
+    A workspace-relative id (`workspace:<relative>#<name>@<version>`)
+    resolves against `workspace_root`, which this run's own `root` -- the
+    workspace `dependency_snapshot` was computed against -- approximates.
+    Cargo's own `path+file://` id, kept for a path package outside the
+    workspace, embeds the absolute manifest directory directly. Neither
+    pattern matching means the id is not one this run can resolve to a
+    filesystem path.
+    """
+    workspace_match = _WORKSPACE_PATH_ID.match(record_id)
+    if workspace_match:
+        return (workspace_root / workspace_match.group("relative")).resolve()
+    path_match = _CARGO_PATH_ID.match(record_id)
+    if path_match:
+        raw = unquote(path_match.group("path"))
+        if len(raw) > 2 and raw[0] == "/" and raw[2] == ":":
+            raw = raw[1:]  # `/C:/...` (URL form) -> `C:/...`
+        return Path(raw)
+    return None
+
+
+def _path_repository_safe_to_narrow(
+    record_id: str,
+    existing_identity: object,
+    current_identity: object,
+    workspace_root: Path,
+) -> bool:
+    """Whether a path record's identity change is provably a non-build-config edit.
+
+    A path record's identity is the identity of its whole containing
+    repository, so a change reconfiguring how dependencies build -- a
+    profile, a feature, a build script, a toolchain pin -- moves it exactly
+    like an ordinary source edit. Narrowing on identity alone is safe only
+    when the actual file-level diff between the two recorded revisions
+    touches no such file. A dirty tree on either side means the diff is not
+    fully captured by a revision-to-revision comparison (its uncommitted
+    files are not on either side's compared range), and a revision this
+    repository cannot resolve, or a `git diff` that fails outright, means
+    the diff cannot be established at all: both are treated as unsafe, never
+    as a reason to search harder.
+    """
+    if not isinstance(existing_identity, dict) or not isinstance(current_identity, dict):
+        return False
+    if existing_identity.get("dirty") or current_identity.get("dirty"):
+        return False
+    existing_revision = existing_identity.get("revision")
+    current_revision = current_identity.get("revision")
+    if not isinstance(existing_revision, str) or not isinstance(current_revision, str):
+        return False
+    if existing_revision == current_revision:
+        return True
+    manifest_dir = _path_record_manifest_dir(record_id, workspace_root)
+    if manifest_dir is None or not manifest_dir.is_dir():
+        return False
+    try:
+        top = subprocess.run(
+            ["git", "-C", str(manifest_dir), "rev-parse", "--show-toplevel"],
+            check=True, capture_output=True, text=True, encoding="utf-8", timeout=60,
+        ).stdout.strip()
+        diff = subprocess.run(
+            ["git", "-C", top, "diff", "--name-only", existing_revision, current_revision, "--"],
+            check=True, capture_output=True, text=True, encoding="utf-8", timeout=60,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return not _touches_build_configuration(diff.splitlines())
+
+
+def _path_only_dependency_diff(
+    existing: dict[str, object], current: dict[str, object], workspace_root: Path
+) -> set[str] | None:
+    """The path-record names two dependency snapshots disagree on, or None.
+
+    A path record's identity is `source_identity` of its whole containing
+    repository (revision plus diff), not of its own subtree: every path
+    package sharing one repository -- the run's own workspace members, and,
+    under the development overlay, a sibling first-party crate patched to a
+    local checkout -- changes identity together whenever any file in that
+    repository changes, whether or not the package itself did. Two snapshots
+    may therefore disagree on path records alone while every git and registry
+    dependency, every edge, and the clean-package set stay exactly the
+    packages they were: nothing reachable through a non-path record could
+    have moved. None means the disagreement reaches further than that and the
+    whole closure must clean: a real-Cargo counterexample showed a path
+    record differing in `features` alone (feature unification from an
+    unrelated manifest edit) left a sibling's rebuilt variant unrecorded, so
+    every field but `identity` must still agree, and a real-Cargo
+    counterexample showed the run's own identity-only change touching its
+    Cargo.toml (a profile edit) silently reconfigured a git dependency's
+    build, so an identity difference narrows only when
+    `_path_repository_safe_to_narrow` proves the underlying diff untouched
+    build configuration.
+    """
+    if existing.get("root") != current.get("root"):
+        return None
+    if existing.get("edges") != current.get("edges"):
+        return None
+    if existing.get("clean_packages") != current.get("clean_packages"):
+        return None
+    existing_packages = existing.get("packages")
+    current_packages = current.get("packages")
+    if not isinstance(existing_packages, list) or not isinstance(current_packages, list):
+        return None
+    existing_by_id = {record.get("id"): record for record in existing_packages}
+    current_by_id = {record.get("id"): record for record in current_packages}
+    if existing_by_id.keys() != current_by_id.keys():
+        return None
+    changed: set[str] = set()
+    for package_id, existing_record in existing_by_id.items():
+        current_record = current_by_id[package_id]
+        if existing_record == current_record:
+            continue
+        if existing_record.get("kind") != "path" or current_record.get("kind") != "path":
+            return None
+        existing_rest = {key: value for key, value in existing_record.items() if key != "identity"}
+        current_rest = {key: value for key, value in current_record.items() if key != "identity"}
+        if existing_rest != current_rest:
+            return None
+        if not _path_repository_safe_to_narrow(
+            str(package_id),
+            existing_record.get("identity"),
+            current_record.get("identity"),
+            workspace_root,
+        ):
+            return None
+        changed.add(str(current_record.get("name")))
+    return changed
+
+
+def _narrowed_clean(
+    existing: dict[str, object] | None,
+    current: dict[str, object] | None,
+    spec: BuildSpec,
+    dependencies: dict[str, object],
+    manifest: Path,
+    execution_root: Path,
+    clean_packages: tuple[str, ...],
+    root: Path,
+) -> tuple[str, ...] | None:
+    """The packages a mismatched record must clean, or None for the whole closure.
+
+    With the build dimensions unchanged and the dependency snapshots equal or
+    disagreeing only in path-record identity (`_path_only_dependency_diff`),
+    every git and registry dependency's inputs are unchanged: a new source for
+    the identified package, or for a sibling repository patched in as a path
+    dependency, cannot alter their artifacts. The run then cleans its own
+    package when its source changed, each path record whose identity changed
+    (its own containing repository moved), and each package whose recorded
+    artifact bytes changed (Cargo rebuilds every unit that depends on a unit
+    it rebuilds, so dependents follow). Cleaning the closure on every source
+    change rebuilt every first-party dependency under exclusive leases on each
+    push and serialized every gate sharing them.
+    """
+    if existing is None or current is None:
+        return None
+    if _dimensions(existing.get("build")) != _dimensions(spec.as_dict()):
+        return None
+    existing_dependencies = existing.get("dependencies")
+    if existing_dependencies == dependencies:
+        path_changed: set[str] = set()
+    elif isinstance(existing_dependencies, dict):
+        path_changed = _path_only_dependency_diff(existing_dependencies, dependencies, root)
+        if path_changed is None:
+            return None
+    else:
+        return None
+    changed = changed_packages(
+        existing["artifact"]["files"], current["files"], manifest, execution_root, clean_packages
+    )
+    if changed is None:
+        return None
+    changed = changed | path_changed
+    if _content(existing.get("source")) != _content(spec.source.as_dict()):
+        changed.add(spec.package)
+    return tuple(sorted(changed)) if changed else None
+
+
 def run_build(
     root: Path,
     manifest: Path,
@@ -500,23 +722,27 @@ def run_build(
     # One bound for acquiring every lease, across both phases.
     deadline_ns = time.monotonic_ns() + int(lease_wait_seconds * 1_000_000_000)
 
-    held: list[OwnerLease] = []
+    taken: list[OwnerLease] = []
 
-    def acquire(exclusive: bool) -> ExitStack:
-        # The command writes its own package; dependencies are only read
-        # unless the record shows the run must clean or rebuild them.
+    def acquire(exclusive: frozenset[str]) -> ExitStack:
+        # The command writes its own package; a dependency is only read
+        # unless the record shows the run must clean or rebuild it.
         stack = ExitStack()
-        held.clear()
+        taken.clear()
         try:
             for lock, owner in scopes:
-                mode = EXCLUSIVE if exclusive or owner["package"] == spec.package else SHARED
+                mode = (
+                    EXCLUSIVE
+                    if owner["package"] == spec.package or owner["package"] in exclusive
+                    else SHARED
+                )
                 lease = acquire_waiting(
                     OwnerLease(lock, owner, lease_seconds, mode),
                     lease_wait_seconds,
                     deadline_ns,
                 )
                 stack.push(lease)
-                held.append(lease)
+                taken.append(lease)
         except BaseException:
             stack.close()
             raise
@@ -549,25 +775,48 @@ def run_build(
         current = _recorded_artifact(existing, target_dir, artifact_paths)
         return existing, _record_matches(existing, spec, dependencies, current), current
 
+    def clean_targets(
+        existing: dict[str, object] | None, current: dict[str, object] | None
+    ) -> tuple[str, ...]:
+        # A caller's clean command is opaque, so it may touch the whole closure.
+        if clean_command is not None:
+            return clean_packages
+        narrowed = _narrowed_clean(
+            existing, current, spec, dependencies, manifest, execution_root, clean_packages, root
+        )
+        return clean_packages if narrowed is None else narrowed
+
     with ExitStack() as leases:
-        shared = leases.enter_context(acquire(exclusive=False))
+        shared = leases.enter_context(acquire(frozenset()))
         existing, matched, current = locked_record()
+        held: frozenset[str] = frozenset()
         if not matched:
-            # Anything but an exact match may write dependency artifacts, so
-            # it runs exclusive. Releasing before asking again, rather than
-            # upgrading in place, keeps two upgraders from each holding the
-            # shared lease the other waits for; the record is read again
-            # because a holder may have rebuilt it meanwhile.
+            # A mismatch may write the artifacts of the packages it cleans, so
+            # those run exclusive; every other dependency stays shared. Releasing
+            # before asking again, rather than upgrading in place, keeps two
+            # upgraders from each holding the shared lease the other waits
+            # for; the record is read again because a holder may have rebuilt
+            # it meanwhile.
+            held = frozenset(clean_targets(existing, current))
             shared.close()
-            leases.enter_context(acquire(exclusive=True))
+            exclusive = leases.enter_context(acquire(held))
             existing, matched, current = locked_record()
+            # The re-read may name packages the first read did not: widen to
+            # them and read again, so nothing is cleaned under a shared lease.
+            while not matched and not held.issuperset(clean_targets(existing, current)):
+                held = held | frozenset(clean_targets(existing, current))
+                exclusive.close()
+                exclusive = leases.enter_context(acquire(held))
+                existing, matched, current = locked_record()
         sibling = None if matched or existing is not None else _sibling_record(spec)
         stale = not matched and (existing is not None or sibling is None)
         # The packages the clean left for the command to rebuild, and the
         # closure's files as read under this run's leases, by the names a
         # record lists. A stale run has neither a match nor a sibling, so
-        # only a narrowed clean names them; a sibling whose files cannot all
-        # be read names none. Without them every scope stays exclusive.
+        # only a narrowed clean names them (the widen loop converges only on
+        # a readable record, so `current` is set whenever `held` is a proper
+        # subset of the closure); a sibling whose files cannot all be read
+        # names none, and without them every scope stays exclusive.
         rebuilt: tuple[str, ...] = ()
         named = current if matched else None
         if sibling is not None:
@@ -576,25 +825,12 @@ def run_build(
             if clean_command is not None:
                 _run_checked(clean_command, execution_root, environment)
             else:
-                targets = clean_packages
-                if (
-                    existing is not None
-                    and current is not None
-                    and _record_matches(existing, spec, dependencies, existing.get("artifact"))
-                ):
-                    # Only artifact bytes changed. Cleaning the packages that
-                    # own them is enough: Cargo rebuilds every unit whose
-                    # dependency it rebuilds, so their dependents follow.
-                    narrowed = changed_packages(
-                        existing["artifact"]["files"],
-                        current["files"],
-                        manifest,
-                        execution_root,
-                        clean_packages,
-                    )
-                    if narrowed:
-                        targets = tuple(sorted(narrowed))
-                        named = current
+                # The widen loop's converged set, never recomputed: every
+                # package this run cleans was held exclusive by that loop, so
+                # cleaning it here can never reach past that set.
+                targets = tuple(sorted(held))
+                if held != frozenset(clean_packages):
+                    named = current
                 # One invocation for the whole closure: each `cargo clean`
                 # walks the entire shared target whatever it deletes, so one
                 # call per package held the closure's exclusive leases for
@@ -620,7 +856,6 @@ def run_build(
             cleaned = True
         # The packages whose artifacts this run writes and discovers afresh.
         fresh = {spec.package, *rebuilt}
-        downgraded = False
         if named is not None and not artifact_paths:
             # The command rebuilds what was cleaned, so those scopes stay
             # exclusive; every other scope is only read from here on, as on a
@@ -628,10 +863,14 @@ def run_build(
             # The downgrade keeps each lease's place in the queue, so no
             # writer queued meanwhile can clean between the clean and the
             # command.
-            for lease in held:
+            for lease in taken:
                 if lease.owner["package"] not in fresh and lease.mode == EXCLUSIVE:
                     lease.downgrade()
-                    downgraded = True
+        read_shared = any(lease.mode == SHARED for lease in taken)
+        if read_shared and named is None and not artifact_paths:
+            raise IdentityError(
+                "a dependency is held shared but no record names its artifacts"
+            )
         _run_checked(command, execution_root, environment)
         final_source = source_identity(root, (target_dir,), ignore_paths)
         if final_source.as_dict() != spec.source.as_dict():
@@ -641,7 +880,7 @@ def run_build(
         )
         if final_dependencies != dependencies:
             raise IdentityError("dependency graph changed while the build was running")
-        if (matched or downgraded) and not artifact_paths:
+        if read_shared and not artifact_paths:
             # Peers read, and their Cargo may rewrite, every package this run
             # holds shared, so those are found by the names `named` lists,
             # never by discovery, and each is hashed again once two reads
