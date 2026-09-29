@@ -8,6 +8,7 @@ mod model;
 mod replicated;
 
 pub use counterbalanced::required_confidence_level;
+pub(crate) use discovery::validate_baseline_name;
 pub use error::CheckError;
 pub use model::{
     Audit, InsufficientConfidence, MeasurementOrder, MissingComparison, Regression,

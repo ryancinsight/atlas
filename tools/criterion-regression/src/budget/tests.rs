@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use super::{BudgetError, Mode, Outcome, PreparedTarget, TargetSource, enforce};
+use super::{BudgetError, CriterionRun, Mode, Outcome, PreparedTarget, TargetSource, enforce};
 
 struct Workspace {
     root: PathBuf,
@@ -73,10 +73,30 @@ fn zero_bound_is_rejected_before_preparing_either_source() {
             std::path::Path::new("missing-manifest"),
             Mode::Timing,
             Duration::ZERO,
+            &CriterionRun::default(),
             source,
         )
         .unwrap_err();
         assert!(matches!(error, BudgetError::ZeroBound));
+    }
+}
+
+#[test]
+fn criterion_run_rejects_invalid_public_inputs() {
+    for name in ["", "../outside", "nested/name", "bad\0name"] {
+        for constructor in [CriterionRun::save_baseline, CriterionRun::compare_baseline] {
+            let result = constructor(name, "0.995");
+            assert!(matches!(
+                result,
+                Err(BudgetError::InvalidCriterionBaseline { .. })
+            ));
+        }
+    }
+    for confidence in ["0", "0.0", "-0.0", "-0.1", "1.0", "NaN", "inf", "-inf"] {
+        assert!(matches!(
+            CriterionRun::compare_baseline("atlas-base", confidence),
+            Err(BudgetError::InvalidCriterionConfidence { .. })
+        ));
     }
 }
 
@@ -104,6 +124,7 @@ fn retained_exit_status(code: i32) {
         &workspace.root.join("Cargo.toml"),
         Mode::Examples,
         bound,
+        &CriterionRun::default(),
         TargetSource::Retained(selected.clone()),
     )
     .unwrap();
@@ -129,18 +150,44 @@ fn retained_exit_status(code: i32) {
 }
 
 #[test]
-fn retained_execution_enforces_deadline() {
+fn retained_execution_forwards_save_baseline_exactly() {
     let workspace = Workspace::new();
-    // The fixture loops inside the supervised process; it creates no descendants.
     #[cfg(windows)]
-    let body = ":running\r\ngoto running\r\n";
+    let body = "(for %%a in (%*) do @echo %%~a)>execution.marker\r\n";
     #[cfg(not(windows))]
-    let body = "while :; do :; done\n";
+    let body = "printf '%s\\n' \"$@\" > execution.marker\n";
+    let enforcement = enforce(
+        &workspace.root.join("Cargo.toml"),
+        Mode::Timing,
+        Duration::from_secs(30),
+        &CriterionRun::save_baseline("atlas-base", "0.995").unwrap(),
+        TargetSource::Retained(PreparedTarget {
+            package: "retained-package".to_owned(),
+            name: "retained-target".to_owned(),
+            executable: workspace.executable(body),
+        }),
+    )
+    .unwrap();
+    let [result] = enforcement.results.as_slice() else {
+        panic!("exactly the retained target must execute");
+    };
+    assert!(matches!(result.outcome, Outcome::Clean { .. }));
+    assert_criterion_arguments(&workspace, "--save-baseline");
+}
+
+#[test]
+fn retained_execution_forwards_compare_and_enforces_deadline() {
+    let workspace = Workspace::new();
+    #[cfg(windows)]
+    let body = "(for %%a in (%*) do @echo %%~a)>execution.marker\r\n:running\r\ngoto running\r\n";
+    #[cfg(not(windows))]
+    let body = "printf '%s\\n' \"$@\" > execution.marker\nwhile :; do :; done\n";
     let bound = Duration::from_millis(200);
     let enforcement = enforce(
         &workspace.root.join("Cargo.toml"),
-        Mode::Examples,
+        Mode::Timing,
         bound,
+        &CriterionRun::compare_baseline("atlas-base", "0.995").unwrap(),
         TargetSource::Retained(PreparedTarget {
             package: "retained-package".to_owned(),
             name: "retained-target".to_owned(),
@@ -153,4 +200,32 @@ fn retained_execution_enforces_deadline() {
     };
     assert_eq!(result.outcome, Outcome::Breach { bound });
     assert!(enforcement.has_failures());
+    assert_criterion_arguments(&workspace, "--baseline");
+}
+
+fn assert_criterion_arguments(workspace: &Workspace, operation: &str) {
+    let arguments = std::fs::read_to_string(workspace.root.join("execution.marker")).unwrap();
+    assert_eq!(
+        arguments.lines().collect::<Vec<_>>(),
+        [
+            "--bench",
+            operation,
+            "atlas-base",
+            "--confidence-level",
+            "0.995"
+        ]
+    );
+}
+
+#[test]
+fn criterion_baseline_arguments_require_timing_mode() {
+    let error = enforce(
+        std::path::Path::new("missing-manifest"),
+        Mode::Smoke,
+        Duration::from_secs(1),
+        &CriterionRun::save_baseline("atlas-base", "0.995").unwrap(),
+        TargetSource::Compile { skip: Vec::new() },
+    )
+    .unwrap_err();
+    assert!(matches!(error, BudgetError::CriterionRunRequiresTiming));
 }

@@ -1,9 +1,0 @@
-<a id="atlas-kwavers-krylov-tests-oversized-20260928"></a>
-## ATLAS-KWAVERS-KRYLOV-TESTS-OVERSIZED-20260928 — Split `krylov/tests.rs`, which crossed the 500-line limit [tightening] [patch] — todo
-- priority: tightening
-- outcome: `crates/kwavers-solver/src/krylov/tests.rs` is back under the 500-line limit, so the atlas pin can advance over kwavers' merged work and `nextest_retries_nonzero` closes its measured 2 → 0.
-- scope: `crates/kwavers-solver/src/krylov/`.
-- acceptance: `python scripts/atlas-conformance.py check --repo kwavers --member-path repos/kwavers --member-revision <tip>` reports `kwavers/oversized_files: 108 -> 107` and no regressions; the atlas pin-advance push is accepted by `debt_gate` without `--no-verify`.
-- state (2026-09-28, measured): the file is 357 lines at kwavers `1718216a` and 514 at `9591f036`, so the pin advance over kwavers' 30 merged commits takes `oversized_files` from 107 to 108 and the pre-push `debt_gate` refuses the push. The growth came from `12cc013e4a3 feat(solver): Add a slice-operator CG over Athena`, merged as kwavers #875, not from the retries work this pin was advancing for. Measured by extracting both revisions and counting `.rs` files over 500 lines, excluding `tests`, `benches`, `examples`, and `target`: 67 over the limit before, 68 after, and the only membership change is this one path. The same pin advance closes nine classes, including the two this session measured — `nextest_retries_nonzero: 2 -> 0` and `seqcst_production: 10 -> 6`.
-- next: the split landed as kwavers#887 (merge `00b7ef9dd4cf`, `krylov/tests.rs` 359 lines, CG tests in `krylov/tests/cg.rs`); what remains is the atlas kwavers pin advance past it, measured with the acceptance command above.
-- related: `kwavers/oversized_files` 107 is itself far above the limit's intent; this is the one file that moved, not the state. The broader burn-down is [ATLAS-SLOP-BURNDOWN-2026-09-06](slop-burndown.md).
