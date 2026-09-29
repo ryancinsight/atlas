@@ -54,6 +54,18 @@ if [ "${SKIP_LOCKFILE_CHECK:-0}" = "1" ]; then
   echo "pre-push: SKIP_LOCKFILE_CHECK is no longer honoured; running the lockfile check anyway" >&2
 fi
 
+# Pin MSYS path conversion rather than inherit it. This hook hands native
+# Windows `git.exe` filesystem paths (`git -C "$stack_root"`, where stack_root
+# comes from `pwd` and is therefore `/c/...`), and MSYS rewrites those for us
+# only while conversion is on. Windows developers commonly export
+# MSYS_NO_PATHCONV globally to stop MSYS mangling unrelated arguments, and
+# when they do every `-C` here resolves to a literal `\c\Users\...` that does
+# not exist. The failure is silent in the way that matters most: the stack
+# checker resolves to nothing, each checker reports itself "not reachable
+# from this clone", and the hook exits 0. Blank is not equivalent to unset
+# (both disable conversion), so it is genuinely unset here.
+unset MSYS_NO_PATHCONV
+
 # A managed worktree may be owned by a different filesystem account than the
 # process pushing from it, and git does not propagate command-line config into
 # hooks. Re-inject the checkout path so child git calls stay valid.
