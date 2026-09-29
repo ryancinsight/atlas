@@ -172,9 +172,13 @@ def _inline_environment(command: Sequence[str]) -> dict[str, str]:
     `env RUSTDOCFLAGS=... cargo doc` sets an environment variable no ambient
     `os.environ` snapshot carries, so `environment_digest` alone cannot see
     it move; only a leading run of `NAME=VALUE` tokens right after `env` is
-    parsed, matching the shell builtin's own simple form (no `-u`/`-i`/`-C`
-    options), since anything else is not something this identity check
-    can attribute to a specific variable without a shell.
+    parsed, matching the `env` program's own simple form (`env` is an
+    external program, not a shell builtin, so this command list -- already
+    a `Sequence[str]` with no shell involved -- names it as an ordinary
+    argument; the parse still stops at `-u`/`-i`/`-C` and any other option,
+    since anything past a leading run of assignments is not something this
+    identity check can attribute to a specific variable without invoking
+    `env` itself).
     """
     values: dict[str, str] = {}
     iterator = iter(command)
