@@ -56,6 +56,93 @@ pub enum Mode {
     Examples,
 }
 
+/// Validated Criterion configuration for a supervised timing run.
+///
+/// This type cannot select another executable or supervisor.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct CriterionRun {
+    operation: BaselineOperation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+enum BaselineOperation {
+    #[default]
+    Measure,
+    Save {
+        name: String,
+        confidence: String,
+    },
+    Compare {
+        name: String,
+        confidence: String,
+    },
+}
+
+#[derive(Clone, Copy)]
+enum BaselineAction {
+    Save,
+    Compare,
+}
+
+impl CriterionRun {
+    /// Builds a run that saves a named baseline at `confidence`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BudgetError`] unless the name is one path component and the
+    /// confidence is finite and strictly between zero and one.
+    pub fn save_baseline(name: &str, confidence: &str) -> Result<Self, BudgetError> {
+        Self::baseline(BaselineAction::Save, name, confidence)
+    }
+
+    /// Builds a run that compares against a named baseline at `confidence`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BudgetError`] under the same conditions as
+    /// [`Self::save_baseline`].
+    pub fn compare_baseline(name: &str, confidence: &str) -> Result<Self, BudgetError> {
+        Self::baseline(BaselineAction::Compare, name, confidence)
+    }
+
+    fn baseline(action: BaselineAction, name: &str, confidence: &str) -> Result<Self, BudgetError> {
+        crate::criterion::validate_baseline_name(name).map_err(|_| {
+            BudgetError::InvalidCriterionBaseline {
+                name: name.to_owned(),
+            }
+        })?;
+        let value =
+            confidence
+                .parse::<f64>()
+                .map_err(|_| BudgetError::InvalidCriterionConfidence {
+                    value: confidence.to_owned(),
+                })?;
+        if !value.is_finite() || value <= 0.0 || value >= 1.0 {
+            return Err(BudgetError::InvalidCriterionConfidence {
+                value: confidence.to_owned(),
+            });
+        }
+        let (name, confidence) = (name.to_owned(), confidence.to_owned());
+        let operation = match action {
+            BaselineAction::Save => BaselineOperation::Save { name, confidence },
+            BaselineAction::Compare => BaselineOperation::Compare { name, confidence },
+        };
+        Ok(Self { operation })
+    }
+
+    fn append_arguments<'a>(&'a self, arguments: &mut Vec<&'a str>) {
+        match &self.operation {
+            BaselineOperation::Measure => {}
+            BaselineOperation::Save { name, confidence } => {
+                arguments.extend(["--save-baseline", name, "--confidence-level", confidence]);
+            }
+            BaselineOperation::Compare { name, confidence } => {
+                arguments.extend(["--baseline", name, "--confidence-level", confidence]);
+            }
+        }
+    }
+}
+
 impl Mode {
     /// Default wall-clock bound, derived from the committed gate budgets:
     /// smoke and examples share the 60s test-termination bound, timing runs
@@ -141,10 +228,14 @@ pub fn enforce(
     manifest_path: &Path,
     mode: Mode,
     bound: Duration,
+    criterion_run: &CriterionRun,
     source: TargetSource,
 ) -> Result<Enforcement, BudgetError> {
     if bound.is_zero() {
         return Err(BudgetError::ZeroBound);
+    }
+    if mode != Mode::Timing && *criterion_run != CriterionRun::default() {
+        return Err(BudgetError::CriterionRunRequiresTiming);
     }
     let layout = targets::workspace_layout(manifest_path)?;
     let (prepared, skip) = match source {
@@ -159,13 +250,10 @@ pub fn enforce(
             skipped.push(target.name);
             continue;
         }
-        let outcome = runner::run_bounded(
-            &target.name,
-            &target.executable,
-            mode.arguments(),
-            &layout,
-            bound,
-        )?;
+        let mut arguments = Vec::from(mode.arguments());
+        criterion_run.append_arguments(&mut arguments);
+        let outcome =
+            runner::run_bounded(&target.name, &target.executable, &arguments, &layout, bound)?;
         results.push(TargetResult { target, outcome });
     }
     Ok(Enforcement {
