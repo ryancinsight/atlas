@@ -134,25 +134,121 @@ default_branch_base() {
 # hook, since every section below judges one pushed revision and the range
 # leading to it. Judging the first ref alone let a later ref carry anything.
 zero="$(printf '0%.0s' $(seq 40))"
-content_lines=()
+push_stream=""
 if [ ! -t 0 ]; then
+  push_stream="$(cat)"
+fi
+push_lines=()
+if [ -n "$push_stream" ]; then
   while IFS= read -r push_line; do
-    read -r _ push_sha _ <<<"$push_line"
-    [ -n "${push_sha:-}" ] && [ "$push_sha" != "$zero" ] || continue
-    content_lines+=("$push_line")
-  done
-  if [ "${#content_lines[@]}" -eq 0 ]; then
-    echo "pre-push: the push carries no commits; nothing to gate" >&2
+    [ -n "$push_line" ] && push_lines+=("$push_line")
+  done <<<"$push_stream"
+  if [ "${#push_lines[@]}" -eq 0 ]; then
+    echo "pre-push: the push carries no ref updates; nothing to gate" >&2
     exit 0
   fi
-  if [ "${#content_lines[@]}" -gt 1 ]; then
+  if [ "${#push_lines[@]}" -gt 1 ]; then
+    export ATLAS_RESCUE_MULTI_REF=1
     refs_status=0
-    for push_line in "${content_lines[@]}"; do
+    for push_line in "${push_lines[@]}"; do
       echo "pre-push: judging ${push_line%% *}" >&2
       printf '%s\n' "$push_line" | bash "${BASH_SOURCE[0]}" "$@" || refs_status=1
     done
     exit "$refs_status"
   fi
+fi
+content_lines=("${push_lines[@]}")
+
+# A rescue branch gets one durability push before its normal gate is useful.
+# The exception is exact: one ref, same local and remote branch, and creation.
+# Scan every pushed commit with the scanner from the fetched stack default, not
+# from the revision being published. Every later update and every other ref
+# continues through the complete gate below.
+if [ "${#content_lines[@]}" -eq 1 ] \
+  && [ "${ATLAS_RESCUE_MULTI_REF:-0}" != 1 ]; then
+  rescue_local=""
+  rescue_remote=""
+  rescue_tip=""
+  rescue_remote_sha=""
+  read -r rescue_local rescue_tip rescue_remote rescue_remote_sha <<<"${content_lines[0]}"
+  if [ "$rescue_tip" != "$zero" ] && ! outside_checkout git -C "$repo_root" cat-file -e "$rescue_tip^{commit}" 2>/dev/null; then
+    echo "pre-push: BLOCKED -- pushed local commit is unavailable" >&2
+    exit 1
+  fi
+  if [ "$rescue_remote_sha" != "$zero" ] && ! outside_checkout git -C "$repo_root" cat-file -e "$rescue_remote_sha^{commit}" 2>/dev/null; then
+    echo "pre-push: BLOCKED -- remote commit is unavailable" >&2
+    exit 1
+  fi
+  if [[ "$rescue_local" == refs/heads/rescue/* ]] \
+    && [ "$rescue_remote" = "$rescue_local" ] \
+    && [ "$rescue_remote_sha" = "$zero" ] \
+    && [ -n "$rescue_tip" ] \
+    && [ "$rescue_tip" != "$zero" ]; then
+    rescue_stack_root="$(cd "$repo_root/../.." && pwd)"
+    rescue_trusted_ref=""
+    for rescue_ref in origin/HEAD origin/main; do
+      rescue_trusted_ref="$(outside_checkout git -C "$rescue_stack_root" rev-parse --verify --quiet "$rescue_ref^{commit}" 2>/dev/null || true)"
+      [ -n "$rescue_trusted_ref" ] && break
+    done
+    rescue_scanner=""
+    if [ -n "$rescue_trusted_ref" ] \
+      && outside_checkout git -C "$rescue_stack_root" cat-file -e "$rescue_trusted_ref:scripts/atlas-secret-scan.py" 2>/dev/null; then
+      rescue_python="${PYTHON:-}"
+      if [ -z "$rescue_python" ]; then
+        for rescue_candidate in python3 python; do
+          if command -v "$rescue_candidate" >/dev/null 2>&1 \
+            && "$rescue_candidate" -c 'import sys' >/dev/null 2>&1; then
+            rescue_python="$rescue_candidate"
+            break
+          fi
+        done
+      fi
+      if [ -n "$rescue_python" ]; then
+        rescue_scanner=ready
+      fi
+    fi
+    if [ -z "$rescue_scanner" ]; then
+      echo "pre-push: rescue secret scanner unavailable from the trusted stack default" >&2
+      exit 1
+    fi
+    rescue_base="$(default_branch_base "$rescue_tip" || true)"
+    rescue_commits=()
+    if [ -n "$rescue_base" ]; then
+      rescue_commit_list="$(git rev-list --reverse "$rescue_base..$rescue_tip")" || {
+        echo "pre-push: BLOCKED -- could not enumerate the rescue commits." >&2
+        exit 1
+      }
+    else
+      rescue_commit_list="$(git rev-list --reverse "$rescue_tip")" || {
+        echo "pre-push: BLOCKED -- could not enumerate the rescue commits." >&2
+        exit 1
+      }
+    fi
+    if [ -n "$rescue_commit_list" ]; then
+      while IFS= read -r rescue_commit; do
+        [ -n "$rescue_commit" ] && rescue_commits+=("$rescue_commit")
+      done <<<"$rescue_commit_list"
+    fi
+    for rescue_commit in "${rescue_commits[@]}"; do
+      rescue_parents="$(git rev-list --parents -n 1 "$rescue_commit")"
+      read -r _ rescue_parent _ <<<"$rescue_parents"
+      rescue_args=(check --root "$repo_root" --rev "$rescue_commit")
+      if [ "$rescue_parent" != "$rescue_commit" ] && [ -n "$rescue_parent" ]; then
+        rescue_args+=(--base "$rescue_parent")
+      fi
+      if ! (outside_checkout git -C "$rescue_stack_root" show "$rescue_trusted_ref:scripts/atlas-secret-scan.py" \
+        | "$rescue_python" - "${rescue_args[@]}" 2>&1); then
+        exit 1
+      fi
+    done
+    exit 0
+  fi
+fi
+
+read -r _local_ref local_sha _remote_ref _remote_sha <<<"${content_lines[0]}"
+if [ "$local_sha" = "$zero" ]; then
+  echo "pre-push: deletion ref has no revision to gate" >&2
+  exit 0
 fi
 
 touches_dependency_state=unknown
@@ -209,9 +305,7 @@ if [ "${#content_lines[@]}" -eq 1 ]; then
       pushed_tip="$local_sha"
       break
     fi
-  done <<PUSHED
-${content_lines[0]}
-PUSHED
+  done <<<"$push_stream"
 fi
 
 # No manifest in the range means the lock cannot have changed: skip its check,
@@ -510,20 +604,41 @@ else
   echo "pre-push: artifact-budget checker not reachable from this clone; CI enforces it" >&2
 fi
 
-# Credentials: the lines the pushed range adds, scanned before they leave the
-# machine (scripts/atlas-secret-scan.py). A secret that reaches a remote is
-# published -- a rewritten history does not unpublish it -- so this is the one
-# check CI cannot stand in for: by the time a runner sees the push, the value
-# is already out. Same range as the budget check above.
+# Credentials are scanned with the trusted stack scanner over every commit
+# introduced by the pushed tip. The scanner source is never taken from the tip.
 secret_checker="${stack_scripts:+$stack_scripts/atlas-secret-scan.py}"
 if [ -f "$secret_checker" ] && [ -n "$python_bin" ]; then
-  if ! "$python_bin" "$secret_checker" check --root "$repo_root" --rev "$range_rev" "${range_args[@]}"; then
-    echo "pre-push: BLOCKED -- the pushed range adds a credential. Remove it from" >&2
-    echo "every commit in the range; if it ever reached a remote, rotate it." >&2
-    exit 1
+  secret_commits=()
+  if [ -n "$range_base" ]; then
+    secret_commit_list="$(git rev-list --reverse "$range_base..$range_rev")" || {
+      echo "pre-push: BLOCKED -- could not enumerate the pushed commits." >&2
+      exit 1
+    }
+  else
+    secret_commit_list="$(git rev-list --reverse "$range_rev")" || {
+      echo "pre-push: BLOCKED -- could not enumerate the pushed commits." >&2
+      exit 1
+    }
   fi
+  if [ -n "$secret_commit_list" ]; then
+    while IFS= read -r secret_commit; do
+      [ -n "$secret_commit" ] && secret_commits+=("$secret_commit")
+    done <<<"$secret_commit_list"
+  fi
+  for secret_commit in "${secret_commits[@]}"; do
+    secret_parents="$(git rev-list --parents -n 1 "$secret_commit")"
+    read -r _ secret_parent _ <<<"$secret_parents"
+    secret_args=(check --root "$repo_root" --rev "$secret_commit")
+    [ -n "$secret_parent" ] && secret_args+=(--base "$secret_parent")
+    if ! "$python_bin" "$secret_checker" "${secret_args[@]}"; then
+      echo "pre-push: BLOCKED -- the pushed range adds a credential. Remove it from" >&2
+      echo "every commit in the range; if it ever reached a remote, rotate it." >&2
+      exit 1
+    fi
+  done
 else
-  echo "pre-push: secret scanner not reachable from this clone; the pushed range was not scanned" >&2
+  echo "pre-push: BLOCKED -- secret scanner or interpreter unavailable; the pushed range was not scanned" >&2
+  exit 1
 fi
 
 # Debt ratchet: the pushed revision's conformance classes may not rise above
