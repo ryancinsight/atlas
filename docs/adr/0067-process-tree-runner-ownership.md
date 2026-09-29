@@ -33,6 +33,8 @@ It owns the complete tree from launch through collection:
   payload leaves standard input inherited from the caller.
 - timeout and cleanup each have finite budgets; interruption before destructive
   cleanup completes is retryable while ownership remains held.
+- optional input is delivered concurrently with deadline observation, so pipe
+  backpressure cannot delay timeout or cleanup.
 - status and byte-exact standard streams remain command results, including an
   optional standard-input payload.
 

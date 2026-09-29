@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import selectors
 import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -61,6 +63,49 @@ class _CleanupState:
     termination_issued: bool = False
     launcher_reaped: bool = False
     deadline: float | None = None
+
+
+class _InputWriter:
+    """Deliver bytes without placing pipe backpressure outside the deadline."""
+
+    def __init__(self, stream, payload: bytes) -> None:
+        self._stream = stream
+        self._payload = payload
+        self._error: BaseException | None = None
+        self._thread = threading.Thread(
+            target=self._write,
+            name="atlas-process-input",
+            daemon=True,
+        )
+
+    def start(self) -> None:
+        """Begin delivery after process-tree ownership is established."""
+        self._thread.start()
+
+    def finish(self, deadline: float) -> tuple[BaseException | None, str | None]:
+        """Collect delivery within the process-tree cleanup deadline."""
+        self._thread.join(max(0.0, deadline - time.monotonic()))
+        if self._thread.is_alive():
+            return None, "standard-input writer exceeded the cleanup deadline"
+        return self._error, None
+
+    def _write(self) -> None:
+        try:
+            if self._payload:
+                self._stream.write(self._payload)
+        except BrokenPipeError:
+            pass
+        except OSError as caught:
+            if caught.errno != errno.EINVAL:
+                self._error = caught
+        finally:
+            try:
+                self._stream.close()
+            except BrokenPipeError:
+                pass
+            except OSError as caught:
+                if caught.errno != errno.EINVAL and self._error is None:
+                    self._error = caught
 
 
 def _merge_errors(*errors: str | None) -> str | None:
@@ -214,6 +259,8 @@ def run(
     status_write: int | None = None
     timed_out = False
     cleanup_error: str | None = None
+    input_error: BaseException | None = None
+    input_writer: _InputWriter | None = None
     caught_error: BaseException | None = None
     cleanup_state = _CleanupState()
     with tempfile.TemporaryFile(mode="w+b") as stdout, tempfile.TemporaryFile(
@@ -264,16 +311,11 @@ def run(
                     raise RuntimeError(
                         f"failed to establish process-tree ownership: {caught}"
                     ) from caught
-                if input is not None:
-                    if process.stdin is None:
-                        raise RuntimeError("Windows process has no input pipe")
-                    process.stdin.write(input)
-                    process.stdin.close()
-            elif input is not None:
+            if input is not None:
                 if process.stdin is None:
-                    raise RuntimeError("POSIX process-tree supervisor has no input pipe")
-                process.stdin.write(input)
-                process.stdin.close()
+                    raise RuntimeError("process-tree launcher has no input pipe")
+                input_writer = _InputWriter(process.stdin, input)
+                input_writer.start()
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 timed_out = True
@@ -298,7 +340,22 @@ def run(
                 caught.add_note(f"process-tree cleanup failed: {cleanup_error}")
             raise
         finally:
-            if process is not None and process.stdin is not None and not process.stdin.closed:
+            if input_writer is not None:
+                input_deadline = cleanup_state.deadline
+                if input_deadline is None:
+                    input_deadline = time.monotonic() + PROCESS_TREE_CLEANUP_SECONDS
+                input_error, input_cleanup_error = input_writer.finish(input_deadline)
+                cleanup_error = _merge_errors(cleanup_error, input_cleanup_error)
+                if input_cleanup_error is not None and caught_error is not None:
+                    caught_error.add_note(
+                        f"process-tree cleanup failed: {input_cleanup_error}"
+                    )
+            if (
+                input_writer is None
+                and process is not None
+                and process.stdin is not None
+                and not process.stdin.closed
+            ):
                 process.stdin.close()
             if status_write is not None:
                 os.close(status_write)
@@ -322,6 +379,8 @@ def run(
             )
         if cleanup_error is not None:
             raise RuntimeError(f"process-tree cleanup failed: {cleanup_error}")
+        if input_error is not None:
+            raise input_error
         return subprocess.CompletedProcess(
             arguments,
             command_returncode,

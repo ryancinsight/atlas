@@ -206,6 +206,7 @@ class ProcessTreeTests(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "Windows Job Object ordering")
     def test_windows_creates_suspended_assigns_job_then_resumes(self):
         events: list[str] = []
+        input_closed = threading.Event()
 
         class ControlPipe:
             closed = False
@@ -216,6 +217,7 @@ class ProcessTreeTests(unittest.TestCase):
             def close(self):
                 self.closed = True
                 events.append("control-close")
+                input_closed.set()
 
         class SuspendedProcess:
             pid = 123
@@ -223,7 +225,8 @@ class ProcessTreeTests(unittest.TestCase):
             stdin = ControlPipe()
 
             def wait(self, timeout):
-                del timeout
+                if not input_closed.wait(timeout):
+                    raise AssertionError("input writer did not close the pipe")
                 events.append("wait")
                 return self.returncode
 
@@ -326,6 +329,43 @@ class ProcessTreeTests(unittest.TestCase):
             inherited.stderr.decode(errors="replace"),
         )
         self.assertEqual(inherited.stdout, payload)
+
+    @unittest.skipUnless(os.name == "nt", "Windows pipe backpressure")
+    def test_windows_input_backpressure_obeys_timeout(self):
+        helper = textwrap.dedent(
+            f"""
+            import sys
+            sys.path.insert(0, {str(SCRIPTS)!r})
+            import process_tree
+
+            try:
+                process_tree.run(
+                    [sys.executable, "-c", "import time; time.sleep(30)"],
+                    input=b"x" * (2 * 1024 * 1024),
+                    timeout=0.2,
+                )
+            except process_tree.ProcessTreeTimeout as error:
+                if error.cleanup_error is not None:
+                    raise SystemExit(error.cleanup_error)
+                print("bounded")
+            else:
+                raise SystemExit("backpressured command did not time out")
+            """
+        )
+
+        bounded = subprocess.run(
+            [sys.executable, "-c", helper],
+            capture_output=True,
+            timeout=process_tree.PROCESS_TREE_CLEANUP_SECONDS + 2,
+            check=False,
+        )
+
+        self.assertEqual(
+            bounded.returncode,
+            0,
+            bounded.stderr.decode(errors="replace"),
+        )
+        self.assertEqual(bounded.stdout.splitlines(), [b"bounded"])
 
     def test_cleanup_does_not_resignal_after_launcher_reap(self):
         class OwnedLauncher:
