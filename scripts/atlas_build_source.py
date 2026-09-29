@@ -206,14 +206,16 @@ def environment_digest(environment: Mapping[str, str] | None = None) -> str:
 
     `CARGO_BUILD_*` (target, rustflags, jobs, ...), `CARGO_TARGET_*`
     (per-triple rustflags and runners), `CARGO_UNSTABLE_*` (nightly `-Z`
-    flags mirrored as env, e.g. `build-std`), and `CARGO_HOST_*` (host-triple
-    rustflags) are covered by prefix, alongside the existing
-    `CARGO_PROFILE_*` prefix and the fixed single-variable set -- which adds
-    `RUSTC_BOOTSTRAP` (gates unstable rustc flags) to the set already
-    covering `RUSTFLAGS`. A `CARGO_BUILD_RUSTFLAGS` recompiling every
-    dependency at a different codegen setting was previously invisible here,
-    matching this run's exact-comparison record to one built under a
-    different value.
+    flags mirrored as env, e.g. `build-std`), `CARGO_HOST_*` (host-triple
+    rustflags), and `CARGO_ALIAS_*` (a `[alias]` table entry set as env,
+    which can itself carry compile-affecting flags, e.g.
+    `CARGO_ALIAS_CLIPPY="check --config build.rustflags=[...]"`) are covered
+    by prefix, alongside the existing `CARGO_PROFILE_*` prefix and the fixed
+    single-variable set -- which adds `RUSTC_BOOTSTRAP` (gates unstable
+    rustc flags) to the set already covering `RUSTFLAGS`. A
+    `CARGO_BUILD_RUSTFLAGS` recompiling every dependency at a different
+    codegen setting was previously invisible here, matching this run's
+    exact-comparison record to one built under a different value.
 
     Rustdoc-only inputs -- `RUSTDOCFLAGS`, `CARGO_ENCODED_RUSTDOCFLAGS`,
     `RUSTDOC` (and their `CARGO_BUILD_*`-prefixed spellings, excluded
@@ -259,6 +261,7 @@ def environment_digest(environment: Mapping[str, str] | None = None) -> str:
             or key.startswith("CARGO_TARGET_")
             or key.startswith("CARGO_UNSTABLE_")
             or key.startswith("CARGO_HOST_")
+            or key.startswith("CARGO_ALIAS_")
             or key
             in {
                 "CARGO",
@@ -329,14 +332,17 @@ def _feed_config_text(
     byte-identical config must not stop this digest from following that
     config's own `include`. Any parse failure that remains fails closed by
     raising rather than returning as though the config had no `include`:
-    Cargo's TOML grammar is looser than `tomllib`'s strict TOML 1.0 (Cargo
-    accepts a trailing comma after an inline table's last element and an
-    inline table split across lines; `tomllib` rejects both), so a config
-    `tomllib` cannot parse can still be one Cargo parses and builds with --
-    and silently stopping there would under-hash a config whose `include`
-    this digest can no longer see, exactly the staleness this scheme exists
-    to prevent. The pre-push hook surfaces the raised error as an
-    environment failure naming the offending file.
+    Cargo's TOML grammar is looser than `tomllib`'s strict TOML 1.0 in
+    several ways -- a trailing comma after an inline table's last element,
+    an inline table split across lines, and the TOML 1.1 string escapes
+    `\\e` and `\\xHH` are all accepted by Cargo's parser and rejected by
+    `tomllib` -- so a config `tomllib` cannot parse can still be one Cargo
+    parses and builds with, and silently stopping there would under-hash a
+    config whose `include` this digest can no longer see, exactly the
+    staleness this scheme exists to prevent. The pre-push hook surfaces the
+    raised error through its identity-branch classification (a source
+    identity failure, distinct from an ordinary compile failure), naming
+    the offending file; it is not classified as an environment failure.
     """
     _feed_framed(digest, marker)
     _feed_framed(digest, content)
@@ -349,8 +355,9 @@ def _feed_config_text(
         raise BuildIdentityError(
             f"cannot parse cargo config as TOML ({source}): {error}; rewrite it in "
             "TOML 1.0 syntax (Cargo's own parser is looser -- a trailing comma after an "
-            "inline table's last element, or an inline table split across lines, are not "
-            "TOML 1.0) so its `include` directive, if any, can be followed"
+            "inline table's last element, an inline table split across lines, and the "
+            "TOML 1.1 string escapes \\e and \\xHH are not TOML 1.0) so its `include` "
+            "directive, if any, can be followed"
         ) from error
     for entry in _include_paths(data.get("include")):
         included = (base / entry).resolve()
@@ -393,13 +400,17 @@ def cargo_config_digest(
     root and the filesystem root, closer files overriding farther ones, plus
     `$CARGO_HOME/config.toml`/`$CARGO_HOME/config` and any `--config`
     argument on the command line, and follows each file's own `include`
-    directive (stable since Cargo 1.97) recursively. None of these live
-    inside the package's own repository -- the pre-push gate mirrors the
-    stack's shared config two directories above the export, one `nested`
-    level per layered stack config -- so no git diff of that repository can
-    ever see one of them change; a profile or rustflags edit there
-    recompiles a dependency while every record naming it stays
-    byte-identical.
+    directive (stable since Cargo 1.97) recursively. The pre-push gate
+    mirrors the stack's shared config two directories above the export, one
+    `nested` level per layered stack config, outside the diffed repository
+    entirely -- so no git diff of that repository can ever see a change
+    there; a profile or rustflags edit at that level recompiles a
+    dependency while every record naming it stays byte-identical, which is
+    the gap this digest closes for that source. A config committed inside
+    the package's own repository (an in-tree `.cargo/config.toml`) is a
+    different case: a git diff of the repository would show that edit, and
+    this digest also covers it at depth 0, but only as one input among the
+    others above -- neither case makes the other irrelevant.
 
     Each directory config is framed by its depth from the execution root
     and its filename, never its absolute path: the pre-push gate exports

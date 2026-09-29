@@ -175,9 +175,13 @@ def _inline_environment(command: Sequence[str]) -> dict[str, str]:
     `env RUSTDOCFLAGS=... cargo doc` sets an environment variable no ambient
     `os.environ` snapshot carries, so `environment_digest` alone cannot see
     it move; only a leading run of `NAME=VALUE` tokens right after `env` is
-    parsed, matching the shell builtin's own simple form (no `-u`/`-i`/`-C`
-    options), since anything else is not something this identity check
-    can attribute to a specific variable without a shell.
+    parsed, matching the `env` program's own simple form (`env` is an
+    external program, not a shell builtin, so this command list -- already
+    a `Sequence[str]` with no shell involved -- names it as an ordinary
+    argument; the parse still stops at `-u`/`-i`/`-C` and any other option,
+    since anything past a leading run of assignments is not something this
+    identity check can attribute to a specific variable without invoking
+    `env` itself).
     """
     values: dict[str, str] = {}
     iterator = iter(command)
@@ -533,11 +537,11 @@ def _path_repository_safe_to_narrow(
     try:
         top = subprocess.run(
             ["git", "-C", str(manifest_dir), "rev-parse", "--show-toplevel"],
-            check=True, capture_output=True, text=True, timeout=60,
+            check=True, capture_output=True, text=True, encoding="utf-8", timeout=60,
         ).stdout.strip()
         diff = subprocess.run(
             ["git", "-C", top, "diff", "--name-only", existing_revision, current_revision, "--"],
-            check=True, capture_output=True, text=True, timeout=60,
+            check=True, capture_output=True, text=True, encoding="utf-8", timeout=60,
         ).stdout
     except (OSError, subprocess.SubprocessError):
         return False
