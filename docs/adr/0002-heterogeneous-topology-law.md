@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-06-11
+- Revised: 2026-09-29: the moirai row no longer calls it a layer over hephaestus. Moirai#501 removed Moirai's hephaestus edges, which had put git copies of Moirai in its own lock (Moirai ADR 0041).
 - Class: [arch] — cross-repo ownership map for CPU/GPU/TPU execution over the
   full memory hierarchy (registers, shared memory, L1/L2/L3 cache, NUMA DRAM,
   HBM, GDDR, pinned host, persistent)
@@ -40,7 +41,7 @@ rather than pretending otherwise:
 | Tier/topology **vocabulary**: `MemoryTier` (+ `Gddr`, `HostPinned`, device `Registers`/`SharedMem` tiers), `CacheLevel` (L1/L2/L3), NUMA, **GPU topology** (SM count, warp width, regs/SM, shared-mem/SM), **TPU topology** (cores, HBM) | **themis** | typed law, no state |
 | Host allocation (NUMA-aware), **device pools (HBM/GDDR)**, pinned staging, **kernel resource budgets** (regs/thread, shared/block) | **mnemosyne** | allocator + budget accounting behind `MemoryBackend`/policy seams |
 | SIMD lanes (CPU data-parallel) | **hermes** | arch-marker kernels |
-| MIMD threads + **GPU launch shaping**: occupancy planner (from themis GPU topology + mnemosyne budgets), grid/block selection, stream co-scheduling, persistent-kernel work queues | **moirai** | ExecutionPolicy/scheduler layer over hephaestus |
+| MIMD threads + **GPU launch shaping**: occupancy planner (from themis GPU topology + mnemosyne budgets), grid/block selection, stream co-scheduling, persistent-kernel work queues | **moirai** | ExecutionPolicy/scheduler layer; hephaestus consumes it, never the reverse |
 | Device backends: wgpu, CUDA (cuda-oxide + cutile, hephaestus ADR 0001), **TPU via PJRT C API** (dynamic load, long-term) | **hephaestus** | `ComputeDevice` impls; placement-aware allocation (`PlacementHint` from themis) |
 | CPU array kernels, **cache-aware tiling/blocking** (tile sizes from themis `CacheLevel`) | **leto** | const-generic tiles; criterion-gated per performance_engineering |
 | Tensor/autodiff composition over all backends | **coeus** | unchanged seams |

@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-04
+- Revised: 2026-09-29: reason 2 said the motivating cycle was never built. It was: `moirai-gpu` enabled `wgpu-backend` by default, and the cycle broke Moirai's workspace build until Moirai#501 removed it (Moirai ADR 0041). The decision does not depend on that claim.
 - Class: `[patch]`
 - Relates to: [ADR 0035](0035-shared-publication-pipelines.md),
   [ADR 0056](0056-new-construction-promotion-path.md),
@@ -18,8 +19,9 @@ restored the dependency edges the order had been dropping through
 close through the *required* dependency edges — `required_edges` is acyclic
 and every crate orders. It closes only through the *optional* dependency
 edges: `moirai-gpu` optionally depends on `hephaestus-wgpu` and
-`hephaestus-cuda`, which reach `moirai-runtime`, closing a loop that no real
-build ever realizes because the two feature gates are not co-enabled.
+`hephaestus-cuda`, which reach `moirai-runtime`, closing a loop. (That loop
+was a real build cycle and Moirai#501 removed it; the rule below does not
+depend on it.)
 
 The current script returns exit 1 when `unresolved` is non-empty, even when
 the only unresolved SCCs are reachable exclusively through optional edges.
@@ -69,17 +71,14 @@ Three properties make this the right reading:
    equally clean with an optional `kwavers-*-something` dep that does
    not yet exist on crates.io.
 
-2. **The cycle is not a build cycle.** `moirai-gpu`'s GPU feature and
-   `moirai-runtime`'s GPU transport are independently gated: the
-   `wgpu`/`cuda` features are off by default in both crates, and no
-   `cargo build --features <…>` line in any member enables them both
-   in the same compile. The cycle exists only when feature-gated edges
-   are *counted* as ordering constraints; counting them that way
-   produces a graph that no real build realizes. The order printed by
-   the script — 14 waves over 223 packages with 185 publishable — is
-   the order in which every crate *actually* depends on its
-   predecessors, and the only thing standing between that order and
-   a passing first publication is the script's exit code.
+2. **An optional edge orders only the builds that enable it.** Publishing
+   a crate does not require its optional dependencies to be published
+   first, so counting feature-gated edges as publish-order constraints
+   manufactures cycles that publication never meets. Whether a given
+   optional cycle is also a build cycle is a separate defect, handled by
+   the layering rule (a provider must not depend on its consumers, even
+   optionally); the motivating `moirai-gpu` cycle was one, and was removed
+   there.
 
 3. **The required-only graph is acyclic.** `topo_layers` is run twice
    in the script: once on the full edge set (with optional) and once
@@ -160,7 +159,7 @@ fails on) keeps the existing `exit 1` and continues to gate the order.
 ## Verification
 
 The peer-recorded case (`moirai-gpu → hephaestus-wgpu → moirai-runtime`
-via optional edges) was the motivator. After this ADR lands, the
+via optional edges) was the motivator; Moirai#501 has since removed it. After this ADR lands, the
 script accepts the same manifests as today, exits 0, and prints the
 optional-edges cycle as a `CYCLE — no total order, and it closes
 entirely through OPTIONAL dependencies:` block followed by the
