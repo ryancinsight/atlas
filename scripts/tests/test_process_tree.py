@@ -204,7 +204,7 @@ class ProcessTreeTests(unittest.TestCase):
             process_tree.run([sys.executable, "-c", "pass"], timeout=0)
 
     @unittest.skipUnless(os.name == "nt", "Windows Job Object ordering")
-    def test_windows_assigns_job_before_releasing_bootstrap(self):
+    def test_windows_creates_suspended_assigns_job_then_resumes(self):
         events: list[str] = []
 
         class ControlPipe:
@@ -217,7 +217,7 @@ class ProcessTreeTests(unittest.TestCase):
                 self.closed = True
                 events.append("control-close")
 
-        class Bootstrap:
+        class SuspendedProcess:
             pid = 123
             returncode = 0
             stdin = ControlPipe()
@@ -227,16 +227,32 @@ class ProcessTreeTests(unittest.TestCase):
                 events.append("wait")
                 return self.returncode
 
-        bootstrap = Bootstrap()
+        suspended_process = SuspendedProcess()
+
+        def create(command, **options):
+            self.assertEqual(command, ["command"])
+            self.assertEqual(
+                options["creationflags"],
+                process_tree.subprocess.CREATE_NEW_PROCESS_GROUP
+                | process_tree.windows_process.CREATE_SUSPENDED,
+            )
+            self.assertIs(options["stdin"], process_tree.subprocess.PIPE)
+            events.append("created-suspended")
+            return suspended_process
 
         def assign(process):
-            self.assertIs(process, bootstrap)
-            self.assertEqual(events, [])
+            self.assertIs(process, suspended_process)
+            self.assertEqual(events, ["created-suspended"])
             events.append("assigned")
             return 17
 
+        def resume(process):
+            self.assertIs(process, suspended_process)
+            self.assertEqual(events, ["created-suspended", "assigned"])
+            events.append("resumed")
+
         def cleanup(process, job, state):
-            self.assertIs(process, bootstrap)
+            self.assertIs(process, suspended_process)
             self.assertEqual(job, 17)
             state.termination_issued = True
             state.launcher_reaped = True
@@ -244,12 +260,17 @@ class ProcessTreeTests(unittest.TestCase):
             return None
 
         with (
-            patch.object(process_tree.subprocess, "Popen", return_value=bootstrap),
-            patch.object(process_tree, "_create_windows_kill_job", side_effect=assign),
+            patch.object(process_tree.subprocess, "Popen", side_effect=create),
+            patch.object(
+                process_tree.windows_process,
+                "create_kill_job",
+                side_effect=assign,
+            ),
+            patch.object(process_tree.windows_process, "resume", side_effect=resume),
             patch.object(process_tree, "_terminate_process_tree", side_effect=cleanup),
             patch.object(
-                process_tree,
-                "_close_windows_job",
+                process_tree.windows_process,
+                "close_job",
                 side_effect=lambda job: events.append(f"close-job:{job}"),
             ),
         ):
@@ -259,8 +280,9 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(
             events,
             [
+                "created-suspended",
                 "assigned",
-                "write:b'1'",
+                "resumed",
                 "write:b'payload'",
                 "control-close",
                 "wait",
@@ -268,6 +290,42 @@ class ProcessTreeTests(unittest.TestCase):
                 "close-job:17",
             ],
         )
+
+    @unittest.skipUnless(os.name == "nt", "Windows inherited standard input")
+    def test_windows_without_input_inherits_callers_standard_input(self):
+        payload = b"inherited standard input\x00"
+        child = (
+            "import sys; "
+            "sys.stdout.buffer.write(sys.stdin.buffer.read())"
+        )
+        helper = textwrap.dedent(
+            f"""
+            import sys
+            sys.path.insert(0, {str(SCRIPTS)!r})
+            import process_tree
+
+            result = process_tree.run(
+                [sys.executable, "-c", {child!r}], timeout=5
+            )
+            sys.stdout.buffer.write(result.stdout)
+            raise SystemExit(result.returncode)
+            """
+        )
+
+        inherited = subprocess.run(
+            [sys.executable, "-c", helper],
+            input=payload,
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+
+        self.assertEqual(
+            inherited.returncode,
+            0,
+            inherited.stderr.decode(errors="replace"),
+        )
+        self.assertEqual(inherited.stdout, payload)
 
     def test_cleanup_does_not_resignal_after_launcher_reap(self):
         class OwnedLauncher:
@@ -366,7 +424,12 @@ class ProcessTreeTests(unittest.TestCase):
                 "_read_posix_status",
                 side_effect=KeyboardInterrupt(),
             ),
-            patch.object(process_tree.os, "killpg", create=True) as kill_group,
+            patch.object(
+                process_tree.os,
+                "killpg",
+                side_effect=(KeyboardInterrupt(), None),
+                create=True,
+            ) as kill_group,
             patch.object(process_tree.signal, "SIGKILL", 9, create=True),
             patch.object(
                 process_tree,
@@ -378,7 +441,8 @@ class ProcessTreeTests(unittest.TestCase):
                 process_tree.run(["command"], timeout=5)
 
         self.assertEqual(launcher.returncode, -9)
-        kill_group.assert_called_once_with(launcher.pid, 9)
+        self.assertEqual(kill_group.call_count, 2)
+        kill_group.assert_called_with(launcher.pid, 9)
 
     def test_normal_exit_retires_live_descendant(self):
         with tempfile.TemporaryDirectory(prefix="atlas-process-tree-exit-") as directory:

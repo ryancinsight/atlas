@@ -28,6 +28,7 @@ def install_hook(repo: Path) -> None:
     for name in (
         "atlas-stale-side-guard.py", "atlas_stale_side_git.py",
         "atlas_stale_side_basis.py", "atlas_git_process.py", "process_tree.py",
+        "windows_process.py",
         "stale-side-waivers.json",
         "atlas-provider-integration-audit.py", "atlas_stack.py", "check_mdbook_links.py",
     ):

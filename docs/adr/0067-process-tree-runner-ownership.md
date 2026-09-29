@@ -28,8 +28,9 @@ It owns the complete tree from launch through collection:
 - POSIX launches an unreaped supervisor as process-group leader. The supervisor
   reports the command's exit status, then remains alive until group termination,
   so the process-group identifier cannot be reused before cleanup.
-- Windows launches a bootstrap held on a control pipe, assigns it to a
-  kill-on-close Job Object, then releases it to create the requested command.
+- Windows creates the requested root process suspended, assigns it to a
+  kill-on-close Job Object, then resumes its initial thread. An absent input
+  payload leaves standard input inherited from the caller.
 - timeout and cleanup each have finite budgets; interruption before destructive
   cleanup completes is retryable while ownership remains held.
 - status and byte-exact standard streams remain command results, including an
@@ -57,9 +58,10 @@ file, consume a moving branch, publish a package, or call a network endpoint.
 The focused tests in
 [scripts/tests/test_process_tree.py](../../scripts/tests/test_process_tree.py)
 exercise normal return, timeout, live descendants, cleanup interruption, and
-Windows assignment-before-release. Consumer repositories remain responsible for
-their own command budgets and exact Atlas revision validation. Future process
-ownership fixes land once in Atlas and consumers advance their pinned checkout.
+Windows suspended assignment-before-resume. Consumer repositories remain
+responsible for their own command budgets and exact Atlas revision validation.
+Future process ownership fixes land once in Atlas and consumers advance their
+pinned checkout.
 
 Overturn this decision if standard-library primitives cannot preserve tree
 ownership on a supported host, or if several external consumers justify a
