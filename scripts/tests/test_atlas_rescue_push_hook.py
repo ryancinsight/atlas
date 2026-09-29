@@ -85,13 +85,20 @@ class RescueFixture:
 
     @staticmethod
     def run_hook(
-        script: Path, cwd: Path, update: str,
+        script: Path,
+        cwd: Path,
+        update: str,
+        environment: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[bytes]:
+        hook_environment = dict(os.environ)
+        if environment is not None:
+            hook_environment.update(environment)
         return subprocess.run(
             ["bash", str(script)],
             cwd=cwd,
             input=(update + "\n").encode(),
             capture_output=True,
+            env=hook_environment,
         )
 
 
@@ -149,6 +156,10 @@ class RescuePushTests(unittest.TestCase):
                 MEMBER_HOOK,
                 fixture.member,
                 f"HEAD {member_tip} refs/heads/rescue/work {ZERO}",
+                {
+                    "GIT_DIR": str(fixture.member / ".git"),
+                    "GIT_WORK_TREE": str(fixture.member),
+                },
             )
             self.assertEqual(member.returncode, 0, member.stderr.decode())
 

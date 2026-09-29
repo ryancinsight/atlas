@@ -161,7 +161,8 @@ if [ "${ATLAS_RESCUE_MIXED:-0}" != 1 ] && [ "${#push_lines[@]}" -gt 0 ]; then
     rescue_status=0
     outside_checkout git -C "$rescue_stack_root" show \
       "$rescue_stack_ref:scripts/git-hooks/rescue-push" \
-      | bash -s -- "$repo_root" "$rescue_stack_root" "$rescue_stack_ref" \
+      | outside_checkout bash -s -- \
+        "$repo_root" "$rescue_stack_root" "$rescue_stack_ref" \
         "$rescue_allowlist_ref" "${push_lines[@]}" || rescue_status=$?
     [ "$rescue_status" -eq 0 ] && exit 0
     [ "$rescue_status" -eq 3 ] || exit "$rescue_status"
