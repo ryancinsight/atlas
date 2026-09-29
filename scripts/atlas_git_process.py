@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import io
 import os
-import signal
-import subprocess
 import tarfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-CLEANUP_TIMEOUT_SECONDS = 5
+import process_tree
 
 
 class GitProcessError(RuntimeError):
@@ -28,40 +26,6 @@ class GitProcessResult:
     returncode: int
     stdout: bytes
     stderr: bytes
-
-
-def _terminate_process_tree(proc: subprocess.Popen[bytes]) -> None:
-    if os.name == "nt":
-        try:
-            result = subprocess.run(
-                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=CLEANUP_TIMEOUT_SECONDS,
-                check=False,
-            )
-            if result.returncode != 0:
-                try:
-                    proc.kill()
-                except OSError:
-                    pass
-        except (OSError, subprocess.TimeoutExpired):
-            try:
-                proc.kill()
-            except OSError:
-                pass
-    else:
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-    try:
-        proc.communicate(timeout=CLEANUP_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired as exc:
-        proc.kill()
-        raise GitProcessError(
-            "timed-out process tree did not terminate", timed_out=True
-        ) from exc
 
 
 def clean_process_env(env: dict[str, str] | None = None) -> dict[str, str]:
@@ -82,34 +46,30 @@ def execute_process(
 ) -> GitProcessResult:
     """Run a process with a deadline and descendant cleanup."""
     arguments = tuple(command)
-    options: dict[str, object] = {}
-    if os.name == "nt":
-        options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-    else:
-        options["start_new_session"] = True
     environment = clean_process_env(env)
     if env is not None and "GIT_INDEX_FILE" in env:
         environment["GIT_INDEX_FILE"] = env["GIT_INDEX_FILE"]
     try:
-        proc = subprocess.Popen(
+        completed = process_tree.run(
             arguments,
             cwd=cwd,
-            stdin=subprocess.PIPE if stdin is not None else None,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
             env=environment,
-            **options,
+            input=stdin,
+            timeout=timeout,
         )
-        stdout, stderr = proc.communicate(input=stdin, timeout=timeout)
-    except subprocess.TimeoutExpired as exc:
-        _terminate_process_tree(proc)
+    except process_tree.ProcessTreeTimeout as exc:
         raise GitProcessError(
             f"process timed out after {timeout}s: {' '.join(arguments)}",
             timed_out=True,
         ) from exc
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         raise GitProcessError(f"cannot run {arguments[0]}: {exc}") from exc
-    return GitProcessResult(arguments, proc.returncode, stdout, stderr)
+    return GitProcessResult(
+        arguments,
+        completed.returncode,
+        completed.stdout,
+        completed.stderr,
+    )
 
 
 def execute(
