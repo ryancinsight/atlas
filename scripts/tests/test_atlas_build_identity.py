@@ -1417,6 +1417,18 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertNotEqual(first.environment_digest, second.environment_digest)
 
+    def test_a_cargo_alias_environment_variable_changes_the_digest(self) -> None:
+        # A `[alias]` table entry set as `CARGO_ALIAS_<NAME>` env can itself
+        # carry compile-affecting flags (e.g. an alias that bakes in
+        # `--config build.rustflags=[...]`); it must not be invisible to
+        # this digest merely because it is not one of the fixed variables or
+        # the other prefixes.
+        base = build_source.environment_digest({})
+        changed = build_source.environment_digest(
+            {"CARGO_ALIAS_CLIPPY": 'check --config build.rustflags=["--cfg", "foo"]'}
+        )
+        self.assertNotEqual(base, changed)
+
     def test_cargo_build_prefixed_rustdoc_inputs_are_also_excluded(self) -> None:
         # `CARGO_BUILD_RUSTDOCFLAGS`/`CARGO_BUILD_RUSTDOC` are the
         # `CARGO_BUILD_*`-prefixed spellings of the rustdoc-only inputs
@@ -1540,14 +1552,18 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertNotEqual(first, second)
 
     def test_a_config_tomllib_cannot_parse_fails_closed(self) -> None:
-        # Cargo's TOML grammar is looser than `tomllib`'s strict TOML 1.0:
-        # it accepts a trailing comma after an inline table's last element
-        # and an inline table split across lines, both of which `tomllib`
-        # rejects. Silently returning on that parse failure would under-hash
-        # a config whose `include` this digest can no longer see; it must
-        # instead fail closed by raising, naming the offending file, so the
-        # gap is surfaced as an environment failure rather than a silent
-        # staleness hole.
+        # Cargo's TOML grammar is looser than `tomllib`'s strict TOML 1.0 in
+        # several ways -- a trailing comma after an inline table's last
+        # element, an inline table split across lines, and the TOML 1.1
+        # string escapes `\e`/`\xHH` are all accepted by Cargo and rejected
+        # by `tomllib`. Silently returning on that parse failure would
+        # under-hash a config whose `include` this digest can no longer see;
+        # it must instead fail closed by raising, naming the offending file.
+        # The pre-push hook's `classify_gate_step` routes the raised
+        # `atlas-build-identity:`-prefixed error through its *identity*
+        # branch ("source identity blocked ... no artifact was accepted"),
+        # never its *environment* branch -- the two are classified
+        # differently and this is not the latter.
         for label, text in (
             ("trailing comma", b'include = [{ path = "extra.toml", },]\n'),
             (
@@ -1561,9 +1577,11 @@ class BuildIdentityTestCase(unittest.TestCase):
                 (execution_root / ".cargo" / "extra.toml").write_text(
                     "[profile.dev]\nopt-level = 0\n", encoding="utf-8"
                 )
-                (execution_root / ".cargo" / "config.toml").write_bytes(text)
-                with self.assertRaises(identity.IdentityError):
+                config_path = execution_root / ".cargo" / "config.toml"
+                config_path.write_bytes(text)
+                with self.assertRaises(identity.IdentityError) as raised:
                     build_source.cargo_config_digest(execution_root)
+                self.assertIn(str(config_path), str(raised.exception))
 
     def test_an_inline_env_cargo_home_is_used_for_the_home_config(self) -> None:
         # `env CARGO_HOME=<h> cargo ...` changes which `config.toml` Cargo
@@ -1595,17 +1613,34 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_an_included_config_cycle_does_not_hang(self) -> None:
         # An included file naming its own includer, directly or through a
-        # chain, must not recurse forever.
+        # chain, must not recurse forever. `seen` also guards the digest
+        # itself: the second time `config.toml` is reached (through the
+        # cycle back from `b.toml`), its content must contribute a `seen`
+        # marker, not its bytes again -- the content is hashed exactly once
+        # per file regardless of how many times the walk reaches it.
         execution_root = self.base / "execution-cycle"
         (execution_root / ".cargo").mkdir(parents=True)
-        (execution_root / ".cargo" / "config.toml").write_text(
-            'include = ["b.toml"]\n', encoding="utf-8"
+        # `newline=""` (not the default `write_text`) so the bytes on disk
+        # are exactly `config_bytes` on every platform -- this test compares
+        # raw bytes fed to the digest, and Windows' universal-newline
+        # translation would otherwise turn `\n` into `\r\n` on write,
+        # silently breaking the byte-for-byte comparison below.
+        config_bytes = b'include = ["b.toml"]\n'
+        (execution_root / ".cargo" / "config.toml").write_bytes(config_bytes)
+        (execution_root / ".cargo" / "b.toml").write_bytes(
+            b'include = ["config.toml"]\n'
         )
-        (execution_root / ".cargo" / "b.toml").write_text(
-            'include = ["config.toml"]\n', encoding="utf-8"
-        )
-        digest = build_source.cargo_config_digest(execution_root)
+        fed: list[bytes] = []
+        original = build_source._feed_framed
+
+        def spy(digest: object, chunk: bytes) -> None:
+            fed.append(bytes(chunk))
+            original(digest, chunk)
+
+        with patch.object(build_source, "_feed_framed", side_effect=spy):
+            digest = build_source.cargo_config_digest(execution_root)
         self.assertEqual(len(digest), 64)
+        self.assertEqual(fed.count(config_bytes), 1)
 
     def test_source_changes_during_build_are_not_recorded(self) -> None:
         init_repo(self.root, "fn main() {}\n")
