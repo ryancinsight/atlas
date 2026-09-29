@@ -2783,12 +2783,43 @@ class CitationResolutionTests(unittest.TestCase):
             conformance.board_lint.resolve_hashes({trunk[:9]}, stores)
 
     def test_an_unreadable_store_stops_the_scan(self) -> None:
+        # The store must be one git genuinely cannot list refs in, or the guard
+        # is not exercised. Two earlier attempts did not:
+        #
+        #  - corrupting `.git/HEAD` -- `for-each-ref` reads refs directly and
+        #    tolerates a malformed `HEAD`, so it returned 0 and listed
+        #    `refs/heads/main` anyway; the scan correctly resolved the citation
+        #    and raised nothing, and the test failed against a green
+        #    implementation. That is the shape that teaches a reader to
+        #    distrust a test.
+        #  - pointing at a directory that is not a repository -- on this
+        #    platform `for-each-ref` returns 0 with empty output there, and
+        #    inside a repository it walks up and finds the enclosing one.
+        #
+        # What `object_stores` can actually return, and what the guard
+        # therefore defends, is a store that *was* a checkout when the list was
+        # built and is not one by the time the walk runs: a member removed or
+        # renamed mid-scan. Removing the path is the shape that reproduces it,
+        # because a missing path is the one case git reports a non-zero exit
+        # for.
+        #
+        # Without the guard, every citation into that store counts as
+        # unresolved and gets blamed on whichever push ran next.
         self._git(self.root, "init", "-q", "-b", "main")
         trunk = self._commit(self.root, "README.md", "root\n")
-        (self.root / ".git" / "HEAD").write_text("garbage\n")
-        stores = [self.root]
-        with self.assertRaisesRegex(RuntimeError, "cannot list refs"):
-            conformance.board_lint.resolve_hashes({trunk[:9]}, stores)
+        with tempfile.TemporaryDirectory(prefix="atlas-store-then-gone-") as outside:
+            # Never created: this is the state `object_stores` can hand the
+            # walk when a member is removed or renamed between listing the
+            # stores and walking them, which is the only failure the guard can
+            # actually see. Creating the repository and then deleting it would
+            # be the same state, and on Windows deleting a `.git` directory
+            # fails outright on its read-only object files -- so the honest
+            # construction is a path that was never there. It is also the
+            # one case git reports a non-zero exit for, which is what the guard
+            # keys on.
+            gone = Path(outside) / "member-removed-mid-scan"
+            with self.assertRaisesRegex(RuntimeError, "cannot list refs"):
+                conformance.board_lint.resolve_hashes({trunk[:9]}, [gone])
 
     def test_an_unwalkable_history_stops_the_scan(self) -> None:
         self._git(self.root, "init", "-q", "-b", "main")
