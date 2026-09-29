@@ -35,6 +35,7 @@ import atlas_build_source as build_source
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
+    BuildIdentityError,
     LeaseHeldError,
     OwnerLease,
     acquire_waiting,
@@ -2091,6 +2092,415 @@ def _clear_readonly_tree(path: Path) -> None:
         for name in (root, *(os.path.join(root, entry) for entry in dirs + files)):
             os.chmod(name, 0o700)
     shutil.rmtree(path)
+
+
+# Run as the build command: records how each named lease answers a request
+# from another process while run_build holds its leases around the command.
+LEASE_PROBE = (
+    "import json, sys\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from atlas_build_lease import LeaseHeldError, OwnerLease\n"
+    "answers = {}\n"
+    "for name, lock, mode in json.loads(sys.argv[3]):\n"
+    "    lease = OwnerLease(Path(lock), {'root': 'probe', 'revision': 'r'}, 60, mode=mode)\n"
+    "    try:\n"
+    "        lease.__enter__()\n"
+    "    except LeaseHeldError:\n"
+    "        answers[f'{name}:{mode}'] = 'refused'\n"
+    "        continue\n"
+    "    lease.__exit__(None, None, None)\n"
+    "    answers[f'{name}:{mode}'] = 'granted'\n"
+    "Path(sys.argv[2]).write_text(json.dumps(answers, sort_keys=True), encoding='utf-8')\n"
+)
+
+
+# Asks for the exclusive lock and blocks until the kernel grants it, then
+# reports whether the holder had already marked its release.
+BLOCKED_WRITER = (
+    "import os, sys\n"
+    "from pathlib import Path\n"
+    "handle = open(sys.argv[1], 'r+b')\n"
+    "if os.name == 'nt':\n"
+    "    import ctypes, msvcrt\n"
+    "    from ctypes import wintypes\n"
+    "    class Overlapped(ctypes.Structure):\n"
+    "        _fields_ = [('Internal', ctypes.c_void_p), ('InternalHigh', ctypes.c_void_p),\n"
+    "                    ('Offset', wintypes.DWORD), ('OffsetHigh', wintypes.DWORD),\n"
+    "                    ('hEvent', wintypes.HANDLE)]\n"
+    "    kernel = ctypes.WinDLL('kernel32', use_last_error=True)\n"
+    "    overlapped = Overlapped()\n"
+    "    assert kernel.LockFileEx(wintypes.HANDLE(msvcrt.get_osfhandle(handle.fileno())),\n"
+    "                             2, 0, 1, 0, ctypes.byref(overlapped))\n"
+    "else:\n"
+    "    import fcntl\n"
+    "    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)\n"
+    "print('after release' if Path(sys.argv[2]).exists() else 'while held', flush=True)\n"
+)
+
+
+class LeaseDowngradeTestCase(unittest.TestCase):
+    """A held exclusive lease becomes shared without leaving its place in the queue."""
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-lease-downgrade-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.lock = self.base / "scope" / "scope.lock"
+        self.lock.parent.mkdir(parents=True)
+
+    def hold(self) -> OwnerLease:
+        holder = acquire_waiting(
+            OwnerLease(self.lock, {"root": "holder", "revision": "r"}, 60, mode=EXCLUSIVE), 60
+        )
+        self.addCleanup(holder.__exit__, None, None, None)
+        return holder
+
+    def test_the_downgrade_never_frees_the_lease(self) -> None:
+        # A writer without a ticket blocks in the kernel for the exclusive
+        # lock: the kernel grants it at the first instant the lease is free,
+        # so it must find the holder's release marker already written.
+        holder = self.hold()
+        released = self.base / "released"
+        prober = subprocess.Popen(
+            [sys.executable, "-c", BLOCKED_WRITER, str(self.lock), str(released)],
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        self.addCleanup(prober.kill)
+        # Let the writer reach its blocking request; one that has not yet
+        # made it only lowers this test's power, never its verdict.
+        time.sleep(0.5)
+        holder.downgrade()
+        time.sleep(0.2)
+        released.write_text("", encoding="utf-8")
+        holder.__exit__(None, None, None)
+        output, _ = prober.communicate(timeout=30)
+        self.assertEqual(output.strip(), "after release")
+
+    def test_a_collected_ticket_is_filed_again_before_the_conversion(self) -> None:
+        # The ticket is what makes a POSIX racer back off, so one a peer's
+        # collection removed is filed again before the lock converts.
+        holder = self.hold()
+        original = holder.ticket.path
+        names = queue_module._names
+        asked = []
+
+        def collected_once(path, handle) -> bool:
+            if not asked:
+                asked.append(path)
+                return False
+            return names(path, handle)
+
+        converted_under = []
+
+        def converting(handle) -> None:
+            converted_under.append(holder.ticket.path)
+            lock_module._downgrade(handle)
+
+        with (
+            patch.object(queue_module, "_names", side_effect=collected_once),
+            patch.object(lease_module, "_downgrade", side_effect=converting),
+        ):
+            holder.downgrade()
+        self.assertEqual(asked, [original])
+        self.assertEqual(len(converted_under), 1)
+        self.assertNotEqual(converted_under[0], original)
+        self.assertIn("-x-", converted_under[0].name)
+
+    def test_a_failed_conversion_holds_and_reports_nothing(self) -> None:
+        holder = self.hold()
+        with patch.object(
+            lease_module, "_downgrade", side_effect=BuildIdentityError("lost the lease")
+        ):
+            with self.assertRaises(BuildIdentityError):
+                holder.downgrade()
+        self.assertEqual((holder.held, holder.handle), (False, None))
+        holder.__exit__(None, None, None)
+        taker = acquire_waiting(
+            OwnerLease(self.lock, {"root": "next", "revision": "r"}, 60, mode=EXCLUSIVE), 0
+        )
+        self.addCleanup(taker.__exit__, None, None, None)
+        self.assertTrue(taker.held)
+
+    def test_a_downgraded_lease_admits_readers_and_still_excludes_writers(self) -> None:
+        holder = self.hold()
+        self.assertEqual(request(self.lock, SHARED), "refused")
+        holder.downgrade()
+        self.assertEqual(holder.mode, SHARED)
+        self.assertEqual(request(self.lock, SHARED), "granted")
+        self.assertEqual(request(self.lock, EXCLUSIVE), "refused")
+        holder.__exit__(None, None, None)
+        self.assertEqual(request(self.lock, EXCLUSIVE), "granted")
+
+    def test_a_writer_queued_before_the_downgrade_stays_behind_the_holder(self) -> None:
+        holder = self.hold()
+        writer = OwnerLease(self.lock, {"root": "writer", "revision": "r"}, 60, mode=EXCLUSIVE)
+        self.addCleanup(writer.__exit__, None, None, None)
+        with self.assertRaises(LeaseHeldError):
+            writer.attempt()
+        holder.downgrade()
+        with self.assertRaises(LeaseHeldError):
+            writer.attempt()
+        # A reader arriving after the queued writer waits behind it.
+        self.assertEqual(request(self.lock, SHARED), "refused")
+        holder.__exit__(None, None, None)
+        self.assertIs(writer.attempt(), writer)
+        self.assertTrue(writer.held)
+
+    def test_a_shared_lease_is_left_as_it_is(self) -> None:
+        reader = acquire_waiting(
+            OwnerLease(self.lock, {"root": "reader", "revision": "r"}, 60, mode=SHARED), 60
+        )
+        self.addCleanup(reader.__exit__, None, None, None)
+        ticket = reader.ticket
+        reader.downgrade()
+        self.assertIs(reader.ticket, ticket)
+        self.assertEqual(request(self.lock, SHARED), "granted")
+
+
+class CommandLeaseModeTestCase(unittest.TestCase):
+    """Which scopes run_build holds exclusive while the build command runs."""
+
+    PACKAGES = ("demo", "dep", "dep2")
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-command-lease-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.root = self.base / "source"
+        self.target = self.base / "shared-target"
+        deps = self.target / "debug" / "deps"
+        deps.mkdir(parents=True)
+        self.artifacts = {name: deps / f"lib{name}-abcdef.rlib" for name in self.PACKAGES}
+        for name, path in self.artifacts.items():
+            path.write_text(name, encoding="utf-8")
+        self.answers = self.base / "answers.json"
+        self.probe = self.base / "probe.py"
+        self.clean = self.base / "clean.py"
+        write_script(self.probe, LEASE_PROBE)
+        write_script(
+            self.clean,
+            "import os\n"
+            "from pathlib import Path\n"
+            "Path(os.environ['ARTIFACT']).write_text('rebuilt', encoding='utf-8')\n"
+            "if os.environ.get('RETIRE'):\n"
+            "    Path(os.environ['RETIRE']).unlink()\n"
+            "    Path(os.environ['REPLACEMENT']).write_text('renamed', encoding='utf-8')\n",
+        )
+        init_repo(self.root, "fn main() {}\n")
+
+    def build(
+        self,
+        command_key: str,
+        *,
+        declared: bool = True,
+        clean_command: list[str] | None = None,
+        unreadable: Path | None = None,
+        torn_first_read: bool = False,
+    ) -> dict[str, str]:
+        """Run one gate step whose command asks for each lease; return the answers.
+
+        `declared` passes the root artifact as the record's only path; without
+        it the closure's artifacts are found by `discover_artifacts`.
+        `unreadable` names a file every hash of which fails once the command
+        has run, as a Windows reader sees one a peer's rustc holds open for
+        writing. `torn_first_read` makes the shared first read of the record's
+        artifacts see a peer's rewrite in flight, so the run retakes its leases
+        exclusive and reads again.
+        """
+        requests = [
+            [name, str(package_target_lease_path(name, self.target)), SHARED]
+            for name in self.PACKAGES
+        ]
+        requests.append(["dep", str(package_target_lease_path("dep", self.target)), EXCLUSIVE])
+        snapshot = {
+            "root": "demo",
+            "packages": [],
+            "edges": [],
+            "clean_packages": list(self.PACKAGES),
+            "digest": "closure",
+        }
+        owners = {name: frozenset({name}) for name in self.PACKAGES}
+        file_digest = artifacts._file_digest
+
+        def digest(path: Path) -> str:
+            if unreadable is not None and Path(path) == unreadable and self.answers.exists():
+                raise identity.BuildIdentityError(f"cannot hash artifact {path}: Permission denied")
+            return file_digest(path)
+
+        recorded_artifact = identity._recorded_artifact
+        reads = []
+
+        def artifact_read(existing, target_dir, paths):
+            reads.append(None)
+            if torn_first_read and len(reads) == 1:
+                return {"files": {}, "digest": "torn"}
+            return recorded_artifact(existing, target_dir, paths)
+
+        self.answers.unlink(missing_ok=True)
+        with (
+            patch.object(identity, "_recorded_artifact", side_effect=artifact_read),
+            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.object(identity, "_dependency_data", return_value=snapshot),
+            patch.object(artifacts, "_workspace_artifact_owners", return_value=owners),
+            patch.object(artifacts, "_file_digest", side_effect=digest),
+            patch.object(identity, "_cargo_command", return_value=(sys.executable, str(self.clean))),
+            patch.dict(os.environ, {"ARTIFACT": str(self.artifacts["demo"])}),
+        ):
+            self.result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                "demo",
+                self.target,
+                [
+                    sys.executable,
+                    str(self.probe),
+                    str(SCRIPT.parent),
+                    str(self.answers),
+                    json.dumps(requests),
+                ],
+                artifact_paths=[self.artifacts["demo"]] if declared else [],
+                clean_command=clean_command,
+                command_key=command_key,
+                lease_wait_seconds=0,
+            )
+        return json.loads(self.answers.read_text(encoding="utf-8"))
+
+    def recorded(self) -> dict[str, str]:
+        record = json.loads(self.result.record_path.read_text(encoding="utf-8"))
+        return {
+            relative.rsplit("/", 1)[-1]: digest
+            for relative, digest in record["artifact"]["files"].items()
+        }
+
+    def test_cleaned_dependencies_stay_exclusive_through_the_command(self) -> None:
+        # No record and no sibling: the whole closure is cleaned and rebuilt.
+        self.assertEqual(
+            self.build("clippy", declared=False),
+            {
+                "demo:shared": "refused",
+                "dep2:shared": "refused",
+                "dep:exclusive": "refused",
+                "dep:shared": "refused",
+            },
+        )
+
+    def test_a_custom_clean_keeps_every_scope_exclusive(self) -> None:
+        # What a custom clean deletes is unknown, so nothing is only read.
+        self.build("clippy", declared=False)
+        self.assertEqual(
+            self.build(
+                "nextest",
+                declared=False,
+                clean_command=[sys.executable, str(self.clean)],
+            )["dep:shared"],
+            "granted",
+        )
+        self.artifacts["dep"].write_text("changed", encoding="utf-8")
+        self.assertEqual(
+            self.build(
+                "nextest",
+                declared=False,
+                clean_command=[sys.executable, str(self.clean)],
+            ),
+            {
+                "demo:shared": "refused",
+                "dep2:shared": "refused",
+                "dep:exclusive": "refused",
+                "dep:shared": "refused",
+            },
+        )
+
+    def test_uncleaned_dependencies_are_shared_while_the_command_runs(self) -> None:
+        self.build("clippy", declared=False)
+        # A second step's key has no record of its own but a matching sibling:
+        # it cleans nothing, so only its own package stays exclusive.
+        self.assertEqual(
+            self.build("nextest", declared=False),
+            {
+                "demo:shared": "refused",
+                "dep2:shared": "granted",
+                "dep:exclusive": "refused",
+                "dep:shared": "granted",
+            },
+        )
+
+    def test_an_exact_match_after_the_exclusive_retake_shares_the_dependencies(self) -> None:
+        # The shared read caught a peer mid-rewrite; the exclusive retake finds
+        # the record matching, so nothing is cleaned and the rest is only read.
+        self.build("clippy", declared=False)
+        self.assertEqual(
+            self.build("clippy", declared=False, torn_first_read=True),
+            {
+                "demo:shared": "refused",
+                "dep2:shared": "granted",
+                "dep:exclusive": "refused",
+                "dep:shared": "granted",
+            },
+        )
+        self.assertEqual(self.result.status, "reused")
+
+    def test_declared_artifact_paths_keep_every_scope_exclusive(self) -> None:
+        # A record of declared paths names none of the closure's files, so a
+        # sibling of it cannot name what the shared packages hold.
+        self.build("clippy")
+        self.assertEqual(self.build("nextest")["dep:shared"], "refused")
+
+    def test_a_narrowed_clean_shares_the_packages_it_left_alone(self) -> None:
+        self.build("clippy", declared=False)
+        # Only dep2's bytes changed, so only dep2 is cleaned and rebuilt.
+        self.artifacts["dep2"].write_text("changed", encoding="utf-8")
+        self.assertEqual(
+            self.build("clippy", declared=False),
+            {
+                "demo:shared": "refused",
+                "dep2:shared": "refused",
+                "dep:exclusive": "refused",
+                "dep:shared": "granted",
+            },
+        )
+
+    def test_a_narrowed_rebuild_records_its_new_names_only(self) -> None:
+        self.build("clippy", declared=False)
+        self.artifacts["dep2"].write_text("changed", encoding="utf-8")
+        replacement = self.artifacts["dep2"].with_name("libdep2-fedcba.rlib")
+        with patch.dict(
+            os.environ,
+            {"RETIRE": str(self.artifacts["dep2"]), "REPLACEMENT": str(replacement)},
+        ):
+            self.build("clippy", declared=False)
+        self.assertEqual(
+            sorted(self.recorded()),
+            ["libdemo-abcdef.rlib", "libdep-abcdef.rlib", "libdep2-fedcba.rlib"],
+        )
+
+    def test_a_sibling_naming_a_retired_file_keeps_the_closure_exclusive(self) -> None:
+        # A peer's clean and rebuild of dep under another variant retired the
+        # name the sibling lists, so the sibling cannot name dep's files.
+        self.build("clippy", declared=False)
+        replacement = self.artifacts["dep"].with_name("libdep-111111.rlib")
+        self.artifacts["dep"].unlink()
+        replacement.write_text("variant", encoding="utf-8")
+        self.assertEqual(self.build("nextest", declared=False)["dep:shared"], "refused")
+        self.assertEqual(
+            sorted(self.recorded()),
+            ["libdemo-abcdef.rlib", "libdep-111111.rlib", "libdep2-abcdef.rlib"],
+        )
+
+    def test_a_shared_dependency_a_peer_is_writing_keeps_its_recorded_digest(self) -> None:
+        # A peer admitted to dep's shared lease rewrites libdep while this
+        # run records: dep is found by the sibling's name and keeps the
+        # sibling's digest, and the run completes instead of failing.
+        self.build("clippy", declared=False)
+        sibling = self.recorded()
+        self.build("nextest", declared=False, unreadable=self.artifacts["dep"])
+        self.assertEqual(self.result.status, "reused")
+        self.assertEqual(self.recorded()["libdep-abcdef.rlib"], sibling["libdep-abcdef.rlib"])
+        self.assertEqual(
+            self.recorded()["libdep2-abcdef.rlib"],
+            hashlib.sha256(b"dep2").hexdigest(),
+        )
 
 
 @pytest.mark.slow

@@ -110,6 +110,27 @@ def _unlock(handle: Any) -> None:
     fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
+def _downgrade(handle: Any) -> None:
+    """Hold `handle`'s exclusive lock on byte 0 as shared from now on.
+
+    Windows adds a shared lock over the exclusive one and unlocks once:
+    `LockFileEx` lets a shared lock overlap an exclusive lock taken through
+    the same handle, and the first unlock releases the exclusive one, so the
+    byte is never unlocked. `flock` may convert by unlocking and then
+    locking, so on POSIX another process can take the lock in between; that
+    one attempt failing raises holding nothing, never retries: a retry that
+    succeeded later could not tell whether the taker had cleaned the scope
+    meanwhile.
+    """
+    if os.name == "nt":
+        if not _try_lock(handle, SHARED):
+            raise BuildIdentityError("cannot add a shared lock over the held exclusive lock")
+        _unlock(handle)
+        return
+    if not _try_lock(handle, SHARED):
+        raise BuildIdentityError("lost the lease while converting it to shared")
+
+
 def _open_lease(path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o644)

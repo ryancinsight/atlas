@@ -16,6 +16,8 @@ from typing import Sequence
 from atlas_build_artifacts import (
     artifact_digest,
     artifact_identity,
+    artifact_owners,
+    artifact_package,
     changed_packages,
     dependency_snapshot,
     discover_artifacts,
@@ -297,18 +299,26 @@ def record_path(spec: BuildSpec) -> Path:
     return Path(spec.target_dir) / ".atlas" / "source-identity" / f"{_spec_key(spec)}.json"
 
 
-def _sibling_matches(spec: BuildSpec) -> bool:
+def _sibling_record(spec: BuildSpec) -> dict[str, object] | None:
+    """A record of the same build and source under another command key.
+
+    Its artifact names cover the dependency closure this run reads, so a run
+    that holds the dependencies shared hashes them by those names.
+    """
     build = spec.as_dict()
     build.pop("command_key")
     directory = record_path(spec).parent
     if not directory.is_dir():
-        return False
+        return None
     for candidate in directory.glob("*.json"):
         try:
             record = read_record(candidate)
         except IdentityError:
             continue
         if record is None:
+            continue
+        artifact = record.get("artifact")
+        if not isinstance(artifact, dict) or not isinstance(artifact.get("files"), dict):
             continue
         other = record.get("build")
         if not isinstance(other, dict):
@@ -318,8 +328,8 @@ def _sibling_matches(spec: BuildSpec) -> bool:
         if _content(other) == _content(build) and _content(record.get("source")) == _content(
             spec.source.as_dict()
         ):
-            return True
-    return False
+            return record
+    return None
 
 
 def _recorded_artifact(
@@ -487,23 +497,26 @@ def run_build(
     scopes = package_target_lease_scopes(
         spec.package, target_dir, spec.source.root, spec.source.revision, clean_packages
     )
-    # One bound for the whole run, across every lease and both phases.
+    # One bound for acquiring every lease, across both phases.
     deadline_ns = time.monotonic_ns() + int(lease_wait_seconds * 1_000_000_000)
+
+    held: list[OwnerLease] = []
 
     def acquire(exclusive: bool) -> ExitStack:
         # The command writes its own package; dependencies are only read
         # unless the record shows the run must clean or rebuild them.
         stack = ExitStack()
+        held.clear()
         try:
             for lock, owner in scopes:
                 mode = EXCLUSIVE if exclusive or owner["package"] == spec.package else SHARED
-                stack.push(
-                    acquire_waiting(
-                        OwnerLease(lock, owner, lease_seconds, mode),
-                        lease_wait_seconds,
-                        deadline_ns,
-                    )
+                lease = acquire_waiting(
+                    OwnerLease(lock, owner, lease_seconds, mode),
+                    lease_wait_seconds,
+                    deadline_ns,
                 )
+                stack.push(lease)
+                held.append(lease)
         except BaseException:
             stack.close()
             raise
@@ -548,7 +561,17 @@ def run_build(
             shared.close()
             leases.enter_context(acquire(exclusive=True))
             existing, matched, current = locked_record()
-        stale = not matched and (existing is not None or not _sibling_matches(spec))
+        sibling = None if matched or existing is not None else _sibling_record(spec)
+        stale = not matched and (existing is not None or sibling is None)
+        # The packages the clean left for the command to rebuild, and the
+        # closure's files as read under this run's leases, by the names a
+        # record lists. A stale run has neither a match nor a sibling, so
+        # only a narrowed clean names them; a sibling whose files cannot all
+        # be read names none. Without them every scope stays exclusive.
+        rebuilt: tuple[str, ...] = ()
+        named = current if matched else None
+        if sibling is not None:
+            named = _recorded_artifact(sibling, target_dir, ())
         if stale:
             if clean_command is not None:
                 _run_checked(clean_command, execution_root, environment)
@@ -571,6 +594,7 @@ def run_build(
                     )
                     if narrowed:
                         targets = tuple(sorted(narrowed))
+                        named = current
                 # One invocation for the whole closure: each `cargo clean`
                 # walks the entire shared target whatever it deletes, so one
                 # call per package held the closure's exclusive leases for
@@ -592,7 +616,22 @@ def run_build(
                     execution_root,
                     environment,
                 )
+                rebuilt = targets
             cleaned = True
+        # The packages whose artifacts this run writes and discovers afresh.
+        fresh = {spec.package, *rebuilt}
+        downgraded = False
+        if named is not None and not artifact_paths:
+            # The command rebuilds what was cleaned, so those scopes stay
+            # exclusive; every other scope is only read from here on, as on a
+            # matched run, and peers sharing it enter while the command runs.
+            # The downgrade keeps each lease's place in the queue, so no
+            # writer queued meanwhile can clean between the clean and the
+            # command.
+            for lease in held:
+                if lease.owner["package"] not in fresh and lease.mode == EXCLUSIVE:
+                    lease.downgrade()
+                    downgraded = True
         _run_checked(command, execution_root, environment)
         final_source = source_identity(root, (target_dir,), ignore_paths)
         if final_source.as_dict() != spec.source.as_dict():
@@ -602,25 +641,38 @@ def run_build(
         )
         if final_dependencies != dependencies:
             raise IdentityError("dependency graph changed while the build was running")
-        if matched and not artifact_paths:
-            # The command rebuilt dependency files in place (a fresh export
-            # has fresh mtimes, and rustc embeds its path in the bytes), so
-            # every file the record names is hashed again once two reads
-            # agree. Another reader's Cargo may be rewriting one: a file that
-            # never settles is recorded unverified, and one that cannot be
-            # read at all keeps its pre-command digest. Only the package held
-            # exclusive is discovered afresh.
+        if (matched or downgraded) and not artifact_paths:
+            # Peers read, and their Cargo may rewrite, every package this run
+            # holds shared, so those are found by the names `named` lists,
+            # never by discovery, and each is hashed again once two reads
+            # agree: the command rebuilt them in place (a fresh export has
+            # fresh mtimes, and rustc embeds its path in the bytes). A file
+            # that never settles is recorded unverified, and one that cannot
+            # be read at all keeps its digest read before the command. Only
+            # the packages held exclusive are discovered afresh, and their
+            # recorded names are dropped, so a name their rebuild retired is
+            # not kept.
+            owners = artifact_owners(manifest, execution_root)
             own = recorded_artifact_identity(
                 target_dir,
                 [
                     path.relative_to(target_dir).as_posix()
                     for path in discover_artifacts(
-                        target_dir, package, profile, target, manifest, execution_root
+                        target_dir,
+                        package,
+                        profile,
+                        target,
+                        manifest,
+                        execution_root,
+                        tuple(sorted(fresh)),
+                        owners,
                     )
                 ],
             )
             files = {}
-            for relative, verified in existing["artifact"]["files"].items():
+            for relative, verified in named["files"].items():
+                if artifact_package(relative, owners) in fresh:
+                    continue
                 # Each file gets up to SETTLE_SECONDS, never past the run's
                 # wait deadline; at least two reads are always attempted.
                 budget = min(time.monotonic_ns() + int(SETTLE_SECONDS * 1_000_000_000), deadline_ns)
@@ -629,6 +681,8 @@ def run_build(
             files.update(own["files"])
             artifact = {"files": files, "digest": artifact_digest(files)}
         else:
+            # Declared paths are hashed as named; otherwise every scope is
+            # still exclusive, so the closure is discovered.
             artifact = artifact_identity(
                 root,
                 target_dir,

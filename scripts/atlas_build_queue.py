@@ -110,9 +110,7 @@ class Ticket:
         earlier exclusive requests only: readers that arrived together share,
         and a waiting writer holds back every later reader.
         """
-        if not _names(self.path, self.handle):
-            _release(self.handle, locked=True)
-            self._create()
+        self.refile()
         blockers = []
         for other in sorted(self.directory.glob("*.ticket")):
             if other == self.path or not _ticket_is_live(other):
@@ -122,6 +120,29 @@ class Ticket:
             ):
                 blockers.append(other)
         return blockers
+
+    def refile(self) -> None:
+        """Re-create this ticket, with its arrival, if a peer's collection removed it."""
+        if not _names(self.path, self.handle):
+            _release(self.handle, locked=True)
+            self._create()
+
+    def downgrade(self) -> None:
+        """Re-file this request as shared, keeping its arrival and so its place.
+
+        The shared ticket is created before the exclusive one is removed, so
+        a later request always sees an earlier ticket of this requester.
+        """
+        if self.mode == SHARED:
+            return
+        previous_path, previous_handle = self.path, self.handle
+        self.mode = SHARED
+        self.record = {**self.record, "mode": SHARED}
+        self._create()
+        try:
+            _release(previous_handle, locked=True)
+        finally:
+            _unlink(previous_path, _UNLINK_ATTEMPTS)
 
     def close(self) -> None:
         try:
