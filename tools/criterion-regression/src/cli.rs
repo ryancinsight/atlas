@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use atlas_criterion_gate::budget::{Mode, PreparedTarget, TargetSource};
+use atlas_criterion_gate::budget::{CriterionRun, Mode, PreparedTarget, TargetSource};
 
 const USAGE: &str = "\
 usage:
@@ -18,6 +18,8 @@ usage:
     --manifest-path <Cargo.toml> --mode <smoke|timing|examples> \
     [--bound-seconds <n>] [--skip <target>]...
     [--executable <path> --package <name> --target <name>]
+    [--save-baseline <name> | --baseline <name>] \
+    [--confidence-level <0..1>]
 
 Computes the family-wise confidence requirement, evaluates phase-reversed,
 counterbalanced Criterion relative-change confidence intervals, or enforces
@@ -42,6 +44,7 @@ pub(super) enum Command {
         manifest_path: PathBuf,
         mode: Mode,
         bound: Duration,
+        criterion_run: CriterionRun,
         source: TargetSource,
     },
 }
@@ -54,6 +57,8 @@ struct Flags {
     second_baseline_first_root: Option<PathBuf>,
     second_candidate_first_root: Option<PathBuf>,
     baseline: Option<String>,
+    save_baseline: Option<String>,
+    confidence_level: Option<String>,
     manifest_path: Option<PathBuf>,
     mode: Option<Mode>,
     bound_seconds: Option<u64>,
@@ -95,6 +100,12 @@ fn collect_flags(arguments: &[OsString]) -> Result<Flags, String> {
                 flags.second_candidate_first_root = Some(PathBuf::from(value));
             }
             "--baseline" => flags.baseline = Some(text("baseline name")?),
+            "--save-baseline" => {
+                flags.save_baseline = Some(text("baseline name")?);
+            }
+            "--confidence-level" => {
+                flags.confidence_level = Some(text("confidence level")?);
+            }
             "--manifest-path" => flags.manifest_path = Some(PathBuf::from(value)),
             "--mode" => flags.mode = Some(parse_mode(&text("mode")?)?),
             "--bound-seconds" => {
@@ -127,9 +138,16 @@ pub(super) fn parse_arguments(arguments: &[OsString]) -> Result<Command, String>
     }
     let flags = collect_flags(arguments)?;
     if command != "enforce-budget"
-        && (flags.executable.is_some() || flags.package.is_some() || flags.target.is_some())
+        && (flags.executable.is_some()
+            || flags.package.is_some()
+            || flags.target.is_some()
+            || flags.save_baseline.is_some()
+            || flags.confidence_level.is_some())
     {
-        return Err("--executable, --package, and --target require enforce-budget".to_owned());
+        return Err(
+            "--executable, --package, --target, --save-baseline, and --confidence-level require enforce-budget"
+                .to_owned(),
+        );
     }
 
     let require_baseline = || {
@@ -161,6 +179,10 @@ pub(super) fn parse_arguments(arguments: &[OsString]) -> Result<Command, String>
             baseline: require_baseline()?,
         }),
         "enforce-budget" => {
+            let mode = flags
+                .mode
+                .ok_or_else(|| format!("missing --mode\n\n{USAGE}"))?;
+            let criterion_run = parse_criterion_run(&flags, mode)?;
             let source = match (flags.executable, flags.package, flags.target) {
                 (None, None, None) => TargetSource::Compile { skip: flags.skip },
                 (Some(executable), Some(package), Some(name)) => {
@@ -185,9 +207,6 @@ pub(super) fn parse_arguments(arguments: &[OsString]) -> Result<Command, String>
                     );
                 }
             };
-            let mode = flags
-                .mode
-                .ok_or_else(|| format!("missing --mode\n\n{USAGE}"))?;
             Ok(Command::EnforceBudget {
                 manifest_path: flags
                     .manifest_path
@@ -196,10 +215,43 @@ pub(super) fn parse_arguments(arguments: &[OsString]) -> Result<Command, String>
                 bound: flags
                     .bound_seconds
                     .map_or(mode.default_bound(), Duration::from_secs),
+                criterion_run,
                 source,
             })
         }
         _ => unreachable!("invariant: command was validated before option parsing"),
+    }
+}
+
+fn parse_criterion_run(flags: &Flags, mode: Mode) -> Result<CriterionRun, String> {
+    if mode != Mode::Timing
+        && (flags.save_baseline.is_some()
+            || flags.baseline.is_some()
+            || flags.confidence_level.is_some())
+    {
+        return Err("Criterion baseline arguments require timing mode".to_owned());
+    }
+    match (
+        &flags.save_baseline,
+        &flags.baseline,
+        &flags.confidence_level,
+    ) {
+        (None, None, None) => Ok(CriterionRun::default()),
+        (Some(name), None, Some(confidence)) => {
+            CriterionRun::save_baseline(name, confidence).map_err(|error| error.to_string())
+        }
+        (None, Some(name), Some(confidence)) => {
+            CriterionRun::compare_baseline(name, confidence).map_err(|error| error.to_string())
+        }
+        (Some(_), Some(_), _) => {
+            Err("--save-baseline and --baseline are mutually exclusive".to_owned())
+        }
+        (_, _, None) => {
+            Err("--confidence-level is required with --save-baseline or --baseline".to_owned())
+        }
+        (None, None, Some(_)) => {
+            Err("--confidence-level requires --save-baseline or --baseline".to_owned())
+        }
     }
 }
 
@@ -293,10 +345,103 @@ mod tests {
                 manifest_path: PathBuf::from("repos/themis/Cargo.toml"),
                 mode: Mode::Timing,
                 bound: Duration::from_mins(5),
+                criterion_run: CriterionRun::default(),
                 source: TargetSource::Compile {
                     skip: vec!["gpu_saturation".to_owned(), "display_demo".to_owned()],
                 },
             }
+        );
+    }
+
+    #[test]
+    fn parses_each_criterion_baseline_operation() {
+        for (flag, expected) in [
+            (
+                "--save-baseline",
+                CriterionRun::save_baseline("atlas-base", "0.995").unwrap(),
+            ),
+            (
+                "--baseline",
+                CriterionRun::compare_baseline("atlas-base", "0.995").unwrap(),
+            ),
+        ] {
+            let mut arguments = [
+                "enforce-budget",
+                "--manifest-path",
+                "Cargo.toml",
+                "--mode",
+                "timing",
+                flag,
+                "atlas-base",
+                "--confidence-level",
+                "0.995",
+            ]
+            .map(OsString::from);
+            let Command::EnforceBudget { criterion_run, .. } = parse_arguments(&arguments).unwrap()
+            else {
+                panic!("expected EnforceBudget");
+            };
+            assert_eq!(criterion_run, expected);
+            arguments[6] = OsString::from("bad\0name");
+            let error = parse_arguments(&arguments).unwrap_err();
+            assert_eq!(error, "invalid Criterion baseline name \"bad\\0name\"");
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_criterion_baseline_combinations() {
+        let base = [
+            "enforce-budget",
+            "--manifest-path",
+            "Cargo.toml",
+            "--mode",
+            "timing",
+        ]
+        .map(OsString::from);
+        for (extra, expected) in [
+            (
+                vec!["--baseline", "atlas-base"],
+                "--confidence-level is required with --save-baseline or --baseline",
+            ),
+            (
+                vec!["--confidence-level", "0.99"],
+                "--confidence-level requires --save-baseline or --baseline",
+            ),
+            (
+                vec![
+                    "--save-baseline",
+                    "saved",
+                    "--baseline",
+                    "compared",
+                    "--confidence-level",
+                    "0.99",
+                ],
+                "--save-baseline and --baseline are mutually exclusive",
+            ),
+        ] {
+            let mut arguments = base.to_vec();
+            arguments.extend(extra.into_iter().map(OsString::from));
+            assert_eq!(parse_arguments(&arguments).unwrap_err(), expected);
+        }
+    }
+
+    #[test]
+    fn criterion_baselines_require_timing_mode() {
+        let arguments = [
+            "enforce-budget",
+            "--manifest-path",
+            "Cargo.toml",
+            "--mode",
+            "smoke",
+            "--baseline",
+            "atlas-base",
+            "--confidence-level",
+            "0.99",
+        ]
+        .map(OsString::from);
+        assert_eq!(
+            parse_arguments(&arguments).unwrap_err(),
+            "Criterion baseline arguments require timing mode"
         );
     }
 
@@ -348,6 +493,7 @@ mod tests {
                     manifest_path: PathBuf::from("Cargo.toml"),
                     mode,
                     bound: mode.default_bound(),
+                    criterion_run: CriterionRun::default(),
                     source: TargetSource::Retained(PreparedTarget {
                         package: "apollo".to_owned(),
                         name: "fft".to_owned(),
@@ -435,7 +581,7 @@ mod tests {
         .map(OsString::from);
         assert_eq!(
             parse_arguments(&arguments).unwrap_err(),
-            "--executable, --package, and --target require enforce-budget"
+            "--executable, --package, --target, --save-baseline, and --confidence-level require enforce-budget"
         );
     }
 

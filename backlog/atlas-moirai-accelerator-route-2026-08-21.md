@@ -1,5 +1,5 @@
 <a id="atlas-moirai-accelerator-route-2026-08-21"></a>
-## ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21 — Execute accelerator routes [major] [arch] — in-progress
+## ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21 — Execute accelerator routes [major] [arch] — todo
 outcome (route-contract slice, delivered): Moirai PR [#147](https://github.com/ryancinsight/Moirai/pull/147) merged at default `ff56d60218b6f418d8db0e42c30da8185b90b6bd`; `RouteResolution` retains `SchedulerRoute` + transport `Address` + accelerator placement. 807/807 nextest, clippy/fmt/doctests/rustdoc green. Dispatch and CPU/WGPU execution remain a later Hephaestus/Themis slice (DAG preserved: Hephaestus consumes Moirai, not the reverse).
 open cross-repo correctness/evidence items (independent, dependency-ordered):
 - P0 (dispatchable now): kwavers `swe/gpu/solver.rs:92` `propagate_waves_gpu` fakes GPU dispatch (hardcoded timings, ignores inputs) — needs a real kernel + CPU-differential oracle, or withdraw the surface `[major]`. CFDrs `cfd-validation/.../memory.rs:93` ungated `#[global_allocator]` in a lib crate `[major]`. Consus szip unvalidated `u32` reserve (fuzz + typed error needed) and committed `-C target-cpu=native` (remove; use runtime ISA detection) — both owned by Consus PR [#51](https://github.com/ryancinsight/consus/pull/51) `[patch]`.

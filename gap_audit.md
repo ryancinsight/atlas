@@ -2,6 +2,10 @@
 
 <!-- Compacted 2026-09-26 under the 1,000-line board budget: a risk entry holds risk/evidence/re-open-trigger/owner in ~5 lines; closed findings and delivery narrative are gone -- the record of a closed finding is the commit or PR that closed it. Recover removed narrative with `git log -p -- gap_audit.md`. -->
 
+## Finding 2026-09-28: staged revert of dependency-digest memoization in the shared main tree
+
+Risk: `D:/atlas` (main, at `7b14277be`) carries staged, uncommitted changes that delete `scripts/atlas_build_package_source.py` and its tests and revert `6538f5b09`; a pathspec-free commit from that tree would clobber landed work. Evidence: `git status --porcelain -- scripts` shows `D  scripts/atlas_build_package_source.py`; index written 16:22 local, no lease line. Owner: none found. Re-open: the next orientation of the main tree; triage per fix-forward (the staged hunks are reverts, not landed work).
+
 ## Finding 2026-09-24: Dioxus joins the GUI comparator set
 
 Metis [ADR 0003](repos/metis/docs/adr/0003-framework-conformance.md) now pins

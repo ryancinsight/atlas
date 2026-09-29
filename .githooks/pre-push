@@ -93,6 +93,16 @@ _atlas_hook_trampoline() {
 
 _atlas_hook_trampoline "$@" || exit 1
 
+# The trampoline above pins MSYS_NO_PATHCONV=1 inside its own scope, because
+# it passes `ref:path` arguments MSYS would otherwise mangle. The gate below
+# does the opposite and hands native git.exe filesystem paths (`git -C
+# "$atlas_root"`), which MSYS must rewrite. Pin that too rather than inherit
+# it: a globally exported MSYS_NO_PATHCONV is common on Windows and silently
+# breaks every `-C` below, so the checks resolve to nothing and the gate
+# reports success. Blank is not the same as unset -- both disable conversion
+# -- so the variable is genuinely unset here.
+unset MSYS_NO_PATHCONV
+
 #
 # Atlas gitlink coherence gate.
 #
@@ -197,6 +207,32 @@ member_root="$(canonical_stack_root)" || {
     echo "pre-push: BLOCKED -- cannot resolve the canonical Atlas root from Git metadata." >&2
     exit 1
 }
+push_stream=""
+if [ ! -t 0 ]; then
+    push_stream="$(cat)"
+fi
+
+# The classifier and credential scan come from the fetched default branch.
+# A pushed branch therefore cannot relax its own first-push gate or allowlist.
+trusted_rescue_ref=""
+for ref in origin/HEAD origin/main; do
+    trusted_rescue_ref="$(git -C "$atlas_root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null || true)"
+    [ -n "$trusted_rescue_ref" ] && break
+done
+if [ -n "$push_stream" ] && [ -n "$trusted_rescue_ref" ] \
+    && git -C "$atlas_root" cat-file -e \
+        "$trusted_rescue_ref:scripts/git-hooks/rescue-push" 2>/dev/null; then
+    rescue_updates=()
+    while IFS= read -r update; do
+        [ -n "$update" ] && rescue_updates+=("$update")
+    done <<<"$push_stream"
+    git -C "$atlas_root" show "$trusted_rescue_ref:scripts/git-hooks/rescue-push" \
+        | bash -s -- "$atlas_root" "$atlas_root" "$trusted_rescue_ref" \
+            "$trusted_rescue_ref" "${rescue_updates[@]}"
+    rescue_status=$?
+    [ "$rescue_status" -eq 0 ] && exit 0
+    [ "$rescue_status" -eq 3 ] || exit "$rescue_status"
+fi
 binary=""
 # The auditor is built from origin's default branch, never from the
 # checkout's `tools/`: the shared tree holds whatever branch a peer left
@@ -277,14 +313,18 @@ fi
 # moved. Each gate below judges the pushed tip.
 pushed_tips=()
 pushed_bases=()
-if [ ! -t 0 ]; then
+if [ -n "$push_stream" ]; then
     while read -r _local_ref local_sha _remote_ref remote_sha; do
         [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
         pushed_tips+=("$local_sha")
         pushed_bases+=("$remote_sha")
-    done
+    done <<<"$push_stream"
 fi
 if [ "${#pushed_tips[@]}" -eq 0 ]; then
+    if [ -n "$push_stream" ]; then
+        echo "pre-push: deletion refs have no revision to gate" >&2
+        exit 0
+    fi
     pushed_tips=(HEAD)
     pushed_bases=("0000000000000000000000000000000000000000")
 fi

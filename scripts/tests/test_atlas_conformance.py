@@ -511,6 +511,101 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["print_dbg"], 0)
 
+    def test_scattered_containers_counts_a_production_vec_vec_field(self) -> None:
+        # ATLAS-ARCH-008: a `Vec<Vec<_>>` field on a production traversal
+        # path is exactly the pointer-scattered shape the classifier and
+        # this ratchet share one pattern for (`VEC_VEC`).
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "pub struct Grid {\n"
+                "    rows: Vec<Vec<f64>>,\n"
+                "}\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["scattered_containers"], 1)
+
+    def test_scattered_containers_excludes_cfg_test_module(self) -> None:
+        # A site inside a `#[cfg(test)] mod tests` block is test code, not a
+        # production traversal path -- the classifier's own split.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "pub fn noop() {}\n"
+                "\n"
+                "#[cfg(test)]\n"
+                "mod tests {\n"
+                "    fn scratch() -> Vec<Vec<u8>> {\n"
+                "        Vec::new()\n"
+                "    }\n"
+                "}\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["scattered_containers"], 0)
+
+    def test_scattered_containers_excludes_a_comment(self) -> None:
+        # A `Vec<Vec<` appearing only in `//`/`///` prose is not a site --
+        # the same comment-free `prod_code` region every code-token class
+        # reads.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "// A Vec<Vec<f64>> here would pointer-chase per row.\n"
+                "/// Avoid a Vec<Vec<f64>> layout for this accessor.\n"
+                "pub fn noop() {}\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["scattered_containers"], 0)
+
+    def test_scattered_containers_excludes_main_rs_and_benches(self) -> None:
+        # `src/main.rs` and `benches/` are executable/measurement surfaces,
+        # not the traversal paths ATLAS-ARCH-008 tracks -- the same
+        # `is_bin` exclusion `print_dbg` uses.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/main.rs",
+                "fn main() {\n"
+                "    let _rows: Vec<Vec<u8>> = Vec::new();\n"
+                "}\n",
+            )
+            _write(
+                root,
+                "benches/measure.rs",
+                "fn bench() -> Vec<Vec<u8>> { Vec::new() }\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["scattered_containers"], 0)
+
+    def test_generate_refuses_to_raise_scattered_containers(self) -> None:
+        # The generic ratchet (`baseline_raises`) must hold for this class
+        # exactly as it holds for any other: a raised count fails `generate`.
+        previous = {"demo": {"scattered_containers": 2}}
+        current = {"demo": {"scattered_containers": 3}}
+        self.assertEqual(
+            conformance.baseline_raises(previous, current),
+            [("demo", "scattered_containers", 2, 3)],
+        )
+
     def test_build_rs_cargo_protocol_is_exempt_from_print_scan(self) -> None:
         # `println!("cargo:...")` is the canonical Cargo build-script
         # protocol (rerun-if-changed, rustc-cfg, rustc-link-arg).  It is
@@ -847,6 +942,42 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(conformance._file_text_cache(), {})
         self.assertEqual(conformance._cfg_test_decl_cache(), {})
+        self.assertEqual(conformance._resolved_cache(), {})
+        self.assertEqual(conformance._stripped_text_cache(), {})
+
+    def test_the_comment_strip_cache_agrees_with_a_fresh_strip(self) -> None:
+        # The cache exists to serve the module walk and the production-class
+        # pass from one strip. It is keyed on the text, so it must be a pure
+        # memo: a hit and a miss have to agree on every input, including the
+        # ones whose offsets and literals the strip is required to preserve.
+        cases = {
+            "plain": "pub fn f() {}\n",
+            "line comment": "// pub mod gone;\npub mod real;\n",
+            "block comment": "/* pub mod gone; */\npub mod real;\n",
+            "nested block": "/* a /* b */ c */\npub mod real;\n",
+            "url in a literal": 'const U: &str = "https://host/x";\npub mod real;\n',
+            "raw string with slashes": 'const R: &str = r#"a // b"#;\npub mod real;\n',
+            "char literal": "const C: char = '/'; pub mod real;\n",
+            "lifetime": "pub fn f<'a>(x: &'a str) {}\npub mod real;\n",
+            "path attribute": '#[path = "x.rs"]\npub mod real;\n',
+            "no trailing newline": "// trailing comment",
+        }
+        for label, source in cases.items():
+            with self.subTest(label):
+                fresh = conformance.strip_comments(source)
+                self.assertEqual(conformance._stripped(source), fresh)
+                # The second lookup is the path the module walk actually takes.
+                self.assertEqual(conformance._stripped(source), fresh)
+
+    def test_a_distinct_text_does_not_read_another_text_cached_strip(self) -> None:
+        # Keyed on the text, so one file's cached strip cannot answer for
+        # another's production region.
+        first = "// a\npub mod a;\n"
+        second = "// b\npub mod b;\n"
+        self.assertEqual(conformance._stripped(first), conformance.strip_comments(first))
+        self.assertEqual(conformance._stripped(second), conformance.strip_comments(second))
+        self.assertNotEqual(conformance._stripped(first), conformance._stripped(second))
+        self.assertIsNone(conformance._stripped(None))
 
     def test_nextest_retries_nonzero_counts_every_offending_profile(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
@@ -1650,11 +1781,12 @@ class DetectorPrecisionTests(unittest.TestCase):
         self.assertEqual(len(conformance.SEQCST.findall(stripped)), 1)
 
     def test_a_comment_naming_a_code_token_is_not_that_token(self) -> None:
-        # The three code-token classes -- `unwrap_production`,
-        # `seqcst_production` and `print_dbg` -- read one comment-free
-        # region, so prose about a token cannot raise any of them. A `//`
-        # comment (not just a `///` doc comment) is where moirai's ordering
-        # rationale lives, so a doc-comment-only strip is not enough.
+        # The four code-token classes -- `unwrap_production`,
+        # `seqcst_production`, `print_dbg` and `scattered_containers` --
+        # read one comment-free region, so prose about a token cannot raise
+        # any of them. A `//` comment (not just a `///` doc comment) is
+        # where moirai's ordering rationale lives, so a doc-comment-only
+        # strip is not enough.
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
             _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
@@ -1664,6 +1796,7 @@ class DetectorPrecisionTests(unittest.TestCase):
                 "// Ordering::SeqCst would additionally fence the store.\n"
                 "/* println!(\"debug\"); */\n"
                 "/// let shape = Indexed::new().unwrap();\n"
+                "// A Vec<Vec<u8>> field here would scatter allocations.\n"
                 "use std::sync::atomic::{AtomicU64, Ordering};\n"
                 "static BARRIER: AtomicU64 = AtomicU64::new(0);\n"
                 "pub fn barrier() -> u64 {\n"
@@ -1676,6 +1809,7 @@ class DetectorPrecisionTests(unittest.TestCase):
         self.assertEqual(counts["seqcst_production"], 1)
         self.assertEqual(counts["print_dbg"], 0)
         self.assertEqual(counts["unwrap_production"], 0)
+        self.assertEqual(counts["scattered_containers"], 0)
 
     def test_a_url_operand_does_not_hide_code_on_its_line(self) -> None:
         # `_walk_mods` reads declarations from the stripped text, so a
@@ -2649,12 +2783,43 @@ class CitationResolutionTests(unittest.TestCase):
             conformance.board_lint.resolve_hashes({trunk[:9]}, stores)
 
     def test_an_unreadable_store_stops_the_scan(self) -> None:
+        # The store must be one git genuinely cannot list refs in, or the guard
+        # is not exercised. Two earlier attempts did not:
+        #
+        #  - corrupting `.git/HEAD` -- `for-each-ref` reads refs directly and
+        #    tolerates a malformed `HEAD`, so it returned 0 and listed
+        #    `refs/heads/main` anyway; the scan correctly resolved the citation
+        #    and raised nothing, and the test failed against a green
+        #    implementation. That is the shape that teaches a reader to
+        #    distrust a test.
+        #  - pointing at a directory that is not a repository -- on this
+        #    platform `for-each-ref` returns 0 with empty output there, and
+        #    inside a repository it walks up and finds the enclosing one.
+        #
+        # What `object_stores` can actually return, and what the guard
+        # therefore defends, is a store that *was* a checkout when the list was
+        # built and is not one by the time the walk runs: a member removed or
+        # renamed mid-scan. Removing the path is the shape that reproduces it,
+        # because a missing path is the one case git reports a non-zero exit
+        # for.
+        #
+        # Without the guard, every citation into that store counts as
+        # unresolved and gets blamed on whichever push ran next.
         self._git(self.root, "init", "-q", "-b", "main")
         trunk = self._commit(self.root, "README.md", "root\n")
-        (self.root / ".git" / "HEAD").write_text("garbage\n")
-        stores = [self.root]
-        with self.assertRaisesRegex(RuntimeError, "cannot list refs"):
-            conformance.board_lint.resolve_hashes({trunk[:9]}, stores)
+        with tempfile.TemporaryDirectory(prefix="atlas-store-then-gone-") as outside:
+            # Never created: this is the state `object_stores` can hand the
+            # walk when a member is removed or renamed between listing the
+            # stores and walking them, which is the only failure the guard can
+            # actually see. Creating the repository and then deleting it would
+            # be the same state, and on Windows deleting a `.git` directory
+            # fails outright on its read-only object files -- so the honest
+            # construction is a path that was never there. It is also the
+            # one case git reports a non-zero exit for, which is what the guard
+            # keys on.
+            gone = Path(outside) / "member-removed-mid-scan"
+            with self.assertRaisesRegex(RuntimeError, "cannot list refs"):
+                conformance.board_lint.resolve_hashes({trunk[:9]}, [gone])
 
     def test_an_unwalkable_history_stops_the_scan(self) -> None:
         self._git(self.root, "init", "-q", "-b", "main")
