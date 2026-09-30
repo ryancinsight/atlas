@@ -128,5 +128,4 @@
 <a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) â€” Generic plan/execution layer for Apollo [arch] â€” todo
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) â€” Specify the fallible WGPU layout/dispatch boundary [arch] â€” todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) â€” Run the stack-owned lockfile checker, not member copies [patch] â€” todo
-<a id="atlas-hook-rustdoc-doc-false"></a>- [ATLAS-HOOK-RUSTDOC-DOC-FALSE](backlog/atlas-hook-rustdoc-doc-false.md) â€” Skip the rustdoc identity step for undocumented libs [patch] â€” todo
 <a id="atlas-secret-scan-allowlist-source"></a>- [ATLAS-SECRET-SCAN-ALLOWLIST-SOURCE](backlog/atlas-secret-scan-allowlist-source.md) â€” Read the secret allowlist from a trusted revision [patch] â€” todo

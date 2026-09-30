@@ -132,7 +132,7 @@ def _path_without_cargo(extra_first: str) -> str:
     return os.pathsep.join(entries)
 
 
-_FIXTURE_EXCLUDES = "upstream.git/\nbin/\ncalls.log\nlockfile-calls.log\n"
+_FIXTURE_EXCLUDES = "upstream.git/\nbin/\ncalls.log\nlockfile-calls.log\nmetadata-calls.log\n"
 
 
 def assert_gated_on_the_export(
@@ -290,7 +290,9 @@ class GateFixture:
             check=True,
         )
 
-    def set_workspace_packages(self, names: list[str]) -> None:
+    def set_workspace_packages(
+        self, names: list[str], targets: dict[str, list[dict]] | None = None
+    ) -> None:
         """Set the Cargo metadata returned by the fixture toolchain.
 
         Manifests sit under `@ROOT@`, the directory the stub runs in: the
@@ -303,13 +305,14 @@ class GateFixture:
                 if self.layout == "single"
                 else f"@ROOT@/crates/{name}/Cargo.toml"
             )
-            packages.append(
-                {
-                    "id": f"fixture:{name}",
-                    "name": name,
-                    "manifest_path": manifest,
-                }
-            )
+            package = {
+                "id": f"fixture:{name}",
+                "name": name,
+                "manifest_path": manifest,
+            }
+            if targets is not None and name in targets:
+                package["targets"] = targets[name]
+            packages.append(package)
         _write(
             self.bin / "metadata.json",
             json.dumps(
@@ -400,6 +403,7 @@ class GateFixture:
             f'FIXTURE_ROOT="{self.root}"\n'
             'here="$(pwd -W 2>/dev/null || pwd)"\n'
             'if [ "$1" = "metadata" ]; then\n'
+            '  echo "$@" >> "$FIXTURE_ROOT/metadata-calls.log"\n'
             '  sed "s|@ROOT@|$here|g" "$FIXTURE_ROOT/bin/metadata.json"\n'
             "  exit 0\n"
             "fi\n"
@@ -727,67 +731,69 @@ class PackageMapperTestCase(unittest.TestCase):
                 "-p foo", fixture.calls.read_text(encoding="utf-8")
             )
 
-    def test_excluded_workspace_changes_refuse_without_parent_package_flag(self) -> None:
+    def _push_standalone_crate_change(
+        self, changed_path: str, package_name: str, cargo_behavior: str
+    ) -> tuple:
+        """Push one change under an excluded `fuzz` workspace; return the fixture,
+        the hook's exit code and its stderr."""
+        temp = tempfile.TemporaryDirectory(prefix="atlas-gate-")
+        self.addCleanup(temp.cleanup)
+        fixture = GateFixture(pathlib.Path(temp.name))
+        _write(
+            fixture.root / "fuzz" / "Cargo.toml",
+            f'[package]\nname = "{package_name}"\nversion = "0.0.0"\n'
+            '[workspace]\n',
+        )
+        for argv in (
+            ["add", "fuzz"],
+            ["commit", "-q", "-m", "fuzz workspace"],
+            ["push", "-q", "origin", "HEAD:main"],
+            ["checkout", "-q", "-b", "feat"],
+        ):
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, *argv], check=True
+            )
+        _write(fixture.root / changed_path, "changed\n")
+        for argv in (
+            ["add", changed_path],
+            ["commit", "-q", "-m", "fuzz input"],
+        ):
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, *argv], check=True
+            )
+        fixture.set_cargo_behavior(cargo_behavior)
+        code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+        return fixture, code, stderr
+
+    def test_standalone_crate_changes_check_lock_and_format_only(self) -> None:
+        """A standalone cargo-fuzz crate cannot be named by a parent `-p`, so the gate
+        checks what every host can (its lock resolves, its sources are
+        formatted) and leaves the build to CI; the push is not refused."""
         cases = (
             ("fuzz/src/main.rs", "consus-fuzz"),
             ("fuzz/corpus/seed", "consus-fuzz"),
             ("fuzz/src/name_collision.rs", "foo"),
         )
         for changed_path, package_name in cases:
-            with self.subTest(
-                changed_path=changed_path, package_name=package_name
-            ), tempfile.TemporaryDirectory(
-                prefix="atlas-gate-"
-            ) as temp:
-                fixture = GateFixture(pathlib.Path(temp))
-                _write(
-                    fixture.root / "fuzz" / "Cargo.toml",
-                    f'[package]\nname = "{package_name}"\nversion = "0.0.0"\n'
-                    '[workspace]\n',
+            with self.subTest(changed_path=changed_path, package_name=package_name):
+                fixture, code, stderr = self._push_standalone_crate_change(
+                    changed_path, package_name, "pass"
                 )
-                subprocess.run(
-                    ["git", "-C", str(fixture.root), *_IDENT, "add", "fuzz"],
-                    check=True,
-                )
-                subprocess.run(
-                    ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
-                     "-m", "fuzz workspace"],
-                    check=True,
-                )
-                subprocess.run(
-                    ["git", "-C", str(fixture.root), *_IDENT, "push", "-q",
-                     "origin", "HEAD:main"],
-                    check=True,
-                )
-                subprocess.run(
-                    ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
-                     "-b", "feat"],
-                    check=True,
-                )
-                _write(fixture.root / changed_path, "changed\n")
-                subprocess.run(
-                    ["git", "-C", str(fixture.root), *_IDENT, "add", changed_path],
-                    check=True,
-                )
-                subprocess.run(
-                    ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
-                     "-m", "fuzz input"],
-                    check=True,
-                )
-
-                code, stderr = fixture.run_hook(fixture.push_line_new_branch())
-
-                self.assertEqual(code, 1, stderr)
-                self.assertIn("excluded from the parent", stderr)
-                self.assertIn("fuzz/Cargo.toml", stderr)
-                calls = (
-                    fixture.calls.read_text(encoding="utf-8")
-                    if fixture.calls.exists()
-                    else ""
-                )
+                self.assertEqual(code, 0, stderr)
+                self.assertIn("standalone crate fuzz/Cargo.toml", stderr)
+                calls = fixture.calls.read_text(encoding="utf-8")
+                metadata = (fixture.root / "metadata-calls.log").read_text(encoding="utf-8")
+                self.assertRegex(metadata, r"metadata --locked --no-deps .*fuzz/Cargo.toml")
+                self.assertRegex(calls, r"fmt --manifest-path .*fuzz/Cargo\.toml -- --check")
                 self.assertNotIn("-p consus-fuzz", calls)
-                if package_name == "foo":
-                    self.assertNotIn("clippy", calls)
+                self.assertNotIn("clippy", calls)
+
+    def test_standalone_crate_format_failure_refuses_the_push(self) -> None:
+        _, code, stderr = self._push_standalone_crate_change(
+            "fuzz/src/main.rs", "consus-fuzz", "fail-fmt"
+        )
+        self.assertEqual(code, 1, stderr)
+        self.assertIn("fails for the standalone crate fuzz/Cargo.toml", stderr)
 
     def test_nested_virtual_workspace_manifest_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -1607,6 +1613,56 @@ class LaneGateTestCase(unittest.TestCase):
         self.assertEqual(sorted(gated), ["bar", "foo"], repr(gating[0]))
         recorded = {line for line in log.read_text(encoding="utf-8").splitlines()}
         self.assertEqual(recorded, {"'bar'", "'foo'"})
+
+    def test_a_package_without_a_documented_target_skips_only_the_rustdoc_step(self) -> None:
+        """A bench-only package writes no rustdoc artifact, so its step is skipped.
+
+        `cargo doc` documents lib and bin targets; a package of benches alone
+        (moirai-benchmarks) or a `[lib] doc = false` one leaves the identity
+        checker nothing to record and refused every push touching it. Its
+        other steps and every documented package still run.
+        """
+        stack, fixture, lane = self._lane(overlay=True)
+        _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar", "crates/baz"]\n')
+        for name in ("bar", "baz"):
+            _write(
+                lane / "crates" / name / "Cargo.toml",
+                f'[package]\nname = "{name}"\nversion = "0.1.0"\nedition = "2021"\n',
+            )
+            _write(lane / "crates" / name / "src" / "lib.rs", "pub fn h() {}\n")
+        subprocess.run(["git", "-C", str(lane), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(lane), *_IDENT, "commit", "-qm", "members"], check=True)
+        log = stack / "identity-steps.log"
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            "import pathlib, sys\n"
+            f"log = pathlib.Path({str(log)!r})\n"
+            "package = sys.argv[sys.argv.index('--package') + 1]\n"
+            "command = sys.argv[sys.argv.index('--') + 1:]\n"
+            "step = 'doc' if 'doc' in command else 'other'\n"
+            "with log.open('a', encoding='utf-8', newline='') as stream:\n"
+            "    stream.write(f'{package} {step}\\n')\n",
+        )
+        lib = {"kind": ["lib"], "doc": True}
+        original = fixture.set_workspace_packages
+        fixture.set_workspace_packages = lambda names: original(
+            ["foo", "bar", "baz"],
+            targets={
+                "foo": [lib],
+                "bar": [{"kind": ["bench"], "doc": True}],
+                "baz": [{"kind": ["lib"], "doc": False}],
+            },
+        )
+        fixture.set_workspace_packages(["foo", "bar", "baz"])
+        code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
+        self.assertEqual(code, 0, err)
+        steps = set(log.read_text(encoding="utf-8").splitlines())
+        self.assertIn("foo doc", steps)
+        self.assertNotIn("bar doc", steps)
+        self.assertNotIn("baz doc", steps)
+        self.assertIn("bar other", steps)
+        self.assertIn("baz other", steps)
+        self.assertIn("rustdoc skipped for bar", err)
 
     def test_a_reproduce_line_is_a_runnable_command(self) -> None:
         """The reproduce line names the revision, not the deleted export.
