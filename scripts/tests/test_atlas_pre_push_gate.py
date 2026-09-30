@@ -1614,6 +1614,47 @@ class LaneGateTestCase(unittest.TestCase):
         recorded = {line for line in log.read_text(encoding="utf-8").splitlines()}
         self.assertEqual(recorded, {"'bar'", "'foo'"})
 
+    def test_a_package_without_test_targets_skips_only_the_tests_step(self) -> None:
+        """A `test = false` cdylib builds no test artifact for the identity checker.
+
+        Pushing a workspace `Cargo.toml` change gates every member, and the
+        checker refused the PyO3 extension with "no artifact found" because
+        `cargo nextest run -p` has nothing to build for it. Its clippy and
+        rustdoc steps still run.
+        """
+        stack, fixture, lane = self._lane(overlay=True)
+        _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
+        _write(
+            lane / "crates" / "bar" / "Cargo.toml",
+            '[package]\nname = "bar"\nversion = "0.1.0"\nedition = "2021"\n',
+        )
+        _write(lane / "crates" / "bar" / "src" / "lib.rs", "pub fn h() {}\n")
+        subprocess.run(["git", "-C", str(lane), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(lane), *_IDENT, "commit", "-qm", "member"], check=True)
+        log = stack / "identity-steps.log"
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            "import pathlib, sys\n"
+            f"log = pathlib.Path({str(log)!r})\n"
+            "package = sys.argv[sys.argv.index('--package') + 1]\n"
+            "command = sys.argv[sys.argv.index('--') + 2]\n"
+            "with log.open('a', encoding='utf-8', newline='') as stream:\n"
+            "    stream.write(package + ' ' + command + '\\n')\n",
+        )
+        bar_targets = {"bar": [{"kind": ["cdylib"], "test": False, "doc": True}]}
+        fixture.set_workspace_packages(["foo", "bar"], targets=bar_targets)
+        original = fixture.set_workspace_packages
+        fixture.set_workspace_packages = lambda names, targets=None: original(
+            ["foo", "bar"], targets=bar_targets
+        )
+        code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
+        self.assertEqual(code, 0, err)
+        steps = set(log.read_text(encoding="utf-8").splitlines())
+        self.assertIn("foo nextest", steps)
+        self.assertNotIn("bar nextest", steps)
+        self.assertIn("bar clippy", steps)
+        self.assertIn("bar RUSTDOCFLAGS=-D warnings", steps)
+
     def test_a_package_without_a_documented_target_skips_only_the_rustdoc_step(self) -> None:
         """A bench-only package writes no rustdoc artifact, so its step is skipped.
 
