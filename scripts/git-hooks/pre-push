@@ -340,29 +340,40 @@ export_revision() {
 # naming its owner (`.pre-push-owner`) goes only once that pid is gone. One
 # naming none was written by an older hook that records no owner and may
 # still be building in it -- a run can take most of an hour -- so it goes only
-# after a day.
-if [ -n "$python_bin" ]; then
-  for stale in "$tmp_base"/pre-push-lock.* "$tmp_base"/pre-push-gate.* "$tmp_base"/pl.* "$tmp_base"/pg.* "$tmp_base"/pg-log.*; do
-    [ -e "$stale" ] || continue
-    stale_owner="$(cat "$stale/.pre-push-owner" 2>/dev/null || true)"
-    if [ -n "$stale_owner" ]; then
-      kill -0 "$stale_owner" 2>/dev/null && continue
-    else
-      "$python_bin" -c 'import os, sys, time; sys.exit(time.time() - os.path.getmtime(sys.argv[1]) < 86400)' "$stale" || continue
-    fi
-    rm -rf "$stale" 2>/dev/null || true
-  done
-  # A checkout's reusable export (see the gate below) outlives its runs by
-  # design; one no run has claimed for a week belongs to a checkout that is
-  # gone, and goes unless a live run holds its lock.
-  for stable in "$tmp_base"/pg-??????????; do
-    [ -d "$stable" ] || continue
-    holder="$(cat "$stable.lock/pid" 2>/dev/null || true)"
-    [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null && continue
-    "$python_bin" -c 'import os, sys, time; sys.exit(time.time() - os.path.getmtime(sys.argv[1]) < 7 * 86400)' "$stable" || continue
-    rm -rf "$stable" "$stable.lock" 2>/dev/null || true
-  done
-fi
+# after a day. The sweep visits every leftover of every push since the last
+# one, and a spawned process costs most of a second on a loaded Windows host,
+# so it spawns none per entry: ages compare against two marker files
+# (`-ot`), and owners and holders read by `read`, which unlike a command
+# substitution keeps the carriage return of a file written on Windows. A marker
+# that could not be written compares false, so a failed `touch` keeps every
+# entry.
+new_run_temp age_marks pl
+touch -d '1 day ago' "$age_marks/day" 2>/dev/null || true
+touch -d '7 days ago' "$age_marks/week" 2>/dev/null || true
+for stale in "$tmp_base"/pre-push-lock.* "$tmp_base"/pre-push-gate.* "$tmp_base"/pl.* "$tmp_base"/pg.* "$tmp_base"/pg-log.*; do
+  [ -e "$stale" ] || continue
+  stale_owner=""
+  { read -r stale_owner < "$stale/.pre-push-owner"; } 2>/dev/null || true
+  stale_owner="${stale_owner%$'\r'}"
+  if [ -n "$stale_owner" ]; then
+    kill -0 "$stale_owner" 2>/dev/null && continue
+  else
+    [ "$stale" -ot "$age_marks/day" ] || continue
+  fi
+  rm -rf "$stale" 2>/dev/null || true
+done
+# A checkout's reusable export (see the gate below) outlives its runs by
+# design; one no run has claimed for a week belongs to a checkout that is
+# gone, and goes unless a live run holds its lock.
+for stable in "$tmp_base"/pg-??????????; do
+  [ -d "$stable" ] || continue
+  holder=""
+  { read -r holder < "$stable.lock/pid"; } 2>/dev/null || true
+  holder="${holder%$'\r'}"
+  [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null && continue
+  [ "$stable" -ot "$age_marks/week" ] || continue
+  rm -rf "$stable" "$stable.lock" 2>/dev/null || true
+done
 
 # The skips above fall through to the code gate, so this whole section runs
 # only when the lock still wants verifying.

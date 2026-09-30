@@ -2536,6 +2536,48 @@ class TemporaryOwnershipTestCase(unittest.TestCase):
             self.assertTrue(older.exists(), "an ownerless export in use was swept")
             self.assertFalse(dead.exists(), "a dead run's export survived")
 
+    def test_an_ownerless_export_older_than_a_day_is_swept(self) -> None:
+        """No owner and no activity for a day: the run that wrote it is gone."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            abandoned = fixture.tmp / "pre-push-gate.old999"
+            _write(abandoned / "tree" / "Cargo.toml", "[workspace]\n")
+            two_days_ago = time.time() - 2 * 86400
+            os.utime(abandoned, (two_days_ago, two_days_ago))
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("main").replace("refs/heads/main", "refs/heads/copy"),
+                {"SKIP_LOCAL_GATE": "1"},
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertFalse(abandoned.exists(), "an abandoned export survived")
+
+    def test_a_reusable_export_is_swept_only_after_a_week_without_a_holder(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            gone = fixture.tmp / "pg-0123456789"
+            recent = fixture.tmp / "pg-9876543210"
+            held = fixture.tmp / "pg-abcdefabcd"
+            for export in (gone, recent, held):
+                _write(export / "tree" / "Cargo.toml", "[workspace]\n")
+            _write(fixture.tmp / "pg-0123456789.lock" / "pid", "999999\n")
+            _write(fixture.tmp / "pg-abcdefabcd.lock" / "pid", f"{_live_msys_pid(self)}\n")
+            for export, age_days in ((gone, 8), (recent, 6), (held, 8)):
+                aged = time.time() - age_days * 86400
+                os.utime(export, (aged, aged))
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("main").replace("refs/heads/main", "refs/heads/copy"),
+                {"SKIP_LOCAL_GATE": "1"},
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertFalse(gone.exists(), "a week-old export with a dead holder survived")
+            self.assertFalse((fixture.tmp / "pg-0123456789.lock").exists())
+            self.assertTrue(recent.exists(), "an export younger than a week was removed")
+            self.assertTrue(held.exists(), "an export a live run holds was removed")
+
     def test_a_checker_copy_in_use_is_not_pruned(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture, log, _, _, _ = DebtRatchetTestCase._stack(self, temp, 0)
