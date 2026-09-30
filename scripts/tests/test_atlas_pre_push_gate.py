@@ -855,6 +855,59 @@ class PackageMapperTestCase(unittest.TestCase):
                 calls,
             )
 
+    def _commit_paths_on_a_branch(self, fixture: "GateFixture", files: dict[str, str]) -> None:
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "-b", "feat"],
+            check=True,
+        )
+        for relative, text in files.items():
+            _write(fixture.root / relative, text)
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add", relative], check=True
+            )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "paths"],
+            check=True,
+        )
+
+    def test_hook_and_ci_definitions_alone_gate_no_package(self) -> None:
+        """A single-package repository has no package dir above `.githooks/`.
+
+        The root package used to own every path outside a sub-package, so a
+        push that only synced the hook ran the whole package gate and queued
+        behind every peer's build lease.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp), layout="single")
+            self._commit_paths_on_a_branch(
+                fixture,
+                {
+                    ".githooks/pre-push": "#!/bin/sh\n",
+                    ".github/workflows/ci.yml": "name: ci\n",
+                },
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("local gate not needed", stderr)
+            calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.is_file() else ""
+            self.assertNotIn("-p solo", calls)
+
+    def test_a_root_readme_still_gates_the_root_package(self) -> None:
+        """A README can be `include_str!`-ed into the crate docs, so it stays an input."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp), layout="single")
+            self._commit_paths_on_a_branch(
+                fixture,
+                {".githooks/pre-push": "#!/bin/sh\n", "README.md": "# solo\n"},
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating solo", stderr)
+
 
 class BlameClassifierTestCase(unittest.TestCase):
     """Failures inside the repo block; environment failures do not."""
