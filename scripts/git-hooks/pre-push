@@ -1304,7 +1304,38 @@ fi
 # after the merge (a redundant link target from apollo#508 did). The changed
 # packages are documented here the same way.
 if [ "$identity_enabled" -eq 1 ]; then
+  # `cargo doc` writes an artifact only for a package with a documented lib or
+  # bin target. A bench-only package (moirai-benchmarks) or a `[lib] doc =
+  # false` one (consus-python) writes none, so the identity step would refuse
+  # every push touching it; cargo's own target list is the authority.
+  if ! documented_packages="$(
+    cd "$gate_export" && cargo metadata --no-deps --format-version 1 $gate_manifest |
+      "$python_bin" -c 'import json, sys
+sys.stdout.reconfigure(newline="\n")
+documented = {"lib", "rlib", "dylib", "cdylib", "staticlib", "proc-macro", "bin"}
+for package in json.load(sys.stdin)["packages"]:
+    targets = package.get("targets")
+    if targets is None or any(
+        target.get("doc", True) and documented.intersection(target["kind"])
+        for target in targets
+    ):
+        print(package["name"])'
+  )"; then
+    echo "pre-push: cargo metadata did not list the documented packages" >&2
+    exit 1
+  fi
   for package_name in $gate_packages; do
+    case "
+$documented_packages
+" in
+      *"
+$package_name
+"*) ;;
+      *)
+        echo "pre-push: rustdoc skipped for $package_name; it has no documented lib or bin target" >&2
+        continue
+        ;;
+    esac
     run_identity_step "$package_name" rustdoc env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps "${identity_cargo_manifest_args[@]}" -p "$package_name" --locked
   done
 else
