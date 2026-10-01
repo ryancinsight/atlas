@@ -272,6 +272,8 @@ def environment_digest(environment: Mapping[str, str] | None = None) -> str:
                 "RUSTC_WORKSPACE_WRAPPER",
                 "RUSTC_WRAPPER",
                 "RUSTFLAGS",
+                # Cargo folds it into every unit's metadata hash.
+                "__CARGO_DEFAULT_LIB_METADATA",
             }
         )
     }
