@@ -338,6 +338,52 @@ def _stable_package_ids(
     return stable
 
 
+def _manifest_digest(value: dict, package_id: str) -> str:
+    """Digest of a package's resolved `cargo metadata` entry, without its paths.
+
+    The entry is the manifest after workspace inheritance: dependency
+    tables with their features, `cfg` targets and kinds, the feature table,
+    the edition and the targets. Cargo's variant names follow these, so
+    they change whenever a manifest edit can rename a unit, even where the
+    resolved graph's unified feature lists do not. Absolute paths (the
+    manifest, each target's source, each path dependency) vary with the
+    checkout directory and are dropped; `id` is the stable one.
+    """
+    entry = {
+        key: item
+        for key, item in value.items()
+        if key not in ("id", "manifest_path", "targets", "dependencies")
+    }
+    entry["id"] = package_id
+    entry["targets"] = [
+        {key: item for key, item in target.items() if key != "src_path"}
+        for target in value.get("targets", [])
+        if isinstance(target, dict)
+    ]
+    entry["dependencies"] = [
+        {key: item for key, item in dependency.items() if key != "path"}
+        for dependency in value.get("dependencies", [])
+        if isinstance(dependency, dict)
+    ]
+    return hashlib.sha256(
+        json.dumps(entry, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _workspace_manifest_digest(workspace_root: object) -> str | None:
+    """Digest of the build's workspace manifest bytes.
+
+    Its `[profile]` tables enter every unit's metadata hash and appear in no
+    package entry; Cargo ignores those tables in any other workspace.
+    """
+    if not isinstance(workspace_root, str) or not workspace_root:
+        return None
+    try:
+        return hashlib.sha256((Path(workspace_root) / "Cargo.toml").read_bytes()).hexdigest()
+    except OSError as error:
+        raise BuildIdentityError(f"cannot read the workspace manifest under {workspace_root}: {error}") from error
+
+
 def dependency_snapshot(
     manifest: Path,
     package: str,
@@ -414,6 +460,7 @@ def dependency_snapshot(
                     str(feature) for feature in nodes[package_id].get("features", [])
                 ),
                 "kind": "path",
+                "manifest": _manifest_digest(value, stable.get(package_id, package_id)),
                 "identity": identity_value,
             }
         else:
@@ -428,6 +475,7 @@ def dependency_snapshot(
                 ),
                 "kind": kind,
                 "source": source_text,
+                "manifest": _manifest_digest(value, package_id),
                 "content_digest": content_digest(manifest_path.parent),
             }
         if record["kind"] != "registry":
@@ -442,6 +490,7 @@ def dependency_snapshot(
         records.append(record)
     snapshot = {
         "root": stable.get(roots[0], roots[0]),
+        "workspace_manifest": _workspace_manifest_digest(metadata.get("workspace_root")),
         "packages": records,
         "edges": sorted(edges, key=lambda value: json.dumps(value, sort_keys=True)),
         "clean_packages": sorted(clean_packages),
