@@ -101,6 +101,25 @@ def clean_and_current(lane: Path, repo: Path) -> tuple[str, str | None]:
     return default_branch(repo), name
 
 
+def pin_worktree(repo: Path, lane: Path) -> None:
+    """Give a lane its own `core.worktree` when its repository sets a shared one.
+
+    A stack member is a submodule whose gitdir config carries
+    `core.worktree = ../../../../repos/<member>`. Git resolves that relative to
+    each worktree's own gitdir, so a lane inherits a path that lands on the
+    gitdir itself: the files are present, but `git status` reads every tracked
+    file as deleted and `git add -A` stages their deletion. A per-worktree
+    value overrides the shared one for the lane alone; the main tree keeps it.
+    """
+    shared = execute_git(repo, ("config", "--get", "core.worktree"), timeout=60)
+    if shared.returncode == 0:
+        git(repo, "config", "extensions.worktreeConfig", "true")
+        git(lane, "config", "--worktree", "core.worktree", lane.as_posix())
+    toplevel = Path(git(lane, "rev-parse", "--show-toplevel").strip()).resolve()
+    if toplevel != lane.resolve():
+        raise Refusal(f"{lane} resolves its working tree to {toplevel}")
+
+
 def create(member: str, branch: str, start: str | None) -> Path:
     repo = member_repo(member)
     if (branch == "HEAD" or REVISION_SHAPED.fullmatch(branch)
@@ -129,11 +148,13 @@ def create(member: str, branch: str, start: str | None) -> Path:
     else:
         git(repo, "worktree", "add", "-b", branch, str(lane),
             start or default_branch(repo))
+    pin_worktree(repo, lane)
     return lane
 
 
 def repoint(argument: str, branch: str, unlanded: bool) -> Path:
     lane, repo = lane_checkout(argument)
+    pin_worktree(repo, lane)
     if lane.parent != LANE_ROOT.resolve():
         raise Refusal(f"{lane} is outside the canonical lane root; close it instead")
     default, _ = clean_and_current(lane, repo)
@@ -148,11 +169,13 @@ def repoint(argument: str, branch: str, unlanded: bool) -> Path:
     target = lane.parent / lane_name(repo.name, branch)
     if target != lane:
         git(repo, "worktree", "move", str(lane), str(target))
+        pin_worktree(repo, target)
     return target
 
 
 def close(argument: str) -> Path:
     lane, repo = lane_checkout(argument)
+    pin_worktree(repo, lane)
     default, branch = clean_and_current(lane, repo)
     pushed = branch is not None and execute_git(
         lane, ("merge-base", "--is-ancestor", "HEAD", f"origin/{branch}"), timeout=60,
