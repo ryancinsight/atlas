@@ -749,10 +749,12 @@ done
 gate_key="$(printf '%s' "$repo_root" | git hash-object --stdin | cut -c1-10)"
 gate_root="$tmp_base/pg-$gate_key"
 claim_gate_root() {
-  local staged="$gate_root.lock.$$"
-  mkdir -p "$staged" && printf '%s\n' "$$" > "$staged/pid" || return 1
-  if mv -T "$staged" "$gate_root.lock" 2>/dev/null; then
-    run_temps+=("$gate_root.lock")
+  local lock_name="${1:-$gate_root.lock}"
+  local staged="$lock_name.$$"
+  mkdir -p "$staged" && printf '%s
+' "$$" > "$staged/pid" || return 1
+  if mv -T "$staged" "$lock_name" 2>/dev/null; then
+    run_temps+=("$lock_name")
     return 0
   fi
   rm -rf "$staged"
@@ -761,11 +763,30 @@ claim_gate_root() {
 if ! claim_gate_root; then
   gate_holder="$(cat "$gate_root.lock/pid" 2>/dev/null || true)"
   if [ -n "$gate_holder" ] && ! kill -0 "$gate_holder" 2>/dev/null; then
-    rm -rf "$gate_root.lock"
+    # A dead holder's lock is take-over material, but `rm -rf` can fail
+    # silently on Windows -- a transient AV or indexer handle on the
+    # directory -- and that silent failure is how the stale locks pile up:
+    # twelve and thirty-five measured on this host, each degrading every
+    # later run to a cold nested export. Remove with the removal verified,
+    # and when the directory will not go this instant, take over through
+    # the alternate lock name so the stable export is still reused; the
+    # stuck lock clears on any later run whose rm takes.
+    rm -rf "$gate_root.lock" 2>/dev/null || true
+    reclaim_wait=0
+    while [ -d "$gate_root.lock" ] && [ "$reclaim_wait" -lt 10 ]; do
+      reclaim_wait=$((reclaim_wait + 1))
+      sleep 0.2
+      rm -rf "$gate_root.lock" 2>/dev/null || true
+    done
   fi
   if ! claim_gate_root; then
-    echo "pre-push: the checkout's export is in use by pid ${gate_holder:-?}; building in a fresh one" >&2
-    new_run_temp gate_root pg
+    if [ -z "$gate_holder" ] || ! kill -0 "$gate_holder" 2>/dev/null; then
+      claim_gate_root "$gate_root.lock.next"         || { echo "pre-push: the checkout's export is in use by pid ${gate_holder:-?}; building in a fresh one" >&2
+             new_run_temp gate_root pg; }
+    else
+      echo "pre-push: the checkout's export is in use by pid ${gate_holder:-?}; building in a fresh one" >&2
+      new_run_temp gate_root pg
+    fi
   fi
 fi
 mkdir -p "$gate_root"
@@ -900,7 +921,6 @@ fi
 # inputs to the owning package's tests even when no Rust source changed.
 gate_packages=""
 excluded_manifests=""
-standalone_manifests=""
 while IFS= read -r changed_path; do
   [ -n "$changed_path" ] || continue
   owner_dir="$(dirname "$changed_path")"
@@ -949,9 +969,9 @@ while IFS= read -r changed_path; do
   relative_manifest="${relative_manifest#./}"
   package_name="$(printf '%s\n' "$workspace_members" | awk -F '\t' -v manifest="$relative_manifest" '$1 == manifest { print $2; exit }')"
   if [ -z "$package_name" ]; then
-    case " $standalone_manifests " in
+    case " $excluded_manifests " in
       *" $relative_manifest "*) ;;
-      *) standalone_manifests="$standalone_manifests $relative_manifest" ;;
+      *) excluded_manifests="$excluded_manifests $relative_manifest" ;;
     esac
     continue
   fi
@@ -975,42 +995,6 @@ SKIP_LOCAL_GATE=1 git push.
 MESSAGE
   exit 1
 fi
-
-# A standalone crate outside the parent workspace (cargo-fuzz is the common
-# case) cannot be named by a parent-workspace `-p`, and its targets need a
-# toolchain this host may lack (nightly, sanitizers), so its compile and run
-# verification stays with CI. What every host can establish is checked here:
-# its own lockfile resolves under `--locked` and its sources are
-# rustfmt-clean. Refusing the push instead left no way to change a fuzz
-# target at all. A nested virtual workspace, whose members deserve a real
-# gate, is still refused above.
-for standalone_manifest in $standalone_manifests; do
-  if ! (cd "$gate_export" && cargo metadata --locked --no-deps --format-version 1 \
-    --manifest-path "$gate_export/$standalone_manifest" >/dev/null 2>&1); then
-    cat >&2 <<MESSAGE
-
-pre-push: the lockfile of the standalone crate $standalone_manifest does not
-resolve under --locked on $gate_sha.
-
-From a checkout of $gate_sha outside the stack overlay:
-
-    cargo metadata --locked --no-deps --manifest-path $standalone_manifest
-
-To push anyway: SKIP_LOCAL_GATE=1 git push
-MESSAGE
-    exit 1
-  fi
-  if ! (cd "$gate_export" && cargo fmt --manifest-path "$gate_export/$standalone_manifest" -- --check >/dev/null); then
-    cat >&2 <<MESSAGE
-
-pre-push: \`cargo fmt --check\` fails for the standalone crate $standalone_manifest on $gate_sha.
-
-Run \`cargo fmt --manifest-path $standalone_manifest\` and commit the result. To push anyway: SKIP_LOCAL_GATE=1 git push
-MESSAGE
-    exit 1
-  fi
-  echo "pre-push: standalone crate $standalone_manifest: lockfile and formatting checked; CI builds it" >&2
-done
 
 if [ -z "${gate_packages// /}" ]; then
   echo "pre-push: no package owns the changed files; local gate not needed" >&2
@@ -1341,38 +1325,7 @@ fi
 # after the merge (a redundant link target from apollo#508 did). The changed
 # packages are documented here the same way.
 if [ "$identity_enabled" -eq 1 ]; then
-  # `cargo doc` writes an artifact only for a package with a documented lib or
-  # bin target. A bench-only package (moirai-benchmarks) or a `[lib] doc =
-  # false` one (consus-python) writes none, so the identity step would refuse
-  # every push touching it; cargo's own target list is the authority.
-  if ! documented_packages="$(
-    cd "$gate_export" && cargo metadata --no-deps --format-version 1 $gate_manifest |
-      "$python_bin" -c 'import json, sys
-sys.stdout.reconfigure(newline="\n")
-documented = {"lib", "rlib", "dylib", "cdylib", "staticlib", "proc-macro", "bin"}
-for package in json.load(sys.stdin)["packages"]:
-    targets = package.get("targets")
-    if targets is None or any(
-        target.get("doc", True) and documented.intersection(target["kind"])
-        for target in targets
-    ):
-        print(package["name"])'
-  )"; then
-    echo "pre-push: cargo metadata did not list the documented packages" >&2
-    exit 1
-  fi
   for package_name in $gate_packages; do
-    case "
-$documented_packages
-" in
-      *"
-$package_name
-"*) ;;
-      *)
-        echo "pre-push: rustdoc skipped for $package_name; it has no documented lib or bin target" >&2
-        continue
-        ;;
-    esac
     run_identity_step "$package_name" rustdoc env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps "${identity_cargo_manifest_args[@]}" -p "$package_name" --locked
   done
 else

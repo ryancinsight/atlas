@@ -509,9 +509,12 @@ HOOK_MODE = "100755"
 # names its own branch opens a second request carrying a different revision of
 # the same file. Thirteen members carried exactly that pair on 2026-09-21.
 PUBLISH_BRANCH = "ci/sync-stack-hooks"
-# A push may run the committed 60-second hook gate; the remainder covers Git
-# transport and process-tree teardown without leaving an unbounded member.
-GIT_DEADLINE_SECONDS = 90
+# A push runs the member's committed hook, whose identity-lease wait alone
+# is bounded at 900 s by --lease-wait-seconds; the deadline must cover the
+# hook's own worst case plus the 60 s gate and Git transport, or a wave
+# can never complete on a busy host (26 of 28 pushes timed out at the old
+# 90 s cap under fleet load, 2026-09-30).
+GIT_DEADLINE_SECONDS = 1000
 # Hosting calls do not run member code and use the ordinary test slow bound.
 HOSTING_DEADLINE_SECONDS = 30
 
