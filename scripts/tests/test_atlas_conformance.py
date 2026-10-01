@@ -2841,6 +2841,160 @@ class CitationResolutionTests(unittest.TestCase):
         self.assertEqual((host, tightenings), ([], []))
 
 
+class StoreDependentCitationTests(unittest.TestCase):
+    """`unresolved_references` needs every stack member's history. Where the
+    scan has it the class is gated; where it does not -- a member's own
+    pull-request checkout -- it is reported with its measured count, never
+    ratcheted, because fetching more of the one history the scan has cannot
+    supply the other members'."""
+
+    GIT_ENV = CitationResolutionTests.GIT_ENV
+    CLS = "unresolved_references"
+    GITMODULES = (
+        '[submodule "member"]\n\tpath = repos/member\n\turl = https://example.invalid/m.git\n'
+        '[submodule "other"]\n\tpath = repos/other\n\turl = https://example.invalid/o.git\n'
+    )
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="atlas-store-dependent-")
+        self.temp = Path(self._tmp.name)
+        conformance.board_lint._REACHABLE_INDEX.clear()
+
+    def tearDown(self) -> None:
+        conformance.board_lint._REACHABLE_INDEX.clear()
+        self._tmp.cleanup()
+
+    _git = CitationResolutionTests._git
+
+    def _repo(self, path: Path, board: str = "- fixture\n") -> str:
+        """A repository of one commit holding `board`; returns that commit."""
+        path.mkdir(parents=True)
+        self._git(path, "init", "-q", "-b", "main")
+        _write(path, "backlog.md", board)
+        self._git(path, "add", "backlog.md")
+        self._git(path, "commit", "-q", "-m", "board")
+        return self._git(path, "rev-parse", "HEAD")
+
+    def _stack(self, member_board: str) -> tuple[Path, Path, str]:
+        """A whole stack: root, `repos/member` and `repos/other`, full history.
+
+        Returns the root, the member checkout, and a commit that only
+        `repos/other` holds.
+        """
+        root = self.temp / "stack"
+        other_commit = self._repo(root / "repos" / "other")
+        member = root / "repos" / "member"
+        self._repo(member, member_board.format(other=other_commit[:9]))
+        self._repo_root(root)
+        return root, member, other_commit
+
+    def _repo_root(self, root: Path) -> None:
+        root.mkdir(parents=True, exist_ok=True)
+        self._git(root, "init", "-q", "-b", "main")
+        _write(root, ".gitmodules", self.GITMODULES)
+        self._git(root, "add", ".gitmodules")
+        self._git(root, "commit", "-q", "-m", "root")
+        self._git(root, "commit", "-q", "--allow-empty", "-m", "root again")
+
+    def _shallow_root(self, whole: Path) -> Path:
+        """The root as a member's pull-request job sees atlas: depth 1, no members."""
+        shallow = self.temp / "_atlas"
+        self._git(self.temp, "clone", "-q", "--depth", "1", whole.as_uri(), str(shallow))
+        return shallow
+
+    def _check(self, root: Path, member: Path, baseline: int) -> tuple[int, str]:
+        def measure(repo: Path, **_: object) -> dict[str, int]:
+            return {self.CLS: conformance.board_lint.count_unresolved(
+                repo, conformance._object_stores()
+            )}
+
+        baseline_path = self.temp / "baseline.json"
+        baseline_path.write_text(
+            json.dumps({"demo": {self.CLS: baseline}}), encoding="utf-8"
+        )
+        output = io.StringIO()
+        with (
+            patch.object(conformance, "ROOT", root),
+            patch.object(conformance, "_STORES", None),
+            patch.object(conformance, "BASELINE", baseline_path),
+            patch.object(conformance, "scan_repo", side_effect=measure),
+            patch.object(
+                sys, "argv",
+                [str(SCRIPT), "check", "--repo", "demo", "--member-path", str(member)],
+            ),
+            redirect_stdout(output),
+        ):
+            code = conformance.main()
+        return code, output.getvalue()
+
+    def test_a_member_checkout_reports_a_cross_member_citation_without_gating_it(self) -> None:
+        whole, member, _ = self._stack("- landed in {other}\n")
+        code, out = self._check(self._shallow_root(whole), member, baseline=0)
+        self.assertEqual(code, 0, out)
+        self.assertIn("NOT GATED unresolved_references:", out)
+        self.assertIn(
+            "needs every stack member's history; gated by the umbrella "
+            "atlas-conformance job",
+            out,
+        )
+        self.assertIn("demo/unresolved_references=1", out)
+        self.assertNotIn("RATCHET VIOLATION", out)
+        self.assertEqual(out.count("NOT GATED"), 1)
+
+    def test_a_whole_stack_still_gates_a_fabricated_hash(self) -> None:
+        whole, member, _ = self._stack("- landed in deadbeef1\n")
+        code, out = self._check(whole, member, baseline=0)
+        self.assertEqual(code, 1, out)
+        self.assertIn("RATCHET VIOLATION: demo/unresolved_references: 0 -> 1", out)
+        self.assertNotIn("NOT GATED", out)
+
+    def test_a_whole_stack_resolves_the_cross_member_citation(self) -> None:
+        whole, member, _ = self._stack("- landed in {other}\n")
+        code, out = self._check(whole, member, baseline=0)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("NOT GATED", out)
+
+    def test_the_json_names_what_was_held_out(self) -> None:
+        whole = self.temp / "stack"
+        self._repo_root(whole)
+        member = self.temp / "member"
+        member.mkdir()
+        shallow = self._shallow_root(whole)
+        measured = {self.CLS: 1}
+        baseline_path = self.temp / "baseline.json"
+        baseline_path.write_text(json.dumps({"demo": {self.CLS: 0}}), encoding="utf-8")
+        output = io.StringIO()
+        with (
+            patch.object(conformance, "ROOT", shallow),
+            patch.object(conformance, "BASELINE", baseline_path),
+            patch.object(conformance, "scan_repo", return_value=measured),
+            patch.object(
+                sys, "argv",
+                [str(SCRIPT), "check", "--json", "--repo", "demo",
+                 "--member-path", str(member)],
+            ),
+            redirect_stdout(output),
+        ):
+            code = conformance.main()
+        payload = json.loads(output.getvalue())
+        self.assertEqual(code, 0)
+        self.assertEqual(payload["regressions"], [])
+        self.assertEqual(payload["not_gated"], {"demo": measured})
+        self.assertEqual(
+            payload["incomplete_stores"],
+            ["_atlas", "repos/member", "repos/other"],
+        )
+
+    def test_only_the_store_dependent_class_is_held_out(self) -> None:
+        gated, held = conformance.split_store_dependent(
+            {"demo": {self.CLS: 5, "markers": 3}}, ["_atlas"]
+        )
+        self.assertEqual(gated, {"demo": {"markers": 3}})
+        self.assertEqual(held, {"demo": {self.CLS: 5}})
+        whole = {"demo": {self.CLS: 5, "markers": 3}}
+        self.assertEqual(conformance.split_store_dependent(whole, []), (whole, {}))
+
+
 class SecondOutputRootTestCase(unittest.TestCase):
     """`output/` is canonical; a legacy root beside it is debt.
 

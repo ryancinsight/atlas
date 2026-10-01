@@ -243,8 +243,8 @@ class IndexedLayoutTestCase(BoardLintUtilTestCase):
         self.assertEqual(rc, 1)
 
 
-class HashReferenceTestCase(unittest.TestCase):
-    """Cited commit hashes resolve against the stack's object stores or count."""
+class GitStackFixture(unittest.TestCase):
+    """A root repository holding a `repos/member` repository, each one commit."""
 
     GIT_ENV = {
         **os.environ,
@@ -276,6 +276,10 @@ class HashReferenceTestCase(unittest.TestCase):
         self._git(path, "add", "README.md")
         self._git(path, "commit", "-q", "-m", "fixture")
         return self._git(path, "rev-parse", "HEAD")
+
+
+class HashReferenceTestCase(GitStackFixture):
+    """Cited commit hashes resolve against the stack's object stores or count."""
 
     def test_hash_pattern_names_bare_citations_only(self) -> None:
         line = (
@@ -322,6 +326,106 @@ class HashReferenceTestCase(unittest.TestCase):
         self.assertEqual(_lint.object_stores(snapshot), [])
         stores = _lint.object_stores(self.root)
         self.assertEqual(_lint.count_unresolved(snapshot, stores), 2)
+
+
+class StoreCompletenessTestCase(GitStackFixture):
+    """`incomplete_stores` names the stack stores a resolution lacks."""
+
+    GITMODULES = (
+        '[submodule "member"]\n\tpath = repos/member\n'
+        '\turl = https://example.invalid/member.git\n'
+    )
+
+    def _register(self, root: Path) -> None:
+        (root / ".gitmodules").write_text(self.GITMODULES, encoding="utf-8")
+
+    def _source_with_history(self) -> Path:
+        """A repository of two commits, so a `--depth 1` clone truncates it."""
+        source = Path(self._tmp.name) / "source"
+        source.mkdir()
+        self._repo(source)
+        (source / "second.txt").write_text("second\n", encoding="utf-8")
+        self._git(source, "add", "second.txt")
+        self._git(source, "commit", "-q", "-m", "second")
+        return source
+
+    def _shallow_clone(self, source: Path, target: Path) -> None:
+        self._git(
+            Path(self._tmp.name), "clone", "-q", "--depth", "1",
+            source.as_uri(), str(target),
+        )
+
+    def test_a_stack_with_every_store_whole_is_complete(self) -> None:
+        self._register(self.root)
+        self.assertEqual(_lint.incomplete_stores(self.root), [])
+
+    def test_an_uninitialised_member_is_missing(self) -> None:
+        self._register(self.root)
+        (self.root / "repos" / "member" / ".git").rename(self.root / "member.git")
+        self.assertEqual(_lint.incomplete_stores(self.root), ["repos/member"])
+
+    def test_a_git_file_naming_no_git_directory_is_missing(self) -> None:
+        self._register(self.root)
+        marker = self.root / "repos" / "member" / ".git"
+        marker.rename(self.root / "member.git")
+        for content in ("a pointer", "gitdir: ../gone", "gitdir: .", "gitdir: .."):
+            marker.write_text(content + "\n", encoding="utf-8")
+            self.assertEqual(_lint.incomplete_stores(self.root), ["repos/member"], content)
+
+    def test_a_shallow_member_is_incomplete(self) -> None:
+        source = self._source_with_history()
+        root = Path(self._tmp.name) / "stack"
+        root.mkdir()
+        self._repo(root)
+        self._register(root)
+        self._shallow_clone(source, root / "repos" / "member")
+        self.assertEqual(_lint.incomplete_stores(root), ["repos/member"])
+
+    def test_a_submodule_style_git_file_is_read_through(self) -> None:
+        """A member's `.git` is a file naming its git directory, as in a submodule."""
+        source = self._source_with_history()
+        root = Path(self._tmp.name) / "stack"
+        root.mkdir()
+        self._repo(root)
+        self._register(root)
+        for name, depth in (("member", None), ("other", "1")):
+            gitdir = Path(self._tmp.name) / f"{name}.gitdir"
+            args = ["clone", "-q", "--separate-git-dir", str(gitdir)]
+            args += ["--depth", depth] if depth else []
+            self._git(
+                Path(self._tmp.name), *args, source.as_uri(),
+                str(root / "repos" / name),
+            )
+            marker = root / "repos" / name / ".git"
+            self.assertTrue(marker.is_file())
+            # A submodule's marker names its git directory relative to itself.
+            relative = os.path.relpath(gitdir, marker.parent).replace(os.sep, "/")
+            marker.unlink()  # git marks it hidden on Windows, which refuses a rewrite
+            marker.write_text(f"gitdir: {relative}\n", encoding="utf-8")
+        self.assertEqual(_lint.incomplete_stores(root), [])
+        (root / ".gitmodules").write_text(
+            self.GITMODULES + '[submodule "other"]\n\tpath = repos/other\n', encoding="utf-8"
+        )
+        self.assertEqual(_lint.incomplete_stores(root), ["repos/other"])
+
+    def test_a_linked_worktree_reads_the_shared_shallow_marker(self) -> None:
+        """A linked worktree keeps `shallow` in the common git directory."""
+        whole = self._source_with_history()
+        shallow = Path(self._tmp.name) / "shallow"
+        self._shallow_clone(whole, shallow)
+        for name, repository, expected in (("whole", whole, []), ("cut", shallow, ["repos/member"])):
+            root = Path(self._tmp.name) / name
+            root.mkdir()
+            self._repo(root)
+            self._register(root)
+            self._git(repository, "worktree", "add", "-q", "--detach", str(root / "repos" / "member"))
+            self.assertTrue((root / "repos" / "member" / ".git").is_file())
+            self.assertEqual(_lint.incomplete_stores(root), expected, name)
+
+    def test_a_shallow_root_is_incomplete(self) -> None:
+        shallow = Path(self._tmp.name) / "shallow"
+        self._shallow_clone(self._source_with_history(), shallow)
+        self.assertEqual(_lint.incomplete_stores(shallow), ["shallow"])
 
 
 class ControlCharacterTestCase(unittest.TestCase):

@@ -39,7 +39,17 @@ Modes:
                 over the committed baseline; decreases print as tightening
                 candidates for a baseline update in the same change. With
                 --json, emit an object containing the scan results,
-                regressions, and tightenings without human-readable lines.
+                regressions, tightenings, the classes held out of the
+                comparison (`not_gated`), and the stores that were missing or
+                shallow (`incomplete_stores`), without human-readable lines.
+
+A class whose count depends on which object stores the scan has is the one
+exception to the ratchet: `unresolved_references` resolves cited hashes
+against the history of the root and every registered member, so wherever one
+of them is missing or shallow -- a member's own pull-request checkout above
+all -- `check` reports its count on a `NOT GATED` line instead of comparing
+it. The umbrella `atlas-conformance` job holds every member's full history
+and gates it.
 
 Run from anywhere: paths are anchored to this file's parent repository.
 The default scan requires a clean checkout whose provider gitlinks match the
@@ -2487,6 +2497,52 @@ HOST_OBSERVED_CLASSES = (
 )
 
 
+# Classes whose value depends on which object stores a scan has, not on the
+# scanned tree alone. `unresolved_references` resolves cited hashes against the
+# root and every registered member (`board_lint.incomplete_stores`); a scan
+# missing any of them, a member's own pull-request checkout above all, counts
+# every citation into the missing history as unresolved. Reported there, never
+# ratcheted: the umbrella `atlas-conformance` job holds full history for every
+# member and gates it.
+STORE_DEPENDENT_CLASSES = ("unresolved_references",)
+
+
+def split_store_dependent(
+    results: dict[str, dict[str, int]], incomplete: list[str]
+) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]]]:
+    """Split `results` into the gated counts and the store-dependent ones.
+
+    With every stack store present (`incomplete` empty) nothing is split off.
+    """
+    if not incomplete:
+        return results, {}
+    gated: dict[str, dict[str, int]] = {}
+    ungated: dict[str, dict[str, int]] = {}
+    for repo, counts in results.items():
+        gated[repo] = {c: v for c, v in counts.items() if c not in STORE_DEPENDENT_CLASSES}
+        held = {c: v for c, v in counts.items() if c in STORE_DEPENDENT_CLASSES}
+        if held:
+            ungated[repo] = held
+    return gated, ungated
+
+
+def not_gated_line(
+    ungated: dict[str, dict[str, int]], incomplete: list[str]
+) -> str:
+    """The one line naming each class held out of the ratchet and why."""
+    measured = ", ".join(
+        f"{repo}/{cls}={value}"
+        for repo, counts in sorted(ungated.items())
+        for cls, value in sorted(counts.items())
+    )
+    return (
+        f"NOT GATED {', '.join(STORE_DEPENDENT_CLASSES)}: needs every stack "
+        "member's history; gated by the umbrella atlas-conformance job "
+        f"(missing or shallow stores: {', '.join(incomplete)}); measured "
+        f"against the stores present: {measured}"
+    )
+
+
 def ratchet_delta(
     baseline: dict[str, dict[str, int]],
     results: dict[str, dict[str, int]],
@@ -2582,7 +2638,10 @@ def main() -> int:
              "This is how a member gates itself: its own checkout is the "
              "content, and atlas's committed baseline row for --repo is what "
              "the counts are judged against, so a raise fails the member's "
-             "own pull request instead of the stack's next pin advance",
+             "own pull request instead of the stack's next pin advance. "
+             "unresolved_references needs every stack member's history, which "
+             "a member checkout lacks: wherever a registered member or the "
+             "root is missing or shallow it is reported, not gated",
     )
     parser.add_argument(
         "--member-revision",
@@ -2754,9 +2813,11 @@ def main() -> int:
         return 1
     else:
         base = json.loads(BASELINE.read_text())
-    _, _, tightenings = ratchet_delta(base, results)
+    incomplete = board_lint.incomplete_stores(ROOT)
+    gated, ungated = split_store_dependent(results, incomplete)
+    _, _, tightenings = ratchet_delta(base, gated)
     bound = base
-    regressions, host, _ = ratchet_delta(bound, results)
+    regressions, host, _ = ratchet_delta(bound, gated)
     if args.member_path is not None:
         host_state_intent = (
             HostStateIntent.REVISION_JUDGEMENT
@@ -2775,8 +2836,12 @@ def main() -> int:
             "regressions": regressions,
             "host_regressions": host,
             "tightenings": tightenings,
+            "not_gated": ungated,
+            "incomplete_stores": incomplete,
         }, indent=1, sort_keys=True))
         return 1 if failed else 0
+    if ungated:
+        print(not_gated_line(ungated, incomplete))
     for t in tightenings:
         print(f"tightened (update baseline): {t}")
     # A `--worktree` scan measures whatever is checked out, and members of
