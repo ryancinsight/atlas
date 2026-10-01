@@ -27,11 +27,15 @@ SPEC = importlib.util.spec_from_file_location("atlas_build_identity", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
+import atlas_build_inputs as build_inputs
 import atlas_build_lease as lease_module
 import atlas_build_lock as lock_module
 import atlas_build_package_source as package_source
 import atlas_build_queue as queue_module
+import atlas_build_records as build_records
+import atlas_build_snapshot as build_snapshot
 import atlas_build_source as build_source
+import atlas_build_stamps as build_stamps
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
@@ -764,7 +768,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         **options: object,
     ) -> identity.BuildResult:
         with (
-            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.dict(
                 os.environ,
                 {
@@ -814,7 +818,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(second.status, "reused")
         self.assertFalse(second.cleaned)
         self.assertFalse(self.clean_log.exists())
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
             code, value = identity.check_record(
                 self.root,
                 "demo",
@@ -892,10 +896,10 @@ class BuildIdentityTestCase(unittest.TestCase):
     def test_an_active_owner_blocks_cleaning_and_preserves_the_artifact(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         self.build(source_token="owner")
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-            spec = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+            spec = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
         lock = identity.lease_path(spec)
-        lease = identity.OwnerLease(
+        lease = OwnerLease(
             lock,
             {"root": "other-source", "revision": "other-revision", "package": "demo"},
             60,
@@ -903,7 +907,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         lease.__enter__()
         try:
             self.clean_log.unlink()
-            with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+            with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
                 code, value = identity.check_record(
                     self.root,
                     "demo",
@@ -985,7 +989,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         with (
             patch.object(identity, "_dependency_data", return_value=snapshot),
             patch.object(artifacts, "_workspace_artifact_owners", return_value=owners),
-            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.dict(
                 os.environ,
                 {
@@ -1008,7 +1012,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
 
     def dep_lock(self, package: str = "dep") -> Path:
-        return package_target_lease_path(package, identity._canonical(self.target))
+        return package_target_lease_path(package, build_source._canonical(self.target))
 
     def test_shared_readers_of_a_built_dependency_proceed_together(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -1246,14 +1250,14 @@ class BuildIdentityTestCase(unittest.TestCase):
         start_holder(self, self.dep_lock(), SHARED, 60)
         self.assertEqual(self.cleaned_packages("second"), ["demo"])
 
-    def build_directory(self) -> identity.BuildDirectory:
-        return identity.BuildDirectory(identity._canonical(self.target), "debug", "host")
+    def build_directory(self) -> build_stamps.BuildDirectory:
+        return build_stamps.BuildDirectory(build_source._canonical(self.target), "debug", "host")
 
     def git_stamp(self, revision: str) -> Path:
         return self.build_directory().stamp(self.path_and_git_snapshot(revision)["packages"][1])
 
     def stamped(self, revision: str) -> str | None:
-        return identity._git_stamp(
+        return build_stamps._git_stamp(
             self.build_directory(), self.path_and_git_snapshot(revision)["packages"][1]
         )
 
@@ -1289,7 +1293,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 self.dependency_build(
                     "first", discover=True, clean=False, snapshot=self.path_and_git_snapshot(revision)
                 )
-        self.assertEqual(self.stamped(revision), identity._BUILDING)
+        self.assertEqual(self.stamped(revision), build_stamps._BUILDING)
         self.assertEqual(
             self.cleaned_packages("first", snapshot=self.path_and_git_snapshot(revision)), ["dep"]
         )
@@ -1634,7 +1638,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.dependency_build("first", discover=True)
         (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
         related_packages_seen: list[tuple[str, ...]] = []
-        real_discover = identity.discover_artifacts
+        real_discover = artifacts.discover_artifacts
         run_checked = identity._run_checked
 
         def spy_discover(*args: object, **kwargs: object):
@@ -1768,8 +1772,8 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_an_expired_owner_is_recovered(self) -> None:
         init_repo(self.root, "fn main() {}\n")
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-            spec = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+            spec = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
         lock = identity.lease_path(spec)
         lock.parent.mkdir(parents=True, exist_ok=True)
         lock.write_text(
@@ -1787,26 +1791,26 @@ class BuildIdentityTestCase(unittest.TestCase):
         )
         result = self.build(source_token="recovered")
         self.assertEqual(result.status, "rebuilt")
-        self.assertFalse(identity.lease_is_held(lock))
+        self.assertFalse(lease_module.lease_is_held(lock))
 
     def test_an_unlocked_malformed_owner_is_reclaimed(self) -> None:
         # The OS lock is the ownership authority: an unlocked record cannot
         # name a live owner, and a writer killed mid-record leaves one partial.
         init_repo(self.root, "fn main() {}\n")
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-            spec = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+            spec = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
         lock = identity.lease_path(spec)
         lock.parent.mkdir(parents=True, exist_ok=True)
         lock.write_text("not-json", encoding="utf-8")
-        self.assertFalse(identity.lease_is_held(lock))
+        self.assertFalse(lease_module.lease_is_held(lock))
         result = self.build(source_token="reclaimed")
         self.assertEqual(result.status, "rebuilt")
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "reclaimed")
 
     def test_an_unlocked_owner_without_expiry_is_reclaimed(self) -> None:
         init_repo(self.root, "fn main() {}\n")
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-            spec = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+            spec = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
         lock = identity.lease_path(spec)
         lock.parent.mkdir(parents=True, exist_ok=True)
         lock.write_text(
@@ -1821,8 +1825,8 @@ class BuildIdentityTestCase(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        self.assertFalse(identity.lease_is_held(lock))
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+        self.assertFalse(lease_module.lease_is_held(lock))
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
             code, value = identity.check_record(
                 self.root,
                 "demo",
@@ -1837,7 +1841,7 @@ class BuildIdentityTestCase(unittest.TestCase):
     def test_a_held_owner_is_named_to_another_process(self) -> None:
         lock = package_target_lease_path("demo", self.target)
         hold_lease(self, lock, self.target, 60, 60)
-        self.assertTrue(identity.lease_is_held(lock))
+        self.assertTrue(lease_module.lease_is_held(lock))
         second = OwnerLease(lock, {"root": "second", "revision": "second", "package": "demo"}, 60)
         with self.assertRaises(identity.IdentityError) as caught:
             second.__enter__()
@@ -1858,10 +1862,10 @@ class BuildIdentityTestCase(unittest.TestCase):
     def test_a_check_reads_beside_a_shared_holder(self) -> None:
         # A check only reads, so a shared holder does not make it "owned".
         init_repo(self.root, "fn main() {}\n")
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-            spec = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+            spec = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
         start_holder(self, identity.lease_path(spec), SHARED, 60)
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
             code, value = identity.check_record(
                 self.root,
                 "demo",
@@ -1873,8 +1877,8 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_toolchain_identity_runs_in_the_source_root(self) -> None:
         completed = subprocess.CompletedProcess(["rustc"], 0, "rustc 1.95.0\n", "")
-        with patch.object(identity.subprocess, "run", return_value=completed) as run:
-            self.assertEqual(identity.toolchain_identity(self.root), "rustc 1.95.0")
+        with patch.object(build_source.subprocess, "run", return_value=completed) as run:
+            self.assertEqual(build_source.toolchain_identity(self.root), "rustc 1.95.0")
         self.assertEqual(run.call_args.kwargs["cwd"], self.root)
 
     def test_command_cwd_is_used_without_changing_record_scope(self) -> None:
@@ -1890,7 +1894,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             f"Path({str(cwd_marker)!r}).write_text(os.getcwd(), encoding='utf-8')\n"
             f"Path({str(self.artifact)!r}).write_text('built\\n', encoding='utf-8')\n",
         )
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
             result = identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
@@ -1907,9 +1911,9 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_a_dirty_tree_is_not_identified_by_revision_alone(self) -> None:
         init_repo(self.root, "fn main() {}\n")
-        before = identity.source_identity(self.root)
+        before = build_source.source_identity(self.root)
         (self.root / "untracked.txt").write_text("dirty\n", encoding="utf-8")
-        after = identity.source_identity(self.root)
+        after = build_source.source_identity(self.root)
         self.assertTrue(after.dirty)
         self.assertNotEqual(before.tree_digest, after.tree_digest)
 
@@ -1918,14 +1922,14 @@ class BuildIdentityTestCase(unittest.TestCase):
         (self.root / ".gitignore").write_text("generated.rs\n", encoding="utf-8")
         git(self.root, "add", ".gitignore")
         git(self.root, "commit", "-q", "-m", "ignore generated source")
-        clean = identity.source_identity(self.root)
+        clean = build_source.source_identity(self.root)
         (self.root / "generated.rs").write_text("first\n", encoding="utf-8")
-        before = identity.source_identity(self.root)
+        before = build_source.source_identity(self.root)
         (self.root / "generated.rs").write_text("second\n", encoding="utf-8")
-        after = identity.source_identity(self.root)
+        after = build_source.source_identity(self.root)
         self.assertTrue(after.dirty)
         self.assertNotEqual(before.tree_digest, after.tree_digest)
-        excluded = identity.source_identity(
+        excluded = build_source.source_identity(
             self.root, ignored_paths=(self.root / "generated.rs",)
         )
         self.assertFalse(excluded.dirty)
@@ -1933,15 +1937,15 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_target_files_do_not_change_source_identity(self) -> None:
         init_repo(self.root, "fn main() {}\n")
-        before = identity.source_identity(self.root)
+        before = build_source.source_identity(self.root)
         target = self.root / "target"
         target.mkdir()
         (target / "artifact.rlib").write_text("generated", encoding="utf-8")
-        identity_value = identity.source_identity(self.root, (target,))
+        identity_value = build_source.source_identity(self.root, (target,))
         self.assertFalse(identity_value.dirty)
         self.assertEqual(identity_value.tree_digest, before.tree_digest)
         with self.assertRaises(identity.IdentityError):
-            identity.build_spec(self.root, "demo", self.root, "debug", "host", "")
+            build_inputs.build_spec(self.root, "demo", self.root, "debug", "host", "")
 
     def test_explicit_ignored_lockfile_does_not_change_source_identity(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -1949,21 +1953,21 @@ class BuildIdentityTestCase(unittest.TestCase):
         lock.write_text("version = 4\n", encoding="utf-8")
         git(self.root, "add", "Cargo.lock")
         git(self.root, "commit", "-q", "-m", "lock")
-        before = identity.source_identity(self.root)
+        before = build_source.source_identity(self.root)
         lock.write_text("version = 4\nchanged\n", encoding="utf-8")
-        after = identity.source_identity(self.root, ignored_paths=(lock,))
+        after = build_source.source_identity(self.root, ignored_paths=(lock,))
         self.assertEqual(after.tree_digest, before.tree_digest)
         self.assertFalse(after.dirty)
 
     def test_build_environment_changes_change_the_record_scope(self) -> None:
         init_repo(self.root, "fn main() {}\n")
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
             with patch.dict(os.environ, {"RUSTFLAGS": "-C debuginfo=0"}):
-                first = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+                first = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
             with patch.dict(os.environ, {"RUSTFLAGS": "-C debuginfo=2"}):
-                second = identity.build_spec(self.root, "demo", self.target, "debug", "host", "")
+                second = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
         self.assertNotEqual(first.environment_digest, second.environment_digest)
-        self.assertNotEqual(identity.record_path(first), identity.record_path(second))
+        self.assertNotEqual(build_records.record_path(first), build_records.record_path(second))
 
     def test_a_relative_config_argument_resolves_against_the_execution_root(self) -> None:
         # Cargo resolves a relative `--config <path>` against its own `cwd`
@@ -1980,14 +1984,14 @@ class BuildIdentityTestCase(unittest.TestCase):
         previous_cwd = os.getcwd()
         os.chdir(elsewhere)
         try:
-            with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-                first = identity.build_spec(
+            with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+                first = build_inputs.build_spec(
                     self.root, "demo", self.target, "debug", "host", "",
                     command=["cargo", "check", "--config", "ci.toml"],
                     execution_root=execution_root,
                 )
                 config.write_text("[profile.dev]\nopt-level = 3\n", encoding="utf-8")
-                second = identity.build_spec(
+                second = build_inputs.build_spec(
                     self.root, "demo", self.target, "debug", "host", "",
                     command=["cargo", "check", "--config", "ci.toml"],
                     execution_root=execution_root,
@@ -2001,12 +2005,12 @@ class BuildIdentityTestCase(unittest.TestCase):
         # `os.environ` snapshot carries; only parsing the leading `env`
         # prefix lets the record see a *compile-affecting* variable move.
         init_repo(self.root, "fn main() {}\n")
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-            first = identity.build_spec(
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+            first = build_inputs.build_spec(
                 self.root, "demo", self.target, "debug", "host", "",
                 command=["env", "RUSTFLAGS=-C debuginfo=0", "cargo", "build"],
             )
-            second = identity.build_spec(
+            second = build_inputs.build_spec(
                 self.root, "demo", self.target, "debug", "host", "",
                 command=["env", "RUSTFLAGS=-C debuginfo=2", "cargo", "build"],
             )
@@ -2040,11 +2044,11 @@ class BuildIdentityTestCase(unittest.TestCase):
         for (profile, triple), expected in cases.items():
             with self.subTest(profile=profile, target=triple):
                 self.assertEqual(
-                    identity.BuildDirectory(target, profile, triple).clean_arguments(), expected
+                    build_stamps.BuildDirectory(target, profile, triple).clean_arguments(), expected
                 )
         record = {"name": "d", "source": "git+https://example.invalid/d#0"}
         stamps = {
-            identity.BuildDirectory(target, profile, triple).stamp(record) for profile, triple in cases
+            build_stamps.BuildDirectory(target, profile, triple).stamp(record) for profile, triple in cases
         }
         self.assertEqual(len(stamps), len(cases))
 
@@ -2087,22 +2091,22 @@ class BuildIdentityTestCase(unittest.TestCase):
         # three-step push clean the whole closure on every push instead of
         # once.
         init_repo(self.root, "fn main() {}\n")
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-            clippy = identity.build_spec(
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+            clippy = build_inputs.build_spec(
                 self.root, "demo", self.target, "debug", "host", "",
                 command=["cargo", "clippy"], command_key="shared",
             )
-            doc_a = identity.build_spec(
+            doc_a = build_inputs.build_spec(
                 self.root, "demo", self.target, "debug", "host", "",
                 command=["env", "RUSTDOCFLAGS=-D warnings", "cargo", "doc"], command_key="shared",
             )
-            doc_b = identity.build_spec(
+            doc_b = build_inputs.build_spec(
                 self.root, "demo", self.target, "debug", "host", "",
                 command=["env", "RUSTDOCFLAGS=--cfg docsrs", "cargo", "doc"], command_key="shared",
             )
         self.assertEqual(clippy.environment_digest, doc_a.environment_digest)
         self.assertEqual(doc_a.environment_digest, doc_b.environment_digest)
-        self.assertEqual(identity.record_path(clippy), identity.record_path(doc_a))
+        self.assertEqual(build_records.record_path(clippy), build_records.record_path(doc_a))
 
     def test_an_included_config_file_change_is_detected(self) -> None:
         # Cargo 1.97 stable accepts `include` as a list of strings or a list
@@ -2156,7 +2160,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         execution_root.mkdir(parents=True)
         included = execution_root / "x.toml"
         included.write_text('[build]\nrustflags = ["--cfg", "foo"]\n', encoding="utf-8")
-        arguments = identity._config_arguments(["cargo", "check", "--config", 'include=["x.toml"]'])
+        arguments = build_inputs._config_arguments(["cargo", "check", "--config", 'include=["x.toml"]'])
         first = build_source.cargo_config_digest(execution_root, arguments)
         included.write_text('[build]\nrustflags = ["--cfg", "bar"]\n', encoding="utf-8")
         second = build_source.cargo_config_digest(execution_root, arguments)
@@ -2222,8 +2226,8 @@ class BuildIdentityTestCase(unittest.TestCase):
         (home / "config.toml").write_text(
             '[build]\nrustflags = ["--cfg", "foo"]\n', encoding="utf-8"
         )
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-            first = identity.build_spec(
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+            first = build_inputs.build_spec(
                 self.root, "demo", self.target, "debug", "host", "",
                 command=["env", f"CARGO_HOME={home}", "cargo", "check"],
                 execution_root=self.root,
@@ -2231,7 +2235,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             (home / "config.toml").write_text(
                 '[build]\nrustflags = ["--cfg", "foo", "--cfg", "bar"]\n', encoding="utf-8"
             )
-            second = identity.build_spec(
+            second = build_inputs.build_spec(
                 self.root, "demo", self.target, "debug", "host", "",
                 command=["env", f"CARGO_HOME={home}", "cargo", "check"],
                 execution_root=self.root,
@@ -2273,7 +2277,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         init_repo(self.root, "fn main() {}\n")
         changed = self.root / "src/lib.rs"
         with (
-            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.dict(
                 os.environ,
                 {
@@ -2294,8 +2298,8 @@ class BuildIdentityTestCase(unittest.TestCase):
                 artifact_paths=[self.artifact],
                 clean_command=[sys.executable, str(self.clean_script)],
             )
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-            spec = identity.build_spec(
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+            spec = build_inputs.build_spec(
                 self.root,
                 "demo",
                 self.target,
@@ -2304,7 +2308,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 "",
                 [sys.executable, str(self.build_script)],
             )
-        self.assertFalse(identity.record_path(spec).exists())
+        self.assertFalse(build_records.record_path(spec).exists())
 
     def test_discovery_uses_target_triple_and_exact_package_name(self) -> None:
         deps = self.target / "x86_64-unknown-linux-gnu" / "debug" / "deps"
@@ -2322,7 +2326,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 "demo-tools": frozenset({"demo_tools"}),
             },
         ):
-            paths = identity.discover_artifacts(
+            paths = artifacts.discover_artifacts(
                 self.target,
                 "demo",
                 "debug",
@@ -2380,15 +2384,15 @@ class BuildIdentityTestCase(unittest.TestCase):
                 ]
             },
         }
-        with patch.object(artifacts, "_cargo_metadata", return_value=metadata):
-            first = artifacts.dependency_snapshot(
+        with patch.object(build_snapshot, "_cargo_metadata", return_value=metadata):
+            first = build_snapshot.dependency_snapshot(
                 self.root / "Cargo.toml",
                 "demo",
                 self.root,
                 lambda path: {"root": path.as_posix(), "revision": "a"},
                 package_source.package_source_digest,
             )
-            second = artifacts.dependency_snapshot(
+            second = build_snapshot.dependency_snapshot(
                 self.root / "Cargo.toml",
                 "demo",
                 self.root,
@@ -2446,8 +2450,8 @@ class BuildIdentityTestCase(unittest.TestCase):
                     {"id": helper_id, "deps": []},
                 ]},
             }
-            with patch.object(artifacts, "_cargo_metadata", return_value=metadata):
-                snapshots.append(artifacts.dependency_snapshot(
+            with patch.object(build_snapshot, "_cargo_metadata", return_value=metadata):
+                snapshots.append(build_snapshot.dependency_snapshot(
                     workspace / "Cargo.toml", "demo", workspace,
                     lambda path: {"revision": "same"},
                     package_source.package_source_digest,
@@ -2489,8 +2493,8 @@ class BuildIdentityTestCase(unittest.TestCase):
                 ]
             },
         }
-        with patch.object(artifacts, "_cargo_metadata", return_value=metadata):
-            first = artifacts.dependency_snapshot(
+        with patch.object(build_snapshot, "_cargo_metadata", return_value=metadata):
+            first = build_snapshot.dependency_snapshot(
                 self.root / "Cargo.toml",
                 "demo",
                 self.root,
@@ -2498,7 +2502,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 package_source.package_source_digest,
             )
             source.write_text("pub fn value() -> u8 { 2 }\n", encoding="utf-8")
-            second = artifacts.dependency_snapshot(
+            second = build_snapshot.dependency_snapshot(
                 self.root / "Cargo.toml",
                 "demo",
                 self.root,
@@ -2521,7 +2525,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         init_repo(self.root, "fn main() {}\n")
         outside = self.base / "outside.rlib"
         outside.write_text("outside", encoding="utf-8")
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
             with self.assertRaises(identity.IdentityError):
                 identity.run_build(
                     self.root,
@@ -2554,10 +2558,11 @@ class BuildIdentityTestCase(unittest.TestCase):
 
         artifact_value = {"files": {"debug/deps/libdemo-123.rlib": "digest"}, "digest": "artifact"}
         with (
-            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
-            patch.object(identity, "dependency_snapshot", return_value=snapshot),
+            patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
+            patch.object(build_inputs, "dependency_snapshot", return_value=snapshot),
             patch.object(identity, "artifact_identity", return_value=artifact_value),
             patch.object(identity, "recorded_artifact_identity", return_value=artifact_value),
+            patch.object(build_records, "recorded_artifact_identity", return_value=artifact_value),
             patch.object(identity, "_run_checked", side_effect=run_command),
         ):
             first = identity.run_build(
@@ -2593,12 +2598,12 @@ class BuildIdentityTestCase(unittest.TestCase):
         record = self.base / "old-record.json"
         for version in (1, 2, 3):
             record.write_text(json.dumps({"version": version}), encoding="utf-8")
-            self.assertIsNone(identity.read_record(record))
+            self.assertIsNone(build_records.read_record(record))
 
     def test_malformed_records_fail_closed(self) -> None:
         init_repo(self.root, "fn main() {}\n")
-        with patch.object(identity, "toolchain_identity", return_value="rustc-test"):
-            spec = identity.build_spec(
+        with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
+            spec = build_inputs.build_spec(
                 self.root,
                 "demo",
                 self.target,
@@ -2607,7 +2612,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 "",
                 [sys.executable, str(self.build_script)],
             )
-            record = identity.record_path(spec)
+            record = build_records.record_path(spec)
             record.parent.mkdir(parents=True, exist_ok=True)
             record.write_text('{"version": true}', encoding="utf-8")
             with self.assertRaises(identity.IdentityError):
@@ -2625,7 +2630,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         outside = self.base / "outside.rlib"
         outside.write_text("outside", encoding="utf-8")
         with self.assertRaises(identity.IdentityError):
-            identity.artifact_identity(
+            artifacts.artifact_identity(
                 self.root,
                 self.target,
                 "demo",
@@ -2661,17 +2666,17 @@ class BuildIdentityTestCase(unittest.TestCase):
         lock.write_text("# committed\n", encoding="utf-8")
         git(self.root, "add", "Cargo.lock")
         git(self.root, "commit", "-qm", "lock")
-        before = identity.source_identity(self.root)
+        before = build_source.source_identity(self.root)
         lock.write_text("# rewritten by the gate\n", encoding="utf-8")
-        self.assertEqual(identity.source_identity(self.root, ignored_paths=(lock,)), before)
-        self.assertTrue(identity.source_identity(self.root).dirty)
+        self.assertEqual(build_source.source_identity(self.root, ignored_paths=(lock,)), before)
+        self.assertTrue(build_source.source_identity(self.root).dirty)
         (self.root / "src/lib.rs").write_text("fn main() { let _c = 1; }\n", encoding="utf-8")
-        self.assertTrue(identity.source_identity(self.root, ignored_paths=(lock,)).dirty)
+        self.assertTrue(build_source.source_identity(self.root, ignored_paths=(lock,)).dirty)
 
     def test_an_ignored_path_outside_the_source_tree_is_rejected(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         with self.assertRaises(identity.IdentityError):
-            identity.source_identity(
+            build_source.source_identity(
                 self.root, ignored_paths=(self.base / "elsewhere.lock",)
             )
 
@@ -2689,7 +2694,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             f"exec(open({str(self.build_script)!r}).read())\n",
         )
         with (
-            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.dict(
                 os.environ,
                 {"ARTIFACT": str(self.artifact), "SOURCE_TOKEN": "cwd", "CLEAN_LOG": str(self.clean_log)},
@@ -2955,7 +2960,7 @@ class CommandLeaseModeTestCase(unittest.TestCase):
 
         def digest(path: Path) -> str:
             if unreadable is not None and Path(path) == unreadable and self.answers.exists():
-                raise identity.BuildIdentityError(f"cannot hash artifact {path}: Permission denied")
+                raise BuildIdentityError(f"cannot hash artifact {path}: Permission denied")
             return file_digest(path)
 
         recorded_artifact = identity._recorded_artifact
@@ -2970,7 +2975,7 @@ class CommandLeaseModeTestCase(unittest.TestCase):
         self.answers.unlink(missing_ok=True)
         with (
             patch.object(identity, "_recorded_artifact", side_effect=artifact_read),
-            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.object(identity, "_dependency_data", return_value=snapshot),
             patch.object(artifacts, "_workspace_artifact_owners", return_value=owners),
             patch.object(artifacts, "_file_digest", side_effect=digest),
@@ -4454,7 +4459,7 @@ class CommandLineTestCase(unittest.TestCase):
         """Run the entry point with the member pre-push hook's exact arguments."""
         root = self.root
         with (
-            patch.object(identity, "toolchain_identity", return_value="rustc-test"),
+            patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.object(identity, "_run_checked", side_effect=self._skip_cargo_clean),
         ):
             return self.cli.main([
@@ -4487,7 +4492,7 @@ class CommandLineTestCase(unittest.TestCase):
     def pre_push_released(self, lease_seconds: int, held_on: float) -> tuple[int, str]:
         """Run the pre-push entry point against a holder that releases only after
         the run has printed its waiting line and `held_on` more seconds pass."""
-        lock = package_target_lease_path("demo", identity._canonical(self.target))
+        lock = package_target_lease_path("demo", build_source._canonical(self.target))
         release = self.target.parent / "release-holder"
         hold_lease(self, lock, self.target, lease_seconds, 120, release)
         stderr = io.StringIO()
@@ -4521,7 +4526,7 @@ class CommandLineTestCase(unittest.TestCase):
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
 
     def test_the_pre_push_wait_ends_at_the_wait_bound(self) -> None:
-        lock = package_target_lease_path("demo", identity._canonical(self.target))
+        lock = package_target_lease_path("demo", build_source._canonical(self.target))
         hold_lease(self, lock, self.target, 600, 60)
         started = time.monotonic()
         stderr = io.StringIO()
