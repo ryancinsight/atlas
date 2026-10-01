@@ -64,6 +64,12 @@ ROOT = Path(__file__).resolve().parent.parent
 # index stays a clean, closed-vocabulary scan surface.
 STATUS_WORD = re.compile(r"^[A-Za-z-]+")
 
+ANCHOR = re.compile(r'<a id="(?P<anchor>[^"]+)"></a>')
+
+
+class BoardIndexError(Exception):
+    """The board text cannot be indexed without losing or duplicating an anchor."""
+
 
 def item_fields_from_file(path: Path) -> tuple[str, str, str, str]:
     """Return (anchor, item_id, title, status) parsed from a per-item file.
@@ -156,6 +162,21 @@ def generate_text(root: Path) -> str:
         for anchor in ordered_anchors
     ]
 
+    # An anchor the index emits must appear once. A preamble line carrying
+    # one is an index line the matcher no longer recognizes (a re-encoded
+    # separator), and keeping it would publish the anchor twice.
+    duplicated = [
+        (number, match.group("anchor"))
+        for number, line in enumerate(preamble, start=1)
+        for match in ANCHOR.finditer(line)
+        if match.group("anchor") in fields_by_anchor
+    ]
+    if duplicated:
+        raise BoardIndexError(
+            "backlog.md preamble repeats index anchors: "
+            + ", ".join(f"line {number} {anchor}" for number, anchor in duplicated)
+        )
+
     while preamble and preamble[-1].strip() == "":
         preamble.pop()
     out = list(preamble)
@@ -173,7 +194,11 @@ def main(argv: list[str] | None = None) -> int:
     root = args.root.resolve()
     board = root / "backlog.md"
 
-    new_text = generate_text(root)
+    try:
+        new_text = generate_text(root)
+    except BoardIndexError as error:
+        print(f"{board}: {error}", file=sys.stderr)
+        return 1
 
     if args.mode == "check":
         current = board.read_text(encoding="utf-8") if board.is_file() else ""
