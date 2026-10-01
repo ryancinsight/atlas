@@ -1650,9 +1650,9 @@ class LaneGateTestCase(unittest.TestCase):
             stack / "scripts" / "atlas-build-identity.py",
             "import pathlib, sys\n"
             f"log = pathlib.Path({str(log)!r})\n"
-            "package = sys.argv[sys.argv.index('--package') + 1]\n"
+            "packages = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--package']\n"
             "with log.open('a', encoding='utf-8', newline='') as stream:\n"
-            "    stream.write(repr(package) + '\\n')\n",
+            "    stream.write(' '.join(repr(package) for package in packages) + '\\n')\n",
         )
         fixture.set_workspace_packages(["foo", "bar"])
         original = fixture.set_workspace_packages
@@ -1664,8 +1664,11 @@ class LaneGateTestCase(unittest.TestCase):
         self.assertEqual(len(gating), 1, err)
         gated = gating[0].removeprefix("pre-push: gating ").split(" ")
         self.assertEqual(sorted(gated), ["bar", "foo"], repr(gating[0]))
-        recorded = {line for line in log.read_text(encoding="utf-8").splitlines()}
-        self.assertEqual(recorded, {"'bar'", "'foo'"})
+        runs = log.read_text(encoding="utf-8").splitlines()
+        # One identity run per step (clippy, tests, rustdoc), each naming
+        # every gated package: the checker leases and queues once per step.
+        self.assertEqual(len(runs), 3, runs)
+        self.assertEqual({frozenset(run.split()) for run in runs}, {frozenset({"'bar'", "'foo'"})})
 
     def test_a_package_without_test_targets_skips_only_the_tests_step(self) -> None:
         """A `test = false` cdylib builds no test artifact for the identity checker.
@@ -1689,10 +1692,15 @@ class LaneGateTestCase(unittest.TestCase):
             stack / "scripts" / "atlas-build-identity.py",
             "import pathlib, sys\n"
             f"log = pathlib.Path({str(log)!r})\n"
-            "package = sys.argv[sys.argv.index('--package') + 1]\n"
-            "command = sys.argv[sys.argv.index('--') + 2]\n"
+            "packages = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--package']\n"
+            "build = sys.argv[sys.argv.index('--') + 1:]\n"
+            "command = build[1]\n"
+            "selection = [build[i + 1] for i, v in enumerate(build) if v == '-p']\n"
             "with log.open('a', encoding='utf-8', newline='') as stream:\n"
-            "    stream.write(package + ' ' + command + '\\n')\n",
+            "    stream.write('run ' + command + '\\n')\n"
+            "    stream.write('cargo ' + command + ' -p ' + ' '.join(sorted(selection)) + '\\n')\n"
+            "    for package in packages:\n"
+            "        stream.write(package + ' ' + command + '\\n')\n",
         )
         bar_targets = {"bar": [{"kind": ["cdylib"], "test": False, "doc": True}]}
         fixture.set_workspace_packages(["foo", "bar"], targets=bar_targets)
@@ -1702,11 +1710,62 @@ class LaneGateTestCase(unittest.TestCase):
         )
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
-        steps = set(log.read_text(encoding="utf-8").splitlines())
+        lines = log.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(
+            [line for line in lines if line.startswith("run ")],
+            ["run clippy", "run nextest", "run RUSTDOCFLAGS=-D warnings"],
+        )
+        # The one cargo command per step builds exactly the packages its
+        # identity run records: never the workspace's default members.
+        self.assertEqual(
+            [line for line in lines if line.startswith("cargo ")],
+            [
+                "cargo clippy -p bar foo",
+                "cargo nextest -p foo",
+                "cargo RUSTDOCFLAGS=-D warnings -p bar foo",
+            ],
+        )
+        steps = set(lines)
         self.assertIn("foo nextest", steps)
         self.assertNotIn("bar nextest", steps)
         self.assertIn("bar clippy", steps)
         self.assertIn("bar RUSTDOCFLAGS=-D warnings", steps)
+
+    def test_a_step_with_no_package_runs_no_identity_check(self) -> None:
+        """Every gated package undocumented: the rustdoc step names none, and
+        an identity run given no `--package` would refuse the push."""
+        stack, fixture, lane = self._lane(overlay=True)
+        _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
+        _write(
+            lane / "crates" / "bar" / "Cargo.toml",
+            '[package]\nname = "bar"\nversion = "0.1.0"\nedition = "2021"\n',
+        )
+        _write(lane / "crates" / "bar" / "src" / "lib.rs", "pub fn h() {}\n")
+        subprocess.run(["git", "-C", str(lane), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(lane), *_IDENT, "commit", "-qm", "members"], check=True)
+        log = stack / "identity-steps.log"
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            "import pathlib, sys\n"
+            f"log = pathlib.Path({str(log)!r})\n"
+            "packages = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--package']\n"
+            "if not packages:\n"
+            "    sys.exit('atlas-build-identity: the following arguments are required: --package')\n"
+            "command = sys.argv[sys.argv.index('--') + 1:]\n"
+            "with log.open('a', encoding='utf-8', newline='') as stream:\n"
+            "    stream.write(('doc' if 'doc' in command else 'other') + '\\n')\n",
+        )
+        undocumented = {"kind": ["lib"], "doc": False}
+        original = fixture.set_workspace_packages
+        fixture.set_workspace_packages = lambda names: original(
+            ["foo", "bar"], targets={"foo": [undocumented], "bar": [undocumented]},
+        )
+        fixture.set_workspace_packages(["foo", "bar"])
+        code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(log.read_text(encoding="utf-8").splitlines(), ["other", "other"])
+        self.assertIn("rustdoc skipped for foo", err)
+        self.assertIn("rustdoc skipped for bar", err)
 
     def test_a_package_without_a_documented_target_skips_only_the_rustdoc_step(self) -> None:
         """A bench-only package writes no rustdoc artifact, so its step is skipped.
@@ -1731,11 +1790,12 @@ class LaneGateTestCase(unittest.TestCase):
             stack / "scripts" / "atlas-build-identity.py",
             "import pathlib, sys\n"
             f"log = pathlib.Path({str(log)!r})\n"
-            "package = sys.argv[sys.argv.index('--package') + 1]\n"
+            "packages = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--package']\n"
             "command = sys.argv[sys.argv.index('--') + 1:]\n"
             "step = 'doc' if 'doc' in command else 'other'\n"
             "with log.open('a', encoding='utf-8', newline='') as stream:\n"
-            "    stream.write(f'{package} {step}\\n')\n",
+            "    for package in packages:\n"
+            "        stream.write(f'{package} {step}\\n')\n",
         )
         lib = {"kind": ["lib"], "doc": True}
         original = fixture.set_workspace_packages
@@ -2686,7 +2746,8 @@ class SourceIdentityGateTestCase(unittest.TestCase):
             first = lines[0].split()
             self.assertEqual(first[0], "run")
             self.assertEqual(first[first.index("--package") + 1], "foo")
-            self.assertEqual(first[first.index("--command-key") + 1], "atlas-pre-push:foo")
+            # One key for the step; the record is per package regardless.
+            self.assertEqual(first[first.index("--command-key") + 1], "atlas-pre-push")
             self.assertNotIn("--ignore-path", first)
             pushed = _git(fixture.root, "rev-parse", "feat")
             self.assertEqual(first[-1], f"root-head={pushed}")

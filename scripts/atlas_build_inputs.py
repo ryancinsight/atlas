@@ -10,7 +10,7 @@ from typing import Sequence
 from atlas_build_lease import BuildIdentityError
 from atlas_build_package_source import cached_package_source_digest
 from atlas_build_records import BuildSpec, _content
-from atlas_build_snapshot import dependency_snapshot
+from atlas_build_snapshot import _cargo_metadata, dependency_snapshot
 from atlas_build_source import (
     _canonical,
     _sha256_bytes,
@@ -82,9 +82,14 @@ def build_spec(
     ignore_paths: Sequence[Path] = (),
     dependency_digest: str = "",
     execution_root: Path | None = None,
+    selection: Sequence[str] = (),
 ) -> BuildSpec:
+    """`selection` is every package the command builds, `package` alone by default."""
     if not package:
         raise BuildIdentityError("package must not be empty")
+    selected = sorted(set(selection) or {package})
+    if package not in selected:
+        raise BuildIdentityError(f"package {package} is not in its selection {selected}")
     canonical_root = _canonical(root, strict=True)
     canonical_target = _canonical(target_dir)
     if canonical_target == canonical_root:
@@ -110,6 +115,7 @@ def build_spec(
         toolchain=toolchain_identity(root),
         target_dir=canonical_target.as_posix(),
         command_key=normalized_key,
+        selection=",".join(selected),
         environment_digest=environment_digest(merged_environment),
         cargo_config_digest=cargo_config_digest(
             resolved_execution_root, _config_arguments(normalized_command), merged_environment
@@ -120,20 +126,29 @@ def build_spec(
 
 def _dependency_data(
     manifest: Path,
-    package: str,
+    packages: Sequence[str],
     target_dir: Path,
     metadata_cwd: Path,
     ignore_paths: Sequence[Path],
     has_explicit_artifacts: bool,
-) -> dict[str, object]:
+) -> dict[str, dict[str, object]]:
+    """Each package's dependency snapshot, by package name.
+
+    One `cargo metadata` and one source identity per path package serve the
+    whole set: a package several closures share is read once.
+    """
     if has_explicit_artifacts:
-        snapshot: dict[str, object] = {
-            "root": package,
-            "packages": [],
-            "edges": [],
-            "clean_packages": [package],
+        snapshots: dict[str, dict[str, object]] = {
+            package: {
+                "root": package,
+                "packages": [],
+                "edges": [],
+                "clean_packages": [package],
+            }
+            for package in packages
         }
     else:
+        metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False)
         source_cache: dict[Path, dict[str, object]] = {}
         package_source_cache = target_dir / ".atlas" / "source-identity" / "package-source"
 
@@ -144,16 +159,22 @@ def _dependency_data(
                 source_cache[canonical_path] = _content(identified.as_dict())
             return source_cache[canonical_path]
 
-        snapshot = dependency_snapshot(
-            manifest,
-            package,
-            metadata_cwd,
-            identify_source,
-            lambda path: cached_package_source_digest(path, package_source_cache),
+        snapshots = {
+            package: dependency_snapshot(
+                metadata,
+                manifest,
+                package,
+                identify_source,
+                lambda path: cached_package_source_digest(path, package_source_cache),
+            )
+            for package in packages
+        }
+    digested = {}
+    for package, snapshot in snapshots.items():
+        snapshot = dict(snapshot)
+        snapshot.pop("digest", None)
+        snapshot["digest"] = _sha256_bytes(
+            json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode()
         )
-    snapshot = dict(snapshot)
-    snapshot.pop("digest", None)
-    snapshot["digest"] = _sha256_bytes(
-        json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode()
-    )
-    return snapshot
+        digested[package] = snapshot
+    return digested

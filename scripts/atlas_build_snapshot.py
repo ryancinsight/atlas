@@ -130,13 +130,13 @@ def _workspace_manifest_digest(workspace_root: object) -> str | None:
 
 
 def dependency_snapshot(
+    metadata: dict[str, object],
     manifest: Path,
     package: str,
-    metadata_cwd: Path | None,
     source_identity: Callable[[Path], object],
     content_digest: Callable[[Path], str],
 ) -> dict[str, object]:
-    metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False)
+    """`package`'s resolved closure in `metadata`, `manifest`'s `cargo metadata`."""
     try:
         packages = {
             str(value["id"]): value

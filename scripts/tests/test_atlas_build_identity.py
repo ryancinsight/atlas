@@ -15,7 +15,7 @@ import tempfile
 import threading
 import time
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -27,6 +27,7 @@ SPEC = importlib.util.spec_from_file_location("atlas_build_identity", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 sys.path.insert(0, str(SCRIPT.parent))
 import atlas_build_artifacts as artifacts
+import atlas_build_check as check
 import atlas_build_inputs as build_inputs
 import atlas_build_lease as lease_module
 import atlas_build_lock as lock_module
@@ -781,13 +782,13 @@ class BuildIdentityTestCase(unittest.TestCase):
             return identity.run_build(
                 root or self.root,
                 (root or self.root) / "Cargo.toml",
-                "demo",
+                ("demo",),
                 self.target,
                 [sys.executable, str(self.build_script)],
                 artifact_paths=[self.artifact],
                 clean_command=[sys.executable, str(self.clean_script)],
                 **options,
-            )
+            )[0]
 
     def test_source_transition_cleans_once_and_rebuilds_the_affected_package(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -819,7 +820,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertFalse(second.cleaned)
         self.assertFalse(self.clean_log.exists())
         with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
-            code, value = identity.check_record(
+            code, value = check.check_record(
                 self.root,
                 "demo",
                 self.target,
@@ -908,7 +909,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         try:
             self.clean_log.unlink()
             with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
-                code, value = identity.check_record(
+                code, value = check.check_record(
                     self.root,
                     "demo",
                     self.target,
@@ -943,7 +944,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         try:
             self.clean_log.unlink(missing_ok=True)
             with (
-                patch.object(identity, "_dependency_data", return_value=snapshot),
+                patch.object(identity, "_dependency_data", return_value={"demo": snapshot}),
                 patch.object(
                     identity,
                     "artifact_identity",
@@ -958,11 +959,11 @@ class BuildIdentityTestCase(unittest.TestCase):
                     identity.run_build(
                         self.root,
                         self.root / "Cargo.toml",
-                        "demo",
+                        ("demo",),
                         self.target,
                         [sys.executable, str(self.build_script)],
                         artifact_paths=(),
-                    )
+                    )[0]
             self.assertFalse(self.clean_log.exists())
         finally:
             owner.__exit__(None, None, None)
@@ -987,7 +988,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         }
         owners = owners or {"demo": frozenset({"demo"}), "dep": frozenset({"dep"})}
         with (
-            patch.object(identity, "_dependency_data", return_value=snapshot),
+            patch.object(identity, "_dependency_data", return_value={"demo": snapshot}),
             patch.object(artifacts, "_workspace_artifact_owners", return_value=owners),
             patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.dict(
@@ -1003,13 +1004,13 @@ class BuildIdentityTestCase(unittest.TestCase):
             return identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
-                "demo",
+                ("demo",),
                 self.target,
                 [sys.executable, str(self.build_script)],
                 artifact_paths=() if discover else [self.artifact],
                 clean_command=[sys.executable, str(self.clean_script)] if clean else None,
                 lease_wait_seconds=wait,
-            )
+            )[0]
 
     def dep_lock(self, package: str = "dep") -> Path:
         return package_target_lease_path(package, build_source._canonical(self.target))
@@ -1827,7 +1828,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         )
         self.assertFalse(lease_module.lease_is_held(lock))
         with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
-            code, value = identity.check_record(
+            code, value = check.check_record(
                 self.root,
                 "demo",
                 self.target,
@@ -1866,7 +1867,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             spec = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
         start_holder(self, identity.lease_path(spec), SHARED, 60)
         with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
-            code, value = identity.check_record(
+            code, value = check.check_record(
                 self.root,
                 "demo",
                 self.target,
@@ -1898,13 +1899,13 @@ class BuildIdentityTestCase(unittest.TestCase):
             result = identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
-                "demo",
+                ("demo",),
                 self.target,
                 [sys.executable, str(command_script)],
                 artifact_paths=[self.artifact],
                 clean_command=[sys.executable, "-c", "pass"],
                 command_cwd=execution_root,
-            )
+            )[0]
         record = json.loads(result.record_path.read_text(encoding="utf-8"))
         self.assertNotIn("command_cwd", record["build"])
         self.assertEqual(cwd_marker.read_text(encoding="utf-8"), str(execution_root.resolve()))
@@ -2292,12 +2293,12 @@ class BuildIdentityTestCase(unittest.TestCase):
             identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
-                "demo",
+                ("demo",),
                 self.target,
                 [sys.executable, str(self.build_script)],
                 artifact_paths=[self.artifact],
                 clean_command=[sys.executable, str(self.clean_script)],
-            )
+            )[0]
         with patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"):
             spec = build_inputs.build_spec(
                 self.root,
@@ -2386,16 +2387,12 @@ class BuildIdentityTestCase(unittest.TestCase):
         }
         with patch.object(build_snapshot, "_cargo_metadata", return_value=metadata):
             first = build_snapshot.dependency_snapshot(
-                self.root / "Cargo.toml",
-                "demo",
-                self.root,
+                build_snapshot._cargo_metadata(self.root / "Cargo.toml", self.root, no_deps=False), self.root / "Cargo.toml", "demo",
                 lambda path: {"root": path.as_posix(), "revision": "a"},
                 package_source.package_source_digest,
             )
             second = build_snapshot.dependency_snapshot(
-                self.root / "Cargo.toml",
-                "demo",
-                self.root,
+                build_snapshot._cargo_metadata(self.root / "Cargo.toml", self.root, no_deps=False), self.root / "Cargo.toml", "demo",
                 lambda path: {"root": path.as_posix(), "revision": "b"},
                 package_source.package_source_digest,
             )
@@ -2452,7 +2449,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             }
             with patch.object(build_snapshot, "_cargo_metadata", return_value=metadata):
                 snapshots.append(build_snapshot.dependency_snapshot(
-                    workspace / "Cargo.toml", "demo", workspace,
+                    build_snapshot._cargo_metadata(workspace / "Cargo.toml", workspace, no_deps=False), workspace / "Cargo.toml", "demo",
                     lambda path: {"revision": "same"},
                     package_source.package_source_digest,
                 ))
@@ -2495,17 +2492,13 @@ class BuildIdentityTestCase(unittest.TestCase):
         }
         with patch.object(build_snapshot, "_cargo_metadata", return_value=metadata):
             first = build_snapshot.dependency_snapshot(
-                self.root / "Cargo.toml",
-                "demo",
-                self.root,
+                build_snapshot._cargo_metadata(self.root / "Cargo.toml", self.root, no_deps=False), self.root / "Cargo.toml", "demo",
                 lambda path: {"root": path.as_posix(), "revision": "a"},
                 package_source.package_source_digest,
             )
             source.write_text("pub fn value() -> u8 { 2 }\n", encoding="utf-8")
             second = build_snapshot.dependency_snapshot(
-                self.root / "Cargo.toml",
-                "demo",
-                self.root,
+                build_snapshot._cargo_metadata(self.root / "Cargo.toml", self.root, no_deps=False), self.root / "Cargo.toml", "demo",
                 lambda path: {"root": path.as_posix(), "revision": "a"},
                 package_source.package_source_digest,
             )
@@ -2530,12 +2523,12 @@ class BuildIdentityTestCase(unittest.TestCase):
                 identity.run_build(
                     self.root,
                     self.root / "Cargo.toml",
-                    "demo",
+                    ("demo",),
                     self.target,
                     [sys.executable, str(self.build_script)],
                     artifact_paths=[outside],
                     clean_command=[sys.executable, str(self.clean_script)],
-                )
+                )[0]
         self.assertFalse(self.clean_log.exists())
 
     def test_dependency_transition_cleans_the_reachable_path_packages(self) -> None:
@@ -2568,17 +2561,17 @@ class BuildIdentityTestCase(unittest.TestCase):
             first = identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
-                "demo",
+                ("demo",),
                 self.target,
                 [sys.executable, "-c", "pass"],
-            )
+            )[0]
             second = identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
-                "demo",
+                ("demo",),
                 self.target,
                 [sys.executable, "-c", "pass"],
-            )
+            )[0]
         self.assertEqual(first.status, "rebuilt")
         self.assertEqual(second.status, "reused")
         clean_commands = [command for command in commands if list(command[1:2]) == ["clean"]]
@@ -2596,7 +2589,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         # is gracefully stale, never a hard failure for the field it cannot
         # have.
         record = self.base / "old-record.json"
-        for version in (1, 2, 3):
+        for version in (1, 2, 3, 4, 5):
             record.write_text(json.dumps({"version": version}), encoding="utf-8")
             self.assertIsNone(build_records.read_record(record))
 
@@ -2616,7 +2609,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             record.parent.mkdir(parents=True, exist_ok=True)
             record.write_text('{"version": true}', encoding="utf-8")
             with self.assertRaises(identity.IdentityError):
-                identity.check_record(
+                check.check_record(
                     self.root,
                     "demo",
                     self.target,
@@ -2703,13 +2696,13 @@ class BuildIdentityTestCase(unittest.TestCase):
             identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
-                "demo",
+                ("demo",),
                 self.target,
                 [sys.executable, str(record_cwd)],
                 artifact_paths=[self.artifact],
                 clean_command=[sys.executable, str(self.clean_script)],
                 command_cwd=elsewhere,
-            )
+            )[0]
         self.assertEqual(Path(marker.read_text(encoding="utf-8")).resolve(), elsewhere.resolve())
 
 
@@ -2976,7 +2969,7 @@ class CommandLeaseModeTestCase(unittest.TestCase):
         with (
             patch.object(identity, "_recorded_artifact", side_effect=artifact_read),
             patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
-            patch.object(identity, "_dependency_data", return_value=snapshot),
+            patch.object(identity, "_dependency_data", return_value={"demo": snapshot}),
             patch.object(artifacts, "_workspace_artifact_owners", return_value=owners),
             patch.object(artifacts, "_file_digest", side_effect=digest),
             patch.object(identity, "_cargo_command", return_value=(sys.executable, str(self.clean))),
@@ -2985,7 +2978,7 @@ class CommandLeaseModeTestCase(unittest.TestCase):
             self.result = identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
-                "demo",
+                ("demo",),
                 self.target,
                 [
                     sys.executable,
@@ -2998,7 +2991,7 @@ class CommandLeaseModeTestCase(unittest.TestCase):
                 clean_command=clean_command,
                 command_key=command_key,
                 lease_wait_seconds=0,
-            )
+            )[0]
         return json.loads(self.answers.read_text(encoding="utf-8"))
 
     def recorded(self) -> dict[str, str]:
@@ -3198,11 +3191,11 @@ class RepeatedExportPushTestCase(unittest.TestCase):
                 identity.run_build(
                     export,
                     export / "Cargo.toml",
-                    "p",
+                    ("p",),
                     self.base / "target",
                     ["cargo", "check", "-p", "p", "-q", "--offline"],
                     command_cwd=export,
-                )
+                )[0]
         return cleaned
 
     def test_pushes_from_one_export_path_clean_only_the_first(self) -> None:
@@ -3323,9 +3316,9 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 results.append(
                     identity.run_build(
-                        export, export / "Cargo.toml", "p", self.base / "target",
+                        export, export / "Cargo.toml", ("p",), self.base / "target",
                         ["cargo", "check", "-p", "p", "-q", "--offline"], command_cwd=export,
-                    )
+                    )[0]
                 )
         return results
 
@@ -3449,11 +3442,11 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
                 result = identity.run_build(
                     export,
                     export / "Cargo.toml",
-                    "p",
+                    ("p",),
                     self.base / "target",
                     ["cargo", "check", "-p", "p", "-q", "--offline"],
                     command_cwd=export,
-                )
+                )[0]
                 self.last_result = result
         return cleaned
 
@@ -3677,9 +3670,9 @@ class SharedCommandKeyThreeStepTestCase(unittest.TestCase):
         with patch.dict(os.environ, {**self.environment, **(environment or {})}, clear=True):
             for name, command in steps:
                 result = identity.run_build(
-                    export, export / "Cargo.toml", "a", self.base / "target", command,
+                    export, export / "Cargo.toml", ("a",), self.base / "target", command,
                     command_cwd=export, command_key="atlas-pre-push:a",
-                )
+                )[0]
                 results.append((name, result.status, result.record_path.name))
         return results
 
@@ -3706,6 +3699,349 @@ class SharedCommandKeyThreeStepTestCase(unittest.TestCase):
         self.assertNotEqual(
             {record for _, _, record in first}, {record for _, _, record in second}
         )
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class MultiPackageRunTestCase(unittest.TestCase):
+    """One `run_build` for a gate step's whole package set: `a` (which
+    depends on `b`) and the independent `c`. The step runs one cargo command
+    naming both, keeps one record per package, and cleans only what a stale
+    package's own rule names -- a package whose record matched is never
+    cleaned because a sibling in the same run went stale.
+    """
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-multi-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.environment = {
+            key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
+        }
+        self.source = self.base / "src_repo"
+        for relative, text in {
+            "Cargo.toml": '[workspace]\nmembers = ["a", "b", "c"]\nresolver = "2"\n',
+            "a/Cargo.toml": (
+                '[package]\nname = "a"\nversion = "0.1.0"\nedition = "2021"\n'
+                "[dependencies]\nb = { path = \"../b\" }\n"
+            ),
+            "a/src/lib.rs": "//! a\n/// a\npub fn a() -> u32 { b::b() + 1 }\n",
+            "b/Cargo.toml": '[package]\nname = "b"\nversion = "0.1.0"\nedition = "2021"\n',
+            "b/src/lib.rs": "//! b\n/// b\npub fn b() -> u32 { 1 }\n",
+            "c/Cargo.toml": '[package]\nname = "c"\nversion = "0.1.0"\nedition = "2021"\n',
+            "c/src/lib.rs": "//! c\n/// c\npub fn c() -> u32 { 3 }\n",
+        }.items():
+            (self.source / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.source / relative).write_text(text, encoding="utf-8")
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        git(self.source, "init", "-q")
+        git(self.source, "config", "user.name", "Atlas test")
+        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "source")
+        # Every cargo the checker starts, the build command included, is
+        # logged one argv per line before it runs.
+        self.log = self.base / "cargo.log"
+        self.wrapper = self.base / "cargo_log.py"
+        self.wrapper.write_text(
+            "import json, subprocess, sys\n"
+            f"with open({str(self.log)!r}, 'a', encoding='utf-8') as stream:\n"
+            "    stream.write(json.dumps(['cargo', *sys.argv[1:]]) + '\\n')\n"
+            "raise SystemExit(subprocess.run(['cargo', *sys.argv[1:]]).returncode)\n",
+            encoding="utf-8",
+        )
+
+    def push(
+        self, gate: Path, command: list[str] | None = None, packages: tuple[str, ...] = ("a", "c")
+    ):
+        """One clippy step over `packages` from a fresh export of the source."""
+        export = gate / "nested" / "ws"
+        export.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "clone", "-q", str(self.source), str(export)], check=True)
+        manifest = str(export / "Cargo.toml")
+        self.log.unlink(missing_ok=True)
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            patch.object(identity, "_cargo_command", return_value=(sys.executable, str(self.wrapper))),
+        ):
+            return identity.run_build(
+                export,
+                export / "Cargo.toml",
+                packages,
+                self.base / "target",
+                command
+                or ["cargo", "clippy", "-q", "--manifest-path", manifest, "--locked", "--offline",
+                    *(argument for package in packages for argument in ("-p", package))],
+                command_cwd=export,
+                command_key="atlas-pre-push",
+            )
+
+    def invocations(self) -> list[list[str]]:
+        return [json.loads(line) for line in self.log.read_text(encoding="utf-8").splitlines()]
+
+    def records(self) -> list[Path]:
+        return sorted((self.base / "target" / ".atlas" / "source-identity").glob("*.json"))
+
+    def test_one_command_and_one_record_per_package(self) -> None:
+        first = self.push(self.base / "gate1")
+        self.assertEqual(len(first), 2)
+        self.assertEqual(len({result.record_path for result in first}), 2)
+        clippy = [argv for argv in self.invocations() if argv[1] == "clippy"]
+        self.assertEqual(len(clippy), 1, self.invocations())
+        self.assertEqual(clippy[0][-4:], ["-p", "a", "-p", "c"])
+        second = self.push(self.base / "gate2")
+        self.assertEqual([result.status for result in second], ["reused", "reused"])
+        self.assertEqual([result.record_path for result in second], [result.record_path for result in first])
+        self.assertEqual([cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"], [])
+
+    def test_a_matched_package_is_not_cleaned_beside_a_stale_one(self) -> None:
+        first = self.push(self.base / "gate1")
+        # The same step and commit with `c`'s record gone: `a` still matches.
+        first[1].record_path.unlink()
+        second = self.push(self.base / "gate2")
+        self.assertEqual([result.status for result in second], ["reused", "rebuilt"])
+        self.assertEqual([result.cleaned for result in second], [False, True])
+        cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
+        # `c` alone: never `a`, nor `b`, which only `a`'s matched record names.
+        self.assertEqual(cleans, [["c"]])
+
+    def test_a_matched_package_another_rule_cleaned_reports_rebuilt(self) -> None:
+        first = self.push(self.base / "gate1", packages=("a", "b"))
+        # `a`'s record gone: its rule cleans its closure, `b` with it, though
+        # `b`'s own record still matches.
+        first[0].record_path.unlink()
+        second = self.push(self.base / "gate2", packages=("a", "b"))
+        cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
+        self.assertEqual(cleans, [["a", "b"]])
+        self.assertEqual(
+            [(result.status, result.cleaned) for result in second],
+            [("rebuilt", True), ("rebuilt", True)],
+        )
+
+    def test_a_record_of_another_selection_never_matches(self) -> None:
+        self.push(self.base / "gate1", packages=("a",))
+        second = self.push(self.base / "gate2")
+        # `a` was recorded under `-p a`; `-p a -p c` may build other variants
+        # of its dependencies, so its record is not this step's.
+        self.assertEqual([result.status for result in second], ["rebuilt", "rebuilt"])
+
+    def test_a_commit_cleans_the_union_of_the_per_package_rules_once(self) -> None:
+        self.push(self.base / "gate1")
+        (self.source / "c" / "src" / "lib.rs").write_text(
+            "//! c\n/// c\npub fn c() -> u32 { 4 }\n", encoding="utf-8"
+        )
+        git(self.source, "commit", "-q", "-am", "edit c")
+        second = self.push(self.base / "gate2")
+        self.assertEqual([result.status for result in second], ["rebuilt", "rebuilt"])
+        # A path package's identity is its repository's, so the commit moves
+        # `a`'s and `b`'s records too: one run per package (68a1c4364)
+        # cleaned `-p a -p b`, then `-p c`. The batch names that union once.
+        cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
+        self.assertEqual(cleans, [["a", "b", "c"]])
+
+    def test_every_package_is_leased_and_each_member_held_exclusive(self) -> None:
+        self.push(self.base / "gate1")
+        target = self.base / "target"
+        lock = {name: str(package_target_lease_path(name, target)) for name in ("a", "b", "c")}
+        answers = self.base / "answers.json"
+        probe = self.base / "probe.py"
+        write_script(
+            probe,
+            LEASE_PROBE + "import subprocess\n"
+            "raise SystemExit(subprocess.run(sys.argv[4:]).returncode)\n",
+        )
+        requests = [
+            ["a", lock["a"], SHARED], ["c", lock["c"], SHARED],
+            ["b", lock["b"], SHARED], ["b", lock["b"], EXCLUSIVE],
+        ]
+        manifest = str(self.base / "gate2" / "nested" / "ws" / "Cargo.toml")
+        second = self.push(
+            self.base / "gate2",
+            [sys.executable, str(probe), str(SCRIPT.parent), str(answers), json.dumps(requests),
+             "cargo", "clippy", "-q", "--manifest-path", manifest, "--locked", "--offline",
+             "-p", "a", "-p", "c"],
+        )
+        self.assertEqual([result.status for result in second], ["reused", "reused"])
+        # Both members are written by the command: exclusive. `b`, which only
+        # `a`'s closure names, is read: shared, so a peer may read it too.
+        self.assertEqual(
+            json.loads(answers.read_text(encoding="utf-8")),
+            {"a:shared": "refused", "c:shared": "refused",
+             "b:shared": "granted", "b:exclusive": "refused"},
+        )
+
+    def test_leases_are_taken_in_package_name_order(self) -> None:
+        order: list[str] = []
+        real = identity.acquire_waiting
+
+        def recording(lease, *args):
+            order.append(str(lease.owner["package"]))
+            return real(lease, *args)
+
+        with patch.object(identity, "acquire_waiting", side_effect=recording):
+            self.push(self.base / "gate1", packages=("c", "a"))
+        # Each acquisition takes every scope in name order whatever order the
+        # packages were named in, so two overlapping batches never each hold
+        # a lease the other waits for.
+        self.assertEqual(order[:3], ["a", "b", "c"])
+        self.assertEqual(len(order) % 3, 0)
+        self.assertTrue(all(order[i:i + 3] == ["a", "b", "c"] for i in range(0, len(order), 3)))
+
+    def test_a_dependency_change_in_any_package_refuses_the_record(self) -> None:
+        marker = self.base / "built"
+        real = identity._dependency_data
+
+        def moving(*args, **kwargs):
+            snapshots = real(*args, **kwargs)
+            if marker.exists():
+                # After the command: the last package's closure moved.
+                snapshots = {**snapshots, "c": {**snapshots["c"], "digest": "moved"}}
+            return snapshots
+
+        with patch.object(identity, "_dependency_data", side_effect=moving):
+            with self.assertRaisesRegex(identity.IdentityError, "dependency graph changed"):
+                self.push(
+                    self.base / "gate1",
+                    [sys.executable, "-c", f"open({str(marker)!r}, 'w').close()"],
+                )
+        self.assertEqual(self.records(), [])
+
+    def test_git_stamps_are_written_for_every_package(self) -> None:
+        stamped: list[tuple[str, bool]] = []
+        real = identity._write_git_stamps
+
+        def recording(dependencies, directory, names, building):
+            stamped.append((str(dependencies["root"]), building))
+            return real(dependencies, directory, names, building)
+
+        with patch.object(identity, "_write_git_stamps", side_effect=recording):
+            self.push(self.base / "gate1")
+        a, c = "workspace:a#a@0.1.0", "workspace:c#c@0.1.0"
+        self.assertEqual(sorted(stamped), [(a, False), (a, True), (c, False), (c, True)])
+
+    def test_a_failing_command_writes_no_record(self) -> None:
+        with self.assertRaisesRegex(identity.IdentityError, "exit code 3"):
+            self.push(self.base / "gate1", [sys.executable, "-c", "raise SystemExit(3)"])
+        self.assertEqual(self.records(), [])
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class SelectionVariantTestCase(unittest.TestCase):
+    """`a` uses `d` without features and `b` with `extra`, which changes
+    `d::value()`. Built together, Cargo unifies `d` to its `extra` variant;
+    built alone, `a` links `d`'s plain variant, under another file name. A
+    record written by a `-p a -p b` step names only the unified variant, so it
+    must not stand in for a later `-p a` step: a peer's plain `cargo build -p
+    a` of other `d` source in between would be linked unseen.
+    """
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-selection-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.environment = {
+            key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
+        }
+        self.source = self.base / "src_repo"
+        self.write_workspace(self.source, value="1")
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        git(self.source, "init", "-q")
+        git(self.source, "config", "user.name", "Atlas test")
+        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "source")
+        # One export reused in place, as the hook reuses its checkout path.
+        self.export = self.base / "gate" / "nested" / "ws"
+        self.export.parent.mkdir(parents=True)
+        subprocess.run(["git", "clone", "-q", str(self.source), str(self.export)], check=True)
+        self.target = self.base / "target"
+
+    @staticmethod
+    def write_workspace(root: Path, value: str) -> None:
+        for relative, text in {
+            "Cargo.toml": '[workspace]\nmembers = ["a", "b", "d"]\nresolver = "2"\n',
+            "a/Cargo.toml": (
+                '[package]\nname = "a"\nversion = "0.1.0"\nedition = "2021"\n'
+                '[dependencies]\nd = { path = "../d" }\n'
+            ),
+            "a/src/main.rs": 'fn main() { println!("{}", d::value()); }\n',
+            "b/Cargo.toml": (
+                '[package]\nname = "b"\nversion = "0.1.0"\nedition = "2021"\n'
+                '[dependencies]\nd = { path = "../d", features = ["extra"] }\n'
+            ),
+            "b/src/lib.rs": "pub fn b() -> u32 { d::value() }\n",
+            "d/Cargo.toml": (
+                '[package]\nname = "d"\nversion = "0.1.0"\nedition = "2021"\n'
+                "[features]\nextra = []\n"
+            ),
+            "d/src/lib.rs": (
+                f"pub fn value() -> u32 {{ if cfg!(feature = \"extra\") {{ 100 + {value} }} else {{ {value} }} }}\n"
+            ),
+        }.items():
+            (root / relative).parent.mkdir(parents=True, exist_ok=True)
+            (root / relative).write_text(text, encoding="utf-8")
+
+    def gate(self, packages: tuple[str, ...]) -> list[list[str] | None]:
+        """One build step over `packages`; the packages each `cargo clean` named."""
+        log = self.base / "cargo.log"
+        log.unlink(missing_ok=True)
+        wrapper = self.base / "cargo_log.py"
+        wrapper.write_text(
+            "import json, subprocess, sys\n"
+            f"with open({str(log)!r}, 'a', encoding='utf-8') as stream:\n"
+            "    stream.write(json.dumps(['cargo', *sys.argv[1:]]) + '\\n')\n"
+            "raise SystemExit(subprocess.run(['cargo', *sys.argv[1:]]).returncode)\n",
+            encoding="utf-8",
+        )
+        manifest = str(self.export / "Cargo.toml")
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            patch.object(identity, "_cargo_command", return_value=(sys.executable, str(wrapper))),
+        ):
+            identity.run_build(
+                self.export, self.export / "Cargo.toml", packages, self.target,
+                ["cargo", "build", "-q", "--manifest-path", manifest, "--offline",
+                 *(argument for package in packages for argument in ("-p", package))],
+                command_cwd=self.export, command_key="atlas-pre-push",
+            )
+        return [
+            cleaned_names(argv)
+            for argv in map(json.loads, log.read_text(encoding="utf-8").splitlines())
+            if argv[1] == "clean"
+        ]
+
+    def run_a(self) -> str:
+        binary = self.target / "debug" / ("a.exe" if os.name == "nt" else "a")
+        return subprocess.run([str(binary)], capture_output=True, text=True, check=True).stdout.strip()
+
+    def test_a_record_of_one_selection_does_not_stand_in_for_another(self) -> None:
+        self.gate(("a", "b"))
+        # The unified variant: `a` built beside `b` links `d` with `extra`.
+        self.assertEqual(self.run_a(), "101")
+        peer = self.base / "peer"
+        subprocess.run(["git", "clone", "-q", str(self.source), str(peer)], check=True)
+        self.write_workspace(peer, value="2")
+        built = subprocess.run(
+            ["cargo", "build", "-q", "--offline", "--manifest-path", str(peer / "Cargo.toml"), "-p", "a"],
+            cwd=peer, env={**self.environment, "CARGO_TARGET_DIR": str(self.target)},
+            capture_output=True, text=True, timeout=300,
+        )
+        self.assertEqual(built.returncode, 0, built.stderr)
+        self.assertEqual(self.run_a(), "2")
+        cleans = self.gate(("a",))
+        # No record names `-p a`'s variant of `d`, so the closure is cleaned
+        # and rebuilt from this checkout's source.
+        self.assertEqual(cleans, [["a", "d"]])
+        self.assertEqual(self.run_a(), "1")
+        # The `-p a` record now exists: the same step again cleans nothing.
+        self.assertEqual(self.gate(("a",)), [])
 
 
 @pytest.mark.slow
@@ -3795,9 +4131,9 @@ class PathDependencyFeatureChangeTestCase(unittest.TestCase):
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
-                    export, export / "Cargo.toml", "p", self.base / "target",
+                    export, export / "Cargo.toml", ("p",), self.base / "target",
                     ["cargo", "check", "-p", "p", "-q", "--offline"], command_cwd=export,
-                )
+                )[0]
         return cleaned
 
     def test_enabling_a_dependency_feature_cleans_it_and_its_dependents(self) -> None:
@@ -3906,9 +4242,9 @@ class DependencyAdditionTestCase(unittest.TestCase):
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
-                    export, export / "Cargo.toml", "p", self.base / "target",
+                    export, export / "Cargo.toml", ("p",), self.base / "target",
                     ["cargo", "check", "-p", "p", "-q", "--offline"], command_cwd=export,
-                )
+                )[0]
         return cleaned
 
     def test_adding_a_dependency_to_the_root_cleans_every_path_package(self) -> None:
@@ -4052,11 +4388,11 @@ class GitDependencyTestCase(unittest.TestCase):
                 )
                 try:
                     identity.run_build(
-                        export, export / "Cargo.toml", package, self.base / "target",
+                        export, export / "Cargo.toml", (package,), self.base / "target",
                         command, command_cwd=export, profile=profile,
                         command_key=(keys or {}).get(push, profile),
                         clean_command=[sys.executable, "-c", "pass"] if push in custom_clean else None,
-                    )
+                    )[0]
                 except KeyboardInterrupt:
                     self.assertIn(push, killed)
         return [sorted(packages) for packages in cleaned]
@@ -4298,9 +4634,9 @@ class GitManifestEditTestCase(unittest.TestCase):
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 self.result = identity.run_build(
-                    export, export / "Cargo.toml", "p", self.base / "t",
+                    export, export / "Cargo.toml", ("p",), self.base / "t",
                     ["cargo", "check", "-p", "p", "-q"], command_cwd=export,
-                )
+                )[0]
         return [sorted(packages) for packages in cleaned]
 
     def assert_record_names_the_m_on_disk(self) -> None:
@@ -4411,9 +4747,9 @@ class RootProfileChangeTestCase(unittest.TestCase):
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
-                    export, export / "Cargo.toml", "p", self.base / "target",
+                    export, export / "Cargo.toml", ("p",), self.base / "target",
                     ["cargo", "check", "-p", "p", "-q", "--offline"], command_cwd=export,
-                )
+                )[0]
         return cleaned
 
     def test_a_profile_edit_cleans_only_the_root(self) -> None:
@@ -4471,7 +4807,7 @@ class CommandLineTestCase(unittest.TestCase):
                 "--target", "host",
                 "--manifest", str(root / "Cargo.toml"),
                 "--command-cwd", str(root),
-                "--command-key", "atlas-pre-push:demo",
+                "--command-key", "atlas-pre-push",
                 "--ignore-path", str(root / "Cargo.lock"),
                 "--manifest", str(root / "Cargo.toml"),
                 *options,
@@ -4484,10 +4820,36 @@ class CommandLineTestCase(unittest.TestCase):
             code = self.pre_push()
         self.assertEqual(code, 0)
         kwargs = run_build.call_args.kwargs
-        self.assertEqual(kwargs["command_key"], "atlas-pre-push:demo")
+        self.assertEqual(run_build.call_args.args[2], ("demo",))
+        self.assertEqual(kwargs["command_key"], "atlas-pre-push")
         self.assertEqual(kwargs["command_cwd"], self.root)
         self.assertEqual(kwargs["ignore_paths"], [self.root / "Cargo.lock"])
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "built")
+
+    def test_each_package_gets_its_own_output_line(self) -> None:
+        results = tuple(
+            identity.BuildResult(status, self.target / f"{name}.json", status == "rebuilt", ())
+            for name, status in (("demo", "reused"), ("other", "rebuilt"))
+        )
+        stdout = io.StringIO()
+        with (
+            patch.object(self.cli, "run_build", return_value=results) as run_build,
+            redirect_stdout(stdout),
+        ):
+            code = self.cli.main([
+                "run", "--root", str(self.root), "--package", "demo", "--package", "demo",
+                "--package", "other",
+                "--target-dir", str(self.target), "--manifest", str(self.root / "Cargo.toml"),
+                "--", sys.executable, str(self.build),
+            ])
+        self.assertEqual(code, 0)
+        # `run_build` returns one result for the repeated `demo`.
+        self.assertEqual(run_build.call_args.args[2], ("demo", "demo", "other"))
+        lines = [json.loads(line) for line in stdout.getvalue().splitlines()]
+        self.assertEqual(
+            [(line["package"], line["status"], line["cleaned"]) for line in lines],
+            [("demo", "reused", False), ("other", "rebuilt", True)],
+        )
 
     def pre_push_released(self, lease_seconds: int, held_on: float) -> tuple[int, str]:
         """Run the pre-push entry point against a holder that releases only after

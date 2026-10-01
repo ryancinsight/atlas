@@ -9,7 +9,8 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from atlas_build_identity import DEFAULT_LEASE_SECONDS, IdentityError, check_record, run_build
+from atlas_build_check import check_record
+from atlas_build_identity import DEFAULT_LEASE_SECONDS, IdentityError, run_build
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -18,7 +19,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     for mode in ("run", "check"):
         command = subparsers.add_parser(mode)
         command.add_argument("--root", type=Path, required=True)
-        command.add_argument("--package", required=True)
+        if mode == "run":
+            command.add_argument(
+                "--package",
+                action="append",
+                required=True,
+                help="a package the command builds; repeat for each, one record each",
+            )
+        else:
+            command.add_argument("--package", required=True)
         command.add_argument("--target-dir", type=Path, required=True)
         command.add_argument("--profile", default="debug")
         command.add_argument("--target", default="host")
@@ -59,10 +68,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             print(json.dumps(value, sort_keys=True))
             return code
-        result = run_build(
+        results = run_build(
             args.root,
             args.manifest,
-            args.package,
+            tuple(args.package),
             args.target_dir,
             command,
             args.profile,
@@ -75,17 +84,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             command_key=args.command_key,
             ignore_paths=args.ignore_path,
         )
-        print(
-            json.dumps(
-                {
-                    "status": result.status,
-                    "record": result.record_path.as_posix(),
-                    "cleaned": result.cleaned,
-                    "artifacts": [path.as_posix() for path in result.artifact_files],
-                },
-                sort_keys=True,
+        # One JSON line per package, in `--package` order; `run_build` builds
+        # a repeated package once and returns one result for it.
+        for package, result in zip(dict.fromkeys(args.package), results, strict=True):
+            print(
+                json.dumps(
+                    {
+                        "package": package,
+                        "status": result.status,
+                        "record": result.record_path.as_posix(),
+                        "cleaned": result.cleaned,
+                        "artifacts": [path.as_posix() for path in result.artifact_files],
+                    },
+                    sort_keys=True,
+                )
             )
-        )
         return 0
     except IdentityError as error:
         print(f"atlas-build-identity: {error}", file=sys.stderr)
