@@ -8,6 +8,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -3821,6 +3822,28 @@ class MultiPackageRunTestCase(unittest.TestCase):
             [("rebuilt", True), ("rebuilt", True)],
         )
 
+    def test_check_finds_a_batched_record_under_its_selection(self) -> None:
+        self.push(self.base / "gate1")
+        export = self.base / "gate1" / "nested" / "ws"
+        manifest = str(export / "Cargo.toml")
+
+        def checked(selection: tuple[str, ...]) -> tuple[int, str]:
+            with (
+                patch.dict(os.environ, self.environment, clear=True),
+                patch.object(identity, "_cargo_command", return_value=(sys.executable, str(self.wrapper))),
+            ):
+                code, value = check.check_record(
+                    export, "c", self.base / "target", manifest=export / "Cargo.toml",
+                    command=["cargo", "clippy", "-q", "--manifest-path", manifest, "--locked", "--offline",
+                             "-p", "a", "-p", "c"],
+                    command_cwd=export, command_key="atlas-pre-push", selection=selection,
+                )
+            return code, str(value["status"])
+
+        self.assertEqual(checked(("c", "a")), (0, "match"))
+        # `c` alone is another selection, whose record no run wrote.
+        self.assertEqual(checked(()), (2, "missing"))
+
     def test_a_record_of_another_selection_never_matches(self) -> None:
         self.push(self.base / "gate1", packages=("a",))
         second = self.push(self.base / "gate2")
@@ -3872,6 +3895,25 @@ class MultiPackageRunTestCase(unittest.TestCase):
             {"a:shared": "refused", "c:shared": "refused",
              "b:shared": "granted", "b:exclusive": "refused"},
         )
+
+    def test_each_record_names_its_own_package_artifacts(self) -> None:
+        """`c` named first: every later package's record lists its own files,
+        both when the push builds (exclusive) and when it reuses (shared)."""
+
+        def packages_named(result) -> set[str]:
+            return {
+                match.group(1)
+                for path in result.artifact_files
+                for part in path.parts
+                if (match := re.match(r"^(?:lib)?([abc])-[0-9a-f]+", part))
+            }
+
+        for gate in ("gate1", "gate2"):
+            with self.subTest(gate=gate):
+                c, a = self.push(self.base / gate, packages=("c", "a"))
+                self.assertEqual(packages_named(c), {"c"})
+                self.assertIn("a", packages_named(a))
+                self.assertLessEqual(packages_named(a), {"a", "b"})
 
     def test_leases_are_taken_in_package_name_order(self) -> None:
         order: list[str] = []
@@ -4850,6 +4892,20 @@ class CommandLineTestCase(unittest.TestCase):
             [(line["package"], line["status"], line["cleaned"]) for line in lines],
             [("demo", "reused", False), ("other", "rebuilt", True)],
         )
+
+    def test_check_passes_the_selection_through(self) -> None:
+        stdout = io.StringIO()
+        with (
+            patch.object(self.cli, "check_record", return_value=(0, {"status": "match"})) as check_record,
+            redirect_stdout(stdout),
+        ):
+            code = self.cli.main([
+                "check", "--root", str(self.root), "--package", "demo",
+                "--selection", "demo", "--selection", "other",
+                "--target-dir", str(self.target), "--manifest", str(self.root / "Cargo.toml"),
+            ])
+        self.assertEqual((code, json.loads(stdout.getvalue())), (0, {"status": "match"}))
+        self.assertEqual(check_record.call_args.args[-1], ["demo", "other"])
 
     def pre_push_released(self, lease_seconds: int, held_on: float) -> tuple[int, str]:
         """Run the pre-push entry point against a holder that releases only after

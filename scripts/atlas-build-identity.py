@@ -28,6 +28,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         else:
             command.add_argument("--package", required=True)
+            command.add_argument(
+                "--selection",
+                action="append",
+                default=[],
+                help="a package the run's command built; repeat for each (default: --package)",
+            )
         command.add_argument("--target-dir", type=Path, required=True)
         command.add_argument("--profile", default="debug")
         command.add_argument("--target", default="host")
@@ -65,6 +71,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.command_cwd,
                 args.command_key,
                 args.ignore_path,
+                args.selection,
             )
             print(json.dumps(value, sort_keys=True))
             return code
