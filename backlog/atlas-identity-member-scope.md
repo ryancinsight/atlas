@@ -1,0 +1,10 @@
+<a id="atlas-identity-member-scope"></a>
+## ATLAS-IDENTITY-MEMBER-SCOPE — A commit cleans every gated package's in-repository closure [tightening] — todo
+- priority: tightening
+- outcome: a push whose commit edits one workspace member cleans that member and its dependents' artifacts only. Unedited members of the same repository keep their records and their artifacts.
+- evidence (2026-10-01, the checker at 68a1c4364): a real-Cargo workspace has `a` (which depends on `b`) and an independent `c`. After a commit that edits only `c/src/lib.rs`, one run per package cleaned `-p a -p b`, then `-p c`. A path package's record identity is its whole repository's revision and tree digest (`identify_source` in `scripts/atlas_build_inputs.py`), so any commit moves every member's record, and `_stale_packages` cleans each moved one. The hook reuses each export path in place to keep unchanged files' mtimes, so this clean is a real rebuild of the whole in-repository closure on every push: all of metis for any metis push.
+- oracle: in that workspace, a commit to `c` cleans `["c"]` alone and leaves `a`'s and `b`'s records matched. Each case the current rule must still catch stays caught: an edit inside a member, an edit to a file outside the member's directory that the member reads (`include_str!`, a `build.rs` `rerun-if-changed` path), a workspace-manifest edit, and a stand-in artifact from another export.
+- needs: none
+- scope: `scripts/atlas_build_inputs.py`, `scripts/atlas_build_stale_packages.py`, `scripts/atlas_build_snapshot.py`, `scripts/tests/test_atlas_build_identity.py`, `docs/adr/0064-shared-build-source-identity.md`
+- links: ATLAS-GATE-STEP-BATCH added `MultiPackageRunTestCase.test_a_commit_cleans_the_union_of_the_per_package_rules_once`, which pins the current union; this item changes that test's expected clean set to `[["c"]]`.
+- next: identify a path package by the files its units read. Cargo's dep-info for the package's units lists them, including those outside its directory. Fall back to the repository identity only when no dep-info exists.
