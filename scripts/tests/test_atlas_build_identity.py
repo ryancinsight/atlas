@@ -1273,12 +1273,14 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(third.status, "reused")
         self.assertFalse(third.cleaned)
 
-    def test_a_path_dependency_feature_change_forces_the_whole_closure(self) -> None:
+    def test_a_path_dependency_feature_change_cleans_it_and_its_dependents(self) -> None:
         # `dep`'s own record differs only in `features` (feature unification
         # from an edit to a different manifest, e.g. enabling a feature on
-        # it from the root's Cargo.toml): a real-Cargo counterexample showed
-        # this can leave a sibling's rebuilt variant unrecorded when
-        # narrowed, so only `identity` may differ for a path record.
+        # it from the root's Cargo.toml): its metadata hash, and so every
+        # dependent's, moves, and a real-Cargo counterexample showed a
+        # dependent's new variant left unrecorded when only `dep` was
+        # cleaned. `dep` and its dependent `demo` clean; `other`, which
+        # `demo` also reads, keeps its artifacts.
         init_repo(self.root, "fn main() {}\n")
         revision = git(self.root, "rev-parse", "HEAD")
 
@@ -1302,9 +1304,21 @@ class BuildIdentityTestCase(unittest.TestCase):
                         "kind": "path",
                         "identity": {"revision": "dep-revision", "tree_digest": "dep-tree", "dirty": False},
                     },
+                    {
+                        "id": "git+https://example.invalid/other#0.1.0",
+                        "name": "other",
+                        "version": "0.1.0",
+                        "features": [],
+                        "kind": "git",
+                        "source": "git+https://example.invalid/other#0.1.0",
+                        "content_digest": "other-content",
+                    },
                 ],
-                "edges": [],
-                "clean_packages": ["demo", "dep"],
+                "edges": [
+                    {"from": "workspace:.#demo@0.1.0", "to": "path+file:///dep#0.1.0", "dep_kinds": []},
+                    {"from": "workspace:.#demo@0.1.0", "to": "git+https://example.invalid/other#0.1.0", "dep_kinds": []},
+                ],
+                "clean_packages": ["demo", "dep", "other"],
             }
             value["digest"] = f"digest-{features}"
             return value
@@ -1316,11 +1330,12 @@ class BuildIdentityTestCase(unittest.TestCase):
             ["demo", "dep"],
         )
 
-    def test_a_git_dependency_content_change_forces_the_whole_closure(self) -> None:
+    def test_a_git_dependency_content_change_cleans_it_and_its_dependents(self) -> None:
         # `dep`'s content changed (a new commit at the pinned git ref) while
-        # `demo`'s own identity did not: the disagreement is not confined to
-        # a path record at all, so the whole closure cleans exactly as
-        # before this change.
+        # `demo`'s own identity did not: `dep` rebuilds, and so does every
+        # unit depending on it, under hashes that may move. `dep` and its
+        # dependent `demo` clean; `other`, which `demo` also reads, keeps its
+        # artifacts.
         init_repo(self.root, "fn main() {}\n")
         revision = git(self.root, "rev-parse", "HEAD")
 
@@ -1345,9 +1360,21 @@ class BuildIdentityTestCase(unittest.TestCase):
                         "source": "git+https://example.invalid/dep#0.1.0",
                         "content_digest": content_digest,
                     },
+                    {
+                        "id": "git+https://example.invalid/other#0.1.0",
+                        "name": "other",
+                        "version": "0.1.0",
+                        "features": [],
+                        "kind": "git",
+                        "source": "git+https://example.invalid/other#0.1.0",
+                        "content_digest": "other-content",
+                    },
                 ],
-                "edges": [],
-                "clean_packages": ["demo", "dep"],
+                "edges": [
+                    {"from": "workspace:.#demo@0.1.0", "to": "git+https://example.invalid/dep#0.1.0", "dep_kinds": []},
+                    {"from": "workspace:.#demo@0.1.0", "to": "git+https://example.invalid/other#0.1.0", "dep_kinds": []},
+                ],
+                "clean_packages": ["demo", "dep", "other"],
             }
             value["digest"] = f"digest-{content_digest}"
             return value
@@ -1416,9 +1443,9 @@ class BuildIdentityTestCase(unittest.TestCase):
         )
 
     def test_a_changed_clean_package_set_forces_the_whole_closure(self) -> None:
-        # `clean_packages` is the closure narrowing may hold exclusive at
-        # most; a build whose record disagrees there describes a different
-        # closure, never a subset safe to narrow within. `demo`'s source
+        # `clean_packages` must name exactly the snapshot's non-registry
+        # packages; one naming a package no record describes cannot be
+        # attributed, so the whole closure cleans. `demo`'s source
         # also changes so an unguarded run would otherwise narrow to a
         # legitimate `{"demo"}`, not fall out to `None` for unrelated
         # reasons the way an all-else-unchanged fixture would.
@@ -1449,13 +1476,11 @@ class BuildIdentityTestCase(unittest.TestCase):
             ["demo", "dep", "extra"],
         )
 
-    def test_a_changed_package_id_set_forces_the_whole_closure(self) -> None:
-        # A package added to (or removed from) the reachable graph is a
-        # structural disagreement the per-record loop cannot classify: it
-        # has no prior record to compare against at all. `demo`'s source
-        # also changes so an unguarded run's loop -- which only ever visits
-        # `existing`'s ids -- would otherwise narrow to a legitimate
-        # `{"demo"}` while silently never accounting for `extra` at all.
+    def test_a_package_new_to_the_closure_is_never_cleaned(self) -> None:
+        # `demo` gains a dependency on `extra`, a package the recorded
+        # closure never held: its artifacts, if any, belong to other runs,
+        # so it is held shared and left unrecorded. `demo`'s edges changed,
+        # so `demo` is rehashed; `dep` is untouched.
         init_repo(self.root, "fn main() {}\n")
         first_revision = git(self.root, "rev-parse", "HEAD")
         _, dep = self.demo_and_git_dep_records(first_revision)
@@ -1472,13 +1497,14 @@ class BuildIdentityTestCase(unittest.TestCase):
         def snapshot(include_extra: bool, revision: str) -> dict[str, object]:
             demo, _ = self.demo_and_git_dep_records(revision)
             packages = [demo, dep, extra] if include_extra else [demo, dep]
+            edges = [{"from": "workspace:.#demo@0.1.0", "to": dep["id"], "dep_kinds": []}]
+            if include_extra:
+                edges.append({"from": "workspace:.#demo@0.1.0", "to": extra["id"], "dep_kinds": []})
             value = {
                 "root": "workspace:.#demo@0.1.0",
                 "packages": packages,
-                "edges": [],
-                # Held constant across both calls so only the package id set
-                # -- never `clean_packages` (M4's own guard) -- differs.
-                "clean_packages": ["demo", "dep", "extra"],
+                "edges": edges,
+                "clean_packages": sorted(record["name"] for record in packages),
             }
             value["digest"] = f"digest-{include_extra}-{revision}"
             return value
@@ -1488,7 +1514,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         second_revision = self.commit_source_change("fn main() { changed(); }\n", "change source")
         self.assertEqual(
             self.cleaned_packages("second", snapshot=snapshot(True, second_revision)),
-            ["demo", "dep", "extra"],
+            ["demo"],
         )
 
     def test_the_widen_loop_reaches_packages_the_first_read_missed(self) -> None:
@@ -3539,6 +3565,127 @@ class PathDependencyFeatureChangeTestCase(unittest.TestCase):
         # Push 2 enables x's feature from p's manifest: x's snapshot record
         # differs in `features`, so narrowing must not apply.
         self.assertEqual(self.push(3, enable_feature_before=2), [["p", "v", "x"], [], ["p", "v", "x"]])
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class DependencyAdditionTestCase(unittest.TestCase):
+    """`p` depends on `v`, `v` on `x`, each a separate repository; `w`, also
+    depending on `x`, is not yet in the closure. A ritk-codecs push that
+    added two dependencies grew its closure from 6 packages to 35, cleaned
+    all 35 and held them exclusive through its command while every peer
+    sharing them waited out the 900 s lease bound. Adding a dependency now
+    rehashes only the package whose edges changed and its dependents inside
+    the closure: `x`, shared with the new `w`, keeps its artifacts and is
+    held shared, and `w`, new to the closure, is never cleaned.
+    """
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-addition-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.environment = {
+            key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
+        }
+
+        def repo(root: Path, files: dict[str, str]) -> None:
+            for relative, text in files.items():
+                (root / relative).parent.mkdir(parents=True, exist_ok=True)
+                (root / relative).write_text(text, encoding="utf-8")
+            git(root, "init", "-q")
+            git(root, "config", "user.name", "Atlas test")
+            git(root, "config", "user.email", "atlas-test@example.invalid")
+            self.lock(root)
+            git(root, "add", ".")
+            git(root, "commit", "-q", "-m", "init")
+
+        self.x = self.base / "xrepo"
+        self.w = self.base / "wrepo"
+        self.v = self.base / "vrepo"
+        self.source = self.base / "source"
+        repo(self.x, {
+            "Cargo.toml": '[package]\nname = "x"\nversion = "0.1.0"\nedition = "2021"\n[workspace]\n',
+            "src/lib.rs": "pub fn x() -> u32 {\n    1\n}\n",
+        })
+        repo(self.w, {
+            "Cargo.toml": (
+                '[package]\nname = "w"\nversion = "0.1.0"\nedition = "2021"\n[workspace]\n[dependencies]\n'
+                f'x = {{ path = "{self.x.as_posix()}" }}\n'
+            ),
+            "src/lib.rs": "pub fn w() -> u32 { x::x() + 1 }\n",
+        })
+        self.v_manifest = lambda with_w: (
+            '[package]\nname = "v"\nversion = "0.1.0"\nedition = "2021"\n[workspace]\n[dependencies]\n'
+            f'x = {{ path = "{self.x.as_posix()}" }}\n'
+            + (f'w = {{ path = "{self.w.as_posix()}" }}\n' if with_w else "")
+        )
+        repo(self.v, {"Cargo.toml": self.v_manifest(False), "src/lib.rs": "pub fn v() -> u32 { x::x() }\n"})
+        self.p_manifest = lambda with_w: (
+            '[package]\nname = "p"\nversion = "0.1.0"\nedition = "2021"\n[workspace]\n[dependencies]\n'
+            f'v = {{ path = "{self.v.as_posix()}" }}\n'
+            + (f'w = {{ path = "{self.w.as_posix()}" }}\n' if with_w else "")
+        )
+        repo(self.source, {"Cargo.toml": self.p_manifest(False), "src/lib.rs": "pub fn p() -> u32 { v::v() }\n"})
+
+    def lock(self, root: Path) -> None:
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=root, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+
+    def commit(self, root: Path, manifest: str, message: str) -> None:
+        (root / "Cargo.toml").write_text(manifest, encoding="utf-8")
+        self.lock(root)
+        git(root, "add", ".")
+        git(root, "commit", "-q", "-m", message)
+
+    def push(self, pushes: int, edits: dict[int, tuple[Path, str]]) -> list[list[str]]:
+        cleaned: list[list[str]] = []
+        run_checked = identity._run_checked
+
+        def recording(command, cwd, environment):
+            if list(command[1:3]) == ["clean", "-p"]:
+                cleaned[-1].extend(command[i + 1] for i, value in enumerate(command) if value == "-p")
+            run_checked(command, cwd, environment)
+
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            patch.object(identity, "_run_checked", side_effect=recording),
+        ):
+            for push in range(pushes):
+                if push in edits:
+                    repository, manifest = edits[push]
+                    self.commit(repository, manifest, f"edit before push {push}")
+                    if repository != self.source:
+                        self.lock(self.source)
+                        git(self.source, "commit", "-qam", f"relock before push {push}")
+                export = self.base / f"export-{push}"
+                if export.exists():
+                    _clear_readonly_tree(export)
+                shutil.copytree(self.source, export, copy_function=shutil.copy)
+                cleaned.append([])
+                identity.run_build(
+                    export, export / "Cargo.toml", "p", self.base / "target",
+                    ["cargo", "check", "-p", "p", "-q", "--offline"], command_cwd=export,
+                )
+        return cleaned
+
+    def test_adding_a_dependency_to_the_root_cleans_only_the_root(self) -> None:
+        # Push 2 adds `w` to p: p's edges changed, so p is rehashed; `v` and
+        # `x` are unchanged, and `w` is new to the closure.
+        cleaned = self.push(3, {2: (self.source, self.p_manifest(True))})
+        self.assertEqual(cleaned, [["p", "v", "x"], [], ["p"]])
+
+    def test_adding_a_dependency_to_a_middle_package_cleans_it_and_its_dependents(self) -> None:
+        # Push 2 adds `w` to v: v's edges changed (and its repository diff
+        # touched a manifest), so v and its dependent p are rehashed; `x`,
+        # which both v and the new `w` read, keeps its artifacts.
+        cleaned = self.push(3, {2: (self.v, self.v_manifest(True))})
+        self.assertEqual(cleaned, [["p", "v", "x"], [], ["p", "v"]])
+
+    def test_a_repeat_push_after_an_addition_reuses_the_record(self) -> None:
+        cleaned = self.push(4, {2: (self.source, self.p_manifest(True))})
+        self.assertEqual(cleaned, [["p", "v", "x"], [], ["p"], []])
 
 
 @pytest.mark.slow

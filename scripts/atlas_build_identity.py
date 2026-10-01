@@ -12,6 +12,7 @@ from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 import time
+import tomllib
 from typing import Iterable, Sequence
 from urllib.parse import unquote
 
@@ -465,12 +466,24 @@ def _dimensions(build: object) -> object:
 _WORKSPACE_PATH_ID = re.compile(r"^workspace:(?P<relative>.*)#[^#]+@[^#]+$")
 _CARGO_PATH_ID = re.compile(r"^path\+file://(?P<path>.+)#[^#]+@[^#]+$")
 
-# A name-only diff is checked for filenames, never TOML sections: a build
-# script, a toolchain pin, a Cargo manifest or lockfile, or anything under a
-# `.cargo` directory can all reconfigure how a dependency compiles (profile,
-# features, patches, linker flags) without the dependency's own recorded
-# content moving at all.
-_BUILD_CONFIGURATION_NAMES = frozenset({"Cargo.toml", "Cargo.lock", "build.rs"})
+# A name-only diff is checked for filenames: a build script, a toolchain pin,
+# or anything under a `.cargo` directory can reconfigure how a package
+# compiles without any snapshot record moving, so a repository diff touching
+# one never narrows.
+_BUILD_CONFIGURATION_NAMES = frozenset({"build.rs"})
+# A manifest or lockfile edit narrows, but as a rehash: it can rename the
+# package's artifacts (features, dependencies, target kinds feed Cargo's
+# metadata hash, which every dependent's hash includes), so the package and
+# its dependents inside the closure are cleaned and rediscovered. Cargo reads
+# `[profile]`, `[patch]` and `[replace]` from the workspace root manifest
+# alone, which `_root_manifest_build_tables` compares on its own.
+_MANIFEST_NAMES = frozenset({"Cargo.toml", "Cargo.lock"})
+
+# The root-manifest tables that reconfigure every unit without moving any
+# snapshot record. Cargo ignores them in every other manifest (Cargo
+# reference: Profiles; Overriding Dependencies).
+_ROOT_BUILD_TABLES = ("profile", "patch", "replace", "cargo-features")
+_ROOT_RESOLVER_TABLES = ("workspace", "package")
 
 
 def _touches_build_configuration(paths: Iterable[str]) -> bool:
@@ -485,6 +498,60 @@ def _touches_build_configuration(paths: Iterable[str]) -> bool:
         if ".cargo" in parts[:-1]:
             return True
     return False
+
+
+def _touches_manifest(paths: Iterable[str]) -> bool:
+    return any(relative.strip().split("/")[-1] in _MANIFEST_NAMES for relative in paths if relative.strip())
+
+
+def _root_build_tables(text: str) -> dict[str, object] | None:
+    try:
+        manifest = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return None
+    tables: dict[str, object] = {key: manifest.get(key) for key in _ROOT_BUILD_TABLES}
+    for key in _ROOT_RESOLVER_TABLES:
+        section = manifest.get(key)
+        tables[f"{key}.resolver"] = section.get("resolver") if isinstance(section, dict) else None
+    return tables
+
+
+def _root_manifest_build_tables_unchanged(
+    manifest: Path, existing_source: object, current_source: object
+) -> bool:
+    """Whether the run's root manifest keeps every root-only build table.
+
+    The recorded side is read at the recorded revision; the current side is
+    the file Cargo is about to read. A dirty recorded tree, a revision this
+    repository cannot resolve, or a manifest either side cannot parse means
+    the comparison cannot be established, and the whole closure cleans.
+    """
+    existing = _content(existing_source)
+    current = _content(current_source)
+    if not isinstance(existing, dict) or not isinstance(current, dict):
+        return False
+    if existing.get("dirty"):
+        return False
+    existing_revision = existing.get("revision")
+    if not isinstance(existing_revision, str):
+        return False
+    if existing_revision == current.get("revision") and not current.get("dirty"):
+        return True
+    try:
+        top = subprocess.run(
+            ["git", "-C", str(manifest.parent), "rev-parse", "--show-toplevel"],
+            check=True, capture_output=True, text=True, encoding="utf-8", timeout=60,
+        ).stdout.strip()
+        relative = manifest.resolve().relative_to(Path(top).resolve()).as_posix()
+        recorded = subprocess.run(
+            ["git", "-C", top, "show", f"{existing_revision}:{relative}"],
+            check=True, capture_output=True, text=True, encoding="utf-8", timeout=60,
+        ).stdout
+        present = manifest.read_text(encoding="utf-8")
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return False
+    recorded_tables = _root_build_tables(recorded)
+    return recorded_tables is not None and recorded_tables == _root_build_tables(present)
 
 
 def _path_record_manifest_dir(record_id: str, workspace_root: Path) -> Path | None:
@@ -510,39 +577,43 @@ def _path_record_manifest_dir(record_id: str, workspace_root: Path) -> Path | No
     return None
 
 
-def _path_repository_safe_to_narrow(
+_SOURCE_EDIT = "source"
+_MANIFEST_EDIT = "manifest"
+
+
+def _path_repository_change(
     record_id: str,
     existing_identity: object,
     current_identity: object,
     workspace_root: Path,
-) -> bool:
-    """Whether a path record's identity change is provably a non-build-config edit.
+) -> str | None:
+    """How a path record's identity change may narrow, or None if it cannot.
 
     A path record's identity is the identity of its whole containing
-    repository, so a change reconfiguring how dependencies build -- a
-    profile, a feature, a build script, a toolchain pin -- moves it exactly
-    like an ordinary source edit. Narrowing on identity alone is safe only
-    when the actual file-level diff between the two recorded revisions
-    touches no such file. A dirty tree on either side means the diff is not
-    fully captured by a revision-to-revision comparison (its uncommitted
-    files are not on either side's compared range), and a revision this
+    repository, so the actual file-level diff between the two recorded
+    revisions decides: one touching a build script, a toolchain pin, or
+    `.cargo` configuration cannot narrow; one touching a manifest or
+    lockfile is a `_MANIFEST_EDIT`, whose packages and their dependents are
+    rehashed; any other is a `_SOURCE_EDIT`, rebuilt in place under its
+    recorded names. A dirty tree on either side means the diff is not fully
+    captured by a revision-to-revision comparison, and a revision this
     repository cannot resolve, or a `git diff` that fails outright, means
     the diff cannot be established at all: both are treated as unsafe, never
     as a reason to search harder.
     """
     if not isinstance(existing_identity, dict) or not isinstance(current_identity, dict):
-        return False
+        return None
     if existing_identity.get("dirty") or current_identity.get("dirty"):
-        return False
+        return None
     existing_revision = existing_identity.get("revision")
     current_revision = current_identity.get("revision")
     if not isinstance(existing_revision, str) or not isinstance(current_revision, str):
-        return False
+        return None
     if existing_revision == current_revision:
-        return True
+        return _SOURCE_EDIT
     manifest_dir = _path_record_manifest_dir(record_id, workspace_root)
     if manifest_dir is None or not manifest_dir.is_dir():
-        return False
+        return None
     try:
         top = subprocess.run(
             ["git", "-C", str(manifest_dir), "rev-parse", "--show-toplevel"],
@@ -553,69 +624,125 @@ def _path_repository_safe_to_narrow(
             check=True, capture_output=True, text=True, encoding="utf-8", timeout=60,
         ).stdout
     except (OSError, subprocess.SubprocessError):
-        return False
-    return not _touches_build_configuration(diff.splitlines())
+        return None
+    paths = diff.splitlines()
+    if _touches_build_configuration(paths):
+        return None
+    return _MANIFEST_EDIT if _touches_manifest(paths) else _SOURCE_EDIT
 
 
-def _path_only_dependency_diff(
+def _outgoing_edges(snapshot: dict[str, object]) -> dict[str, list[str]] | None:
+    edges = snapshot.get("edges")
+    if not isinstance(edges, list):
+        return None
+    outgoing: dict[str, list[str]] = {}
+    for edge in edges:
+        if not isinstance(edge, dict):
+            return None
+        outgoing.setdefault(str(edge.get("from")), []).append(
+            json.dumps([edge.get("to"), edge.get("dep_kinds")], sort_keys=True)
+        )
+    return {key: sorted(value) for key, value in outgoing.items()}
+
+
+def _dependency_diff(
     existing: dict[str, object], current: dict[str, object], workspace_root: Path
-) -> set[str] | None:
-    """The path-record names two dependency snapshots disagree on, or None.
+) -> tuple[set[str], set[str]] | None:
+    """The packages two dependency snapshots disagree on, or None.
 
-    A path record's identity is `source_identity` of its whole containing
-    repository (revision plus diff), not of its own subtree: every path
-    package sharing one repository -- the run's own workspace members, and,
-    under the development overlay, a sibling first-party crate patched to a
-    local checkout -- changes identity together whenever any file in that
-    repository changes, whether or not the package itself did. Two snapshots
-    may therefore disagree on path records alone while every git and registry
-    dependency, every edge, and the clean-package set stay exactly the
-    packages they were: nothing reachable through a non-path record could
-    have moved. None means the disagreement reaches further than that and the
-    whole closure must clean: a real-Cargo counterexample showed a path
-    record differing in `features` alone (feature unification from an
-    unrelated manifest edit) left a sibling's rebuilt variant unrecorded, so
-    every field but `identity` must still agree, and a real-Cargo
-    counterexample showed the run's own identity-only change touching its
-    Cargo.toml (a profile edit) silently reconfigured a git dependency's
-    build, so an identity difference narrows only when
-    `_path_repository_safe_to_narrow` proves the underlying diff untouched
-    build configuration.
+    Returns `(rebuilt, rehashed)` by package name. `rebuilt` holds path
+    packages whose containing repository changed only in source: Cargo
+    rebuilds them, and every unit depending on them, in place under the
+    names the record already lists. `rehashed` holds packages whose
+    artifact names can move: a record differing in anything but `identity`
+    (features, version, kind, content), a package whose own dependency edges
+    changed (Cargo's metadata hash of a unit covers its dependencies'), and
+    path packages whose repository diff touched a manifest or lockfile. The
+    caller cleans those together with their dependents inside the closure.
+
+    A package present only in the current snapshot is new to this closure:
+    it is not cleaned (its artifacts, if any, belong to other runs) and is
+    held shared and left unrecorded; the packages depending on it changed
+    their edges and are rehashed. A package present only in the existing
+    snapshot left the closure and needs nothing.
+
+    None means the disagreement cannot be attributed: a different root, a
+    malformed snapshot, or a path identity change whose diff touched a build
+    script, a toolchain pin, or `.cargo` configuration, or could not be read.
     """
     if existing.get("root") != current.get("root"):
-        return None
-    if existing.get("edges") != current.get("edges"):
-        return None
-    if existing.get("clean_packages") != current.get("clean_packages"):
         return None
     existing_packages = existing.get("packages")
     current_packages = current.get("packages")
     if not isinstance(existing_packages, list) or not isinstance(current_packages, list):
         return None
-    existing_by_id = {record.get("id"): record for record in existing_packages}
-    current_by_id = {record.get("id"): record for record in current_packages}
-    if existing_by_id.keys() != current_by_id.keys():
+    existing_by_id = {str(record.get("id")): record for record in existing_packages if isinstance(record, dict)}
+    current_by_id = {str(record.get("id")): record for record in current_packages if isinstance(record, dict)}
+    if len(existing_by_id) != len(existing_packages) or len(current_by_id) != len(current_packages):
         return None
-    changed: set[str] = set()
-    for package_id, existing_record in existing_by_id.items():
-        current_record = current_by_id[package_id]
+    # `clean_packages` is derived from the records; a set naming a package no
+    # record describes cannot be attributed to any package's change.
+    for snapshot, by_id in ((existing, existing_by_id), (current, current_by_id)):
+        derived = sorted(
+            {str(record.get("name")) for record in by_id.values() if record.get("kind") != "registry"}
+        )
+        if snapshot.get("clean_packages") != derived:
+            return None
+    existing_edges = _outgoing_edges(existing)
+    current_edges = _outgoing_edges(current)
+    if existing_edges is None or current_edges is None:
+        return None
+    rebuilt: set[str] = set()
+    rehashed: set[str] = set()
+    for package_id, current_record in current_by_id.items():
+        existing_record = existing_by_id.get(package_id)
+        if existing_record is None:
+            continue
+        name = str(current_record.get("name"))
+        if existing_edges.get(package_id, []) != current_edges.get(package_id, []):
+            rehashed.add(name)
         if existing_record == current_record:
             continue
-        if existing_record.get("kind") != "path" or current_record.get("kind") != "path":
-            return None
         existing_rest = {key: value for key, value in existing_record.items() if key != "identity"}
         current_rest = {key: value for key, value in current_record.items() if key != "identity"}
         if existing_rest != current_rest:
+            rehashed.add(name)
+            continue
+        if current_record.get("kind") != "path":
             return None
-        if not _path_repository_safe_to_narrow(
-            str(package_id),
+        change = _path_repository_change(
+            package_id,
             existing_record.get("identity"),
             current_record.get("identity"),
             workspace_root,
-        ):
+        )
+        if change is None:
             return None
-        changed.add(str(current_record.get("name")))
-    return changed
+        (rehashed if change == _MANIFEST_EDIT else rebuilt).add(name)
+    return rebuilt, rehashed
+
+
+def _dependents_within(snapshot: dict[str, object], names: set[str]) -> set[str]:
+    """`names` and every package in `snapshot` that reaches one of them."""
+    id_to_name = {
+        str(record.get("id")): str(record.get("name"))
+        for record in snapshot.get("packages", [])
+        if isinstance(record, dict)
+    }
+    depending: dict[str, set[str]] = {}
+    for edge in snapshot.get("edges", []):
+        if isinstance(edge, dict):
+            depending.setdefault(id_to_name.get(str(edge.get("to")), ""), set()).add(
+                id_to_name.get(str(edge.get("from")), "")
+            )
+    reached = set(names)
+    pending = list(names)
+    while pending:
+        for dependent in depending.get(pending.pop(), ()):
+            if dependent and dependent not in reached:
+                reached.add(dependent)
+                pending.append(dependent)
+    return reached
 
 
 def _narrowed_clean(
@@ -630,29 +757,34 @@ def _narrowed_clean(
 ) -> tuple[str, ...] | None:
     """The packages a mismatched record must clean, or None for the whole closure.
 
-    With the build dimensions unchanged and the dependency snapshots equal or
-    disagreeing only in path-record identity (`_path_only_dependency_diff`),
-    every git and registry dependency's inputs are unchanged: a new source for
-    the identified package, or for a sibling repository patched in as a path
-    dependency, cannot alter their artifacts. The run then cleans its own
-    package when its source changed, each path record whose identity changed
-    (its own containing repository moved), and each package whose recorded
-    artifact bytes changed (Cargo rebuilds every unit that depends on a unit
-    it rebuilds, so dependents follow). Cleaning the closure on every source
-    change rebuilt every first-party dependency under exclusive leases on each
-    push and serialized every gate sharing them.
+    With the build dimensions and the run's root-only manifest tables
+    unchanged, the dependency snapshots are compared package by package
+    (`_dependency_diff`). The run cleans its own package when its source
+    changed, each path package whose repository changed only in source
+    (rebuilt in place, as are its dependents), each rehashed package together
+    with every package inside the closure that reaches it, and each package
+    whose recorded artifact bytes changed. A package new to the closure is
+    never cleaned. Cleaning the whole closure on any of these rebuilt every
+    first-party dependency under exclusive leases and serialized every gate
+    sharing them; a two-dependency addition held 35 scopes through a command.
     """
     if existing is None or current is None:
         return None
     if _dimensions(existing.get("build")) != _dimensions(spec.as_dict()):
         return None
+    if _content(existing.get("source")) != _content(spec.source.as_dict()) and not (
+        _root_manifest_build_tables_unchanged(manifest, existing.get("source"), spec.source.as_dict())
+    ):
+        return None
     existing_dependencies = existing.get("dependencies")
     if existing_dependencies == dependencies:
-        path_changed: set[str] = set()
+        rebuilt: set[str] = set()
+        rehashed: set[str] = set()
     elif isinstance(existing_dependencies, dict):
-        path_changed = _path_only_dependency_diff(existing_dependencies, dependencies, root)
-        if path_changed is None:
+        diff = _dependency_diff(existing_dependencies, dependencies, root)
+        if diff is None:
             return None
+        rebuilt, rehashed = diff
     else:
         return None
     changed = changed_packages(
@@ -660,7 +792,15 @@ def _narrowed_clean(
     )
     if changed is None:
         return None
-    changed = changed | path_changed
+    # Only packages both snapshots hold are cleaned: one new to the closure
+    # owns no artifact this run recorded, and its files may be a peer's.
+    known = {
+        str(record.get("name"))
+        for record in existing_dependencies.get("packages", [])
+        if isinstance(record, dict)
+    }
+    rehashed_closure = _dependents_within(dependencies, rehashed) & known
+    changed = (changed | rebuilt | rehashed_closure) & set(clean_packages)
     if _content(existing.get("source")) != _content(spec.source.as_dict()):
         changed.add(spec.package)
     return tuple(sorted(changed)) if changed else None
