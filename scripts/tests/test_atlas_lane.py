@@ -138,5 +138,49 @@ class LaneToolTestCase(unittest.TestCase):
         self.assertIn("inside the lane root", inside.stderr)
 
 
+    def submodule_shape(self) -> Path:
+        """Move the member's gitdir under the umbrella's `.git/modules`, as a submodule has it."""
+        gitdir = self.stack / ".git" / "modules" / "repos" / "demo"
+        gitdir.parent.mkdir(parents=True)
+        (self.member / ".git").rename(gitdir)
+        (self.member / ".git").write_text("gitdir: ../../.git/modules/repos/demo\n", encoding="utf-8")
+        subprocess.run(["git", "config", "-f", str(gitdir / "config"), "core.worktree",
+                        "../../../../repos/demo"], check=True)
+        return gitdir
+
+    def toplevel(self, tree: Path) -> Path:
+        return Path(git(tree, "rev-parse", "--show-toplevel")).resolve()
+
+    def test_a_submodule_lane_resolves_to_its_own_directory(self) -> None:
+        gitdir = self.submodule_shape()
+        self.assertEqual(self.toplevel(self.member), self.member.resolve())
+
+        made = self.lane("create", "demo", "fix/sub")
+        self.assertEqual(made.returncode, 0, made.stderr)
+        lane = self.stack / "worktrees" / "demo-fix-sub"
+        self.assertEqual(self.toplevel(lane), lane.resolve())
+        self.assertEqual(git(lane, "status", "--porcelain"), "")
+        # The repair is per worktree: the main tree keeps the shared value.
+        self.assertEqual(self.toplevel(self.member), self.member.resolve())
+        self.assertEqual(subprocess.run(
+            ["git", "config", "-f", str(gitdir / "config"), "core.worktree"],
+            check=True, capture_output=True, text=True).stdout.strip(), "../../../../repos/demo")
+
+        # A lane made before the repair inherits the shared value; repoint and
+        # close repair it instead of refusing it as thousands of deletions.
+        git(lane, "config", "--worktree", "--unset", "core.worktree")
+        self.assertNotEqual(self.toplevel(lane), lane.resolve())
+        repointed = self.lane("repoint", "demo-fix-sub", "fix/sub-next")
+        self.assertEqual(repointed.returncode, 0, repointed.stderr)
+        moved = self.stack / "worktrees" / "demo-fix-sub-next"
+        self.assertEqual(self.toplevel(moved), moved.resolve())
+        self.assertEqual(git(moved, "status", "--porcelain"), "")
+
+        git(moved, "config", "--worktree", "--unset", "core.worktree")
+        closed = self.lane("close", "demo-fix-sub-next")
+        self.assertEqual(closed.returncode, 0, closed.stderr)
+        self.assertFalse(moved.exists())
+        self.assertEqual(self.toplevel(self.member), self.member.resolve())
+
 if __name__ == "__main__":
     unittest.main()
