@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import Sequence
 
 from atlas_build_lease import BuildIdentityError
+from atlas_build_package_identity import package_identities
 from atlas_build_package_source import cached_package_source_digest
-from atlas_build_records import BuildSpec, _content
+from atlas_build_records import BuildSpec
 from atlas_build_snapshot import _cargo_metadata, dependency_snapshot
 from atlas_build_source import (
     _canonical,
@@ -128,8 +129,10 @@ def _dependency_data(
 ) -> dict[str, dict[str, object]]:
     """Each package's dependency snapshot, by package name.
 
-    One `cargo metadata` and one source identity per path package serve the
-    whole set: a package several closures share is read once.
+    One `cargo metadata` and one `package_identities` serve the whole set:
+    a package several closures share is read once. Every path package in the
+    metadata is identified, not only the closures', so a nested package's
+    files never fall to the package around it.
     """
     if has_explicit_artifacts:
         snapshots: dict[str, dict[str, object]] = {
@@ -143,15 +146,22 @@ def _dependency_data(
         }
     else:
         metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False)
-        source_cache: dict[Path, dict[str, object]] = {}
         package_source_cache = target_dir / ".atlas" / "source-identity" / "package-source"
+        try:
+            directories = [
+                Path(str(value["manifest_path"])).parent
+                for value in metadata["packages"]
+                if isinstance(value, dict) and value.get("source") is None
+            ]
+        except (KeyError, TypeError) as error:
+            raise BuildIdentityError(f"malformed cargo metadata for {manifest}") from error
+        identities = package_identities(directories, (target_dir,), ignore_paths)
 
         def identify_source(path: Path) -> dict[str, object]:
-            canonical_path = _canonical(path)
-            if canonical_path not in source_cache:
-                identified = source_identity(canonical_path, (target_dir,), ignore_paths)
-                source_cache[canonical_path] = _content(identified.as_dict())
-            return source_cache[canonical_path]
+            try:
+                return identities[_canonical(path)]
+            except KeyError as error:
+                raise BuildIdentityError(f"no path package is identified at {path}") from error
 
         snapshots = {
             package: dependency_snapshot(

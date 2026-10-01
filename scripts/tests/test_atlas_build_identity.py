@@ -3813,12 +3813,13 @@ class MultiPackageRunTestCase(unittest.TestCase):
         )
         git(self.source, "commit", "-q", "-am", "edit c")
         second = self.push(self.base / "gate2")
-        self.assertEqual([result.status for result in second], ["rebuilt", "rebuilt"])
-        # A path package's identity is its repository's, so the commit moves
-        # `a`'s and `b`'s records too: one run per package (68a1c4364)
-        # cleaned `-p a -p b`, then `-p c`. The batch names that union once.
+        # A path package is identified by its own directory's files, so the
+        # commit moves `c`'s record alone: `a`'s matches and `c`'s rule
+        # cleans `c`. When identity was the repository's, the commit moved
+        # every record and the batch cleaned `-p a -p b -p c`.
+        self.assertEqual([result.status for result in second], ["reused", "rebuilt"])
         cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
-        self.assertEqual(cleans, [["a", "b", "c"]])
+        self.assertEqual(cleans, [["c"]])
 
     def test_a_failing_command_writes_no_record(self) -> None:
         with self.assertRaisesRegex(identity.IdentityError, "exit code 3"):
