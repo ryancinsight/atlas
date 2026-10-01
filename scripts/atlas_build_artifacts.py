@@ -147,8 +147,15 @@ def artifact_owners(manifest: Path, metadata_cwd: Path | None = None) -> dict[st
 def artifact_package(relative: str, owners: dict[str, frozenset[str]]) -> str | None:
     """The one package in `owners` that a recorded artifact path belongs to, or None."""
     parts = relative.split("/")
-    # `<profile>/deps/<file>` names the file, `.../.fingerprint/<unit>/<file>` the unit.
-    unit = parts[parts.index(".fingerprint") + 1] if ".fingerprint" in parts else parts[-1]
+    # `<profile>/deps/<file>` names the file; `.../.fingerprint/<unit>/<file>`
+    # and `<profile>/build/<unit>/<file>` the unit, since every build
+    # script's files are `build_script_build-*`, whatever its package.
+    if ".fingerprint" in parts:
+        unit = parts[parts.index(".fingerprint") + 1]
+    elif len(parts) >= 3 and parts[-3] == "build":
+        unit = parts[-2]
+    else:
+        unit = parts[-1]
     return _artifact_owner(unit, owners, "")
 
 
@@ -211,6 +218,13 @@ def _workspace_artifact_owners(
     manifest: Path, metadata_cwd: Path | None = None
 ) -> dict[str, frozenset[str]]:
     metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False)
+    return metadata_artifact_owners(metadata, manifest)
+
+
+def metadata_artifact_owners(
+    metadata: dict[str, object], manifest: Path
+) -> dict[str, frozenset[str]]:
+    """Each package's artifact stems, from a `cargo metadata` value already read."""
     try:
         owners: dict[str, frozenset[str]] = {}
         for package in metadata["packages"]:
@@ -285,6 +299,25 @@ def discover_artifacts(
                 and _artifact_owner(path.name, owners, package) in requested_packages
             ):
                 selected.add(path.resolve())
+    # A build script's dep-info and the paths it asked Cargo to watch
+    # (`output`), which `atlas_build_dep_info` reads; its binary and
+    # `out/` are rebuilt by Cargo and already covered by the fingerprint.
+    build_dirs = [target_dir / profile / "build"]
+    if target != "host":
+        build_dirs.append(target_dir / target / profile / "build")
+    for builds in build_dirs:
+        if not builds.is_dir():
+            continue
+        for directory in builds.iterdir():
+            if (
+                directory.is_dir()
+                and _artifact_owner(directory.name, owners, package) in requested_packages
+            ):
+                selected.update(
+                    path.resolve()
+                    for path in directory.iterdir()
+                    if path.is_file() and (path.name == "output" or path.suffix == ".d")
+                )
     fingerprint_dirs = [
         target_dir / profile / ".fingerprint",
         target_dir / ".fingerprint",

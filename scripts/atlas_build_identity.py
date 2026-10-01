@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import os
 import subprocess
 import time
@@ -21,6 +22,7 @@ from atlas_build_artifacts import (
     settled_digest,
     validate_artifact_paths,
 )
+from atlas_build_dep_info import current_inputs, package_layout, record_inputs
 from atlas_build_inputs import _dependency_data, build_spec
 from atlas_build_lease import (
     EXCLUSIVE,
@@ -42,7 +44,7 @@ from atlas_build_records import (
     record_path,
 )
 from atlas_build_source import _canonical, source_identity
-from atlas_build_stale_packages import _path_packages, _stale_packages
+from atlas_build_stale_packages import PackageState, _path_packages, _stale_packages
 from atlas_build_stamps import (
     BuildDirectory,
     _git_names,
@@ -92,16 +94,6 @@ def _run_checked(command: Sequence[str], root: Path, environment: dict[str, str]
         raise IdentityError(f"cannot run {command[0]}: {error}") from error
     if result.returncode != 0:
         raise IdentityError(f"command failed with exit code {result.returncode}: {' '.join(command)}")
-
-
-@dataclass
-class _PackageState:
-    """One package's record as read under the run's leases."""
-
-    existing: dict[str, object] | None
-    matched: bool
-    current: dict[str, object] | None
-    stale_git: set[str]
 
 
 def run_build(
@@ -199,6 +191,9 @@ def run_build(
             clean_packages[package],
         )
     }
+    # Read once, and only when a record lists a unit's dep-info or an input.
+    layout = functools.cache(lambda: package_layout(manifest, execution_root, target_dir))
+
     # One bound for acquiring every lease, across both phases.
     deadline_ns = time.monotonic_ns() + int(lease_wait_seconds * 1_000_000_000)
 
@@ -230,7 +225,7 @@ def run_build(
             raise
         return stack
 
-    def locked_records() -> dict[str, _PackageState]:
+    def locked_records() -> dict[str, PackageState]:
         if read_inputs() != inputs:
             raise IdentityError(
                 "source or dependency inputs changed while acquiring the package leases"
@@ -240,21 +235,23 @@ def run_build(
             stale_git = _stale_git(dependencies, directory)
             existing = read_record(records[package])
             if existing is None:
-                states[package] = _PackageState(None, False, None, stale_git)
+                states[package] = PackageState(None, False, None, stale_git, {})
                 continue
             current = _recorded_artifact(existing, target_dir, artifact_paths)
-            matched = _record_matches(existing, spec, dependencies, current) and not stale_git
-            states[package] = _PackageState(existing, matched, current, stale_git)
+            now = current_inputs(existing.get("inputs"), layout)
+            matched = _record_matches(existing, spec, dependencies, current, now) and not stale_git
+            states[package] = PackageState(existing, matched, current, stale_git, now)
         return states
 
-    def clean_targets(package: str, state: _PackageState) -> frozenset[str]:
+    def clean_targets(package: str, state: PackageState) -> frozenset[str]:
         # A caller's clean command is opaque, so it may touch the whole closure.
         if clean_command is not None:
             return frozenset(clean_packages[package])
         dependencies, spec = inputs[package]
         return frozenset(
             _stale_packages(
-                state.existing, state.current, spec, dependencies, manifest, execution_root
+                state.existing, state.current, spec, dependencies,
+                manifest, execution_root, state.inputs,
             )
         )
 
@@ -262,7 +259,7 @@ def run_build(
     # only ever adds, so the leases never narrow below an earlier answer.
     asked: dict[str, frozenset[str]] = {package: frozenset() for package in packages}
 
-    def widen(states: dict[str, _PackageState]) -> frozenset[str]:
+    def widen(states: dict[str, PackageState]) -> frozenset[str]:
         for package, state in states.items():
             if not state.matched:
                 asked[package] |= clean_targets(package, state)
@@ -293,7 +290,10 @@ def run_build(
         siblings = {
             package: None
             if state.matched or state.existing is not None
-            else _sibling_record(inputs[package][1])
+            else _sibling_record(
+                inputs[package][1], inputs[package][0],
+                lambda record: current_inputs(record["inputs"], layout) == record["inputs"],
+            )
             for package, state in states.items()
         }
         # A sibling's record stands in for a package's path packages, never
@@ -480,6 +480,12 @@ def run_build(
                     "build": spec.as_dict(),
                     "dependencies": dependencies,
                     "artifact": artifact,
+                    # Declared paths are not a closure: the repository decides.
+                    "inputs": {}
+                    if artifact_paths
+                    else record_inputs(
+                        target_dir, artifact["files"], recorded_packages[package], layout
+                    ),
                 },
             )
             results.append(

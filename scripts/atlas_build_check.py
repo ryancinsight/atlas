@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Sequence
 
 from atlas_build_artifacts import validate_artifact_paths
+from atlas_build_dep_info import current_inputs, package_layout
 from atlas_build_inputs import _dependency_data, build_spec
 from atlas_build_lease import BuildIdentityError as IdentityError
 from atlas_build_lease import LeaseProbe, package_target_lease_scopes
@@ -71,8 +72,17 @@ def check_record(
         existing = read_record(record_file)
         if existing is None:
             return 2, {"status": "missing", "record": record_file.as_posix()}
+        # A record of declared paths lists no inputs, so no manifest is read.
+        inputs = current_inputs(
+            existing.get("inputs"),
+            lambda: package_layout(manifest or Path(), execution_root, target_dir),
+        )
         matches = _record_matches(
-            existing, spec, dependencies, _recorded_artifact(existing, target_dir, artifact_paths)
+            existing,
+            spec,
+            dependencies,
+            _recorded_artifact(existing, target_dir, artifact_paths),
+            inputs,
         )
         return (0 if matches else 2), {
             "status": "match" if matches else "stale",

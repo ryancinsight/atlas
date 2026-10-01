@@ -7,13 +7,13 @@ import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Callable, Sequence
 
-from atlas_build_artifacts import recorded_artifact_identity
+from atlas_build_artifacts import UNVERIFIED, recorded_artifact_identity
 from atlas_build_lease import BuildIdentityError
 from atlas_build_source import SourceIdentity, _sha256_bytes
 
-VERSION = 5
+VERSION = 7
 
 
 @dataclass(frozen=True)
@@ -63,17 +63,46 @@ def _content(record: object) -> object:
     return value
 
 
+def _identified_by_files(dependencies: dict[str, object]) -> bool:
+    """Whether the snapshot holds the root's own path record.
+
+    That record identifies the root by its own files, and the `inputs`
+    field names the files outside them, so the repository's revision and
+    tree digest decide nothing: a commit to another member moved them. A
+    run of declared artifact paths has no snapshot, and a snapshot whose
+    root names no record of its own, so both still compare the repository.
+    """
+    root = dependencies.get("root")
+    return any(
+        isinstance(record, dict) and record.get("id") == root and record.get("kind") == "path"
+        for record in dependencies.get("packages", [])
+    )
+
+
+def _build_content(build: object, by_files: bool) -> object:
+    """A build record's content, without the repository identity when `by_files`."""
+    content = _content(build)
+    if by_files and isinstance(content, dict):
+        content = {key: value for key, value in content.items() if key != "source"}
+    return content
+
+
 def _record_matches(
     existing: dict[str, object],
     spec: BuildSpec,
     dependencies: dict[str, object],
     artifact: dict[str, object],
+    inputs: dict[str, object],
 ) -> bool:
+    """`inputs` is `current_inputs` of the record's own `inputs`."""
+    by_files = _identified_by_files(dependencies)
     return (
-        _content(existing.get("source")) == _content(spec.source.as_dict())
-        and _content(existing.get("build")) == _content(spec.as_dict())
+        (by_files or _content(existing.get("source")) == _content(spec.source.as_dict()))
+        and _build_content(existing.get("build"), by_files)
+        == _build_content(spec.as_dict(), by_files)
         and existing.get("dependencies") == dependencies
         and existing.get("artifact") == artifact
+        and existing.get("inputs") == inputs
     )
 
 
@@ -89,12 +118,18 @@ def record_path(spec: BuildSpec) -> Path:
     return Path(spec.target_dir) / ".atlas" / "source-identity" / f"{_spec_key(spec)}.json"
 
 
-def _sibling_record(spec: BuildSpec) -> dict[str, object] | None:
+def _sibling_record(
+    spec: BuildSpec,
+    dependencies: dict[str, object],
+    inputs_hold: Callable[[dict[str, object]], bool],
+) -> dict[str, object] | None:
     """A record of the same build and source under another command key.
 
     Its artifact names cover the dependency closure this run reads, so a run
-    that holds the dependencies shared hashes them by those names.
+    that holds the dependencies shared hashes them by those names. Its
+    inputs must still read as it recorded them (`inputs_hold`).
     """
+    by_files = _identified_by_files(dependencies)
     build = spec.as_dict()
     build.pop("command_key")
     directory = record_path(spec).parent
@@ -115,8 +150,10 @@ def _sibling_record(spec: BuildSpec) -> dict[str, object] | None:
             continue
         other = dict(other)
         other.pop("command_key", None)
-        if _content(other) == _content(build) and _content(record.get("source")) == _content(
-            spec.source.as_dict()
+        if (
+            _build_content(other, by_files) == _build_content(build, by_files)
+            and (by_files or _content(record.get("source")) == _content(spec.source.as_dict()))
+            and inputs_hold(record)
         ):
             return record
     return None
@@ -152,7 +189,7 @@ def read_record(path: Path) -> dict[str, object] | None:
     except (OSError, json.JSONDecodeError) as error:
         raise BuildIdentityError(f"malformed source identity record {path}: {error}") from error
     version = value.get("version") if isinstance(value, dict) else None
-    if type(version) is int and version in {1, 2, 3, 4}:
+    if type(version) is int and version in {1, 2, 3, 4, 5, 6}:
         return None
     if not isinstance(value, dict) or type(version) is not int or version != VERSION:
         raise BuildIdentityError(f"unsupported source identity record: {path}")
@@ -160,6 +197,17 @@ def read_record(path: Path) -> dict[str, object] | None:
     build = value.get("build")
     artifact = value.get("artifact")
     dependencies = value.get("dependencies")
+    inputs = value.get("inputs")
+    if type(inputs) is not dict or any(
+        type(package) is not str
+        or not (
+            files == UNVERIFIED
+            or type(files) is dict
+            and all(type(key) is str and type(digest) is str for key, digest in files.items())
+        )
+        for package, files in inputs.items()
+    ):
+        raise BuildIdentityError(f"malformed source identity record: {path}")
     if (
         not isinstance(source, dict)
         or not isinstance(build, dict)
