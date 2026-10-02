@@ -2,6 +2,14 @@
 
 <!-- Compacted 2026-09-26 under the 1,000-line board budget: a risk entry holds risk/evidence/re-open-trigger/owner in ~5 lines; closed findings and delivery narrative are gone -- the record of a closed finding is the commit or PR that closed it. Recover removed narrative with `git log -p -- gap_audit.md`. -->
 
+## Finding 2026-10-02: no check enforces the bare-cast rule
+
+Risk: new bare `as` casts land unmeasured; the cast rule (engineering_gates: lint floor) names a push-time check that does not exist (`git grep -i -E 'force-warn|as_conversions' -- scripts` is empty at origin/main 2026-10-02). Check that would catch it: the owned pre-push clippy run adds `--force-warn clippy::as_conversions --message-format=json`, dedupes by span, excludes by path the conversion module (`repos/eunomia/crates/eunomia/src/convert/count.rs`) and each crate's cast module, fails on a site on an added line or a crate count above its row in `scripts/conformance-baseline.json`. Owner: none. Re-open: the next hook change.
+
+## Finding 2026-10-02: the pre-push gate skips the feature matrix CI checks
+
+Risk: a change that compiles only with default features passes pre-push and fails CI. Evidence: ryancinsight/eunomia#143 (its pushed head before the no-std test fix) passed the owned pre-push gate; CI's `cargo check --all-targets --no-default-features` failed (`to_string` with no `std` in a test). The hook runs clippy and nextest with the default or CI-lint feature set only. Check that would catch it: the hook runs each member's committed feature-matrix list, as `cargo check` on the changed packages. Owner: none. Re-open: the next hook change, or the next CI-only feature failure.
+
 ## Finding 2026-09-28: staged revert of dependency-digest memoization in the shared main tree
 
 Risk: `D:/atlas` (main, at `7b14277be`) carries staged, uncommitted changes that delete `scripts/atlas_build_package_source.py` and its tests and revert `6538f5b09`; a pathspec-free commit from that tree would clobber landed work. Evidence: `git status --porcelain -- scripts` shows `D  scripts/atlas_build_package_source.py`; index written 16:22 local, no lease line. Owner: none found. Re-open: the next orientation of the main tree; triage per fix-forward (the staged hunks are reverts, not landed work).

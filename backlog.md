@@ -5,7 +5,6 @@
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — todo
-<a id="atlas-apollo-python-surface-2026-08-20"></a>- [ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20](backlog/atlas-apollo-python-surface-2026-08-20.md) — Ship the typed Python surface [patch] — todo
 <a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — todo
 <a id="atlas-arch-008-running-in-place-225"></a>- [ATLAS-ARCH-008-RUNNING-IN-PLACE-225](backlog/atlas-arch-008-running-in-place-225.md) — The conversion converts and re-accumulates at the same rate [patch] — todo
@@ -15,9 +14,7 @@
 <a id="atlas-board-closure-canon-001"></a>- [ATLAS-BOARD-CLOSURE-CANON-001](backlog/atlas-board-closure-canon-001.md) — Canonicalize historical closure markers [pm-hygiene] [patch] [M] — todo
 <a id="atlas-book-caller-pins-2026-08-20"></a>- [ATLAS-BOOK-CALLER-PINS-2026-08-20](backlog/atlas-book-caller-pins-2026-08-20.md) — Repin provider mdBook callers [patch] — todo
 <a id="atlas-book-figure-closure-2026-08-21"></a>- [ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21](backlog/atlas-book-figure-closure-2026-08-21.md) — Restore generated validation figures [patch] — todo
-<a id="atlas-book-staging-2026-08-20"></a>- [ATLAS-BOOK-STAGING-2026-08-20](backlog/atlas-book-staging-2026-08-20.md) — Preserve Cargo artifact identity in mdBook gates [patch] — todo
 <a id="atlas-branch-inventory-001"></a>- [ATLAS-BRANCH-INVENTORY-001](backlog/atlas-branch-inventory-001.md) — Burn down stack branch inventories [git-hygiene] [patch] — todo
-<a id="atlas-build-structure-001"></a>- [ATLAS-BUILD-STRUCTURE-001](backlog/atlas-build-structure-001.md) — Consolidate leaf binaries; compiler-last dev profiles [patch] — todo
 <a id="atlas-cfdrs-allocator-2026-08-20"></a>- [ATLAS-CFDRS-ALLOCATOR-2026-08-20](backlog/atlas-cfdrs-allocator-2026-08-20.md) — Remove library global allocator [major][arch] — todo
 <a id="atlas-cfdrs-athena-migration-001"></a>- [ATLAS-CFDRS-ATHENA-MIGRATION-001](backlog/atlas-cfdrs-athena-migration-001.md) — Stage B: CFDrs to Athena [major] [arch] — todo
 <a id="atlas-cfdrs-chain-ladder-001"></a>- [ATLAS-CFDRS-CHAIN-LADDER-001](backlog/atlas-cfdrs-chain-ladder-001.md) — Consolidate the two tiered ladders [patch] — blocked
@@ -34,7 +31,6 @@
 <a id="atlas-coeus-nlls-004"></a>- [ATLAS-COEUS-NLLS-004](backlog/atlas-coeus-nlls-004.md) — original specification — todo
 <a id="atlas-conformance-submodule-status-2026-08-19"></a>- [ATLAS-CONFORMANCE-SUBMODULE-STATUS-2026-08-19](backlog/atlas-conformance-submodule-status-2026-08-19.md) — classify provider dirt after root status [patch] — todo
 <a id="atlas-conformance-workflow-overlay-2026-09-21"></a>- [ATLAS-CONFORMANCE-WORKFLOW-OVERLAY-2026-09-21](backlog/atlas-conformance-workflow-overlay-2026-09-21.md) — exclude the checked-out Atlas overlay from member scans [patch] — todo
-<a id="atlas-consus-szip-bound-2026-08-20"></a>- [ATLAS-CONSUS-SZIP-BOUND-2026-08-20](backlog/atlas-consus-szip-bound-2026-08-20.md) — Bound SZIP allocation [security][patch] — todo
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) — 502 blanket suppressions the ratchet never counted [major] — todo
 <a id="crlf-stored-blobs"></a>- [ATLAS-CRLF-STORED-BLOBS-2026-09-08](backlog/crlf-stored-blobs.md) — Committed blobs contradict the declared line-ending policy [patch] — todo
 <a id="atlas-cross-member-sweep-108"></a>- [ATLAS-CROSS-MEMBER-SWEEP-108](backlog/atlas-cross-member-sweep-108.md) — cross-member staleness and dirt sweep [patch] (2026-08-23) — todo
@@ -45,8 +41,6 @@
 <a id="atlas-dmri-io-001"></a>- [ATLAS-DMRI-IO-001](backlog/atlas-dmri-io-001.md) — Rank-generic acquisition-series I/O [minor] — todo
 <a id="atlas-downstream-coordination-001"></a>- [ATLAS-DOWNSTREAM-COORDINATION-001](backlog/atlas-downstream-coordination-001.md) — Coordinate with an external consumer owner [chore] — blocked
 <a id="atlas-harmonia-field-exchange-050-2026-08-21"></a>- [ATLAS-HARMONIA-FIELD-EXCHANGE-050-2026-08-21](backlog/atlas-harmonia-field-exchange-050-2026-08-21.md) — Add typed physical-field exchange [major] [arch] — todo
-<a id="atlas-helios-bench-local-instrument-2026-09-18"></a>- [ATLAS-HELIOS-BENCH-LOCAL-INSTRUMENT-2026-09-18](backlog/atlas-helios-bench-local-instrument-2026-09-18.md) — helios runs wall-clock benchmark regression on hosted CI [arch] — todo
-<a id="atlas-helios-radon-oracle-2026-08-20"></a>- [ATLAS-HELIOS-RADON-ORACLE-2026-08-20](backlog/atlas-helios-radon-oracle-2026-08-20.md) — Remove existence-only sinogram assertion [patch] — todo
 <a id="atlas-hephaestus-host-seam-coverage"></a>- [ATLAS-HEPHAESTUS-HOST-SEAM-COVERAGE](backlog/atlas-hephaestus-host-seam-coverage.md) — `hephaestus-host` implements every seam the conformance suite is generic over [arch][major] — todo
 <a id="atlas-hermes-consumer-entry-2026-08-25"></a>- [ATLAS-HERMES-CONSUMER-ENTRY-2026-08-25](backlog/atlas-hermes-consumer-entry-2026-08-25.md) — Restore Hermes as the stack's lane-kernel owner [arch] — todo
 <a id="hook-fleet-duplication"></a>- [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog/hook-fleet-duplication.md) — Stack-owned git hooks [patch] — todo
@@ -57,7 +51,6 @@
 <a id="atlas-kwavers-bench-smoke-2026-08-25"></a>- [ATLAS-KWAVERS-BENCH-SMOKE-2026-08-25](backlog/atlas-kwavers-bench-smoke-2026-08-25.md) — Bound cold-build benchmark smoke [patch] — todo
 <a id="atlas-kwavers-book-fence-2026-08-19"></a>- [ATLAS-KWAVERS-BOOK-FENCE-2026-08-19](backlog/atlas-kwavers-book-fence-2026-08-19.md) — restore truthful mdBook fence semantics [patch] — todo
 <a id="atlas-kwavers-ci-coverage-opt-2026-08-25"></a>- [ATLAS-KWAVERS-CI-COVERAGE-OPT-2026-08-25](backlog/atlas-kwavers-ci-coverage-opt-2026-08-25.md) — Bound full-workspace test topology [perf][patch] — todo
-<a id="atlas-kwavers-distributed-queue-2026-08-20"></a>- [ATLAS-KWAVERS-DISTRIBUTED-QUEUE-2026-08-20](backlog/atlas-kwavers-distributed-queue-2026-08-20.md) — close queue completion and deadline contracts [patch] — todo
 <a id="kwavers-elastic-collision"></a>- [ATLAS-KWAVERS-ELASTIC-COLLISION-2026-09-03](backlog/kwavers-elastic-collision.md) — Step 2b is peer-owned; I collided with it [patch] — blocked
 <a id="atlas-kwavers-hephaestus-contract-2026-08-21"></a>- [ATLAS-KWAVERS-HEPHAESTUS-CONTRACT-2026-08-21](backlog/atlas-kwavers-hephaestus-contract-2026-08-21.md) — Define the neutral visualization handoff [major][arch] — todo
 <a id="atlas-kwavers-parameter-structs-20260928"></a>- [ATLAS-KWAVERS-PARAMETER-STRUCTS-20260928](backlog/atlas-kwavers-parameter-structs-20260928.md) — Collapse the `clippy::too_many_arguments` suppressions into parameter structs [minor] — todo
@@ -125,7 +118,6 @@
 <a id="kwavers-ci-pipeline-001"></a>- [KWAVERS-CI-PIPELINE-001](backlog/kwavers-ci-pipeline-001.md) — Consolidate kwavers CI to one verification pipeline [ci] [patch] — todo
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
-<a id="ritk-shared-tree-stale-basis-213"></a>- [RITK-SHARED-TREE-STALE-BASIS-213](backlog/ritk-shared-tree-stale-basis-213.md) — ritk's shared tree is checked out 58 commits behind origin [patch] — todo
 <a id="atlas-identity-lease-starvation"></a>- [ATLAS-IDENTITY-LEASE-STARVATION](backlog/atlas-identity-lease-starvation.md) — Gated pushes starve on the 900 s identity-lease wait [verification] — todo
 <a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
 <a id="atlas-identity-ignored-files"></a>- [ATLAS-IDENTITY-IGNORED-FILES](backlog/atlas-identity-ignored-files.md) — Keep gitignored run output out of a path package's identity [patch] — todo
@@ -136,3 +128,5 @@
 <a id="atlas-pub-010"></a>- [ATLAS-PUB-010](backlog/atlas-pub-010.md) — Convert member crate callers to version-change publishing [patch] — todo
 <a id="atlas-pub-011"></a>- [ATLAS-PUB-011](backlog/atlas-pub-011.md) — Release the source that outran its published versions [patch] — todo
 <a id="atlas-identity-member-scope"></a>- [ATLAS-IDENTITY-MEMBER-SCOPE](backlog/atlas-identity-member-scope.md) — A commit cleans every gated package's in-repository closure [tightening] — todo
+<a id="atlas-bounded-runner"></a>- [ATLAS-BOUNDED-RUNNER](backlog/atlas-bounded-runner.md) — Launch every agent process through one bounded runner [patch] — todo
+<a id="atlas-root-hook-test-timeouts"></a>- [ATLAS-ROOT-HOOK-TEST-TIMEOUTS](backlog/atlas-root-hook-test-timeouts.md) — Root hook tests time out under host load [patch] — todo

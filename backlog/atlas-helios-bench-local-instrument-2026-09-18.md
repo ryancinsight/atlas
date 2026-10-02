@@ -1,4 +1,0 @@
-<a id="atlas-helios-bench-local-instrument-2026-09-18"></a>
-## ATLAS-HELIOS-BENCH-LOCAL-INSTRUMENT-2026-09-18 — helios runs wall-clock benchmark regression on hosted CI [arch] — todo
-- Owner: muse-spark-2026-09-21. Outcome: ADR 0003 revised in place — the A/B/B/A paired schedule is the local pre-merge instrument with its baseline attached to the PR; implemented by [Helios PR #100](https://github.com/ryancinsight/helios/pull/100), with budget derivations in code and ADR 0003. CI keeps a single-iteration criterion `--test` smoke.
-- Residuals (re-open triggers): (1) collect helios main CI terminal green; (5) main CI at `849c5047` failed in `tests` — apollo-fft vs a drifted hermes-simd surface (provider-integration workstream, not this item); residual (3) satisfied — Atlas main records helios at `ebb54c3c`.
