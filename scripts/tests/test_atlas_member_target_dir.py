@@ -6,12 +6,15 @@ from __future__ import annotations
 import importlib.util
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas-member-target-dir.py"
+sys.path.insert(0, str(SCRIPT.parent))
 SPEC = importlib.util.spec_from_file_location("atlas_member_target_dir", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 target_dir = importlib.util.module_from_spec(SPEC)
@@ -59,6 +62,28 @@ class SharedTargetWorktreeTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-target-outside-") as temp:
             with self.assertRaisesRegex(RuntimeError, "cannot resolve Git common directory"):
                 target_dir.shared_target_for(Path(temp))
+
+    def test_lane_config_detects_missing_stale_and_foreign_states(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-target-lane-") as temp:
+            root = Path(temp) / "stack"
+            root.mkdir(parents=True)
+            git(root, "init", "--quiet", "-b", "main")
+            git(root, "config", "user.name", "Atlas test")
+            git(root, "config", "user.email", "atlas-test@example.invalid")
+            (root / "seed").write_text("seed\n", encoding="utf-8")
+            git(root, "add", "seed")
+            git(root, "commit", "--quiet", "-m", "seed")
+            lane_config = root / "worktrees" / ".cargo" / "config.toml"
+            with patch.object(target_dir, "ATLAS_ROOT", root), patch.object(
+                target_dir, "LANE_CONFIG", lane_config
+            ):
+                self.assertEqual(target_dir.lane_state(), "missing")
+                target_dir.ensure_lane_config(root)
+                self.assertEqual(target_dir.lane_state(), "current")
+                lane_config.write_text("[build]\ntarget-dir = 'foreign'\n", encoding="utf-8")
+                self.assertEqual(target_dir.lane_state(), "foreign")
+                lane_config.write_text(target_dir.lane_config_text(root) + "\n", encoding="utf-8")
+                self.assertEqual(target_dir.lane_state(), "stale")
 
 
 if __name__ == "__main__":

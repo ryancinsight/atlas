@@ -36,6 +36,7 @@ from atlas_git_process import (
     GitProcessError, archive, extract_archive, execute as execute_git,
 )
 from atlas_stack import LANE_ROOT, ROOT, WORKTREE_BOUND, git, worktree_entries
+from atlas_target_dir import ensure_lane_config
 
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 REVISION_SHAPED = re.compile(r"[0-9a-f]{7,40}")
@@ -131,6 +132,10 @@ def create(member: str, branch: str, start: str | None) -> Path:
     lane = root / lane_name(member, branch)
     if not root.is_relative_to(ROOT.resolve()) or lane.parent != root:
         raise Refusal(f"{lane} is outside the canonical lane root {LANE_ROOT}")
+    try:
+        ensure_lane_config(ROOT.resolve())
+    except RuntimeError as exc:
+        raise Refusal(f"cannot prepare shared lane target config: {exc}") from exc
     if lane.exists():
         raise Refusal(f"{lane} already exists")
     git(repo, "fetch", "--quiet", "origin")

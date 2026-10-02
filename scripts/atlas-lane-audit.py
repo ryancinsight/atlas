@@ -35,8 +35,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from atlas_stack import (
     LANE_ROOT, ROOT, canonical_lane, git, registered_members, worktree_entries,
 )
+from atlas_target_dir import MARKER, lane_config, lane_config_text
 
 ARCHIVE_ROOT_NAME = ".archive"
+
+
+def audit_target_config(violations: list[str]) -> None:
+    """Ensure the shared config inherited by lanes is present and current."""
+    path = lane_config(ROOT)
+    if not path.is_file():
+        violations.append(f"lane target config missing: {path}")
+        return
+    text = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+    if MARKER not in text:
+        violations.append(f"lane target config is foreign: {path}")
+    elif text != lane_config_text(ROOT):
+        violations.append(f"lane target config is stale: {path}")
 
 
 def audit_repo(repo: Path, violations: list[str]) -> None:
@@ -64,6 +78,10 @@ def audit_lane_root(violations: list[str]) -> None:
         return
     for child in sorted(LANE_ROOT.iterdir()):
         if not child.is_dir():
+            continue
+        if child.name == ".cargo":
+            # The generated shared target config is inherited by every lane;
+            # it is machine state, not a worktree child.
             continue
         if child.name == ARCHIVE_ROOT_NAME:
             # Archived lane manifests are reconciliation records, not
@@ -99,6 +117,7 @@ def audit_lane_root(violations: list[str]) -> None:
 
 def main() -> int:
     violations: list[str] = []
+    audit_target_config(violations)
     for repo in [ROOT, *registered_members()]:
         audit_repo(repo, violations)
     audit_lane_root(violations)
