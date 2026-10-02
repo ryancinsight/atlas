@@ -50,6 +50,7 @@ SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 
 import lockfile  # noqa: E402  (overlay-free cargo runner; shared, not copied)
+from atlas_pull_request import open_pull_request  # noqa: E402
 from atlas_stack import ROOT, git, registered_members  # noqa: E402
 
 LANE_ROOT = ROOT / "worktrees"
@@ -266,40 +267,14 @@ def cargo(member: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     return lockfile.run_outside_the_overlay(list(arguments), manifest=member / "Cargo.toml")
 
 
-def stderr_tail(completed: subprocess.CompletedProcess[str]) -> str:
-    return completed.stderr.strip()[-200:]
-
-
-def open_pull_request(
-    consumer: Consumer,
-    lane: Path,
-    base: str,
-    branch: str,
-    title: str,
-    body: str,
-    run=subprocess.run,
+def open_consumer_pull_request(
+    consumer: Consumer, lane: Path, base: str, branch: str, title: str, body: str, run=subprocess.run
 ) -> Outcome:
-    """Open the PR for a pushed branch and enable auto-merge on it.
-
-    Merging is enabling auto-merge: a PR left for hand collection is a lock
-    advance that sits unmerged. The method is explicit `--merge` (never the
-    squash default, which collapses the atomic history). When auto-merge cannot
-    be enabled the outcome is a failure carrying the PR URL, so the report
-    shows a PR that needs collecting rather than a delivered one."""
-    created = run(
-        ["gh", "pr", "create", "--base", base, "--head", branch, "--title", title, "--body", body],
-        cwd=lane, capture_output=True, encoding="utf-8", errors="replace",
-    )
-    if created.returncode != 0:
-        return Outcome(consumer, "failed", f"gh pr create: {stderr_tail(created)}", False)
-    url = created.stdout.strip().splitlines()[-1]
-    merge = run(
-        ["gh", "pr", "merge", url, "--auto", "--merge", "--delete-branch"],
-        cwd=lane, capture_output=True, encoding="utf-8", errors="replace",
-    )
-    if merge.returncode != 0:
-        return Outcome(consumer, "failed", f"gh pr merge --auto: {stderr_tail(merge)} (PR {url})", False)
-    return Outcome(consumer, "opened", url, True)
+    """The consumer's report row for its PR: opened with auto-merge enabled, or failed."""
+    opening = open_pull_request(base=base, head=branch, title=title, body=body, cwd=lane, run=run)
+    if opening.failure is not None:
+        return Outcome(consumer, "failed", opening.failure, False)
+    return Outcome(consumer, "opened", opening.url, True)
 
 
 def advance(row: PlanRow, crate: str, open_prs: bool) -> Outcome:
@@ -369,7 +344,7 @@ def advance(row: PlanRow, crate: str, open_prs: bool) -> Outcome:
             f"`scripts/atlas-lock-sweep.py` (ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01).\n\n"
             "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
         )
-        return open_pull_request(
+        return open_consumer_pull_request(
             consumer, lane, default_branch(member), branch,
             f"build(deps): Update {crate} to {target[:8]}", body,
         )
