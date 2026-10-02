@@ -116,3 +116,6 @@
 <a id="atlas-alloc-count-per-thread"></a>- [ATLAS-ALLOC-COUNT-PER-THREAD](backlog/atlas-alloc-count-per-thread.md) — Count test allocations on the measuring thread only [patch] — todo
 <a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — blocked
 <a id="atlas-hook-stack-root-ssot"></a>- [ATLAS-HOOK-STACK-ROOT-SSOT](backlog/atlas-hook-stack-root-ssot.md) — One stack-root resolver for both root hooks [patch] — todo
+<a id="atlas-build-source-tree-kill"></a>- [ATLAS-BUILD-SOURCE-TREE-KILL](backlog/atlas-build-source-tree-kill.md) — End build-identity commands as a process tree [patch] — todo
+<a id="atlas-hook-scrub-list-ssot"></a>- [ATLAS-HOOK-SCRUB-LIST-SSOT](backlog/atlas-hook-scrub-list-ssot.md) — One source for the git variables the hooks scrub [patch] — todo
+<a id="atlas-hook-trampoline-to-shim"></a>- [ATLAS-HOOK-TRAMPOLINE-TO-SHIM](backlog/atlas-hook-trampoline-to-shim.md) — Serve the umbrella's own hooks through the origin/main shims [patch] — todo

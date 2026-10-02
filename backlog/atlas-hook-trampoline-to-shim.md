@@ -1,0 +1,9 @@
+<a id="atlas-hook-trampoline-to-shim"></a>
+## ATLAS-HOOK-TRAMPOLINE-TO-SHIM — Serve the umbrella's own hooks through the origin/main shims [patch] — todo
+- Outcome: the umbrella's `core.hooksPath` hooks follow `origin/main` through the same shim mechanism as the members' (`write_hook_shims`), and `.githooks/pre-push` no longer carries its in-file trampoline.
+- Evidence: `.githooks/pre-push` lines 3-94 hold the comment, `_atlas_hook_trampoline` and its call (ATLAS-HOOKS-FOLLOW-CHECKOUT-2026-09-18), which compares the executing file with `origin/HEAD:.githooks/pre-push` and re-execs origin's copy, so the umbrella's hook already follows the default branch whatever is checked out. `scripts/atlas-lock-form.py` (ryancinsight/atlas#428 to #468) adds a second mechanism for the same goal outside the hook, with a hash-verified cache, `--no-replace-objects` lookups and the caller's shell options restored. `.githooks/pre-commit` carries no prelude, so the umbrella's pre-commit still runs the checked-out branch's copy.
+- Oracle: `git grep -c "_atlas_hook_trampoline" -- .githooks` is 0; the umbrella's pre-commit and pre-push resolve their body from `origin/main` through a shim in a test that checks out a peer branch with modified copies of both; `scripts/tests/test_atlas_hook_trampoline.py` is replaced by shim-based tests of the behaviours it pins.
+- priority: tightening
+- needs: ATLAS-HOOK-ORIGIN-SHIMS merged (ryancinsight/atlas#468)
+- scope: .githooks/pre-commit, .githooks/pre-push, scripts/atlas-lock-form.py, scripts/tests/test_atlas_hook_trampoline.py, scripts/tests/test_atlas_lock_form.py
+- Next step: decide whether `write_hook_shims` takes `.githooks` as a second source directory or the umbrella's hooks move under `scripts/git-hooks`; the two differ (`.githooks/pre-push` is the root gate, `scripts/git-hooks/pre-push` the member gate).
