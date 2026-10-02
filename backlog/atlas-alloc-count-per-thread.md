@@ -5,5 +5,5 @@
 - Oracle: per member, a test that allocates on a second thread inside the window still reads zero for the measuring thread, and the existing budgets hold unchanged.
 - priority: verification
 - needs: none
-- scope: the six test files above and their manifests; one member PR each.
-- Next step: replace `stats_alloc` with the per-thread `allocation-counter` measurement horae#80 adopted (`allocation_counter::measure`, asserting `AllocationInfo::default()`); the stack has no first-party per-thread counter (mnemosyne's bin stats count its own heap only).
+- scope: mnemosyne (the wrapper), then the six test files above and their manifests; horae moves off `allocation-counter` with them.
+- Next step: land one per-thread counting `GlobalAlloc` wrapper, generic over the inner allocator, in mnemosyne, then switch each member to it. `allocation-counter` (horae#80's choice) installs its own global allocator, so it conflicts with athena's deliberate `StatsAlloc<Mnemosyne>`; kwavers-alloc-probe and the leto and coeus-ops tests hand-roll counters the wrapper replaces.
