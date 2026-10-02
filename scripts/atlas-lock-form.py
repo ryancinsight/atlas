@@ -47,10 +47,22 @@ import tomllib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from atlas_git_process import GitProcessError, execute as execute_git  # noqa: E402
+from atlas_git_process import (  # noqa: E402
+    GitProcessError,
+    clean_process_env,
+    execute as execute_git,
+    execute_process,
+)
 from atlas_stack import ROOT, registered_member_names  # noqa: E402
 
 REPOS = ROOT / "repos"
+# A push may run the committed 60-second hook gate; the remainder covers Git
+# transport and process-tree teardown without leaving an unbounded member.
+GIT_DEADLINE_SECONDS = 90
+# `cargo metadata` resolves only what a lock cannot supply, which can mean
+# fetching a git dependency's index: the ten-minute foreground bound.
+CARGO_METADATA_DEADLINE_SECONDS = 600
+CARGO_COMMAND = ("cargo",)
 # Each member's in-tree copy of scripts/git-hooks, written by `sync-hooks`.
 MEMBER_HOOK_COPY = ".githooks"
 SKIP_DIRS = {"target", ".git", "node_modules"}
@@ -59,10 +71,24 @@ FIRST_PARTY_HOST = "github.com/ryancinsight/"
 
 
 def run(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
-    proc = subprocess.run(
-        args, cwd=None if cwd is None else str(cwd), capture_output=True, encoding="utf-8", errors="replace"
+    """Run a command with a deadline that ends its whole process tree.
+
+    The `staged` pre-commit mode must read the index git named, so
+    `GIT_INDEX_FILE` stays in the environment (`execute_process` keeps it when
+    the caller passes it); every other repository variable is scrubbed. A
+    deadline or a launch failure raises `RuntimeError`.
+    """
+    try:
+        result = execute_process(
+            args, cwd=cwd, env=dict(os.environ), timeout=GIT_DEADLINE_SECONDS
+        )
+    except GitProcessError as error:
+        raise RuntimeError(str(error)) from error
+    return (
+        result.returncode,
+        result.stdout.decode("utf-8", errors="replace"),
+        result.stderr.decode("utf-8", errors="replace"),
     )
-    return proc.returncode, proc.stdout, proc.stderr
 
 
 def tracked_locks(repo: Path) -> list[str]:
@@ -388,32 +414,41 @@ def cmd_restore(_args) -> int:
     return 0
 
 
-def _cargo_outside(manifest: Path, *extra: str) -> subprocess.CompletedProcess:
+def _cargo_outside(manifest: Path, *extra: str) -> subprocess.CompletedProcess[str]:
     """Resolve `manifest` with the stack overlay out of scope.
 
     Cargo discovers `.cargo/config.toml` upward from the *current directory*,
     not from the manifest path. Running from a scratch directory outside the
     Atlas tree is therefore what makes this resolve against git rather than the
     local working trees -- and it does so without toggling the shared overlay
-    out from under concurrent peers.
+    out from under concurrent peers. The deadline ends cargo's whole process
+    tree; a timeout or a launch failure is a failed resolve (exit 124 or 127).
     """
     with tempfile.TemporaryDirectory(prefix="atlas-lock-") as scratch:
-        env = dict(os.environ)
+        env = clean_process_env()
         # Leaving the overlay's scope also leaves `[build] target-dir` behind,
         # so cargo would default to a per-member `target/` -- the cache fork
         # the shared root exists to prevent. Name the canonical shared path
         # explicitly: this is the value the config would have supplied, not an
         # override of it.
         env["CARGO_TARGET_DIR"] = str(ROOT / "target")
-        return subprocess.run(
-            [
-                "cargo", "metadata", "--format-version", "1",
-                "--manifest-path", str(manifest), *extra,
-            ],
-            cwd=scratch,
-            capture_output=True,
-            encoding="utf-8", errors="replace",
-            env=env,
+        command = [
+            *CARGO_COMMAND, "metadata", "--format-version", "1",
+            "--manifest-path", str(manifest), *extra,
+        ]
+        try:
+            result = execute_process(
+                command, cwd=Path(scratch), env=env, timeout=CARGO_METADATA_DEADLINE_SECONDS
+            )
+        except GitProcessError as error:
+            return subprocess.CompletedProcess(
+                command, 124 if error.timed_out else 127, "", str(error)
+            )
+        return subprocess.CompletedProcess(
+            command,
+            result.returncode,
+            result.stdout.decode("utf-8", errors="replace"),
+            result.stderr.decode("utf-8", errors="replace"),
         )
 
 
@@ -509,9 +544,6 @@ HOOK_MODE = "100755"
 # names its own branch opens a second request carrying a different revision of
 # the same file. Thirteen members carried exactly that pair on 2026-09-21.
 PUBLISH_BRANCH = "ci/sync-stack-hooks"
-# A push may run the committed 60-second hook gate; the remainder covers Git
-# transport and process-tree teardown without leaving an unbounded member.
-GIT_DEADLINE_SECONDS = 90
 # Hosting calls do not run member code and use the ordinary test slow bound.
 HOSTING_DEADLINE_SECONDS = 30
 

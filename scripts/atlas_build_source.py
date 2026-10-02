@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 from atlas_build_lease import BuildIdentityError
+from atlas_git_process import clean_process_env
 
 
 @dataclass(frozen=True)
@@ -31,15 +32,7 @@ class SourceIdentity:
 
 
 def _git(root: Path, *arguments: str) -> bytes:
-    environment = os.environ.copy()
-    for key in (
-        "GIT_DIR",
-        "GIT_WORK_TREE",
-        "GIT_INDEX_FILE",
-        "GIT_PREFIX",
-        "GIT_COMMON_DIR",
-    ):
-        environment.pop(key, None)
+    environment = clean_process_env()
     try:
         result = subprocess.run(
             ["git", *arguments],
@@ -115,81 +108,25 @@ def _diff_bytes(top: Path, ignored: Sequence[Path]) -> bytes:
     return _git(top, *arguments)
 
 
-def _untracked_paths(top: Path) -> tuple[tuple[bytes, list[bytes]], ...]:
-    """The untracked and the ignored files under `top`, each group in Git's path order.
-
-    One `git status` walks the tree once for both groups, where
-    `ls-files --others` and `ls-files --others --ignored` walked it twice
-    in two processes. Each group is the list those commands print, sorted
-    as Git sorts it (byte order), so the source digest is unchanged.
-    Submodules are not entered: only `?` and `!` entries are read.
-
-    `status` validates settings `ls-files` never reads: the `status.*`
-    keys it knows, `color.status` and its slots, and `column.ui` and
-    `column.status`. A malformed one fails the identity loudly with Git's
-    message, which names the key (and, for some keys, the file); it never
-    yields a wrong identity. `git commit` refuses the same values, but
-    `commit-tree`, `merge` and `am` do not, so such a key can reach a push.
-    """
-    output = _git(
-        top,
-        "--no-optional-locks",
-        "status",
-        "--porcelain=v2",
-        "-z",
-        "--untracked-files=all",
-        "--ignored=traditional",
-        "--ignore-submodules=all",
-        "--no-renames",
-    )
-    untracked: list[bytes] = []
-    ignored: list[bytes] = []
-    # Under `--no-renames` every entry is one field: none carries an original path.
-    for field in output.split(b"\0"):
-        if field.startswith(b"? "):
-            untracked.append(field[2:])
-        elif field.startswith(b"! "):
-            ignored.append(field[2:])
-    return (b"untracked", sorted(untracked)), (b"ignored", sorted(ignored))
-
-
-def repository_head(root: Path) -> tuple[Path, str]:
-    """The top of the work tree holding `root`, and the revision its `HEAD` names."""
-    root = _canonical(root, strict=True)
-    output = _git(root, "rev-parse", "--show-toplevel", "HEAD")
-    # Git ends each value with one LF. The revision is the last line, and the
-    # path everything before it, whitespace and newlines included: POSIX
-    # allows both in a directory name.
-    top, _, revision = output.removesuffix(b"\n").rpartition(b"\n")
-    if not top or not revision or revision != revision.strip():
-        raise BuildIdentityError(f"git rev-parse --show-toplevel HEAD in {root} printed {output!r}")
-    return Path(os.fsdecode(top)).resolve(), os.fsdecode(revision)
-
-
 def source_identity(
     root: Path,
     excluded_roots: Sequence[Path] = (),
     ignored_paths: Sequence[Path] = (),
 ) -> SourceIdentity:
-    return worktree_identity(*repository_head(root), excluded_roots, ignored_paths)
-
-
-def worktree_identity(
-    top: Path,
-    revision: str,
-    excluded_roots: Sequence[Path] = (),
-    ignored_paths: Sequence[Path] = (),
-) -> SourceIdentity:
-    """The identity of the work tree at `top`, whose `HEAD` is `revision`.
-
-    `top` and `revision` are what `repository_head` returned for it.
-    """
+    root = _canonical(root, strict=True)
+    top = Path(os.fsdecode(_git(root, "rev-parse", "--show-toplevel").strip())).resolve()
+    revision = os.fsdecode(_git(top, "rev-parse", "HEAD").strip())
     excluded = tuple(_canonical(path) for path in excluded_roots)
     ignored = tuple(_canonical(path) for path in ignored_paths)
     diff = _diff_bytes(top, ignored)
     untracked_entries: list[tuple[bytes, bytes, Path]] = []
-    for marker, raw_paths in _untracked_paths(top):
-        for raw_path in raw_paths:
+    for marker, arguments in (
+        (b"untracked", ("ls-files", "--others", "--exclude-standard", "-z")),
+        (b"ignored", ("ls-files", "--others", "--ignored", "--exclude-standard", "-z")),
+    ):
+        for raw_path in _git(top, *arguments).split(b"\0"):
+            if not raw_path:
+                continue
             path = (top / Path(os.fsdecode(raw_path))).resolve()
             if any(_is_within(path, excluded_root) for excluded_root in excluded):
                 continue
