@@ -1087,6 +1087,14 @@ def _comparable_hooks_path(value: str) -> str:
     return value.replace("\\", "/").rstrip("/")
 
 
+def _same_directory(first: str | Path, second: str | Path) -> bool:
+    """Whether two existing paths name one directory."""
+    try:
+        return os.path.samefile(first, second)
+    except OSError:
+        return False
+
+
 def cmd_install_hooks(_args) -> int:
     """Point every member's `core.hooksPath` at the owned-hook shims.
 
@@ -1106,7 +1114,11 @@ def cmd_install_hooks(_args) -> int:
     left on its own hooks does not run the owned gate.
 
     Every git call is bounded and ignores an inherited `GIT_DIR`, so a member's
-    configuration is written in that member.
+    configuration is written in that member. A directory under `repos/` that
+    is not a repository of its own is refused: git would resolve it to the
+    Atlas repository, or the directory is a linked working tree of it or
+    carries a `.git` file naming its git directory, and the write would
+    retarget the umbrella's hooks.
     """
     try:
         hooks = write_hook_shims(ROOT).as_posix()
@@ -1121,6 +1133,7 @@ def cmd_install_hooks(_args) -> int:
     }
     owned = {_comparable_hooks_path(path) for path in (hooks, *working_tree_copies)}
     owned.add(MEMBER_HOOK_COPY)
+    atlas_common = Path(hooks).parent
     installed, failed = 0, 0
     left_alone: list[str] = []
     for member in sorted(registered_member_names()):
@@ -1128,7 +1141,22 @@ def cmd_install_hooks(_args) -> int:
         if not repo.is_dir():
             continue
         try:
+            top = git_in(repo, "rev-parse", "--show-toplevel")
+            common = common_git_dir(repo)
+            if not _same_directory(top, repo) or _same_directory(common, atlas_common):
+                print(
+                    f"{member}: {repo} is not a repository of its own "
+                    f"(git resolves it to {top}, git directory {common}); refused"
+                )
+                failed += 1
+                continue
             read = git_result(repo, "config", "--local", "--get", "core.hooksPath")
+            # Exit 1 is "no such key"; any other failure is not an unset value.
+            if read.returncode not in (0, 1):
+                detail = read.stderr.decode("utf-8", errors="replace").strip()
+                print(f"{member}: FAILED to read core.hooksPath: {detail}")
+                failed += 1
+                continue
             current = read.stdout.decode("utf-8", errors="replace").strip()
             if current and _comparable_hooks_path(current) not in owned:
                 print(f"{member}: core.hooksPath already set to {current}; left alone")

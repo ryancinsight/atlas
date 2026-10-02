@@ -815,6 +815,23 @@ class HookInstallTestCase(unittest.TestCase):
         out, err = run.communicate(b"", timeout=60)
         self.assertEqual((run.returncode, out.decode(), err.decode().strip()), (3, "", "refused"))
 
+    def test_install_ignores_replace_refs(self) -> None:
+        """A replace of origin/main's commit by one without `pre-push` would
+        have the install delete that shim, and the push would run no gate."""
+        refusing = b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"
+        self.publish({"pre-push": refusing, "pre-commit": b"#!/usr/bin/env bash\n"})
+        owned = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.publish({"pre-commit": b"#!/usr/bin/env bash\n"})
+        self.git(self.atlas, "replace", owned, self.git(self.atlas, "rev-parse", "refs/remotes/origin/main"))
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", owned)
+        self.member("alpha")
+        self.install(["alpha"])
+        shims = self.shim_dir()
+        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["pre-commit", "pre-push"])
+        run = self.run_shim(shims)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
+
     def test_a_branch_named_like_the_source_ref_is_never_used(self) -> None:
         """With origin/main gone, `rev-parse` would resolve a local branch named
         `refs/remotes/origin/main`; the shim refuses instead."""
@@ -865,6 +882,20 @@ class HookInstallTestCase(unittest.TestCase):
         )
         return result.stdout.strip() if result.returncode == 0 else None
 
+    def test_install_writes_the_member_under_an_inherited_git_dir(self) -> None:
+        """`GIT_DIR` in the installer's environment names another repository;
+        git honours it over `-C`, so an unscrubbed call would configure that
+        repository and report the member installed."""
+        self.publish({"pre-push": owned_hook("owned")})
+        member = self.member("alpha")
+        stranger = Path(self._tmp.name) / "stranger"
+        subprocess.run(["git", "init", "-q", str(stranger)], check=True)
+        with patch.dict(os.environ, {"GIT_DIR": str(stranger / ".git")}):
+            self.install(["alpha"])
+        self.assertEqual(self.config(member, "core.hooksPath"), self.shim_dir().as_posix())
+        self.assertIsNone(self.config(stranger, "core.hooksPath"))
+        self.assertIsNone(self.config(self.atlas, "core.hooksPath"))
+
     def test_one_hooks_path_in_any_spelling_is_ours_and_retargeted(self) -> None:
         self.publish({"pre-push": owned_hook("owned")})
         shims = self.shim_dir()
@@ -879,6 +910,27 @@ class HookInstallTestCase(unittest.TestCase):
             {name: self.config(self.repos / name, "core.hooksPath") for name in spellings},
             {name: shims.as_posix() for name in spellings},
         )
+
+    def test_a_directory_that_is_not_its_own_repository_is_refused(self) -> None:
+        """git resolves an empty `repos/<member>` to the Atlas repository, and one
+        inside another repository to that one, so the write would overwrite the
+        umbrella's, or the other repository's, own `core.hooksPath`."""
+        self.publish({"pre-push": owned_hook("owned")})
+        self.git(self.atlas, "config", "--local", "core.hooksPath", _lock_form.MEMBER_HOOK_COPY)
+        (self.repos / "ghost").mkdir(parents=True)
+        outer = self.member("outer", "D:/elsewhere/hooks")
+        (outer / "inner").mkdir()
+        real = self.member("real")
+        output = self.install(["ghost", "outer/inner", "real"], code=1)
+        for refused in ("ghost", "outer/inner"):
+            (line,) = [text for text in output.splitlines() if text.startswith(f"{refused}:")]
+            self.assertIn("is not a repository of its own", line)
+        # `.githooks` is a value the installer retargets, so only the refusal
+        # keeps it.
+        self.assertEqual(self.config(self.atlas, "core.hooksPath"), _lock_form.MEMBER_HOOK_COPY)
+        self.assertEqual(self.config(outer, "core.hooksPath"), "D:/elsewhere/hooks")
+        self.assertEqual(self.config(real, "core.hooksPath"), self.shim_dir().as_posix())
+        self.assertIn("2 failed", output)
 
     def test_allexport_does_not_leak_the_shims_variables_into_the_hook(self) -> None:
         """With `allexport` inherited, every assignment the shim makes and its
@@ -909,6 +961,25 @@ class HookInstallTestCase(unittest.TestCase):
         seen = dict(line.split("=", 1) for line in err.decode().splitlines() if "=" in line)
         self.assertEqual({name: seen.get(name) for name in caller}, caller)
 
+    def test_install_writes_the_member_under_an_inherited_common_dir_and_work_tree(self) -> None:
+        """`GIT_COMMON_DIR` names the umbrella's git directory: git would read and
+        write its configuration for every member and report them installed."""
+        self.publish({"pre-push": owned_hook("owned")})
+        members = [self.member("alpha"), self.member("beta")]
+        inherited = {
+            "GIT_COMMON_DIR": str(self.atlas / ".git"),
+            "GIT_WORK_TREE": str(self.atlas),
+            "GIT_OBJECT_DIRECTORY": str(self.atlas / ".git" / "objects"),
+        }
+        with patch.dict(os.environ, inherited):
+            output = self.install(["alpha", "beta"])
+        self.assertIn("installed in 2 member(s)", output)
+        self.assertEqual(
+            [self.config(member, "core.hooksPath") for member in members],
+            [self.shim_dir().as_posix()] * 2,
+        )
+        self.assertIsNone(self.config(self.atlas, "core.hooksPath"))
+
     def test_git_result_ignores_an_inherited_index_and_honours_a_named_one(self) -> None:
         member = self.member("alpha")
         foreign, named = Path(self._tmp.name) / "foreign-index", Path(self._tmp.name) / "named-index"
@@ -918,6 +989,42 @@ class HookInstallTestCase(unittest.TestCase):
             explicit = _lock_form.git_in(member, *locate, index=named)
         self.assertEqual(Path(inherited).resolve(), (member / ".git" / "index").resolve())
         self.assertEqual(Path(explicit).resolve(), named.resolve())
+
+    def test_a_member_sharing_the_umbrellas_git_directory_is_refused(self) -> None:
+        """Both a linked working tree of the Atlas repository and a directory whose
+        `.git` file names its git directory resolve to a top level of their own
+        yet share the umbrella's configuration, so a write there is a write to
+        the umbrella's `core.hooksPath`."""
+        self.publish({"pre-push": owned_hook("owned")})
+        self.git(self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+                 "commit", "-q", "--allow-empty", "-m", "base")
+        self.git(self.atlas, "config", "--local", "core.hooksPath", _lock_form.MEMBER_HOOK_COPY)
+        self.repos.mkdir(parents=True)
+        self.git(self.atlas, "worktree", "add", "-q", "--detach", str(self.repos / "linked"))
+        pointer = self.repos / "pointer"
+        pointer.mkdir()
+        (pointer / ".git").write_text(f"gitdir: {(self.atlas / '.git').as_posix()}\n", encoding="utf-8")
+        output = self.install(["linked", "pointer"], code=1)
+        for member in ("linked", "pointer"):
+            (line,) = [text for text in output.splitlines() if text.startswith(f"{member}:")]
+            self.assertIn("is not a repository of its own", line)
+        self.assertEqual(self.config(self.atlas, "core.hooksPath"), _lock_form.MEMBER_HOOK_COPY)
+        self.assertIn("2 failed", output)
+
+    def test_a_failed_read_of_a_members_hooks_path_leaves_it_untouched(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        member = self.member("alpha", "D:/elsewhere/hooks")
+        real = _lock_form.git_result
+
+        def failing(repo, *args, **kwargs):
+            if "--get" in args and repo.name == "alpha":
+                return _lock_form.GitProcessResult(args, 128, b"", b"fatal: bad config line 3")
+            return real(repo, *args, **kwargs)
+
+        with patch.object(_lock_form, "git_result", side_effect=failing):
+            output = self.install(["alpha"], code=1)
+        self.assertIn("alpha: FAILED to read core.hooksPath: fatal: bad config line 3", output)
+        self.assertEqual(self.config(member, "core.hooksPath"), "D:/elsewhere/hooks")
 
     def test_a_callers_exported_function_named_atlas_reaches_the_hook(self) -> None:
         self.publish({"pre-push": b"#!/usr/bin/env bash\natlas >&2\nexit 3\n"})
@@ -946,6 +1053,24 @@ class HookInstallTestCase(unittest.TestCase):
         self.assertEqual(len(extra), 1, extra)
         self.assertTrue(extra[0].startswith("+ exec "), extra)
         self.assertEqual([line for line in err.decode().splitlines() if line in direct_lines], direct_lines)
+
+    def test_install_reads_only_the_exact_source_ref(self) -> None:
+        """With origin/main gone, `rev-parse` would resolve a local branch named
+        `refs/remotes/origin/main`; the install refuses and leaves the shims."""
+        self.publish({"pre-push": owned_hook("owned")})
+        self.member("alpha")
+        self.install(["alpha"])
+        self.publish({"pre-commit": b"#!/usr/bin/env bash\n"})
+        other = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.git(self.atlas, "update-ref", "-d", "refs/remotes/origin/main")
+        self.git(self.atlas, "update-ref", "refs/heads/refs/remotes/origin/main", other)
+        stdout = io.StringIO()
+        with redirect_stdout(stdout), patch.object(_lock_form, "ROOT", self.atlas), \
+                patch.object(_lock_form, "REPOS", self.repos), \
+                patch.object(_lock_form, "registered_member_names", return_value=["alpha"]):
+            self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), 1)
+        self.assertIn("fetch it first", stdout.getvalue())
+        self.assertEqual(sorted(p.name for p in self.shim_dir().iterdir()), ["pre-push"])
 
     def test_install_reads_the_source_ref_in_the_atlas_repository(self) -> None:
         """An inherited `GIT_DIR` naming another repository must not divert the
