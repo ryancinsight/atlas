@@ -13,9 +13,11 @@ from unittest.mock import patch
 
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import process_tree  # noqa: E402
+from process_tree_support import HANG_GUARD_SECONDS  # noqa: E402
 
-WAIT_SECONDS = 60
+WAIT_SECONDS = HANG_GUARD_SECONDS
 # A retry loop that swallows defects must end by this deadline, as an assertion
 # failure, rather than hang the suite.
 RETRY_WINDOW_SECONDS = 1.0
@@ -93,11 +95,54 @@ class InterruptedCleanupTests(unittest.TestCase):
                 process_tree, "_terminate_process_tree", side_effect=failing_cleanup
             ),
         ):
-            with self.assertRaises(RuntimeError) as raised:
+            # A cleanup that swallows the defect re-raises the caller's
+            # interrupt instead; contain it so that regression fails this test
+            # by name rather than aborting the whole session.
+            try:
                 process_tree.run(["command"], timeout=5)
+            except KeyboardInterrupt:
+                self.fail("the cleanup defect was replaced by the caller's interrupt")
+            except RuntimeError as raised:
+                self.assertIs(raised, defect)
+                self.assertIsInstance(raised.__context__, KeyboardInterrupt)
+            else:
+                self.fail("run returned although its cleanup raised a defect")
 
-        self.assertIs(raised.exception, defect)
-        self.assertIsInstance(raised.exception.__context__, KeyboardInterrupt)
+
+class CleanupFailureReportingTests(unittest.TestCase):
+    """A tree that cannot be retired is reported on every outcome, never dropped."""
+
+    FAILURE = "synthetic cleanup failure"
+
+    def failing_cleanup(self):
+        retire = process_tree._terminate_process_tree
+
+        def retire_then_fail(process, windows_job, state):
+            retire(process, windows_job, state)
+            return self.FAILURE
+
+        return patch.object(process_tree, "_terminate_process_tree", retire_then_fail)
+
+    def test_cleanup_failure_after_normal_exit_is_raised(self):
+        with self.failing_cleanup(), self.assertRaises(RuntimeError) as raised:
+            process_tree.run(
+                [sys.executable, "-I", "-c", "pass"], timeout=HANG_GUARD_SECONDS
+            )
+
+        self.assertEqual(
+            str(raised.exception), f"process-tree cleanup failed: {self.FAILURE}"
+        )
+
+    def test_cleanup_failure_after_timeout_is_carried_on_the_timeout(self):
+        with self.failing_cleanup(), self.assertRaises(
+            process_tree.ProcessTreeTimeout
+        ) as raised:
+            process_tree.run(
+                [sys.executable, "-I", "-c", "import time; time.sleep(600)"],
+                timeout=0.5,
+            )
+
+        self.assertEqual(raised.exception.cleanup_error, self.FAILURE)
 
 
 class _GatedStream:

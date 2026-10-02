@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import pathlib
@@ -20,9 +21,13 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import process_tree  # noqa: E402
 import windows_process  # noqa: E402
-from process_tree_support import budget_from_readiness  # noqa: E402
+from process_tree_support import (  # noqa: E402
+    EXPIRY_HOLD_SECONDS,
+    HANG_GUARD_SECONDS,
+    budget_from_readiness,
+)
 
-READY_SECONDS = 60
+READY_SECONDS = HANG_GUARD_SECONDS
 WINDOWS_ONLY = "Job Objects exist only on Windows"
 
 # Each node records its pid after every child it launched reported readiness, so
@@ -192,7 +197,7 @@ class WindowsTreeOwnershipTests(unittest.TestCase):
 
         with listener, clock, windows_wait, posix_wait, self.open_before_termination():
             with self.assertRaises(process_tree.ProcessTreeTimeout) as raised:
-                process_tree.run(self.command(spec), timeout=1)
+                process_tree.run(self.command(spec), timeout=EXPIRY_HOLD_SECONDS)
 
         self.assertIsNone(raised.exception.cleanup_error)
         self.tree.assert_signalled(self, 0)
@@ -310,6 +315,90 @@ class WindowsApiFailureTests(unittest.TestCase):
 
         self.assertIsNone(raised.exception.winerror)
         self.assertEqual(closed, [job])
+
+
+@unittest.skipUnless(os.name == "nt", WINDOWS_ONLY)
+class WindowsJobLifecycleTests(unittest.TestCase):
+    """The job handle is released and a failed or slow termination is reported as such."""
+
+    JOB = 7
+    ACCESS_DENIED = 5
+    INVALID_HANDLE = 6
+
+    def kernel32(self, **functions):
+        return patch.object(
+            windows_process, "_kernel32", return_value=types.SimpleNamespace(**functions)
+        )
+
+    def last_error(self, code: int):
+        return patch.object(windows_process.ctypes, "get_last_error", return_value=code)
+
+    def test_close_job_releases_the_handle(self):
+        closed: list[int] = []
+
+        with self.kernel32(CloseHandle=lambda handle: closed.append(handle.value) or 1):
+            error = windows_process.close_job(self.JOB)
+
+        self.assertIsNone(error)
+        self.assertEqual(closed, [self.JOB])
+
+    def test_close_job_failure_names_the_system_error(self):
+        with self.kernel32(CloseHandle=lambda handle: 0), self.last_error(
+            self.INVALID_HANDLE
+        ):
+            error = windows_process.close_job(self.JOB)
+
+        self.assertEqual(
+            error,
+            f"job handle close failed: {ctypes.WinError(self.INVALID_HANDLE)}",
+        )
+
+    def terminate(self, terminate_status: int, wait_status: int, timeout: float):
+        waits: list[tuple[int, int]] = []
+
+        def wait(handle, milliseconds):
+            waits.append((handle.value, milliseconds))
+            return wait_status
+
+        with (
+            self.kernel32(
+                TerminateJobObject=lambda handle, code: terminate_status,
+                WaitForSingleObject=wait,
+            ),
+            self.last_error(self.ACCESS_DENIED),
+        ):
+            return windows_process.terminate_job(self.JOB, timeout), waits
+
+    def test_failed_termination_is_reported_and_never_waited_on(self):
+        error, waits = self.terminate(0, 0, 2.5)
+
+        self.assertEqual(
+            error, f"job termination failed: {ctypes.WinError(self.ACCESS_DENIED)}"
+        )
+        self.assertEqual(waits, [])
+
+    def test_terminated_job_is_waited_on_for_the_stated_budget(self):
+        error, waits = self.terminate(1, windows_process._WAIT_OBJECT_0, 2.5)
+
+        self.assertIsNone(error)
+        self.assertEqual(waits, [(self.JOB, 2500)])
+
+    def test_job_that_outlives_the_budget_is_reported(self):
+        error, _ = self.terminate(1, windows_process._WAIT_TIMEOUT, 2.5)
+
+        self.assertEqual(error, "process tree did not exit within 2.5 seconds")
+
+    def test_failed_wait_is_reported_with_the_system_error(self):
+        error, _ = self.terminate(1, windows_process._WAIT_FAILED, 2.5)
+
+        self.assertEqual(
+            error, f"job wait failed: {ctypes.WinError(self.ACCESS_DENIED)}"
+        )
+
+    def test_unexpected_wait_status_is_reported(self):
+        error, _ = self.terminate(1, 0x80, 2.5)
+
+        self.assertEqual(error, "job wait returned unexpected status 128")
 
 
 if __name__ == "__main__":
