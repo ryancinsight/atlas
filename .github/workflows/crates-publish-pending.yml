@@ -1,0 +1,160 @@
+name: Publish pending crate versions
+
+# Version-change publishing (ADR 0068). A member's `rust-release.yml` calls this
+# from a job of its own on pushes to the default branch and on a schedule; its
+# release-event path keeps calling `crates-publish.yml`, whose permissions this
+# workflow does not widen. Trusted publishers are registered under the caller's
+# filename, so the same crates.io publisher serves both paths.
+#
+# plan    -> publishable packages whose manifest version the sparse index lacks
+#            and whose crates.io owner is `owner`; resolves them against the
+#            registry (a missing dependency version from another repository is
+#            a wait, not a failure) and compiles them before any token exists
+# semver  -> the shared release gate over the pending set
+# publish -> re-checks the set, publishes it in one dependency-ordered
+#            `cargo publish`, and tags a release per version the index holds
+#
+# The selection, verification, publish, and tag logic lives once in the
+# crates-pending action and is tested by scripts/tests/test_crates_pending.py.
+
+on:
+  workflow_call:
+    inputs:
+      rust-toolchain:
+        description: Exact Rust toolchain used to package and publish
+        required: true
+        type: string
+      semver-toolchain:
+        description: Toolchain for the SemVer gate; empty uses rust-toolchain
+        required: false
+        default: ""
+        type: string
+      tag-prefix:
+        description: Release-tag prefix preceding <package>-v<version>
+        required: false
+        default: "crate-"
+        type: string
+      owner:
+        description: crates.io login that must own a crate before it is published
+        required: false
+        default: ryancinsight
+        type: string
+      apt-packages:
+        description: >-
+          System packages the crates' build scripts need, space separated.
+          Installed before the plan compiles the set and forwarded to the
+          SemVer gate, which builds rustdoc for both revisions.
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    # Only the default branch releases; a caller whose push trigger lists no
+    # branches still cannot publish from a feature branch or a tag.
+    if: >-
+      github.event_name == 'schedule'
+      || (github.event_name == 'push'
+          && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    name: Plan version-change publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      packages: ${{ steps.plan.outputs.packages }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - name: Check out the default-branch revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install system packages the build scripts need
+        if: inputs.apt-packages != ''
+        env:
+          APT_PACKAGES: ${{ inputs.apt-packages }}
+        run: |
+          sudo apt-get update
+          # Word splitting is the input's contract: a space-separated list.
+          # shellcheck disable=SC2086
+          sudo apt-get install -y --no-install-recommends $APT_PACKAGES
+
+      - name: Install the pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          toolchain: ${{ inputs.rust-toolchain }}
+
+      - name: Select and verify the pending set
+        id: plan
+        uses: ryancinsight/atlas/.github/actions/crates-pending@9d50b8b9bca0f55f122bb21c057e826ced9fec78
+        with:
+          command: plan
+          owner: ${{ inputs.owner }}
+
+  semver:
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@9d50b8b9bca0f55f122bb21c057e826ced9fec78
+    permissions:
+      contents: read
+    with:
+      release-gate: true
+      package: ${{ needs.plan.outputs.packages }}
+      rust-toolchain: ${{ inputs.semver-toolchain || inputs.rust-toolchain }}
+      apt-packages: ${{ inputs.apt-packages }}
+
+  publish:
+    needs: [plan, semver]
+    if: needs.plan.outputs.count != '0'
+    name: Publish pending versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: crates-publish-pending-${{ github.repository }}
+      cancel-in-progress: false
+    environment:
+      name: crates-io
+    permissions:
+      contents: write # release tags for the published versions
+      id-token: write # OIDC trusted publishing; no stored registry token
+    steps:
+      - name: Check out the default-branch revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          toolchain: ${{ inputs.rust-toolchain }}
+
+      - name: Request a short-lived crates.io token
+        id: auth
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+
+      - name: Publish what is still pending
+        id: publish
+        uses: ryancinsight/atlas/.github/actions/crates-pending@9d50b8b9bca0f55f122bb21c057e826ced9fec78
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        with:
+          command: publish
+          packages: ${{ needs.plan.outputs.packages }}
+
+      # Runs after a partial publish failure too: a version that reached the
+      # index is current to the next plan, which no longer selects it. A run
+      # that fails before every release exists recovers by re-running its
+      # failed jobs: plan outputs persist, publish re-filters to nothing, and
+      # this step creates the missing releases.
+      - name: Tag a release for each published version
+        if: ${{ !cancelled() && steps.auth.outcome == 'success' }}
+        uses: ryancinsight/atlas/.github/actions/crates-pending@9d50b8b9bca0f55f122bb21c057e826ced9fec78
+        with:
+          command: tag
+          packages: ${{ needs.plan.outputs.packages }}
+          tag-prefix: ${{ inputs.tag-prefix }}
+          publish-outcome: ${{ steps.publish.outcome }}

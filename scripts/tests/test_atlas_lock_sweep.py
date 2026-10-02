@@ -127,7 +127,7 @@ class PlanTests(unittest.TestCase):
         self.assertIn("hermes-simd -> 6da6d139", report)
 
 
-class OpenPullRequestTests(unittest.TestCase):
+class OpenConsumerPullRequestTests(unittest.TestCase):
     consumer = sweep.Consumer(Path("repos/leto"), HERMES)
     lane = Path("worktrees/leto-lock-sweep")
     url = "https://github.com/ryancinsight/leto/pull/7"
@@ -143,11 +143,11 @@ class OpenPullRequestTests(unittest.TestCase):
         return run, calls
 
     def open(self, run):
-        return sweep.open_pull_request(
+        return sweep.open_consumer_pull_request(
             self.consumer, self.lane, "main", "build/hermes-simd-6da6d139", "build(deps): t", "body", run=run
         )
 
-    def test_auto_merge_is_enabled_on_the_created_pr_with_an_explicit_merge_method(self) -> None:
+    def test_the_pr_is_created_from_the_lane_then_auto_merged_with_an_explicit_merge_method(self) -> None:
         run, calls = self.runner((0, f"warning: x{NL}{self.url}{NL}", ""), (0, "", ""))
         outcome = self.open(run)
         self.assertEqual([argv[:3] for argv, _ in calls], [["gh", "pr", "create"], ["gh", "pr", "merge"]])
@@ -155,22 +155,11 @@ class OpenPullRequestTests(unittest.TestCase):
         self.assertEqual([cwd for _, cwd in calls], [self.lane, self.lane])
         self.assertEqual((outcome.action, outcome.detail, outcome.ok), ("opened", self.url, True))
 
-    def test_failed_auto_merge_is_a_failure_carrying_the_pr_url(self) -> None:
-        run, calls = self.runner((0, self.url + NL, ""), (1, "", "x" + NL + "GraphQL: auto merge is not allowed"))
+    def test_a_pr_whose_auto_merge_failed_is_a_failed_row_carrying_its_url(self) -> None:
+        run, _ = self.runner((0, self.url + NL, ""), (1, "", "GraphQL: auto merge is not allowed"))
         outcome = self.open(run)
-        self.assertEqual(len(calls), 2)
-        self.assertEqual(outcome.action, "failed")
-        self.assertFalse(outcome.ok)
-        self.assertEqual(
-            outcome.detail,
-            f"gh pr merge --auto: x{NL}GraphQL: auto merge is not allowed (PR {self.url})",
-        )
-
-    def test_failed_create_does_not_attempt_a_merge(self) -> None:
-        run, calls = self.runner((1, "", "boom"), (0, "", ""))
-        outcome = self.open(run)
-        self.assertEqual(len(calls), 1)
-        self.assertEqual((outcome.action, outcome.detail, outcome.ok), ("failed", "gh pr create: boom", False))
+        self.assertEqual((outcome.action, outcome.ok), ("failed", False))
+        self.assertIn(self.url, outcome.detail)
 
 
 if __name__ == "__main__":

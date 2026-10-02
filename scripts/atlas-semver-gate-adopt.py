@@ -25,6 +25,10 @@ Package lists come from the member's own manifests at `origin/<default>`:
 every `[package]` whose `publish` is neither `false` nor `[]` — the stack
 uses `publish = false` as a release-ordering guard, and those crates have no
 public contract to gate.
+
+The pull request is opened through `atlas_pull_request.open_pull_request`, which
+enables auto-merge on it (`--merge`); a PR whose auto-merge cannot be enabled
+exits non-zero with its URL, since it then needs collecting by hand.
 """
 
 from __future__ import annotations
@@ -42,6 +46,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atlas_pull_request import open_pull_request  # noqa: E402
 from atlas_stack import ROOT, git  # noqa: E402
 
 BRANCH = "ci/semver-gate-adoption"
@@ -203,6 +208,18 @@ def gh_json(*args: str, **options):
     return json.loads(gh(*args, **options))
 
 
+def open_adoption_pull_request(slug: str, base: str, body: str, summary: str, run=subprocess.run) -> int:
+    """Open the adoption PR with auto-merge enabled and report it; non-zero when it needs collecting."""
+    opening = open_pull_request(
+        repo=slug, base=base, head=BRANCH, title="ci: Adopt the shared SemVer gate", body=body, run=run
+    )
+    if opening.failure is not None:
+        print(f"error: {summary}; {opening.failure}", file=sys.stderr)
+        return 1
+    print(f"{summary}; PR {opening.url}")
+    return 0
+
+
 def read(repo: Path, ref: str, path: str) -> str | None:
     completed = subprocess.run(["git", "-C", str(repo), "show", f"{ref}:{path}"],
                                capture_output=True)
@@ -362,11 +379,11 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"""
         "reports its change class.\n\n"
         f"Refs: atlas `{ITEM}`\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
     )
-    pr = gh("pr", "create", "-R", slug, "--base", default_branch, "--head", BRANCH,
-            "--title", "ci: Adopt the shared SemVer gate", "--body", body)
-    print(f"{arguments.member}: {len(changes)} workflow(s), {len(packages)} publishable, "
-          f"{len(registry)} published; PR {pr.strip().splitlines()[-1]}")
-    return 0
+    return open_adoption_pull_request(
+        slug, default_branch, body,
+        f"{arguments.member}: {len(changes)} workflow(s), {len(packages)} publishable, "
+        f"{len(registry)} published",
+    )
 
 
 if __name__ == "__main__":

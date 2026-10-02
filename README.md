@@ -1138,9 +1138,12 @@ nobody is looking at cannot rot silently:
   a runner ever took it. `--first-error` appends the failing step's first
   error line, `--fail-on-red` makes it a gate.
 - `python scripts/atlas-semver-gate-adopt.py <member>` — adopts the shared
-  SemVer gate in one member as an API pull request: the publishable crates
-  come from the member's own manifests, the informational job goes in the
-  verification workflow, and the blocking job goes in the release workflow
+  SemVer gate in one member as an API pull request with auto-merge enabled
+  (`--merge`, through `scripts/atlas_pull_request.py`, the PR-opening path
+  shared with `atlas-lock-sweep.py` and the concurrency sweep below; a PR whose
+  auto-merge cannot be enabled exits non-zero with its URL): the publishable
+  crates come from the member's own manifests, the informational job goes in
+  the verification workflow, and the blocking job goes in the release workflow
   under that workflow's own guard with the other jobs waiting on it.
   `--dry-run` prints the diffs and opens nothing.
 - `python scripts/atlas-lane-audit.py` — the two-tree worktree bound and lane
@@ -1166,7 +1169,7 @@ nobody is looking at cannot rot silently:
   changed workflow's own job: a rollup lacking it is the file being rejected.
 - `python scripts/atlas-workflow-concurrency-sweep.py <member> [--dry-run] [--update]`
   — moves a member's workflows out of the `default_branch_cancel_in_progress`
-  class as an API-authored PR (verification: per-commit group on the default
+  class as an API-authored PR with auto-merge enabled (verification: per-commit group on the default
   branch, pull-request-only cancellation; deploys: `cancel-in-progress: false`);
   `--dry-run` prints the diffs, `--update` rebuilds an open branch from current
   `origin`. A clean fleet reads "nothing to change" for every member.

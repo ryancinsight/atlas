@@ -21,10 +21,14 @@ concurrency block:
 
 The change is authored through the GitHub API on branch
 `ci/default-branch-runs-reach-a-verdict` — no shared working tree is touched —
-and opened as a pull request. `--dry-run` prints unified diffs and opens
+and opened as a pull request with auto-merge enabled. `--dry-run` prints unified diffs and opens
 nothing; `--update` rebuilds an existing branch in place from current
 `origin/<default>` (never a whole-blob rebase, which reverts what the default
 branch changed since). A member with nothing flagged exits 0 with a note.
+
+The pull request is opened through `atlas_pull_request.open_pull_request`, which
+enables auto-merge on it (`--merge`); a PR whose auto-merge cannot be enabled
+exits non-zero with its URL, since it then needs collecting by hand.
 """
 
 from __future__ import annotations
@@ -39,6 +43,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atlas_pull_request import open_pull_request  # noqa: E402
 from atlas_stack import ROOT, git  # noqa: E402
 
 BRANCH = "ci/default-branch-runs-reach-a-verdict"
@@ -112,6 +117,19 @@ def gh(*args: str, **options) -> str:
 
 def gh_json(*args: str, **options):
     return json.loads(gh(*args, **options))
+
+
+def open_sweep_pull_request(slug: str, base: str, body: str, summary: str, run=subprocess.run) -> int:
+    """Open the sweep PR with auto-merge enabled and report it; non-zero when it needs collecting."""
+    opening = open_pull_request(
+        repo=slug, base=base, head=BRANCH, run=run, body=body,
+        title="ci: Let default-branch runs reach a verdict instead of cancelling each other",
+    )
+    if opening.failure is not None:
+        print(f"error: {summary}; {opening.failure}", file=sys.stderr)
+        return 1
+    print(f"{summary}; PR {opening.url}")
+    return 0
 
 
 def main() -> int:
@@ -209,10 +227,10 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"""
         "completed verdict, and atlas's `scripts/atlas-red-workflows.py` stops reporting `cancelled` rows for this repository.\n\n"
         "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
     )
-    pr = gh("pr", "create", "-R", slug, "--base", default_branch, "--head", BRANCH,
-            "--title", "ci: Let default-branch runs reach a verdict instead of cancelling each other", "--body", body)
-    print(f"{arguments.member}: {len(changes)} workflow(s) ({len(verification)} verification, {len(deploys)} deploy); PR {pr.strip().splitlines()[-1]}")
-    return 0
+    return open_sweep_pull_request(
+        slug, default_branch, body,
+        f"{arguments.member}: {len(changes)} workflow(s) ({len(verification)} verification, {len(deploys)} deploy)",
+    )
 
 
 if __name__ == "__main__":
