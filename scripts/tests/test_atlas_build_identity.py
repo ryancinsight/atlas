@@ -1928,6 +1928,9 @@ class BuildIdentityTestCase(unittest.TestCase):
         # listings it replaced list, in the same order, or every dirty tree's
         # identity changes.
         init_repo(self.root, "fn main() {}\n")
+        # Rename detection on whatever the host configures, so the staged
+        # rename below is reported as one.
+        git(self.root, "config", "status.renames", "true")
         (self.root / ".gitignore").write_text("*.log\nbuild/\n/top-only\n!keep.log\n", encoding="utf-8")
         (self.root / "src" / ".gitignore").write_text("local.tmp\n", encoding="utf-8")
         # A staged rename reports its original path as a field of its own,
@@ -1968,6 +1971,8 @@ class BuildIdentityTestCase(unittest.TestCase):
         revision = "0123456789abcdef0123456789abcdef01234567"
         cases = {
             "newline": (b"/srv/line\nbreak\n" + revision.encode() + b"\n", "line\nbreak"),
+            "trailing newline": (b"/srv/line\n\n" + revision.encode() + b"\n", "line\n"),
+            "trailing space": (b"/srv/trail \n" + revision.encode() + b"\n", "trail "),
             "plain": (b"/srv/plain\n" + revision.encode() + b"\n", "plain"),
         }
         for name, (printed, leaf) in cases.items():
@@ -1975,9 +1980,13 @@ class BuildIdentityTestCase(unittest.TestCase):
                 top, found = build_source.repository_head(self.base)
             self.assertEqual(top.name, leaf)
             self.assertEqual(found, revision)
-        with patch.object(build_source, "_git", return_value=revision.encode() + b"\n"):
-            with self.assertRaises(build_source.BuildIdentityError):
-                build_source.repository_head(self.base)
+        for name, printed in {
+            "no path": revision.encode() + b"\n",
+            "no revision": b"/srv/plain\n\n",
+        }.items():
+            with self.subTest(name), patch.object(build_source, "_git", return_value=printed):
+                with self.assertRaises(build_source.BuildIdentityError):
+                    build_source.repository_head(self.base)
 
     def test_each_repository_is_identified_once_per_dependency_pass(self) -> None:
         # Every path package of one repository has that repository's
