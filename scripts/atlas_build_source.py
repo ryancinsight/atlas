@@ -124,9 +124,10 @@ def _untracked_paths(top: Path) -> tuple[tuple[bytes, list[bytes]], ...]:
     as Git sorts it (byte order), so the source digest is unchanged.
     Submodules are not entered: only `?` and `!` entries are read.
 
-    `status` validates the `status.*`, `color.status` and `column.*`
-    settings, which `ls-files` never read, so a malformed one fails the
-    identity loudly with Git's message naming the key and file. It never
+    `status` validates settings `ls-files` never reads: the `status.*`
+    keys it knows, `color.status` and its slots, and `column.ui` and
+    `column.status`. A malformed one fails the identity loudly with Git's
+    message, which names the key (and, for some keys, the file); it never
     yields a wrong identity. `git commit` refuses the same values, but
     `commit-tree`, `merge` and `am` do not, so such a key can reach a push.
     """
