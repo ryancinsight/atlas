@@ -202,19 +202,40 @@ jobs:
           # per crate — its first — and the only ways past it would be to
           # delete the gate or to publish around it, both of which cost the
           # gate on every release after.
+          #
+          # `package` is a comma-separated list, and crates.io answers one name
+          # per request: asking for the joined list is a 404 that reads as a
+          # first publication and skips the gate for every multi-crate caller.
+          # Each name is asked separately and the published subset is gated.
           set -euo pipefail
-          status="$(curl -sS -o /tmp/crate.json -w '%{http_code}'             -H 'User-Agent: atlas-semver-gate (github.com/ryancinsight/atlas)'             "https://crates.io/api/v1/crates/${PACKAGE}" || echo 000)"
-          if [[ "$status" == "404" ]]; then
+          published=()
+          IFS=, read -ra names <<<"$PACKAGE"
+          for name in "${names[@]}"; do
+            name="${name// /}"
+            [[ -n "$name" ]] || continue
+            # curl prints `000` for `%{http_code}` when no HTTP answer arrives and then
+            # exits nonzero; the assignment's own status keeps that `000` and nothing else.
+            status="$(curl -sS -o /dev/null -w '%{http_code}' \
+              -H 'User-Agent: atlas-semver-gate (github.com/ryancinsight/atlas)' \
+              "https://crates.io/api/v1/crates/${name}")" || status=000
+            if [[ "$status" == "404" ]]; then
+              echo "::notice::${name} is not on crates.io; this is its first publication, so there is no baseline to compare against."
+            elif [[ "$status" == "200" ]]; then
+              published+=("$name")
+            else
+              # Anything else is the registry being unreachable, not an answer.
+              # Failing here is correct: silently treating an outage as "first
+              # publication" would skip the gate on every release during one.
+              echo "crates.io returned HTTP ${status} for ${name}; cannot establish a baseline" >&2
+              exit 1
+            fi
+            sleep 1 # crates.io crawler policy: one API request per second
+          done
+          if [[ "${#published[@]}" -eq 0 ]]; then
             echo "published=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::${PACKAGE} is not on crates.io; this is its first publication, so there is no baseline to compare against."
-          elif [[ "$status" == "200" ]]; then
-            echo "published=true" >> "$GITHUB_OUTPUT"
           else
-            # Anything else is the registry being unreachable, not an answer.
-            # Failing here is correct: silently treating an outage as "first
-            # publication" would skip the gate on every release during one.
-            echo "crates.io returned HTTP ${status} for ${PACKAGE}; cannot establish a baseline" >&2
-            exit 1
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "packages=$(IFS=,; echo "${published[*]}")" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Resolve previous release tag as baseline
@@ -241,7 +262,7 @@ jobs:
           inputs.baseline-source != 'registry'
           || steps.baseline-exists.outputs.published == 'true'
         with:
-          package: ${{ inputs.package }}
+          package: ${{ inputs.baseline-source == 'registry' && steps.baseline-exists.outputs.packages || inputs.package }}
           manifest-path: ${{ inputs.manifest-path }}
           rust-toolchain: ${{ inputs.rust-toolchain }}
           # Empty for the registry baseline: cargo-semver-checks then compares
