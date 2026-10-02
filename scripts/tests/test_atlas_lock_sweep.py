@@ -13,9 +13,11 @@ revision nobody named -- the failures the tool exists to prevent.
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SCRIPT = Path(__file__).resolve().parent.parent / "atlas-lock-sweep.py"
 sys.path.insert(0, str(SCRIPT.parent))
@@ -156,6 +158,45 @@ class CommitTests(unittest.TestCase):
     def test_line_endings_follow_the_committed_lock(self) -> None:
         self.assertEqual(sweep.with_line_endings_of(b"a\nb\n", b"x\r\ny\r\n"), b"x\ny\n")
         self.assertEqual(sweep.with_line_endings_of(b"a\r\nb\r\n", b"x\ny\n"), b"x\r\ny\r\n")
+
+
+class ResumeTests(unittest.TestCase):
+    targets = {"hermes": NEW}
+    plan = sweep.Plan(Path("repos/leto"), OLD, sweep.stale_packages(LOCK, {"hermes": NEW}))
+    url = "https://github.com/ryancinsight/leto/pull/7"
+
+    def resume(self, remote: str, listed: str, open_prs: bool, opened=None):
+        calls: list[list[str]] = []
+
+        def gh(argv, **_options):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0, listed, "")
+
+        opener = opened or (lambda *_args: self.fail("no PR may be opened"))
+        with mock.patch.object(sweep, "git", lambda *_args: remote), \
+                mock.patch.object(sweep.subprocess, "run", gh), \
+                mock.patch.object(sweep, "open_sweep_pull_request", opener):
+            return sweep.resume(self.plan, self.targets, None, open_prs), calls
+
+    def test_an_unpushed_branch_is_left_to_the_sweep(self) -> None:
+        outcome, calls = self.resume("", "", True)
+        self.assertIsNone(outcome)
+        self.assertEqual(calls, [])
+
+    def test_an_open_pr_on_the_branch_is_pending_and_nothing_is_redone(self) -> None:
+        outcome, calls = self.resume(f"{NEW}\trefs/heads/build/deps-hermes-22222222", self.url + NL, True)
+        self.assertEqual((outcome.action, outcome.ok), ("pending", True))
+        self.assertIn(self.url, outcome.detail)
+        self.assertEqual(calls[0][:5], ["gh", "pr", "list", "--head", "build/deps-hermes-22222222"])
+
+    def test_a_pushed_branch_without_a_pr_gets_one(self) -> None:
+        opened = sweep.Outcome("leto", "opened", self.url, True)
+        outcome, _ = self.resume(f"{NEW}\trefs/heads/x", "", True, opened=lambda *_args: opened)
+        self.assertEqual(outcome, opened)
+
+    def test_a_dry_run_only_reports_the_missing_pr(self) -> None:
+        outcome, _ = self.resume(f"{NEW}\trefs/heads/x", "", False)
+        self.assertEqual((outcome.action, outcome.ok), ("would", True))
 
 
 class ReportTests(unittest.TestCase):
