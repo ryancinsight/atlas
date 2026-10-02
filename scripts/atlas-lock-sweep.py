@@ -24,7 +24,10 @@ time the default was exercised), in registered-member order:
    lane under `worktrees/` (removed afterwards, so the member's two-tree bound
    holds): `cargo update -p <crate> --precise <rev>` resolved outside the
    stack overlay, `cargo check --workspace --locked`, a `build(deps)` commit,
-   a push, and a pull request. Nothing is pushed without `--open-prs`.
+   a push, a pull request, and auto-merge enabled on it (`--merge`, so the
+   consumer's checks land the advance without hand collection; a PR whose
+   auto-merge cannot be enabled is reported as failed with its URL). Nothing is
+   pushed without `--open-prs`.
 4. Print a report. A consumer that cannot advance is a row with its reason,
    never a silent omission; the exit status is non-zero if any such row exists.
 
@@ -263,6 +266,42 @@ def cargo(member: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     return lockfile.run_outside_the_overlay(list(arguments), manifest=member / "Cargo.toml")
 
 
+def stderr_tail(completed: subprocess.CompletedProcess[str]) -> str:
+    return completed.stderr.strip()[-200:]
+
+
+def open_pull_request(
+    consumer: Consumer,
+    lane: Path,
+    base: str,
+    branch: str,
+    title: str,
+    body: str,
+    run=subprocess.run,
+) -> Outcome:
+    """Open the PR for a pushed branch and enable auto-merge on it.
+
+    Merging is enabling auto-merge: a PR left for hand collection is a lock
+    advance that sits unmerged. The method is explicit `--merge` (never the
+    squash default, which collapses the atomic history). When auto-merge cannot
+    be enabled the outcome is a failure carrying the PR URL, so the report
+    shows a PR that needs collecting rather than a delivered one."""
+    created = run(
+        ["gh", "pr", "create", "--base", base, "--head", branch, "--title", title, "--body", body],
+        cwd=lane, capture_output=True, encoding="utf-8", errors="replace",
+    )
+    if created.returncode != 0:
+        return Outcome(consumer, "failed", f"gh pr create: {stderr_tail(created)}", False)
+    url = created.stdout.strip().splitlines()[-1]
+    merge = run(
+        ["gh", "pr", "merge", url, "--auto", "--merge", "--delete-branch"],
+        cwd=lane, capture_output=True, encoding="utf-8", errors="replace",
+    )
+    if merge.returncode != 0:
+        return Outcome(consumer, "failed", f"gh pr merge --auto: {stderr_tail(merge)} (PR {url})", False)
+    return Outcome(consumer, "opened", url, True)
+
+
 def advance(row: PlanRow, crate: str, open_prs: bool) -> Outcome:
     consumer = row.consumer
     member = consumer.member
@@ -330,14 +369,10 @@ def advance(row: PlanRow, crate: str, open_prs: bool) -> Outcome:
             f"`scripts/atlas-lock-sweep.py` (ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01).\n\n"
             "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
         )
-        pr = subprocess.run(
-            ["gh", "pr", "create", "--base", default_branch(member), "--head", branch,
-             "--title", f"build(deps): Update {crate} to {target[:8]}", "--body", body],
-            cwd=lane, capture_output=True, encoding="utf-8", errors="replace",
+        return open_pull_request(
+            consumer, lane, default_branch(member), branch,
+            f"build(deps): Update {crate} to {target[:8]}", body,
         )
-        if pr.returncode != 0:
-            return Outcome(consumer, "failed", f"gh pr create: {pr.stderr.strip()[-200:]}", False)
-        return Outcome(consumer, "opened", pr.stdout.strip().splitlines()[-1], True)
     finally:
         subprocess.run(["git", "-C", str(member), "worktree", "remove", "--force", str(lane)], capture_output=True)
         if not open_prs:
