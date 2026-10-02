@@ -36,7 +36,9 @@ from atlas_git_process import (
     GitProcessError, archive, extract_archive, execute as execute_git,
 )
 from atlas_stack import LANE_ROOT, ROOT, WORKTREE_BOUND, git, worktree_entries
-from atlas_target_dir import ensure_lane_config
+from atlas_target_dir import (
+    ensure_lane_config, ensure_member_config, generation_refusal,
+)
 
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 REVISION_SHAPED = re.compile(r"[0-9a-f]{7,40}")
@@ -47,8 +49,10 @@ class Refusal(Exception):
 
 
 def member_repo(member: str) -> Path:
+    repos = (ROOT / "repos").resolve()
     repo = ROOT / "repos" / member
-    if "/" in member or "\\" in member or not (repo / ".git").exists():
+    if (member in {"", ".", ".."} or "/" in member or "\\" in member
+            or repo.resolve().parent != repos or not (repo / ".git").exists()):
         raise Refusal(f"{member} is not a member checkout under repos/ "
                       "(the umbrella repository opens no lanes)")
     return repo
@@ -121,6 +125,28 @@ def pin_worktree(repo: Path, lane: Path) -> None:
         raise Refusal(f"{lane} resolves its working tree to {toplevel}")
 
 
+def check_target_config() -> None:
+    """Apply `atlas-member-target-dir.py generate`'s pre-write check.
+
+    A file Atlas did not write at either generated path, or a Cargo config
+    that already redirects a lane's output, refuses the creation before any
+    config or lane is written.
+    """
+    refusal = generation_refusal(ROOT.resolve())
+    if refusal is not None:
+        raise Refusal(refusal)
+
+
+def write_target_config() -> None:
+    """Refresh the generated target configs the new lane inherits."""
+    root = ROOT.resolve()
+    try:
+        ensure_member_config(root)
+        ensure_lane_config(root)
+    except RuntimeError as exc:
+        raise Refusal(f"cannot write shared target config: {exc}") from exc
+
+
 def create(member: str, branch: str, start: str | None) -> Path:
     repo = member_repo(member)
     if (branch == "HEAD" or REVISION_SHAPED.fullmatch(branch)
@@ -132,10 +158,6 @@ def create(member: str, branch: str, start: str | None) -> Path:
     lane = root / lane_name(member, branch)
     if not root.is_relative_to(ROOT.resolve()) or lane.parent != root:
         raise Refusal(f"{lane} is outside the canonical lane root {LANE_ROOT}")
-    try:
-        ensure_lane_config(ROOT.resolve())
-    except RuntimeError as exc:
-        raise Refusal(f"cannot prepare shared lane target config: {exc}") from exc
     if lane.exists():
         raise Refusal(f"{lane} already exists")
     git(repo, "fetch", "--quiet", "origin")
@@ -145,15 +167,18 @@ def create(member: str, branch: str, start: str | None) -> Path:
                          for t in trees[1:])
         raise Refusal(f"{member} already has {len(trees)} trees (bound "
                       f"{WORKTREE_BOUND}): {held} -- re-point or close that lane")
-    if execute_git(repo, ("rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"),
-                   timeout=60).returncode == 0:
-        if start is not None:
-            raise Refusal(f"{branch} exists; --from applies only to a new branch")
+    exists = execute_git(repo, ("rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"),
+                         timeout=60).returncode == 0
+    if exists and start is not None:
+        raise Refusal(f"{branch} exists; --from applies only to a new branch")
+    check_target_config()
+    if exists:
         git(repo, "worktree", "add", str(lane), branch)
     else:
         git(repo, "worktree", "add", "-b", branch, str(lane),
             start or default_branch(repo))
     pin_worktree(repo, lane)
+    write_target_config()
     return lane
 
 
