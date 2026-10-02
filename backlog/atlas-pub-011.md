@@ -5,4 +5,4 @@
 - method per member: `cargo semver-checks --baseline-registry` classifies each drifted crate (breaking → 0.(x+1).0, additive → 0.x.(y+1)). Dependents' requirements move in the same PR, one PR per member in provider-first order (eunomia, aequitas, hermes, leto, moirai, mnemosyne, hephaestus, apollo, athena, coeus, consus, tyche, themis, ritk, asclepius).
 - guard: the push-mode plan (crates-pending action) packages each already-published version and compares its file digests with the registry's `.crate` from static.crates.io. Differing content with an unchanged version fails, naming the crate. The check lands before the first member bump, so no member regresses.
 - priority: correctness; needs: ATLAS-PUB-010 conversion in each member before its bump PR, so that merging the bump publishes.
-- acceptance: the scan above re-run reports 0 drifted crates; each member's push-mode run lists its published set.
+- acceptance: the scan above re-run reports 0 drifted crates (a `foreign-name` crate sits on a name another account owns and needs its own registry name, ATLAS-PUB-003, before it can be measured); each member's push-mode run lists its published set.
