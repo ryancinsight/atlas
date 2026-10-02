@@ -9,6 +9,7 @@ unpublishable, and hold the release list to crates the registry carries.
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -150,6 +151,40 @@ class WorkflowEditTests(unittest.TestCase):
                                "semver")
         self.assertIn("    needs: semver\r\n", text)
         self.assertIsNotNone(yaml.safe_load(text))
+
+
+class PullRequestOpeningTests(unittest.TestCase):
+    url = "https://github.com/ryancinsight/leto/pull/7"
+
+    def runner(self, merge_code: int = 0):
+        calls: list[list[str]] = []
+
+        def run(argv, cwd=None, **_options):
+            calls.append(argv)
+            if argv[:3] == ["gh", "pr", "create"]:
+                return subprocess.CompletedProcess(argv, 0, self.url + "\n", "")
+            return subprocess.CompletedProcess(argv, merge_code, "", "auto merge is not allowed")
+
+        return run, calls
+
+    def test_the_adoption_pr_is_created_then_auto_merged_with_an_explicit_merge_method(self) -> None:
+        run, calls = self.runner()
+        status = adopt.open_adoption_pull_request("ryancinsight/leto", "main", "body", "leto: 1 workflow(s)", run=run)
+        self.assertEqual(status, 0)
+        self.assertEqual(
+            calls[0],
+            ["gh", "pr", "create", "-R", "ryancinsight/leto", "--base", "main", "--head", adopt.BRANCH,
+             "--title", "ci: Adopt the shared SemVer gate", "--body", "body"],
+        )
+        self.assertEqual(calls[1], ["gh", "pr", "merge", self.url, "--auto", "--merge", "--delete-branch"])
+        self.assertEqual(len(calls), 2)
+
+    def test_a_pr_whose_auto_merge_failed_exits_non_zero_naming_the_pr(self) -> None:
+        run, _ = self.runner(merge_code=1)
+        with patch("sys.stderr") as stderr:
+            status = adopt.open_adoption_pull_request("ryancinsight/leto", "main", "body", "leto: 1", run=run)
+        self.assertEqual(status, 1)
+        self.assertIn(self.url, "".join(call.args[0] for call in stderr.write.call_args_list))
 
 
 if __name__ == "__main__":
