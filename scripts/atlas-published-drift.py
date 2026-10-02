@@ -14,12 +14,22 @@ member's published default branch tip, never the shared working tree, and report
 for each publishable crate in it (`cargo metadata --no-deps`, `publish` not `[]`):
 
     status      never-published       the index has no entry for the name
-                unpublished-version   the name is published, this version is not
+                foreign-name          the index has the name, but its owners exclude
+                                      the expected owner: another account's crate
+                unpublished-version   the name is ours and published, this version is not
                 published-current     the registry `.crate` matches the source
                 published-drifted     the registry `.crate` differs from the source
     drift       paths changed, added, or removed since the published version
     dependents  other members' crates whose manifests require this crate, with the
                 requirement, kind, and any rename
+
+Ownership: for a name the index has, the crates.io owners API
+(`/api/v1/crates/<name>/owners`) must list the expected owner (`--owner`, default
+`ryancinsight`). Otherwise the registry copy is another account's crate, never the
+stack crate's published form: it is reported `foreign-name` and never compared with the
+source, since no version bump can reconcile them; the crate needs a registry name of its
+own (ADR 0037 section 3). A name the index lacks is not asked about, and owners requests
+are spaced one second apart (crates.io's crawler policy).
 
 Comparison: the `.crate` at the manifest version comes from static.crates.io; its
 `src/**` and `Cargo.toml.orig` are compared by SHA-256 with `src/**` and `Cargo.toml`
@@ -30,15 +40,19 @@ sides: a crate packaged from a Windows checkout differs from a `git archive` of 
 same commit only there, and reading that as drift would send a bump to a crate with
 nothing to release. Files marked `export-ignore` are absent from the archive read.
 
-An index 404 is "never published". Every other non-200 answer and every network error
-fails the tool: an outage is never read as "not drifted".
+An index 404 is "never published". Every other non-200 answer, an owners API answer
+other than 200, and a network error that outlasts its retries (five attempts, backoff
+doubling from two seconds) fail the tool: an outage is never read as "not drifted" or as
+"owned".
 
-Exit status: 0 every crate measured and none drifted; 1 a published crate drifted;
-2 the measurement failed (registry, git, or cargo).
+Exit status: 0 every crate measured and none drifted or foreign-named; 1 a published
+crate drifted or a name belongs to another account; 2 the measurement failed (registry,
+git, or cargo).
 
     python scripts/atlas-published-drift.py                  # JSON, whole stack
     python scripts/atlas-published-drift.py --format md      # markdown table
     python scripts/atlas-published-drift.py --member hermes --member leto
+    python scripts/atlas-published-drift.py --owner ryancinsight
 """
 
 from __future__ import annotations
@@ -50,9 +64,12 @@ import http.client
 import importlib.util
 import io
 import json
+import random
 import sys
 import tarfile
 import tempfile
+import threading
+import time
 import urllib.error
 import urllib.request
 import zlib
@@ -99,6 +116,12 @@ pin_drift = load_sibling("atlas_pin_drift", SCRIPTS / "atlas-pin-drift.py")
 RegistryError = crates_pending.RegistryError
 
 USER_AGENT = "atlas-published-drift (github.com/ryancinsight/atlas)"
+DEFAULT_OWNER = "ryancinsight"
+API_PREFIX = "https://crates.io/api/"
+# A GET is idempotent and crates.io's edge resets a share of connections: a transport
+# failure retries with exponential backoff and jitter, then fails the tool.
+TRANSPORT_ATTEMPTS = 5
+TRANSPORT_BACKOFF_SECONDS = 2.0
 CRATE_URL = "https://static.crates.io/crates/{name}/{name}-{version}.crate"
 HTTP_TIMEOUT_SECONDS = 120.0
 GIT_TIMEOUT_SECONDS = 300
@@ -109,10 +132,12 @@ DEFAULT_JOBS = 4
 SCRATCH_TIP_REF = "refs/scratch/atlas-published-drift"
 
 NEVER_PUBLISHED = "never-published"
+FOREIGN_NAME = "foreign-name"
 UNPUBLISHED_VERSION = "unpublished-version"
 PUBLISHED_CURRENT = "published-current"
 PUBLISHED_DRIFTED = "published-drifted"
-STATUSES = (NEVER_PUBLISHED, UNPUBLISHED_VERSION, PUBLISHED_CURRENT, PUBLISHED_DRIFTED)
+STATUSES = (NEVER_PUBLISHED, FOREIGN_NAME, UNPUBLISHED_VERSION, PUBLISHED_CURRENT,
+            PUBLISHED_DRIFTED)
 
 Fetch = Callable[[str], "tuple[int, bytes]"]
 
@@ -121,20 +146,52 @@ class MeasurementError(RuntimeError):
     """Git or cargo could not give the answer the measurement needs."""
 
 
+class ApiThrottle:
+    """Spaces `crates.io/api` requests one interval apart across threads.
+
+    crates.io's crawler policy allows one API request per second; the index and
+    static hosts carry no such limit. The lock is held through the wait so that
+    concurrent members queue instead of bursting.
+    """
+
+    def __init__(self, interval: float = crates_pending.API_INTERVAL_SECONDS) -> None:
+        self.interval = interval
+        self._lock = threading.Lock()
+        self._last: float | None = None
+
+    def wait(self) -> None:
+        with self._lock:
+            if self._last is not None:
+                remaining = self._last + self.interval - time.monotonic()
+                if remaining > 0:
+                    time.sleep(remaining)
+            self._last = time.monotonic()
+
+
+API_THROTTLE = ApiThrottle()
+
+
 def http_get(url: str, timeout: float = HTTP_TIMEOUT_SECONDS) -> tuple[int, bytes]:
     """GET with the tool's User-Agent and no other identifying header.
 
-    A non-2xx status is returned, not raised: the index's 404 is an answer.
-    Transport failures raise `RegistryError`.
+    A non-2xx status is returned, not raised: the index's 404 is an answer, and a status
+    is never retried. A transport failure retries `TRANSPORT_ATTEMPTS` times in all, then
+    raises `RegistryError`. Every `crates.io/api` attempt is throttled.
     """
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return response.status, response.read()
-    except urllib.error.HTTPError as error:
-        return error.code, b""
-    except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
-        raise RegistryError(f"{url}: {error}") from error
+    for attempt in range(1, TRANSPORT_ATTEMPTS + 1):
+        if url.startswith(API_PREFIX):
+            API_THROTTLE.wait()
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.status, response.read()
+        except urllib.error.HTTPError as error:
+            return error.code, b""
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
+            if attempt == TRANSPORT_ATTEMPTS:
+                raise RegistryError(f"{url}: {error} (after {attempt} attempts)") from error
+            time.sleep(TRANSPORT_BACKOFF_SECONDS * 2 ** (attempt - 1) * random.uniform(0.5, 1.0))
+    raise AssertionError("unreachable: the last attempt returns or raises")
 
 
 def index_versions(name: str, fetch: Fetch) -> list[str] | None:
@@ -145,6 +202,16 @@ def index_versions(name: str, fetch: Fetch) -> list[str] | None:
         return status, body.decode("utf-8")
 
     return crates_pending.published_versions(name, text)
+
+
+def crate_owners(name: str, fetch: Fetch) -> list[str]:
+    """Logins the crates.io owners API lists for `name`; any answer but 200 fails."""
+
+    def text(url: str) -> tuple[int, str]:
+        status, body = fetch(url)
+        return status, body.decode("utf-8")
+
+    return crates_pending.owners(name, text)
 
 
 def version_key(version: str) -> tuple:
@@ -250,11 +317,18 @@ class CrateReading:
 
 
 def measure_crate(name: str, version: str, manifest: str, package_dir: Path,
-                  fetch: Fetch) -> CrateReading:
-    """Classify one crate against the registry; download its `.crate` only if published."""
+                  fetch: Fetch, owner: str = DEFAULT_OWNER) -> CrateReading:
+    """Classify one crate against the registry.
+
+    The owners API is asked only for a name the index has, and a name `owner` does not
+    own is `foreign-name` before any version or `.crate` is read. The `.crate` is
+    downloaded only for an owned, indexed version.
+    """
     versions = index_versions(name, fetch)
     if versions is None:
         return CrateReading(name, version, manifest, NEVER_PUBLISHED)
+    if owner not in crate_owners(name, fetch):
+        return CrateReading(name, version, manifest, FOREIGN_NAME)
     latest = max(versions, key=version_key) if versions else None
     if version not in versions:
         return CrateReading(name, version, manifest, UNPUBLISHED_VERSION, latest)
@@ -301,7 +375,7 @@ class MemberReading:
 
 
 def measure_member(name: str, repo: Path, branch: str, revision: str,
-                   fetch: Fetch) -> MemberReading:
+                   fetch: Fetch, owner: str = DEFAULT_OWNER) -> MemberReading:
     """Measure every publishable crate of `repo` at commit `revision`."""
     try:
         tree = git_archive(repo, revision, timeout=GIT_TIMEOUT_SECONDS)
@@ -320,7 +394,8 @@ def measure_member(name: str, repo: Path, branch: str, revision: str,
             package_manifest = Path(package["manifest_path"]).resolve()
             relative = package_manifest.relative_to(root)
             crates.append(measure_crate(package["name"], package["version"],
-                                        relative.as_posix(), package_manifest.parent, fetch))
+                                        relative.as_posix(), package_manifest.parent, fetch,
+                                        owner))
         packages = [
             {"name": p["name"], "dependencies": p["dependencies"]} for p in metadata["packages"]
         ]
@@ -368,7 +443,8 @@ def published_tip(repo: Path, url: str) -> tuple[str, str]:
 
 
 def measure_stack(root: Path, fetch: Fetch, only: Sequence[str] = (),
-                  jobs: int = DEFAULT_JOBS) -> tuple[str, list[MemberReading]]:
+                  jobs: int = DEFAULT_JOBS,
+                  owner: str = DEFAULT_OWNER) -> tuple[str, list[MemberReading]]:
     """Measure the members registered in `root`'s `.gitmodules` at their default tips."""
     _branch, atlas_tip = published_tip(root, "origin")
     urls = pin_drift.member_urls(root, atlas_tip, GIT_TIMEOUT_SECONDS)
@@ -380,7 +456,7 @@ def measure_stack(root: Path, fetch: Fetch, only: Sequence[str] = (),
     def one(name: str) -> MemberReading:
         repo = root / "repos" / name
         branch, tip = published_tip(repo, urls[name])
-        return measure_member(name, repo, branch, tip, fetch)
+        return measure_member(name, repo, branch, tip, fetch, owner)
 
     with ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
         readings = list(pool.map(one, names))
@@ -394,6 +470,7 @@ def summarize(readings: Sequence[MemberReading]) -> dict:
         for status in STATUSES:
             found[status.replace("-", "_")] = sum(1 for c in crates if c.status == status)
         found["drifted"] = found["published_drifted"]
+        found["findings"] = found["published_drifted"] + found["foreign_name"]
         return found
 
     every = [crate for member in readings for crate in member.crates]
@@ -432,18 +509,20 @@ def render_markdown(document: dict) -> str:
     summary = document["summary"]
     lines = [
         f"Measured at atlas `{document['atlas_revision']}`: {summary['crates']} publishable "
-        f"crates, {summary['drifted']} drifted, {summary['never_published']} never published, "
+        f"crates, {summary['drifted']} drifted, {summary['foreign_name']} on a name another "
+        f"account owns, {summary['never_published']} never published, "
         f"{summary['unpublished_version']} at a version the registry lacks, "
         f"{summary['published_current']} current.",
         "",
-        "| member | crates | drifted | never published | unpublished version | current | tip |",
-        "|---|---:|---:|---:|---:|---:|---|",
+        "| member | crates | drifted | foreign name | never published | unpublished version "
+        "| current | tip |",
+        "|---|---:|---:|---:|---:|---:|---:|---|",
     ]
     revisions = {m["name"]: (m["branch"], m["revision"]) for m in document["members"]}
     for name, counts in summary["by_member"].items():
         branch, revision = revisions[name]
         lines.append(
-            f"| {name} | {counts['crates']} | {counts['drifted']} | "
+            f"| {name} | {counts['crates']} | {counts['drifted']} | {counts['foreign_name']} | "
             f"{counts['never_published']} | {counts['unpublished_version']} | "
             f"{counts['published_current']} | {branch} `{revision[:12]}` |")
     lines += [
@@ -472,6 +551,9 @@ def parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
                              "cover the measured members only")
     parser.add_argument("--format", choices=("json", "md"), default="json")
     parser.add_argument("--output", type=Path, help="write the report here instead of stdout")
+    parser.add_argument("--owner", default=DEFAULT_OWNER,
+                        help="crates.io login that must own every indexed name "
+                             "(default: %(default)s)")
     parser.add_argument("--jobs", type=int, default=DEFAULT_JOBS)
     return parser.parse_args(argv)
 
@@ -480,7 +562,7 @@ def main(argv: Sequence[str] | None = None, fetch: Fetch = http_get) -> int:
     options = parse_arguments(argv)
     try:
         atlas_tip, readings = measure_stack(
-            options.stack_root, fetch, options.member, options.jobs)
+            options.stack_root, fetch, options.member, options.jobs, options.owner)
     except (RegistryError, MeasurementError, GitProcessError) as error:
         print(f"atlas-published-drift: {error}", file=sys.stderr)
         return 2
@@ -491,7 +573,7 @@ def main(argv: Sequence[str] | None = None, fetch: Fetch = http_get) -> int:
         options.output.write_text(text, encoding="utf-8", newline="\n")
     else:
         sys.stdout.write(text)
-    return 1 if document["summary"]["drifted"] else 0
+    return 1 if document["summary"]["findings"] else 0
 
 
 if __name__ == "__main__":
