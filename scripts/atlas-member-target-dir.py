@@ -14,7 +14,7 @@ of them 1.8 GB, and they regrew within minutes of being swept.
 The fix is one file: `repos/.cargo/config.toml`, holding an absolute
 `target-dir`. Cargo merges config files from the invocation directory upward,
 so this one sits between every member and the stack root -- closer than the
-root, and outside every member, which matters because ten members carry a
+root, and outside every member, which matters because members carry a
 *tracked* `.cargo/config.toml` of their own. An absolute path is
 machine-specific and must never be committed to a member; this file is
 generated and gitignored instead.
@@ -39,39 +39,24 @@ from atlas_target_dir import (
     MARKER,
     declares_target_dir,
     ensure_lane_config,
+    ensure_member_config,
+    generation_refusal,
     lane_config,
     lane_config_text,
     lane_target_overrides,
+    member_config,
+    member_config_text,
     shared_target_for,
 )
 
 ATLAS_ROOT = pathlib.Path(__file__).resolve().parent.parent
 REPOS = ATLAS_ROOT / "repos"
-CONFIG = REPOS / ".cargo" / "config.toml"
+CONFIG = member_config(ATLAS_ROOT)
 LANE_CONFIG = lane_config(ATLAS_ROOT)
-TEMPLATE = MARKER + """
-#
-# Cargo resolves `build.target-dir` relative to the workspace root, not to the
-# config that declares it, so the stack root's relative `target-dir = "target"`
-# only reaches the shared cache for builds rooted at the stack root. Inside a
-# member the workspace root is the member, and the same line would resolve to
-# that member's own `target/`.
-#
-# This file sits between every member and the stack root: cargo merges configs
-# from the invocation directory upward, so it is closer than the root and
-# outside every member -- which matters, because several members carry a
-# tracked `.cargo/config.toml` of their own that this must not touch.
-#
-# Absolute because that is the only value that survives both roots, and
-# gitignored because an absolute path is machine-specific. Delete it and
-# in-member builds fork the cache again. Regenerate with
-# `python scripts/atlas-member-target-dir.py generate`.
-[build]
-target-dir = "{target}"
-"""
 
-def desired(checkout: pathlib.Path = ATLAS_ROOT) -> str:
-    return TEMPLATE.format(target=shared_target_for(checkout).as_posix())
+
+def desired(checkout: pathlib.Path | None = None) -> str:
+    return member_config_text(ATLAS_ROOT if checkout is None else checkout)
 
 
 def members() -> list[pathlib.Path]:
@@ -82,7 +67,7 @@ def members() -> list[pathlib.Path]:
 
 
 def members_with_own_pin() -> list[str]:
-    """Members that declare `target-dir` themselves and so override this file."""
+    """Members that declare an output directory themselves and so override this file."""
     found = []
     for member in members():
         path = member / ".cargo" / "config.toml"
@@ -97,40 +82,41 @@ def state() -> str:
     """One of: missing, foreign, stale, current."""
     if not CONFIG.is_file():
         return "missing"
-    text = io.open(CONFIG, encoding="utf-8").read().replace(chr(13), "")
+    text = io.open(CONFIG, encoding="utf-8", errors="replace").read().replace(chr(13), "")
     if MARKER not in text:
         return "foreign"
     return "current" if text == desired() else "stale"
 
 
 def lane_state() -> str:
-    """Return the state of the config inherited by linked worktree lanes."""
+    """Return the state of the config inherited by linked worktree lanes.
+
+    One of: absent (no `worktrees/` yet, so no lane inherits anything),
+    missing, foreign, stale, current, override.
+    """
     if lane_target_overrides(ATLAS_ROOT):
         return "override"
     if not LANE_CONFIG.is_file():
-        return "missing"
-    text = LANE_CONFIG.read_text(encoding="utf-8").replace("\r\n", "\n")
+        return "missing" if LANE_CONFIG.parent.parent.is_dir() else "absent"
+    text = LANE_CONFIG.read_text(encoding="utf-8", errors="replace").replace(
+        "\r\n", "\n"
+    )
     if MARKER not in text:
         return "foreign"
     return "current" if text == lane_config_text(ATLAS_ROOT) else "stale"
 
 
 def generate() -> int:
+    refusal = generation_refusal(ATLAS_ROOT)
+    if refusal is not None:
+        print(f"error: {refusal}")
+        return 1
     status = state()
     lane_status = lane_state()
-    if status == "foreign" or lane_status in {"foreign", "override"}:
-        if lane_status == "override":
-            print("error: a lane-local or legacy Cargo config declares target-dir; "
-                  "remove the override before generating the shared config")
-            return 1
-        foreign = LANE_CONFIG if lane_status == "foreign" else CONFIG
-        print(f"error: {rel(foreign)} exists and this tool did not write it -- left alone")
-        return 1
+    ensure_member_config(ATLAS_ROOT)
     if status == "current":
         print(f"current  {rel(CONFIG)}")
     else:
-        CONFIG.parent.mkdir(parents=True, exist_ok=True)
-        io.open(CONFIG, "w", encoding="utf-8", newline=chr(10)).write(desired())
         print(f"{status:8s} -> written  {rel(CONFIG)}")
     ensure_lane_config(ATLAS_ROOT)
     if lane_status != "current":
@@ -139,26 +125,39 @@ def generate() -> int:
     return 0
 
 
+ACTIONS = {
+    "missing": "run `generate`",
+    "stale": "run `generate`",
+    "foreign": "move the file aside, then run `generate`",
+    "override": "remove the target-dir or build-dir declaration it names",
+}
+
+
 def check() -> int:
     status = state()
     lane_status = lane_state()
     report_exceptions()
-    if status == "current" and lane_status == "current":
+    if status == "current" and lane_status in {"current", "absent"}:
         print(f"pinned   {rel(CONFIG)} -> {shared_target_for(ATLAS_ROOT).as_posix()}")
-        print(f"pinned   {rel(LANE_CONFIG)} -> {shared_target_for(ATLAS_ROOT).as_posix()}")
+        if lane_status == "current":
+            print(f"pinned   {rel(LANE_CONFIG)} -> {shared_target_for(ATLAS_ROOT).as_posix()}")
         return 0
-    print(
-        f"{status}/{lane_status}: target config is missing or stale -- "
-        "a build would fork the shared cache; "
-        "run `generate`"
-    )
+    for label, config, config_status in (
+        ("member", CONFIG, status), ("lane", LANE_CONFIG, lane_status),
+    ):
+        if config_status not in {"current", "absent"}:
+            print(f"{label} target config {config_status} ({rel(config)}): "
+                  f"{ACTIONS[config_status]}; a build would fork the shared cache")
+    if lane_status == "override":
+        for path in lane_target_overrides(ATLAS_ROOT):
+            print(f"  override: {rel(path)}")
     return 1
 
 
 def report_exceptions() -> None:
     own = members_with_own_pin()
     for name in own:
-        print(f"note: {name} declares its own target-dir and overrides this file")
+        print(f"note: {name} declares its own output directory and overrides this file")
 
 
 def rel(path: pathlib.Path) -> str:

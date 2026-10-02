@@ -1147,7 +1147,11 @@ nobody is looking at cannot rot silently:
   under that workflow's own guard with the other jobs waiting on it.
   `--dry-run` prints the diffs and opens nothing.
 - `python scripts/atlas-lane-audit.py` — the two-tree worktree bound and lane
-  placement per member.
+  placement per member, plus the shared target cache: the generated
+  `worktrees/.cargo/config.toml`, any lane config or `include` that redirects
+  `target-dir` or `build-dir`, any Cargo output directory inside a lane, a
+  `CARGO_*_DIR` variable that leaves the shared target, and umbrella lanes
+  (the umbrella repository opens none).
 - `python scripts/atlas-lane.py create|repoint|close|export` — the only way to
   make a worktree (ADR 0066): refuses a third tree, a lane outside
   `worktrees/`, and detached HEAD; A/B baselines use `export`, a tree archive.
