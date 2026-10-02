@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -511,6 +512,11 @@ def owned_hook(label: str) -> bytes:
     ).encode()
 
 
+# The stalled-write fixture's bound: twice the 60 s each run is given to
+# finish, so it never releases early on a loaded host.
+STALL_SECONDS = 120
+
+
 def reap(run: subprocess.Popen) -> None:
     """Stop a shim run a failed test left behind, so none outlives the suite."""
     if run.poll() is None:
@@ -519,7 +525,7 @@ def reap(run: subprocess.Popen) -> None:
 
 
 class HookInstallTestCase(unittest.TestCase):
-    """Shims run the owned hooks as committed at the Atlas `origin/main`."""
+    """Members run the owned hooks as committed at the Atlas `origin/main`."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="atlas-hooks-")
@@ -570,6 +576,65 @@ class HookInstallTestCase(unittest.TestCase):
         common = self.git(self.atlas, "rev-parse", "--path-format=absolute", "--git-common-dir")
         return Path(common) / "atlas-hooks"
 
+    def submodule_member(self, name: str) -> Path:
+        """A member as the stack holds one: a submodule of the Atlas repository,
+        its git directory under the Atlas `.git/modules`."""
+        source = Path(self._tmp.name) / f"{name}-source"
+        subprocess.run(["git", "init", "-q", str(source)], check=True)
+        for file in ("a.txt", "b.txt"):
+            (source / file).write_bytes(b"seed\n")
+        self.git(source, "add", "a.txt", "b.txt")
+        self.git(source, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "seed")
+        self.git(self.atlas, "-c", "protocol.file.allow=always",
+                 "submodule", "add", "-q", str(source), f"repos/{name}")
+        return self.repos / name
+
+    def hook_context(self, tree: Path, *command: str, git_dir: Path | None = None) -> dict[str, str]:
+        """What the context hook saw when `command` ran in `tree`, with
+        `git_dir` named explicitly when it cannot be found from `tree`."""
+        location = ["-C", str(tree)]
+        if git_dir is not None:
+            location += [f"--git-dir={git_dir}", "--work-tree=."]
+        result = subprocess.run(
+            ["git", *location, "-c", "user.name=t", "-c", "user.email=t@t", *command],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        seen = dict(
+            line[len("hook-"):].split("=", 1)
+            for line in result.stderr.splitlines() if line.startswith("hook-")
+        )
+        self.assertEqual(sorted(seen), ["gitdir", "marker", "staged"], result.stderr)
+        return seen
+
+    def test_a_git_directory_named_only_by_git_reaches_the_hook(self) -> None:
+        """`--git-dir` names a repository the work tree cannot find: the hook
+        finds it only through the `GIT_DIR` git exports to it."""
+        context = (
+            b"#!/usr/bin/env bash\n"
+            b"printf 'hook-gitdir=%s\\n' \"$(git rev-parse --absolute-git-dir)\" >&2\n"
+            b"printf 'hook-marker=%s\\n' \"$(cat .member-marker 2>/dev/null || echo none)\" >&2\n"
+            b"printf 'hook-staged=%s\\n' \"$(git diff --cached --name-only | tr '\\n' ,)\" >&2\n"
+        )
+        self.publish({"pre-commit": context})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        source = self.submodule_member("alpha")
+        detached = Path(self._tmp.name) / "detached.git"
+        subprocess.run(["git", "clone", "-q", "--bare", str(source), str(detached)], check=True)
+        self.git(detached, "config", "core.bare", "false")
+        self.git(detached, "config", "core.hooksPath", shims.as_posix())
+        tree = Path(self._tmp.name) / "detached-tree"
+        tree.mkdir()
+        subprocess.run(
+            ["git", "-C", str(tree), f"--git-dir={detached}", "--work-tree=.", "checkout", "-q", "-f", "HEAD"],
+            check=True,
+        )
+        (tree / ".member-marker").write_text("detached", encoding="utf-8")
+        (tree / "a.txt").write_bytes(b"detached\n")
+        seen = self.hook_context(tree, "commit", "-q", "-a", "-m", "detached", git_dir=detached)
+        self.assertTrue(Path(seen["gitdir"]).samefile(detached), seen)
+        self.assertEqual((seen["marker"], seen["staged"]), ("detached", "a.txt,"))
+
     def test_a_swapped_object_refuses_rather_than_runs(self) -> None:
         """`cat-file` reads whatever the object file holds; the shim hashes the
         copy it wrote, so a refusing hook whose object was replaced by a
@@ -617,6 +682,107 @@ class HookInstallTestCase(unittest.TestCase):
         self.assertEqual((run.returncode, out.decode()), (1, ""), err.decode())
         self.assertIn("has no scripts/git-hooks/pre-push", err.decode())
 
+    def test_an_exported_shellopts_reaches_the_hook_unchanged(self) -> None:
+        """Bash re-exports an inherited SHELLOPTS with its current options, so
+        the hook sees the caller's options -- neither the shim's own
+        `set -euo pipefail` nor a reset of them -- and the caller's
+        `noclobber` cannot stop the shim writing its cache."""
+        hook = b'#!/usr/bin/env bash\necho "$-|$SHELLOPTS" >&2\nexit 3\n'
+        self.publish({"pre-push": hook})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        direct_file = Path(self._tmp.name) / "direct-hook"
+        direct_file.write_bytes(hook)
+        for exported in (
+            "braceexpand:hashall:interactive-comments",
+            "braceexpand:errexit:hashall:interactive-comments:noclobber:nounset:pipefail",
+        ):
+            with self.subTest(exported=exported):
+                # Each run fetches the blob afresh, so `noclobber` meets the
+                # write into the shim's temporary file.
+                shutil.rmtree(shims / "blobs", ignore_errors=True)
+                options = {"SHELLOPTS": exported}
+                direct = subprocess.run(
+                    ["bash", str(direct_file)], capture_output=True, env={**os.environ, **options},
+                )
+                run = self.run_shim(shims, **options)
+                _, err = run.communicate(b"", timeout=60)
+                self.assertEqual((direct.returncode, run.returncode), (3, 3))
+                self.assertEqual(err.decode().strip(), direct.stderr.decode().strip())
+                self.assertEqual("errexit" in err.decode(), "errexit" in exported)
+
+    def test_allexport_does_not_leak_the_shims_variables_into_the_hook(self) -> None:
+        """With `allexport` inherited, every assignment the shim makes and its
+        lookup function would reach the hook's environment; the hook
+        still sees the option itself."""
+        self.publish({"pre-push": b"#!/usr/bin/env bash\nenv >&2\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims, SHELLOPTS="allexport:braceexpand:hashall:interactive-comments")
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual(run.returncode, 3, err.decode())
+        seen = dict(
+            line.split("=", 1) for line in err.decode().splitlines() if "=" in line
+        )
+        leaked = {name for name in seen if "__atlas_shim_" in name}
+        self.assertEqual(leaked, set())
+        self.assertIn("allexport", seen["SHELLOPTS"].split(":"))
+
+    def test_a_caller_variable_named_like_a_shim_variable_reaches_the_hook_unchanged(self) -> None:
+        self.publish({"pre-push": b"#!/usr/bin/env bash\nenv >&2\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        caller = {
+            "cache": "c", "commit": "m", "blob": "b", "partial": "p",
+            "caller_options": "o", "atlas_git": "g",
+        }
+        run = self.run_shim(shims, **caller)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual(run.returncode, 3, err.decode())
+        seen = dict(line.split("=", 1) for line in err.decode().splitlines() if "=" in line)
+        self.assertEqual({name: seen.get(name) for name in caller}, caller)
+
+    def test_a_callers_exported_function_named_atlas_reaches_the_hook(self) -> None:
+        self.publish({"pre-push": b"#!/usr/bin/env bash\natlas >&2\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims, **{"BASH_FUNC_atlas%%": "() { echo caller-atlas; }"})
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, err.decode().strip()), (3, "caller-atlas"))
+
+    def test_an_inherited_xtrace_traces_the_hook_and_not_the_shim(self) -> None:
+        hook = b"#!/usr/bin/env bash\necho hook-ran >&2\nexit 3\n"
+        self.publish({"pre-push": hook})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        direct_file = Path(self._tmp.name) / "direct-hook"
+        direct_file.write_bytes(hook)
+        options = {"SHELLOPTS": "braceexpand:hashall:interactive-comments:xtrace"}
+        direct = subprocess.run(
+            ["bash", str(direct_file)], capture_output=True, env={**os.environ, **options},
+        )
+        run = self.run_shim(shims, **options)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((direct.returncode, run.returncode), (3, 3))
+        direct_lines = direct.stderr.decode().splitlines()
+        self.assertIn("+ echo hook-ran", direct_lines)
+        # The hook's trace is the direct run's; the shim adds only its exec.
+        extra = [line for line in err.decode().splitlines() if line not in direct_lines]
+        self.assertEqual(len(extra), 1, extra)
+        self.assertTrue(extra[0].startswith("+ exec "), extra)
+        self.assertEqual([line for line in err.decode().splitlines() if line in direct_lines], direct_lines)
+
+    def test_a_crlf_cache_copy_is_rewritten_under_autocrlf(self) -> None:
+        """`core.autocrlf` hashes a CRLF file as its LF blob; the cache check
+        hashes raw bytes, so the converted copy is rewritten before it runs."""
+        self.git(self.atlas, "config", "core.autocrlf", "true")
+        refusing = b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"
+        self.publish({"pre-push": refusing})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims)
+        run.communicate(b"", timeout=60)
+        (cached,) = (shims / "blobs").iterdir()
+        cached.write_bytes(refusing.replace(b"\n", b"\r\n"))
+        run = self.run_shim(shims)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
+        self.assertEqual(cached.read_bytes(), refusing)
+
     def test_a_hook_holding_a_carriage_return_runs_under_autocrlf(self) -> None:
         """A blob whose bytes hold CRLF hashes to its own id only unfiltered;
         a filtered hash would refuse every run of that hook."""
@@ -629,6 +795,32 @@ class HookInstallTestCase(unittest.TestCase):
         self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
         (cached,) = (shims / "blobs").iterdir()
         self.assertEqual(cached.read_bytes(), hook)
+
+    def test_a_shim_held_open_is_replaced_once_the_reader_lets_go(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shim = _lock_form.write_hook_shims(self.atlas) / "pre-push"
+        refusals = [PermissionError("in use")] * 3
+        real_replace = os.replace
+
+        def busy(source, target):
+            if refusals:
+                raise refusals.pop()
+            real_replace(source, target)
+
+        with patch.object(_lock_form, "HOOK_SHIM", _lock_form.HOOK_SHIM + "# reinstalled\n"), \
+                patch.object(_lock_form, "SHIM_REPLACE_BACKOFF_SECONDS", 0), \
+                patch.object(_lock_form.os, "replace", side_effect=busy):
+            _lock_form.write_hook_shims(self.atlas)
+        self.assertEqual(refusals, [])
+        self.assertTrue(shim.read_bytes().endswith(b"# reinstalled\n"))
+
+    @unittest.skipIf(os.name == "nt", "Windows has no execute bit")
+    def test_a_shim_that_lost_its_execute_bit_is_rewritten(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shim = _lock_form.write_hook_shims(self.atlas) / "pre-push"
+        shim.chmod(0o644)
+        _lock_form.write_hook_shims(self.atlas)
+        self.assertTrue(shim.stat().st_mode & 0o100)
 
     def run_shim(self, shims: Path, *, path: str | None = None, **extra: str):
         environment = {**os.environ, **extra}
@@ -648,6 +840,65 @@ class HookInstallTestCase(unittest.TestCase):
         run = self.run_shim(shims)
         _, err = run.communicate(b"", timeout=60)
         self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
+
+    def test_a_cache_being_written_is_never_visible_or_run(self) -> None:
+        """A first run stalls mid-write; the cache path stays absent, and a
+        second run executes the whole hook rather than the part written."""
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        fake = Path(self._tmp.name) / "fake-bin"
+        fake.mkdir()
+        stalled, release = Path(self._tmp.name) / "stalled", Path(self._tmp.name) / "release"
+        # The stalled write waits on `release` for at most STALL_SECONDS of
+        # wall-clock time (bash's `SECONDS`, not an iteration count, which
+        # `sleep` and process start cost stretch many times over); a failing
+        # assertion releases it at cleanup, so no run outlives the test.
+        real = shutil.which("git")
+        (fake / "git").write_bytes(
+            (
+                "#!/usr/bin/env bash\n"
+                f"real={_lock_form._shell_word(Path(real).as_posix())}\n"
+                'if [[ " $* " == *" cat-file "* ]]; then\n'
+                '  "$real" "$@" | head -c 40\n'
+                f"  : > {_lock_form._shell_word(stalled.as_posix())}\n"
+                f"  until=$((SECONDS + {STALL_SECONDS}))\n"
+                f"  while [ $SECONDS -lt $until ] && [ ! -f {_lock_form._shell_word(release.as_posix())} ]; do\n"
+                "    sleep 0.05\n"
+                "  done\n"
+                '  "$real" "$@" | tail -c +41\n'
+                "  exit 0\n"
+                "fi\n"
+                'exec "$real" "$@"\n'
+            ).encode()
+        )
+        (fake / "git").chmod(0o755)
+        first = self.run_shim(shims, path=fake.as_posix())
+        self.addCleanup(release.write_text, "go", encoding="utf-8")
+        deadline = time.monotonic() + 60
+        while not stalled.exists():
+            self.assertIsNone(first.poll(), "the first run ended before its write stalled")
+            self.assertLess(time.monotonic(), deadline, "the first run never reached its write")
+            time.sleep(0.02)
+        blob = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main:scripts/git-hooks/pre-push")
+        blob_dir = shims / "blobs"
+        # The part-written copy sits beside the cache, in the same directory,
+        # so the rename that publishes it is one directory-entry swap.
+        (partial,) = blob_dir.iterdir()
+        self.assertTrue(partial.name.startswith(f"{blob}."), partial.name)
+        partial_id = partial.stat().st_ino
+        second = self.run_shim(shims)
+        out, err = second.communicate(b"line\n", timeout=60)
+        self.assertEqual((second.returncode, out.decode().strip()),
+                         (0, "owned argc=2 [origin] [url] <line>"), err.decode())
+        release.write_text("go", encoding="utf-8")
+        out, err = first.communicate(b"line\n", timeout=60)
+        self.assertEqual((first.returncode, out.decode().strip()),
+                         (0, "owned argc=2 [origin] [url] <line>"), err.decode())
+        (cached,) = blob_dir.iterdir()
+        self.assertEqual(cached.read_bytes(), owned_hook("owned"))
+        # The first run's file was renamed into place, not copied: a copy
+        # writes the cache path in place, visible part-written.
+        self.assertEqual((cached.name, cached.stat().st_ino), (blob, partial_id))
 
     def test_a_failed_write_runs_nothing_and_leaves_no_partial(self) -> None:
         """origin/main names a hook blob the object store lacks, and the cache
