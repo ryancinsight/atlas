@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import _thread
+import math
 import os
 import pathlib
 import signal
@@ -14,7 +15,7 @@ import textwrap
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
@@ -25,6 +26,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from process_tree_support import (  # noqa: E402
     EXPIRY_HOLD_SECONDS,
     HANG_GUARD_SECONDS,
+    NEVER_ENDS,
     budget_from_readiness,
 )
 
@@ -205,9 +207,27 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 23)
         self.assertEqual(result.stdout, b"")
 
-    def test_timeout_must_be_positive(self):
-        with self.assertRaisesRegex(ValueError, "greater than zero"):
-            process_tree.run([sys.executable, "-c", "pass"], timeout=0)
+    def test_timeout_must_be_finite_and_positive(self):
+        for timeout in (0, -1, math.nan, math.inf, -math.inf):
+            with self.subTest(timeout=timeout):
+                with (
+                    patch.object(process_tree.subprocess, "Popen") as launch,
+                    self.assertRaisesRegex(ValueError, "finite and greater than zero"),
+                ):
+                    process_tree.run([sys.executable, "-c", "pass"], timeout=timeout)
+
+                launch.assert_not_called()
+
+    def test_timeout_that_is_no_number_is_a_type_error_before_any_launch(self):
+        for timeout in (None, "5"):
+            with self.subTest(timeout=timeout):
+                with (
+                    patch.object(process_tree.subprocess, "Popen") as launch,
+                    self.assertRaises(TypeError),
+                ):
+                    process_tree.run([sys.executable, "-c", "pass"], timeout=timeout)
+
+                launch.assert_not_called()
 
     @unittest.skipUnless(os.name == "nt", "Windows Job Object ordering")
     def test_windows_creates_suspended_assigns_job_then_resumes(self):
@@ -249,15 +269,20 @@ class ProcessTreeTests(unittest.TestCase):
             events.append("created-suspended")
             return suspended_process
 
-        def assign(process):
-            self.assertIs(process, suspended_process)
-            self.assertEqual(events, ["created-suspended"])
-            events.append("assigned")
+        def create_job():
+            self.assertEqual(events, [])
+            events.append("job-created")
             return 17
+
+        def assign(job, process):
+            self.assertEqual(job, 17)
+            self.assertIs(process, suspended_process)
+            self.assertEqual(events, ["job-created", "created-suspended"])
+            events.append("assigned")
 
         def resume(process):
             self.assertIs(process, suspended_process)
-            self.assertEqual(events, ["created-suspended", "assigned"])
+            self.assertEqual(events, ["job-created", "created-suspended", "assigned"])
             events.append("resumed")
 
         def cleanup(process, job, state):
@@ -277,7 +302,10 @@ class ProcessTreeTests(unittest.TestCase):
             patch.object(
                 process_tree.windows_process,
                 "create_kill_job",
-                side_effect=assign,
+                side_effect=create_job,
+            ),
+            patch.object(
+                process_tree.windows_process, "assign_process", side_effect=assign
             ),
             patch.object(process_tree.windows_process, "resume", side_effect=resume),
             patch.object(process_tree, "_terminate_process_tree", side_effect=cleanup),
@@ -293,6 +321,7 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(
             events,
             [
+                "job-created",
                 "created-suspended",
                 "assigned",
                 "resumed",
@@ -350,9 +379,9 @@ class ProcessTreeTests(unittest.TestCase):
 
             try:
                 process_tree.run(
-                    [sys.executable, "-c", "import time; time.sleep(30)"],
+                    [sys.executable, "-c", {NEVER_ENDS!r}],
                     input=b"x" * (2 * 1024 * 1024),
-                    timeout=0.2,
+                    timeout={EXPIRY_HOLD_SECONDS!r},
                 )
             except process_tree.ProcessTreeTimeout as error:
                 if error.cleanup_error is not None:
@@ -366,7 +395,7 @@ class ProcessTreeTests(unittest.TestCase):
         bounded = subprocess.run(
             [sys.executable, "-c", helper],
             capture_output=True,
-            timeout=process_tree.PROCESS_TREE_CLEANUP_SECONDS + 2,
+            timeout=HANG_GUARD_SECONDS,
             check=False,
         )
 
@@ -494,6 +523,55 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(kill_group.call_count, 2)
         kill_group.assert_called_with(launcher.pid, 9)
 
+    def test_supervisor_and_status_wait_get_the_callers_absolute_deadline(self):
+        # The one deadline the caller computes from its clock is the value both
+        # sides use: a duration (the time left) would have the supervisor kill
+        # at a different instant than the caller waits for. The platform and
+        # the launch are replaced, so this runs on every host.
+        class OwnedLauncher:
+            pid = 2_147_483_000
+            returncode = None
+            stdin = None
+
+            def kill(self):
+                self.returncode = -9
+
+            def wait(self, timeout):
+                del timeout
+                self.returncode = -9
+                return self.returncode
+
+        clock = 1_000.0
+        timeout = 5.0
+        launches: list[tuple] = []
+
+        def record_launch(*arguments):
+            launches.append(arguments)
+            return ["supervisor"]
+
+        with (
+            patch.object(process_tree.sys, "platform", "linux"),
+            patch.object(process_tree.time, "monotonic", lambda: clock),
+            patch.object(process_tree, "_posix_launch_command", record_launch),
+            patch.object(
+                process_tree.subprocess, "Popen", return_value=OwnedLauncher()
+            ),
+            patch.object(
+                process_tree, "_read_posix_status", return_value=0
+            ) as read_status,
+            patch.object(process_tree.os, "killpg", create=True),
+            patch.object(process_tree.signal, "SIGKILL", 9, create=True),
+            patch.object(
+                process_tree, "_posix_group_has_active_members", return_value=False
+            ),
+        ):
+            process_tree.run(["command"], timeout=timeout)
+
+        self.assertEqual(len(launches), 1)
+        # (status write, guard read, has input, deadline, command)
+        self.assertEqual(launches[0][3], clock + timeout)
+        read_status.assert_called_once_with(ANY, clock + timeout)
+
     def descendant_lock(self, prefix: str) -> pathlib.Path:
         """A lock file in a directory removed after any survivor is killed.
 
@@ -527,9 +605,8 @@ class ProcessTreeTests(unittest.TestCase):
         listener.settimeout(READY_SECONDS)
         environment = os.environ.copy()
         environment["ATLAS_TEST_READY_PORT"] = str(listener.getsockname()[1])
-        clock, windows_wait, posix_wait = budget_from_readiness(listener)
 
-        with listener, clock, windows_wait, posix_wait:
+        with listener, budget_from_readiness(listener):
             with self.assertRaises(process_tree.ProcessTreeTimeout) as raised:
                 process_tree.run(
                     [sys.executable, "-c", WAITING_PARENT, str(lock), CHILD],

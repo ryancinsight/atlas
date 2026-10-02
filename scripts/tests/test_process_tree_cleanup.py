@@ -15,7 +15,11 @@ SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import process_tree  # noqa: E402
-from process_tree_support import HANG_GUARD_SECONDS  # noqa: E402
+from process_tree_support import (  # noqa: E402
+    EXPIRY_HOLD_SECONDS,
+    HANG_GUARD_SECONDS,
+    NEVER_ENDS,
+)
 
 WAIT_SECONDS = HANG_GUARD_SECONDS
 # A retry loop that swallows defects must end by this deadline, as an assertion
@@ -124,11 +128,14 @@ class CleanupFailureReportingTests(unittest.TestCase):
         return patch.object(process_tree, "_terminate_process_tree", retire_then_fail)
 
     def test_cleanup_failure_after_normal_exit_is_raised(self):
-        with self.failing_cleanup(), self.assertRaises(RuntimeError) as raised:
+        with self.failing_cleanup(), self.assertRaises(
+            process_tree.ProcessTreeCleanupError
+        ) as raised:
             process_tree.run(
                 [sys.executable, "-I", "-c", "pass"], timeout=HANG_GUARD_SECONDS
             )
 
+        self.assertEqual(raised.exception.cleanup_error, self.FAILURE)
         self.assertEqual(
             str(raised.exception), f"process-tree cleanup failed: {self.FAILURE}"
         )
@@ -138,11 +145,34 @@ class CleanupFailureReportingTests(unittest.TestCase):
             process_tree.ProcessTreeTimeout
         ) as raised:
             process_tree.run(
-                [sys.executable, "-I", "-c", "import time; time.sleep(600)"],
-                timeout=0.5,
+                [sys.executable, "-I", "-c", NEVER_ENDS],
+                timeout=EXPIRY_HOLD_SECONDS,
             )
 
         self.assertEqual(raised.exception.cleanup_error, self.FAILURE)
+        # A consumer that prints the exception, or reads its cause, sees the
+        # failure without knowing the attribute exists.
+        self.assertTrue(
+            str(raised.exception).endswith(
+                f"; process-tree cleanup failed: {self.FAILURE}"
+            ),
+            str(raised.exception),
+        )
+        self.assertIsInstance(
+            raised.exception.__cause__, process_tree.ProcessTreeCleanupError
+        )
+        self.assertEqual(raised.exception.__cause__.cleanup_error, self.FAILURE)
+
+    def test_timeout_without_a_cleanup_failure_has_the_plain_message_and_no_cause(self):
+        with self.assertRaises(process_tree.ProcessTreeTimeout) as raised:
+            process_tree.run(
+                [sys.executable, "-I", "-c", NEVER_ENDS],
+                timeout=EXPIRY_HOLD_SECONDS,
+            )
+
+        self.assertIsNone(raised.exception.cleanup_error)
+        self.assertNotIn("cleanup", str(raised.exception))
+        self.assertIsNone(raised.exception.__cause__)
 
 
 class _GatedStream:

@@ -193,9 +193,12 @@ class WindowsTreeOwnershipTests(unittest.TestCase):
         listener = socket.create_server(("127.0.0.1", 0))
         listener.settimeout(READY_SECONDS)
         spec = dict(TREE, ready_port=listener.getsockname()[1])
-        clock, windows_wait, posix_wait = budget_from_readiness(listener)
 
-        with listener, clock, windows_wait, posix_wait, self.open_before_termination():
+        with (
+            listener,
+            budget_from_readiness(listener),
+            self.open_before_termination(),
+        ):
             with self.assertRaises(process_tree.ProcessTreeTimeout) as raised:
                 process_tree.run(self.command(spec), timeout=EXPIRY_HOLD_SECONDS)
 
@@ -294,16 +297,31 @@ class WindowsApiFailureTests(unittest.TestCase):
     def test_resume_with_closed_handle_returns(self):
         self.assertIsNone(self.resume(1, 1, []))
 
-    def test_job_assignment_without_process_handle_closes_job_and_names_cause(self):
+    def test_job_creation_failure_closes_the_job_and_names_the_system_error(self):
         closed: list[int] = []
-        job = 7
+        job, access_denied = 7, 5
 
         with (
             self.kernel32(
                 CreateJobObjectW=lambda attributes, name: job,
-                SetInformationJobObject=lambda *arguments: 1,
+                SetInformationJobObject=lambda *arguments: 0,
                 CloseHandle=lambda handle: closed.append(handle) or 1,
             ),
+            patch.object(
+                windows_process.ctypes, "get_last_error", return_value=access_denied
+            ),
+            self.assertRaises(OSError) as raised,
+        ):
+            windows_process.create_kill_job()
+
+        self.assertEqual(raised.exception.winerror, access_denied)
+        self.assertEqual(closed, [job])
+
+    def test_assignment_without_process_handle_names_cause_and_leaves_the_job(self):
+        closed: list[int] = []
+
+        with (
+            self.kernel32(CloseHandle=lambda handle: closed.append(handle) or 1),
             patch.object(
                 windows_process.ctypes,
                 "get_last_error",
@@ -311,10 +329,35 @@ class WindowsApiFailureTests(unittest.TestCase):
             ),
             self.assertRaisesRegex(OSError, "no native process handle") as raised,
         ):
-            windows_process.create_kill_job(types.SimpleNamespace(_handle=None))
+            windows_process.assign_process(7, types.SimpleNamespace(_handle=None))
 
         self.assertIsNone(raised.exception.winerror)
-        self.assertEqual(closed, [job])
+        self.assertEqual(closed, [], "the job belongs to the caller that created it")
+
+    def test_assignment_failure_names_the_system_error_and_leaves_the_job(self):
+        closed: list[int] = []
+        job, handle, access_denied = 7, 11, 5
+        assigned: list[tuple[int, int]] = []
+
+        def refuse(job_handle, process_handle):
+            assigned.append((job_handle.value, process_handle.value))
+            return 0
+
+        with (
+            self.kernel32(
+                AssignProcessToJobObject=refuse,
+                CloseHandle=lambda value: closed.append(value) or 1,
+            ),
+            patch.object(
+                windows_process.ctypes, "get_last_error", return_value=access_denied
+            ),
+            self.assertRaises(OSError) as raised,
+        ):
+            windows_process.assign_process(job, types.SimpleNamespace(_handle=handle))
+
+        self.assertEqual(raised.exception.winerror, access_denied)
+        self.assertEqual(assigned, [(job, handle)])
+        self.assertEqual(closed, [])
 
 
 @unittest.skipUnless(os.name == "nt", WINDOWS_ONLY)
@@ -355,6 +398,7 @@ class WindowsJobLifecycleTests(unittest.TestCase):
 
     def terminate(self, terminate_status: int, wait_status: int, timeout: float):
         waits: list[tuple[int, int]] = []
+        self.exit_codes: list[int] = []
 
         def wait(handle, milliseconds):
             waits.append((handle.value, milliseconds))
@@ -362,7 +406,9 @@ class WindowsJobLifecycleTests(unittest.TestCase):
 
         with (
             self.kernel32(
-                TerminateJobObject=lambda handle, code: terminate_status,
+                TerminateJobObject=lambda handle, code: (
+                    self.exit_codes.append(code) or terminate_status
+                ),
                 WaitForSingleObject=wait,
             ),
             self.last_error(self.ACCESS_DENIED),
@@ -382,6 +428,9 @@ class WindowsJobLifecycleTests(unittest.TestCase):
 
         self.assertIsNone(error)
         self.assertEqual(waits, [(self.JOB, 2500)])
+        # Every process the job ends reads as a failure, never as a success.
+        self.assertEqual(self.exit_codes, [windows_process._JOB_TERMINATION_EXIT_CODE])
+        self.assertNotEqual(windows_process._JOB_TERMINATION_EXIT_CODE, 0)
 
     def test_job_that_outlives_the_budget_is_reported(self):
         error, _ = self.terminate(1, windows_process._WAIT_TIMEOUT, 2.5)

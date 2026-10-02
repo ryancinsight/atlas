@@ -16,6 +16,11 @@ _WAIT_OBJECT_0 = 0
 _WAIT_TIMEOUT = 0x00000102
 _WAIT_FAILED = 0xFFFFFFFF
 _RESUME_FAILED = 0xFFFFFFFF
+# Exit code of every process ``TerminateJobObject`` ends. The runner reports a
+# timeout or a cleanup failure through its exceptions and reads no member's exit
+# code, so the value only has to be nonzero, so that no terminated process reads
+# as a success to a tool that inspects it; 1 is the generic failure status.
+_JOB_TERMINATION_EXIT_CODE = 1
 
 
 class _LargeInteger(ctypes.Structure):
@@ -100,8 +105,8 @@ def _ntdll():
     return ntdll
 
 
-def create_kill_job(process: subprocess.Popen[bytes]) -> int:
-    """Assign a suspended process to a kill-on-close Job Object."""
+def create_kill_job() -> int:
+    """Create a Job Object that terminates its members when its handle closes."""
     kernel32 = _kernel32()
     job = kernel32.CreateJobObjectW(None, None)
     if not job:
@@ -118,16 +123,19 @@ def create_kill_job(process: subprocess.Popen[bytes]) -> int:
     ):
         error = ctypes.WinError(ctypes.get_last_error())
         _close_after_failure(kernel32, job, error)
+    return int(job)
 
+
+def assign_process(job: int, process: subprocess.Popen[bytes]) -> None:
+    """Assign a suspended process to ``job``, which its caller keeps and closes."""
     process_handle = getattr(process, "_handle", None)
     if process_handle is None:
-        _close_after_failure(
-            kernel32, job, OSError("process has no native process handle to assign")
-        )
-    if not kernel32.AssignProcessToJobObject(job, wintypes.HANDLE(int(process_handle))):
-        error = ctypes.WinError(ctypes.get_last_error())
-        _close_after_failure(kernel32, job, error)
-    return int(job)
+        raise OSError("process has no native process handle to assign")
+    kernel32 = _kernel32()
+    if not kernel32.AssignProcessToJobObject(
+        wintypes.HANDLE(job), wintypes.HANDLE(int(process_handle))
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
 
 
 def _close_after_failure(kernel32, handle, error: OSError) -> None:
@@ -184,7 +192,9 @@ def close_job(job: int) -> str | None:
 def terminate_job(job: int, timeout_seconds: float) -> str | None:
     """Terminate and wait for every process assigned to a Job Object."""
     kernel32 = _kernel32()
-    if not kernel32.TerminateJobObject(wintypes.HANDLE(job), 1):
+    if not kernel32.TerminateJobObject(
+        wintypes.HANDLE(job), _JOB_TERMINATION_EXIT_CODE
+    ):
         return f"job termination failed: {ctypes.WinError(ctypes.get_last_error())}"
     milliseconds = max(0, min(round(timeout_seconds * 1000), 0xFFFFFFFE))
     wait_status = kernel32.WaitForSingleObject(wintypes.HANDLE(job), milliseconds)
