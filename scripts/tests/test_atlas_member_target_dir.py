@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import subprocess
 import sys
@@ -15,6 +16,7 @@ from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas-member-target-dir.py"
 sys.path.insert(0, str(SCRIPT.parent))
+import atlas_target_dir  # noqa: E402
 SPEC = importlib.util.spec_from_file_location("atlas_member_target_dir", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 target_dir = importlib.util.module_from_spec(SPEC)
@@ -34,6 +36,17 @@ def git(directory: Path, *arguments: str) -> str:
 
 
 class SharedTargetWorktreeTestCase(unittest.TestCase):
+    @staticmethod
+    def cargo_target(lane: Path) -> Path:
+        result = subprocess.run(
+            ["cargo", "metadata", "--no-deps", "--format-version", "1", "--offline"],
+            cwd=lane,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return Path(json.loads(result.stdout)["target_directory"]).resolve()
+
     def test_generated_member_pin_targets_the_primary_checkout(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-target-worktree-") as temp:
             root = Path(temp) / "primary"
@@ -113,8 +126,56 @@ class SharedTargetWorktreeTestCase(unittest.TestCase):
                 legacy = root / "worktrees" / ".cargo" / "config"
                 legacy.parent.mkdir(parents=True, exist_ok=True)
                 legacy.write_text("[build]\ntarget-dir = 'escape-root-legacy'\n", encoding="utf-8")
-                with self.assertRaisesRegex(RuntimeError, "declares target-dir"):
+                with self.assertRaisesRegex(RuntimeError, "shadows"):
                     target_dir.ensure_lane_config(root)
+
+    def test_cargo_resolves_all_target_dir_spellings_and_shared_config(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-target-spellings-") as temp:
+            root = Path(temp) / "stack"
+            lane = root / "worktrees" / "demo"
+            lane.mkdir(parents=True)
+            git(root, "init", "--quiet", "-b", "main")
+            git(root, "config", "user.name", "Atlas test")
+            git(root, "config", "user.email", "atlas-test@example.invalid")
+            (lane / "Cargo.toml").write_text(
+                "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+                encoding="utf-8",
+            )
+            (lane / "src").mkdir()
+            (lane / "src" / "lib.rs").write_text("pub fn value() -> u8 { 1 }\n", encoding="utf-8")
+            target_dir.ensure_lane_config(root)
+            shared = target_dir.shared_target_for(root).resolve()
+            generated = (root / "worktrees" / ".cargo" / "config.toml").read_text(
+                encoding="utf-8"
+            )
+            target_dir.ensure_lane_config(root)
+            self.assertEqual(
+                generated,
+                (root / "worktrees" / ".cargo" / "config.toml").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(self.cargo_target(lane), shared)
+
+            spellings = (
+                "build.target-dir = 'escape-dotted'\n",
+                "[build]\n\"target-dir\" = 'escape-quoted'\n",
+                "build = { \"target-dir\" = 'escape-inline' }\n",
+            )
+            for index, spelling in enumerate(spellings):
+                config = lane / ".cargo" / "config.toml"
+                config.parent.mkdir(exist_ok=True)
+                config.write_text(spelling, encoding="utf-8")
+                self.assertEqual(atlas_target_dir.target_dir_override_paths(lane), [config])
+                self.assertEqual(
+                    self.cargo_target(lane),
+                    (lane / f"escape-{('dotted', 'quoted', 'inline')[index]}").resolve(),
+                )
+                config.unlink()
+
+            legacy = root / "worktrees" / ".cargo" / "config"
+            legacy.write_text("[net]\noffline = true\n", encoding="utf-8")
+            self.assertEqual(self.cargo_target(lane), (lane / "target").resolve())
+            with self.assertRaisesRegex(RuntimeError, "shadows"):
+                target_dir.ensure_lane_config(root)
 
 
 if __name__ == "__main__":
