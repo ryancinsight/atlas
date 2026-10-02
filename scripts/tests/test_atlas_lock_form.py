@@ -11,6 +11,7 @@ predicate it calls.
 from __future__ import annotations
 
 import importlib.util
+import io
 import os
 import shutil
 import subprocess
@@ -20,6 +21,7 @@ import textwrap
 import time
 import unittest
 from argparse import Namespace
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -596,6 +598,16 @@ class HookInstallTestCase(unittest.TestCase):
         )
         self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
 
+    def commit_peer_branch(self) -> None:
+        """Check out a committed peer branch whose hooks differ, plus dirt."""
+        hooks = self.atlas / "scripts" / "git-hooks"
+        hooks.mkdir(parents=True, exist_ok=True)
+        (hooks / "pre-push").write_bytes(owned_hook("peer-branch"))
+        self.git(self.atlas, "switch", "-q", "-c", "peer")
+        self.git(self.atlas, "add", "scripts/git-hooks/pre-push")
+        self.git(self.atlas, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "peer")
+        (hooks / "pre-push").write_bytes(owned_hook("working-tree"))
+
     def member(self, name: str, hooks_path: str | None = None) -> Path:
         repo = self.repos / name
         subprocess.run(["git", "init", "-q", str(repo)], check=True)
@@ -603,9 +615,75 @@ class HookInstallTestCase(unittest.TestCase):
             self.git(repo, "config", "core.hooksPath", hooks_path)
         return repo
 
+    def install(self, members: list[str], *, code: int = 0) -> str:
+        """Run the installer over `members`; assert its exit `code`, return its output."""
+        stdout = io.StringIO()
+        with redirect_stdout(stdout), patch.object(_lock_form, "ROOT", self.atlas), patch.object(
+            _lock_form, "REPOS", self.repos
+        ), patch.object(_lock_form, "registered_member_names", return_value=members):
+            self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), code, stdout.getvalue())
+        return stdout.getvalue()
+
+    def run_hook(self, member: Path) -> str:
+        """The member's pre-push as git runs it, through `core.hooksPath`, with
+        a ref line on stdin. `GIT_DIR` is exported as some push contexts do;
+        a shim reading it would look the hook up in the member. Git sends a
+        hook's stdout to its own stderr."""
+        stdin = Path(self._tmp.name) / "ref-lines"
+        stdin.write_bytes(b"refs/heads/x 1111 refs/heads/x 0000\n")
+        environment = {**os.environ, "GIT_DIR": str(member / ".git")}
+        return subprocess.run(
+            ["git", "-C", str(member), "hook", "run", f"--to-stdin={stdin}",
+             "pre-push", "--", "origin", "my url"],
+            capture_output=True, text=True, check=True, env=environment,
+        ).stderr.strip()
+
     def shim_dir(self) -> Path:
         common = self.git(self.atlas, "rev-parse", "--path-format=absolute", "--git-common-dir")
         return Path(common) / "atlas-hooks"
+
+    def test_members_run_origin_main_hooks_and_custom_paths_stay(self) -> None:
+        self.publish({
+            "pre-push": owned_hook("owned-1"),
+            "pre-commit": b"#!/usr/bin/env bash\n",
+            "rescue-push": b"#!/usr/bin/env bash\n",
+        })
+        self.commit_peer_branch()
+        initial = {
+            "unset": None,
+            "copy": ".githooks",
+            "tree": (self.atlas / "scripts" / "git-hooks").as_posix(),
+            "running": (SCRIPT.parent / "git-hooks").as_posix(),
+            "custom": "D:/elsewhere/hooks",
+        }
+        for name, value in initial.items():
+            self.member(name, value)
+        output = self.install(list(initial), code=1)
+        self.assertIn("custom: core.hooksPath already set to D:/elsewhere/hooks; left alone", output)
+        self.assertIn("left on their own core.hooksPath: custom", output)
+        shims = self.shim_dir()
+        configured = {
+            name: self.git(self.repos / name, "config", "--local", "--get", "core.hooksPath")
+            for name in initial
+        }
+        self.assertEqual(
+            configured,
+            {"unset": shims.as_posix(), "copy": shims.as_posix(), "tree": shims.as_posix(),
+             "running": shims.as_posix(), "custom": "D:/elsewhere/hooks"},
+        )
+        # Git runs no `rescue-push`, so it gets no shim.
+        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["pre-commit", "pre-push"])
+        # Two arguments, the second holding a space, each passed whole.
+        expected = "argc=2 [origin] [my url] <refs/heads/x 1111 refs/heads/x 0000>"
+        self.assertEqual(self.run_hook(self.repos / "unset"), f"owned-1 {expected}")
+        # A fetch that moves origin/main is all a member needs for the new copy.
+        self.publish({"pre-push": owned_hook("owned-2"), "pre-commit": b"#!/usr/bin/env bash\n"})
+        self.assertEqual(self.run_hook(self.repos / "tree"), f"owned-2 {expected}")
+        self.assertEqual(len(list((shims / "blobs").iterdir())), 2)
+        # A hook origin/main dropped loses its shim at the next install.
+        self.publish({"pre-push": owned_hook("owned-2")})
+        self.install(list(initial), code=1)
+        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["blobs", "pre-push"])
 
     def submodule_member(self, name: str) -> Path:
         """A member as the stack holds one: a submodule of the Atlas repository,
@@ -637,6 +715,44 @@ class HookInstallTestCase(unittest.TestCase):
         )
         self.assertEqual(sorted(seen), ["gitdir", "marker", "staged"], result.stderr)
         return seen
+
+    def test_hooks_run_in_the_context_git_gave_them(self) -> None:
+        """The shim looks the hook up in the Atlas repository but runs it in
+        the member's: its git directory, its working directory and the index
+        git named. `git commit -- <path>` hands pre-commit a temporary index
+        holding only that path; a hook reading the default index would gate
+        what is not being committed."""
+        context = (
+            b"#!/usr/bin/env bash\n"
+            b"cat > /dev/null\n"
+            b"printf 'hook-gitdir=%s\\n' \"$(git rev-parse --absolute-git-dir)\" >&2\n"
+            b"printf 'hook-marker=%s\\n' \"$(cat .member-marker 2>/dev/null || echo none)\" >&2\n"
+            b"printf 'hook-staged=%s\\n' \"$(git diff --cached --name-only | tr '\\n' ,)\" >&2\n"
+        )
+        self.publish({"pre-commit": context, "pre-push": context})
+        member = self.submodule_member("alpha")
+        lane = Path(self._tmp.name) / "alpha-lane"
+        self.git(member, "worktree", "add", "-q", "-b", "lane", str(lane))
+        self.install(["alpha"])
+        remote = Path(self._tmp.name) / "remote.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+        for tree, marker in ((member, "alpha"), (lane, "lane")):
+            with self.subTest(tree=marker):
+                (tree / ".member-marker").write_text(marker, encoding="utf-8")
+                git_dir = Path(self.git(tree, "rev-parse", "--absolute-git-dir"))
+                (tree / "a.txt").write_bytes(f"{marker} all\n".encode())
+                seen = self.hook_context(tree, "commit", "-q", "-a", "-m", "all")
+                self.assertTrue(Path(seen["gitdir"]).samefile(git_dir), seen)
+                self.assertEqual((seen["marker"], seen["staged"]), (marker, "a.txt,"))
+                (tree / "a.txt").write_bytes(f"{marker} only\n".encode())
+                (tree / "b.txt").write_bytes(f"{marker} staged\n".encode())
+                self.git(tree, "add", "b.txt")
+                seen = self.hook_context(tree, "commit", "-q", "-m", "only", "--", "a.txt")
+                self.assertEqual((seen["marker"], seen["staged"]), (marker, "a.txt,"))
+                self.assertEqual(self.git(tree, "diff", "--cached", "--name-only"), "b.txt")
+                seen = self.hook_context(tree, "push", "-q", str(remote), f"HEAD:refs/heads/{marker}")
+                self.assertTrue(Path(seen["gitdir"]).samefile(git_dir), seen)
+                self.assertEqual((seen["marker"], seen["staged"]), (marker, "b.txt,"))
 
     def test_a_git_directory_named_only_by_git_reaches_the_hook(self) -> None:
         """`--git-dir` names a repository the work tree cannot find: the hook
@@ -741,6 +857,29 @@ class HookInstallTestCase(unittest.TestCase):
                 self.assertEqual(err.decode().strip(), direct.stderr.decode().strip())
                 self.assertEqual("errexit" in err.decode(), "errexit" in exported)
 
+    def config(self, repo: Path, key: str) -> str | None:
+        """`repo`'s own local value of `key`, `None` when it holds none."""
+        result = subprocess.run(
+            ["git", "-C", str(repo), "config", "--local", "--get", key],
+            capture_output=True, text=True,
+        )
+        return result.stdout.strip() if result.returncode == 0 else None
+
+    def test_one_hooks_path_in_any_spelling_is_ours_and_retargeted(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = self.shim_dir()
+        spellings = {"trailing-slash": shims.as_posix() + "/"}
+        if os.name == "nt":
+            spellings["backslashes"] = str(shims)
+            spellings["drive-case"] = shims.as_posix()[0].swapcase() + shims.as_posix()[1:]
+        for name, value in spellings.items():
+            self.member(name, value)
+        self.install(list(spellings))
+        self.assertEqual(
+            {name: self.config(self.repos / name, "core.hooksPath") for name in spellings},
+            {name: shims.as_posix() for name in spellings},
+        )
+
     def test_allexport_does_not_leak_the_shims_variables_into_the_hook(self) -> None:
         """With `allexport` inherited, every assignment the shim makes and its
         lookup function would reach the hook's environment; the hook
@@ -818,6 +957,20 @@ class HookInstallTestCase(unittest.TestCase):
             commit = _lock_form.hook_source_commit(self.atlas)
         self.assertEqual(commit, self.git(self.atlas, "rev-parse", "refs/remotes/origin/main"))
 
+    def test_install_removes_and_reports_a_shim_origin_main_dropped(self) -> None:
+        self.publish({"pre-push": owned_hook("owned"), "pre-commit": b"#!/usr/bin/env bash\n"})
+        _lock_form.write_hook_shims(self.atlas)
+        self.publish({"pre-push": owned_hook("owned")})
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            shims = _lock_form.write_hook_shims(self.atlas)
+        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["pre-push"])
+        self.assertEqual(
+            stdout.getvalue().splitlines(),
+            ["install-hooks: removed the pre-commit shim; "
+             "refs/remotes/origin/main has no scripts/git-hooks/pre-commit"],
+        )
+
     def test_a_crlf_cache_copy_is_rewritten_under_autocrlf(self) -> None:
         """`core.autocrlf` hashes a CRLF file as its LF blob; the cache check
         hashes raw bytes, so the converted copy is rewritten before it runs."""
@@ -865,6 +1018,61 @@ class HookInstallTestCase(unittest.TestCase):
         self.assertEqual(refusals, [])
         self.assertTrue(shim.read_bytes().endswith(b"# reinstalled\n"))
 
+    def test_install_reports_what_it_left_and_fails_on_a_member_it_could_not_set(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        self.member("custom", "D:/elsewhere/hooks")
+        self.member("locked")
+        real_git = _lock_form.git_result
+
+        def refusing(repo, *args, **kwargs):
+            if args[-2:] == ("core.hooksPath", self.shim_dir().as_posix()) and repo.name == "locked":
+                return _lock_form.GitProcessResult(args, 255, b"", b"error: could not lock config file")
+            return real_git(repo, *args, **kwargs)
+
+        stdout = io.StringIO()
+        with redirect_stdout(stdout), patch.object(_lock_form, "git_result", side_effect=refusing), \
+                patch.object(_lock_form, "ROOT", self.atlas), \
+                patch.object(_lock_form, "REPOS", self.repos), \
+                patch.object(_lock_form, "registered_member_names", return_value=["custom", "locked"]):
+            self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), 1)
+        self.assertEqual(
+            stdout.getvalue().splitlines(),
+            [
+                "custom: core.hooksPath already set to D:/elsewhere/hooks; left alone",
+                "locked: FAILED to set core.hooksPath: error: could not lock config file",
+                "owned hook shims installed in 0 member(s), 1 left alone, 1 failed",
+                "install-hooks: left on their own core.hooksPath: custom",
+            ],
+        )
+
+    def test_install_with_no_owned_hooks_fails_without_touching_members(self) -> None:
+        empty_tree = self.git(self.atlas, "hash-object", "-t", "tree", "--stdin", input="")
+        commit = self.git(
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", empty_tree, "-m", "none",
+        )
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
+        member = self.member("alpha")
+        stdout = io.StringIO()
+        with redirect_stdout(stdout), patch.object(_lock_form, "ROOT", self.atlas), \
+                patch.object(_lock_form, "REPOS", self.repos), \
+                patch.object(_lock_form, "registered_member_names", return_value=["alpha"]):
+            self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), 1)
+        self.assertIn("install-hooks: shims not all written, members left unchanged", stdout.getvalue())
+        self.assertEqual(
+            subprocess.run(["git", "-C", str(member), "config", "--local", "--get", "core.hooksPath"]).returncode,
+            1,
+        )
+
+    def test_a_shim_renamed_into_place_cannot_be_replaced_reports_rather_than_raising(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        stdout = io.StringIO()
+        with redirect_stdout(stdout), patch.object(_lock_form, "ROOT", self.atlas), \
+                patch.object(_lock_form, "SHIM_REPLACE_BACKOFF_SECONDS", 0), \
+                patch.object(_lock_form.os, "replace", side_effect=PermissionError("in use")):
+            self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), 1)
+        self.assertIn("shims not all written, members left unchanged: in use", stdout.getvalue())
+        self.assertEqual([p.name for p in self.shim_dir().iterdir()], [])
+
     @unittest.skipIf(os.name == "nt", "Windows has no execute bit")
     def test_a_shim_that_lost_its_execute_bit_is_rewritten(self) -> None:
         self.publish({"pre-push": owned_hook("owned")})
@@ -872,6 +1080,16 @@ class HookInstallTestCase(unittest.TestCase):
         shim.chmod(0o644)
         _lock_form.write_hook_shims(self.atlas)
         self.assertTrue(shim.stat().st_mode & 0o100)
+
+    def test_a_truncated_cached_hook_is_rewritten_before_it_runs(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        member = self.member("alpha")
+        self.install(["alpha"])
+        self.assertTrue(self.run_hook(member).startswith("owned "))
+        (cached,) = (self.shim_dir() / "blobs").iterdir()
+        cached.write_bytes(b"#!/usr/bin/env bash\necho truncated\n")
+        self.assertTrue(self.run_hook(member).startswith("owned "))
+        self.assertEqual(cached.read_bytes(), owned_hook("owned"))
 
     def run_shim(self, shims: Path, *, path: str | None = None, **extra: str):
         environment = {**os.environ, **extra}
@@ -1015,6 +1233,13 @@ class HookInstallTestCase(unittest.TestCase):
                 _lock_form.write_hook_shims(self.atlas)
         self.assertEqual([p.name for p in shims.iterdir() if p.name.startswith(".")], [])
 
+    def test_install_without_origin_main_says_to_fetch(self) -> None:
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            with patch.object(_lock_form, "ROOT", self.atlas):
+                self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), 1)
+        self.assertIn("fetch it first", stdout.getvalue())
+
     def test_a_missing_owned_hook_refuses_rather_than_passing(self) -> None:
         self.publish({"pre-push": owned_hook("owned")})
         shims = _lock_form.write_hook_shims(self.atlas)
@@ -1022,6 +1247,14 @@ class HookInstallTestCase(unittest.TestCase):
         result = subprocess.run(["bash", str(shims / "pre-push")], capture_output=True, text=True)
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no scripts/git-hooks/pre-push", result.stderr)
+
+    def test_a_linked_atlas_tree_writes_into_the_common_git_directory(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        self.git(self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+                 "commit", "-q", "--allow-empty", "-m", "base")
+        linked = Path(self._tmp.name) / "linked"
+        self.git(self.atlas, "worktree", "add", "-q", "--detach", str(linked))
+        self.assertEqual(_lock_form.write_hook_shims(linked), self.shim_dir())
 
     def test_concurrent_first_runs_each_execute_the_whole_hook(self) -> None:
         # Large enough that a cache written in place is caught part-written.
@@ -1038,37 +1271,6 @@ class HookInstallTestCase(unittest.TestCase):
         )
         (cached,) = (shims / "blobs").iterdir()
         self.assertEqual(cached.read_bytes(), hook)
-
-    def test_member_copies_retarget_to_owned_hooks_and_custom_paths_stay(self) -> None:
-        owned = (SCRIPT.parent / "git-hooks").as_posix()
-        initial = {"unset": None, "copy": ".githooks", "custom": "D:/elsewhere/hooks"}
-        with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as temp:
-            repos = Path(temp)
-            for member, value in initial.items():
-                subprocess.run(
-                    ["git", "init", "-q", str(repos / member)], check=True
-                )
-                if value is not None:
-                    subprocess.run(
-                        ["git", "-C", str(repos / member), "config", "core.hooksPath", value],
-                        check=True,
-                    )
-            with patch.object(_lock_form, "REPOS", repos), patch.object(
-                _lock_form, "registered_member_names", return_value=list(initial)
-            ):
-                self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), 0)
-            configured = {
-                member: subprocess.run(
-                    ["git", "-C", str(repos / member), "config", "--local", "--get",
-                     "core.hooksPath"],
-                    capture_output=True, text=True, check=True,
-                ).stdout.strip()
-                for member in initial
-            }
-        self.assertEqual(
-            configured,
-            {"unset": owned, "copy": owned, "custom": "D:/elsewhere/hooks"},
-        )
 
 
 STALLED_TREE = textwrap.dedent(
