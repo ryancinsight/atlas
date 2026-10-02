@@ -115,25 +115,68 @@ def _diff_bytes(top: Path, ignored: Sequence[Path]) -> bytes:
     return _git(top, *arguments)
 
 
+def _untracked_paths(top: Path) -> tuple[tuple[bytes, list[bytes]], ...]:
+    """The untracked and the ignored files under `top`, each group in Git's path order.
+
+    One `git status` walks the tree once for both groups, where
+    `ls-files --others` and `ls-files --others --ignored` walked it twice
+    in two processes. Each group is the list those commands print, sorted
+    as Git sorts it (byte order), so the source digest is unchanged.
+    Submodules are not entered: only `?` and `!` entries are read.
+    """
+    output = _git(
+        top,
+        "--no-optional-locks",
+        "status",
+        "--porcelain=v2",
+        "-z",
+        "--untracked-files=all",
+        "--ignored=traditional",
+        "--ignore-submodules=all",
+        "--no-renames",
+    )
+    untracked: list[bytes] = []
+    ignored: list[bytes] = []
+    # Under `--no-renames` every entry is one field: none carries an original path.
+    for field in output.split(b"\0"):
+        if field.startswith(b"? "):
+            untracked.append(field[2:])
+        elif field.startswith(b"! "):
+            ignored.append(field[2:])
+    return (b"untracked", sorted(untracked)), (b"ignored", sorted(ignored))
+
+
+def repository_head(root: Path) -> tuple[Path, str]:
+    """The top of the work tree holding `root`, and the revision its `HEAD` names."""
+    root = _canonical(root, strict=True)
+    top_line, revision_line = _git(root, "rev-parse", "--show-toplevel", "HEAD").splitlines()
+    return Path(os.fsdecode(top_line.strip())).resolve(), os.fsdecode(revision_line.strip())
+
+
 def source_identity(
     root: Path,
     excluded_roots: Sequence[Path] = (),
     ignored_paths: Sequence[Path] = (),
 ) -> SourceIdentity:
-    root = _canonical(root, strict=True)
-    top = Path(os.fsdecode(_git(root, "rev-parse", "--show-toplevel").strip())).resolve()
-    revision = os.fsdecode(_git(top, "rev-parse", "HEAD").strip())
+    return worktree_identity(*repository_head(root), excluded_roots, ignored_paths)
+
+
+def worktree_identity(
+    top: Path,
+    revision: str,
+    excluded_roots: Sequence[Path] = (),
+    ignored_paths: Sequence[Path] = (),
+) -> SourceIdentity:
+    """The identity of the work tree at `top`, whose `HEAD` is `revision`.
+
+    `top` and `revision` are what `repository_head` returned for it.
+    """
     excluded = tuple(_canonical(path) for path in excluded_roots)
     ignored = tuple(_canonical(path) for path in ignored_paths)
     diff = _diff_bytes(top, ignored)
     untracked_entries: list[tuple[bytes, bytes, Path]] = []
-    for marker, arguments in (
-        (b"untracked", ("ls-files", "--others", "--exclude-standard", "-z")),
-        (b"ignored", ("ls-files", "--others", "--ignored", "--exclude-standard", "-z")),
-    ):
-        for raw_path in _git(top, *arguments).split(b"\0"):
-            if not raw_path:
-                continue
+    for marker, raw_paths in _untracked_paths(top):
+        for raw_path in raw_paths:
             path = (top / Path(os.fsdecode(raw_path))).resolve()
             if any(_is_within(path, excluded_root) for excluded_root in excluded):
                 continue

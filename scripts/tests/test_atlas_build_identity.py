@@ -1922,6 +1922,90 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertTrue(after.dirty)
         self.assertNotEqual(before.tree_digest, after.tree_digest)
 
+    def test_untracked_and_ignored_files_are_listed_as_ls_files_lists_them(self) -> None:
+        # The digest frames each untracked and ignored file in this order, so
+        # one `git status` must list exactly what the two `ls-files --others`
+        # listings it replaced list, in the same order, or every dirty tree's
+        # identity changes.
+        init_repo(self.root, "fn main() {}\n")
+        (self.root / ".gitignore").write_text("*.log\nbuild/\n/top-only\n!keep.log\n", encoding="utf-8")
+        (self.root / "src" / ".gitignore").write_text("local.tmp\n", encoding="utf-8")
+        git(self.root, "add", ".gitignore", "src/.gitignore")
+        git(self.root, "commit", "-q", "-m", "ignore rules")
+        git(self.root, "mv", "src/lib.rs", "src/moved.rs")
+        (self.root / "Cargo.toml").write_text("[package]\nname = \"edited\"\n", encoding="utf-8")
+        for name in (
+            "new file.txt", "Zeta", "alpha", "ä-unicode.rs", "a.log", "keep.log", "top-only",
+            "src/top-only", "src/local.tmp", "src/new.rs", "src/a-b", "src/a/b", "src/a.b",
+            "build/out.o", "build/deep/x.o", "untracked/one.rs", "untracked/two.log",
+            "untracked/build/y.o",
+        ):
+            path = self.root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(name, encoding="utf-8")
+        (self.root / "nested").mkdir()
+        git(self.root / "nested", "init", "-q")
+        (self.root / "nested" / "inner.rs").write_text("inner", encoding="utf-8")
+        listed = tuple(
+            (marker, [path for path in build_source._git(self.root, *arguments).split(b"\0") if path])
+            for marker, arguments in (
+                (b"untracked", ("ls-files", "--others", "--exclude-standard", "-z")),
+                (b"ignored", ("ls-files", "--others", "--ignored", "--exclude-standard", "-z")),
+            )
+        )
+        self.assertIn(b"nested/", listed[0][1])
+        self.assertIn(b"untracked/build/y.o", listed[1][1])
+        self.assertEqual(build_source._untracked_paths(self.root.resolve()), listed)
+
+    def test_each_repository_is_identified_once_per_dependency_pass(self) -> None:
+        # Every path package of one repository has that repository's
+        # identity, so a pass computes it once, however many packages, and
+        # however many of the selection's snapshots, share it.
+        init_repo(self.root, "fn main() {}\n")
+        (self.root / "member" / "src").mkdir(parents=True)
+        (self.root / "untracked.rs").write_text("dirty\n", encoding="utf-8")
+        sibling = self.base / "sibling"
+        init_repo(sibling, "pub fn sibling() {}\n")
+        identified: list[Path] = []
+        real_worktree_identity = build_inputs.worktree_identity
+
+        def counting_worktree_identity(top, *arguments):
+            identified.append(top)
+            return real_worktree_identity(top, *arguments)
+
+        def snapshot(metadata, manifest, package, identify_source, content_digest):
+            return {
+                "identities": [
+                    identify_source(path)
+                    for path in (self.root, self.root / "member", self.root / "src", sibling)
+                ]
+            }
+
+        with (
+            patch.object(build_inputs, "worktree_identity", side_effect=counting_worktree_identity),
+            patch.object(build_inputs, "dependency_snapshot", side_effect=snapshot),
+            patch.object(build_inputs, "_cargo_metadata", return_value={}),
+        ):
+            data = build_inputs._dependency_data(
+                self.root / "Cargo.toml", ("demo", "other"), self.target, self.root, (), False
+            )
+        self.assertEqual(identified, [self.root.resolve(), sibling.resolve()])
+        self.assertEqual(sorted(data), ["demo", "other"])
+        self.assertEqual(data["demo"]["identities"], data["other"]["identities"])
+        root_identity, member_identity, source_identity, sibling_identity = data["demo"]["identities"]
+        expected_root = build_records._content(
+            build_source.source_identity(self.root, (self.target,)).as_dict()
+        )
+        self.assertTrue(expected_root["dirty"])
+        self.assertEqual(root_identity, expected_root)
+        self.assertEqual(member_identity, expected_root)
+        self.assertEqual(source_identity, expected_root)
+        self.assertEqual(
+            sibling_identity,
+            build_records._content(build_source.source_identity(sibling, (self.target,)).as_dict()),
+        )
+        self.assertNotEqual(sibling_identity, expected_root)
+
     def test_ignored_source_files_are_hashed_and_can_be_explicitly_excluded(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         (self.root / ".gitignore").write_text("generated.rs\n", encoding="utf-8")
