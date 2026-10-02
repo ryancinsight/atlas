@@ -85,6 +85,37 @@ class SharedTargetWorktreeTestCase(unittest.TestCase):
                 lane_config.write_text(target_dir.lane_config_text(root) + "\n", encoding="utf-8")
                 self.assertEqual(target_dir.lane_state(), "stale")
 
+    def test_lane_state_rejects_local_and_legacy_target_overrides(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-target-override-") as temp:
+            root = Path(temp) / "stack"
+            root.mkdir(parents=True)
+            git(root, "init", "--quiet", "-b", "main")
+            git(root, "config", "user.name", "Atlas test")
+            git(root, "config", "user.email", "atlas-test@example.invalid")
+            (root / "seed").write_text("seed\n", encoding="utf-8")
+            git(root, "add", "seed")
+            git(root, "commit", "--quiet", "-m", "seed")
+            lane_path = root / "worktrees" / "demo-lane" / ".cargo"
+            lane_path.mkdir(parents=True)
+            with patch.object(target_dir, "ATLAS_ROOT", root), patch.object(
+                target_dir, "LANE_CONFIG", root / "worktrees" / ".cargo" / "config.toml"
+            ):
+                (lane_path / "config.toml").write_text(
+                    "[build]\ntarget-dir = 'escape-toml'\n", encoding="utf-8"
+                )
+                self.assertEqual(target_dir.lane_state(), "override")
+                (lane_path / "config.toml").unlink()
+                (lane_path / "config").write_text(
+                    "[build]\ntarget-dir = 'escape-legacy'\n", encoding="utf-8"
+                )
+                self.assertEqual(target_dir.lane_state(), "override")
+                (lane_path / "config").unlink()
+                legacy = root / "worktrees" / ".cargo" / "config"
+                legacy.parent.mkdir(parents=True, exist_ok=True)
+                legacy.write_text("[build]\ntarget-dir = 'escape-root-legacy'\n", encoding="utf-8")
+                with self.assertRaisesRegex(RuntimeError, "declares target-dir"):
+                    target_dir.ensure_lane_config(root)
+
 
 if __name__ == "__main__":
     unittest.main()

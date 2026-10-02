@@ -35,7 +35,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from atlas_stack import (
     LANE_ROOT, ROOT, canonical_lane, git, registered_members, worktree_entries,
 )
-from atlas_target_dir import MARKER, lane_config, lane_config_text
+from atlas_target_dir import (
+    MARKER,
+    TARGET_DIR_LINE,
+    lane_config,
+    lane_config_text,
+    lane_legacy_config,
+    target_dir_override_paths,
+)
 
 ARCHIVE_ROOT_NAME = ".archive"
 
@@ -45,12 +52,23 @@ def audit_target_config(violations: list[str]) -> None:
     path = lane_config(ROOT)
     if not path.is_file():
         violations.append(f"lane target config missing: {path}")
-        return
-    text = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
-    if MARKER not in text:
-        violations.append(f"lane target config is foreign: {path}")
-    elif text != lane_config_text(ROOT):
-        violations.append(f"lane target config is stale: {path}")
+    else:
+        text = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+        if MARKER not in text:
+            violations.append(f"lane target config is foreign: {path}")
+        elif text != lane_config_text(ROOT):
+            violations.append(f"lane target config is stale: {path}")
+    legacy = lane_legacy_config(ROOT)
+    if legacy.is_file() and TARGET_DIR_LINE.search(
+        legacy.read_text(encoding="utf-8", errors="replace")
+    ):
+        violations.append(f"lane target config override: {legacy}")
+
+
+def audit_lane_target_config(lane: Path, violations: list[str]) -> None:
+    """Reject target-dir declarations closer to Cargo than the shared config."""
+    for path in target_dir_override_paths(lane):
+        violations.append(f"lane target config override: {path}")
 
 
 def audit_repo(repo: Path, violations: list[str]) -> None:
@@ -65,6 +83,8 @@ def audit_repo(repo: Path, violations: list[str]) -> None:
             violations.append(f"{repo.name}: lane {lane} is detached HEAD")
         if lane and not canonical_lane(lane):
             violations.append(f"{repo.name}: lane {lane} outside canonical lane roots")
+        if lane:
+            audit_lane_target_config(lane, violations)
     prunable = git(repo, "worktree", "prune", "--dry-run", "-v").strip()
     if prunable:
         violations.append(
