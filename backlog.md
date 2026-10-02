@@ -133,3 +133,4 @@
 <a id="atlas-identity-overlay-locked-metadata"></a>- [ATLAS-IDENTITY-OVERLAY-LOCKED-METADATA](backlog/atlas-identity-overlay-locked-metadata.md) — Read the overlay's dependency graph without refusing its lock [patch] — todo
 <a id="atlas-identity-midrun-git-edit"></a>- [ATLAS-IDENTITY-MIDRUN-GIT-EDIT](backlog/atlas-identity-midrun-git-edit.md) — Stamp a trusted Git package whose checkout moved during a failed run [patch] — todo
 <a id="atlas-identity-load-flakes"></a>- [ATLAS-IDENTITY-LOAD-FLAKES](backlog/atlas-identity-load-flakes.md) — Four identity tests fail under host load [patch] — todo
+<a id="atlas-lock-sweep-lane-bound-2026-10-02"></a>- [ATLAS-LOCK-SWEEP-LANE-BOUND-2026-10-02](backlog/atlas-lock-sweep-lane-bound-2026-10-02.md) — The two-worktree bound is blocking the stack's own lock sweep [correctness] — todo
