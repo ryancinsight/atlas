@@ -1,23 +1,28 @@
 #!/usr/bin/env python3
 """Keep in-member builds on the one shared cache.
 
-The stack root's `.cargo/config.toml` sets `build.target-dir = "target"`, and
-its comment claims cargo resolves that "from the parent of `.cargo`". It does
-not: cargo resolves `build.target-dir` **relative to the workspace root**. The
-line therefore reaches `<stack>/target` only for invocations whose workspace
-root is the stack root. Run anything inside `repos/<member>` -- a `cargo fmt`,
-a package-scoped `clippy`, a `cargo metadata` -- and the workspace root is the
-member, the same line resolves to `repos/<member>/target`, and the shared cache
-forks. Nine members had forked this way when the class was first measured, one
-of them 1.8 GB, and they regrew within minutes of being swept.
+The stack root's `.cargo/config.toml` sets a relative `build.target-dir =
+"target"`. Cargo resolves a relative `build.target-dir` against the parent of
+the directory holding the file that declares it, and an included file is the
+declaring file (verified on cargo 1.97.0: a `cargo metadata` started in
+`repos/<member>`, in a package directory, or in a lane below the root reports
+`<stack>/target`). The line therefore names the shared cache only in the
+primary checkout; in a linked worktree of the stack repository the same line
+names that worktree's own `target/`, which forks the cache.
 
-The fix is one file: `repos/.cargo/config.toml`, holding an absolute
-`target-dir`. Cargo merges config files from the invocation directory upward,
-so this one sits between every member and the stack root -- closer than the
-root, and outside every member, which matters because members carry a
-*tracked* `.cargo/config.toml` of their own. An absolute path is
-machine-specific and must never be committed to a member; this file is
-generated and gitignored instead.
+Cargo finds configs only by walking up from its working directory, so a build
+started outside the stack with `--manifest-path` finds none and builds into the
+member's own `target/`; `atlas-toolchain-bootstrap.sh` binds `CARGO_TARGET_DIR`
+to the shell for that case, which no config file covers.
+
+The pin is one file: `repos/.cargo/config.toml`, holding an absolute
+`target-dir` resolved from Git's common directory, so it names the primary
+checkout's cache from a linked worktree too. Cargo merges config files from the
+invocation directory upward, so this one sits between every member and the
+stack root -- closer than the root, and outside every member, which matters
+because members carry a *tracked* `.cargo/config.toml` of their own. An
+absolute path is machine-specific and must never be committed to a member; this
+file is generated and gitignored instead.
 
     atlas-member-target-dir.py generate   write or refresh it
     atlas-member-target-dir.py check      report whether it is present and current

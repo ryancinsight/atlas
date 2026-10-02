@@ -181,6 +181,37 @@ class SharedTargetWorktreeTestCase(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "shadows"):
                     target_dir.ensure_lane_config(root)
 
+    def test_relative_target_dir_resolves_against_the_parent_of_the_declaring_directory(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-target-relative-") as temp:
+            root = Path(temp).resolve() / "stack"
+            member = root / "repos" / "member"
+            package = member / "crates" / "demo"
+            (package / "src").mkdir(parents=True)
+            (package / "src" / "lib.rs").write_text("pub fn value() {}\n", encoding="utf-8")
+            (package / "Cargo.toml").write_text(
+                "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+                encoding="utf-8",
+            )
+            (member / "Cargo.toml").write_text(
+                "[workspace]\nmembers = [\"crates/demo\"]\nresolver = \"2\"\n",
+                encoding="utf-8",
+            )
+            config = root / ".cargo" / "config.toml"
+            config.parent.mkdir()
+            config.write_text('[build]\ntarget-dir = "target"\n', encoding="utf-8")
+            self.assertEqual(self.cargo_target(package), root / "target")
+            self.assertEqual(self.cargo_target(member), root / "target")
+
+            # An included file is the declaring file: its relative path resolves
+            # against the parent of the directory holding *it*, not of the
+            # `.cargo` directory that includes it.
+            (root / "conf").mkdir()
+            (root / "conf" / "inc.toml").write_text(
+                '[build]\ntarget-dir = "inc-tgt"\n', encoding="utf-8"
+            )
+            config.write_text('include = ["../conf/inc.toml"]\n', encoding="utf-8")
+            self.assertEqual(self.cargo_target(package), root / "inc-tgt")
+
     def test_cargo_resolves_all_target_dir_spellings_and_shared_config(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-target-spellings-") as temp:
             root = Path(temp) / "stack"
