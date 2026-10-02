@@ -30,8 +30,10 @@ For each registered member, read from its fetched default branch:
    full package-id spec, then `cargo check --workspace --locked` runs against
    the shared target directory.
 3. Every stale source must now sit at its target. A provider whose head moved
-   past the named merge resolves elsewhere; that is a failed row, never a
-   lock committed at an unnamed revision.
+   past the named merge -- the sweep's own lock commits in providers move it
+   -- is returned to that merge with `cargo update --precise`; a source that
+   cannot return is a failed row, never a lock committed at an unnamed
+   revision.
 4. With `--open-prs`, the new lock blob is committed through a private index
    onto the default branch -- one commit per consumer per sweep, naming each
    provider merge in a `Refs:` line -- pushed from the member through the
@@ -170,6 +172,22 @@ def stale_packages(lock_text: str, targets: dict[str, str]) -> tuple[LockedPacka
         for package in first_party_packages(lock_text)
         if package.provider in targets and package.rev != targets[package.provider]
     )
+
+
+def pullbacks(lock_text: str, stale: tuple[LockedPackage, ...], targets: dict[str, str]) -> list[tuple[str, str]]:
+    """One `(package spec, target)` per stale source cargo resolved past its target.
+
+    An unpinned update resolves every stale source at its provider's branch
+    head, which moves on during a sweep -- the sweep's own lock commits in
+    providers move it. `--precise` on any one package of a git source moves the
+    whole source, so each one returns to its named merge with one call."""
+    sources = {(package.url, package.provider) for package in stale}
+    chosen: dict[str, tuple[str, str]] = {}
+    for package in first_party_packages(lock_text):
+        target = targets.get(package.provider)
+        if (package.url, package.provider) in sources and package.rev != target:
+            chosen.setdefault(package.url, (package.spec, target))
+    return [chosen[url] for url in sorted(chosen)]
 
 
 def unmet_targets(lock_text: str, stale: tuple[LockedPackage, ...], targets: dict[str, str]) -> list[str]:
@@ -360,20 +378,41 @@ def cargo(tree: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     return lockfile.run_outside_the_overlay(list(arguments), manifest=tree / "Cargo.toml")
 
 
+def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | None:
+    """Advance the exported lock's stale sources to their targets; a failed row, or None."""
+    specs = sorted({package.spec for package in plan.stale})
+    update = cargo(tree, "update", *(flag for spec in specs for flag in ("--package", spec)))
+    if update.returncode != 0:
+        return Outcome(plan.name, "failed", failure_detail(plan.name, "cargo update", update.stderr), False)
+    # A precise update of one source re-resolves the git sources its packages
+    # depend on, which can carry an already-returned source past its target
+    # again; a round per source bounds the repetition.
+    for _round in range(len({package.url for package in plan.stale}) + 1):
+        resolved = (tree / "Cargo.lock").read_text(encoding="utf-8", errors="replace")
+        returns = pullbacks(resolved, plan.stale, targets)
+        if not returns:
+            break
+        for spec, target in returns:
+            precise = cargo(tree, "update", "--package", spec, "--precise", target)
+            if precise.returncode != 0:
+                return Outcome(plan.name, "failed", failure_detail(plan.name, "cargo update --precise", precise.stderr), False)
+    resolved = (tree / "Cargo.lock").read_text(encoding="utf-8", errors="replace")
+    misses = unmet_targets(resolved, plan.stale, targets)
+    if misses:
+        return Outcome(plan.name, "failed", "source past its target: " + "; ".join(misses), False)
+    return None
+
+
 def advance(plan: Plan, targets: dict[str, str], hooks: Path | None, item: str | None) -> Outcome:
     member = plan.member
     with tempfile.TemporaryDirectory(prefix=f"lock-sweep-{plan.name}-") as scratch_name:
         scratch = Path(scratch_name)
         export_tree(member, plan.base, scratch)
         tree = scratch / "tree"
-        specs = sorted({package.spec for package in plan.stale})
-        update = cargo(tree, "update", *(flag for spec in specs for flag in ("--package", spec)))
-        if update.returncode != 0:
-            return Outcome(plan.name, "failed", failure_detail(plan.name, "cargo update", update.stderr), False)
+        failure = resolve_lock(plan, targets, tree)
+        if failure is not None:
+            return failure
         updated = (tree / "Cargo.lock").read_bytes()
-        misses = unmet_targets(updated.decode("utf-8", errors="replace"), plan.stale, targets)
-        if misses:
-            return Outcome(plan.name, "failed", "provider moved past its target: " + "; ".join(misses), False)
         check = cargo(tree, "check", "--workspace", "--locked")
         if check.returncode != 0:
             return Outcome(plan.name, "failed", failure_detail(plan.name, "cargo check", check.stderr), False)

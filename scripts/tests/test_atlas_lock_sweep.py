@@ -117,6 +117,21 @@ class PlanTests(unittest.TestCase):
             ],
         )
 
+    def test_each_source_past_its_target_is_pulled_back_once(self) -> None:
+        stale = sweep.stale_packages(LOCK, {"hermes": NEW, "mnemosyne": NEW})
+        updated = LOCK.replace(f"hermes.git#{OLD}", f"hermes.git#{MOVED}").replace(
+            f"Mnemosyne.git#{OLD}", f"Mnemosyne.git#{NEW}"
+        )
+        self.assertEqual(
+            sweep.pullbacks(updated, stale, {"hermes": NEW, "mnemosyne": NEW}),
+            [("git+https://github.com/ryancinsight/hermes.git#hermes-simd@0.5.0", NEW)],
+        )
+
+    def test_sources_at_their_target_need_no_pullback(self) -> None:
+        stale = sweep.stale_packages(LOCK, {"hermes": NEW})
+        updated = LOCK.replace(f"hermes.git#{OLD}", f"hermes.git#{NEW}")
+        self.assertEqual(sweep.pullbacks(updated, stale, {"hermes": NEW}), [])
+
     def test_one_spelling_left_behind_is_a_miss(self) -> None:
         stale = sweep.stale_packages(LOCK, {"mnemosyne": NEW})
         self.assertEqual(
