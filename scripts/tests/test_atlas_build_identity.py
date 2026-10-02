@@ -3816,6 +3816,27 @@ class MultiPackageRunTestCase(unittest.TestCase):
         # `c` alone: never `a`, nor `b`, which only `a`'s matched record names.
         self.assertEqual(cleans, [["c"]])
 
+    def test_a_stand_in_for_any_named_package_is_rebuilt(self) -> None:
+        """A record is matched against its own package's artifacts, whichever
+        package that is: with `c`'s recorded rmeta and rlib files holding other
+        bytes, `c` is rebuilt, and `a`, whose files are intact, is reused and
+        never cleaned. Matching only the first package's artifacts, and taking
+        the others' record as it stands, leaves `c` reused."""
+        self.push(self.base / "gate1")
+        deps = self.base / "target" / "debug" / "deps"
+        replaced = [
+            path
+            for path in sorted(deps.iterdir())
+            if re.fullmatch(r"libc-[0-9a-f]+[.](rmeta|rlib)", path.name)
+        ]
+        self.assertTrue(replaced, sorted(path.name for path in deps.iterdir()))
+        for path in replaced:
+            path.write_bytes(b"a stand-in for " + path.name.encode())
+        second = self.push(self.base / "gate2")
+        self.assertEqual([result.status for result in second], ["reused", "rebuilt"])
+        cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
+        self.assertEqual(cleans, [["c"]])
+
     def test_a_matched_package_another_rule_cleaned_reports_rebuilt(self) -> None:
         first = self.push(self.base / "gate1", packages=("a", "b"))
         # `a`'s record gone: its rule cleans its closure, `b` with it, though
