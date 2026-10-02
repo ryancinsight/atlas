@@ -37,7 +37,6 @@ from atlas_stack import (
 )
 from atlas_target_dir import (
     MARKER,
-    TARGET_DIR_LINE,
     lane_config,
     lane_config_text,
     lane_legacy_config,
@@ -59,9 +58,7 @@ def audit_target_config(violations: list[str]) -> None:
         elif text != lane_config_text(ROOT):
             violations.append(f"lane target config is stale: {path}")
     legacy = lane_legacy_config(ROOT)
-    if legacy.is_file() and TARGET_DIR_LINE.search(
-        legacy.read_text(encoding="utf-8", errors="replace")
-    ):
+    if legacy.is_file():
         violations.append(f"lane target config override: {legacy}")
 
 

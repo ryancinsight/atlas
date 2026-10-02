@@ -33,11 +33,11 @@ from __future__ import annotations
 import argparse
 import io
 import pathlib
-import re
 import sys
 
 from atlas_target_dir import (
     MARKER,
+    declares_target_dir,
     ensure_lane_config,
     lane_config,
     lane_config_text,
@@ -70,9 +70,6 @@ TEMPLATE = MARKER + """
 target-dir = "{target}"
 """
 
-TARGET_DIR_LINE = re.compile(r"(?m)^\s*target-dir\s*=")
-
-
 def desired(checkout: pathlib.Path = ATLAS_ROOT) -> str:
     return TEMPLATE.format(target=shared_target_for(checkout).as_posix())
 
@@ -91,8 +88,7 @@ def members_with_own_pin() -> list[str]:
         path = member / ".cargo" / "config.toml"
         if not path.is_file():
             continue
-        text = io.open(path, encoding="utf-8", errors="replace").read()
-        if TARGET_DIR_LINE.search(text):
+        if declares_target_dir(path):
             found.append(member.name)
     return found
 
