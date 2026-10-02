@@ -24,16 +24,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "--package",
                 action="append",
                 required=True,
-                help="a package the command builds; repeat for each, one record each",
+                help="a package whose artifacts the run records; repeat for each, one record each",
             )
         else:
             command.add_argument("--package", required=True)
-            command.add_argument(
-                "--selection",
-                action="append",
-                default=[],
-                help="a package the run's command built; repeat for each (default: --package)",
-            )
+        command.add_argument(
+            "--selection",
+            action="append",
+            default=[],
+            help=(
+                "a package the command builds, whether or not it is recorded; repeat for"
+                " each (default: the --package set)"
+            ),
+        )
         command.add_argument("--target-dir", type=Path, required=True)
         command.add_argument("--profile", default="debug")
         command.add_argument("--target", default="host")
@@ -90,6 +93,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             command_cwd=args.command_cwd,
             command_key=args.command_key,
             ignore_paths=args.ignore_path,
+            selection=args.selection,
         )
         # One JSON line per package, in `--package` order; `run_build` builds
         # a repeated package once and returns one result for it.

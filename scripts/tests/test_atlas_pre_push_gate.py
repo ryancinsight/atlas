@@ -1696,9 +1696,11 @@ class LaneGateTestCase(unittest.TestCase):
             "build = sys.argv[sys.argv.index('--') + 1:]\n"
             "command = build[1]\n"
             "selection = [build[i + 1] for i, v in enumerate(build) if v == '-p']\n"
+            "named = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--selection']\n"
             "with log.open('a', encoding='utf-8', newline='') as stream:\n"
             "    stream.write('run ' + command + '\\n')\n"
             "    stream.write('cargo ' + command + ' -p ' + ' '.join(sorted(selection)) + '\\n')\n"
+            "    stream.write('selection ' + command + ' ' + ' '.join(sorted(named)) + '\\n')\n"
             "    for package in packages:\n"
             "        stream.write(package + ' ' + command + '\\n')\n",
         )
@@ -1715,14 +1717,25 @@ class LaneGateTestCase(unittest.TestCase):
             [line for line in lines if line.startswith("run ")],
             ["run clippy", "run nextest", "run RUSTDOCFLAGS=-D warnings"],
         )
-        # The one cargo command per step builds exactly the packages its
-        # identity run records: never the workspace's default members.
+        # Every step's one cargo command builds every gated package, never the
+        # workspace's default members, and its identity run is told the same
+        # set: cargo unifies features across the command's packages, so steps
+        # naming different sets would each clean what the next one's record
+        # names. `bar` has no test target, so only the other two steps record it.
         self.assertEqual(
             [line for line in lines if line.startswith("cargo ")],
             [
                 "cargo clippy -p bar foo",
-                "cargo nextest -p foo",
+                "cargo nextest -p bar foo",
                 "cargo RUSTDOCFLAGS=-D warnings -p bar foo",
+            ],
+        )
+        self.assertEqual(
+            [line for line in lines if line.startswith("selection ")],
+            [
+                "selection clippy bar foo",
+                "selection nextest bar foo",
+                "selection RUSTDOCFLAGS=-D warnings bar foo",
             ],
         )
         steps = set(lines)

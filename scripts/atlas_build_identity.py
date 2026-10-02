@@ -11,14 +11,9 @@ from pathlib import Path
 from typing import Sequence
 
 from atlas_build_artifacts import (
-    artifact_digest,
     artifact_identity,
     artifact_owners,
-    artifact_package,
-    discover_artifacts,
-    SETTLE_SECONDS,
-    recorded_artifact_identity,
-    settled_digest,
+    shared_artifact_identity,
     validate_artifact_paths,
 )
 from atlas_build_inputs import _dependency_data, build_spec
@@ -120,21 +115,33 @@ def run_build(
     command_key: str | None = None,
     ignore_paths: Sequence[Path] = (),
     lease_wait_seconds: float = 0,
+    selection: Sequence[str] = (),
 ) -> tuple[BuildResult, ...]:
     """Run `command` once for `packages`, binding each one's record to it.
 
     The command builds every package in one invocation (`cargo clippy -p a
     -p b`), so the run reads its inputs, takes its leases and waits for
-    cargo once, not once per package. Each package keeps its own record,
-    keyed as a single-package run keys it, and the clean rule applies per
-    package: one stale record cleans what that package's rule names, never
-    the others' closures. Results are in `packages` order.
+    cargo once, not once per package. Each package keeps its own record and
+    the clean rule applies per package: one stale record cleans what that
+    package's rule names, never the others' closures. Results are in
+    `packages` order.
+
+    `packages` are the packages whose artifacts the run records. `selection`
+    is every package the command builds (default: `packages`), and a record
+    is keyed on it, since Cargo unifies features across an invocation's
+    packages and so names a shared dependency's variant by the whole set.
+    The steps of one push name one selection, so they share their records;
+    a step whose command builds a package that writes no artifact of its own
+    (no test target, no documented target) lists it in `selection` only.
     """
     if isinstance(packages, str):
         raise IdentityError("packages must be a sequence of package names, not one string")
     packages = tuple(dict.fromkeys(packages))
     if not packages:
         raise IdentityError("at least one package is required")
+    selection = tuple(dict.fromkeys(selection)) or packages
+    if not set(packages) <= set(selection):
+        raise IdentityError(f"packages {packages} are not all in the selection {selection}")
     if not command:
         raise IdentityError("a build command is required")
     root = _canonical(root, strict=True)
@@ -166,7 +173,7 @@ def run_build(
             ignore_paths,
             str(snapshots[packages[0]]["digest"]),
             execution_root,
-            packages,
+            selection,
         )
         return {
             package: (
@@ -248,6 +255,15 @@ def run_build(
             states[package] = _PackageState(existing, matched, current, stale_git)
         return states
 
+    owners_read: list[dict[str, frozenset[str]]] = []
+
+    def workspace_owners() -> dict[str, frozenset[str]]:
+        # One `cargo metadata` serves every attribution of the run: the graph
+        # is checked unchanged across it.
+        if not owners_read:
+            owners_read.append(artifact_owners(manifest, execution_root))
+        return owners_read[0]
+
     def clean_targets(package: str, state: _PackageState) -> frozenset[str]:
         # A caller's clean command is opaque, so it may touch the whole closure.
         if clean_command is not None:
@@ -255,7 +271,13 @@ def run_build(
         dependencies, spec = inputs[package]
         return frozenset(
             _stale_packages(
-                state.existing, state.current, spec, dependencies, manifest, execution_root
+                state.existing,
+                state.current,
+                spec,
+                dependencies,
+                manifest,
+                execution_root,
+                workspace_owners(),
             )
         )
 
@@ -408,7 +430,6 @@ def run_build(
         # The checkout content is the snapshot's, unchanged across the build.
         for package, (dependencies, _) in inputs.items():
             _write_git_stamps(dependencies, directory, git_built[package], building=False)
-        owners: dict[str, frozenset[str]] | None = None
         # A file several packages' records list is read once per run.
         settled: dict[str, str] = {}
         results = []
@@ -425,40 +446,20 @@ def run_build(
                 # before the command. Only the path packages held exclusive are
                 # discovered afresh, and their recorded names are dropped, so a
                 # name their rebuild retired is not kept.
-                if owners is None:
-                    owners = artifact_owners(manifest, execution_root)
-                own = recorded_artifact_identity(
+                artifact = shared_artifact_identity(
                     target_dir,
-                    [
-                        path.relative_to(target_dir).as_posix()
-                        for path in discover_artifacts(
-                            target_dir,
-                            package,
-                            profile,
-                            target,
-                            manifest,
-                            execution_root,
-                            tuple(sorted(recorded_packages[package] - shared_recorded[package])),
-                            owners,
-                        )
-                    ],
+                    package,
+                    profile,
+                    target,
+                    manifest,
+                    execution_root,
+                    recorded_packages[package] - shared_recorded[package],
+                    shared_recorded[package],
+                    named[package]["files"],
+                    workspace_owners(),
+                    settled,
+                    deadline_ns,
                 )
-                files = {}
-                for relative, verified in named[package]["files"].items():
-                    if artifact_package(relative, owners) not in shared_recorded[package]:
-                        continue
-                    if relative not in settled:
-                        # Each file gets up to SETTLE_SECONDS, never past the
-                        # run's wait deadline; at least two reads are always
-                        # attempted.
-                        budget = min(
-                            time.monotonic_ns() + int(SETTLE_SECONDS * 1_000_000_000), deadline_ns
-                        )
-                        digest = settled_digest(target_dir / relative, budget)
-                        settled[relative] = verified if digest is None else digest
-                    files[relative] = settled[relative]
-                files.update(own["files"])
-                artifact = {"files": files, "digest": artifact_digest(files)}
             else:
                 # Declared paths are hashed as named; otherwise every recorded
                 # package is held exclusive, so each is discovered.
@@ -472,6 +473,7 @@ def run_build(
                     manifest,
                     execution_root,
                     tuple(sorted(recorded_packages[package])),
+                    workspace_owners(),
                 )
             _write_atomic(
                 records[package],

@@ -1095,7 +1095,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             with patch.object(artifacts, "_file_digest", side_effect=lambda _: f"read-{next(reads)}"):
                 return settle(path, deadline_ns)
 
-        with patch.object(identity, "settled_digest", side_effect=unsettled):
+        with patch.object(artifacts, "settled_digest", side_effect=unsettled):
             result = self.dependency_build("first", wait=3, discover=True)
         files = json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"]
         self.assertEqual(files["debug/deps/libdep-0ecdeded.rlib"], artifacts.UNVERIFIED)
@@ -1658,7 +1658,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             run_checked(command, cwd, environment)
 
         with (
-            patch.object(identity, "discover_artifacts", side_effect=spy_discover),
+            patch.object(artifacts, "discover_artifacts", side_effect=spy_discover),
             patch.object(identity, "_run_checked", side_effect=skip_real_clean),
         ):
             result = self.dependency_build("second", discover=True, clean=False)
@@ -2555,7 +2555,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.object(build_inputs, "dependency_snapshot", return_value=snapshot),
             patch.object(identity, "artifact_identity", return_value=artifact_value),
-            patch.object(identity, "recorded_artifact_identity", return_value=artifact_value),
+            patch.object(artifacts, "recorded_artifact_identity", return_value=artifact_value),
             patch.object(build_records, "recorded_artifact_identity", return_value=artifact_value),
             patch.object(identity, "_run_checked", side_effect=run_command),
         ):
@@ -3756,12 +3756,18 @@ class MultiPackageRunTestCase(unittest.TestCase):
         )
 
     def push(
-        self, gate: Path, command: list[str] | None = None, packages: tuple[str, ...] = ("a", "c")
+        self,
+        gate: Path,
+        command: list[str] | None = None,
+        packages: tuple[str, ...] = ("a", "c"),
+        record: tuple[str, ...] = (),
     ):
-        """One clippy step over `packages` from a fresh export of the source."""
+        """One clippy step building `packages` and recording `record` (default:
+        all of them), in the gate's export, cloned from the source when new."""
         export = gate / "nested" / "ws"
         export.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["git", "clone", "-q", str(self.source), str(export)], check=True)
+        if not export.exists():
+            subprocess.run(["git", "clone", "-q", str(self.source), str(export)], check=True)
         manifest = str(export / "Cargo.toml")
         self.log.unlink(missing_ok=True)
         with (
@@ -3771,13 +3777,14 @@ class MultiPackageRunTestCase(unittest.TestCase):
             return identity.run_build(
                 export,
                 export / "Cargo.toml",
-                packages,
+                record or packages,
                 self.base / "target",
                 command
                 or ["cargo", "clippy", "-q", "--manifest-path", manifest, "--locked", "--offline",
                     *(argument for package in packages for argument in ("-p", package))],
                 command_cwd=export,
                 command_key="atlas-pre-push",
+                selection=packages,
             )
 
     def invocations(self) -> list[list[str]]:
@@ -3908,12 +3915,76 @@ class MultiPackageRunTestCase(unittest.TestCase):
                 if (match := re.match(r"^(?:lib)?([abc])-[0-9a-f]+", part))
             }
 
-        for gate in ("gate1", "gate2"):
+        for gate, status in (("gate1", "rebuilt"), ("gate2", "reused")):
             with self.subTest(gate=gate):
                 c, a = self.push(self.base / gate, packages=("c", "a"))
+                self.assertEqual([c.status, a.status], [status, status])
                 self.assertEqual(packages_named(c), {"c"})
-                self.assertIn("a", packages_named(a))
-                self.assertLessEqual(packages_named(a), {"a", "b"})
+                self.assertEqual(packages_named(a), {"a", "b"})
+
+    def test_cargo_metadata_reads_do_not_grow_with_the_package_count(self) -> None:
+        """One owners read and one snapshot read per pass, whatever the
+        package count: a record loop that read the metadata for each
+        package (5 reads for two packages, 7 for four) fails this."""
+        real = subprocess.run
+
+        def reads(gate: str, packages: tuple[str, ...]) -> int:
+            count = 0
+
+            def counting(args, *rest, **options):
+                nonlocal count
+                if isinstance(args, (list, tuple)) and "metadata" in map(str, args):
+                    count += 1
+                return real(args, *rest, **options)
+
+            with patch.object(subprocess, "run", counting):
+                self.push(self.base / gate, packages=packages)
+            return count
+
+        for phase, (one, three) in {
+            "building": (("one1", ("a",)), ("three1", ("a", "b", "c"))),
+            "reusing": (("one2", ("a",)), ("three2", ("a", "b", "c"))),
+        }.items():
+            with self.subTest(phase=phase):
+                self.assertEqual(reads(*one), reads(*three))
+
+    def test_steps_of_one_selection_share_their_records(self) -> None:
+        """A push's steps build one package set, whatever each records: `c`
+        writes no artifact in the middle step, as a package with no test
+        target writes none for tests. The middle step reuses the record the
+        first wrote and the last reuses both, so the push cleans once when
+        its commit moved and never when it did not (steps naming `-p a -p c`,
+        then `-p a`, then `-p a -p c` cleaned on each of the three)."""
+        steps = [("a", "c"), ("a",), ("a", "c")]
+
+        def push(gate: str) -> list[list[str]]:
+            cleans: list[list[str]] = []
+            for record in steps:
+                self.push(self.base / gate, packages=("a", "c"), record=record)
+                cleans.extend(
+                    cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"
+                )
+            return cleans
+
+        self.assertEqual(push("gate1"), [["a", "b", "c"]])
+        self.assertEqual(push("gate2"), [])
+        (self.source / "c" / "src" / "lib.rs").write_text(
+            "//! c\n/// c\npub fn c() -> u32 { 4 }\n", encoding="utf-8"
+        )
+        git(self.source, "commit", "-q", "-am", "edit c")
+        self.assertEqual(push("gate3"), [["a", "b", "c"]])
+        self.assertEqual(push("gate4"), [])
+
+    def test_a_package_outside_the_selection_is_refused(self) -> None:
+        with self.assertRaisesRegex(identity.IdentityError, "not all in the selection"):
+            identity.run_build(
+                self.source,
+                self.source / "Cargo.toml",
+                ("a", "c"),
+                self.base / "target",
+                ["cargo", "clippy"],
+                selection=("a",),
+            )
 
     def test_leases_are_taken_in_package_name_order(self) -> None:
         order: list[str] = []
@@ -4892,6 +4963,22 @@ class CommandLineTestCase(unittest.TestCase):
             [(line["package"], line["status"], line["cleaned"]) for line in lines],
             [("demo", "reused", False), ("other", "rebuilt", True)],
         )
+
+    def test_run_passes_the_selection_through(self) -> None:
+        results = (identity.BuildResult("reused", self.target / "demo.json", False, ()),)
+        with (
+            patch.object(self.cli, "run_build", return_value=results) as run_build,
+            redirect_stdout(io.StringIO()),
+        ):
+            code = self.cli.main([
+                "run", "--root", str(self.root), "--package", "demo",
+                "--selection", "demo", "--selection", "other",
+                "--target-dir", str(self.target), "--manifest", str(self.root / "Cargo.toml"),
+                "--", sys.executable, str(self.build),
+            ])
+        self.assertEqual(code, 0)
+        self.assertEqual(run_build.call_args.args[2], ("demo",))
+        self.assertEqual(run_build.call_args.kwargs["selection"], ["demo", "other"])
 
     def test_check_passes_the_selection_through(self) -> None:
         stdout = io.StringIO()
