@@ -11,9 +11,12 @@ predicate it calls.
 from __future__ import annotations
 
 import importlib.util
+import os
 import subprocess
+import sys
 import tempfile
 import textwrap
+import time
 import unittest
 from argparse import Namespace
 from pathlib import Path
@@ -528,6 +531,85 @@ class HookInstallTestCase(unittest.TestCase):
             configured,
             {"unset": owned, "copy": owned, "custom": "D:/elsewhere/hooks"},
         )
+
+
+STALLED_TREE = textwrap.dedent(
+    """\
+    import os, subprocess, sys, time
+
+    beat = os.environ["FAKE_HEARTBEAT"]
+    if sys.argv[1:2] == ["--child"]:
+        # Holds the pipes the parent was given, beating until told to stop or
+        # for 80 s, so a test that fails to end it cannot leave it behind.
+        for count in range(400):
+            if os.path.exists(beat + ".stop"):
+                break
+            with open(beat, "w") as handle:
+                handle.write(str(count))
+            time.sleep(0.2)
+        sys.exit(0)
+    subprocess.Popen([sys.executable, __file__, "--child"])
+    time.sleep(80)
+    """
+)
+
+# The tree is ended by a kill and a drain of the pipes it held, which the
+# runner bounds at a few seconds each; the margin also absorbs host load. The
+# child outlives any deadline plus this margin, so a call that waited for it
+# would exceed it.
+TEARDOWN_MARGIN_SECONDS = 20
+STALL_DEADLINE_SECONDS = 5
+
+
+class TreeDeadlineTestCase(unittest.TestCase):
+    """A command that outlives its deadline is ended together with its child.
+
+    A parent killed alone leaves a descendant holding the output pipes, and
+    reading them then blocks until the descendant exits."""
+
+    def _assert_tree_ended(self, call) -> object:
+        with tempfile.TemporaryDirectory(prefix="atlas-tree-") as tmp:
+            script = Path(tmp) / "stalled_tree.py"
+            script.write_text(STALLED_TREE, encoding="utf-8")
+            beat = Path(tmp) / "beat"
+            try:
+                with patch.dict(os.environ, {"FAKE_HEARTBEAT": str(beat)}):
+                    started = time.monotonic()
+                    outcome = call(script)
+                    elapsed = time.monotonic() - started
+                self.assertLess(elapsed, STALL_DEADLINE_SECONDS + TEARDOWN_MARGIN_SECONDS)
+                self.assertTrue(beat.exists(), "the child never started")
+                first = int(beat.read_text(encoding="utf-8") or "0")
+                time.sleep(1.0)
+                # Five beats would have passed had the child survived.
+                self.assertEqual(int(beat.read_text(encoding="utf-8") or "0"), first)
+            finally:
+                Path(str(beat) + ".stop").write_text("stop", encoding="utf-8")
+            return outcome
+
+    def test_a_cargo_whose_child_outlives_the_deadline_is_ended_with_its_tree(self) -> None:
+        def call(script: Path) -> subprocess.CompletedProcess:
+            with patch.object(_lock_form, "CARGO_COMMAND", (sys.executable, str(script))), \
+                    patch.object(_lock_form, "CARGO_METADATA_DEADLINE_SECONDS", STALL_DEADLINE_SECONDS):
+                return _lock_form._cargo_outside(Path("Cargo.toml"))
+
+        result = self._assert_tree_ended(call)
+        self.assertEqual(result.returncode, 124)
+        self.assertIn(f"timed out after {STALL_DEADLINE_SECONDS}s", result.stderr)
+
+    def test_a_command_whose_child_outlives_the_deadline_is_ended_with_its_tree(self) -> None:
+        def call(script: Path) -> None:
+            with patch.object(_lock_form, "GIT_DEADLINE_SECONDS", STALL_DEADLINE_SECONDS):
+                with self.assertRaisesRegex(RuntimeError, "timed out"):
+                    _lock_form.run(sys.executable, str(script))
+
+        self._assert_tree_ended(call)
+
+    def test_a_missing_cargo_is_a_failed_resolve(self) -> None:
+        with patch.object(_lock_form, "CARGO_COMMAND", ("atlas-no-such-cargo",)):
+            result = _lock_form._cargo_outside(Path("Cargo.toml"))
+        self.assertEqual(result.returncode, 127)
+        self.assertIn("cannot run atlas-no-such-cargo", result.stderr)
 
 
 class PublishRequestTests(unittest.TestCase):
