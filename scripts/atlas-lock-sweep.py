@@ -41,6 +41,12 @@ For each registered member, read from its fetched default branch:
 No working tree is created or switched, so a member at its two-worktree bound
 is swept like any other: the bound governs lanes, and this tool needs none.
 
+A rerun with the same targets resumes: a member whose sweep branch is already
+pushed reports its open PR as pending, or opens the PR an interrupted run did
+not, without resolving or pushing again. Each member is fetched again just
+before it is planned, so a landed sweep PR reads as current rather than as a
+stale base to sweep a second time.
+
 A consumer that cannot advance is a row with its reason, never a silent
 omission; the exit status is non-zero if any such row exists. The consumer's
 own CI verifies the advance; the `cargo check` catches API breaks before a
@@ -394,21 +400,49 @@ def advance(plan: Plan, targets: dict[str, str], hooks: Path | None, item: str |
             return Outcome(plan.name, "failed", f"push: no verdict within {PUSH_TIMEOUT_SECONDS} s", False)
         if pushed.returncode != 0:
             return Outcome(plan.name, "failed", failure_detail(plan.name, "push", pushed.stderr), False)
-        refs = ", ".join(f"`{p}@{targets[p]}`" for p in plan.providers())
-        body = (
-            f"Advances this member's first-party lock entries to the named provider merges: "
-            f"{refs}.\n\nResolved outside the stack overlay; `cargo check --workspace --locked` "
-            "passed before the push. Opened by `scripts/atlas-lock-sweep.py`.\n\n"
-            "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
-        )
-        title = commit_message(plan, targets, item).splitlines()[0]
-        opening = open_pull_request(
-            base=default_branch(member), head=branch, title=title, body=body,
-            cwd=member, method="rebase",
-        )
-        if opening.failure is not None:
-            return Outcome(plan.name, "failed", opening.failure, False)
-        return Outcome(plan.name, "opened", opening.url or "", True)
+        return open_sweep_pull_request(plan, targets, item, branch)
+
+
+def open_sweep_pull_request(plan: Plan, targets: dict[str, str], item: str | None, branch: str) -> Outcome:
+    refs = ", ".join(f"`{p}@{targets[p]}`" for p in plan.providers())
+    body = (
+        f"Advances this member's first-party lock entries to the named provider merges: "
+        f"{refs}.\n\nResolved outside the stack overlay; `cargo check --workspace --locked` "
+        "passed before the push. Opened by `scripts/atlas-lock-sweep.py`.\n\n"
+        "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+    )
+    title = commit_message(plan, targets, item).splitlines()[0]
+    opening = open_pull_request(
+        base=default_branch(plan.member), head=branch, title=title, body=body,
+        cwd=plan.member, method="rebase",
+    )
+    if opening.failure is not None:
+        return Outcome(plan.name, "failed", opening.failure, False)
+    return Outcome(plan.name, "opened", opening.url or "", True)
+
+
+def resume(plan: Plan, targets: dict[str, str], item: str | None, open_prs: bool) -> Outcome | None:
+    """The member's row when this sweep already pushed its branch, else None.
+
+    A sweep is rerun with the same named targets after an interrupted run, so
+    its branch name is the same. A second commit to that branch would be
+    rejected as non-fast-forward after the whole check had run, and a run
+    interrupted between push and PR left a branch nobody collects."""
+    branch = branch_name(targets)
+    if not git(plan.member, "ls-remote", "origin", f"refs/heads/{branch}").strip():
+        return None
+    listed = subprocess.run(
+        ["gh", "pr", "list", "--head", branch, "--state", "open", "--json", "url", "--jq", ".[].url"],
+        cwd=plan.member, capture_output=True, encoding="utf-8", errors="replace",
+    )
+    if listed.returncode != 0:
+        return Outcome(plan.name, "failed", f"gh pr list: {listed.stderr.strip()[-200:]}", False)
+    url = listed.stdout.strip()
+    if url:
+        return Outcome(plan.name, "pending", f"{url} (pushed by an earlier run of this sweep)", True)
+    if not open_prs:
+        return Outcome(plan.name, "would", f"open a PR for the pushed {branch}", True)
+    return open_sweep_pull_request(plan, targets, item, branch)
 
 
 def main() -> int:
@@ -454,13 +488,19 @@ def main() -> int:
             git(ROOT, "fetch", "origin", "--quiet")
             hooks = owned_hooks(Path(hooks_dir))
         for member in consumers:
+            # A sweep outlives many merges: a base fetched when it started
+            # predates its own earlier members' landings and any peer's.
+            git(member, "fetch", "origin", "--quiet")
             plan = plan_member(member, targets)
             if plan is None:
                 outcomes.append(Outcome(member.name, "current", "no Cargo.lock", True))
             elif not plan.stale:
                 outcomes.append(Outcome(member.name, "current", "every first-party source at its target", True))
             else:
-                outcomes.append(advance(plan, targets, hooks, arguments.item))
+                outcomes.append(
+                    resume(plan, targets, arguments.item, arguments.open_prs)
+                    or advance(plan, targets, hooks, arguments.item)
+                )
             print(render_report(targets, outcomes[-1:]).splitlines()[-1], flush=True)
     print(render_report(targets, outcomes))
     return 0 if all(o.ok for o in outcomes) else 1
