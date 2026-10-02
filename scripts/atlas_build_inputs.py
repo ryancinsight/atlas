@@ -16,8 +16,10 @@ from atlas_build_source import (
     _sha256_bytes,
     cargo_config_digest,
     environment_digest,
+    repository_head,
     source_identity,
     toolchain_identity,
+    worktree_identity,
 )
 
 
@@ -149,15 +151,17 @@ def _dependency_data(
         }
     else:
         metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False)
-        source_cache: dict[Path, dict[str, object]] = {}
+        # Keyed by work tree: every path package of one repository has that
+        # repository's identity, so it is computed once per pass.
+        source_cache: dict[tuple[Path, str], dict[str, object]] = {}
         package_source_cache = target_dir / ".atlas" / "source-identity" / "package-source"
 
         def identify_source(path: Path) -> dict[str, object]:
-            canonical_path = _canonical(path)
-            if canonical_path not in source_cache:
-                identified = source_identity(canonical_path, (target_dir,), ignore_paths)
-                source_cache[canonical_path] = _content(identified.as_dict())
-            return source_cache[canonical_path]
+            head = repository_head(path)
+            if head not in source_cache:
+                identified = worktree_identity(*head, (target_dir,), ignore_paths)
+                source_cache[head] = _content(identified.as_dict())
+            return source_cache[head]
 
         snapshots = {
             package: dependency_snapshot(
