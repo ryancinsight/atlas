@@ -41,6 +41,7 @@ from atlas_target_dir import (
     ensure_lane_config,
     lane_config,
     lane_config_text,
+    lane_target_overrides,
     shared_target_for,
 )
 
@@ -108,6 +109,8 @@ def state() -> str:
 
 def lane_state() -> str:
     """Return the state of the config inherited by linked worktree lanes."""
+    if lane_target_overrides(ATLAS_ROOT):
+        return "override"
     if not LANE_CONFIG.is_file():
         return "missing"
     text = LANE_CONFIG.read_text(encoding="utf-8").replace("\r\n", "\n")
@@ -119,7 +122,11 @@ def lane_state() -> str:
 def generate() -> int:
     status = state()
     lane_status = lane_state()
-    if status == "foreign" or lane_status == "foreign":
+    if status == "foreign" or lane_status in {"foreign", "override"}:
+        if lane_status == "override":
+            print("error: a lane-local or legacy Cargo config declares target-dir; "
+                  "remove the override before generating the shared config")
+            return 1
         foreign = LANE_CONFIG if lane_status == "foreign" else CONFIG
         print(f"error: {rel(foreign)} exists and this tool did not write it -- left alone")
         return 1
