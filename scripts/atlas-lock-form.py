@@ -51,6 +51,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lockfile  # noqa: E402
 from atlas_git_process import (  # noqa: E402
     GitProcessError,
+    GitProcessResult,
+    clean_process_env,
     execute as execute_git,
     execute_process,
 )
@@ -320,23 +322,29 @@ def member_scope(requested: list[str]) -> tuple[str, ...] | None:
     return tuple(sorted(members))
 
 
-def git_bytes(
+def git_result(
     repo: Path,
     *args: str,
     stdin: bytes | None = None,
     index: Path | None = None,
-) -> bytes:
-    """Run bounded git in `repo`; raise with git's message on failure.
+) -> GitProcessResult:
+    """Run bounded git in `repo` with the inherited repository selection removed.
+
+    None of the variables `git rev-parse --local-env-vars` lists (`GIT_DIR`,
+    `GIT_COMMON_DIR`, `GIT_INDEX_FILE`, ...) in the caller's environment
+    redirects the command away from `repo`; only `index` names an index. A
+    launch failure or a deadline raises; a non-zero exit is the caller's to
+    read.
 
     `index` points git at a private index file, so a commit can be built from a
     member's fetched default without reading or touching its working tree or
     its real index -- which may belong to a peer mid-edit.
     """
-    env = dict(os.environ)
+    env = clean_process_env()
     if index is not None:
         env["GIT_INDEX_FILE"] = str(index)
     try:
-        result = execute_git(
+        return execute_git(
             repo,
             tuple(args),
             stdin=stdin,
@@ -345,6 +353,16 @@ def git_bytes(
         )
     except GitProcessError as error:
         raise RuntimeError(str(error)) from error
+
+
+def git_bytes(
+    repo: Path,
+    *args: str,
+    stdin: bytes | None = None,
+    index: Path | None = None,
+) -> bytes:
+    """Run bounded git in `repo`; raise with git's message on failure."""
+    result = git_result(repo, *args, stdin=stdin, index=index)
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(f"git {' '.join(args)} in {repo.name}: {detail}")

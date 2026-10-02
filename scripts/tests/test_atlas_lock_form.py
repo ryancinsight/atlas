@@ -408,6 +408,128 @@ class HookInstallTestCase(unittest.TestCase):
         self.assertEqual((run.returncode, out.decode()), (1, ""), err.decode())
         self.assertIn("has no scripts/git-hooks/pre-push", err.decode())
 
+    def test_an_exported_shellopts_reaches_the_hook_unchanged(self) -> None:
+        """Bash re-exports an inherited SHELLOPTS with its current options, so
+        the hook sees the caller's options -- neither the shim's own
+        `set -euo pipefail` nor a reset of them -- and the caller's
+        `noclobber` cannot stop the shim writing its cache."""
+        hook = b'#!/usr/bin/env bash\necho "$-|$SHELLOPTS" >&2\nexit 3\n'
+        self.publish({"pre-push": hook})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        direct_file = Path(self._tmp.name) / "direct-hook"
+        direct_file.write_bytes(hook)
+        for exported in (
+            "braceexpand:hashall:interactive-comments",
+            "braceexpand:errexit:hashall:interactive-comments:noclobber:nounset:pipefail",
+        ):
+            with self.subTest(exported=exported):
+                # Each run fetches the blob afresh, so `noclobber` meets the
+                # write into the shim's temporary file.
+                shutil.rmtree(shims / "blobs", ignore_errors=True)
+                options = {"SHELLOPTS": exported}
+                direct = subprocess.run(
+                    ["bash", str(direct_file)], capture_output=True, env={**os.environ, **options},
+                )
+                run = self.run_shim(shims, **options)
+                _, err = run.communicate(b"", timeout=60)
+                self.assertEqual((direct.returncode, run.returncode), (3, 3))
+                self.assertEqual(err.decode().strip(), direct.stderr.decode().strip())
+                self.assertEqual("errexit" in err.decode(), "errexit" in exported)
+
+    def test_allexport_does_not_leak_the_shims_variables_into_the_hook(self) -> None:
+        """With `allexport` inherited, every assignment the shim makes and its
+        lookup function would reach the hook's environment; the hook
+        still sees the option itself."""
+        self.publish({"pre-push": b"#!/usr/bin/env bash\nenv >&2\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims, SHELLOPTS="allexport:braceexpand:hashall:interactive-comments")
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual(run.returncode, 3, err.decode())
+        seen = dict(
+            line.split("=", 1) for line in err.decode().splitlines() if "=" in line
+        )
+        leaked = {name for name in seen if "__atlas_shim_" in name}
+        self.assertEqual(leaked, set())
+        self.assertIn("allexport", seen["SHELLOPTS"].split(":"))
+
+    def test_a_caller_variable_named_like_a_shim_variable_reaches_the_hook_unchanged(self) -> None:
+        self.publish({"pre-push": b"#!/usr/bin/env bash\nenv >&2\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        caller = {
+            "cache": "c", "commit": "m", "blob": "b", "partial": "p",
+            "caller_options": "o", "atlas_git": "g",
+        }
+        run = self.run_shim(shims, **caller)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual(run.returncode, 3, err.decode())
+        seen = dict(line.split("=", 1) for line in err.decode().splitlines() if "=" in line)
+        self.assertEqual({name: seen.get(name) for name in caller}, caller)
+
+    def test_git_result_ignores_an_inherited_index_and_honours_a_named_one(self) -> None:
+        member = self.member("alpha")
+        foreign, named = Path(self._tmp.name) / "foreign-index", Path(self._tmp.name) / "named-index"
+        locate = ("rev-parse", "--path-format=absolute", "--git-path", "index")
+        with patch.dict(os.environ, {"GIT_INDEX_FILE": str(foreign)}):
+            inherited = _lock_form.git_in(member, *locate)
+            explicit = _lock_form.git_in(member, *locate, index=named)
+        self.assertEqual(Path(inherited).resolve(), (member / ".git" / "index").resolve())
+        self.assertEqual(Path(explicit).resolve(), named.resolve())
+
+    def test_a_callers_exported_function_named_atlas_reaches_the_hook(self) -> None:
+        self.publish({"pre-push": b"#!/usr/bin/env bash\natlas >&2\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims, **{"BASH_FUNC_atlas%%": "() { echo caller-atlas; }"})
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, err.decode().strip()), (3, "caller-atlas"))
+
+    def test_an_inherited_xtrace_traces_the_hook_and_not_the_shim(self) -> None:
+        hook = b"#!/usr/bin/env bash\necho hook-ran >&2\nexit 3\n"
+        self.publish({"pre-push": hook})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        direct_file = Path(self._tmp.name) / "direct-hook"
+        direct_file.write_bytes(hook)
+        options = {"SHELLOPTS": "braceexpand:hashall:interactive-comments:xtrace"}
+        direct = subprocess.run(
+            ["bash", str(direct_file)], capture_output=True, env={**os.environ, **options},
+        )
+        run = self.run_shim(shims, **options)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((direct.returncode, run.returncode), (3, 3))
+        direct_lines = direct.stderr.decode().splitlines()
+        self.assertIn("+ echo hook-ran", direct_lines)
+        # The hook's trace is the direct run's; the shim adds only its exec.
+        extra = [line for line in err.decode().splitlines() if line not in direct_lines]
+        self.assertEqual(len(extra), 1, extra)
+        self.assertTrue(extra[0].startswith("+ exec "), extra)
+        self.assertEqual([line for line in err.decode().splitlines() if line in direct_lines], direct_lines)
+
+    def test_install_reads_the_source_ref_in_the_atlas_repository(self) -> None:
+        """An inherited `GIT_DIR` naming another repository must not divert the
+        lookup of origin/main."""
+        self.publish({"pre-push": owned_hook("owned")})
+        stranger = Path(self._tmp.name) / "stranger"
+        subprocess.run(["git", "init", "-q", str(stranger)], check=True)
+        with patch.dict(os.environ, {"GIT_DIR": str(stranger / ".git")}):
+            commit = _lock_form.hook_source_commit(self.atlas)
+        self.assertEqual(commit, self.git(self.atlas, "rev-parse", "refs/remotes/origin/main"))
+
+    def test_a_crlf_cache_copy_is_rewritten_under_autocrlf(self) -> None:
+        """`core.autocrlf` hashes a CRLF file as its LF blob; the cache check
+        hashes raw bytes, so the converted copy is rewritten before it runs."""
+        self.git(self.atlas, "config", "core.autocrlf", "true")
+        refusing = b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"
+        self.publish({"pre-push": refusing})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims)
+        run.communicate(b"", timeout=60)
+        (cached,) = (shims / "blobs").iterdir()
+        cached.write_bytes(refusing.replace(b"\n", b"\r\n"))
+        run = self.run_shim(shims)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
+        self.assertEqual(cached.read_bytes(), refusing)
+
+
     def test_a_hook_holding_a_carriage_return_runs_under_autocrlf(self) -> None:
         """A blob whose bytes hold CRLF hashes to its own id only unfiltered;
         a filtered hash would refuse every run of that hook."""
