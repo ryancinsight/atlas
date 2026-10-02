@@ -12,6 +12,7 @@ skipped without a row — the failure the tool exists to prevent.
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -26,6 +27,7 @@ sys.modules[SPEC.name] = sweep
 SPEC.loader.exec_module(sweep)
 
 HERMES = "https://github.com/ryancinsight/hermes.git"
+NL = chr(10)
 
 
 class UrlTests(unittest.TestCase):
@@ -123,6 +125,52 @@ class PlanTests(unittest.TestCase):
         self.assertIn("kwavers", report)
         self.assertIn("failed", report)
         self.assertIn("hermes-simd -> 6da6d139", report)
+
+
+class OpenPullRequestTests(unittest.TestCase):
+    consumer = sweep.Consumer(Path("repos/leto"), HERMES)
+    lane = Path("worktrees/leto-lock-sweep")
+    url = "https://github.com/ryancinsight/leto/pull/7"
+
+    def runner(self, create: tuple[int, str, str], merge: tuple[int, str, str]):
+        calls: list[tuple[list[str], Path]] = []
+
+        def run(argv, cwd=None, **_options):
+            calls.append((argv, cwd))
+            code, out, err = create if argv[:3] == ["gh", "pr", "create"] else merge
+            return subprocess.CompletedProcess(argv, code, out, err)
+
+        return run, calls
+
+    def open(self, run):
+        return sweep.open_pull_request(
+            self.consumer, self.lane, "main", "build/hermes-simd-6da6d139", "build(deps): t", "body", run=run
+        )
+
+    def test_auto_merge_is_enabled_on_the_created_pr_with_an_explicit_merge_method(self) -> None:
+        run, calls = self.runner((0, f"warning: x{NL}{self.url}{NL}", ""), (0, "", ""))
+        outcome = self.open(run)
+        self.assertEqual([argv[:3] for argv, _ in calls], [["gh", "pr", "create"], ["gh", "pr", "merge"]])
+        self.assertEqual(calls[1][0], ["gh", "pr", "merge", self.url, "--auto", "--merge", "--delete-branch"])
+        self.assertEqual([cwd for _, cwd in calls], [self.lane, self.lane])
+        self.assertEqual((outcome.action, outcome.detail, outcome.ok), ("opened", self.url, True))
+
+    def test_failed_auto_merge_is_a_failure_carrying_the_pr_url(self) -> None:
+        run, calls = self.runner((0, self.url + NL, ""), (1, "", "x" + NL + "GraphQL: auto merge is not allowed"))
+        outcome = self.open(run)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(outcome.action, "failed")
+        self.assertFalse(outcome.ok)
+        self.assertEqual(
+            outcome.detail,
+            f"gh pr merge --auto: x{NL}GraphQL: auto merge is not allowed (PR {self.url})",
+        )
+
+    def test_failed_create_does_not_attempt_a_merge(self) -> None:
+        run, calls = self.runner((1, "", "boom"), (0, "", ""))
+        outcome = self.open(run)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual((outcome.action, outcome.detail, outcome.ok), ("failed", "gh pr create: boom", False))
 
 
 if __name__ == "__main__":
