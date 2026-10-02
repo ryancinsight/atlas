@@ -868,6 +868,164 @@ def cmd_publish_hooks(args) -> int:
     return 1 if failures else 0
 
 
+# The hooks ref a shim resolves: the Atlas default branch as last fetched.
+HOOK_SOURCE_REF = "refs/remotes/origin/main"
+
+# The client-side hook names in githooks(5), without the `p4-*` and
+# `fsmonitor-watchman` integrations no member uses. An owned file under
+# another name (`rescue-push`, which the pre-push hook reads from the stack
+# ref itself) gets no shim.
+GIT_HOOK_NAMES = frozenset({
+    "applypatch-msg", "pre-applypatch", "post-applypatch", "pre-commit",
+    "pre-merge-commit", "prepare-commit-msg", "commit-msg", "post-commit",
+    "pre-rebase", "post-checkout", "post-merge", "pre-push", "pre-auto-gc",
+    "post-rewrite", "reference-transaction", "sendemail-validate",
+    "post-index-change",
+})
+
+# A shim runs the owned hook as committed at `HOOK_SOURCE_REF`, never a
+# working-tree copy or the checked-out branch. It resolves the blob at every
+# invocation, so a fetch of the Atlas repository moves every member to a
+# newer copy of each installed hook; a hook name new to `HOOK_SOURCE_REF`
+# needs `install-hooks` again, and one it dropped refuses until
+# `install-hooks` removes its shim. The blob is cached by id: a cached file
+# is re-hashed before it runs and a fresh copy before it is renamed into
+# place, so a corrupt or altered cache, or a blob object whose content does
+# not match its id, refuses instead of running. A writer that fails removes
+# its partial file; one killed mid-write leaves `<blob>.XXXXXX`, which is
+# never run. The cache keeps one file per hook revision.
+# Trust: `HOOK_SOURCE_REF` and the commit and tree objects that resolve the
+# path are trusted as Git stores them -- Git does not hash a tree it reads,
+# and whoever can rewrite them can move the ref too -- but replace refs are
+# ignored (`--no-replace-objects`), since `git replace` would redirect the
+# lookup without touching either. The environment git runs the hook with is
+# trusted as the owned hook itself trusts it: an exported function or a
+# `BASH_ENV` file redirects the hook's own `cargo` and `git` as surely as
+# the shim's `exec`.
+# The lookups name Atlas with `--git-dir`, which outranks any `GIT_DIR` in
+# the hook's environment (`git -C <atlas>` would not), and drop the
+# variables that would still redirect them to another object store; the
+# hook itself runs with the environment git gave it.
+HOOK_SHIM = """#!/usr/bin/env bash
+# Written by `scripts/atlas-lock-form.py install-hooks`; rerun it instead of
+# editing. Runs the owned `{name}` hook as committed at the Atlas
+# `{ref}`, never the Atlas checkout's copy, which holds whatever branch a
+# peer left checked out.
+# The shim's variables carry a reserved prefix and are unset before the exec,
+# so a caller's own `cache` or `commit` never reaches the hook altered.
+set -euo pipefail
+__atlas_shim_git={git_dir}
+__atlas_shim_lookup() {{
+  env -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES \\
+    -u GIT_REPLACE_REF_BASE git --no-replace-objects --git-dir="$__atlas_shim_git" "$@"
+}}
+# `show-ref --verify` takes only the full ref name: `rev-parse` would fall
+# back to a branch named `{ref}` when the ref itself is gone.
+if ! __atlas_shim_commit="$(__atlas_shim_lookup show-ref --verify --hash '{ref}' 2>/dev/null)" ||
+   ! __atlas_shim_blob="$(__atlas_shim_lookup rev-parse --verify --quiet "$__atlas_shim_commit:scripts/git-hooks/{name}")"; then
+  echo "atlas hooks: {ref} in $__atlas_shim_git has no scripts/git-hooks/{name}; fetch the Atlas repository, then run scripts/atlas-lock-form.py install-hooks there" >&2
+  exit 1
+fi
+__atlas_shim_cache="$__atlas_shim_git/atlas-hooks/blobs/$__atlas_shim_blob"
+if [ ! -f "$__atlas_shim_cache" ] || [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_cache")" != "$__atlas_shim_blob" ]; then
+  mkdir -p "${{__atlas_shim_cache%/*}}"
+  __atlas_shim_partial="$(mktemp "$__atlas_shim_cache.XXXXXX")"
+  # `cat-file` does not check an object against its id, so the copy is
+  # hashed before it can run: an altered blob object refuses instead of
+  # running. `--no-filters` on every hash: `core.autocrlf` would otherwise
+  # give a CRLF copy the id of its LF blob.
+  if ! {{ __atlas_shim_lookup cat-file blob "$__atlas_shim_blob" >| "$__atlas_shim_partial" &&
+         [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_partial")" = "$__atlas_shim_blob" ] &&
+         chmod +x "$__atlas_shim_partial" && mv -f "$__atlas_shim_partial" "$__atlas_shim_cache"; }}; then
+    rm -f "$__atlas_shim_partial"
+    exit 1
+  fi
+fi
+set +euo pipefail
+set -- "$__atlas_shim_cache" "$@"
+unset -f __atlas_shim_lookup
+unset __atlas_shim_git __atlas_shim_commit __atlas_shim_blob __atlas_shim_cache __atlas_shim_partial
+exec "$@"
+"""
+
+
+def _replace_shim(shim: Path, content: bytes) -> None:
+    """Install `content` at `shim` by rename, never by truncating in place.
+
+    Git executes the shim file itself, so a shim rewritten in place is
+    briefly empty, and a hook started in that window exits 0 without running
+    the owned hook: a refusing gate passes. Unchanged bytes are left alone.
+    """
+    # Windows has no execute bit; Git for Windows runs a hook by its shebang.
+    if (
+        shim.is_file()
+        and shim.read_bytes() == content
+        and (os.name == "nt" or shim.stat().st_mode & 0o100)
+    ):
+        return
+    temporary = shim.with_name(f".{shim.name}.{os.getpid()}.partial")
+    temporary.write_bytes(content)
+    temporary.chmod(0o755)
+    os.replace(temporary, shim)
+
+
+def _shell_word(text: str) -> str:
+    """`text` as one single-quoted bash word, whatever characters it holds."""
+    return "'" + text.replace("'", "'\\''") + "'"
+
+
+def hook_source_commit(atlas: Path) -> str | None:
+    """The commit `HOOK_SOURCE_REF` names in `atlas`, matched by full name only."""
+    try:
+        commit = git_in(atlas, "show-ref", "--verify", "--hash", HOOK_SOURCE_REF)
+    except RuntimeError:
+        return None
+    return commit or None
+
+
+def common_git_dir(repo: Path) -> Path:
+    """The git directory `repo` shares with its linked working trees."""
+    return Path(git_in(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+
+
+def write_hook_shims(atlas: Path) -> Path:
+    """The shim directory for `atlas`'s owned hooks, written in its git directory.
+
+    The common git directory, so a linked Atlas tree and the main one share
+    one set, and no checkout, branch switch or `git clean` of any Atlas tree
+    touches it. Each shim's bytes are written exactly (LF), whatever
+    `core.autocrlf` says.
+    """
+    commit = hook_source_commit(atlas)
+    if commit is None:
+        raise RuntimeError(f"{atlas} has no {HOOK_SOURCE_REF}; fetch it first")
+    git_dir = common_git_dir(atlas)
+    shims = git_dir / "atlas-hooks"
+    shims.mkdir(parents=True, exist_ok=True)
+    # Read as the shim reads it: replace refs ignored.
+    listing = git_in(
+        atlas, "--no-replace-objects", "ls-tree", "--name-only", f"{commit}:scripts/git-hooks"
+    )
+    names = set(listing.splitlines()) & GIT_HOOK_NAMES
+    # A hook `HOOK_SOURCE_REF` no longer carries loses its shim, which would
+    # otherwise refuse every invocation.
+    for stale in sorted(GIT_HOOK_NAMES - names):
+        if (shims / stale).is_file():
+            (shims / stale).unlink()
+            print(
+                f"install-hooks: removed the {stale} shim; "
+                f"{HOOK_SOURCE_REF} has no scripts/git-hooks/{stale}"
+            )
+    for name in sorted(names):
+        _replace_shim(
+            shims / name,
+            HOOK_SHIM.format(
+                name=name, ref=HOOK_SOURCE_REF, git_dir=_shell_word(git_dir.as_posix())
+            ).encode(),
+        )
+    return shims
+
+
 def cmd_install_hooks(_args) -> int:
     """Point every member's `core.hooksPath` at the committed guard.
 
