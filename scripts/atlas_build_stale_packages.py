@@ -51,6 +51,7 @@ def _stale_packages(
     dependencies: dict[str, object],
     manifest: Path,
     execution_root: Path,
+    owners: dict[str, frozenset[str]] | None = None,
 ) -> tuple[str, ...]:
     """The packages a mismatched record must clean before its command runs.
 
@@ -105,6 +106,7 @@ def _stale_packages(
         manifest,
         execution_root,
         tuple(sorted(scope)),
+        owners,
     )
     stale |= scope if changed is None else changed
     return tuple(sorted(stale))

@@ -65,6 +65,7 @@ def artifact_identity(
     manifest: Path | None = None,
     metadata_cwd: Path | None = None,
     related_packages: Sequence[str] = (),
+    owners: dict[str, frozenset[str]] | None = None,
 ) -> dict[str, object]:
     _canonical(root, strict=True)
     target_dir = _canonical(target_dir)
@@ -80,6 +81,7 @@ def artifact_identity(
                 manifest,
                 metadata_cwd,
                 related_packages,
+                owners,
             )
         )
 
@@ -118,18 +120,18 @@ def changed_packages(
     manifest: Path,
     metadata_cwd: Path | None,
     packages: Sequence[str],
+    owners: dict[str, frozenset[str]] | None = None,
 ) -> set[str] | None:
     """The packages owning the artifact files whose digests changed.
 
     None when a changed file cannot be attributed to exactly one of
-    `packages`; the caller then cleans them all.
+    `packages`; the caller then cleans them all. `owners` is the workspace's
+    artifact stems when the caller has read them already (`artifact_owners`).
     """
     changed = [relative for relative, digest in recorded.items() if current.get(relative) != digest]
-    owners = {
-        name: stems
-        for name, stems in _workspace_artifact_owners(manifest, metadata_cwd).items()
-        if name in packages
-    }
+    if owners is None:
+        owners = _workspace_artifact_owners(manifest, metadata_cwd)
+    owners = {name: stems for name, stems in owners.items() if name in packages}
     names: set[str] = set()
     for relative in changed:
         owner = artifact_package(relative, owners)
@@ -195,6 +197,63 @@ def settled_digest(path: Path, deadline_ns: int) -> str | None:
         if not settling:
             # The first good read is confirmed at once; anything else waits.
             time.sleep(_SETTLE_INTERVAL)
+
+
+def shared_artifact_identity(
+    target_dir: Path,
+    package: str,
+    profile: str,
+    target: str,
+    manifest: Path,
+    metadata_cwd: Path,
+    exclusive_packages: Iterable[str],
+    shared_packages: frozenset[str] | set[str],
+    named: dict[str, str],
+    owners: dict[str, frozenset[str]],
+    settled: dict[str, str],
+    deadline_ns: int,
+) -> dict[str, object]:
+    """A run's record of `package`'s artifacts when it held some path packages shared.
+
+    Peers read, and their Cargo may rewrite, every path package the run holds
+    shared, so those are found by the names a record lists (`named`, with the
+    digests read before the command), never by discovery, and each is hashed
+    again once two reads agree: the command rebuilt them in place (a fresh
+    export has fresh mtimes, and rustc embeds its path in the bytes). A file
+    that never settles is recorded unverified, and one that cannot be read at
+    all keeps its digest read before the command. Only the path packages held
+    exclusive are discovered afresh, and their recorded names are dropped, so a
+    name their rebuild retired is not kept. `settled` memoizes each file's
+    digest across the run's packages; each file gets up to SETTLE_SECONDS, never
+    past `deadline_ns`, and at least two reads are always attempted.
+    """
+    own = recorded_artifact_identity(
+        target_dir,
+        [
+            path.relative_to(target_dir).as_posix()
+            for path in discover_artifacts(
+                target_dir,
+                package,
+                profile,
+                target,
+                manifest,
+                metadata_cwd,
+                tuple(sorted(exclusive_packages)),
+                owners,
+            )
+        ],
+    )
+    files = {}
+    for relative, verified in named.items():
+        if artifact_package(relative, owners) not in shared_packages:
+            continue
+        if relative not in settled:
+            budget = min(time.monotonic_ns() + int(SETTLE_SECONDS * 1_000_000_000), deadline_ns)
+            digest = settled_digest(target_dir / relative, budget)
+            settled[relative] = verified if digest is None else digest
+        files[relative] = settled[relative]
+    files.update(own["files"])
+    return {"files": files, "digest": artifact_digest(files)}
 
 
 def artifact_digest(files: dict[str, str]) -> str:

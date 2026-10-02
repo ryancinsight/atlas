@@ -120,7 +120,6 @@
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="atlas-identity-lease-starvation"></a>- [ATLAS-IDENTITY-LEASE-STARVATION](backlog/atlas-identity-lease-starvation.md) — Gated pushes starve on the 900 s identity-lease wait [verification] — todo
 <a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
-<a id="atlas-gate-step-batch"></a>- [ATLAS-GATE-STEP-BATCH](backlog/atlas-gate-step-batch.md) — One identity run per gate step, not per package [patch] — todo
 <a id="atlas-identity-ignored-files"></a>- [ATLAS-IDENTITY-IGNORED-FILES](backlog/atlas-identity-ignored-files.md) — Keep gitignored run output out of a path package's identity [patch] — todo
 <a id="atlas-identity-overlay-locked-metadata"></a>- [ATLAS-IDENTITY-OVERLAY-LOCKED-METADATA](backlog/atlas-identity-overlay-locked-metadata.md) — Read the overlay's dependency graph without refusing its lock [patch] — todo
 <a id="atlas-identity-midrun-git-edit"></a>- [ATLAS-IDENTITY-MIDRUN-GIT-EDIT](backlog/atlas-identity-midrun-git-edit.md) — Stamp a trusted Git package whose checkout moved during a failed run [patch] — todo
@@ -128,5 +127,6 @@
 <a id="atlas-lock-sweep-lane-bound-2026-10-02"></a>- [ATLAS-LOCK-SWEEP-LANE-BOUND-2026-10-02](backlog/atlas-lock-sweep-lane-bound-2026-10-02.md) — The two-worktree bound is blocking the stack's own lock sweep [correctness] — todo
 <a id="atlas-pub-010"></a>- [ATLAS-PUB-010](backlog/atlas-pub-010.md) — Convert member crate callers to version-change publishing [patch] — todo
 <a id="atlas-pub-011"></a>- [ATLAS-PUB-011](backlog/atlas-pub-011.md) — Release the source that outran its published versions [patch] — todo
+<a id="atlas-identity-member-scope"></a>- [ATLAS-IDENTITY-MEMBER-SCOPE](backlog/atlas-identity-member-scope.md) — A commit cleans every gated package's in-repository closure [tightening] — todo
 <a id="atlas-bounded-runner"></a>- [ATLAS-BOUNDED-RUNNER](backlog/atlas-bounded-runner.md) — Launch every agent process through one bounded runner [patch] — todo
 <a id="atlas-root-hook-test-timeouts"></a>- [ATLAS-ROOT-HOOK-TEST-TIMEOUTS](backlog/atlas-root-hook-test-timeouts.md) — Root hook tests time out under host load [patch] — todo
