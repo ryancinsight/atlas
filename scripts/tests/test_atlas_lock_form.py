@@ -311,18 +311,49 @@ class StagedGateTestCase(EndToEndCheckTestCase):
             repo = root / "repos" / "synthetic"
             (repo / "Cargo.lock").write_text(staged, encoding="utf-8")
             subprocess.run(["git", "-C", str(repo), "add", "Cargo.lock"], check=True)
-            with (
-                patch.object(_lock_form, "REPOS", root / "repos"),
-                # The superproject's own workspaces are scanned too, so the
-                # fixture must own that root as well; otherwise the case reads
-                # the real Atlas tree and its verdict depends on the checkout.
-                patch.object(_lock_form, "ROOT", root),
-                patch.object(
-                    _lock_form, "registered_member_names", lambda: {"synthetic"}
-                ),
-            ):
-                args = type("Args", (), {"repo": str(repo)})()
-                return _lock_form.cmd_staged(args)
+            return self._staged_verdict(root)
+
+    def _staged_verdict(self, root: Path) -> int:
+        repo = root / "repos" / "synthetic"
+        with (
+            patch.object(_lock_form, "REPOS", root / "repos"),
+            # The superproject's own workspaces are scanned too, so the
+            # fixture must own that root as well; otherwise the case reads
+            # the real Atlas tree and its verdict depends on the checkout.
+            patch.object(_lock_form, "ROOT", root),
+            patch.object(
+                _lock_form, "registered_member_names", lambda: {"synthetic"}
+            ),
+        ):
+            args = type("Args", (), {"repo": str(repo)})()
+            return _lock_form.cmd_staged(args)
+
+    def test_staged_mode_reads_the_index_git_named(self) -> None:
+        """`git commit -- <path>` runs pre-commit with `GIT_INDEX_FILE` naming a
+        temporary index; the repository's own index stages nothing here, so a
+        scrubbed environment would read it and pass the churn."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._member(root, STANDALONE)
+            repo = root / "repos" / "synthetic"
+            alternate = root / "alternate-index"
+            alternate_env = {**os.environ, "GIT_INDEX_FILE": str(alternate)}
+            blob = subprocess.run(
+                ["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
+                input=STRIPPED.encode(), capture_output=True, check=True,
+            ).stdout.decode().strip()
+            subprocess.run(["git", "-C", str(repo), "read-tree", "HEAD"], env=alternate_env, check=True)
+            subprocess.run(
+                ["git", "-C", str(repo), "update-index", "--cacheinfo", f"100644,{blob},Cargo.lock"],
+                env=alternate_env, check=True,
+            )
+            own = subprocess.run(
+                ["git", "-C", str(repo), "diff", "--cached", "--name-only"],
+                capture_output=True, text=True, check=True,
+            ).stdout
+            self.assertEqual(own, "")
+            with patch.dict(os.environ, {"GIT_INDEX_FILE": str(alternate)}):
+                self.assertEqual(self._staged_verdict(root), 1)
 
     def test_staging_overlay_churn_is_rejected(self) -> None:
         self.assertEqual(self._run_staged(STANDALONE, STRIPPED), 1)
@@ -739,6 +770,16 @@ class HookInstallTestCase(unittest.TestCase):
         seen = dict(line.split("=", 1) for line in err.decode().splitlines() if "=" in line)
         self.assertEqual({name: seen.get(name) for name in caller}, caller)
 
+    def test_git_result_ignores_an_inherited_index_and_honours_a_named_one(self) -> None:
+        member = self.member("alpha")
+        foreign, named = Path(self._tmp.name) / "foreign-index", Path(self._tmp.name) / "named-index"
+        locate = ("rev-parse", "--path-format=absolute", "--git-path", "index")
+        with patch.dict(os.environ, {"GIT_INDEX_FILE": str(foreign)}):
+            inherited = _lock_form.git_in(member, *locate)
+            explicit = _lock_form.git_in(member, *locate, index=named)
+        self.assertEqual(Path(inherited).resolve(), (member / ".git" / "index").resolve())
+        self.assertEqual(Path(explicit).resolve(), named.resolve())
+
     def test_a_callers_exported_function_named_atlas_reaches_the_hook(self) -> None:
         self.publish({"pre-push": b"#!/usr/bin/env bash\natlas >&2\nexit 3\n"})
         shims = _lock_form.write_hook_shims(self.atlas)
@@ -766,6 +807,16 @@ class HookInstallTestCase(unittest.TestCase):
         self.assertEqual(len(extra), 1, extra)
         self.assertTrue(extra[0].startswith("+ exec "), extra)
         self.assertEqual([line for line in err.decode().splitlines() if line in direct_lines], direct_lines)
+
+    def test_install_reads_the_source_ref_in_the_atlas_repository(self) -> None:
+        """An inherited `GIT_DIR` naming another repository must not divert the
+        lookup of origin/main."""
+        self.publish({"pre-push": owned_hook("owned")})
+        stranger = Path(self._tmp.name) / "stranger"
+        subprocess.run(["git", "init", "-q", str(stranger)], check=True)
+        with patch.dict(os.environ, {"GIT_DIR": str(stranger / ".git")}):
+            commit = _lock_form.hook_source_commit(self.atlas)
+        self.assertEqual(commit, self.git(self.atlas, "rev-parse", "refs/remotes/origin/main"))
 
     def test_a_crlf_cache_copy_is_rewritten_under_autocrlf(self) -> None:
         """`core.autocrlf` hashes a CRLF file as its LF blob; the cache check
