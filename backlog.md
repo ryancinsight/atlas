@@ -87,7 +87,6 @@
 <a id="proteus-elastic-ssot"></a>- [ATLAS-PROTEUS-ELASTIC-SSOT-2026-09-03](backlog/proteus-elastic-ssot.md) — Proteus owns the isotropic modulus conversion contract [minor] — todo
 <a id="atlas-provider-chain-quality-2026-08-27"></a>- [ATLAS-PROVIDER-CHAIN-QUALITY-2026-08-27](backlog/atlas-provider-chain-quality-2026-08-27.md) — Perf/memory/stability/safety audit + fix wave: apollo provider chain [patch]..[minor] — todo
 <a id="atlas-provider-closure-2026-08-20"></a>- [ATLAS-PROVIDER-CLOSURE-2026-08-20](backlog/atlas-provider-closure-2026-08-20.md) — Complete active provider slices [major][arch] — todo
-<a id="atlas-pub-001"></a>- [ATLAS-PUB-001](backlog/atlas-pub-001.md) — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — blocked
 <a id="atlas-pub-002"></a>- [ATLAS-PUB-002](backlog/atlas-pub-002.md) — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — todo
 <a id="atlas-pub-003"></a>- [ATLAS-PUB-003](backlog/atlas-pub-003.md) — Register trusted publishers and remove the unused PyPI token [chore] — todo
 <a id="atlas-pub-005"></a>- [ATLAS-PUB-005](backlog/atlas-pub-005.md) — Flip `mdbook-test` per book as samples become compilable [patch] — todo
@@ -132,4 +131,6 @@
 <a id="atlas-identity-ignored-files"></a>- [ATLAS-IDENTITY-IGNORED-FILES](backlog/atlas-identity-ignored-files.md) — Keep gitignored run output out of a path package's identity [patch] — todo
 <a id="atlas-identity-overlay-locked-metadata"></a>- [ATLAS-IDENTITY-OVERLAY-LOCKED-METADATA](backlog/atlas-identity-overlay-locked-metadata.md) — Read the overlay's dependency graph without refusing its lock [patch] — todo
 <a id="atlas-identity-midrun-git-edit"></a>- [ATLAS-IDENTITY-MIDRUN-GIT-EDIT](backlog/atlas-identity-midrun-git-edit.md) — Stamp a trusted Git package whose checkout moved during a failed run [patch] — todo
+<a id="atlas-identity-load-flakes"></a>- [ATLAS-IDENTITY-LOAD-FLAKES](backlog/atlas-identity-load-flakes.md) — Four identity tests fail under host load [patch] — todo
+<a id="atlas-lock-sweep-lane-bound-2026-10-02"></a>- [ATLAS-LOCK-SWEEP-LANE-BOUND-2026-10-02](backlog/atlas-lock-sweep-lane-bound-2026-10-02.md) — The two-worktree bound is blocking the stack's own lock sweep [correctness] — todo
 <a id="atlas-identity-member-scope"></a>- [ATLAS-IDENTITY-MEMBER-SCOPE](backlog/atlas-identity-member-scope.md) — A commit cleans every gated package's in-repository closure [tightening] — todo

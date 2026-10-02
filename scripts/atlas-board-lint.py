@@ -21,6 +21,9 @@ A bare commit hash cited in a board, item file, ADR, or changelog that no
 repository in the stack can resolve is reported here and counted per member
 by the conformance scan (`unresolved_references`): an identifier is copied
 from command output, never typed, and a fabricated one is an escaped defect.
+The count resolves against the history of the root and every registered
+member, so it is gated only where all of those stores are present
+(`incomplete_stores`); a member's own pull-request check reports it instead.
 
 Why the reference check: items cite other items ("follow-ups filed
 below", "see ATLAS-XYZ") and those references rot silently - two real
@@ -59,6 +62,7 @@ from atlas_board_items import (  # noqa: E402
     extract_anchor,
     split_title_status,
 )
+from atlas_stack import registered_member_names  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -311,6 +315,55 @@ def object_stores(root: pathlib.Path) -> list[pathlib.Path]:
             p for p in sorted(members.iterdir()) if p.is_dir() and _is_git_checkout(p)
         )
     return stores
+
+
+def _git_common_dir(store: pathlib.Path) -> pathlib.Path | None:
+    """The directory holding `store`'s object database and `shallow` marker.
+
+    A plain checkout's `.git` is that directory; a submodule's or linked
+    worktree's `.git` is a file naming its own git directory, which names the
+    shared one in `commondir`. `None` when `store` has no `.git` or its
+    `.git` leads to no object database. Read from the files, not through
+    `git`: the stack check runs on every push, and one process per member is
+    its cost.
+    """
+    marker = store / ".git"
+    try:
+        if marker.is_dir():
+            common = marker
+        else:
+            pointer = marker.read_text(encoding="utf-8", errors="replace").strip()
+            git_dir = (store / pointer.removeprefix("gitdir:").strip()).resolve()
+            shared = git_dir / "commondir"
+            common = git_dir if not shared.is_file() else (
+                git_dir / shared.read_text(encoding="utf-8", errors="replace").strip()
+            ).resolve()
+    except OSError:
+        return None
+    return common if (common / "objects").is_dir() else None
+
+
+def _lacks_full_history(store: pathlib.Path) -> bool:
+    """Whether `store` is absent or holds a truncated history (`git clone --depth`)."""
+    common = _git_common_dir(store)
+    return common is None or (common / "shallow").is_file()
+
+
+def incomplete_stores(root: pathlib.Path) -> list[str]:
+    """The stack stores a stack-wide hash resolution lacks, by name.
+
+    `unresolved_references` resolves a cited hash against the root and every
+    registered member, since a member board cites other members' commits, so
+    it is the stack's count only when all of them are present with full
+    history. A member's pull-request checkout has its own history and a depth-1
+    root: fetching more of its own history cannot supply the other members'.
+    An empty answer means the count is the stack's.
+    """
+    missing = [root.name] if _lacks_full_history(root) else []
+    for name in sorted(registered_member_names(root)):
+        if _lacks_full_history(root / "repos" / name):
+            missing.append(f"repos/{name}")
+    return missing
 
 
 def reference_artifacts(repo: pathlib.Path) -> list[pathlib.Path]:
