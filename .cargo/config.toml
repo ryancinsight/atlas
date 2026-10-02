@@ -216,10 +216,10 @@ hermes-simd = { path = "repos/hermes/crates/hermes-simd" }
 hermes-simd = { path = "repos/hermes/crates/hermes-simd" }
 
 [patch."https://github.com/ryancinsight/horae"]
-horae = { path = "repos/horae" }
+horae-time = { path = "repos/horae" }
 
 [patch."https://github.com/ryancinsight/horae.git"]
-horae = { path = "repos/horae" }
+horae-time = { path = "repos/horae" }
 
 [patch."https://github.com/ryancinsight/hyperion"]
 hyperion = { path = "repos/hyperion" }
