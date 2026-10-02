@@ -79,20 +79,26 @@ def init_repo(root: Path, source: str) -> None:
     )
     (root / "src").mkdir()
     (root / "src/lib.rs").write_text(source, encoding="utf-8")
-    git(root, "init", "-q")
-    disable_maintenance(root)
-    git(root, "config", "user.name", "Atlas test")
-    git(root, "config", "user.email", "atlas-test@example.invalid")
+    init_git(root)
     git(root, "add", ".")
     git(root, "commit", "-q", "-m", "source")
 
 
-def disable_maintenance(root: Path) -> None:
-    """No detached `gc --auto` or maintenance may write into `.git` while the
+def init_git(root: Path, name: str = "Atlas test", email: str = "atlas-test@example.invalid") -> None:
+    """`git init` with the fixture's committer and no background maintenance.
+
+    No detached `gc --auto` or maintenance may write into `.git` while the
     fixture's temporary directory is removed (a Linux runner failed teardown
-    with `Directory not empty: .git`)."""
-    git(root, "config", "gc.auto", "0")
-    git(root, "config", "maintenance.auto", "false")
+    with `Directory not empty: .git`). The settings are appended to
+    `.git/config` rather than set by one `git config` process each: process
+    creation dominates this suite's runtime on Windows.
+    """
+    git(root, "init", "-q")
+    with (root / ".git" / "config").open("a", encoding="utf-8", newline="\n") as config:
+        config.write(
+            f"[user]\n\tname = {name}\n\temail = {email}\n"
+            "[gc]\n\tauto = 0\n[maintenance]\n\tauto = false\n"
+        )
 
 
 def gate_export(source: Path, export: Path) -> str:
@@ -103,8 +109,7 @@ def gate_export(source: Path, export: Path) -> str:
     """
     revision = git(source, "rev-parse", "HEAD")
     export.mkdir(parents=True)
-    git(export, "init", "-q")
-    disable_maintenance(export)
+    init_git(export)
     objects = git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") + "/objects"
     (export / ".git" / "objects" / "info" / "alternates").write_bytes(objects.encode() + b"\n")
     subprocess.run(
@@ -1677,9 +1682,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         dep_repo = self.base / "dep-repo"
         dep_repo.mkdir()
         (dep_repo / "file.txt").write_text("a\n", encoding="utf-8")
-        git(dep_repo, "init", "-q")
-        git(dep_repo, "config", "user.name", "t")
-        git(dep_repo, "config", "user.email", "t@e.invalid")
+        init_git(dep_repo, "t", "t@e.invalid")
         git(dep_repo, "add", ".")
         git(dep_repo, "commit", "-q", "-m", "dep a")
         dep_revision_a = git(dep_repo, "rev-parse", "HEAD")
@@ -3158,9 +3161,7 @@ class RepeatedExportPushTestCase(unittest.TestCase):
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
         )
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
@@ -3261,9 +3262,7 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
         }.items():
             (self.d / relative).parent.mkdir(parents=True, exist_ok=True)
             (self.d / relative).write_text(text, encoding="utf-8")
-        git(self.d, "init", "-q")
-        git(self.d, "config", "user.name", "Atlas test")
-        git(self.d, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.d)
         subprocess.run(
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.d, env=self.environment, check=True, capture_output=True, timeout=120,
@@ -3288,9 +3287,7 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
             ["cargo", "generate-lockfile"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
         )
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
@@ -3366,9 +3363,7 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
         }.items():
             (self.drepo / relative).parent.mkdir(parents=True, exist_ok=True)
             (self.drepo / relative).write_text(text, encoding="utf-8")
-        git(self.drepo, "init", "-q")
-        git(self.drepo, "config", "user.name", "Atlas test")
-        git(self.drepo, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.drepo)
         subprocess.run(
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.drepo, env=self.environment, check=True, capture_output=True, timeout=120,
@@ -3391,9 +3386,7 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
         )
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
@@ -3515,9 +3508,7 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
         }.items():
             (erepo / relative).parent.mkdir(parents=True, exist_ok=True)
             (erepo / relative).write_text(text, encoding="utf-8")
-        git(erepo, "init", "-q")
-        git(erepo, "config", "user.name", "Atlas test")
-        git(erepo, "config", "user.email", "atlas-test@example.invalid")
+        init_git(erepo)
         git(erepo, "add", ".")
         git(erepo, "commit", "-q", "-m", "e")
 
@@ -3630,9 +3621,7 @@ class SharedCommandKeyThreeStepTestCase(unittest.TestCase):
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
         )
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
@@ -4200,9 +4189,7 @@ class PathDependencyFeatureChangeTestCase(unittest.TestCase):
             for relative, text in files.items():
                 (root / relative).parent.mkdir(parents=True, exist_ok=True)
                 (root / relative).write_text(text, encoding="utf-8")
-            git(root, "init", "-q")
-            git(root, "config", "user.name", "Atlas test")
-            git(root, "config", "user.email", "atlas-test@example.invalid")
+            init_git(root)
             subprocess.run(
                 ["cargo", "generate-lockfile", "--offline"],
                 cwd=root, env=self.environment, check=True, capture_output=True, timeout=120,
@@ -4303,9 +4290,7 @@ class DependencyAdditionTestCase(unittest.TestCase):
             for relative, text in files.items():
                 (root / relative).parent.mkdir(parents=True, exist_ok=True)
                 (root / relative).write_text(text, encoding="utf-8")
-            git(root, "init", "-q")
-            git(root, "config", "user.name", "Atlas test")
-            git(root, "config", "user.email", "atlas-test@example.invalid")
+            init_git(root)
             self.lock(root)
             git(root, "add", ".")
             git(root, "commit", "-q", "-m", "init")
@@ -4423,9 +4408,7 @@ class GitDependencyTestCase(unittest.TestCase):
             }.items():
                 (root / relative).parent.mkdir(parents=True, exist_ok=True)
                 (root / relative).write_text(text, encoding="utf-8")
-            git(root, "init", "-q")
-            git(root, "config", "user.name", "Atlas test")
-            git(root, "config", "user.email", "atlas-test@example.invalid")
+            init_git(root)
             self.cargo(root, "generate-lockfile", "--offline")
             git(root, "add", ".")
             git(root, "commit", "-q", "-m", name)
@@ -4436,9 +4419,7 @@ class GitDependencyTestCase(unittest.TestCase):
             (self.source / relative).parent.mkdir(parents=True, exist_ok=True)
             (self.source / relative).write_text(text, encoding="utf-8")
         self.cargo(self.source, "generate-lockfile")
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
         self.second = self.base / "second"
@@ -4449,9 +4430,7 @@ class GitDependencyTestCase(unittest.TestCase):
             (self.second / relative).parent.mkdir(parents=True, exist_ok=True)
             (self.second / relative).write_text(text, encoding="utf-8")
         self.cargo(self.second, "generate-lockfile")
-        git(self.second, "init", "-q")
-        git(self.second, "config", "user.name", "Atlas test")
-        git(self.second, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.second)
         git(self.second, "add", ".")
         git(self.second, "commit", "-q", "-m", "second")
 
@@ -4733,9 +4712,7 @@ class GitManifestEditTestCase(unittest.TestCase):
                 ["cargo", "generate-lockfile"],
                 cwd=root, env=self.environment, check=True, capture_output=True, timeout=120,
             )
-        git(root, "init", "-q")
-        git(root, "config", "user.name", "Atlas test")
-        git(root, "config", "user.email", "atlas-test@example.invalid")
+        init_git(root)
         git(root, "add", ".")
         git(root, "commit", "-q", "-m", "init")
 
@@ -4824,9 +4801,7 @@ class RootProfileChangeTestCase(unittest.TestCase):
         }.items():
             (self.d / relative).parent.mkdir(parents=True, exist_ok=True)
             (self.d / relative).write_text(text, encoding="utf-8")
-        git(self.d, "init", "-q")
-        git(self.d, "config", "user.name", "Atlas test")
-        git(self.d, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.d)
         subprocess.run(
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.d, env=self.environment, check=True, capture_output=True, timeout=120,
@@ -4852,9 +4827,7 @@ class RootProfileChangeTestCase(unittest.TestCase):
             ["cargo", "generate-lockfile"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
         )
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
