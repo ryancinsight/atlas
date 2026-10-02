@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Tests for atlas_pull_request.py, the one PR-opening path of the sweep tools.
 
-A PR the sweep opens must have auto-merge enabled with an explicit `--merge`
-(never the squash default), and a PR whose auto-merge could not be enabled must
+A PR the sweep opens must have auto-merge enabled with an explicit `--merge` or
+`--rebase` (never the squash default), and a PR whose auto-merge could not be enabled must
 read as a failure carrying its URL: a delivered-looking row for a PR nobody
 will collect is the defect this module exists to prevent.
 """
@@ -60,6 +60,17 @@ class OpenPullRequestTests(unittest.TestCase):
         self.open(run, repo="ryancinsight/leto")
         self.assertEqual(calls[0][0][:5], ["gh", "pr", "create", "-R", "ryancinsight/leto"])
         self.assertEqual(calls[1][0], ["gh", "pr", "merge", URL, "--auto", "--merge", "--delete-branch"])
+
+    def test_a_rebase_method_is_passed_to_auto_merge(self) -> None:
+        run, calls = scripted_runner((0, URL + NL, ""), (0, "", ""))
+        self.open(run, method="rebase")
+        self.assertEqual(calls[1][0], ["gh", "pr", "merge", URL, "--auto", "--rebase", "--delete-branch"])
+
+    def test_squash_is_refused_before_any_call(self) -> None:
+        run, calls = scripted_runner((0, URL + NL, ""), (0, "", ""))
+        with self.assertRaises(ValueError):
+            self.open(run, method="squash")
+        self.assertEqual(calls, [])
 
     def test_failed_auto_merge_is_a_failure_carrying_the_stderr_tail_and_the_pr_url(self) -> None:
         run, calls = scripted_runner((0, URL + NL, ""), (1, "", "x" + NL + "GraphQL: auto merge is not allowed"))

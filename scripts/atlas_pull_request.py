@@ -3,8 +3,9 @@
 Merging is enabling auto-merge: a PR left for hand collection is a change that
 sits unmerged. Every tool that opens a PR (`atlas-lock-sweep.py`,
 `atlas-semver-gate-adopt.py`, `atlas-workflow-concurrency-sweep.py`) goes
-through `open_pull_request`, so the merge method is stated once: an explicit
-`--merge`, never the squash default, which collapses the atomic history.
+through `open_pull_request`, so the merge method is always explicit -- `merge`
+unless the caller names `rebase` for a one-commit unshared branch -- and never
+the squash default, which collapses the atomic history.
 """
 
 from __future__ import annotations
@@ -15,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 STDERR_TAIL_CHARACTERS = 200
+# Squash is absent by construction: it is not a method this path can request.
+MERGE_METHODS = frozenset({"merge", "rebase"})
 
 
 @dataclass(frozen=True)
@@ -45,14 +48,17 @@ def open_pull_request(
     body: str,
     repo: str | None = None,
     cwd: Path | None = None,
+    method: str = "merge",
     run: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> PullRequestOpening:
-    """`gh pr create`, then `gh pr merge <url> --auto --merge --delete-branch`.
+    """`gh pr create`, then `gh pr merge <url> --auto --<method> --delete-branch`.
 
     `repo` is the `owner/name` slug for a tool with no checkout of the target
     (`-R`); `cwd` is the checkout a tool opens the PR from. A failed enable is
     a failure carrying the stderr tail and the PR URL, so a report shows a PR
     that needs collecting rather than a delivered one."""
+    if method not in MERGE_METHODS:
+        raise ValueError(f"merge method {method!r} is not one of {sorted(MERGE_METHODS)}")
     target = ["-R", repo] if repo is not None else []
     created = run(
         ["gh", "pr", "create", *target, "--base", base, "--head", head, "--title", title, "--body", body],
@@ -62,7 +68,7 @@ def open_pull_request(
         return PullRequestOpening(None, f"gh pr create: {stderr_tail(created)}")
     url = created.stdout.strip().splitlines()[-1]
     merge = run(
-        ["gh", "pr", "merge", url, "--auto", "--merge", "--delete-branch"],
+        ["gh", "pr", "merge", url, "--auto", f"--{method}", "--delete-branch"],
         cwd=cwd, capture_output=True, encoding="utf-8", errors="replace",
     )
     if merge.returncode != 0:
