@@ -1930,9 +1930,13 @@ class BuildIdentityTestCase(unittest.TestCase):
         init_repo(self.root, "fn main() {}\n")
         (self.root / ".gitignore").write_text("*.log\nbuild/\n/top-only\n!keep.log\n", encoding="utf-8")
         (self.root / "src" / ".gitignore").write_text("local.tmp\n", encoding="utf-8")
-        git(self.root, "add", ".gitignore", "src/.gitignore")
+        # A staged rename reports its original path as a field of its own,
+        # which `! orig.rs` would make read as an ignored file.
+        (self.root / "! orig.rs").write_text("renamed whole\n", encoding="utf-8")
+        git(self.root, "add", ".gitignore", "src/.gitignore", "! orig.rs")
         git(self.root, "commit", "-q", "-m", "ignore rules")
         git(self.root, "mv", "src/lib.rs", "src/moved.rs")
+        git(self.root, "mv", "! orig.rs", "renamed.rs")
         (self.root / "Cargo.toml").write_text("[package]\nname = \"edited\"\n", encoding="utf-8")
         for name in (
             "new file.txt", "Zeta", "alpha", "ä-unicode.rs", "a.log", "keep.log", "top-only",
@@ -1955,7 +1959,25 @@ class BuildIdentityTestCase(unittest.TestCase):
         )
         self.assertIn(b"nested/", listed[0][1])
         self.assertIn(b"untracked/build/y.o", listed[1][1])
+        self.assertNotIn(b"orig.rs", listed[1][1])
         self.assertEqual(build_source._untracked_paths(self.root.resolve()), listed)
+
+    def test_a_top_level_path_holding_a_newline_is_read_whole(self) -> None:
+        # POSIX allows a newline in a directory name, so the revision is
+        # taken from the last line and the path from everything before it.
+        revision = "0123456789abcdef0123456789abcdef01234567"
+        cases = {
+            "newline": (b"/srv/line\nbreak\n" + revision.encode() + b"\n", "line\nbreak"),
+            "plain": (b"/srv/plain\n" + revision.encode() + b"\n", "plain"),
+        }
+        for name, (printed, leaf) in cases.items():
+            with self.subTest(name), patch.object(build_source, "_git", return_value=printed):
+                top, found = build_source.repository_head(self.base)
+            self.assertEqual(top.name, leaf)
+            self.assertEqual(found, revision)
+        with patch.object(build_source, "_git", return_value=revision.encode() + b"\n"):
+            with self.assertRaises(build_source.BuildIdentityError):
+                build_source.repository_head(self.base)
 
     def test_each_repository_is_identified_once_per_dependency_pass(self) -> None:
         # Every path package of one repository has that repository's
