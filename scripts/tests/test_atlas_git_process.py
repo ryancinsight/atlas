@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import subprocess
@@ -58,6 +59,28 @@ class GitProcessTests(unittest.TestCase):
             )
 
         self.assertEqual(run.call_args.kwargs["env"]["GIT_INDEX_FILE"], "private-index")
+
+    def test_repository_selection_never_reaches_the_child(self):
+        keys = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE")
+        child = (
+            "import json, os; "
+            f"print(json.dumps({{key: os.environ.get(key) for key in {keys!r}}}))"
+        )
+        inherited = dict.fromkeys(keys, "inherited")
+        explicit = {**os.environ, **dict.fromkeys(keys, "explicit")}
+        command = [sys.executable, "-c", child]
+
+        with patch.dict(os.environ, inherited):
+            from_process = atlas_git_process.execute_process(command, timeout=30)
+        from_argument = atlas_git_process.execute_process(
+            command, env=explicit, timeout=30
+        )
+
+        self.assertEqual(json.loads(from_process.stdout), dict.fromkeys(keys))
+        self.assertEqual(
+            json.loads(from_argument.stdout),
+            {"GIT_DIR": None, "GIT_WORK_TREE": None, "GIT_INDEX_FILE": "explicit"},
+        )
 
     def test_timeout_maps_to_typed_git_error(self):
         timeout = process_tree.ProcessTreeTimeout(

@@ -15,6 +15,7 @@ _THREAD_SUSPEND_RESUME = 0x0002
 _WAIT_OBJECT_0 = 0
 _WAIT_TIMEOUT = 0x00000102
 _WAIT_FAILED = 0xFFFFFFFF
+_RESUME_FAILED = 0xFFFFFFFF
 
 
 class _LargeInteger(ctypes.Structure):
@@ -119,9 +120,11 @@ def create_kill_job(process: subprocess.Popen[bytes]) -> int:
         _close_after_failure(kernel32, job, error)
 
     process_handle = getattr(process, "_handle", None)
-    if process_handle is None or not kernel32.AssignProcessToJobObject(
-        job, wintypes.HANDLE(int(process_handle))
-    ):
+    if process_handle is None:
+        _close_after_failure(
+            kernel32, job, OSError("process has no native process handle to assign")
+        )
+    if not kernel32.AssignProcessToJobObject(job, wintypes.HANDLE(int(process_handle))):
         error = ctypes.WinError(ctypes.get_last_error())
         _close_after_failure(kernel32, job, error)
     return int(job)
@@ -155,12 +158,19 @@ def resume(process: subprocess.Popen[bytes]) -> None:
     )
     if status != 0:
         raise ctypes.WinError(ntdll.RtlNtStatusToDosError(status))
-    try:
-        if kernel32.ResumeThread(thread) == 0xFFFFFFFF:
-            raise ctypes.WinError(ctypes.get_last_error())
-    finally:
-        if not kernel32.CloseHandle(thread):
-            raise ctypes.WinError(ctypes.get_last_error())
+    resume_error: OSError | None = None
+    if kernel32.ResumeThread(thread) == _RESUME_FAILED:
+        resume_error = ctypes.WinError(ctypes.get_last_error())
+    if kernel32.CloseHandle(thread):
+        close_error = None
+    else:
+        close_error = ctypes.WinError(ctypes.get_last_error())
+    if resume_error is not None:
+        if close_error is not None:
+            resume_error.add_note(f"thread handle close failed: {close_error}")
+        raise resume_error
+    if close_error is not None:
+        raise close_error
 
 
 def close_job(job: int) -> str | None:

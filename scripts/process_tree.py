@@ -1,4 +1,15 @@
-"""Run one command with bounded ownership of its complete process tree."""
+"""Run one command with bounded ownership of its process tree.
+
+Ownership is membership in a kernel container, not parentage:
+
+* Windows: every descendant belongs to a kill-on-close Job Object that permits
+  no breakaway, so the tree is complete, and the job handle closing with a
+  hard-killed caller retires it.
+* POSIX: every descendant belongs to the supervisor's process group, retired by
+  ``killpg``. A descendant that calls ``setsid`` or ``setpgid`` leaves the group
+  and escapes cleanup; git's detached auto-gc is one such process. The runner
+  cannot reach it, and a hard-killed caller leaves the group running.
+"""
 
 from __future__ import annotations
 
@@ -173,12 +184,17 @@ def _terminate_process_tree(
 def _finish_interrupted_cleanup(
     process: subprocess.Popen[bytes], windows_job: int | None, state: _CleanupState
 ) -> str | None:
-    """Retry interrupted cleanup while the held launcher pins tree identity."""
+    """Retry cleanup interrupted by ``KeyboardInterrupt`` within its deadline.
+
+    The held launcher pins tree identity, so repeating the destructive request
+    is safe. Any other exception is a defect in cleanup itself and propagates
+    unchanged.
+    """
     interruptions = 0
     while True:
         try:
             return _terminate_process_tree(process, windows_job, state)
-        except BaseException:
+        except KeyboardInterrupt:
             interruptions += 1
             deadline = state.deadline
             if deadline is not None and time.monotonic() >= deadline:

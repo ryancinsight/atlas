@@ -19,6 +19,9 @@ SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 import process_tree  # noqa: E402
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from process_tree_support import budget_from_readiness  # noqa: E402
+
 
 CHILD = textwrap.dedent(
     """
@@ -80,44 +83,6 @@ EXITING_PARENT = textwrap.dedent(
 )
 
 READY_SECONDS = 60
-
-
-def _budget_from_readiness(listener: socket.socket):
-    """Start the timeout clock only after the descendant is live."""
-    ready = threading.Event()
-    real_monotonic = time.monotonic
-    frozen: list[float] = []
-
-    def clock() -> float:
-        if ready.is_set():
-            return real_monotonic()
-        if not frozen:
-            frozen.append(real_monotonic())
-        return frozen[0]
-
-    def after_ready(wait):
-        def supervised(*args, **kwargs):
-            if not ready.is_set():
-                connection, _ = listener.accept()
-                connection.close()
-                ready.set()
-            return wait(*args, **kwargs)
-
-        return supervised
-
-    return (
-        patch.object(process_tree.time, "monotonic", clock),
-        patch.object(
-            process_tree.subprocess.Popen,
-            "wait",
-            after_ready(subprocess.Popen.wait),
-        ),
-        patch.object(
-            process_tree,
-            "_read_posix_status",
-            after_ready(process_tree._read_posix_status),
-        ),
-    )
 
 
 def _assert_lock_released(test: unittest.TestCase, path: pathlib.Path) -> None:
@@ -257,6 +222,10 @@ class ProcessTreeTests(unittest.TestCase):
         def cleanup(process, job, state):
             self.assertIs(process, suspended_process)
             self.assertEqual(job, 17)
+            if state.deadline is None:
+                state.deadline = (
+                    time.monotonic() + process_tree.PROCESS_TREE_CLEANUP_SECONDS
+                )
             state.termination_issued = True
             state.launcher_reaped = True
             events.append("cleanup")
@@ -506,7 +475,7 @@ class ProcessTreeTests(unittest.TestCase):
             listener.settimeout(READY_SECONDS)
             environment = os.environ.copy()
             environment["ATLAS_TEST_READY_PORT"] = str(listener.getsockname()[1])
-            clock, windows_wait, posix_wait = _budget_from_readiness(listener)
+            clock, windows_wait, posix_wait = budget_from_readiness(listener)
 
             with listener, clock, windows_wait, posix_wait:
                 with self.assertRaises(process_tree.ProcessTreeTimeout) as raised:
