@@ -3,16 +3,16 @@
 
 The sweep's repository operations are exercised by running it; what unit
 tests pin is every decision that could silently exclude or misplace a
-consumer: which manifest lines count as a first-party git dependency, which
-locked revision a lock names, when a consumer counts as current, and what the
-branch and report look like. A wrong answer to any of these is a consumer
-skipped without a row — the failure the tool exists to prevent.
+consumer: which lock entries are first-party sources a sweep may move, which
+of them are stale against the named targets, when an updated lock missed a
+target, and what the branch, commit, and report look like. A wrong answer to
+any of these is a consumer skipped without a row, or a lock committed at a
+revision nobody named -- the failures the tool exists to prevent.
 """
 
 from __future__ import annotations
 
 import importlib.util
-import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -26,140 +26,150 @@ assert SPEC.loader is not None
 sys.modules[SPEC.name] = sweep
 SPEC.loader.exec_module(sweep)
 
-HERMES = "https://github.com/ryancinsight/hermes.git"
 NL = chr(10)
+OLD = "1" * 40
+NEW = "2" * 40
+MOVED = "3" * 40
+
+
+def package(name: str, version: str, source: str | None) -> str:
+    lines = ["[[package]]", f'name = "{name}"', f'version = "{version}"']
+    if source is not None:
+        lines.append(f'source = "{source}"')
+    return NL.join(lines) + NL
+
+
+LOCK = NL.join(
+    [
+        "version = 4",
+        "",
+        package("consumer", "0.1.0", None),
+        package("hermes-simd", "0.5.0", f"git+https://github.com/ryancinsight/hermes.git#{OLD}"),
+        package("hermes-simd-core", "0.5.0", f"git+https://github.com/ryancinsight/hermes.git#{OLD}"),
+        package("mnemosyne-memory", "0.8.0", f"git+https://github.com/ryancinsight/Mnemosyne#{NEW}"),
+        package("mnemosyne-memory", "0.7.0", f"git+https://github.com/ryancinsight/Mnemosyne.git#{OLD}"),
+        package("pinned", "1.0.0", f"git+https://github.com/ryancinsight/leto?rev=abc#{OLD}"),
+        package("serde", "1.0.0", "registry+https://github.com/rust-lang/crates.io-index"),
+        package("other", "0.1.0", f"git+https://github.com/someone/other#{OLD}"),
+    ]
+)
 
 
 class UrlTests(unittest.TestCase):
     def test_provider_name_ignores_suffix_case_and_trailing_slash(self) -> None:
-        for url in (HERMES, "https://github.com/ryancinsight/Hermes", "https://github.com/ryancinsight/hermes/"):
-            self.assertEqual(sweep.provider_repo_name(url), "hermes", url)
-
-    def test_normalized_urls_compare_equal_across_spellings(self) -> None:
-        self.assertEqual(
-            sweep.normalize_repo_url("https://github.com/ryancinsight/Mnemosyne.git"),
-            sweep.normalize_repo_url("https://github.com/ryancinsight/mnemosyne"),
-        )
-
-
-class ManifestTests(unittest.TestCase):
-    def test_workspace_table_entry_is_found(self) -> None:
-        text = '[workspace.dependencies]\nhermes-simd = { version = "0.7.0", git = "%s" }\nleto = { version = "0.42.0", git = "https://github.com/ryancinsight/leto.git" }\n' % HERMES
-        self.assertEqual(sweep.declared_git_source(text, "hermes-simd"), HERMES)
-
-    def test_key_order_inside_the_table_does_not_matter(self) -> None:
-        text = 'hermes-simd = { git = "%s", version = "0.7.0" }\n' % HERMES
-        self.assertEqual(sweep.declared_git_source(text, "hermes-simd"), HERMES)
-
-    def test_a_crate_whose_name_is_a_prefix_of_another_is_not_matched(self) -> None:
-        text = 'hermes-simd-core = { version = "0.7.0", git = "%s" }\n' % HERMES
-        self.assertIsNone(sweep.declared_git_source(text, "hermes-simd"))
-
-    def test_registry_and_path_dependencies_are_not_consumers(self) -> None:
-        self.assertIsNone(sweep.declared_git_source('hermes-simd = "0.7.0"\n', "hermes-simd"))
-        self.assertIsNone(sweep.declared_git_source('hermes-simd = { path = "../hermes" }\n', "hermes-simd"))
-
-    def test_a_renamed_dependency_is_matched_by_its_package_name(self) -> None:
-        """Nine members reach mnemosyne-memory as `mnemosyne = { package = ... }`.
-        Matching the declaration key alone reported no consumers at all while
-        the lock, keyed by real package name, held every one of them."""
-        text = 'mnemosyne = { package = "hermes-simd", version = "0.7.0", git = "%s" }\n' % HERMES
-        self.assertEqual(sweep.declared_git_source(text, "hermes-simd"), HERMES)
-
-    def test_a_renamed_dependency_is_not_matched_by_its_key(self) -> None:
-        """The key is a local alias; the lock never contains it, so a sweep
-        keyed on it would advance nothing."""
-        text = 'mnemosyne = { package = "hermes-simd", version = "0.7.0", git = "%s" }\n' % HERMES
-        self.assertIsNone(sweep.declared_git_source(text, "mnemosyne"))
-
-    def test_a_rename_to_another_package_is_not_matched(self) -> None:
-        text = 'hermes-simd = { package = "hermes-simd-core", git = "%s" }\n' % HERMES
-        self.assertIsNone(sweep.declared_git_source(text, "hermes-simd"))
-
-    def test_third_party_git_sources_are_not_first_party_consumers(self) -> None:
-        text = 'hermes-simd = { git = "https://github.com/someone-else/hermes.git" }\n'
-        self.assertIsNone(sweep.declared_git_source(text, "hermes-simd"))
+        for url in ("https://github.com/ryancinsight/Mnemosyne.git", "https://github.com/ryancinsight/mnemosyne/"):
+            self.assertEqual(sweep.provider_repo_name(url), "mnemosyne")
 
 
 class LockTests(unittest.TestCase):
-    LOCK = (
-        '[[package]]\nname = "hermes-simd"\nversion = "0.7.0"\n'
-        'source = "git+https://github.com/ryancinsight/hermes.git#6da6d139abcdef0123456789abcdef0123456789"\n\n'
-        '[[package]]\nname = "hermes-simd-core"\nversion = "0.7.0"\n'
-        'source = "git+https://github.com/ryancinsight/hermes.git#6da6d139abcdef0123456789abcdef0123456789"\n\n'
-        '[[package]]\nname = "csv"\nversion = "1.4.0"\n'
-        'source = "registry+https://github.com/rust-lang/crates.io-index"\n'
-    )
+    def test_only_unpinned_first_party_git_entries_are_read(self) -> None:
+        names = [(p.name, p.version, p.url) for p in sweep.first_party_packages(LOCK)]
+        self.assertEqual(
+            names,
+            [
+                ("hermes-simd", "0.5.0", "https://github.com/ryancinsight/hermes.git"),
+                ("hermes-simd-core", "0.5.0", "https://github.com/ryancinsight/hermes.git"),
+                ("mnemosyne-memory", "0.8.0", "https://github.com/ryancinsight/Mnemosyne"),
+                ("mnemosyne-memory", "0.7.0", "https://github.com/ryancinsight/Mnemosyne.git"),
+            ],
+        )
 
-    def test_locked_rev_reads_the_exact_package_block(self) -> None:
-        self.assertEqual(sweep.locked_rev(self.LOCK, "hermes-simd"), "6da6d139abcdef0123456789abcdef0123456789")
-
-    def test_registry_packages_have_no_git_rev(self) -> None:
-        self.assertIsNone(sweep.locked_rev(self.LOCK, "csv"))
-
-    def test_absent_packages_are_none_not_a_neighbour(self) -> None:
-        self.assertIsNone(sweep.locked_rev(self.LOCK, "leto"))
+    def test_the_spec_names_the_source_so_two_spellings_stay_distinct(self) -> None:
+        specs = {p.spec for p in sweep.first_party_packages(LOCK) if p.name == "mnemosyne-memory"}
+        self.assertEqual(
+            specs,
+            {
+                "git+https://github.com/ryancinsight/Mnemosyne#mnemosyne-memory@0.8.0",
+                "git+https://github.com/ryancinsight/Mnemosyne.git#mnemosyne-memory@0.7.0",
+            },
+        )
 
 
 class PlanTests(unittest.TestCase):
-    consumer = sweep.Consumer(Path("repos/leto"), HERMES)
-
-    def test_current_when_locked_rev_is_the_target(self) -> None:
-        row = sweep.PlanRow(self.consumer, "6da6d139" + "0" * 32, "6da6d139" + "0" * 32)
-        self.assertFalse(row.needs_advance)
-
-    def test_advance_when_behind_or_absent(self) -> None:
-        self.assertTrue(sweep.PlanRow(self.consumer, "efe6b5e2" + "0" * 32, "6da6d139" + "0" * 32).needs_advance)
-        self.assertTrue(sweep.PlanRow(self.consumer, None, "6da6d139" + "0" * 32).needs_advance)
-
-    def test_branch_name_is_crate_and_short_revision(self) -> None:
-        self.assertEqual(sweep.branch_name("hermes-simd", "6da6d139" + "0" * 32), "build/hermes-simd-6da6d139")
-
-    def test_report_lists_every_consumer_with_its_action(self) -> None:
-        rows = [
-            sweep.Outcome(self.consumer, "current", "already at 6da6d139", True),
-            sweep.Outcome(sweep.Consumer(Path("repos/kwavers"), HERMES), "failed", "cargo check: error[E0425]", False),
-        ]
-        report = sweep.render_report("hermes-simd", "6da6d139" + "0" * 32, rows)
-        self.assertIn("leto", report)
-        self.assertIn("kwavers", report)
-        self.assertIn("failed", report)
-        self.assertIn("hermes-simd -> 6da6d139", report)
-
-
-class OpenConsumerPullRequestTests(unittest.TestCase):
-    consumer = sweep.Consumer(Path("repos/leto"), HERMES)
-    lane = Path("worktrees/leto-lock-sweep")
-    url = "https://github.com/ryancinsight/leto/pull/7"
-
-    def runner(self, create: tuple[int, str, str], merge: tuple[int, str, str]):
-        calls: list[tuple[list[str], Path]] = []
-
-        def run(argv, cwd=None, **_options):
-            calls.append((argv, cwd))
-            code, out, err = create if argv[:3] == ["gh", "pr", "create"] else merge
-            return subprocess.CompletedProcess(argv, code, out, err)
-
-        return run, calls
-
-    def open(self, run):
-        return sweep.open_consumer_pull_request(
-            self.consumer, self.lane, "main", "build/hermes-simd-6da6d139", "build(deps): t", "body", run=run
+    def test_entries_behind_their_target_are_stale_and_entries_at_it_are_not(self) -> None:
+        stale = sweep.stale_packages(LOCK, {"hermes": NEW, "mnemosyne": NEW})
+        self.assertEqual(
+            [(p.name, p.version) for p in stale],
+            [("hermes-simd", "0.5.0"), ("hermes-simd-core", "0.5.0"), ("mnemosyne-memory", "0.7.0")],
         )
 
-    def test_the_pr_is_created_from_the_lane_then_auto_merged_with_an_explicit_merge_method(self) -> None:
-        run, calls = self.runner((0, f"warning: x{NL}{self.url}{NL}", ""), (0, "", ""))
-        outcome = self.open(run)
-        self.assertEqual([argv[:3] for argv, _ in calls], [["gh", "pr", "create"], ["gh", "pr", "merge"]])
-        self.assertEqual(calls[1][0], ["gh", "pr", "merge", self.url, "--auto", "--merge", "--delete-branch"])
-        self.assertEqual([cwd for _, cwd in calls], [self.lane, self.lane])
-        self.assertEqual((outcome.action, outcome.detail, outcome.ok), ("opened", self.url, True))
+    def test_providers_that_are_not_targets_never_move(self) -> None:
+        self.assertEqual(sweep.stale_packages(LOCK, {"leto": NEW, "other": NEW}), ())
 
-    def test_a_pr_whose_auto_merge_failed_is_a_failed_row_carrying_its_url(self) -> None:
-        run, _ = self.runner((0, self.url + NL, ""), (1, "", "GraphQL: auto merge is not allowed"))
-        outcome = self.open(run)
-        self.assertEqual((outcome.action, outcome.ok), ("failed", False))
-        self.assertIn(self.url, outcome.detail)
+    def test_a_lock_at_every_target_has_nothing_stale(self) -> None:
+        self.assertEqual(sweep.stale_packages(LOCK, {"hermes": OLD}), ())
+
+    def test_an_update_that_reached_every_target_has_no_misses(self) -> None:
+        stale = sweep.stale_packages(LOCK, {"hermes": NEW})
+        updated = LOCK.replace(f"hermes.git#{OLD}", f"hermes.git#{NEW}")
+        self.assertEqual(sweep.unmet_targets(updated, stale, {"hermes": NEW}), [])
+
+    def test_a_provider_head_past_the_named_merge_is_a_miss_for_every_entry(self) -> None:
+        stale = sweep.stale_packages(LOCK, {"hermes": NEW})
+        updated = LOCK.replace(f"hermes.git#{OLD}", f"hermes.git#{MOVED}")
+        self.assertEqual(
+            sweep.unmet_targets(updated, stale, {"hermes": NEW}),
+            [
+                "hermes-simd resolved 33333333, target hermes@22222222",
+                "hermes-simd-core resolved 33333333, target hermes@22222222",
+            ],
+        )
+
+    def test_one_spelling_left_behind_is_a_miss(self) -> None:
+        stale = sweep.stale_packages(LOCK, {"mnemosyne": NEW})
+        self.assertEqual(
+            sweep.unmet_targets(LOCK, stale, {"mnemosyne": NEW}),
+            ["mnemosyne-memory resolved 11111111, target mnemosyne@22222222"],
+        )
+
+
+class CommitTests(unittest.TestCase):
+    def plan(self, targets: dict[str, str]):
+        return sweep.Plan(Path("repos/leto"), OLD, sweep.stale_packages(LOCK, targets))
+
+    def test_one_target_names_its_provider_and_revision(self) -> None:
+        self.assertEqual(sweep.branch_name({"hermes": NEW}), "build/deps-hermes-22222222")
+
+    def test_a_target_set_has_one_branch_independent_of_order(self) -> None:
+        first = sweep.branch_name({"hermes": NEW, "mnemosyne": OLD})
+        self.assertEqual(first, sweep.branch_name({"mnemosyne": OLD, "hermes": NEW}))
+        self.assertTrue(first.startswith("build/deps-lock-sweep-"))
+        self.assertNotEqual(first, sweep.branch_name({"hermes": NEW, "mnemosyne": MOVED}))
+
+    def test_the_message_names_every_moved_provider_merge_and_the_item(self) -> None:
+        targets = {"hermes": NEW, "mnemosyne": NEW, "leto": MOVED}
+        message = sweep.commit_message(self.plan(targets), targets, "ITEM-1")
+        lines = message.splitlines()
+        self.assertEqual(lines[0], "build(deps): Advance first-party locks")
+        self.assertLessEqual(len(lines[0]), 50)
+        self.assertIn(f"Refs: hermes@{NEW}", lines)
+        self.assertIn(f"Refs: mnemosyne@{NEW}", lines)
+        self.assertNotIn(f"Refs: leto@{MOVED}", lines)
+        self.assertIn("Item: ITEM-1", lines)
+        self.assertTrue(lines[-1].startswith("Co-Authored-By: "))
+
+    def test_a_single_provider_subject_names_it(self) -> None:
+        message = sweep.commit_message(self.plan({"hermes": NEW}), {"hermes": NEW}, None)
+        self.assertEqual(message.splitlines()[0], "build(deps): Update hermes to 22222222")
+        self.assertNotIn("Item:", message)
+
+    def test_line_endings_follow_the_committed_lock(self) -> None:
+        self.assertEqual(sweep.with_line_endings_of(b"a\nb\n", b"x\r\ny\r\n"), b"x\ny\n")
+        self.assertEqual(sweep.with_line_endings_of(b"a\r\nb\r\n", b"x\ny\n"), b"x\r\ny\r\n")
+
+
+class ReportTests(unittest.TestCase):
+    def test_report_lists_every_member_with_its_action(self) -> None:
+        rows = [
+            sweep.Outcome("leto", "opened", "https://github.com/ryancinsight/leto/pull/7", True),
+            sweep.Outcome("kwavers", "failed", "cargo update: error: failed to select", False),
+            sweep.Outcome("iris", "current", "every first-party source at its target", True),
+        ]
+        report = sweep.render_report({"hermes": NEW}, rows)
+        self.assertEqual(report.splitlines()[0], "lock sweep -> hermes@22222222")
+        for name in ("leto", "kwavers", "iris"):
+            self.assertIn(name, report)
+        self.assertEqual(len(report.splitlines()), 2 + len(rows))
 
 
 if __name__ == "__main__":
