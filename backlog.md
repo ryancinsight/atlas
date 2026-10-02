@@ -110,6 +110,7 @@
 <a id="atlas-pub-010"></a>- [ATLAS-PUB-010](backlog/atlas-pub-010.md) — Convert member crate callers to version-change publishing [patch] — todo
 <a id="atlas-pub-011"></a>- [ATLAS-PUB-011](backlog/atlas-pub-011.md) — Release the source that outran its published versions [patch] — todo
 <a id="atlas-identity-member-scope"></a>- [ATLAS-IDENTITY-MEMBER-SCOPE](backlog/atlas-identity-member-scope.md) — A commit cleans every gated package's in-repository closure [tightening] — todo
+<a id="atlas-provider-versions-20261001"></a>- [ATLAS-PROVIDER-VERSIONS-20261001](backlog/atlas-provider-versions-20261001.md) — Adopt melinoe 0.10, themis-topology 0.11, ritk-spatial 0.3 across consumers [arch] [minor] — todo
 <a id="atlas-bounded-runner"></a>- [ATLAS-BOUNDED-RUNNER](backlog/atlas-bounded-runner.md) — Launch every agent process through one bounded runner [patch] — todo
 <a id="atlas-root-hook-test-timeouts"></a>- [ATLAS-ROOT-HOOK-TEST-TIMEOUTS](backlog/atlas-root-hook-test-timeouts.md) — Root hook tests time out under host load [patch] — todo
 <a id="atlas-alloc-count-per-thread"></a>- [ATLAS-ALLOC-COUNT-PER-THREAD](backlog/atlas-alloc-count-per-thread.md) — Count test allocations on the measuring thread only [patch] — todo
