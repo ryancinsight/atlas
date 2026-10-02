@@ -279,20 +279,20 @@ target-dir = "{target}"
 
 MEMBER_TEMPLATE = MARKER + """
 #
-# Cargo resolves `build.target-dir` relative to the workspace root, not to the
-# config that declares it, so the stack root's relative `target-dir = "target"`
-# only reaches the shared cache for builds rooted at the stack root. Inside a
-# member the workspace root is the member, and the same line would resolve to
-# that member's own `target/`.
+# Cargo resolves a relative `build.target-dir` against the parent of the
+# directory holding the file that declares it, so the stack root's
+# `target-dir = "target"` names the shared cache only in the primary checkout;
+# in a linked worktree of the stack repository it names that worktree's own
+# `target/`.
 #
 # This file sits between every member and the stack root: cargo merges configs
 # from the invocation directory upward, so it is closer than the root and
 # outside every member -- which matters, because several members carry a
 # tracked `.cargo/config.toml` of their own that this must not touch.
 #
-# Absolute because that is the only value that survives both roots, and
-# gitignored because an absolute path is machine-specific. Delete it and
-# in-member builds fork the cache again. Regenerate with
+# Absolute because only an absolute path names the primary checkout's cache
+# from a linked worktree, and gitignored because an absolute path is
+# machine-specific. Regenerate with
 # `python scripts/atlas-member-target-dir.py generate`.
 [build]
 target-dir = "{target}"
