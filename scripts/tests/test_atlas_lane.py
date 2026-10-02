@@ -43,11 +43,24 @@ class LaneToolTestCase(unittest.TestCase):
         self.stack = base / "stack"
         origin = base / "origin.git"
         subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
+        subprocess.run(["git", "init", "-q", "-b", "main", str(self.stack)], check=True)
+        git(self.stack, "config", "user.email", "t@t")
+        git(self.stack, "config", "user.name", "t")
+        (self.stack / "README.md").write_text("stack\n", encoding="utf-8")
+        git(self.stack, "add", "README.md")
+        git(self.stack, "commit", "-q", "-m", "stack")
         self.member = self.stack / "repos" / "demo"
         subprocess.run(["git", "clone", "-q", str(origin), str(self.member)],
                        check=True, capture_output=True)
         (self.member / "a.txt").write_text("seed\n", encoding="utf-8")
+        (self.member / "Cargo.toml").write_text(
+            "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+            encoding="utf-8",
+        )
+        (self.member / "src").mkdir()
+        (self.member / "src" / "lib.rs").write_text("pub fn value() -> u8 { 1 }\n", encoding="utf-8")
         git(self.member, "add", "a.txt")
+        git(self.member, "add", "Cargo.toml", "src/lib.rs")
         git(self.member, "commit", "-q", "-m", "seed")
         git(self.member, "push", "-q", "origin", "HEAD:main")
         git(self.member, "remote", "set-head", "origin", "main")
@@ -70,6 +83,20 @@ class LaneToolTestCase(unittest.TestCase):
         lane = self.stack / "worktrees" / "demo-fix-first"
         self.assertEqual(git(lane, "symbolic-ref", "--short", "HEAD"), "fix/first")
         self.assertEqual(git(lane, "rev-parse", "HEAD"), git(self.member, "rev-parse", "origin/main"))
+        config = self.stack / "worktrees" / ".cargo" / "config.toml"
+        self.assertIn(
+            f'target-dir = "{(self.stack / "target").resolve().as_posix()}"',
+            config.read_text(encoding="utf-8"),
+        )
+        built = subprocess.run(
+            ["cargo", "check", "--quiet", "--offline"],
+            cwd=lane,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(built.returncode, 0, built.stderr)
+        self.assertTrue((self.stack / "target").is_dir())
+        self.assertFalse((lane / "target").exists())
 
         refused = self.lane("create", "demo", "fix/second")
         self.assertEqual(refused.returncode, 1)

@@ -7,6 +7,7 @@ import importlib.util
 import sys
 import tempfile
 import unittest
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,6 +21,24 @@ SPEC.loader.exec_module(lane)
 
 
 class LaneRootAuditTestCase(unittest.TestCase):
+    def test_target_config_reports_missing_stale_and_foreign(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lane-config-") as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q", "-b", "main", str(root)], check=True)
+            config = root / "worktrees" / ".cargo" / "config.toml"
+            violations: list[str] = []
+            with patch.object(lane, "ROOT", root):
+                lane.audit_target_config(violations)
+                self.assertIn("missing", violations[0])
+                config.parent.mkdir(parents=True)
+                config.write_text("[build]\ntarget-dir = 'foreign'\n", encoding="utf-8")
+                violations.clear()
+                lane.audit_target_config(violations)
+                self.assertIn("foreign", violations[0])
+                config.write_text(lane.lane_config_text(root) + "\n", encoding="utf-8")
+                violations.clear()
+                lane.audit_target_config(violations)
+                self.assertIn("stale", violations[0])
     def test_archive_directory_is_sanctioned_metadata(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lane-") as temp:
             root = Path(temp)
