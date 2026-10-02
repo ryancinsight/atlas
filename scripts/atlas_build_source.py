@@ -124,10 +124,11 @@ def _untracked_paths(top: Path) -> tuple[tuple[bytes, list[bytes]], ...]:
     as Git sorts it (byte order), so the source digest is unchanged.
     Submodules are not entered: only `?` and `!` entries are read.
 
-    `status` validates the `status.*` and `color.status` settings, so a
-    malformed one fails the identity with Git's own message. The same value
-    fails `git commit`, which validates them too, so no repository it breaks
-    reaches a push.
+    `status` validates the `status.*`, `color.status` and `column.*`
+    settings, which `ls-files` never read, so a malformed one fails the
+    identity loudly with Git's message naming the key and file. It never
+    yields a wrong identity. `git commit` refuses the same values, but
+    `commit-tree`, `merge` and `am` do not, so such a key can reach a push.
     """
     output = _git(
         top,
@@ -155,11 +156,13 @@ def repository_head(root: Path) -> tuple[Path, str]:
     """The top of the work tree holding `root`, and the revision its `HEAD` names."""
     root = _canonical(root, strict=True)
     output = _git(root, "rev-parse", "--show-toplevel", "HEAD")
-    # The revision is the last line; a POSIX path may itself hold newlines.
-    top, _, revision = output.rstrip(b"\r\n").rpartition(b"\n")
-    if not top.strip() or not revision.strip():
+    # Git ends each value with one LF. The revision is the last line, and the
+    # path everything before it, whitespace and newlines included: POSIX
+    # allows both in a directory name.
+    top, _, revision = output.removesuffix(b"\n").rpartition(b"\n")
+    if not top or not revision or revision != revision.strip():
         raise BuildIdentityError(f"git rev-parse --show-toplevel HEAD in {root} printed {output!r}")
-    return Path(os.fsdecode(top.strip())).resolve(), os.fsdecode(revision.strip())
+    return Path(os.fsdecode(top)).resolve(), os.fsdecode(revision)
 
 
 def source_identity(
