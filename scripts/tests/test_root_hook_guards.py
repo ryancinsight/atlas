@@ -481,13 +481,79 @@ class RootHookGuardTests(unittest.TestCase):
             self.assertTrue(built_auditor.is_file(), "the real coherence auditor must be built for this hook test")
             shutil.copy2(built_auditor, auditor)
             self.assertFalse((lane / "repos" / "demo" / ".git").exists())
+            # Shims log every interpreter launch, so the run shows how often
+            # the hook probes for one and which gates it ran.
+            shims = root / "shims"
+            launches_log = root / "interpreter.log"
+            install_interpreter_shims(shims, launches_log)
+            trace = root / "push.trace.json"
+            push_environment = dict(environment, GIT_TRACE2_EVENT=str(trace))
+            push_environment.pop("PYTHON", None)
+            push_environment["PATH"] = f"{shims}{os.pathsep}{environment['PATH']}"
             pre_push = subprocess.run(
                 ["bash", str(worktree / ".githooks" / "pre-push")],
-                cwd=lane, env=environment, input="", capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+                cwd=lane, env=push_environment, input="", capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             )
             self.assertEqual(pre_push.returncode, 0, pre_push.stdout + pre_push.stderr)
             self.assertNotIn("building it now", pre_push.stderr)
             self.assertFalse((lane / "target" / "release").exists())
+            # Each process costs seconds on a loaded Windows host: the hook
+            # probes for an interpreter once, lists the gate scripts the tip
+            # carries in one git process, and still runs all three gates.
+            launches = launches_log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(launches.count("-c import sys"), 1, launches)
+            self.assertEqual(sum(launch.startswith("- check --root") for launch in launches), 3, launches)
+            processes = git_processes(trace)
+            self.assertEqual(
+                sum("--batch-check=%(objecttype) %(rest)" in argv for argv in processes), 1, processes,
+            )
+            self.assertEqual(
+                [argv for argv in processes if "-e" in argv and any(":scripts/" in arg for arg in argv)],
+                [], processes,
+            )
+
+            # A pushed tip that predates the gate scripts has nothing to run:
+            # the hook still probes once but launches no gate.
+            def plumbing(*arguments: str, index: Path) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(lane), "-c", "user.name=Test",
+                     "-c", "user.email=test@example.invalid", *arguments],
+                    env=dict(environment, GIT_INDEX_FILE=str(index)),
+                    check=True, capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+                ).stdout.strip()
+
+            gate_scripts = (
+                "scripts/atlas-artifact-budget.py",
+                "scripts/atlas-secret-scan.py",
+                "scripts/atlas-refspec-guard.py",
+            )
+            index = root / "bare.index"
+            plumbing("read-tree", "HEAD", index=index)
+            plumbing("update-index", "--force-remove", *gate_scripts, index=index)
+            bare_tree = plumbing("write-tree", index=index)
+            head = plumbing("rev-parse", "HEAD", index=index)
+            bare_tip = plumbing("commit-tree", bare_tree, "-p", head, "-m", "Drop the gate scripts", index=index)
+            self.assertEqual(
+                plumbing("ls-tree", "--name-only", bare_tip, "scripts/atlas-secret-scan.py", index=index), "",
+            )
+            launches_log.unlink()
+            trace = root / "bare.trace.json"
+            push_environment["GIT_TRACE2_EVENT"] = str(trace)
+            bare_push = subprocess.run(
+                ["bash", str(worktree / ".githooks" / "pre-push")],
+                cwd=lane, env=push_environment, capture_output=True,
+                # Bytes, so Windows text mode cannot end each ref update in a
+                # carriage return that git's own protocol lacks.
+                input=f"refs/heads/bare {bare_tip} refs/heads/bare {head}\n".encode("utf-8"),
+                timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+            )
+            self.assertEqual(
+                bare_push.returncode, 0, (bare_push.stdout + bare_push.stderr).decode("utf-8", "replace"),
+            )
+            self.assertEqual(launches_log.read_text(encoding="utf-8").splitlines(), ["-c import sys"])
+            self.assertEqual(
+                sum("--batch-check=%(objecttype) %(rest)" in argv for argv in git_processes(trace)), 1,
+            )
 
     def _separate_git_dir_lane(self, root: Path) -> tuple[Path, Path, dict[str, str]]:
         """A canonical worktree whose `.git` file points at its metadata, and a lane of it.
@@ -550,6 +616,134 @@ class RootHookGuardTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("canonical member checkout is absent", result.stderr)
             self.assertNotIn("fatal:", result.stdout + result.stderr)
+
+    def test_gate_script_listing_treats_only_a_missing_object_as_absent(self) -> None:
+        """A script path holding a tree still runs its gate, which then fails as before."""
+        hook = PRE_PUSH.read_text(encoding="utf-8")
+        listing = re.search(r'(?ms)^tip_scripts=""\n.*?^tip_has_script\(\) \{\n.*?^\}\n', hook)
+        self.assertIsNotNone(listing, "the gate script listing is missing from .githooks/pre-push")
+        scripts = (
+            "scripts/atlas-artifact-budget.py",
+            "scripts/atlas-secret-scan.py",
+            "scripts/atlas-refspec-guard.py",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+            environment.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(repo), "-c", "user.name=Test",
+                     "-c", "user.email=test@example.invalid", *arguments],
+                    env=environment, check=True, capture_output=True, text=True,
+                    timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+                ).stdout.strip()
+
+            def commit(message: str, layout: dict[str, str]) -> str:
+                for path in git("ls-files").splitlines():
+                    git("rm", "-q", "-r", "-f", "--", path)
+                for path, text in layout.items():
+                    (repo / path).parent.mkdir(parents=True, exist_ok=True)
+                    (repo / path).write_text(text, encoding="utf-8")
+                git("add", "--all")
+                git("commit", "-q", "--allow-empty", "-m", message)
+                return git("rev-parse", "HEAD")
+
+            git("init", "-q", "-b", "main")
+            git("config", "core.autocrlf", "false")
+            complete = commit("complete", {path: "print()\n" for path in scripts})
+            # The secret scan's path is a directory, the budget script is gone.
+            shadowed = commit("shadowed", {
+                scripts[1] + "/inner.py": "print()\n",
+                scripts[2]: "print()\n",
+            })
+            driver = (
+                'atlas_root="$1"\n' + listing.group(0)
+                + 'list_gate_scripts "$2" || exit 7\n'
+                + f'for script in {" ".join(scripts)}; do\n'
+                + '    if tip_has_script "$script"; then echo "present $script"; else echo "absent $script"; fi\n'
+                + 'done\n'
+            )
+
+            def verdicts(root: Path, tip: str) -> subprocess.CompletedProcess:
+                return subprocess.run(
+                    ["bash", "-c", driver, "listing", str(root), tip],
+                    env=environment, capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+                )
+
+            result = verdicts(repo, complete)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.splitlines(), [f"present {script}" for script in scripts])
+            result = verdicts(repo, shadowed)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                result.stdout.splitlines(),
+                [f"absent {scripts[0]}", f"present {scripts[1]}", f"present {scripts[2]}"],
+            )
+            # A listing that cannot run judges nothing: the hook blocks.
+            result = verdicts(repo / "missing", complete)
+            self.assertEqual(result.returncode, 7, result.stdout + result.stderr)
+            self.assertIn("could not list the gate scripts", result.stderr)
+
+    def test_a_failing_gate_script_listing_blocks_the_push(self) -> None:
+        """The hook's own dispatch runs no gate for a tip whose listing fails.
+
+        The dispatch is the hook's `case "$status"` block, extracted whole,
+        with the four gates replaced by stubs that log their calls, so the
+        listing, the `|| exit 1` after it and the order of the gates are the
+        hook's own.
+        """
+        hook = PRE_PUSH.read_text(encoding="utf-8")
+        listing = re.search(r'(?ms)^tip_scripts=""\n.*?^tip_has_script\(\) \{\n.*?^\}\n', hook)
+        self.assertIsNotNone(listing, "the gate script listing is missing from .githooks/pre-push")
+        dispatch = re.search(r'(?ms)^case "\$status" in\n.*?^esac\n', hook)
+        self.assertIsNotNone(dispatch, 'the `case "$status"` dispatch is missing from .githooks/pre-push')
+        gates = ("debt_gate", "budget_gate", "secret_gate", "refspec_gate")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repo = root / "repo"
+            repo.mkdir()
+            environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+            environment.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(repo), "-c", "user.name=Test",
+                     "-c", "user.email=test@example.invalid", *arguments],
+                    env=environment, check=True, capture_output=True, text=True,
+                    timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+                ).stdout.strip()
+
+            git("init", "-q", "-b", "main")
+            git("commit", "--allow-empty", "-qm", "root")
+            tip = git("rev-parse", "HEAD")
+            calls = root / "gates.log"
+            driver = root / "dispatch.sh"
+            driver.write_bytes((
+                'atlas_root="$1"\nstatus=0\npushed_tips=("$2")\npushed_bases=("$2")\n'
+                'gate_base_for() { echo "$2"; }\n'
+                + "".join(f'{gate}() {{ echo "{gate}" >> "{calls.as_posix()}"; }}\n' for gate in gates)
+                + listing.group(0) + dispatch.group(0)
+            ).encode("utf-8"))
+
+            def dispatch_push(atlas_root: Path) -> subprocess.CompletedProcess:
+                return subprocess.run(
+                    ["bash", str(driver), str(atlas_root), tip],
+                    env=environment, capture_output=True, text=True,
+                    timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+                )
+
+            # Control: a listing that runs lets the four gates run in order.
+            result = dispatch_push(repo)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(calls.read_text(encoding="utf-8").splitlines(), list(gates))
+            calls.unlink()
+
+            result = dispatch_push(root / "missing")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("could not list the gate scripts", result.stderr)
+            self.assertFalse(calls.exists(), "a gate ran for a tip whose gate scripts could not be listed")
 
     def test_merge_allows_inherited_board_and_gitlink_changes_only(self) -> None:
         """A real merge may combine independently valid board and pin commits."""
@@ -718,11 +912,15 @@ class RootHookGuardTests(unittest.TestCase):
     def _run_debt_gate(
         self, repo: Path, environment: dict[str, str], base: str, tip: str, status: int,
     ) -> tuple[subprocess.CompletedProcess, str]:
-        function = re.search(r"(?ms)^debt_gate\(\) \{\n.*?^\}\n", PRE_PUSH.read_text(encoding="utf-8"))
+        hook = PRE_PUSH.read_text(encoding="utf-8")
+        function = re.search(r"(?ms)^debt_gate\(\) \{\n.*?^\}\n", hook)
         self.assertIsNotNone(function, "debt_gate() is missing from .githooks/pre-push")
+        probe = re.search(r"(?ms)^python_bin=\"\"\n.*?^resolve_python\(\) \{\n.*?^\}\n", hook)
+        self.assertIsNotNone(probe, "resolve_python() is missing from .githooks/pre-push")
         log = repo.parent / "checker.log"
         script = (
-            function.group(0)
+            probe.group(0)
+            + function.group(0)
             + 'atlas_root="$1"; member_root="$1"; gate_base="$2"\n'
             + 'debt_gate "$3"\n'
         )

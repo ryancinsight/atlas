@@ -314,6 +314,49 @@ for coherence_tip in "${pushed_tips[@]}"; do
     [ "$coherence_status" -gt "$status" ] && status="$coherence_status"
 done
 
+# The interpreter every gate runs, probed once per hook run: each probe is an
+# interpreter launch, which a loaded Windows host makes slow.
+python_bin=""
+python_probed=0
+resolve_python() {
+    local candidate
+    if [ "$python_probed" = 0 ]; then
+        python_probed=1
+        python_bin="${PYTHON:-}"
+        if [ -z "$python_bin" ]; then
+            for candidate in python3 python; do
+                if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1; then
+                    python_bin="$candidate"
+                    break
+                fi
+            done
+        fi
+    fi
+    [ -n "$python_bin" ]
+}
+
+# The gate scripts a pushed tip carries, listed in one git process. A
+# revision without a script predates that gate and has nothing to run; any
+# other object at its path (a tree, say) still runs the gate, which then
+# fails as it always did. Git names a missing object by the spec it was asked
+# for, so only that line marks an absent script.
+tip_scripts=""
+tip_listed=""
+list_gate_scripts() {
+    local tip="$1" request="" path
+    for path in scripts/atlas-artifact-budget.py scripts/atlas-secret-scan.py scripts/atlas-refspec-guard.py; do
+        request+="$tip:$path $path"$'\n'
+    done
+    tip_scripts="$(git -C "$atlas_root" cat-file --batch-check='%(objecttype) %(rest)' <<<"${request%$'\n'}")" || {
+        echo "pre-push: BLOCKED -- could not list the gate scripts at ${tip:0:12}." >&2
+        return 1
+    }
+    tip_listed="$tip"
+}
+tip_has_script() {
+    [[ $'\n'"$tip_scripts"$'\n' != *$'\n'"$tip_listed:$1 missing"$'\n'* ]]
+}
+
 # Second stage, and only for a push that moves a pin: a gitlink can name a
 # published commit -- everything the auditor checks -- and still import debt
 # the member grew since the last advance. That is the loop this exists to
@@ -337,7 +380,7 @@ done
 # advance as its raise (CFDrs/scattered_containers 0 -> 24 on a branch whose
 # baseline predated the class) and could not push.
 debt_gate() {
-    local tip="$1" changed python_bin member output base member_revision
+    local tip="$1" changed member output base member_revision
     local checker_rev checker_dir ref status default_revision
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
@@ -347,16 +390,7 @@ debt_gate() {
     changed="$(git -C "$atlas_root" diff --name-only "$base".."$tip" -- repos/ 2>/dev/null | awk -F/ 'NF > 1 { print $2 }' | sort -u)"
     [ -z "$changed" ] && return 0
 
-    python_bin="${PYTHON:-}"
-    if [ -z "$python_bin" ]; then
-        for candidate in python3 python; do
-            if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1; then
-                python_bin="$candidate"
-                break
-            fi
-        done
-    fi
-    if [ -z "$python_bin" ]; then
+    if ! resolve_python; then
         echo "pre-push: BLOCKED -- gitlinks moved and no python interpreter is" >&2
         echo "available, so the debt they carry is unmeasured." >&2
         return 1
@@ -423,15 +457,9 @@ debt_gate() {
 # members run (scripts/atlas-artifact-budget.py): an over-budget board may
 # not grow, an oversized image may not be added or touched.
 budget_gate() {
-    local tip="$1" base python_bin candidate
+    local tip="$1" base
     base="$gate_base"
-    python_bin="${PYTHON:-}"
-    if [ -z "$python_bin" ]; then
-        for candidate in python3 python; do
-            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
-        done
-    fi
-    if [ -z "$python_bin" ]; then
+    if ! resolve_python; then
         echo "pre-push: BLOCKED -- no python interpreter; artifact budgets unverified." >&2
         return 1
     fi
@@ -440,7 +468,7 @@ budget_gate() {
     # The checker comes from the revision being pushed, so a shared tree that
     # lacks or predates it (a peer's checkout) still judges by the right code;
     # a revision without the script predates the gate and has nothing to run.
-    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas-artifact-budget.py" 2>/dev/null; then
+    if ! tip_has_script scripts/atlas-artifact-budget.py; then
         return 0
     fi
     git -C "$atlas_root" show "$tip:scripts/atlas-artifact-budget.py"         | "$python_bin" - check --root "$atlas_root" --rev "$tip" "${args[@]}"         || { echo "pre-push: BLOCKED -- a board grew past its budget or an oversized image was added." >&2; return 1; }
@@ -452,19 +480,13 @@ budget_gate() {
 # rather than in CI. The scanner comes from the pushed revision, as the budget
 # checker does.
 secret_gate() {
-    local tip="$1" base python_bin candidate
+    local tip="$1" base
     base="$gate_base"
-    python_bin="${PYTHON:-}"
-    if [ -z "$python_bin" ]; then
-        for candidate in python3 python; do
-            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
-        done
-    fi
-    if [ -z "$python_bin" ]; then
+    if ! resolve_python; then
         echo "pre-push: BLOCKED -- no python interpreter; the pushed range was not scanned for credentials." >&2
         return 1
     fi
-    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas-secret-scan.py" 2>/dev/null; then
+    if ! tip_has_script scripts/atlas-secret-scan.py; then
         return 0
     fi
     local args=()
@@ -481,18 +503,12 @@ secret_gate() {
 # published origin. Fetching a member ref lands in refs/scratch/ or in
 # FETCH_HEAD; only the own-origin wildcard mirror touches refs/remotes/.
 refspec_gate() {
-    local tip="$1" python_bin candidate
-    python_bin="${PYTHON:-}"
-    if [ -z "$python_bin" ]; then
-        for candidate in python3 python; do
-            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
-        done
-    fi
-    if [ -z "$python_bin" ]; then
+    local tip="$1"
+    if ! resolve_python; then
         echo "pre-push: BLOCKED -- no python interpreter; refspec guard unverified." >&2
         return 1
     fi
-    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas-refspec-guard.py" 2>/dev/null; then
+    if ! tip_has_script scripts/atlas-refspec-guard.py; then
         return 0
     fi
     git -C "$atlas_root" show "$tip:scripts/atlas-refspec-guard.py"         | "$python_bin" - check --root "$atlas_root" --rev "$tip"         || { echo "pre-push: BLOCKED -- a committed tool maps a fetched ref onto a remote-tracking ref; only the own-origin wildcard mirror may." >&2; return 1; }
@@ -504,6 +520,7 @@ case "$status" in
         for i in "${!pushed_tips[@]}"; do
             tip="${pushed_tips[$i]}"
             gate_base="$(gate_base_for "$tip" "${pushed_bases[$i]}")"
+            list_gate_scripts "$tip" || exit 1
             debt_gate "$tip" || exit 1
             budget_gate "$tip" || exit 1
             secret_gate "$tip" || exit 1
