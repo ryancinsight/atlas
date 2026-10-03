@@ -120,3 +120,4 @@
 <a id="atlas-provider-versions-20261002"></a>- [ATLAS-PROVIDER-VERSIONS-20261002](backlog/atlas-provider-versions-20261002.md) — Adopt eunomia 0.9 and leto 0.44 across consumers [correctness] — todo
 <a id="atlas-root-hook-tip-controlled"></a>- [ATLAS-ROOT-HOOK-TIP-CONTROLLED](backlog/atlas-root-hook-tip-controlled.md) — A pushed tip can replace the root hook that gates it [correctness] — todo
 <a id="atlas-test-tempdir-leaks"></a>- [ATLAS-TEST-TEMPDIR-LEAKS](backlog/atlas-test-tempdir-leaks.md) — Atlas Python tests leave temp directories behind [tightening] [patch] — todo
+<a id="atlas-standalone-crates-build"></a>- [ATLAS-STANDALONE-CRATES-BUILD](backlog/atlas-standalone-crates-build.md) — Make the five unbuildable standalone crates compile [patch] — todo

@@ -476,6 +476,54 @@ class RootHookGuardTests(unittest.TestCase):
         self.assertIn('debt_gate "$tip" || exit 1', text)
         self.assertIn('budget_gate "$tip" || exit 1', text)
         self.assertIn('secret_gate "$tip" || exit 1', text)
+        self.assertIn('cast_baseline_gate "$tip" || exit 1', text)
+
+    def test_cast_baseline_gate_refuses_a_raised_row(self) -> None:
+        function = re.search(r"(?ms)^cast_baseline_gate\(\) \{\n.*?^\}\n",
+                             PRE_PUSH.read_text(encoding="utf-8"))
+        self.assertIsNotNone(function, "cast_baseline_gate() is missing from .githooks/pre-push")
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary) / "atlas"
+            (repo / "scripts").mkdir(parents=True)
+            environment = {
+                key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+            }
+            environment.update(GIT_CONFIG_NOSYSTEM="1",
+                               GIT_CONFIG_GLOBAL=str(Path(temporary) / "gitconfig"))
+            (Path(temporary) / "gitconfig").write_text("", encoding="utf-8")
+
+            def commit(row: int) -> str:
+                (repo / "scripts" / "cast-baseline.json").write_text(
+                    '{"sanctioned": {}, "counts": {"m": {"a": %d}}}\n' % row, encoding="utf-8")
+                for arguments in (["add", "scripts"], ["commit", "-qm", f"row {row}"]):
+                    subprocess.run(["git", "-C", str(repo), "-c", "user.name=Test",
+                                    "-c", "user.email=test@example.invalid", *arguments],
+                                   env=environment, check=True, capture_output=True, timeout=30)
+                return subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                                      env=environment, check=True, capture_output=True,
+                                      text=True, timeout=30).stdout.strip()
+
+            subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], env=environment,
+                           check=True, capture_output=True, timeout=30)
+            shutil.copyfile(ROOT / "scripts" / "atlas_cast_gate.py",
+                            repo / "scripts" / "atlas_cast_gate.py")
+            base = commit(3)
+            fell = commit(2)
+            rose = commit(4)
+
+            def run(gate_base: str, tip: str) -> subprocess.CompletedProcess:
+                script = (function.group(0) + 'atlas_root="$1"; gate_base="$2"\n'
+                          + 'cast_baseline_gate "$3"\n')
+                return subprocess.run(
+                    ["bash", "-c", script, "cast_baseline_gate", repo.as_posix(), gate_base, tip],
+                    env=dict(environment, PYTHON=sys.executable), capture_output=True,
+                    text=True, encoding="utf-8", timeout=60)
+
+            self.assertEqual(run(base, fell).returncode, 0)
+            refused = run(fell, rose)
+            self.assertEqual(refused.returncode, 1, refused.stderr)
+            self.assertIn("m/a rises from 2 to 4", refused.stderr)
+            self.assertEqual(run("", rose).returncode, 0)
 
     def _debt_gate_stack(self, temporary: str) -> tuple[Path, dict[str, str], str, str]:
         """An atlas repository whose checkout and origin disagree on the checker.
