@@ -21,6 +21,7 @@ from atlas_build_lock import (
 )
 
 _TICKET_MODES = {EXCLUSIVE: "x", SHARED: "s"}
+_TICKET_SUFFIX = ".ticket"
 _TICKET_ATTEMPTS = 100
 _RETRY_SECONDS = 0.005
 
@@ -61,30 +62,75 @@ def _ticket_is_live(path: Path) -> bool:
     return False
 
 
+def _fields(name: str) -> tuple[int, str, str]:
+    """A ticket name's arrival, mode letter and run.
+
+    The name is `arrival-mode-run-pid-uuid`. A ticket of a checker that
+    predates runs is `arrival-mode-pid-uuid`; its pid and uuid stand in for
+    the run, which is unique to that ticket, so it ties with nothing.
+    """
+    arrival, mode, *rest = name.removesuffix(_TICKET_SUFFIX).split("-")
+    return int(arrival), mode, rest[0] if len(rest) == 3 else "-".join(rest)
+
+
+def place_of(name: str) -> tuple[int, str]:
+    """A ticket's place in the arrival order: `(arrival, run)`.
+
+    The order is strict and total across the runs that queue at one lease,
+    and it is the same at every lease: a run's tickets all carry its arrival
+    and its run, and two runs never share a run. The mode is not part of it,
+    since it differs from lease to lease for one run.
+    """
+    arrival, _, run = _fields(name)
+    return arrival, run
+
+
+def _is_exclusive(name: str) -> bool:
+    return _fields(name)[1] == _TICKET_MODES[EXCLUSIVE]
+
+
 class Ticket:
     """A request's place in a lease's arrival order.
 
-    The file is named by the system-wide monotonic clock at arrival and locked
-    by its requester until it releases the lease. A requester that loses the
-    race between creating and locking its file, to a peer's liveness check
-    or collection, retries under a new name with the same arrival; one whose
-    locked file a peer's collection removed anyway (POSIX unlinks open files)
-    re-creates it with the same arrival at its next attempt.
+    The file is named by the system-wide monotonic clock at arrival, then the
+    mode and the run (one identifier for every ticket of a run, whatever the
+    lease), and locked by its requester until it releases the lease. A
+    requester that loses the race between creating and locking its file, to a
+    peer's liveness check or collection, retries under a new name with the
+    same arrival; one whose locked file a peer's collection removed anyway
+    (POSIX unlinks open files) re-creates it with the same arrival at its next
+    attempt.
     """
 
-    def __init__(self, path: Path, mode: str, owner: dict[str, object]) -> None:
+    def __init__(
+        self,
+        path: Path,
+        mode: str,
+        owner: dict[str, object],
+        arrival: int | None = None,
+        run: str | None = None,
+    ) -> None:
         self.directory = _queue_dir(path)
         self.directory.mkdir(parents=True, exist_ok=True)
         self.lease = path
         self.mode = mode
         self.record = {**owner, "mode": mode}
-        self.arrival = time.monotonic_ns()
+        self.arrival = time.monotonic_ns() if arrival is None else arrival
+        self.run = uuid.uuid4().hex if run is None else run
         self._create()
+
+    @property
+    def place(self) -> tuple[int, str]:
+        """This ticket's place in the arrival order."""
+        return self.arrival, self.run
 
     def _create(self) -> None:
         for _ in range(_TICKET_ATTEMPTS):
-            name = f"{self.arrival:020d}-{_TICKET_MODES[self.mode]}-{os.getpid()}-{uuid.uuid4().hex}"
-            candidate = self.directory / f"{name}.ticket"
+            name = (
+                f"{self.arrival:020d}-{_TICKET_MODES[self.mode]}-{self.run}"
+                f"-{os.getpid()}-{uuid.uuid4().hex}"
+            )
+            candidate = self.directory / f"{name}{_TICKET_SUFFIX}"
             handle = candidate.open("x+b")
             locked = False
             try:
@@ -114,9 +160,7 @@ class Ticket:
         for other in sorted(self.directory.glob("*.ticket")):
             if other == self.path or not _ticket_is_live(other):
                 continue
-            if other.name < self.path.name and (
-                mode == EXCLUSIVE or f"-{_TICKET_MODES[EXCLUSIVE]}-" in other.name
-            ):
+            if place_of(other.name) < self.place and (mode == EXCLUSIVE or _is_exclusive(other.name)):
                 blockers.append(other)
         return blockers
 
@@ -148,6 +192,34 @@ class Ticket:
             _release(self.handle, locked=True)
         finally:
             _unlink(self.path, SHARING_RETRY_ATTEMPTS)
+
+
+def conflicting(
+    path: Path, mode: str, place: tuple[int, str], own: Path | None = None
+) -> tuple[list[Path], list[Path]]:
+    """Live tickets of the lease at `path` that a `mode` request at `place` conflicts with.
+
+    Returns the tickets whose place is before the request's and those whose
+    place is after it, collecting dead ones. Places are `(arrival, run)`, the
+    order `Ticket.ahead` uses, so the two agree on every pair, ties included.
+    A shared request conflicts with exclusive tickets only; an exclusive one
+    with every ticket. `own` is the requester's ticket, and any ticket of the
+    request's own run, which never conflicts with itself.
+    """
+    before: list[Path] = []
+    after: list[Path] = []
+    for other in sorted(_queue_dir(path).glob(f"*{_TICKET_SUFFIX}")):
+        if other == own:
+            continue
+        other_place = place_of(other.name)
+        if other_place == place:
+            continue
+        if mode != EXCLUSIVE and not _is_exclusive(other.name):
+            continue
+        if not _ticket_is_live(other):
+            continue
+        (before if other_place < place else after).append(other)
+    return before, after
 
 
 def _names(path: Path, handle: Any) -> bool:
