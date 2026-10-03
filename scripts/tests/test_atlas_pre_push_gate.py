@@ -531,6 +531,25 @@ def _register_stack(stack: pathlib.Path) -> None:
     )
 
 
+# The credential scanner a stack publishes when a test does not supply its own:
+# the hook refuses a push it could not scan, so every stack that reaches that
+# step carries one. This stand-in reports a clean range.
+_CLEAN_RANGE_SCANNER = "import sys\nsys.exit(0)\n"
+
+
+def _seed_scanner(stack: pathlib.Path) -> None:
+    """Give the stack a credential scanner unless the test wrote its own."""
+    scanner = stack / "scripts" / "atlas-secret-scan.py"
+    if not scanner.exists():
+        _write(scanner, _CLEAN_RANGE_SCANNER, executable=True)
+
+
+def _stacked_fixture(temp: str, **options: object) -> "GateFixture":
+    """A member at `<temp>/repos/member` of a stack that carries the scanner
+    and the lockfile checker."""
+    return GateFixture.in_stack(pathlib.Path(temp), **options)
+
+
 def _publish_stack_scripts(
     stack: pathlib.Path, remove_from_checkout: tuple = ()
 ) -> None:
@@ -540,8 +559,7 @@ def _publish_stack_scripts(
     Names in `remove_from_checkout` then leave the working tree, as they do
     when the stack checkout sits on a branch that predates them.
     """
-    if not (stack / "scripts").is_dir():
-        return
+    _seed_scanner(stack)
     if not (stack / ".git").exists():
         _git_init_repo(stack)
     _register_stack(stack)
@@ -602,7 +620,7 @@ class NewBranchRangeTestCase(unittest.TestCase):
 
     def test_force_updated_publication_branch_uses_current_default_base(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-force-update-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             root = fixture.root
             branch = "ci/sync-stack-hooks"
 
@@ -682,7 +700,7 @@ class NewBranchRangeTestCase(unittest.TestCase):
 
     def test_new_branch_manifest_push_runs_lockfile_check(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -709,7 +727,7 @@ class NewBranchRangeTestCase(unittest.TestCase):
 
     def test_docs_only_push_skips_lockfile_check(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -736,7 +754,7 @@ class PackageMapperTestCase(unittest.TestCase):
 
     def test_merged_default_assets_do_not_expand_the_feature_gate(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -794,7 +812,7 @@ class PackageMapperTestCase(unittest.TestCase):
 
     def test_fixture_only_change_gates_its_workspace_package(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -830,7 +848,7 @@ class PackageMapperTestCase(unittest.TestCase):
         the hook's exit code and its stderr."""
         temp = tempfile.TemporaryDirectory(prefix="atlas-gate-")
         self.addCleanup(temp.cleanup)
-        fixture = GateFixture(pathlib.Path(temp.name))
+        fixture = _stacked_fixture(temp.name)
         _write(
             fixture.root / "fuzz" / "Cargo.toml",
             f'[package]\nname = "{package_name}"\nversion = "0.0.0"\n'
@@ -889,7 +907,7 @@ class PackageMapperTestCase(unittest.TestCase):
 
     def test_nested_virtual_workspace_manifest_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -917,7 +935,7 @@ class PackageMapperTestCase(unittest.TestCase):
 
     def test_single_crate_root_sources_gate_the_root_package(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp), layout="single")
+            fixture = _stacked_fixture(temp, layout="single")
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -970,7 +988,7 @@ class PackageMapperTestCase(unittest.TestCase):
         behind every peer's build lease.
         """
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp), layout="single")
+            fixture = _stacked_fixture(temp, layout="single")
             self._commit_paths_on_a_branch(
                 fixture,
                 {
@@ -989,7 +1007,7 @@ class PackageMapperTestCase(unittest.TestCase):
     def test_a_root_readme_still_gates_the_root_package(self) -> None:
         """A README can be `include_str!`-ed into the crate docs, so it stays an input."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp), layout="single")
+            fixture = _stacked_fixture(temp, layout="single")
             self._commit_paths_on_a_branch(
                 fixture,
                 {".githooks/pre-push": "#!/bin/sh\n", "README.md": "# solo\n"},
@@ -1045,7 +1063,7 @@ class BlameClassifierTestCase(unittest.TestCase):
 
     def test_rustdoc_failure_inside_repo_blocks(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -1075,7 +1093,7 @@ class BlameClassifierTestCase(unittest.TestCase):
     def test_clippy_failure_inside_repo_blocks(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             code, stderr = self._gate(
-                GateFixture(pathlib.Path(temp)), self.inside_log
+                _stacked_fixture(temp), self.inside_log
             )
             self.assertEqual(code, 1)
             self.assertIn("clippy fails", stderr)
@@ -1083,7 +1101,7 @@ class BlameClassifierTestCase(unittest.TestCase):
     def test_clippy_failure_outside_repo_reports_environment(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             code, stderr = self._gate(
-                GateFixture(pathlib.Path(temp)), self.outside_log
+                _stacked_fixture(temp), self.outside_log
             )
             self.assertEqual(code, 0)
             self.assertIn("dependency graph is broken", stderr)
@@ -1094,7 +1112,7 @@ class BlameClassifierTestCase(unittest.TestCase):
             "because --locked was passed\n"
         )
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            code, stderr = self._gate(GateFixture(pathlib.Path(temp)), log)
+            code, stderr = self._gate(_stacked_fixture(temp), log)
         self.assertEqual(code, 0, stderr)
         self.assertIn("dependency graph is broken", stderr)
 
@@ -1113,7 +1131,7 @@ class BlameClassifierTestCase(unittest.TestCase):
                 f"  --> {str(source).replace(chr(92), '/')}:1:1\n"
                 "error: could not compile `foreign-crate`\n"
             )
-            code, stderr = self._gate(GateFixture(pathlib.Path(temp)), log)
+            code, stderr = self._gate(_stacked_fixture(temp), log)
             self.assertEqual(code, 0, stderr)
             self.assertIn("dependency graph is broken", stderr)
 
@@ -1123,7 +1141,7 @@ class MissingToolchainTestCase(unittest.TestCase):
 
     def test_missing_cargo_skips_local_gate(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             fixture.set_cargo_behavior("missing")
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
@@ -1167,7 +1185,7 @@ class FixtureRemoteTestCase(unittest.TestCase):
 
     def test_add_all_does_not_index_the_bare_remote(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "add", "-A"],
                 check=True,
@@ -1194,7 +1212,7 @@ class SafetyRatchetTestCase(unittest.TestCase):
 
     def _push_source_change(self, ratchet_exit: int | None) -> tuple:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             if ratchet_exit is not None:
                 _write(
                     fixture.root / "scripts" / "safety_ratchet.py",
@@ -1254,7 +1272,7 @@ class LockRevisionTestCase(unittest.TestCase):
     def test_a_dirty_working_lock_does_not_refuse_a_clean_push(self) -> None:
         """An overlay-flattened working lock is not the push; its verdict is not asked."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             push_line = UnverifiableLockTestCase()._branch_touching_the_lock(fixture)
             (fixture.root / "Cargo.lock").write_text("# flattened by the overlay\n")
             code, stderr = fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1"})
@@ -1267,7 +1285,7 @@ class LockRevisionTestCase(unittest.TestCase):
     def test_the_pushed_lock_is_the_one_checked(self) -> None:
         """A failing checker refuses even when the working tree is clean of the change."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             push_line = UnverifiableLockTestCase()._branch_touching_the_lock(fixture)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "main"],
@@ -1394,9 +1412,7 @@ class DefaultBranchTestCase(unittest.TestCase):
 
     def test_first_push_on_master_default_gates(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(
-                pathlib.Path(temp), default_branch="master"
-            )
+            fixture = _stacked_fixture(temp, default_branch="master")
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -1425,7 +1441,7 @@ class LockRestoreTestCase(unittest.TestCase):
 
     def test_lock_bytes_survive_a_passing_gate(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             lock = fixture.root / "Cargo.lock"
             before = lock.read_bytes()
             subprocess.run(
@@ -1491,7 +1507,7 @@ class UnverifiableLockTestCase(unittest.TestCase):
 
     def test_absent_checker_refuses_the_push(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             push_line = self._branch_touching_the_lock(fixture, drop_checker=True)
             code, stderr = fixture.run_hook(push_line)
             self.assertNotEqual(code, 0)
@@ -1500,7 +1516,7 @@ class UnverifiableLockTestCase(unittest.TestCase):
 
     def test_absent_interpreter_refuses_the_push(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             push_line = self._branch_touching_the_lock(fixture)
             # `PYTHON=""` forces the hook's own search, and a PATH holding
             # only the fixture's stub bin makes that search fail. An
@@ -1529,7 +1545,7 @@ class UnverifiableLockTestCase(unittest.TestCase):
         here so the two do not drift apart again.
         """
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             push_line = self._branch_touching_the_lock(fixture, drop_checker=True)
             code, stderr = fixture.run_hook(
                 push_line, extra_env={"SKIP_LOCKFILE_CHECK": "1"}
@@ -1541,7 +1557,7 @@ class UnverifiableLockTestCase(unittest.TestCase):
     def test_skip_variable_cannot_hide_a_failing_lock(self) -> None:
         """A lock the checker rejects still refuses the push under the skip var."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             push_line = self._branch_touching_the_lock(fixture)
             code, stderr = fixture.run_hook(
                 push_line,
@@ -1601,9 +1617,12 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture(pathlib.Path(temp))
             code, stderr = self._push(fixture)
-            self.assertEqual(code, 0, stderr)
+            # The lock stage passes a clone with no stack and says so; the
+            # credential stage, which has no scanner to run, refuses the push.
+            self.assertEqual(code, 1, stderr)
             self.assertIn("no Atlas stack above this clone", stderr)
             self.assertIn("not verified here", stderr)
+            self.assertIn("credential scanner is not reachable from this clone", stderr)
             self.assertNotIn("lockfile-guard", stderr)
             self.assertFalse(fixture.lockfile_calls.exists())
 
@@ -1675,8 +1694,9 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
             )
             fixture = GateFixture(stack / "repos" / "member")
             code, stderr = self._push(fixture)
-            self.assertEqual(code, 0, stderr)
+            self.assertEqual(code, 1, stderr)
             self.assertIn("no Atlas stack above this clone", stderr)
+            self.assertIn("credential scanner is not reachable from this clone", stderr)
 
     def test_only_members_registered_under_repos_make_a_stack(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -1688,8 +1708,9 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
             _git(fixture.stack, "add", ".gitmodules")
             _git(fixture.stack, "commit", "-q", "-m", "vendor only")
             code, stderr = self._push(fixture)
-            self.assertEqual(code, 0, stderr)
+            self.assertEqual(code, 1, stderr)
             self.assertIn("no Atlas stack above this clone", stderr)
+            self.assertIn("credential scanner is not reachable from this clone", stderr)
 
     def _distrusting_environment(self, directory: pathlib.Path) -> dict:
         """Git as it behaves when another account owns every checkout and only
@@ -1727,20 +1748,23 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
         return fixture
 
     def test_a_clone_the_stack_does_not_register_is_named_not_gated(self) -> None:
-        """The stack names exactly its members and does not name this clone, so
-        lockfile checker is owed to it: the push passes, and the message says a
-        stack is above it and does not register it, never that no stack is, and
-        claims nothing about CI. A lock that gets through meets the `--locked`
-        CI jobs and is repaired by regenerating it, where a credential, whose
-        push cannot be taken back, is refused by the scanner stage; refusals
-        stay where identity or readability is unknown. The registered member,
-        or a lane of it, is where the check runs."""
+        """The stack names exactly its members and does not name this clone, so no
+        lockfile checker is owed to it: the lock stage passes it with a message
+        that says a stack is above it and does not register it, never that no
+        stack is, and claims nothing about CI. A lock that gets through meets
+        the `--locked` CI jobs and is repaired by regenerating it, where a
+        credential, whose push cannot be taken back, is not: the credential
+        stage refuses the push, saying why. The registered member, or a lane of
+        it, is where the push is checked."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = self._unmatched_checkout(temp)
             code, stderr = self._push(fixture)
-            self.assertEqual(code, 0, stderr)
+            self.assertEqual(code, 1, stderr)
             self.assertIn("inside the Atlas stack at", stderr)
             self.assertIn("not one of its registered members", stderr)
+            self.assertIn("lockfile checker is not used", stderr)
+            self.assertIn("BLOCKED -- inside the Atlas stack at", stderr)
+            self.assertIn("credential scanner is not used", stderr)
             self.assertNotIn("no Atlas stack above this clone", stderr)
             self.assertNotIn("--locked CI", stderr)
             self.assertFalse(fixture.lockfile_calls.exists())
@@ -1795,8 +1819,9 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
             code, stderr = fixture.run_hook(
                 push_line, {"SKIP_LOCAL_GATE": "1", "LOCKFILE_EXIT": "1"}, cwd=clone
             )
-            self.assertEqual(code, 0, stderr)
+            self.assertEqual(code, 1, stderr)
             self.assertIn("not one of its registered members", stderr)
+            self.assertIn("credential scanner is not used", stderr)
             self.assertFalse(fixture.lockfile_calls.exists())
 
     def test_a_member_that_is_a_submodule_is_never_taken_for_the_stack(self) -> None:
@@ -1932,7 +1957,7 @@ class DenySourcesTestCase(unittest.TestCase):
     def _push(self, mode: str, change: str) -> tuple:
         temp = tempfile.TemporaryDirectory(prefix="pre-push-deny-")
         self.addCleanup(temp.cleanup)
-        fixture = GateFixture(pathlib.Path(temp.name))
+        fixture = _stacked_fixture(temp.name)
         _write(fixture.root / "deny.toml", "[sources]\nallow-git = []\n")
         subprocess.run(["git", "-C", str(fixture.root), *_IDENT, "add", "deny.toml"], check=True)
         subprocess.run(
@@ -1992,6 +2017,7 @@ class LaneGateTestCase(unittest.TestCase):
         stack = pathlib.Path(temp.name)
         fixture = GateFixture(stack / "repos" / "foo")
         _write(stack / "scripts" / "lockfile.py", _STACK_LOCKFILE_STUB, executable=True)
+        _publish_stack_scripts(stack)
         if overlay:
             _write(stack / ".cargo" / "config.toml", '[build]\ntarget-dir = "target"\n')
         lane = stack / "worktrees" / "foo-lane"
@@ -2358,7 +2384,7 @@ class PushedRangeSelectionTestCase(unittest.TestCase):
 
     def test_a_branch_pushed_while_head_sits_elsewhere_gates_the_pushed_commit(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             self._commit_rust_on_a_branch_then_leave_it(fixture)
 
             code, stderr = fixture.run_hook(fixture.push_line_new_branch())
@@ -2368,11 +2394,10 @@ class PushedRangeSelectionTestCase(unittest.TestCase):
             self.assertNotIn("local gate not needed", stderr)
             assert_gated_on_the_export(self, code, stderr, fixture)
 
-    def test_an_unresolvable_pushed_base_falls_back_rather_than_skipping(self) -> None:
-        """A remote tip this clone never fetched cannot be diffed against;
-        reading that as an empty range would skip the gate silently."""
+    def test_an_unresolvable_pushed_base_fails_closed_before_gating(self) -> None:
+        """A remote tip this clone never fetched fails closed before gating."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             self._commit_rust_on_a_branch_then_leave_it(fixture)
             tip = _git(fixture.root, "rev-parse", "feat")
             absent = "0123456789abcdef0123456789abcdef01234567"
@@ -2381,8 +2406,8 @@ class PushedRangeSelectionTestCase(unittest.TestCase):
                 f"refs/heads/feat {tip} refs/heads/feat {absent}\n"
             )
 
-            self.assertNotIn("local gate not needed", stderr)
-            assert_gated_on_the_export(self, code, stderr, fixture)
+            self.assertNotEqual(code, 0)
+            self.assertIn("remote commit is unavailable", stderr)
 
 
 class DebtRatchetTestCase(unittest.TestCase):
@@ -2420,6 +2445,7 @@ class DebtRatchetTestCase(unittest.TestCase):
             stack / "scripts" / "atlas_stack.py",
             "ROOT = None  # honours ATLAS_STACK_ROOT\n" if revision_scans else "ROOT = None\n",
         )
+        _seed_scanner(stack)
         _git_init_repo(stack)
         _register_stack(stack)
         subprocess.run(
@@ -2586,15 +2612,17 @@ class DebtRatchetTestCase(unittest.TestCase):
             self.assertIn("carries no commits", stderr)
             self.assertNotIn("raises a debt class", stderr)
 
-    def test_an_unregistered_checkout_is_not_gated(self) -> None:
+    def test_an_unregistered_checkout_is_refused_before_the_ratchet(self) -> None:
         """No registered member shares this checkout's store, so the stack is
-        not its stack: the ratchet has no row and the stack tools are not used."""
+        not its stack: the ratchet has no row, and the credential stage, which
+        has no trusted scanner to use, refuses the push before the ratchet."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture, log, _, _, _ = self._stack(temp, 1, location="scratch")
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+            self.assertEqual(code, 1, stderr)
             self.assertFalse(log.is_file())
-            assert_gated_on_the_export(self, code, stderr, fixture)
-            self.assertIn("no stack checker reachable from this clone", stderr)
+            self.assertIn("BLOCKED -- inside the Atlas stack at", stderr)
+            self.assertNotIn("debt ratchet", stderr)
 
 
 class PushedRevisionGateTestCase(unittest.TestCase):
@@ -2611,7 +2639,7 @@ class PushedRevisionGateTestCase(unittest.TestCase):
     PEER_LOCK = b"# rewritten by the overlay in a peer's checkout\n"
 
     def _push_from_a_peer_checkout(self, temp: str, pushed_source: str) -> tuple:
-        fixture = GateFixture(pathlib.Path(temp))
+        fixture = _stacked_fixture(temp)
         fixture.set_cargo_behavior("fmt-by-content")
         root = fixture.root
         base = _git(root, "rev-parse", "main")
@@ -2703,7 +2731,7 @@ class PushShapeTestCase(unittest.TestCase):
 
     def test_every_ref_of_a_multi_ref_push_is_gated(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             fixture.set_cargo_behavior("fmt-by-content")
             lib = fixture.root / "crates" / "foo" / "src" / "lib.rs"
             _git(fixture.root, "switch", "-q", "-c", "good")
@@ -2723,7 +2751,7 @@ class PushShapeTestCase(unittest.TestCase):
 
     def test_an_orphan_branch_is_judged_on_its_own_content(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             fixture.set_cargo_behavior("fmt-by-content")
             root = fixture.root
             # An orphan keeps the tree but shares no history with main.
@@ -2739,7 +2767,7 @@ class PushShapeTestCase(unittest.TestCase):
 
     def test_a_deletion_only_push_gates_nothing(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             fixture.set_cargo_behavior("fmt-by-content")
             _git(fixture.root, "switch", "-q", "-c", "bad")
             (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
@@ -2766,7 +2794,7 @@ class ExportHygieneTestCase(unittest.TestCase):
         `core.symlinks` is false.
         """
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp) / "member")
+            fixture = _stacked_fixture(temp)
             outside = pathlib.Path(temp) / "outside"
             _write(outside / "secret.txt", "outside\n")
             root = fixture.root
@@ -2813,6 +2841,7 @@ class ExportHygieneTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             stack = pathlib.Path(temp)
             fixture = GateFixture(stack / "repos" / "member")
+            _publish_stack_scripts(stack)
             target = (stack / "shared-target").as_posix()
             _write(
                 stack / ".cargo" / "config.toml",
@@ -2890,7 +2919,7 @@ class ExportHygieneTestCase(unittest.TestCase):
 
     def test_stale_exports_of_dead_runs_are_swept(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp) / "member")
+            fixture = _stacked_fixture(temp)
             tmp = pathlib.Path(temp) / "tmp"
             stale = tmp / "pre-push-gate.dead01"
             young = tmp / "pre-push-lock.young1"
@@ -2912,7 +2941,7 @@ class ExportHygieneTestCase(unittest.TestCase):
     def test_an_interrupted_lock_check_leaves_no_export(self) -> None:
         """TERM while the lock export exists: the trap removes it."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             tmp = pathlib.Path(temp) / "tmp"
             tmp.mkdir()
             _git(fixture.root, "switch", "-q", "-c", "feat")
@@ -2992,7 +3021,7 @@ class ExportSourceTestCase(unittest.TestCase):
     def test_a_partial_clone_exports_blobs_it_never_fetched(self) -> None:
         """13 of 28 members are `blob:none` clones; the export fetches on demand."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp) / "member")
+            fixture = _stacked_fixture(temp)
             upstream = fixture.root / "upstream.git"
             _git(upstream, "config", "uploadpack.allowFilter", "true")
             _git(upstream, "config", "uploadpack.allowAnySHA1InWant", "true")
@@ -3002,11 +3031,12 @@ class ExportSourceTestCase(unittest.TestCase):
             )
             pushed = _commit_all(fixture.root, "feat")
             _git(fixture.root, "push", "-q", "origin", "feat")
-            partial = pathlib.Path(temp) / "partial"
+            partial = pathlib.Path(temp) / "repos" / "partial"
             subprocess.run(
                 ["git", "clone", "-q", "--filter=blob:none", upstream.as_uri(), str(partial)],
                 check=True,
             )
+            _register_stack(pathlib.Path(temp))
             for key, value in (("gc.auto", "0"), ("maintenance.auto", "false")):
                 _git(partial, "config", key, value)
             missing = subprocess.run(
@@ -3032,7 +3062,7 @@ class ExportSourceTestCase(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "the 260-character path limit is Windows'")
     def test_a_path_past_the_windows_limit_is_exported(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             root = fixture.root
             _git(root, "config", "core.longpaths", "true")
             _git(root, "switch", "-q", "-c", "deep")
@@ -3053,7 +3083,7 @@ class ExportSourceTestCase(unittest.TestCase):
     def test_a_re_push_reuses_the_export_and_its_file_times(self) -> None:
         """Cargo fingerprints the export path; a new one per push rebuilt it all."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             stub = fixture.bin / "cargo"
             stub.write_text(
                 stub.read_text(encoding="utf-8").replace(
@@ -3084,7 +3114,7 @@ class ExportSourceTestCase(unittest.TestCase):
 
     def test_a_held_export_is_not_shared(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             _git(fixture.root, "switch", "-q", "-c", "feat")
             (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text("pub fn g() {}\n", encoding="utf-8")
             _commit_all(fixture.root, "feat")
@@ -3104,7 +3134,7 @@ class ExportSourceTestCase(unittest.TestCase):
 
     def test_a_crate_without_tests_passes_the_test_step(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             stub = fixture.bin / "cargo"
             stub.write_text(
                 stub.read_text(encoding="utf-8").replace(
@@ -3134,7 +3164,7 @@ class TemporaryOwnershipTestCase(unittest.TestCase):
     def test_an_ownerless_export_younger_than_a_day_survives(self) -> None:
         """An older hook records no owner and may still be building there."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             older = fixture.tmp / "pre-push-gate.old326"
             dead = fixture.tmp / "pl.dead01"
             _write(older / "tree" / "Cargo.toml", "[workspace]\n")
@@ -3155,7 +3185,7 @@ class TemporaryOwnershipTestCase(unittest.TestCase):
     def test_an_ownerless_export_older_than_a_day_is_swept(self) -> None:
         """No owner and no activity for a day: the run that wrote it is gone."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             abandoned = fixture.tmp / "pre-push-gate.old999"
             _write(abandoned / "tree" / "Cargo.toml", "[workspace]\n")
             two_days_ago = time.time() - 2 * 86400
@@ -3171,7 +3201,7 @@ class TemporaryOwnershipTestCase(unittest.TestCase):
 
     def test_a_reusable_export_is_swept_only_after_a_week_without_a_holder(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = _stacked_fixture(temp)
             gone = fixture.tmp / "pg-0123456789"
             recent = fixture.tmp / "pg-9876543210"
             held = fixture.tmp / "pg-abcdefabcd"
