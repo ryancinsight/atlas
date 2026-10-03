@@ -66,6 +66,10 @@ _HOOK_COMMANDS = (
     "mktemp",
     "rm",
     "tar",
+    "date",
+    "cut",
+    "mkdir",
+    "mv",
 )
 
 
@@ -411,14 +415,19 @@ class GateFixture:
             executable=True,
         )
 
-    def run_hook(self, push_lines: str, extra_env: dict | None = None) -> tuple:
-        """Run the owned hook script in this fixture; return (exit, stderr)."""
+    def hook_environment(self, extra_env: dict | None = None) -> dict:
+        """The environment the hook runs in: the stub toolchain first on PATH."""
         env = dict(os.environ)
         env["PATH"] = str(self.bin) + os.pathsep + env.get("PATH", "")
         env["CARGO"] = str(self.cargo_launcher)
         env["TMPDIR"] = self.tmp.as_posix()
         if extra_env:
             env.update(extra_env)
+        return env
+
+    def run_hook(self, push_lines: str, extra_env: dict | None = None) -> tuple:
+        """Run the owned hook script in this fixture; return (exit, stderr)."""
+        env = self.hook_environment(extra_env)
         # Bytes, not text: on Windows a text-mode pipe translates `\n` to
         # `\r\n`, and the hook (like git itself) speaks raw `\n`-terminated
         # protocol lines. A stray `\r` would poison every SHA comparison.

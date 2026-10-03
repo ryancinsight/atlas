@@ -100,7 +100,6 @@
 <a id="kwavers-ci-pipeline-001"></a>- [KWAVERS-CI-PIPELINE-001](backlog/kwavers-ci-pipeline-001.md) — Consolidate kwavers CI to one verification pipeline [ci] [patch] — todo
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
-<a id="atlas-identity-lease-starvation"></a>- [ATLAS-IDENTITY-LEASE-STARVATION](backlog/atlas-identity-lease-starvation.md) — Gated pushes starve on the 900 s identity-lease wait [verification] — todo
 <a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
 <a id="atlas-identity-ignored-files"></a>- [ATLAS-IDENTITY-IGNORED-FILES](backlog/atlas-identity-ignored-files.md) — Keep gitignored run output out of a path package's identity [patch] — todo
 <a id="atlas-identity-overlay-locked-metadata"></a>- [ATLAS-IDENTITY-OVERLAY-LOCKED-METADATA](backlog/atlas-identity-overlay-locked-metadata.md) — Read the overlay's dependency graph without refusing its lock [patch] — todo
@@ -120,3 +119,5 @@
 <a id="atlas-provider-versions-20261002"></a>- [ATLAS-PROVIDER-VERSIONS-20261002](backlog/atlas-provider-versions-20261002.md) — Adopt eunomia 0.9 and leto 0.44 across consumers [correctness] — todo
 <a id="atlas-root-hook-tip-controlled"></a>- [ATLAS-ROOT-HOOK-TIP-CONTROLLED](backlog/atlas-root-hook-tip-controlled.md) — A pushed tip can replace the root hook that gates it [correctness] — todo
 <a id="atlas-test-tempdir-leaks"></a>- [ATLAS-TEST-TEMPDIR-LEAKS](backlog/atlas-test-tempdir-leaks.md) — Atlas Python tests leave temp directories behind [tightening] [patch] — todo
+<a id="atlas-hook-deadline-enforced"></a>- [ATLAS-HOOK-DEADLINE-ENFORCED](backlog/atlas-hook-deadline-enforced.md) — The pre-push hook enforces no deadline of its own [verification] — todo
+<a id="atlas-hook-unleased-steps"></a>- [ATLAS-HOOK-UNLEASED-STEPS](backlog/atlas-hook-unleased-steps.md) — A clone without the stack checker gates its steps with no lease [verification] — todo

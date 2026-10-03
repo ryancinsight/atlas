@@ -34,7 +34,7 @@ BOUND = WAIT // 2
 def lock_functions() -> str:
     """The hook's lock functions, from the first helper to the end of `claim_lock`."""
     source = SCRIPT.read_text(encoding="utf-8")
-    start = source.index("lock_is_live() {")
+    start = source.index("process_start_token() {")
     end = source.index("\nclaim_lock() {")
     return source[start : source.index("\n}\n", end) + 3]
 
@@ -292,6 +292,68 @@ class ClaimLockTestCase(unittest.TestCase):
         step.wait(WAIT)
         result = outcome(CLAIM, (base / "lock").as_posix())
         self.assertEqual(result["status"], "0")
+
+    def token(self, pid: str) -> str:
+        """The start token of the live process `pid`, as the hook computes it."""
+        token = outcome('echo "token=$(process_start_token "$1")"', pid)["token"]
+        self.assertTrue(token, "this platform gives no process start token")
+        return token
+
+    def test_a_reused_pid_is_not_the_holder(self) -> None:
+        # The lock names a pid with the token of the process that held it. The
+        # process now running under that pid has another token: a stranger
+        # that reused the pid, so the lock is replaced, not held for it.
+        base = self.lock_dir()
+        stranger, pid = self.live_pid()
+        lock = self.lock(base, f"{pid} {self.token(pid)}1")
+        result = outcome(CLAIM, lock.as_posix())
+        self.assertEqual(result, {"status": "0", "holder": ""})
+
+    def test_a_reused_pid_in_the_step_list_is_not_the_holder(self) -> None:
+        base = self.lock_dir()
+        stranger, pid = self.live_pid()
+        lock = self.lock(base, self.dead_pid(), children=(f"{pid} {self.token(pid)}1",))
+        result = outcome(CLAIM, lock.as_posix())
+        self.assertEqual(result, {"status": "0", "holder": ""})
+
+    def test_a_pid_with_its_own_token_is_the_holder(self) -> None:
+        base = self.lock_dir()
+        holder, pid = self.live_pid()
+        lock = self.lock(base, f"{pid} {self.token(pid)}")
+        result = outcome(CLAIM, lock.as_posix())
+        self.assertEqual(result, {"status": "1", "holder": pid})
+
+    def test_a_pid_with_no_token_is_trusted_on_its_liveness(self) -> None:
+        # A lock written where the platform gave no token, or before tokens.
+        base = self.lock_dir()
+        holder, pid = self.live_pid()
+        lock = self.lock(base, pid)
+        result = outcome(CLAIM, lock.as_posix())
+        self.assertEqual(result, {"status": "1", "holder": pid})
+
+    def test_a_claim_records_its_pid_and_start_token(self) -> None:
+        # Run under a stand-in `process_start_token` so the expected line is
+        # known without reading the same process twice.
+        base = self.lock_dir()
+        lock = base / "lock"
+        body = (
+            'process_start_token() { echo "token-of-$1"; }\n'
+            + CLAIM
+            + 'echo "pid=$$"\n'
+            + 'cat "$1/pid"\n'
+        )
+        child = run(body, lock.as_posix())
+        stdout, stderr = child.communicate(timeout=WAIT)
+        self.assertEqual(child.returncode, 0, stderr.decode("utf-8", errors="replace"))
+        lines = stdout.decode().replace("\r", "").splitlines()
+        pid = next(line.split("=", 1)[1] for line in lines if line.startswith("pid="))
+        self.assertEqual(lines[-1], f"{pid} token-of-{pid}")
+
+    def test_a_process_start_token_is_its_own_and_stable(self) -> None:
+        holder, pid = self.live_pid()
+        first = self.token(pid)
+        self.assertEqual(self.token(pid), first)
+        self.assertEqual(outcome('echo "token=$(process_start_token "$1")"', self.dead_pid())["token"], "")
 
     def test_a_dead_holder_is_replaced(self) -> None:
         base = self.lock_dir()

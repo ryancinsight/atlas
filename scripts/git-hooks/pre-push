@@ -127,18 +127,57 @@ trap 'exit 143' TERM
 #   times. A longer bound makes every claim wait out a dead reclaimer's mutex
 #   with status 2, and the hook then gates without the lock for that long.
 #
+# process_start_token <pid>: a value that names one process for its whole life,
+# or nothing when this platform gives none (the caller then trusts liveness
+# alone). Linux reads the start tick of `/proc/<pid>/stat`, counted from boot
+# and so unmoved by a step of the wall clock; its command field can hold
+# spaces and so is cut at its last parenthesis. Git Bash's `/proc/<pid>`
+# directory carries the process's creation time as its mtime. Two processes
+# that held one pid have different tokens, because a pid is reused only after
+# its process ended and the successor starts later.
+process_start_token() {
+  local line rest
+  case "$(uname -s)" in
+    Linux)
+      { read -r line < "/proc/$1/stat"; } 2>/dev/null || return 0
+      rest="${line##*) }"
+      set -- $rest
+      echo "${20:-}"
+      ;;
+    MSYS*|MINGW*|CYGWIN*)
+      stat -c %Y "/proc/$1" 2>/dev/null || true
+      ;;
+  esac
+}
+# process_entry <pid>: the line a lock file records for the process, its pid
+# and, when the platform has one, its start token.
+process_entry() {
+  local token
+  token="$(process_start_token "$1")"
+  echo "$1${token:+ $token}"
+}
 # A lock is live while its holder's pid is, or any pid listed in its `children`
 # file: a hook killed outright leaves the step it started running, and that
-# step still builds on what the lock guards.
+# step still builds on what the lock guards. Each line is a pid and the token
+# the process had when it was recorded; a live pid whose token differs is a
+# stranger that reused the pid, and a lock must not stay held for it.
 lock_is_live() {
-  local candidate
-  while read -r candidate; do
-    candidate="${candidate%$'\r'}"
-    if [ -n "$candidate" ] && kill -0 "$candidate" 2>/dev/null; then
-      lock_holder="$candidate"
-      return 0
-    fi
-  done < <(cat "$1/pid" "$1/children" 2>/dev/null)
+  local file candidate token started
+  for file in pid children; do
+    [ -r "$1/$file" ] || continue
+    while read -r candidate token; do
+      candidate="${candidate%$'\r'}"
+      token="${token%$'\r'}"
+      if [ -n "$candidate" ] && kill -0 "$candidate" 2>/dev/null; then
+        started="$(process_start_token "$candidate")"
+        if [ -n "$started" ] && [ -n "$token" ] && [ "$started" != "$token" ]; then
+          continue
+        fi
+        lock_holder="$candidate"
+        return 0
+      fi
+    done < "$1/$file"
+  done
   return 1
 }
 # reclaim_lock <lock> <staged> <holder>: replace the lock whose holder is
@@ -158,7 +197,7 @@ reclaim_lock() {
     fi
   fi
   mkdir "$mutex" 2>/dev/null || return 1
-  { read -r current < "$lock/pid"; } 2>/dev/null || true
+  { read -r current _ < "$lock/pid"; } 2>/dev/null || true
   current="${current%$'\r'}"
   if [ "$current" = "$holder" ]; then
     rm -rf "$lock"
@@ -176,12 +215,12 @@ claim_lock() {
     attempt=$((attempt + 1))
     lock_holder=""
     lock_note=""
-    if mkdir -p "$staged" && printf '%s\n' "$$" > "$staged/pid" && printf '%s\n' "$2" > "$staged/note"; then
+    if mkdir -p "$staged" && process_entry "$$" > "$staged/pid" && printf '%s\n' "$2" > "$staged/note"; then
       if mv -T "$staged" "$lock" 2>/dev/null; then
         run_temps+=("$lock")
         return 0
       fi
-      { read -r lock_holder < "$lock/pid"; } 2>/dev/null || true
+      { read -r lock_holder _ < "$lock/pid"; } 2>/dev/null || true
       lock_holder="${lock_holder%$'\r'}"
       { read -r lock_note < "$lock/note"; } 2>/dev/null || true
       lock_note="${lock_note%$'\r'}"
@@ -314,6 +353,45 @@ if [ "${#push_lines[@]}" -gt 0 ]; then
     done
     exit "$refs_status"
   fi
+fi
+
+# One gate per ref of a repository. A second push of a ref a live gate is
+# running would repeat that gate, so it is refused naming the holder. The
+# gates of different refs are not held back: each step takes the leases of the
+# packages it builds, so their builds are correct without a lock of the whole
+# repository, and such a lock would make a push wait for a peer's entire gate.
+# That holds where the stack's identity checker is reachable; a clone without
+# it runs its steps with no lease at all (ATLAS-HOOK-UNLEASED-STEPS).
+# The lock lives under the repository's git common directory, which every gate
+# and every lane of the repository resolves to, never under the per-process
+# temporary base, which two gates can differ in. It names the holder's ref,
+# revision and start time. A hook killed outright leaves the step it started
+# running: the step's pid is listed in the lock (run_recorded), which then
+# stays held until the step ends.
+gate_lock_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)/atlas-gate"
+gate_started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+gate_ref_lock=""
+if [ "${#content_lines[@]}" -eq 1 ]; then
+  read -r _ gate_ref_sha gate_ref_name _ <<<"${content_lines[0]}"
+  ref_key="$(printf '%s' "$gate_ref_name" | git hash-object --stdin | cut -c1-10)"
+  gate_lock_status=0
+  claim_lock "$gate_lock_dir/ref-$ref_key.lock" "$gate_ref_name $gate_ref_sha $gate_started" || gate_lock_status=$?
+  case "$gate_lock_status" in
+    0)
+      gate_ref_lock="$gate_lock_dir/ref-$ref_key.lock"
+      ;;
+    1)
+      read -r held_ref held_sha held_started <<<"$lock_note"
+      cat >&2 <<MESSAGE
+pre-push: pid $lock_holder is already gating ${held_ref:-$gate_ref_name} of this repository at ${held_sha:-an unknown revision} since ${held_started:-an unknown time};
+a second gate of one ref would repeat it. Run \`git push\` again when that gate has finished.
+MESSAGE
+      exit 1
+      ;;
+    *)
+      echo "pre-push: the lock for $gate_ref_name could not be taken and no gate holds it; gating without it" >&2
+      ;;
+  esac
 fi
 
 touches_dependency_state=unknown
@@ -481,7 +559,7 @@ done
 for stable in "$tmp_base"/pg-??????????; do
   [ -d "$stable" ] || continue
   holder=""
-  { read -r holder < "$stable.lock/pid"; } 2>/dev/null || true
+  { read -r holder _ < "$stable.lock/pid"; } 2>/dev/null || true
   holder="${holder%$'\r'}"
   [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null && continue
   [ "$stable" -ot "$age_marks/week" ] || continue
@@ -1197,10 +1275,28 @@ normalise_diagnostic_path() {
   printf '%s' "$value"
 }
 
+# run_recorded <command...>: run the command and list its entry (process_entry)
+# in the ref lock, so a gate whose hook is killed outright still holds the lock
+# while the command runs (claim_lock). The command is the shell's foreground
+# child and records its own entry before it replaces the shell, which keeps the
+# pid. It is
+# never started with `&`: a non-interactive shell starts an asynchronous
+# command with SIGINT ignored, the disposition survives `exec` on POSIX, and
+# an interrupted push would then end the hook, which removes the lock, while
+# the command went on building under no lock.
+run_recorded() {
+  if [ -z "$gate_ref_lock" ]; then
+    "$@"
+  else
+    bash -c 'eval "$1"; process_entry "$$" >> "$2/children" || true; shift 2; exec "$@"' recorder \
+      "$(declare -f process_start_token process_entry)" "$gate_ref_lock" "$@"
+  fi
+}
+
 classify_gate_step() {
   local log="$1"
   shift
-  if (cd "$gate_export" && "$@" >"$log" 2>&1); then
+  if (cd "$gate_export" && run_recorded "$@" >"$log" 2>&1); then
     echo ok
     return 0
   fi
