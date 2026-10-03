@@ -16,9 +16,11 @@ import json
 import os
 import pathlib
 import shutil
+import signal
 import stat
 import subprocess
 import tempfile
+import threading
 import time
 import tomllib
 import unittest
@@ -28,6 +30,9 @@ SCRIPT = (
     pathlib.Path(__file__).resolve().parents[1] / "git-hooks" / "pre-push"
 )
 ZERO = "0" * 40
+# Bound on any wait for a hook run; the hooks finish in seconds, so this is
+# a backstop that ends a hung run, never a pace the tests rely on.
+WATCHDOG_SECONDS = 120
 
 _IDENT = ["-c", "user.email=t@t", "-c", "user.name=t"]
 
@@ -66,6 +71,9 @@ _HOOK_COMMANDS = (
     "mktemp",
     "rm",
     "tar",
+    "mkdir",
+    "mv",
+    "touch",
 )
 
 
@@ -155,8 +163,31 @@ def assert_gated_on_the_export(
         )
 
 
+# The stack's lockfile checker, as a stub: it records its arguments where the
+# fixture says (`LOCKFILE_CALLS_LOG`) and exits as `LOCKFILE_EXIT` says.
+_STACK_LOCKFILE_STUB = (
+    "#!/usr/bin/env python3\n"
+    "import os, pathlib, sys\n"
+    "log = os.environ.get('LOCKFILE_CALLS_LOG')\n"
+    "if log:\n"
+    "    pathlib.Path(log).write_text(' '.join(sys.argv[1:]) + '\\n')\n"
+    "sys.exit(int(os.environ.get('LOCKFILE_EXIT', '0')))\n"
+)
+
+
+# A stack checker that reads the lock beside the manifest it is handed, so a
+# verdict names the content that was judged.
+_LOCK_READING_CHECKER = (
+    "import pathlib, sys\n"
+    "manifest = pathlib.Path(sys.argv[sys.argv.index('--manifest-path') + 1])\n"
+    "lock = (manifest.parent / 'Cargo.lock').read_text(encoding='utf-8')\n"
+    "sys.exit(1 if 'FLATTENED' in lock else 0)\n"
+)
+
+
 class GateFixture:
-    """A member-like git repo with a stub toolchain and lockfile checker."""
+    """A member-like git repo with a stub toolchain; `in_stack` adds the
+    stack's lockfile checker."""
 
     def __init__(
         self,
@@ -175,6 +206,7 @@ class GateFixture:
         self.tmp: pathlib.Path = pathlib.Path(tempfile.mkdtemp(prefix="gate-tmp-")).resolve()
         weakref.finalize(self, shutil.rmtree, str(self.tmp), True)
         self.lockfile_calls: pathlib.Path = root / "lockfile-calls.log"
+        self.stack: pathlib.Path = root.parent.parent
         self.layout = layout
         _git_init_repo(root)
         # The stub toolchain and its call logs live inside the repository.
@@ -199,17 +231,8 @@ class GateFixture:
             ["unrelated-member", "foo"] if layout == "crates" else ["solo"]
         )
         _write(root / "Cargo.lock", "# lock\n")
-        # A stub lockfile checker in the member-local location the hook
-        # expects; records invocation and exits as configured.
-        _write(
-            root / "scripts" / "lockfile.py",
-            "#!/usr/bin/env python3\n"
-            "import pathlib, sys\n"
-            f"pathlib.Path({str(root / 'lockfile-calls.log')!r}).write_text("
-            "'called\\n')\n"
-            "sys.exit(int(__import__('os').environ.get('LOCKFILE_EXIT', '0')))\n",
-            executable=True,
-        )
+        # The member carries no lockfile checker: the hook runs the stack's
+        # (`install_stack_lockfile`).
         self.set_cargo_behavior("pass")
         _write(
             self.bin / "cargo-nextest",
@@ -289,6 +312,43 @@ class GateFixture:
             f"origin/{default_branch}"],
             check=True,
         )
+
+    @classmethod
+    def in_stack(
+        cls,
+        stack: pathlib.Path,
+        below: tuple = ("repos", "member"),
+        **options,
+    ) -> "GateFixture":
+        """A checkout at `stack/<below>` of a stack whose default carries a
+        stub lockfile checker, which is where the hook runs it from."""
+        fixture = cls(stack.joinpath(*below), **options)
+        fixture.stack = stack
+        fixture.install_stack_lockfile()
+        return fixture
+
+    def install_stack_lockfile(self, source: str = "") -> None:
+        """Publish `source` as the stack's `scripts/lockfile.py` on its default."""
+        _write(
+            self.stack / "scripts" / "lockfile.py",
+            source or _STACK_LOCKFILE_STUB,
+            executable=True,
+        )
+        _publish_stack_scripts(self.stack)
+
+    def retire_stack_lockfile(self) -> None:
+        """Remove the checker from the stack's fetched default, as a stack
+        default cut before the checker existed lacks it."""
+        stack = self.stack
+        (stack / "scripts" / "lockfile.py").unlink()
+        subprocess.run(
+            ["git", "-C", str(stack), *_IDENT, "add", "-A", "scripts"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(stack), *_IDENT, "commit", "-q", "-m", "retire"],
+            check=True,
+        )
+        _git(stack, "update-ref", "refs/remotes/origin/main", _git(stack, "rev-parse", "HEAD"))
 
     def set_workspace_packages(
         self, names: list[str], targets: dict[str, list[dict]] | None = None
@@ -411,12 +471,26 @@ class GateFixture:
             executable=True,
         )
 
-    def run_hook(self, push_lines: str, extra_env: dict | None = None) -> tuple:
-        """Run the owned hook script in this fixture; return (exit, stderr)."""
+    def add_worktree(self, where: pathlib.Path, branch: str) -> pathlib.Path:
+        """A linked worktree of this member at `where` on a new branch, as a
+        lane or a harness makes one."""
+        where.parent.mkdir(parents=True, exist_ok=True)
+        _git(self.root, "worktree", "add", "-q", "-b", branch, str(where), "main")
+        return where
+
+    def run_hook(
+        self,
+        push_lines: str,
+        extra_env: dict | None = None,
+        cwd: pathlib.Path | None = None,
+    ) -> tuple:
+        """Run the owned hook script in this fixture, or in `cwd`, a worktree
+        of it; return (exit, stderr)."""
         env = dict(os.environ)
         env["PATH"] = str(self.bin) + os.pathsep + env.get("PATH", "")
         env["CARGO"] = str(self.cargo_launcher)
         env["TMPDIR"] = self.tmp.as_posix()
+        env["LOCKFILE_CALLS_LOG"] = str(self.lockfile_calls)
         if extra_env:
             env.update(extra_env)
         # Bytes, not text: on Windows a text-mode pipe translates `\n` to
@@ -427,7 +501,7 @@ class GateFixture:
         proc = subprocess.run(
             ["bash", str(SCRIPT)],
             input=push_lines.encode("utf-8"),
-            cwd=str(self.root),
+            cwd=str(self.root if cwd is None else cwd),
             env=env,
             capture_output=True,
         )
@@ -440,6 +514,21 @@ class GateFixture:
         """A pre-push stdin line for a never-pushed branch tip."""
         sha = _git(self.root, "rev-parse", branch)
         return f"refs/heads/{branch} {sha} refs/heads/{branch} {ZERO}\n"
+
+
+def _register_stack(stack: pathlib.Path) -> None:
+    """Mark `stack` as an Atlas stack: its `.gitmodules` registers the members
+    under `repos/` (`member` when none exists yet), which is how the hook
+    recognises a stack and the member a checkout belongs to."""
+    repos = stack / "repos"
+    names = sorted(entry.name for entry in repos.iterdir() if entry.is_dir()) if repos.is_dir() else []
+    _write(
+        stack / ".gitmodules",
+        "".join(
+            f'[submodule "{name}"]\n\tpath = repos/{name}\n\turl = ./{name}\n'
+            for name in names or ["member"]
+        ),
+    )
 
 
 def _publish_stack_scripts(
@@ -455,7 +544,10 @@ def _publish_stack_scripts(
         return
     if not (stack / ".git").exists():
         _git_init_repo(stack)
-    subprocess.run(["git", "-C", str(stack), *_IDENT, "add", "scripts"], check=True)
+    _register_stack(stack)
+    subprocess.run(
+        ["git", "-C", str(stack), *_IDENT, "add", ".gitmodules", "scripts"], check=True
+    )
     subprocess.run(
         ["git", "-C", str(stack), *_IDENT, "commit", "-q", "--allow-empty",
          "-m", "stack scripts"],
@@ -590,7 +682,7 @@ class NewBranchRangeTestCase(unittest.TestCase):
 
     def test_new_branch_manifest_push_runs_lockfile_check(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -1121,8 +1213,9 @@ class SafetyRatchetTestCase(unittest.TestCase):
             (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
                 "pub fn f() {}\n// tweak\n"
             )
+            tracked = ["crates"] + (["scripts"] if ratchet_exit is not None else [])
             subprocess.run(
-                ["git", "-C", str(fixture.root), *_IDENT, "add", "crates", "scripts"],
+                ["git", "-C", str(fixture.root), *_IDENT, "add", *tracked],
                 check=True,
             )
             subprocess.run(
@@ -1161,7 +1254,7 @@ class LockRevisionTestCase(unittest.TestCase):
     def test_a_dirty_working_lock_does_not_refuse_a_clean_push(self) -> None:
         """An overlay-flattened working lock is not the push; its verdict is not asked."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
             push_line = UnverifiableLockTestCase()._branch_touching_the_lock(fixture)
             (fixture.root / "Cargo.lock").write_text("# flattened by the overlay\n")
             code, stderr = fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1"})
@@ -1174,7 +1267,7 @@ class LockRevisionTestCase(unittest.TestCase):
     def test_the_pushed_lock_is_the_one_checked(self) -> None:
         """A failing checker refuses even when the working tree is clean of the change."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
             push_line = UnverifiableLockTestCase()._branch_touching_the_lock(fixture)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "main"],
@@ -1374,8 +1467,8 @@ class UnverifiableLockTestCase(unittest.TestCase):
 
         The lockfile section is skipped when the range touches no manifest and
         no lock, so a fixture that does not commit one tests nothing. The hook
-        runs the pushed revision's own checker, so `drop_checker` removes it
-        from the commit, not just from the working tree.
+        runs the stack's checker from its fetched default, so `drop_checker`
+        removes it from there, as a default cut before the checker lacks it.
         """
         subprocess.run(
             ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
@@ -1388,11 +1481,7 @@ class UnverifiableLockTestCase(unittest.TestCase):
             check=True,
         )
         if drop_checker:
-            subprocess.run(
-                ["git", "-C", str(fixture.root), *_IDENT, "rm", "-q",
-                 "scripts/lockfile.py"],
-                check=True,
-            )
+            fixture.retire_stack_lockfile()
         subprocess.run(
             ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
              "-m", "lock"],
@@ -1402,16 +1491,16 @@ class UnverifiableLockTestCase(unittest.TestCase):
 
     def test_absent_checker_refuses_the_push(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
             push_line = self._branch_touching_the_lock(fixture, drop_checker=True)
             code, stderr = fixture.run_hook(push_line)
             self.assertNotEqual(code, 0)
-            self.assertIn("lockfile.py not present", stderr)
+            self.assertIn("carry no lockfile.py", stderr)
             self.assertNotIn("SKIP_LOCKFILE_CHECK", stderr)
 
     def test_absent_interpreter_refuses_the_push(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
             push_line = self._branch_touching_the_lock(fixture)
             # `PYTHON=""` forces the hook's own search, and a PATH holding
             # only the fixture's stub bin makes that search fail. An
@@ -1440,19 +1529,19 @@ class UnverifiableLockTestCase(unittest.TestCase):
         here so the two do not drift apart again.
         """
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
             push_line = self._branch_touching_the_lock(fixture, drop_checker=True)
             code, stderr = fixture.run_hook(
                 push_line, extra_env={"SKIP_LOCKFILE_CHECK": "1"}
             )
             self.assertNotEqual(code, 0, stderr)
             self.assertIn("SKIP_LOCKFILE_CHECK is no longer honoured", stderr)
-            self.assertIn("lockfile.py not present", stderr)
+            self.assertIn("carry no lockfile.py", stderr)
 
     def test_skip_variable_cannot_hide_a_failing_lock(self) -> None:
         """A lock the checker rejects still refuses the push under the skip var."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp))
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
             push_line = self._branch_touching_the_lock(fixture)
             code, stderr = fixture.run_hook(
                 push_line,
@@ -1460,6 +1549,380 @@ class UnverifiableLockTestCase(unittest.TestCase):
             )
             self.assertNotEqual(code, 0, stderr)
             self.assertIn("SKIP_LOCKFILE_CHECK is no longer honoured", stderr)
+            self.assertIn("does not resolve under --locked", stderr)
+
+
+class StackLockfileCheckerTestCase(unittest.TestCase):
+    """The lockfile stage runs the stack's checker; a member carries none."""
+
+    def _push(self, fixture: GateFixture, **env: str) -> tuple:
+        push_line = UnverifiableLockTestCase()._branch_touching_the_lock(fixture)
+        return fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1", **env})
+
+    def test_a_member_without_a_lockfile_copy_passes_the_lockfile_stage(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            self.assertFalse((fixture.root / "scripts" / "lockfile.py").exists())
+            code, stderr = self._push(fixture)
+            self.assertEqual(code, 0, stderr)
+            arguments = fixture.lockfile_calls.read_text(encoding="utf-8").split()
+            self.assertEqual(arguments[0], "--check")
+            self.assertEqual(arguments[1], "--manifest-path")
+            manifest = pathlib.Path(arguments[2])
+            self.assertEqual(manifest.name, "Cargo.toml")
+            self.assertNotIn(
+                os.path.normcase(str(fixture.root.resolve())),
+                os.path.normcase(str(manifest.resolve())),
+                "the manifest is the export's, never the checkout's",
+            )
+
+    def test_a_lock_the_stack_checker_rejects_refuses_the_push(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            code, stderr = self._push(fixture, LOCKFILE_EXIT="1")
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("does not resolve under --locked", stderr)
+            self.assertIn("scripts/lockfile.py --regenerate --manifest-path Cargo.toml", stderr)
+
+    def test_a_member_copy_is_never_the_checker_that_runs(self) -> None:
+        """A copy that accepts every lock cannot overrule the stack's verdict."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            _write(
+                fixture.root / "scripts" / "lockfile.py",
+                "import sys\nsys.exit(0)\n",
+            )
+            _commit_all(fixture.root, "a member copy")
+            code, stderr = self._push(fixture, LOCKFILE_EXIT="1")
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("does not resolve under --locked", stderr)
+
+    def test_a_clone_outside_a_stack_says_the_lock_is_unverified(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            code, stderr = self._push(fixture)
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("no Atlas stack above this clone", stderr)
+            self.assertIn("not verified here", stderr)
+            self.assertNotIn("lockfile-guard", stderr)
+            self.assertFalse(fixture.lockfile_calls.exists())
+
+    def test_a_stack_with_no_fetched_default_refuses_the_push(self) -> None:
+        """Inside a stack the checker is owed: a stack with neither
+        `origin/HEAD` nor `origin/main` is not a clone outside any stack."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            _git(fixture.stack, "update-ref", "-d", "refs/remotes/origin/main")
+            code, stderr = self._push(fixture)
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("neither origin/HEAD nor origin/main", stderr)
+            self.assertNotIn("not verified here", stderr)
+            self.assertFalse(fixture.lockfile_calls.exists())
+
+    def _lane_push(self, fixture: GateFixture, lane: pathlib.Path, **env: str) -> tuple:
+        """Push a lock-changing branch from the linked worktree `lane`."""
+        branch = f"feat-{lane.name}"
+        _git(lane, "switch", "-q", "-c", branch)
+        (lane / "Cargo.lock").write_text("# lock\n# touched\n", encoding="utf-8")
+        sha = _commit_all(lane, "lock")
+        push_line = f"refs/heads/{branch} {sha} refs/heads/{branch} {ZERO}\n"
+        return fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1", **env}, cwd=lane)
+
+    def test_a_lane_and_a_harness_worktree_are_inside_their_members_stack(self) -> None:
+        """A harness worktree sits below a member, a lane directly below the
+        stack; neither is two levels down, and both belong to the member whose
+        object store they share."""
+        for where in (
+            ("worktrees", "member-lane"),
+            ("repos", "member", ".claude", "worktrees", "lane"),
+        ):
+            with self.subTest(where=where):
+                with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+                    fixture = GateFixture.in_stack(pathlib.Path(temp))
+                    lane = fixture.add_worktree(
+                        fixture.stack.joinpath(*where), f"base-{where[-1]}"
+                    )
+                    code, stderr = self._lane_push(fixture, lane, LOCKFILE_EXIT="1")
+                    self.assertEqual(code, 1, stderr)
+                    self.assertIn("does not resolve under --locked", stderr)
+                    self.assertTrue(fixture.lockfile_calls.exists())
+
+    def test_a_gitmodules_planted_in_a_member_does_not_capture_its_worktrees(self) -> None:
+        """A harness worktree below a member would meet the member's own
+        `.gitmodules` first; the stack that runs is the one that registers
+        the member."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            _write(
+                fixture.root / ".gitmodules",
+                '[submodule "x"]\n\tpath = repos/x\n\turl = ./x\n',
+            )
+            _commit_all(fixture.root, "planted")
+            lane = fixture.add_worktree(
+                fixture.root / ".claude" / "worktrees" / "lane", "base-lane"
+            )
+            code, stderr = self._lane_push(fixture, lane, LOCKFILE_EXIT="1")
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("does not resolve under --locked", stderr)
+            self.assertNotIn("carry no lockfile.py", stderr)
+
+    def test_a_directory_that_is_not_a_repository_root_is_not_a_stack(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack = pathlib.Path(temp)
+            _write(
+                stack / ".gitmodules",
+                '[submodule "member"]\n\tpath = repos/member\n\turl = ./member\n',
+            )
+            fixture = GateFixture(stack / "repos" / "member")
+            code, stderr = self._push(fixture)
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("no Atlas stack above this clone", stderr)
+
+    def test_only_members_registered_under_repos_make_a_stack(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp), below=("vendor", "member"))
+            _write(
+                fixture.stack / ".gitmodules",
+                '[submodule "member"]\n\tpath = vendor/member\n\turl = ./member\n',
+            )
+            _git(fixture.stack, "add", ".gitmodules")
+            _git(fixture.stack, "commit", "-q", "-m", "vendor only")
+            code, stderr = self._push(fixture)
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("no Atlas stack above this clone", stderr)
+
+    def _distrusting_environment(self, directory: pathlib.Path) -> dict:
+        """Git as it behaves when another account owns every checkout and only
+        what the hook itself trusts is readable: no global or system config (a
+        user's `safe.directory = *` would hide the case)."""
+        empty = directory / "empty.gitconfig"
+        empty.write_text("", encoding="utf-8")
+        return {
+            "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1",
+            "GIT_CONFIG_GLOBAL": str(empty),
+            "GIT_CONFIG_NOSYSTEM": "1",
+        }
+
+    def test_a_stack_git_cannot_read_refuses_instead_of_passing_as_no_stack(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            code, stderr = self._push(
+                fixture, **self._distrusting_environment(pathlib.Path(temp))
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("registers members but git cannot read it", stderr)
+            self.assertIn("safe.directory", stderr)
+            self.assertNotIn("no Atlas stack above this clone", stderr)
+            # Other git calls under the same distrust fail on their own, so the
+            # refusal is the locator's only if the run stops there.
+            self.assertNotIn("could not export", stderr)
+            self.assertFalse(fixture.lockfile_calls.exists())
+
+    def _unmatched_checkout(self, temp: str) -> GateFixture:
+        """A clone inside a stack that registers a member on disk, which is not
+        this clone: no registered member shares its object store."""
+        stack = pathlib.Path(temp)
+        GateFixture(stack / "repos" / "other")
+        fixture = GateFixture.in_stack(stack, below=("scratch", "member"))
+        return fixture
+
+    def test_a_clone_the_stack_does_not_register_is_named_not_gated(self) -> None:
+        """The stack names exactly its members and does not name this clone, so
+        lockfile checker is owed to it: the push passes, and the message says a
+        stack is above it and does not register it, never that no stack is, and
+        claims nothing about CI. A lock that gets through meets the `--locked`
+        CI jobs and is repaired by regenerating it, where a credential, whose
+        push cannot be taken back, is refused by the scanner stage; refusals
+        stay where identity or readability is unknown. The registered member,
+        or a lane of it, is where the check runs."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._unmatched_checkout(temp)
+            code, stderr = self._push(fixture)
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("inside the Atlas stack at", stderr)
+            self.assertIn("not one of its registered members", stderr)
+            self.assertNotIn("no Atlas stack above this clone", stderr)
+            self.assertNotIn("--locked CI", stderr)
+            self.assertFalse(fixture.lockfile_calls.exists())
+
+    def test_a_candidate_stack_inside_a_repository_git_cannot_read_is_refused(self) -> None:
+        """The superproject query prints nothing for a candidate whose
+        enclosing repository git cannot read, as it does for one with none, so
+        a member carrying its own `.gitmodules` would be taken for the stack and
+        its own checker run. An unreadable enclosing repository is unknown, and
+        unknown refuses."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            _write(
+                fixture.root / ".gitmodules",
+                '[submodule "y"]\n\tpath = repos/y\n\turl = ./y\n',
+            )
+            _commit_all(fixture.root, "planted")
+            _git(fixture.stack, "add", "repos/member")
+            _git(fixture.stack, "commit", "-q", "-m", "register the member")
+            fixture.add_worktree(fixture.root / "repos" / "y", "base-y")
+            lane = fixture.add_worktree(
+                fixture.root / ".claude" / "worktrees" / "lane", "base-lane"
+            )
+            trusting_the_member = pathlib.Path(temp) / "trusting.gitconfig"
+            trusting_the_member.write_text(
+                f"[safe]\n\tdirectory = {fixture.root.resolve().as_posix()}\n",
+                encoding="utf-8",
+            )
+            environment = self._distrusting_environment(pathlib.Path(temp))
+            environment["GIT_CONFIG_GLOBAL"] = str(trusting_the_member)
+            code, stderr = self._lane_push(fixture, lane, **environment)
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("cannot be told apart from a submodule", stderr)
+            self.assertIn("safe.directory", stderr)
+            self.assertFalse(fixture.lockfile_calls.exists())
+
+    def test_a_shared_clone_below_the_stack_is_not_a_member(self) -> None:
+        """A `--shared` clone of a member keeps its own object store."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            clone = fixture.stack / "scratch" / "clone"
+            clone.parent.mkdir()
+            subprocess.run(
+                ["git", "clone", "-q", "--shared", str(fixture.root), str(clone)],
+                check=True, capture_output=True,
+            )
+            branch = "feat-shared"
+            _git(clone, "switch", "-q", "-c", branch)
+            (clone / "Cargo.lock").write_text("# lock\n# touched\n", encoding="utf-8")
+            sha = _commit_all(clone, "lock")
+            push_line = f"refs/heads/{branch} {sha} refs/heads/{branch} {ZERO}\n"
+            code, stderr = fixture.run_hook(
+                push_line, {"SKIP_LOCAL_GATE": "1", "LOCKFILE_EXIT": "1"}, cwd=clone
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("not one of its registered members", stderr)
+            self.assertFalse(fixture.lockfile_calls.exists())
+
+    def test_a_member_that_is_a_submodule_is_never_taken_for_the_stack(self) -> None:
+        """A member carrying its own `.gitmodules`, with a worktree of itself at
+        the path it registers, would otherwise match its own harness worktree
+        and run the member's checker. A candidate with a superproject is a
+        submodule, not a stack."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            _write(
+                fixture.root / ".gitmodules",
+                '[submodule "y"]\n\tpath = repos/y\n\turl = ./y\n',
+            )
+            _commit_all(fixture.root, "planted")
+            _git(fixture.stack, "add", "repos/member")
+            _git(fixture.stack, "commit", "-q", "-m", "register the member")
+            fixture.add_worktree(fixture.root / "repos" / "y", "base-y")
+            lane = fixture.add_worktree(
+                fixture.root / ".claude" / "worktrees" / "lane", "base-lane"
+            )
+            code, stderr = self._lane_push(fixture, lane, LOCKFILE_EXIT="1")
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("does not resolve under --locked", stderr)
+            self.assertNotIn("carry no lockfile.py", stderr)
+
+    def _git_processes(self, name: str, fillers: int = 11) -> int:
+        """Git processes one source-only push starts for member `name`,
+        registered among `fillers` others (trace2 logs one `version` event per
+        process)."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack = pathlib.Path(temp)
+            for index in range(fillers):
+                filler = stack / "repos" / f"filler{index:02d}"
+                filler.mkdir(parents=True)
+                _git(filler, "init", "-q")
+            fixture = GateFixture.in_stack(stack, below=("repos", name))
+            trace = stack / "trace2.log"
+            code, stderr = self._push(fixture, GIT_TRACE2_EVENT=str(trace))
+            self.assertEqual(code, 0, stderr)
+            return trace.read_text(encoding="utf-8").count('"event":"version"')
+
+    def test_the_git_work_does_not_depend_on_the_members_position_in_the_registry(self) -> None:
+        """The member is resolved from its object store, not found by probing
+        every registered member in turn."""
+        self.assertEqual(self._git_processes("aaa"), self._git_processes("zzz"))
+
+    def test_a_push_of_deletions_needs_no_readable_stack(self) -> None:
+        """A deletion pushes nothing, so there is nothing to judge and nothing
+        for a stack to say about it."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            sha = _git(fixture.root, "rev-parse", "HEAD")
+            code, stderr = fixture.run_hook(
+                f"(delete) {ZERO} refs/heads/gone {sha}\n",
+                {"SKIP_LOCAL_GATE": "1", **self._distrusting_environment(pathlib.Path(temp))},
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("nothing to gate", stderr)
+            self.assertNotIn("registers members but git cannot read it", stderr)
+
+    def test_a_registered_member_git_cannot_read_leaves_the_match_unknown(self) -> None:
+        """The stack is readable but one of its members is not, so this clone
+        may be that member's worktree: refuse rather than call it outside."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._unmatched_checkout(temp)
+            trusting_the_stack = pathlib.Path(temp) / "trusting.gitconfig"
+            trusting_the_stack.write_text(
+                f"[safe]\n\tdirectory = {pathlib.Path(temp).resolve().as_posix()}\n",
+                encoding="utf-8",
+            )
+            environment = self._distrusting_environment(pathlib.Path(temp))
+            environment["GIT_CONFIG_GLOBAL"] = str(trusting_the_stack)
+            code, stderr = self._push(fixture, **environment)
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("cannot be matched to the stack", stderr)
+            self.assertNotIn("no Atlas stack above this clone", stderr)
+            self.assertNotIn("could not export", stderr)
+
+    def test_the_checker_comes_from_the_fetched_default_not_the_stack_checkout(self) -> None:
+        """The stack checkout may sit on a peer's branch with another copy of
+        the script, committed or not; the fetched default's copy is what runs."""
+        for committed in (False, True):
+            with self.subTest(committed=committed):
+                with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+                    fixture = GateFixture.in_stack(pathlib.Path(temp))
+                    push_line = self._lock_revisions(fixture, "# FLATTENED\n", "# sound\n")
+                    _write(
+                        fixture.stack / "scripts" / "lockfile.py",
+                        "import sys\nsys.exit(0)\n",
+                        executable=True,
+                    )
+                    if committed:
+                        _git(fixture.stack, "commit", "-q", "-am", "a peer's checker")
+                    code, stderr = fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1"})
+                    self.assertEqual(code, 1, stderr)
+                    self.assertIn("does not resolve under --locked", stderr)
+
+    def _lock_revisions(
+        self, fixture: GateFixture, pushed_lock: str, head_lock: str
+    ) -> str:
+        """Push a branch holding `pushed_lock` while the checkout's HEAD holds
+        `head_lock`, and return the push line."""
+        fixture.install_stack_lockfile(_LOCK_READING_CHECKER)
+        _git(fixture.root, "switch", "-q", "-c", "feat")
+        (fixture.root / "Cargo.lock").write_text(pushed_lock, encoding="utf-8")
+        _commit_all(fixture.root, "pushed lock")
+        push_line = fixture.push_line_new_branch("feat")
+        _git(fixture.root, "switch", "-q", "main")
+        (fixture.root / "Cargo.lock").write_text(head_lock, encoding="utf-8")
+        _commit_all(fixture.root, "head lock")
+        return push_line
+
+    def test_the_pushed_lock_is_judged_not_the_one_at_head(self) -> None:
+        """The checker reads the lock it is handed, so the verdict names which
+        revision was exported: a push of a sound lock passes while HEAD holds a
+        flattened one, and a flattened push is refused while HEAD is sound."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            push_line = self._lock_revisions(fixture, "# sound\n", "# FLATTENED\n")
+            code, stderr = fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1"})
+            self.assertEqual(code, 0, stderr)
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            push_line = self._lock_revisions(fixture, "# FLATTENED\n", "# sound\n")
+            code, stderr = fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1"})
+            self.assertEqual(code, 1, stderr)
             self.assertIn("does not resolve under --locked", stderr)
 
 
@@ -1528,6 +1991,7 @@ class LaneGateTestCase(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         stack = pathlib.Path(temp.name)
         fixture = GateFixture(stack / "repos" / "foo")
+        _write(stack / "scripts" / "lockfile.py", _STACK_LOCKFILE_STUB, executable=True)
         if overlay:
             _write(stack / ".cargo" / "config.toml", '[build]\ntarget-dir = "target"\n')
         lane = stack / "worktrees" / "foo-lane"
@@ -1957,7 +2421,10 @@ class DebtRatchetTestCase(unittest.TestCase):
             "ROOT = None  # honours ATLAS_STACK_ROOT\n" if revision_scans else "ROOT = None\n",
         )
         _git_init_repo(stack)
-        subprocess.run(["git", "-C", str(stack), *_IDENT, "add", "scripts"], check=True)
+        _register_stack(stack)
+        subprocess.run(
+            ["git", "-C", str(stack), *_IDENT, "add", ".gitmodules", "scripts"], check=True
+        )
         subprocess.run(
             ["git", "-C", str(stack), *_IDENT, "commit", "-q", "-m", "stack"], check=True
         )
@@ -2120,13 +2587,14 @@ class DebtRatchetTestCase(unittest.TestCase):
             self.assertNotIn("raises a debt class", stderr)
 
     def test_an_unregistered_checkout_is_not_gated(self) -> None:
-        """No `repos/` entry shares this checkout's store, so it has no row."""
+        """No registered member shares this checkout's store, so the stack is
+        not its stack: the ratchet has no row and the stack tools are not used."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture, log, _, _, _ = self._stack(temp, 1, location="scratch")
             code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
             self.assertFalse(log.is_file())
             assert_gated_on_the_export(self, code, stderr, fixture)
-            self.assertIn("not a registered stack member", stderr)
+            self.assertIn("no stack checker reachable from this clone", stderr)
 
 
 class PushedRevisionGateTestCase(unittest.TestCase):
@@ -2444,14 +2912,18 @@ class ExportHygieneTestCase(unittest.TestCase):
     def test_an_interrupted_lock_check_leaves_no_export(self) -> None:
         """TERM while the lock export exists: the trap removes it."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture(pathlib.Path(temp) / "member")
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
             tmp = pathlib.Path(temp) / "tmp"
             tmp.mkdir()
-            ready = pathlib.Path(temp) / "lock-check-started"
             _git(fixture.root, "switch", "-q", "-c", "feat")
-            _write(
-                fixture.root / "scripts" / "lockfile.py",
-                f"import pathlib, time\npathlib.Path({str(ready)!r}).write_text('go')\ntime.sleep(15)\n",
+            # The checker announces its pid on stderr, which the test reads,
+            # and then holds the run open until the test kills it; the sleep
+            # is only a backstop that ends a stranded checker.
+            fixture.install_stack_lockfile(
+                "import os, sys, time\n"
+                "sys.stderr.write(f'lock-check-started {os.getpid()}\\n')\n"
+                "sys.stderr.flush()\n"
+                "time.sleep(300)\n"
             )
             (fixture.root / "Cargo.lock").write_text("# lock\n# touched\n", encoding="utf-8")
             _commit_all(fixture.root, "lock")
@@ -2460,14 +2932,23 @@ class ExportHygieneTestCase(unittest.TestCase):
             env["TMPDIR"] = tmp.as_posix()
             proc = subprocess.Popen(
                 ["bash", str(SCRIPT)], cwd=str(fixture.root), env=env,
-                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
             )
+            self.addCleanup(proc.stderr.close)
+            # Every wait below ends when the hook exits, and the watchdog ends
+            # the hook if it never does, so no read or wait is unbounded.
+            watchdog = threading.Timer(WATCHDOG_SECONDS, proc.kill)
+            watchdog.start()
+            self.addCleanup(watchdog.cancel)
+            self.addCleanup(proc.kill)
             proc.stdin.write(fixture.push_line_new_branch("feat").encode())
             proc.stdin.close()
-            deadline = time.monotonic() + 60
-            while not ready.exists() and time.monotonic() < deadline:
-                time.sleep(0.1)
-            self.assertTrue(ready.exists(), "the lock check never started")
+            checker_pid = None
+            for line in proc.stderr:
+                if line.startswith(b"lock-check-started "):
+                    checker_pid = int(line.split()[1])
+                    break
+            self.assertIsNotNone(checker_pid, "the hook ended before the lock check started")
             self.assertTrue(any(tmp.glob("pl.*")))
             if os.name == "nt":
                 # The hook's bash is an MSYS process: signal it by its MSYS pid,
@@ -2479,8 +2960,17 @@ class ExportHygieneTestCase(unittest.TestCase):
                 subprocess.run(["bash", "-c", f"kill -TERM {pids[0]}"], check=True)
             else:
                 proc.terminate()
-            # bash runs the trap once the foreground checker returns.
-            proc.wait(timeout=120)
+            # bash runs the trap once its foreground checker returns, so the
+            # checker is ended by the pid it announced.
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/F", "/PID", str(checker_pid)],
+                    capture_output=True, check=True,
+                )
+            else:
+                os.kill(checker_pid, signal.SIGKILL)
+            proc.wait()
+            self.assertFalse(watchdog.finished.is_set(), "the hook had to be killed")
             self.assertNotEqual(proc.returncode, 0)
             self.assertEqual(list(tmp.glob("pl.*")), [])
 

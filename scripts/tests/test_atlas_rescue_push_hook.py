@@ -44,6 +44,12 @@ class RescueFixture:
         self.member = self.stack / "repos" / "demo"
         self.member.mkdir(parents=True)
         git(self.stack, "init", "-q", "-b", "main")
+        # The member hook recognises a stack by the members it registers.
+        (self.stack / ".gitmodules").write_text(
+            '[submodule "demo"]\n\tpath = repos/demo\n\turl = ./demo\n',
+            encoding="utf-8",
+            newline="\n",
+        )
         for source, relative in (
             (HELPER, "scripts/git-hooks/rescue-push"),
             (SCANNER, "scripts/atlas-secret-scan.py"),
@@ -170,6 +176,35 @@ class RescuePushTests(unittest.TestCase):
                 f"{stack_tip} {stack_tip} refs/heads/rescue/work {ZERO}",
             )
             self.assertEqual(root.returncode, 0, root.stderr.decode())
+
+
+    def test_a_lane_and_a_harness_worktree_dispatch_to_the_stack_classifier(self) -> None:
+        """The stack is found by the checkout's object store, not by a depth of
+        two: a lane sits directly below the stack and a harness worktree three
+        levels below a member, and a rescue push from either reaches the
+        stack's classifier like the member's own."""
+        with tempfile.TemporaryDirectory(prefix="atlas-rescue-") as directory:
+            fixture = RescueFixture(directory)
+            for index, where in enumerate((
+                fixture.stack / "worktrees" / "demo-lane",
+                fixture.member / ".claude" / "worktrees" / "harness",
+            )):
+                with self.subTest(where=where.relative_to(fixture.stack).as_posix()):
+                    where.parent.mkdir(parents=True, exist_ok=True)
+                    branch = f"rescue/work-{index}"
+                    git(fixture.member, "worktree", "add", "-q", "-b", branch, str(where), "main")
+                    (where / "work.txt").write_text("unfinished\n", encoding="utf-8")
+                    tip = commit(where, "rescue work")
+                    result = fixture.run_hook(
+                        MEMBER_HOOK,
+                        where,
+                        f"HEAD {tip} refs/heads/{branch} {ZERO}",
+                        {
+                            "GIT_DIR": git(where, "rev-parse", "--absolute-git-dir"),
+                            "GIT_WORK_TREE": str(where),
+                        },
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr.decode())
 
 
 if __name__ == "__main__":
