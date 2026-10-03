@@ -147,63 +147,22 @@ if [ -z "$atlas_root" ]; then
     echo "auditor and its related paths cannot be resolved." >&2
     exit 1
 fi
-canonical_stack_root() {
-    local common_dir common_norm configured ancestor candidate candidate_gitfile candidate_gitdir candidate_norm
-    common_dir="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-    common_norm="$(printf '%s' "$common_dir" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')"
-    if [ "$(basename "$common_dir")" = ".git" ]; then
-        dirname "$common_dir"
-        return 0
-    fi
-    configured="$(git --git-dir="$common_dir" config --path core.worktree 2>/dev/null || true)"
-    if [ -n "$configured" ]; then
-        git -C "$configured" rev-parse --show-toplevel
-        return 0
-    fi
-    scan_candidate() {
-        local root="$1" depth="$2" candidate_gitfile candidate candidate_gitdir candidate_norm child
-        [ "$depth" -le 6 ] || return 1
-        for candidate_gitfile in "$root"/*/.git; do
-            [ -f "$candidate_gitfile" ] || continue
-            candidate_gitfile="${candidate_gitfile//\\//}"
-            candidate="${candidate_gitfile%/.git}"
-            candidate_gitdir="$(sed -n 's/^gitdir: //p' "$candidate/.git" 2>/dev/null || true)"
-            case "$candidate_gitdir" in
-                /*|[A-Za-z]:/*) ;;
-                *) candidate_gitdir="$candidate/$candidate_gitdir" ;;
-            esac
-            candidate_norm="$(printf '%s' "$candidate_gitdir" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')"
-            if [ "$candidate_norm" = "$common_norm" ]; then
-                git -C "$candidate" rev-parse --show-toplevel
-                return 0
-            fi
-        done
-        for child in "$root"/*; do
-            [ -d "$child" ] || continue
-            scan_candidate "$child" "$((depth + 1))" && return 0
-        done
-        return 1
-    }
-    # `git init --separate-git-dir` leaves the main worktree's `.git` file as
-    # the only canonical-worktree marker; unlike a linked lane, it points at
-    # the common directory itself. Search only ancestor siblings of Git's
-    # metadata and validate each candidate through Git, so lane ordering and
-    # metadata-parent assumptions cannot select a worktree by position.
-    ancestor="$(dirname "$atlas_root")"
-    while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
-        scan_candidate "$ancestor" 0 && return 0
-        [ "$ancestor" = "$(dirname "$ancestor")" ] && break
-        ancestor="$(dirname "$ancestor")"
-    done
-    ancestor="$(dirname "$(dirname "$common_dir")")"
-    while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
-        scan_candidate "$ancestor" 0 && return 0
-        [ "$ancestor" = "$(dirname "$ancestor")" ] && break
-        ancestor="$(dirname "$ancestor")"
-    done
-    return 1
-}
-member_root="$(canonical_stack_root)" || {
+# The canonical-stack-root resolver is the default branch's committed
+# .githooks/stack-root.sh, read from the same revision the trampoline above
+# trusts for this file: a tree holding a peer's older branch may lack it or
+# carry another version, and the trampoline exists so that no checked-out
+# branch decides what this hook runs.
+stack_root_source=""
+for ref in origin/HEAD origin/main; do
+    stack_root_source="$(MSYS_NO_PATHCONV=1 git -C "$atlas_root" cat-file -p "$ref:.githooks/stack-root.sh" 2>/dev/null)" && break
+done
+if [ -z "$stack_root_source" ]; then
+    echo "pre-push: BLOCKED -- origin's default branch has no .githooks/stack-root.sh," >&2
+    echo "so the canonical Atlas root cannot be resolved; fetch origin and push again." >&2
+    exit 1
+fi
+eval "$stack_root_source"
+member_root="$(canonical_stack_root "$atlas_root")" || {
     echo "pre-push: BLOCKED -- cannot resolve the canonical Atlas root from Git metadata." >&2
     exit 1
 }
@@ -355,6 +314,49 @@ for coherence_tip in "${pushed_tips[@]}"; do
     [ "$coherence_status" -gt "$status" ] && status="$coherence_status"
 done
 
+# The interpreter every gate runs, probed once per hook run: each probe is an
+# interpreter launch, which a loaded Windows host makes slow.
+python_bin=""
+python_probed=0
+resolve_python() {
+    local candidate
+    if [ "$python_probed" = 0 ]; then
+        python_probed=1
+        python_bin="${PYTHON:-}"
+        if [ -z "$python_bin" ]; then
+            for candidate in python3 python; do
+                if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1; then
+                    python_bin="$candidate"
+                    break
+                fi
+            done
+        fi
+    fi
+    [ -n "$python_bin" ]
+}
+
+# The gate scripts a pushed tip carries, listed in one git process. A
+# revision without a script predates that gate and has nothing to run; any
+# other object at its path (a tree, say) still runs the gate, which then
+# fails as it always did. Git names a missing object by the spec it was asked
+# for, so only that line marks an absent script.
+tip_scripts=""
+tip_listed=""
+list_gate_scripts() {
+    local tip="$1" request="" path
+    for path in scripts/atlas-artifact-budget.py scripts/atlas-secret-scan.py scripts/atlas-refspec-guard.py; do
+        request+="$tip:$path $path"$'\n'
+    done
+    tip_scripts="$(git -C "$atlas_root" cat-file --batch-check='%(objecttype) %(rest)' <<<"${request%$'\n'}")" || {
+        echo "pre-push: BLOCKED -- could not list the gate scripts at ${tip:0:12}." >&2
+        return 1
+    }
+    tip_listed="$tip"
+}
+tip_has_script() {
+    [[ $'\n'"$tip_scripts"$'\n' != *$'\n'"$tip_listed:$1 missing"$'\n'* ]]
+}
+
 # Second stage, and only for a push that moves a pin: a gitlink can name a
 # published commit -- everything the auditor checks -- and still import debt
 # the member grew since the last advance. That is the loop this exists to
@@ -378,7 +380,7 @@ done
 # advance as its raise (CFDrs/scattered_containers 0 -> 24 on a branch whose
 # baseline predated the class) and could not push.
 debt_gate() {
-    local tip="$1" changed python_bin member output base member_revision
+    local tip="$1" changed member output base member_revision
     local checker_rev checker_dir ref status default_revision
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
@@ -388,16 +390,7 @@ debt_gate() {
     changed="$(git -C "$atlas_root" diff --name-only "$base".."$tip" -- repos/ 2>/dev/null | awk -F/ 'NF > 1 { print $2 }' | sort -u)"
     [ -z "$changed" ] && return 0
 
-    python_bin="${PYTHON:-}"
-    if [ -z "$python_bin" ]; then
-        for candidate in python3 python; do
-            if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1; then
-                python_bin="$candidate"
-                break
-            fi
-        done
-    fi
-    if [ -z "$python_bin" ]; then
+    if ! resolve_python; then
         echo "pre-push: BLOCKED -- gitlinks moved and no python interpreter is" >&2
         echo "available, so the debt they carry is unmeasured." >&2
         return 1
@@ -464,15 +457,9 @@ debt_gate() {
 # members run (scripts/atlas-artifact-budget.py): an over-budget board may
 # not grow, an oversized image may not be added or touched.
 budget_gate() {
-    local tip="$1" base python_bin candidate
+    local tip="$1" base
     base="$gate_base"
-    python_bin="${PYTHON:-}"
-    if [ -z "$python_bin" ]; then
-        for candidate in python3 python; do
-            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
-        done
-    fi
-    if [ -z "$python_bin" ]; then
+    if ! resolve_python; then
         echo "pre-push: BLOCKED -- no python interpreter; artifact budgets unverified." >&2
         return 1
     fi
@@ -481,7 +468,7 @@ budget_gate() {
     # The checker comes from the revision being pushed, so a shared tree that
     # lacks or predates it (a peer's checkout) still judges by the right code;
     # a revision without the script predates the gate and has nothing to run.
-    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas-artifact-budget.py" 2>/dev/null; then
+    if ! tip_has_script scripts/atlas-artifact-budget.py; then
         return 0
     fi
     git -C "$atlas_root" show "$tip:scripts/atlas-artifact-budget.py"         | "$python_bin" - check --root "$atlas_root" --rev "$tip" "${args[@]}"         || { echo "pre-push: BLOCKED -- a board grew past its budget or an oversized image was added." >&2; return 1; }
@@ -493,19 +480,13 @@ budget_gate() {
 # rather than in CI. The scanner comes from the pushed revision, as the budget
 # checker does.
 secret_gate() {
-    local tip="$1" base python_bin candidate
+    local tip="$1" base
     base="$gate_base"
-    python_bin="${PYTHON:-}"
-    if [ -z "$python_bin" ]; then
-        for candidate in python3 python; do
-            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
-        done
-    fi
-    if [ -z "$python_bin" ]; then
+    if ! resolve_python; then
         echo "pre-push: BLOCKED -- no python interpreter; the pushed range was not scanned for credentials." >&2
         return 1
     fi
-    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas-secret-scan.py" 2>/dev/null; then
+    if ! tip_has_script scripts/atlas-secret-scan.py; then
         return 0
     fi
     local args=()
@@ -522,18 +503,12 @@ secret_gate() {
 # published origin. Fetching a member ref lands in refs/scratch/ or in
 # FETCH_HEAD; only the own-origin wildcard mirror touches refs/remotes/.
 refspec_gate() {
-    local tip="$1" python_bin candidate
-    python_bin="${PYTHON:-}"
-    if [ -z "$python_bin" ]; then
-        for candidate in python3 python; do
-            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
-        done
-    fi
-    if [ -z "$python_bin" ]; then
+    local tip="$1"
+    if ! resolve_python; then
         echo "pre-push: BLOCKED -- no python interpreter; refspec guard unverified." >&2
         return 1
     fi
-    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas-refspec-guard.py" 2>/dev/null; then
+    if ! tip_has_script scripts/atlas-refspec-guard.py; then
         return 0
     fi
     git -C "$atlas_root" show "$tip:scripts/atlas-refspec-guard.py"         | "$python_bin" - check --root "$atlas_root" --rev "$tip"         || { echo "pre-push: BLOCKED -- a committed tool maps a fetched ref onto a remote-tracking ref; only the own-origin wildcard mirror may." >&2; return 1; }
@@ -545,6 +520,7 @@ case "$status" in
         for i in "${!pushed_tips[@]}"; do
             tip="${pushed_tips[$i]}"
             gate_base="$(gate_base_for "$tip" "${pushed_bases[$i]}")"
+            list_gate_scripts "$tip" || exit 1
             debt_gate "$tip" || exit 1
             budget_gate "$tip" || exit 1
             secret_gate "$tip" || exit 1

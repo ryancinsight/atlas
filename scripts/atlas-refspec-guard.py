@@ -67,6 +67,63 @@ REFSPEC_TOKEN = re.compile(
 SCOPE_PREFIXES = ("scripts/", ".githooks/", ".github/workflows/", "tools/")
 TEXT_SUFFIXES = (".py", ".sh", ".yml", ".yaml", ".rs")
 
+# The scan lists one tree and reads a few megabytes of blobs from the local
+# object store; a git that has not answered in two minutes is hung.
+GIT_TIMEOUT_SECONDS = 120
+
+
+class GuardError(Exception):
+    """The revision could not be read, so nothing was judged."""
+
+
+def _git(root: Path, *arguments: str, stdin: bytes | None = None) -> bytes:
+    try:
+        return subprocess.run(
+            ["git", "-C", str(root), *arguments],
+            input=stdin, capture_output=True, check=True, timeout=GIT_TIMEOUT_SECONDS,
+        ).stdout
+    except subprocess.CalledProcessError as error:
+        detail = error.stderr.decode("utf-8", "replace").strip()
+        raise GuardError(f"git {' '.join(arguments[:2])} failed in {root}: {detail}") from error
+    except subprocess.TimeoutExpired as error:
+        raise GuardError(
+            f"git {' '.join(arguments[:2])} did not finish in {GIT_TIMEOUT_SECONDS} s in {root}"
+        ) from error
+
+
+def committed_tooling(root: Path, rev: str) -> list[tuple[str, str]]:
+    """(path, text) of every tooling file in `rev`'s tree.
+
+    One `ls-tree` lists the tree and one `cat-file --batch` reads every blob,
+    so the cost does not grow with a process per file: a pre-push hook runs
+    this on every push, and the tree holds hundreds of tooling files.
+    """
+    listing = _git(root, "ls-tree", "-r", "-z", rev)
+    wanted: list[tuple[str, bytes]] = []
+    for record in listing.split(b"\0"):
+        if not record:
+            continue
+        meta, _, raw_path = record.partition(b"\t")
+        _, kind, name = meta.split()
+        path = raw_path.decode("utf-8", "replace")
+        if kind == b"blob" and path.startswith(SCOPE_PREFIXES) and path.endswith(TEXT_SUFFIXES):
+            wanted.append((path, name))
+    if not wanted:
+        return []
+    batch = _git(root, "cat-file", "--batch", stdin=b"".join(name + b"\n" for _, name in wanted))
+    files: list[tuple[str, str]] = []
+    position = 0
+    for path, name in wanted:
+        header_end = batch.index(b"\n", position)
+        header = batch[position:header_end].split()
+        if header[0] != name or len(header) != 3 or header[1] != b"blob":
+            raise GuardError(f"git cat-file --batch answered {header!r} for {path} ({name.decode()})")
+        start = header_end + 1
+        end = start + int(header[2])
+        files.append((path, batch[start:end].decode("utf-8", "replace")))
+        position = end + 1
+    return files
+
 
 def refspec_outcome(src: str, dst: str) -> str | None:
     """None when `dst` is a sanctioned write target; else a reason string.
@@ -121,29 +178,7 @@ def violations_at(root: Path, rev: str | None) -> list[tuple[str, int, str, str]
     development sees the same verdict the gate would.
     """
     if rev is not None:
-        try:
-            listing = subprocess.run(
-                ["git", "-C", str(root), "ls-tree", "-r", "--name-only", rev],
-                capture_output=True, text=True, check=True, encoding="utf-8",
-                errors="replace",
-            ).stdout
-        except subprocess.CalledProcessError:
-            return []
-        paths = [
-            line for line in listing.splitlines()
-            if line.startswith(SCOPE_PREFIXES) and line.endswith(TEXT_SUFFIXES)
-        ]
-        readers: list[tuple[str, str]] = []
-        for relpath in paths:
-            try:
-                text = subprocess.run(
-                    ["git", "-C", str(root), "show", f"{rev}:{relpath}"],
-                    capture_output=True, text=True, check=True, encoding="utf-8",
-                    errors="replace",
-                ).stdout
-            except subprocess.CalledProcessError:
-                continue
-            readers.append((relpath, text))
+        readers = committed_tooling(root, rev)
     else:
         readers = []
         for path in tracked_tooling(root):
@@ -177,7 +212,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"no such directory: {root}", file=sys.stderr)
         return 2
 
-    found = violations_at(root, args.rev)
+    try:
+        found = violations_at(root, args.rev)
+    except GuardError as error:
+        print(f"refspec-guard: ERROR -- {error}", file=sys.stderr)
+        return 2
     for relpath, lineno, refspec, reason in found:
         print(f"refspec-guard: FAIL {relpath}:{lineno} `{refspec}` -- {reason}")
     if found:

@@ -822,7 +822,8 @@ atlas/
 ├── .githooks/
 │   ├── pre-commit                    # docs dead-link and board/pointer-hygiene gate;
 │   │                                 #   enable with git config core.hooksPath .githooks
-│   └── pre-push                      # gitlink-coherence gate
+│   ├── pre-push                      # gitlink-coherence gate
+│   └── stack-root.sh                 # canonical-stack-root resolver both hooks source
 ├── .github/
 │   ├── actions/
 │   │   └── checkout-path-dependencies/   # provider materialization from one gitlink graph
