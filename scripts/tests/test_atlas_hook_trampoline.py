@@ -26,6 +26,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / ".githooks" / "pre-push"
+STACK_ROOT = ROOT / ".githooks" / "stack-root.sh"
 ZERO = "0" * 40
 PRELUDE_END = '_atlas_hook_trampoline "$@" || exit 1\n'
 
@@ -60,6 +61,10 @@ def _atlas_root_derivation() -> str:
     Pinned to the fixed `git rev-parse --show-toplevel` form, the same body
     resolves correctly regardless of re-exec, since `exec` never changes the
     working directory git already set to the repo root.
+
+    The span includes the hook's load of the stack-root resolver from
+    origin's default branch, so a fixture that runs it commits
+    `.githooks/stack-root.sh` there.
     """
     text = SCRIPT.read_text(encoding="utf-8")
     lines = text.splitlines(keepends=True)
@@ -276,6 +281,7 @@ class ReExecPreservesRepoRootTestCase(unittest.TestCase):
             # main carries the hook that must run: the production root
             # derivation, reading a file relative to the resolved root.
             _write_hook(repo, _root_reading_body())
+            (repo / ".githooks" / "stack-root.sh").write_bytes(STACK_ROOT.read_bytes())
             marker_dir = repo / "tools"
             marker_dir.mkdir(parents=True, exist_ok=True)
             (marker_dir / "marker").write_text("present\n", encoding="utf-8")

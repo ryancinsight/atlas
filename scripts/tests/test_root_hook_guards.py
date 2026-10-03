@@ -17,23 +17,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
-ROOT = Path(__file__).resolve().parents[2]
-PRE_PUSH = ROOT / ".githooks" / "pre-push"
-PRE_COMMIT = ROOT / ".githooks" / "pre-commit"
-
-
-def install_hook(repo: Path) -> None:
-    (repo / "scripts").mkdir()
-    for name in (
-        "atlas-stale-side-guard.py", "atlas_stale_side_git.py",
-        "atlas_stale_side_basis.py", "atlas_git_process.py", "stale-side-waivers.json",
-        "atlas-provider-integration-audit.py", "atlas_stack.py", "check_mdbook_links.py",
-    ):
-        shutil.copyfile(ROOT / "scripts" / name, repo / "scripts" / name)
-    (repo / ".githooks").mkdir()
-    shutil.copyfile(PRE_COMMIT, repo / ".githooks" / "pre-commit")
-    (repo / ".githooks" / "pre-commit").chmod(0o755)
+from root_hook_support import PRE_COMMIT, PRE_PUSH, ROOT, install_hook
 
 
 class RootHookGuardTests(unittest.TestCase):

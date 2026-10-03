@@ -147,63 +147,22 @@ if [ -z "$atlas_root" ]; then
     echo "auditor and its related paths cannot be resolved." >&2
     exit 1
 fi
-canonical_stack_root() {
-    local common_dir common_norm configured ancestor candidate candidate_gitfile candidate_gitdir candidate_norm
-    common_dir="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-    common_norm="$(printf '%s' "$common_dir" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')"
-    if [ "$(basename "$common_dir")" = ".git" ]; then
-        dirname "$common_dir"
-        return 0
-    fi
-    configured="$(git --git-dir="$common_dir" config --path core.worktree 2>/dev/null || true)"
-    if [ -n "$configured" ]; then
-        git -C "$configured" rev-parse --show-toplevel
-        return 0
-    fi
-    scan_candidate() {
-        local root="$1" depth="$2" candidate_gitfile candidate candidate_gitdir candidate_norm child
-        [ "$depth" -le 6 ] || return 1
-        for candidate_gitfile in "$root"/*/.git; do
-            [ -f "$candidate_gitfile" ] || continue
-            candidate_gitfile="${candidate_gitfile//\\//}"
-            candidate="${candidate_gitfile%/.git}"
-            candidate_gitdir="$(sed -n 's/^gitdir: //p' "$candidate/.git" 2>/dev/null || true)"
-            case "$candidate_gitdir" in
-                /*|[A-Za-z]:/*) ;;
-                *) candidate_gitdir="$candidate/$candidate_gitdir" ;;
-            esac
-            candidate_norm="$(printf '%s' "$candidate_gitdir" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')"
-            if [ "$candidate_norm" = "$common_norm" ]; then
-                git -C "$candidate" rev-parse --show-toplevel
-                return 0
-            fi
-        done
-        for child in "$root"/*; do
-            [ -d "$child" ] || continue
-            scan_candidate "$child" "$((depth + 1))" && return 0
-        done
-        return 1
-    }
-    # `git init --separate-git-dir` leaves the main worktree's `.git` file as
-    # the only canonical-worktree marker; unlike a linked lane, it points at
-    # the common directory itself. Search only ancestor siblings of Git's
-    # metadata and validate each candidate through Git, so lane ordering and
-    # metadata-parent assumptions cannot select a worktree by position.
-    ancestor="$(dirname "$atlas_root")"
-    while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
-        scan_candidate "$ancestor" 0 && return 0
-        [ "$ancestor" = "$(dirname "$ancestor")" ] && break
-        ancestor="$(dirname "$ancestor")"
-    done
-    ancestor="$(dirname "$(dirname "$common_dir")")"
-    while [ -n "$ancestor" ] && [ "$ancestor" != "/" ]; do
-        scan_candidate "$ancestor" 0 && return 0
-        [ "$ancestor" = "$(dirname "$ancestor")" ] && break
-        ancestor="$(dirname "$ancestor")"
-    done
-    return 1
-}
-member_root="$(canonical_stack_root)" || {
+# The canonical-stack-root resolver is the default branch's committed
+# .githooks/stack-root.sh, read from the same revision the trampoline above
+# trusts for this file: a tree holding a peer's older branch may lack it or
+# carry another version, and the trampoline exists so that no checked-out
+# branch decides what this hook runs.
+stack_root_source=""
+for ref in origin/HEAD origin/main; do
+    stack_root_source="$(MSYS_NO_PATHCONV=1 git -C "$atlas_root" cat-file -p "$ref:.githooks/stack-root.sh" 2>/dev/null)" && break
+done
+if [ -z "$stack_root_source" ]; then
+    echo "pre-push: BLOCKED -- origin's default branch has no .githooks/stack-root.sh," >&2
+    echo "so the canonical Atlas root cannot be resolved; fetch origin and push again." >&2
+    exit 1
+fi
+eval "$stack_root_source"
+member_root="$(canonical_stack_root "$atlas_root")" || {
     echo "pre-push: BLOCKED -- cannot resolve the canonical Atlas root from Git metadata." >&2
     exit 1
 }
