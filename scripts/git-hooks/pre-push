@@ -153,6 +153,26 @@ if [ ! -t 0 ]; then
   done
 fi
 
+if [ "${#push_lines[@]}" -gt 0 ]; then
+  for push_line in "${push_lines[@]}"; do
+    read -r local_ref local_sha remote_ref remote_sha extra <<<"$push_line"
+    [ -z "${extra:-}" ] || {
+      echo "pre-push: BLOCKED -- malformed ref update" >&2
+      exit 1
+    }
+    if [ "$local_sha" != "$zero" ] \
+      && ! outside_checkout git -C "$repo_root" cat-file -e "$local_sha^{commit}" 2>/dev/null; then
+      echo "pre-push: BLOCKED -- pushed local commit is unavailable" >&2
+      exit 1
+    fi
+    if [ "$local_sha" != "$zero" ] && [ "$remote_sha" != "$zero" ] \
+      && ! outside_checkout git -C "$repo_root" cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+      echo "pre-push: BLOCKED -- remote commit is unavailable" >&2
+      exit 1
+    fi
+  done
+fi
+
 # Both Atlas and member hooks dispatch to the classifier committed at the
 # fetched stack default. The member revision cannot broaden its own exception.
 if [ "${ATLAS_RESCUE_MIXED:-0}" != 1 ] && [ "${#push_lines[@]}" -gt 0 ]; then
@@ -476,6 +496,11 @@ if [ -n "$stack_top" ] && [ "$(cd "$stack_top" && pwd)" = "$stack_root" ]; then
     [ -n "$stack_baseline" ] && break
   done
 fi
+member_baseline=""
+for ref in origin/HEAD origin/main; do
+  member_baseline="$(outside_checkout git -C "$repo_root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null || true)"
+  [ -n "$member_baseline" ] && break
+done
 stack_scripts=""
 if [ -n "$stack_baseline" ] \
   && outside_checkout git -C "$stack_root" cat-file -e "$stack_baseline:scripts" 2>/dev/null; then
@@ -569,20 +594,37 @@ else
   echo "pre-push: artifact-budget checker not reachable from this clone; CI enforces it" >&2
 fi
 
-# Credentials: the lines the pushed range adds, scanned before they leave the
-# machine (scripts/atlas-secret-scan.py). A secret that reaches a remote is
-# published -- a rewritten history does not unpublish it -- so this is the one
-# check CI cannot stand in for: by the time a runner sees the push, the value
-# is already out. Same range as the budget check above.
+# Credentials: every commit the pushed range introduces, scanned before it
+# leaves the machine (scripts/atlas-secret-scan.py). A secret that reaches a
+# remote is published -- a rewritten history does not unpublish it -- so this
+# is the one check CI cannot stand in for: by the time a runner sees the push,
+# the value is already out, and a scan that could not run blocks the push. Same
+# range as the budget check above.
 secret_checker="${stack_scripts:+$stack_scripts/atlas-secret-scan.py}"
-if [ -f "$secret_checker" ] && [ -n "$python_bin" ]; then
-  if ! "$python_bin" "$secret_checker" check --root "$repo_root" --rev "$range_rev" "${range_args[@]}"; then
-    echo "pre-push: BLOCKED -- the pushed range adds a credential. Remove it from" >&2
-    echo "every commit in the range; if it ever reached a remote, rotate it." >&2
-    exit 1
-  fi
-else
-  echo "pre-push: secret scanner not reachable from this clone; the pushed range was not scanned" >&2
+if [ ! -f "$secret_checker" ]; then
+  echo "pre-push: BLOCKED -- the trusted credential scanner is not reachable from this clone;" >&2
+  echo "the pushed range was not scanned. Fetch the stack's default branch and push again." >&2
+  exit 1
+fi
+if [ -z "$python_bin" ]; then
+  echo "pre-push: BLOCKED -- no python interpreter; the pushed range was not scanned for credentials." >&2
+  exit 1
+fi
+if [ -z "$member_baseline" ]; then
+  echo "pre-push: BLOCKED -- member default revision is unavailable for the trusted allowlist." >&2
+  exit 1
+fi
+secret_status=0
+"$python_bin" -I "$secret_checker" check --root "$repo_root" --rev "$range_rev" \
+    --allowlist-rev "$member_baseline" "${range_args[@]}" || secret_status=$?
+if [ "$secret_status" -eq 1 ]; then
+  echo "pre-push: BLOCKED -- the pushed range adds a credential. Remove it from" >&2
+  echo "every commit in the range; if it ever reached a remote, rotate it." >&2
+  exit 1
+elif [ "$secret_status" -ne 0 ]; then
+  echo "pre-push: BLOCKED -- the secret scan could not run (exit $secret_status), so the pushed" >&2
+  echo "range was not scanned; the reason is the secret-scan line above." >&2
+  exit 1
 fi
 
 # Debt ratchet: the pushed revision's conformance classes may not rise above
