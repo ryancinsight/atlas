@@ -106,7 +106,7 @@
 <a id="atlas-identity-overlay-locked-metadata"></a>- [ATLAS-IDENTITY-OVERLAY-LOCKED-METADATA](backlog/atlas-identity-overlay-locked-metadata.md) — Read the overlay's dependency graph without refusing its lock [patch] — todo
 <a id="atlas-identity-midrun-git-edit"></a>- [ATLAS-IDENTITY-MIDRUN-GIT-EDIT](backlog/atlas-identity-midrun-git-edit.md) — Stamp a trusted Git package whose checkout moved during a failed run [patch] — todo
 <a id="atlas-identity-load-flakes"></a>- [ATLAS-IDENTITY-LOAD-FLAKES](backlog/atlas-identity-load-flakes.md) — Four identity tests fail under host load [patch] — todo
-<a id="atlas-lock-sweep-lane-bound-2026-10-02"></a>- [ATLAS-LOCK-SWEEP-LANE-BOUND-2026-10-02](backlog/atlas-lock-sweep-lane-bound-2026-10-02.md) — The two-worktree bound is blocking the stack's own lock sweep [correctness] — todo
+<a id="atlas-lock-sweep-lane-bound-2026-10-02"></a>- [ATLAS-LOCK-SWEEP-LANE-BOUND-2026-10-02](backlog/atlas-lock-sweep-lane-bound-2026-10-02.md) — Every member lock advances to the named provider merges [correctness] — blocked
 <a id="atlas-pub-010"></a>- [ATLAS-PUB-010](backlog/atlas-pub-010.md) — Convert member crate callers to version-change publishing [patch] — todo
 <a id="atlas-pub-011"></a>- [ATLAS-PUB-011](backlog/atlas-pub-011.md) — Release the source that outran its published versions [patch] — todo
 <a id="atlas-identity-member-scope"></a>- [ATLAS-IDENTITY-MEMBER-SCOPE](backlog/atlas-identity-member-scope.md) — A commit cleans every gated package's in-repository closure [tightening] — todo
@@ -117,3 +117,4 @@
 <a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — blocked
 <a id="atlas-hook-stack-root-ssot"></a>- [ATLAS-HOOK-STACK-ROOT-SSOT](backlog/atlas-hook-stack-root-ssot.md) — One stack-root resolver for both root hooks [patch] — todo
 <a id="atlas-mnemosyne-08-sweep"></a>- [ATLAS-MNEMOSYNE-08-SWEEP](backlog/atlas-mnemosyne-08-sweep.md) — Every member locks one Mnemosyne generation [correctness] — todo
+<a id="atlas-provider-versions-20261002"></a>- [ATLAS-PROVIDER-VERSIONS-20261002](backlog/atlas-provider-versions-20261002.md) — Adopt eunomia 0.9 and leto 0.44 across consumers [correctness] — todo
