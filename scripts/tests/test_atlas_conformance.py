@@ -2278,7 +2278,9 @@ class BareGitDependencyTestCase(unittest.TestCase):
 class CrlfStoredBlobsTestCase(unittest.TestCase):
     """The detector reads the index, so its fixture is a real commit."""
 
-    def _repo(self, attributes: str | None) -> Path:
+    def _repo(
+        self, attributes: str | None, extra: dict[str, bytes] | None = None
+    ) -> Path:
         root = Path(tempfile.mkdtemp(prefix="crlf-detector-"))
         self.addCleanup(shutil.rmtree, root, ignore_errors=True)
         # Identity travels with the command, not the machine: CI runners
@@ -2292,6 +2294,8 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
         # before the policy, exactly what the board item measured.
         (root / "keep.txt").write_bytes(b"lf blob\nsecond line\n")
         (root / "legacy.txt").write_bytes(b"crlf blob\r\nsecond line\r\n")
+        for name, content in (extra or {}).items():
+            (root / name).write_bytes(content)
         # Raw-byte semantics: the host default (`core.autocrlf=true` on
         # Windows) would normalize at checkin and make the defect unfixturable.
         subprocess.run(
@@ -2326,6 +2330,106 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
 
     def test_the_class_is_registered_for_the_ratchet(self):
         self.assertIn("crlf_stored_blobs", conformance.CLASSES)
+
+    def _eol_listing_count(self, repo: Path) -> int:
+        listing = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "--eol"],
+            check=True, capture_output=True, text=True,
+        ).stdout
+        return conformance._count_index_crlf(listing)
+
+    def test_a_mixed_blob_is_counted(self):
+        repo = self._repo(
+            "* text=auto eol=lf\n", {"mixed.txt": b"one\r\ntwo\nthree\n"}
+        )
+        self.assertEqual(self.count(repo), 2)
+
+    def test_a_blob_holding_a_nul_is_binary_and_not_counted(self):
+        repo = self._repo(
+            "* text=auto eol=lf\n", {"image.bin": b"head\r\n\x00tail\r\n"}
+        )
+        self.assertEqual(self.count(repo), 1)
+
+    def test_a_lone_carriage_return_is_binary_and_not_counted(self):
+        repo = self._repo("* text=auto eol=lf\n", {"lone.txt": b"a\rb\r\n"})
+        self.assertEqual(self.count(repo), 1)
+
+    def test_an_in_tree_binary_attribute_does_not_hide_a_crlf_blob(self):
+        # `binary` makes `grep -I` skip the blob, but the index verdict reads
+        # content only, so `ls-files --eol` reports `i/crlf`.
+        repo = self._repo(
+            "* text=auto eol=lf\n*.dat binary\n", {"table.dat": b"r\r\nr\r\n"}
+        )
+        self.assertEqual(self.count(repo), 2)
+        self.assertEqual(self._eol_listing_count(repo), 2)
+
+    def test_a_nul_blob_with_a_binary_attribute_skips_the_full_read(self):
+        # The exact query inflates whole blobs; a blob the NUL check already
+        # rules out must not reach it, whatever the in-tree attributes say.
+        repo = self._repo(
+            "* text=auto eol=lf\n*.dat binary\n",
+            {"scan.dat": b"\x00" * 128 + b"\r\n"},
+        )
+        listed: list[str] = []
+        real = conformance.execute_git
+
+        def recording(repo_path, args, **kwargs):
+            if "ls-files" in args:
+                listed.extend(args)
+            return real(repo_path, args, **kwargs)
+
+        with patch.object(conformance, "execute_git", recording):
+            self.assertEqual(self.count(repo), 1)
+        self.assertIn("legacy.txt", listed)
+        self.assertNotIn("scan.dat", listed)
+
+    def test_an_info_attribute_does_not_hide_a_crlf_blob(self):
+        repo = self._repo("* text=auto eol=lf\n", {"table.dat": b"r\r\nr\r\n"})
+        (repo / ".git" / "info").mkdir(exist_ok=True)
+        (repo / ".git" / "info" / "attributes").write_text("*.dat -diff\n")
+        self.assertEqual(self.count(repo), 2)
+        self.assertEqual(self._eol_listing_count(repo), 2)
+
+    def test_a_path_with_glob_characters_is_counted_once(self):
+        # As a glob, `a[b].txt` also names `ab.txt`; with one path per
+        # `ls-files` call, a glob reading would count `ab.txt` twice.
+        repo = self._repo(
+            "* text=auto eol=lf\n",
+            {"a[b].txt": b"x\r\ny\r\n", "ab.txt": b"x\r\ny\r\n"},
+        )
+        with patch.object(conformance, "EOL_PATHSPEC_BATCH", 1):
+            self.assertEqual(self.count(repo), 3)
+        self.assertEqual(self._eol_listing_count(repo), 3)
+
+    def test_the_count_matches_a_full_eol_listing(self):
+        repo = self._repo(
+            "* text=auto eol=lf\n*.dat binary\n",
+            {
+                "mixed.txt": b"one\r\ntwo\n",
+                "lone.txt": b"one\rtwo\n",
+                "image.bin": b"\x00\r\n",
+                "table.dat": b"row\r\n",
+            },
+        )
+        self.assertEqual(self.count(repo), 3)
+        self.assertEqual(self._eol_listing_count(repo), 3)
+
+    def test_a_revision_is_counted_from_its_tree_not_the_index(self):
+        repo = self._repo("* text=auto eol=lf\n")
+        commit = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "-C", str(repo), "add", "--renormalize", "."], check=True
+        )
+        self.assertEqual(self.count(repo), 0)
+        self.assertEqual(
+            conformance.count_crlf_stored_blobs(
+                repo, live_repo=repo, revision=commit
+            ),
+            1,
+        )
 
 
 class ExistenceOnlyAssertionTests(unittest.TestCase):

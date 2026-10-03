@@ -835,6 +835,93 @@ def _count_index_crlf(output: str) -> int:
     )
 
 
+# Paths per `ls-files --eol` call: keeps the argument list well below the
+# 32,767-character Windows command-line limit at any realistic path length.
+EOL_PATHSPEC_BATCH = 200
+
+
+def _nul_paths(raw: bytes) -> list[str]:
+    text = raw.decode("utf-8", errors="surrogateescape")
+    return [path for path in text.split("\0") if path]
+
+
+def _git_listing(
+    repo: Path,
+    args: tuple[str, ...],
+    env: dict[str, str] | None,
+    *,
+    stdin: bytes | None = None,
+    no_match_ok: bool = False,
+) -> bytes:
+    result = execute_git(
+        repo, args, stdin=stdin, env=env, timeout=GIT_TIMEOUT_SECONDS
+    )
+    # `git grep` exits 1 when nothing matches; any other nonzero is a failure.
+    if result.returncode and not (no_match_ok and result.returncode == 1):
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"git {args[0]} failed in {repo}")
+    return result.stdout
+
+
+def _count_index_crlf_blobs(
+    repo: Path, env: dict[str, str] | None = None
+) -> int:
+    """`i/crlf` plus `i/mixed` entries of the index `env` selects.
+
+    `ls-files --eol` over a whole index inflates every blob, so a member
+    holding large binaries outran the Git deadline (kwavers: 58 s against
+    60 s). Both verdicts need a CRLF in a blob git's content check calls
+    text, and that check rejects any NUL byte, so the exact `ls-files` query
+    runs only on blobs that can pass both:
+    - those holding a CR that `grep -I` reads as text;
+    - CR-bearing blobs `grep -I` skipped for a `diff` attribute rather than
+      a NUL, since attributes do not enter the index verdict.
+    Both commands read attributes from the empty tree (`--attr-source`):
+    in-tree `binary` attributes would otherwise send every such blob to
+    `ls-files`, NUL or not (ritk: 2,925 blobs, 33 s), while the files that
+    still apply (`info/attributes`, global) give both the same answer.
+    """
+    empty_tree = _git_listing(
+        repo, ("hash-object", "-t", "tree", "--stdin"), env, stdin=b""
+    ).decode("ascii").strip()
+    source = f"--attr-source={empty_tree}"
+    carriage_return = chr(13)
+    grep = (
+        source, "grep", "--cached", "-z", "-l", "-F", "-e", carriage_return
+    )
+    every = set(_nul_paths(_git_listing(repo, grep, env, no_match_ok=True)))
+    text = set(_nul_paths(
+        _git_listing(repo, (*grep, "-I"), env, no_match_ok=True)
+    ))
+    skipped = sorted(every - text)
+    attributed: set[str] = set()
+    if skipped:
+        fields = _nul_paths(_git_listing(
+            repo,
+            (source, "check-attr", "-z", "--stdin", "diff"),
+            env,
+            stdin=b"".join(
+                path.encode("utf-8", errors="surrogateescape") + b"\0"
+                for path in skipped
+            ),
+        ))
+        # `-z` output is (path, attribute, value) triples.
+        for path, value in zip(fields[::3], fields[2::3]):
+            if value not in ("unspecified", "set"):
+                attributed.add(path)
+    candidates = sorted(text | attributed)
+    count = 0
+    for start in range(0, len(candidates), EOL_PATHSPEC_BATCH):
+        listing = _git_listing(
+            repo,
+            ("--literal-pathspecs", "ls-files", "--eol", "--",
+             *candidates[start:start + EOL_PATHSPEC_BATCH]),
+            env,
+        )
+        count += _count_index_crlf(listing.decode("utf-8", errors="replace"))
+    return count
+
+
 def _crlf_blobs_at_revision(repo: Path, revision: str) -> int:
     """Count stored-CRLF blobs in `revision`'s tree via a temporary index.
 
@@ -856,22 +943,12 @@ def _crlf_blobs_at_revision(repo: Path, revision: str) -> int:
         if read.returncode:
             detail = read.stderr.decode("utf-8", errors="replace").strip()
             raise RuntimeError(detail or f"cannot read tree {revision}")
-        listed = execute_git(
-            repo,
-            ("ls-files", "--eol"),
-            env=env,
-            timeout=GIT_TIMEOUT_SECONDS,
-        )
-        if listed.returncode:
-            detail = listed.stderr.decode("utf-8", errors="replace").strip()
-            raise RuntimeError(detail or "cannot list index EOL state")
-        output = listed.stdout.decode("utf-8", errors="replace")
+        return _count_index_crlf_blobs(repo, env)
     finally:
         try:
             os.unlink(index_path)
         except OSError:
             pass
-    return _count_index_crlf(output)
 
 
 def count_crlf_stored_blobs(
@@ -909,15 +986,9 @@ def count_crlf_stored_blobs(
                 return 0
             detail = probe.stderr.decode("utf-8", errors="replace").strip()
             raise RuntimeError(detail or f"cannot resolve Git directory for {repo}")
-        listed = execute_git(
-            repo, ("ls-files", "--eol"), timeout=GIT_TIMEOUT_SECONDS
-        )
+        return _count_index_crlf_blobs(repo)
     except GitProcessError as exc:
         raise RuntimeError(f"cannot measure CRLF state in {repo}") from exc
-    if listed.returncode:
-        detail = listed.stderr.decode("utf-8", errors="replace").strip()
-        raise RuntimeError(detail or f"cannot list index EOL state in {repo}")
-    return _count_index_crlf(listed.stdout.decode("utf-8", errors="replace"))
 
 
 def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path]:
