@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import time
+import uuid
 from contextlib import ExitStack
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -22,7 +23,7 @@ from atlas_build_lease import (
     SHARED,
     BuildIdentityError,
     OwnerLease,
-    acquire_waiting,
+    acquire_claim,
     package_target_lease_path,
     package_target_lease_scopes,
 )
@@ -207,35 +208,30 @@ def run_build(
             clean_packages[package],
         )
     }
-    # One bound for acquiring every lease, across both phases.
-    deadline_ns = time.monotonic_ns() + int(lease_wait_seconds * 1_000_000_000)
+    # One bound for acquiring every lease, across both phases, and the run's
+    # place in every queue, fixed by the same clock read: `(arrival, run)`.
+    arrival_ns = time.monotonic_ns()
+    run_id = uuid.uuid4().hex
+    deadline_ns = arrival_ns + int(lease_wait_seconds * 1_000_000_000)
 
     taken: list[OwnerLease] = []
 
     def acquire(exclusive: frozenset[str]) -> ExitStack:
         # The command writes its own packages; a dependency is only read
-        # unless a record shows the run must clean or rebuild it. Leases are
-        # taken in package-name order, the order a single-package run takes
-        # them in, so two runs never each hold a lease the other waits for.
-        stack = ExitStack()
-        taken.clear()
-        try:
-            for lock, owner in sorted(scopes.items(), key=lambda item: str(item[1]["package"])):
-                mode = (
-                    EXCLUSIVE
-                    if owner["package"] in packages or owner["package"] in exclusive
-                    else SHARED
-                )
-                lease = acquire_waiting(
-                    OwnerLease(lock, owner, lease_seconds, mode),
-                    lease_wait_seconds,
-                    deadline_ns,
-                )
-                stack.push(lease)
-                taken.append(lease)
-        except BaseException:
-            stack.close()
-            raise
+        # unless a record shows the run must clean or rebuild it. Every lease
+        # is taken at once, under the run's arrival, so a run that cannot take
+        # them waits holding none and each phase keeps the run's place.
+        leases = [
+            OwnerLease(
+                lock,
+                owner,
+                lease_seconds,
+                EXCLUSIVE if owner["package"] in packages or owner["package"] in exclusive else SHARED,
+            )
+            for lock, owner in sorted(scopes.items(), key=lambda item: str(item[1]["package"]))
+        ]
+        stack = acquire_claim(leases, lease_wait_seconds, deadline_ns, arrival_ns, run_id)
+        taken[:] = leases
         return stack
 
     def locked_records() -> dict[str, _PackageState]:
