@@ -77,7 +77,13 @@ class OwnerLease:
     """
 
     def __init__(
-        self, path: Path, owner: dict[str, object], seconds: int, mode: str = EXCLUSIVE
+        self,
+        path: Path,
+        owner: dict[str, object],
+        seconds: int,
+        mode: str = EXCLUSIVE,
+        arrival: int | None = None,
+        run: str | None = None,
     ) -> None:
         if seconds <= 0:
             raise BuildIdentityError("lease duration must be positive")
@@ -87,14 +93,20 @@ class OwnerLease:
         self.owner = owner
         self.seconds = seconds
         self.mode = mode
+        self.arrival = arrival
+        self.run = run
         self.handle = None
         self.ticket: Ticket | None = None
         self.held = False
 
+    def reserve(self) -> None:
+        """Take this request's place in the lease's queue, without taking the lease."""
+        if self.ticket is None:
+            self.ticket = Ticket(self.path, self.mode, self.owner, self.arrival, self.run)
+
     def attempt(self) -> OwnerLease:
         """Take the lease if this request's turn has come and no holder conflicts."""
-        if self.ticket is None:
-            self.ticket = Ticket(self.path, self.mode, self.owner)
+        self.reserve()
         ahead = [peek_owner(path) or {} for path in self.ticket.ahead(self.mode)]
         handle = _take(self.path, self.mode)
         if handle is None:
@@ -159,6 +171,17 @@ class OwnerLease:
         if self.ticket is not None:
             self.ticket.downgrade()
 
+    def unhold(self) -> None:
+        """Give the lock back and keep this request's place in the queue."""
+        if self.held and self.handle is not None:
+            handle, self.handle, self.held = self.handle, None, False
+            try:
+                _release(handle, locked=True)
+            except OSError as error:
+                raise BuildIdentityError(
+                    f"cannot release source identity lease {self.path}"
+                ) from error
+
     def dequeue(self) -> None:
         if self.ticket is not None:
             ticket, self.ticket = self.ticket, None
@@ -173,13 +196,7 @@ class OwnerLease:
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         try:
-            if self.held and self.handle is not None:
-                try:
-                    _release(self.handle, locked=True)
-                except OSError as error:
-                    raise BuildIdentityError(
-                        f"cannot release source identity lease {self.path}"
-                    ) from error
+            self.unhold()
         finally:
             self.held = False
             self.handle = None
