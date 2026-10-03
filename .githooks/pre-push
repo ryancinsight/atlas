@@ -540,6 +540,32 @@ refspec_gate() {
     return 0
 }
 
+# The cast gate's own baseline (scripts/atlas_cast_gate.py ratchet): rows of
+# scripts/cast-baseline.json only fall, and a measured member gains no row and
+# no sanctioned path. The checker comes from the pushed revision, as above; a
+# push with no base has nothing to hold it to.
+cast_baseline_gate() {
+    local tip="$1" python_bin candidate
+    [ -n "$gate_base" ] || return 0
+    python_bin="${PYTHON:-}"
+    if [ -z "$python_bin" ]; then
+        for candidate in python3 python; do
+            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
+        done
+    fi
+    if [ -z "$python_bin" ]; then
+        echo "pre-push: BLOCKED -- no python interpreter; the cast baseline ratchet is unverified." >&2
+        return 1
+    fi
+    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas_cast_gate.py" 2>/dev/null; then
+        return 0
+    fi
+    git -C "$atlas_root" show "$tip:scripts/atlas_cast_gate.py" \
+        | "$python_bin" - ratchet --repo "$atlas_root" --base "$gate_base" --tip "$tip" \
+        || { echo "pre-push: BLOCKED -- the push raises scripts/cast-baseline.json, or the ratchet could not read it." >&2; return 1; }
+    return 0
+}
+
 case "$status" in
     0)
         for i in "${!pushed_tips[@]}"; do
@@ -549,6 +575,7 @@ case "$status" in
             budget_gate "$tip" || exit 1
             secret_gate "$tip" || exit 1
             refspec_gate "$tip" || exit 1
+            cast_baseline_gate "$tip" || exit 1
         done
         exit 0
         ;;

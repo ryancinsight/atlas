@@ -1,0 +1,295 @@
+{
+ "sanctioned": {
+  "eunomia": [
+   "crates/eunomia/src/convert/count.rs"
+  ]
+ },
+ "basis": {
+  "CFDrs": "790cd7fdfc52f686234844b7a17fca4c5b1e2105",
+  "aequitas": "151e51a327a03fed1c1626519c45a19796fc5cc2",
+  "apollo": "11a446bc5c4836d8fc41821b137f66510abdfe59",
+  "ares": "4a6e72e3d556f28958a52fe81f1cb4b1f112af8a",
+  "asclepius": "dd51f8ad6daafe16cd3dda3eca648c52355ac8ad",
+  "athena": "03e179c36372d0a24d66104e3e2c914c072a63ff",
+  "coeus": "c279b69e96d5aab29465c725504770243c555328",
+  "consus": "2596ff5138c9116edf5890a811a300f3a071573e",
+  "eunomia": "9931fc1f18279a205802127ba86b1b3775df1e38",
+  "gaia": "654351464b02d700613ecb9a60ba2e3018b4fa27",
+  "harmonia": "49611f78738bb4b787282fd184f7234a1780d417",
+  "helios": "811f5c633451e9e62a0a3f836b064d2c6969b997",
+  "hephaestus": "5e0af2b6b8c8b199668a55da07f1836dc2452142",
+  "hermes": "22c4b74c0eed94571d29a3cdb3c86b8a12da5789",
+  "horae": "ea9f3d347700005fde72012960db54a38b7c6ef9",
+  "hyperion": "5a80cec7666a21917b9c3c889bbe892e5719ddb4",
+  "iris": "d6b5a71e3221ddbb5b77936c998402b188690c13",
+  "kwavers": "cf433bc73608c8da0ce4984d52ba321ab8e3d09a",
+  "leto": "6d0eca392f777a770f283571bd974f48d33870bd",
+  "melinoe": "89d8e70ec77cb4d2cad43c92a2c7455524a49a60",
+  "metis": "711a3dc1693eec25a64a7b04fdcebc2727fbc8af",
+  "mnemosyne": "06769e4321d78088c5621946e224e32b4b1a2c3d",
+  "moirai": "5172195e06cb03b69995a0f13526c817b9bfb6b6",
+  "prometheus": "a2cd4d3e4a30bc4a6af60c49c46639ee721f086c",
+  "proteus": "718a987026a72f6667f6c501cb0c1ca03835556a",
+  "ritk": "20461c2e916542735fb1f5e14c7365e2ed94254e",
+  "themis": "d89d3aa6b730705e103c3e461a09b221e9700d83",
+  "tyche": "6daf8c0789b72c2405b8f6f73e28d216fdd2c101"
+ },
+ "counts": {
+  "CFDrs": {
+   "cfd-1d": 31,
+   "cfd-2d": 446,
+   "cfd-3d": 339,
+   "cfd-core": 99,
+   "cfd-io": 10,
+   "cfd-math": 129,
+   "cfd-optim": 91,
+   "cfd-python": 9,
+   "cfd-schematic-mesh": 37,
+   "cfd-schematics": 163,
+   "cfd-validation": 255
+  },
+  "aequitas": {
+   "aequitas-python": 1
+  },
+  "apollo": {
+   "apollo-bench": 1,
+   "apollo-czt": 68,
+   "apollo-dctdst": 109,
+   "apollo-dctdst-core": 2,
+   "apollo-dht": 35,
+   "apollo-fft": 1001,
+   "apollo-fft-macros": 47,
+   "apollo-frft": 85,
+   "apollo-fwht": 12,
+   "apollo-gft": 10,
+   "apollo-hilbert": 45,
+   "apollo-mellin": 69,
+   "apollo-ntt": 23,
+   "apollo-nufft": 309,
+   "apollo-python": 2,
+   "apollo-qft": 43,
+   "apollo-radon": 28,
+   "apollo-sdft": 25,
+   "apollo-sft": 54,
+   "apollo-sht": 76,
+   "apollo-stft": 162,
+   "apollo-validation": 56,
+   "apollo-wavelet": 41,
+   "xtask": 2
+  },
+  "ares": {
+   "ares-coupling": 5,
+   "ares-operator": 21,
+   "ares-solid": 14
+  },
+  "asclepius": {},
+  "athena": {
+   "athena-core": 1,
+   "athena-leto": 1
+  },
+  "coeus": {
+   "coeus-autograd": 198,
+   "coeus-core": 36,
+   "coeus-dist": 31,
+   "coeus-fft": 10,
+   "coeus-leto": 14,
+   "coeus-nn": 317,
+   "coeus-ops": 396,
+   "coeus-optim": 13,
+   "coeus-python": 67,
+   "coeus-sparse": 7,
+   "coeus-tensor": 30,
+   "coeus-wgpu": 64
+  },
+  "consus": {
+   "consus": 2,
+   "consus-arrow": 12,
+   "consus-compression": 44,
+   "consus-core": 33,
+   "consus-fits": 9,
+   "consus-hdf5": 280,
+   "consus-hdmf": 17,
+   "consus-integration-tests": 6,
+   "consus-io": 51,
+   "consus-mat": 33,
+   "consus-netcdf": 14,
+   "consus-nwb": 24,
+   "consus-onnx": 8,
+   "consus-parquet": 114,
+   "consus-python": 10,
+   "consus-raster": 26,
+   "consus-zarr": 79
+  },
+  "eunomia": {
+   "eunomia": 205
+  },
+  "gaia": {
+   "gaia-mesh": 232
+  },
+  "harmonia": {
+   "harmonia": 1
+  },
+  "helios": {
+   "helios-analysis": 66,
+   "helios-domain": 20,
+   "helios-gpu": 26,
+   "helios-imaging": 72,
+   "helios-physics": 3,
+   "helios-planning": 13,
+   "helios-simulation": 28,
+   "helios-solver": 41,
+   "xtask": 1
+  },
+  "hephaestus": {
+   "hephaestus-conformance": 31,
+   "hephaestus-core": 24,
+   "hephaestus-cuda": 344,
+   "hephaestus-host": 20,
+   "hephaestus-metal": 13,
+   "hephaestus-python": 9,
+   "hephaestus-rocm": 163,
+   "hephaestus-wgpu": 303
+  },
+  "hermes": {
+   "hermes-simd": 330,
+   "hermes-simd-benches": 46,
+   "hermes-simd-core": 124,
+   "hermes-simd-examples": 5,
+   "hermes-simd-intrinsics": 305
+  },
+  "horae": {
+   "horae-time": 1
+  },
+  "hyperion": {},
+  "iris": {
+   "iris-viz": 6
+  },
+  "kwavers": {
+   "kwavers": 1561,
+   "kwavers-alloc-probe": 3,
+   "kwavers-analysis": 692,
+   "kwavers-boundary": 66,
+   "kwavers-core": 69,
+   "kwavers-diagnostics": 502,
+   "kwavers-driver": 686,
+   "kwavers-field": 3,
+   "kwavers-gpu": 11,
+   "kwavers-grid": 122,
+   "kwavers-imaging": 10,
+   "kwavers-math": 183,
+   "kwavers-medium": 83,
+   "kwavers-mesh": 4,
+   "kwavers-phantom": 30,
+   "kwavers-physics": 1052,
+   "kwavers-python": 121,
+   "kwavers-receiver": 53,
+   "kwavers-signal": 72,
+   "kwavers-simulation": 120,
+   "kwavers-solver": 1879,
+   "kwavers-source": 39,
+   "kwavers-therapy": 893,
+   "kwavers-transducer": 300,
+   "xtask": 3
+  },
+  "leto": {
+   "leto": 116,
+   "leto-ops": 590,
+   "leto-python": 10
+  },
+  "melinoe": {
+   "melinoe": 71
+  },
+  "metis": {
+   "metis-app": 14,
+   "metis-backend": 22,
+   "metis-cli": 15,
+   "metis-core": 9,
+   "metis-frontend": 5,
+   "metis-ipc": 8,
+   "metis-platform": 20,
+   "metis-ui": 25,
+   "metis-ui-lang": 21
+  },
+  "mnemosyne": {
+   "mnemosyne-arena": 86,
+   "mnemosyne-backend": 36,
+   "mnemosyne-benchmarks": 43,
+   "mnemosyne-c-shim": 40,
+   "mnemosyne-decay": 7,
+   "mnemosyne-heap": 22,
+   "mnemosyne-local": 229,
+   "mnemosyne-memory": 20,
+   "mnemosyne-memory-core": 138,
+   "mnemosyne-prof": 36
+  },
+  "moirai": {
+   "moirai-async": 19,
+   "moirai-benchmarks": 116,
+   "moirai-core": 19,
+   "moirai-crypto": 5,
+   "moirai-executor": 25,
+   "moirai-fuzz": 2,
+   "moirai-gpu": 6,
+   "moirai-iter": 88,
+   "moirai-metrics": 3,
+   "moirai-pal": 153,
+   "moirai-parallel": 45,
+   "moirai-runtime": 252,
+   "moirai-scheduler": 26,
+   "moirai-sync": 6,
+   "moirai-tests": 21,
+   "moirai-transport": 6,
+   "moirai-utils": 25
+  },
+  "prometheus": {},
+  "proteus": {},
+  "ritk": {
+   "ritk-analyze": 25,
+   "ritk-annotation": 5,
+   "ritk-block-matching": 158,
+   "ritk-cli": 85,
+   "ritk-codecs": 256,
+   "ritk-connectome": 23,
+   "ritk-core": 1,
+   "ritk-dicom": 12,
+   "ritk-diffusion": 151,
+   "ritk-filter": 2197,
+   "ritk-gifti": 1,
+   "ritk-image": 16,
+   "ritk-interpolation": 107,
+   "ritk-io": 257,
+   "ritk-jpeg": 5,
+   "ritk-metaimage": 7,
+   "ritk-mgh": 76,
+   "ritk-mif": 11,
+   "ritk-minc": 43,
+   "ritk-model": 35,
+   "ritk-morphology": 3,
+   "ritk-nifti": 57,
+   "ritk-nrrd": 19,
+   "ritk-parcellation": 34,
+   "ritk-png": 8,
+   "ritk-python": 82,
+   "ritk-registration": 830,
+   "ritk-segmentation": 732,
+   "ritk-snap": 524,
+   "ritk-spatial": 16,
+   "ritk-statistics": 395,
+   "ritk-tck": 9,
+   "ritk-tensor-ops": 5,
+   "ritk-tiff": 13,
+   "ritk-tractography": 20,
+   "ritk-transform": 20,
+   "ritk-trk": 62,
+   "ritk-trx": 27,
+   "ritk-vtk": 173,
+   "xtask": 1
+  },
+  "themis": {
+   "themis-topology": 25
+  },
+  "tyche": {
+   "tyche-core": 4
+  }
+ }
+}
