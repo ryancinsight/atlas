@@ -11,6 +11,7 @@ from typing import Sequence
 
 from atlas_build_artifacts import recorded_artifact_identity
 from atlas_build_lease import BuildIdentityError
+from atlas_build_lock import retry_sharing_violation
 from atlas_build_source import SourceIdentity, _sha256_bytes
 
 VERSION = 6
@@ -150,11 +151,21 @@ def _recorded_artifact(
         return None
 
 
+def read_record_text(path: Path) -> str:
+    """The text of a record or stamp, waiting out a peer's replace of it.
+
+    A replace in flight makes Windows refuse the read; the refusal ends with
+    the replace, so it is retried (`retry_sharing_violation`) rather than
+    reported as a damaged record.
+    """
+    return retry_sharing_violation(lambda: path.read_text(encoding="utf-8"), path)
+
+
 def read_record(path: Path) -> dict[str, object] | None:
     if not path.exists():
         return None
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(read_record_text(path))
     except (OSError, json.JSONDecodeError) as error:
         raise BuildIdentityError(f"malformed source identity record {path}: {error}") from error
     version = value.get("version") if isinstance(value, dict) else None
@@ -217,8 +228,8 @@ def _write_atomic(path: Path, value: dict[str, object]) -> None:
     payload = json.dumps(value, sort_keys=True, indent=2) + "\n"
     try:
         temporary.write_text(payload, encoding="utf-8", newline="\n")
-        os.replace(temporary, path)
-    except OSError as error:
+        retry_sharing_violation(lambda: os.replace(temporary, path), path)
+    except (OSError, BuildIdentityError) as error:
         try:
             temporary.unlink(missing_ok=True)
         except OSError as cleanup_error:

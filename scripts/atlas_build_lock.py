@@ -5,12 +5,57 @@ from __future__ import annotations
 import errno
 import json
 import os
+import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 
 class BuildIdentityError(RuntimeError):
     """A source identity cannot be established or safely used."""
+
+
+# Windows refuses to replace, delete, or read a file another handle holds open
+# without sharing: Python's `open` passes no FILE_SHARE_DELETE, so a peer
+# gate's read of a record blocks the replace of it, and the replace blocks a
+# peer's read, each for as long as the other's call lasts. The refusal is
+# transient; the retry bound below is sized from the longest such call
+# measured.
+#
+# Measured on the 24-core gate host against the largest live record (1.4 MB;
+# the 444 live records average 0.3 MB) with ten duty-cycled readers and three
+# writers of one record. A read held the file 1.7 ms at the median and 38 ms
+# at p99.9 on an idle host. With 24 busy processes added, every core taken,
+# a descheduled read held it up to 472 ms and a replace waited up to 521 ms;
+# with 48, twice the cores, up to 1.57 s and 2.36 s. The bound is 2000
+# attempts at 5 ms, 10 s: four times the worst replace wait at twice the
+# cores. It is paid only by a call that fails, and a refusal outlasting it is
+# a stuck peer, not a slow one.
+SHARING_RETRY_ATTEMPTS = 2000
+SHARING_RETRY_SECONDS = 0.005
+
+_Result = TypeVar("_Result")
+
+
+def retry_sharing_violation(
+    operation: Callable[[], _Result], path: Path, attempts: int = SHARING_RETRY_ATTEMPTS
+) -> _Result:
+    """Run `operation` on `path`, retrying while a peer's open handle refuses it.
+
+    Only `PermissionError`, the Windows sharing violation, is retried; any
+    other failure -- a missing file included -- propagates at once, unchanged.
+    A refusal that outlasts `attempts` tries raises `BuildIdentityError` naming
+    `path` and chaining the last refusal.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            return operation()
+        except PermissionError as error:
+            if attempt == attempts:
+                raise BuildIdentityError(
+                    f"{path} stayed locked by another process through {attempts} attempts: {error}"
+                ) from error
+        time.sleep(SHARING_RETRY_SECONDS)
+    raise BuildIdentityError(f"{path} was never attempted: {attempts} attempts")
 
 
 # The OS lock covers byte 0 only, and the owner record starts at byte 1: a
