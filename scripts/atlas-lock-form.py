@@ -387,14 +387,35 @@ def committed_hooks(atlas: Path, ref: str) -> list[tuple[str, bytes]]:
     return hooks
 
 
+def retired_member_paths(requested: list[str] | None) -> list[str] | None:
+    """The member-relative files a publication deletes, or None when one is unsafe.
+
+    A retired file is one the owned hooks no longer read, so a member's copy is
+    a second source (`scripts/lockfile.py`). Only plain relative paths are
+    accepted: the deletion is applied to every member's default branch.
+    """
+    paths = list(requested or [])
+    for path in paths:
+        parts = path.split("/")
+        if path == "" or path.startswith("/") or "\\" in path or ".." in parts or "" in parts:
+            print(f"invalid retired path {path!r}: not a plain relative path", file=sys.stderr)
+            return None
+    return paths
+
+
 def hook_commit(
-    repo: Path, base: str, hooks: list[tuple[str, bytes]], message: str
+    repo: Path,
+    base: str,
+    hooks: list[tuple[str, bytes]],
+    message: str,
+    retired: tuple[str, ...] = (),
 ) -> str | None:
     """A commit on `base` whose `.githooks/` carries `hooks`, or None if current.
 
     `hooks` are (file name, bytes) pairs, so line endings are exactly the
     owned copy's whatever any checkout's `core.autocrlf` says, and the mode is
-    executable so the hook runs on a Unix clone.
+    executable so the hook runs on a Unix clone. Each `retired` path is
+    removed from the commit's tree when `base` carries it.
     """
     with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as scratch:
         index = Path(scratch) / "index"
@@ -405,6 +426,8 @@ def hook_commit(
                 repo, "update-index", "--add", "--cacheinfo",
                 f"{HOOK_MODE},{blob},.githooks/{name}", index=index,
             )
+        for path in retired:
+            git_in(repo, "update-index", "--force-remove", "--", path, index=index)
         tree = git_in(repo, "write-tree", index=index)
     if tree == git_in(repo, "rev-parse", f"{base}^{{tree}}"):
         return None
@@ -517,10 +540,16 @@ def cmd_publish_hooks(args) -> int:
     registered ones only: iterating the `repos/` directory would include
     anything else checked out there, a private consumer among them.
 
+    `--retire PATH` also deletes a repository-relative file the owned hooks no
+    longer read, in the same commit and pull request.
+
     Without `--push` it reports what it would publish.
     """
     members = member_scope(args.members)
     if members is None:
+        return 2
+    retired = retired_member_paths(getattr(args, "retire", None))
+    if retired is None:
         return 2
     requested_source = args.source_ref
     if requested_source == "":
@@ -568,6 +597,8 @@ def cmd_publish_hooks(args) -> int:
         "source every member's `.githooks/` copies; a copy that differs is the\n"
         "gate-version drift the conformance scan counts.\n"
     )
+    if retired:
+        message += "\nRemoves " + ", ".join(f"`{path}`" for path in retired) + ", which the hooks no longer read.\n"
     failures = 0
     for member in members:
         repo = REPOS / member
@@ -576,7 +607,13 @@ def cmd_publish_hooks(args) -> int:
         try:
             git_in(repo, "fetch", "-q", "origin")
             default = git_in(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
-            commit = hook_commit(repo, git_in(repo, "rev-parse", default), hooks, message)
+            commit = hook_commit(
+                repo,
+                git_in(repo, "rev-parse", default),
+                hooks,
+                message,
+                retired=tuple(retired),
+            )
             if commit is None:
                 print(f"current: {member}")
                 continue
@@ -655,6 +692,13 @@ def main() -> int:
     publish.add_argument("members", nargs="*", help="registered members; defaults to all")
     publish.add_argument("--push", action="store_true", help="push and open the pull requests")
     publish.add_argument("--hook", help="publish only this owned hook")
+    publish.add_argument(
+        "--retire",
+        action="append",
+        metavar="PATH",
+        help="also delete this repository-relative file in the same commit "
+        "(repeatable); for a file the owned hooks no longer read",
+    )
     publish.add_argument(
         "--source-ref",
         metavar="REF",
