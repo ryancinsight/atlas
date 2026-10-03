@@ -102,6 +102,119 @@ trap remove_run_temps EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
+# claim_lock <directory> <note>: take the lock directory for this run, naming
+# its pid and a note for whoever finds it held. The directory appears whole or
+# not at all. The status says which of three things happened: 0, the lock is
+# this run's and is removed on exit; 1, a live run holds it, and its pid and
+# note are in `lock_holder` and `lock_note`; 2, the lock could not be taken
+# although no live run holds it (the filesystem refused a step for the whole
+# retry budget, or the lock stayed without a pid), and `lock_holder` is empty.
+# A caller refuses naming a holder only on 1. A transient failure is retried,
+# `lock_attempts` times 0.1 s; a lock with no pid, which no claim leaves, is
+# replaced after `lock_pidless_grace` of those steps; a dead holder's lock is
+# replaced at once.
+#
+# The budgets derive from the steps they outwait, measured over 60 rounds of
+# each on the development host with peer gates running (2026-10-02), at four
+# times the worst measured as the sharing retry does (atlas_build_lock.py):
+# - `lock_attempts` 50 (5 s) outwaits a peer's reclaim, which holds the
+#   mutex for a read, a `rm -rf` and a `mv`: 1.21 s worst, 4.8 s at four times.
+# - `lock_pidless_grace` 30 (3 s) outwaits a claimer from before the staged
+#   install, which leaves the lock without a pid between its `mkdir` and its
+#   write: 0.48 s worst, 1.9 s at four times.
+# - `lock_mutex_seconds` 5 outwaits the same hold, so a mutex older than it was
+#   left by a reclaimer that died holding it: 1.21 s worst, 4.8 s at four
+#   times. A longer bound makes every claim wait out a dead reclaimer's mutex
+#   with status 2, and the hook then gates without the lock for that long.
+#
+# A lock is live while its holder's pid is, or any pid listed in its `children`
+# file: a hook killed outright leaves the step it started running, and that
+# step still builds on what the lock guards.
+lock_is_live() {
+  local candidate
+  while read -r candidate; do
+    candidate="${candidate%$'\r'}"
+    if [ -n "$candidate" ] && kill -0 "$candidate" 2>/dev/null; then
+      lock_holder="$candidate"
+      return 0
+    fi
+  done < <(cat "$1/pid" "$1/children" 2>/dev/null)
+  return 1
+}
+# reclaim_lock <lock> <staged> <holder>: replace the lock whose holder is
+# <holder> (empty when it has no pid) with <staged>. Replacing reads the pid,
+# removes the lock and installs a new one, so two waiters that read the same
+# dead pid would each remove the lock the other had just installed and both
+# run. One reclaimer at a time holds a mutex directory, reads the holder again
+# under it, and a mutex its owner died holding goes after `lock_mutex_seconds`
+# (see the budgets above). The age is read with GNU `stat`, as `mv -T` below is
+# GNU.
+reclaim_lock() {
+  local lock="$1" staged="$2" holder="$3" mutex="$1.reclaim" current="" made now
+  if made="$(stat -c %Y "$mutex" 2>/dev/null)"; then
+    printf -v now '%(%s)T' -1
+    if [ $((now - made)) -ge "${lock_mutex_seconds:-5}" ]; then
+      rmdir "$mutex" 2>/dev/null || true
+    fi
+  fi
+  mkdir "$mutex" 2>/dev/null || return 1
+  { read -r current < "$lock/pid"; } 2>/dev/null || true
+  current="${current%$'\r'}"
+  if [ "$current" = "$holder" ]; then
+    rm -rf "$lock"
+    if mv -T "$staged" "$lock" 2>/dev/null; then
+      rmdir "$mutex" 2>/dev/null || true
+      return 0
+    fi
+  fi
+  rmdir "$mutex" 2>/dev/null || true
+  return 1
+}
+claim_lock() {
+  local lock="$1" staged="$1.$$" attempt=0 pidless=0 holder
+  while [ "$attempt" -lt "${lock_attempts:-50}" ]; do
+    attempt=$((attempt + 1))
+    lock_holder=""
+    lock_note=""
+    if mkdir -p "$staged" && printf '%s\n' "$$" > "$staged/pid" && printf '%s\n' "$2" > "$staged/note"; then
+      if mv -T "$staged" "$lock" 2>/dev/null; then
+        run_temps+=("$lock")
+        return 0
+      fi
+      { read -r lock_holder < "$lock/pid"; } 2>/dev/null || true
+      lock_holder="${lock_holder%$'\r'}"
+      { read -r lock_note < "$lock/note"; } 2>/dev/null || true
+      lock_note="${lock_note%$'\r'}"
+      holder="$lock_holder"
+      if [ -n "$holder" ]; then
+        pidless=0
+        if lock_is_live "$lock"; then
+          rm -rf "$staged"
+          return 1
+        fi
+        if reclaim_lock "$lock" "$staged" "$holder"; then
+          run_temps+=("$lock")
+          lock_holder=""
+          lock_note=""
+          return 0
+        fi
+      elif [ -e "$lock" ]; then
+        pidless=$((pidless + 1))
+        if [ "$pidless" -ge "${lock_pidless_grace:-30}" ] && reclaim_lock "$lock" "$staged" ""; then
+          run_temps+=("$lock")
+          lock_holder=""
+          lock_note=""
+          return 0
+        fi
+      fi
+    fi
+    sleep 0.1
+  done
+  rm -rf "$staged"
+  lock_holder=""
+  lock_note=""
+  return 2
+}
 # new_run_temp <variable> <prefix>: a fresh directory, registered and owned.
 new_run_temp() {
   local created
@@ -759,25 +872,15 @@ done
 # is taken over.
 gate_key="$(printf '%s' "$repo_root" | git hash-object --stdin | cut -c1-10)"
 gate_root="$tmp_base/pg-$gate_key"
-claim_gate_root() {
-  local staged="$gate_root.lock.$$"
-  mkdir -p "$staged" && printf '%s\n' "$$" > "$staged/pid" || return 1
-  if mv -T "$staged" "$gate_root.lock" 2>/dev/null; then
-    run_temps+=("$gate_root.lock")
-    return 0
+gate_root_status=0
+claim_lock "$gate_root.lock" "$gate_tip_rev" || gate_root_status=$?
+if [ "$gate_root_status" -ne 0 ]; then
+  if [ "$gate_root_status" -eq 1 ]; then
+    echo "pre-push: the checkout's export is in use by pid $lock_holder; building in a fresh one" >&2
+  else
+    echo "pre-push: the checkout's export could not be claimed; building in a fresh one" >&2
   fi
-  rm -rf "$staged"
-  return 1
-}
-if ! claim_gate_root; then
-  gate_holder="$(cat "$gate_root.lock/pid" 2>/dev/null || true)"
-  if [ -n "$gate_holder" ] && ! kill -0 "$gate_holder" 2>/dev/null; then
-    rm -rf "$gate_root.lock"
-  fi
-  if ! claim_gate_root; then
-    echo "pre-push: the checkout's export is in use by pid ${gate_holder:-?}; building in a fresh one" >&2
-    new_run_temp gate_root pg
-  fi
+  new_run_temp gate_root pg
 fi
 mkdir -p "$gate_root"
 # Its age is the time since a run last claimed it (the week-long sweep above).
