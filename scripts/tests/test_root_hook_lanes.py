@@ -11,7 +11,7 @@ from pathlib import Path
 
 from root_hook_support import (
     FIXTURE_PROCESS_TIMEOUT_SECONDS, GATE_SCRIPTS, PRE_PUSH, ROOT, advance_demo_member,
-    fixture_environment, git, git_processes, git_runner, init_demo_member, init_superproject,
+    build_coherence_auditor, fixture_environment, git, git_processes, git_runner, init_demo_member, init_superproject,
     publish_as_origin_default, record_demo_member, record_launches, separate_git_dir_lane,
     set_gitlink, stage_demo_gitlink,
 )
@@ -145,14 +145,7 @@ class RootHookGuardTests(unittest.TestCase):
             auditor_name = "gitlink-coherence.exe" if os.name == "nt" else "gitlink-coherence"
             auditor = Path(common) / "atlas-auditor" / auditor_tree / auditor_name
             auditor.parent.mkdir(parents=True)
-            built_auditor = ROOT / "target" / "release" / auditor_name
-            if not built_auditor.is_file():
-                build_environment = dict(os.environ, CARGO_TARGET_DIR=str(ROOT / "target"))
-                subprocess.run(
-                    ["cargo", "build", "--release", "--locked", "--manifest-path", str(ROOT / "tools/gitlink-coherence/Cargo.toml")],
-                    cwd=Path.home(), env=build_environment, check=True,
-                    capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
-                )
+            built_auditor = build_coherence_auditor()
             self.assertTrue(built_auditor.is_file(), "the real coherence auditor must be built for this hook test")
             shutil.copy2(built_auditor, auditor)
             self.assertFalse((lane / "repos" / "demo" / ".git").exists())

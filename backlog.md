@@ -111,7 +111,6 @@
 <a id="atlas-identity-member-scope"></a>- [ATLAS-IDENTITY-MEMBER-SCOPE](backlog/atlas-identity-member-scope.md) — A commit cleans every gated package's in-repository closure [tightening] — todo
 <a id="atlas-provider-versions-20261001"></a>- [ATLAS-PROVIDER-VERSIONS-20261001](backlog/atlas-provider-versions-20261001.md) — Adopt melinoe 0.10, themis-topology 0.11, ritk-spatial 0.3 across consumers [arch] [minor] — todo
 <a id="atlas-bounded-runner"></a>- [ATLAS-BOUNDED-RUNNER](backlog/atlas-bounded-runner.md) — Launch every agent process through one bounded runner [patch] — todo
-<a id="atlas-root-hook-test-timeouts"></a>- [ATLAS-ROOT-HOOK-TEST-TIMEOUTS](backlog/atlas-root-hook-test-timeouts.md) — Root hook tests time out under host load [patch] — todo
 <a id="atlas-alloc-count-per-thread"></a>- [ATLAS-ALLOC-COUNT-PER-THREAD](backlog/atlas-alloc-count-per-thread.md) — Count test allocations on the measuring thread only [patch] — todo
 <a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — blocked
 <a id="atlas-mnemosyne-08-sweep"></a>- [ATLAS-MNEMOSYNE-08-SWEEP](backlog/atlas-mnemosyne-08-sweep.md) — Every member locks one Mnemosyne generation [correctness] — blocked
