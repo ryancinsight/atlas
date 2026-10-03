@@ -476,6 +476,48 @@ class AtlasConformanceTestCase(unittest.TestCase):
             self.assertEqual(counts["crate_level_allows"], 1)
             self.assertEqual(counts["allow_sites"], 1)
 
+    def test_a_member_lockfile_copy_is_counted(self) -> None:
+        """A member copy of the stack's lockfile checker is a second source."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 0)
+            _write(root, "scripts/lockfile.py", "print('check')\n")
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 1)
+
+    def test_the_recorded_content_decides_whether_a_copy_exists(self) -> None:
+        """A checkout behind or ahead of its gitlink carries a different set of
+        files; the count follows the recorded snapshot, never the checkout."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            snapshot = Path(temp) / "snapshot"
+            live = Path(temp) / "live"
+            for root in (snapshot, live):
+                _write(root, "Cargo.toml", "[workspace]\n")
+            _write(snapshot, "scripts/lockfile.py", "print('recorded')\n")
+            counts = conformance.scan_repo(snapshot, live_repo=live)
+            self.assertEqual(counts["member_lockfile_copies"], 1)
+            _write(live, "scripts/lockfile.py", "print('live')\n")
+            (snapshot / "scripts" / "lockfile.py").unlink()
+            counts = conformance.scan_repo(snapshot, live_repo=live)
+            self.assertEqual(counts["member_lockfile_copies"], 0)
+
+    def test_member_lockfile_copies_may_only_decrease(self) -> None:
+        self.assertIn("member_lockfile_copies", conformance.CLASSES)
+        self.assertEqual(
+            conformance.baseline_raises(
+                {"alpha": {"member_lockfile_copies": 0}},
+                {"alpha": {"member_lockfile_copies": 1}},
+            ),
+            [("alpha", "member_lockfile_copies", 0, 1)],
+        )
+        self.assertEqual(
+            conformance.baseline_raises(
+                {"alpha": {"member_lockfile_copies": 1}},
+                {"alpha": {"member_lockfile_copies": 0}},
+            ),
+            [],
+        )
+
     def test_benches_are_executable_for_print_scan(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
