@@ -10,14 +10,14 @@ name: Lockfile integrity (shared guard)
 # into one benchmark workflow and nowhere else.
 #
 # CI centralization: the shared workflow checks out Atlas and runs Atlas's
-# canonical `scripts/lockfile.py`, so members no longer need to carry the
-# script for CI purposes. Local pre-push hooks still run the member's copy
-# (kept in sync via the freshness check: `python3 <atlas>/scripts/lockfile.py
-# --freshness <member-copy>`).
+# canonical `scripts/lockfile.py`, so members need not carry the script for CI
+# purposes. The local pre-commit and pre-push hooks run the copy the repository
+# carries.
 #
-# The caller needs a Cargo.lock with at least one first-party git source.
-# The check needs no toolchain, cache or build and is bounded at five
-# minutes, so it fails in seconds rather than after a full matrix.
+# Every lock in the caller is judged by the rule ADR-0044 defines, and the root
+# lock must resolve under --locked, which needs cargo and no build. The job is
+# bounded at five minutes, so it fails in seconds rather than after a full
+# matrix.
 
 on:
   workflow_call:

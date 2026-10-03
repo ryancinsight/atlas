@@ -1164,8 +1164,14 @@ nobody is looking at cannot rot silently:
   revisions and a distinct unavailable status when the pair cannot be measured.
 - `python scripts/lockfile.py --check --manifest-path <Cargo.toml>` — a lock
   regenerated inside the stack overlay has its first-party git sources stripped
-  and fails every `--locked` job; `--regenerate` rewrites it from outside the
-  overlay.
+  and fails every `--locked` job; `--regenerate` repairs it from outside the
+  overlay without advancing any pin, `--check-staged` judges the staged locks
+  from the index, and `--check-committed <repository>...` judges every tracked
+  lock at HEAD. The one home of the rule defining a standalone lock (ADR-0044):
+  `--check` (the `pre-push` hook and the shared `lockfile-guard` workflow),
+  `--check-staged` (the `pre-commit` hook) and `--check-committed` (the
+  conformance workflow) all judge by it. `atlas-lock-form.py` keeps `status`,
+  `restore` and the hook publishers.
 - `python scripts/atlas-pr-waiter.py --require '<check name regex>' owner/repo#N …`
   — the bounded merge gate: polls each PR up to `--timeout-minutes` (default 60),
   merges by rebase only when no check is pending or failed *and* a check matching

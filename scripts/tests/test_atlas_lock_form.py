@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Regression tests for the committed-Cargo.lock-form gate (ADR-0021).
+"""Tests for what `atlas-lock-form.py` keeps: `status`, `restore` and the hook publisher.
 
-The gate's whole value is that it separates two things a `git+` line count
-cannot: a lock whose git source was *stripped* by the stack overlay, and a
-member that legitimately resolves no git dependency at all. Both directions are
-asserted here, plus an end-to-end run against a synthetic member repository so
-the failure path is exercised through `check` itself and not only through the
-predicate it calls.
+The rule that judges a lock, the committed sweep, the staged check and
+regeneration live in `lockfile.py` and are tested in `test_lockfile_form.py`
+and `test_lockfile_check_staged.py`. What remains here acts on the stack as a
+whole: it must find every tracked lock of the registered members and the
+superproject, restore only locks the overlay alone rewrote, and publish hooks
+without touching a checkout.
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import subprocess
 import tempfile
 import textwrap
@@ -60,58 +62,6 @@ STRIPPED = textwrap.dedent(
     version = "0.3.0"
     """
 )
-
-
-class ViolationPredicateTestCase(unittest.TestCase):
-    LOCAL = {"member"}
-    DEPS = {"eunomia"}
-
-    def test_standalone_lock_is_clean(self) -> None:
-        self.assertEqual(_lock_form.violations(STANDALONE, self.LOCAL, self.DEPS), [])
-
-    def test_stripped_source_is_flagged(self) -> None:
-        found = _lock_form.violations(STRIPPED, self.LOCAL, self.DEPS)
-        self.assertTrue(any("`eunomia` locked without a git source" in f for f in found))
-
-    def test_patch_unused_residue_is_flagged_even_without_git_deps(self) -> None:
-        """A member with zero git dependencies can still carry overlay residue:
-        the overlay patches URLs it does not use, and cargo records them."""
-        found = _lock_form.violations(STRIPPED, self.LOCAL, set())
-        self.assertEqual(len(found), 1)
-        self.assertIn("[[patch.unused]]", found[0])
-
-    def test_member_with_no_git_dependencies_is_not_a_violation(self) -> None:
-        """The false positive a `git+` line count would produce: zero git
-        sources is correct when nothing is sourced from git."""
-        registry_only = textwrap.dedent(
-            """\
-            version = 4
-
-            [[package]]
-            name = "member"
-            version = "0.1.0"
-
-            [[package]]
-            name = "serde"
-            version = "1.0.0"
-            source = "registry+https://github.com/rust-lang/crates.io-index"
-            """
-        )
-        self.assertEqual(_lock_form.violations(registry_only, {"member"}, set()), [])
-
-    def test_declared_but_unused_workspace_dependency_is_not_a_violation(self) -> None:
-        """A `[workspace.dependencies]` row no crate consumes never reaches the
-        lock; absence is correct, not a stripped source."""
-        found = _lock_form.violations(
-            STANDALONE, self.LOCAL, self.DEPS | {"ritk-core"}
-        )
-        self.assertEqual(found, [])
-
-    def test_local_path_package_shadowing_a_git_name_is_not_a_violation(self) -> None:
-        """A workspace that both declares and defines a package resolves it by
-        path; a sourceless entry is then correct."""
-        found = _lock_form.violations(STRIPPED, {"member", "eunomia"}, self.DEPS)
-        self.assertTrue(all("eunomia" not in f for f in found))
 
 
 class RestoreGuardTestCase(unittest.TestCase):
@@ -168,165 +118,6 @@ class RestoreGuardTestCase(unittest.TestCase):
     def test_added_untouched_package_is_not_restorable(self) -> None:
         added = STRIPPED + '\n[[package]]\nname = "rand"\nversion = "0.9.0"\n'
         self.assertFalse(_lock_form._strip_only(STANDALONE, added))
-
-
-class FixtureDetectionTestCase(unittest.TestCase):
-    """Only a workspace reaching *outside its own repository* by path is an
-    in-tree fixture. An intra-repo `path = ".."` (the fuzz-crate idiom) must
-    not exempt the whole member from the gate."""
-
-    def _facts(self, dep_line: str, sub: str = "fuzz"):
-        tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        repo = Path(tmp.name) / "repos" / "member"
-        (repo / sub).mkdir(parents=True)
-        (repo / "Cargo.toml").write_text(
-            '[package]\nname = "member"\nversion = "0.1.0"\n', encoding="utf-8"
-        )
-        (repo / sub / "Cargo.toml").write_text(
-            f'[package]\nname = "sub"\nversion = "0.1.0"\n\n[dependencies]\n{dep_line}\n',
-            encoding="utf-8",
-        )
-        (Path(tmp.name) / "repos" / "sibling").mkdir(parents=True, exist_ok=True)
-        return _lock_form.workspace_facts(repo, [], repo)
-
-    def test_intra_repo_parent_path_is_not_a_fixture(self) -> None:
-        _, _, fixture = self._facts('member = { path = ".." }')
-        self.assertFalse(fixture)
-
-    def test_cross_repo_path_is_a_fixture(self) -> None:
-        _, _, fixture = self._facts('other = { path = "../../sibling" }')
-        self.assertTrue(fixture)
-
-
-class EndToEndCheckTestCase(unittest.TestCase):
-    """Drive `check` over a synthetic member so the gate is observed failing."""
-
-    def _member(self, root: Path, lock_text: str) -> None:
-        repo = root / "repos" / "synthetic"
-        repo.mkdir(parents=True)
-        (repo / "Cargo.toml").write_text(
-            textwrap.dedent(
-                """\
-                [package]
-                name = "member"
-                version = "0.1.0"
-
-                [dependencies]
-                eunomia = { version = "0.8", git = "https://github.com/ryancinsight/eunomia" }
-                """
-            ),
-            encoding="utf-8",
-        )
-        (repo / "Cargo.lock").write_text(lock_text, encoding="utf-8")
-        for args in (
-            ["init", "-q", "-b", "main"],
-            ["add", "Cargo.toml", "Cargo.lock"],
-            ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "seed"],
-        ):
-            subprocess.run(["git", "-C", str(repo), *args], check=True)
-
-    def _run_check(self, lock_text: str) -> int:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self._member(root, lock_text)
-            with (
-                patch.object(_lock_form, "REPOS", root / "repos"),
-                # The superproject's own workspaces are scanned too, so the
-                # fixture must own that root as well; otherwise the case reads
-                # the real Atlas tree and its verdict depends on the checkout.
-                patch.object(_lock_form, "ROOT", root),
-                patch.object(
-                    _lock_form, "registered_member_names", lambda: {"synthetic"}
-                ),
-            ):
-                return _lock_form.cmd_check(None)
-
-    def _tool_root(self, root: Path, lock_text: str) -> None:
-        """A workspace under the superproject's own `tools/`, tracked here."""
-        tool = root / "tools" / "synthetic-tool"
-        tool.mkdir(parents=True)
-        (tool / "Cargo.toml").write_text(
-            textwrap.dedent(
-                """                [package]
-                name = "synthetic-tool"
-                version = "0.1.0"
-
-                [dependencies]
-                eunomia = { version = "0.8", git = "https://github.com/ryancinsight/eunomia" }
-                """
-            ),
-            encoding="utf-8",
-        )
-        (tool / "Cargo.lock").write_text(lock_text, encoding="utf-8")
-        for args in (
-            ["init", "-q", "-b", "main"],
-            ["add", "tools/synthetic-tool/Cargo.toml", "tools/synthetic-tool/Cargo.lock"],
-            ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "seed"],
-        ):
-            subprocess.run(["git", "-C", str(root), *args], check=True)
-
-    def _run_check_tool_only(self, lock_text: str) -> int:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self._tool_root(root, lock_text)
-            with (
-                patch.object(_lock_form, "REPOS", root / "repos"),
-                patch.object(_lock_form, "ROOT", root),
-                patch.object(_lock_form, "registered_member_names", set),
-            ):
-                return _lock_form.cmd_check(None)
-
-    def test_a_stripped_lock_in_the_superprojects_own_tools_is_flagged(self) -> None:
-        """The guard covers `tools/`, not only `repos/`.
-
-        A cargo run inside a tool workspace walks up into the stack overlay
-        exactly as a member's does, so its lock is rewritten the same way --
-        and it is tracked in the superproject, which is how two such locks
-        reached `main` while every mode of this guard looked only at members.
-        """
-        self.assertEqual(self._run_check_tool_only(STRIPPED), 1)
-
-    def test_a_standalone_lock_in_the_superprojects_own_tools_passes(self) -> None:
-        self.assertEqual(self._run_check_tool_only(STANDALONE), 0)
-
-    def test_check_fails_on_a_committed_stripped_lock(self) -> None:
-        self.assertEqual(self._run_check(STRIPPED), 1)
-
-    def test_check_passes_on_a_committed_standalone_lock(self) -> None:
-        self.assertEqual(self._run_check(STANDALONE), 0)
-
-
-class StagedGateTestCase(EndToEndCheckTestCase):
-    """The pre-commit arm: the churn is caught where it would escape."""
-
-    def _run_staged(self, committed: str, staged: str) -> int:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self._member(root, committed)
-            repo = root / "repos" / "synthetic"
-            (repo / "Cargo.lock").write_text(staged, encoding="utf-8")
-            subprocess.run(["git", "-C", str(repo), "add", "Cargo.lock"], check=True)
-            with (
-                patch.object(_lock_form, "REPOS", root / "repos"),
-                # The superproject's own workspaces are scanned too, so the
-                # fixture must own that root as well; otherwise the case reads
-                # the real Atlas tree and its verdict depends on the checkout.
-                patch.object(_lock_form, "ROOT", root),
-                patch.object(
-                    _lock_form, "registered_member_names", lambda: {"synthetic"}
-                ),
-            ):
-                args = type("Args", (), {"repo": str(repo)})()
-                return _lock_form.cmd_staged(args)
-
-    def test_staging_overlay_churn_is_rejected(self) -> None:
-        self.assertEqual(self._run_staged(STANDALONE, STRIPPED), 1)
-
-    def test_staging_a_deliberate_standalone_regeneration_is_allowed(self) -> None:
-        repinned = STANDALONE.replace("#abc123", "#feedface")
-        self.assertEqual(self._run_staged(STANDALONE, repinned), 0)
-
 
 
 class HookCommitTestCase(unittest.TestCase):
@@ -558,3 +349,114 @@ class PublishRequestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LockUnitsTestCase(unittest.TestCase):
+    """`status` and `restore` act on every tracked lock at HEAD, members and
+    superproject alike."""
+
+    MANIFEST = textwrap.dedent(
+        """\
+        [package]
+        name = "member"
+        version = "0.1.0"
+
+        [dependencies]
+        eunomia = { version = "0.8", git = "https://github.com/ryancinsight/eunomia" }
+        """
+    )
+
+    def _git(self, repo: Path, *args: str) -> None:
+        subprocess.run(
+            ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+            check=True,
+            capture_output=True,
+        )
+
+    def _commit(self, repo: Path, files: dict[str, str]) -> None:
+        repo.mkdir(parents=True, exist_ok=True)
+        self._git(repo, "init", "-q", "-b", "main")
+        for name, text in files.items():
+            path = repo / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8", newline="\n")
+        self._git(repo, "add", "-A")
+        self._git(repo, "commit", "-q", "-m", "seed")
+
+    @contextlib.contextmanager
+    def _stack(self, member_lock: str, tool_lock: str):
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-units-") as temp:
+            root = Path(temp)
+            self._commit(root / "repos" / "synthetic", {"Cargo.toml": self.MANIFEST, "Cargo.lock": member_lock})
+            self._commit(
+                root,
+                {"tools/t/Cargo.toml": self.MANIFEST, "tools/t/Cargo.lock": tool_lock},
+            )
+            with (
+                patch.object(_lock_form, "REPOS", root / "repos"),
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "registered_member_names", lambda: {"synthetic"}),
+            ):
+                yield root
+
+    def test_every_tracked_lock_of_the_members_and_the_superproject_is_a_unit(self) -> None:
+        with self._stack(STANDALONE, STRIPPED):
+            units = _lock_form.lock_units()
+        self.assertEqual(
+            [(unit.label, unit.lock) for unit in units],
+            [("synthetic", "Cargo.lock"), ("atlas", "tools/t/Cargo.lock")],
+        )
+        self.assertEqual(units[0].committed, STANDALONE)
+        self.assertEqual(units[0].facts.git_dependencies, {"eunomia"})
+        self.assertEqual(units[1].facts.local, {"member"})
+
+    def test_restore_reverts_a_lock_only_the_overlay_rewrote(self) -> None:
+        with self._stack(STANDALONE, STANDALONE) as root:
+            lock = root / "repos" / "synthetic" / "Cargo.lock"
+            lock.write_text(STRIPPED, encoding="utf-8", newline="\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                _lock_form.cmd_restore(None)
+            self.assertEqual(lock.read_text(encoding="utf-8"), STANDALONE)
+        self.assertIn("restored overlay churn: synthetic/Cargo.lock", output.getvalue())
+
+    def test_restore_leaves_a_real_change_alone(self) -> None:
+        repinned = STANDALONE.replace("#abc123", "#feedface")
+        with self._stack(STANDALONE, STANDALONE) as root:
+            lock = root / "repos" / "synthetic" / "Cargo.lock"
+            lock.write_text(repinned, encoding="utf-8", newline="\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                _lock_form.cmd_restore(None)
+            self.assertEqual(lock.read_text(encoding="utf-8"), repinned)
+        self.assertIn("kept: synthetic/Cargo.lock (real change, left alone)", output.getvalue())
+
+    def test_restore_leaves_a_working_copy_alone_when_the_committed_lock_violates(self) -> None:
+        """The working copy may be the repair, and reverting it would restore the
+        defect; `lockfile.py --regenerate` is the route for such a lock."""
+        with self._stack(STRIPPED, STANDALONE) as root:
+            lock = root / "repos" / "synthetic" / "Cargo.lock"
+            lock.write_text(STANDALONE, encoding="utf-8", newline="\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                _lock_form.cmd_restore(None)
+            self.assertEqual(lock.read_text(encoding="utf-8"), STANDALONE)
+        self.assertIn("committed lock itself violates", output.getvalue())
+
+    def test_a_unit_is_the_committed_lock_not_the_staged_one(self) -> None:
+        with self._stack(STANDALONE, STANDALONE) as root:
+            member = root / "repos" / "synthetic"
+            (member / "Cargo.lock").write_text(STRIPPED, encoding="utf-8", newline="\n")
+            self._git(member, "add", "Cargo.lock")
+            units = _lock_form.lock_units()
+        self.assertEqual(units[0].committed, STANDALONE)
+
+    def test_status_reports_the_committed_and_working_verdicts(self) -> None:
+        with self._stack(STANDALONE, STRIPPED) as root:
+            (root / "repos" / "synthetic" / "Cargo.lock").write_text(STRIPPED, encoding="utf-8", newline="\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                _lock_form.cmd_status(None)
+        rows = {line.split()[0]: line.split()[1:] for line in output.getvalue().splitlines()[1:]}
+        self.assertEqual(rows["synthetic/Cargo.lock"], ["ok", "STRIPPED"])
+        self.assertEqual(rows["atlas/tools/t/Cargo.lock"], ["STRIPPED", "STRIPPED"])

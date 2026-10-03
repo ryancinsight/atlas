@@ -2112,10 +2112,12 @@ def scan_repo(
     )
     c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
-    # A member carries no copy of the stack's `scripts/lockfile.py` (ADR-0044):
-    # a copy is a second source of the checker. Read from `repo`, the recorded
-    # revision's content, so a checkout behind or ahead of its gitlink does not
-    # change what the gitlink counts as.
+    # A member carries no `scripts/lockfile.py` (board item
+    # ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE): the stack's copy is the one
+    # checker, and a member's is a second source of it. The class counts that
+    # path, the one the hooks ran, so a copy moved elsewhere reads 0. Read from
+    # `repo`, the recorded revision's content, so a checkout behind or ahead of
+    # its gitlink does not change what the gitlink counts as.
     c["member_lockfile_copies"] = int((repo / "scripts" / "lockfile.py").is_file())
     c["crlf_stored_blobs"] = count_crlf_stored_blobs(
         repo, live_repo=live_repo, revision=revision
