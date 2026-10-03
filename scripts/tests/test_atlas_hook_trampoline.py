@@ -297,11 +297,12 @@ class ReExecPreservesRepoRootTestCase(unittest.TestCase):
             _write_hook(repo, HOOK_B_BODY)
             _git("add", "-A", cwd=repo)
             _git("commit", "-q", "-m", "regress to hook B", cwd=repo)
+            pushed_tip = _git("rev-parse", "HEAD", cwd=repo).stdout.strip()
 
             code, err = _run_hook(
                 repo,
                 ["origin", "git@example:atlas.git"],
-                "refs/heads/feat 1111111111111111111111111111111111111111 "
+                f"refs/heads/feat {pushed_tip} "
                 f"refs/heads/feat {ZERO}\n",
             )
             self.assertEqual(code, 0, err)
