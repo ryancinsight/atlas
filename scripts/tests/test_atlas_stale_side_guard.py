@@ -518,6 +518,31 @@ class StaleSideGuardTestCase(unittest.TestCase):
         # either; the claim is that the remedy names this file, whatever spelling.
         self.assertIn(f"GIT_INDEX_FILE={leftover.resolve()} git diff --cached", out)
 
+    def modes(self, *modes: str) -> tuple[int, str]:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = guard.main(
+                [*modes, "--repo", str(self.repo), "--waivers", str(self.waivers)]
+            )
+        return code, out.getvalue()
+
+    def test_modes_run_in_order_in_one_process(self) -> None:
+        # The pre-commit hook asks for `check basis` in one interpreter; a
+        # passing check is followed by the basis verdict.
+        self.leave_an_index_behind()
+        code, out = self.modes("check", "basis")
+        self.assertEqual(code, 1, out)
+        self.assertLess(out.index("none unexplained"), out.index("STALE BASIS: .git/leftover-idx"))
+
+    def test_a_failing_mode_stops_the_modes_after_it(self) -> None:
+        self.leave_an_index_behind()
+        # f.txt back to its first revision in the working tree.
+        self.write("f.txt", "one\n")
+        code, out = self.modes("check", "basis")
+        self.assertEqual(code, 1, out)
+        self.assertIn("STALE SIDE: f.txt", out)
+        self.assertNotIn("STALE BASIS", out)
+
     def test_basis_never_flags_the_real_index(self) -> None:
         self.write("f.txt", "one\n")
         self.commit("one")

@@ -232,7 +232,7 @@ def cmd_basis(args: argparse.Namespace) -> int:
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("check", "basis", "status"))
+    parser.add_argument("modes", nargs="+", choices=("check", "basis", "status"))
     parser.add_argument("--repo", default=str(ROOT))
     parser.add_argument("--staged", action="store_true")
     parser.add_argument("--worktree", action="store_true")
@@ -250,11 +250,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         repo = Path(args.repo).resolve()
         git.run(repo, "rev-parse", "--verify", "HEAD")
-        if args.mode == "check":
-            return cmd_check(args)
-        if args.mode == "basis":
-            return cmd_basis(args)
-        return cmd_status(args)
+        commands = {"check": cmd_check, "basis": cmd_basis, "status": cmd_status}
+        # Modes run in the order given and stop at the first that fails, so
+        # a hook pays for one interpreter instead of one per mode.
+        for mode in args.modes:
+            status = commands[mode](args)
+            if status:
+                return status
+        return 0
     except (process.GitProcessError, OSError, UnicodeError, ValueError) as exc:
         print(f"atlas-stale-side-guard: ERROR - {exc}")
         return 2

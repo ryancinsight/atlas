@@ -17,11 +17,13 @@
 canonical_stack_root() {
   local top="$1" common_dir common_norm configured ancestor candidate candidate_gitfile candidate_gitdir candidate_norm
   common_dir="$(git -C "$top" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-  common_norm="$(printf '%s' "$common_dir" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')"
-  if [ "$(basename "$common_dir")" = ".git" ]; then
-    dirname "$common_dir"
+  if [ "${common_dir##*/}" = ".git" ]; then
+    printf '%s\n' "${common_dir%/*}"
     return 0
   fi
+  # `${var,,}` needs bash 4 or later: Git for Windows and Linux CI ship bash 5.
+  common_norm="${common_dir//\\//}"
+  common_norm="${common_norm,,}"
   configured="$(git --git-dir="$common_dir" config --path core.worktree 2>/dev/null || true)"
   if [ -n "$configured" ]; then
     git -C "$configured" rev-parse --show-toplevel
@@ -39,7 +41,8 @@ canonical_stack_root() {
         /*|[A-Za-z]:/*) ;;
         *) candidate_gitdir="$candidate/$candidate_gitdir" ;;
       esac
-      candidate_norm="$(printf '%s' "$candidate_gitdir" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')"
+      candidate_norm="${candidate_gitdir//\\//}"
+      candidate_norm="${candidate_norm,,}"
       if [ "$candidate_norm" = "$common_norm" ]; then
         git -C "$candidate" rev-parse --show-toplevel
         return 0

@@ -8,6 +8,7 @@ working tree without a board item; these cases fail on that state.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -17,7 +18,44 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from root_hook_support import PRE_COMMIT, PRE_PUSH, ROOT, install_hook
+from root_hook_support import FIXTURE_PROCESS_TIMEOUT_SECONDS, PRE_COMMIT, PRE_PUSH, ROOT, install_hook
+
+
+# The git processes one lane commit of a staged gitlink starts, from
+# `GIT_TRACE2_EVENT`, measured on git 2.53 (the pre-optimization hook started
+# 36): the commit (1), the pre-commit hook's own reads (13: top level, staged
+# paths, raw delta, MERGE_HEAD, staged gitlinks, the staged entry, the common
+# directory, four member probes, the recorded pin, the file-change list), the
+# stale-side guard's (13: HEAD, staged files, index, tree, remote ref, current
+# branch twice -- the check and the basis each read it -- branches, ancestry,
+# diff, git directory, two shared-index lookups)
+# and git's own post-commit `maintenance run --auto` (1). A ceiling, so a
+# commit may start fewer and any added process fails the count.
+LANE_COMMIT_GIT_PROCESSES = 28
+
+
+def git_processes(trace: Path) -> list[list[str]]:
+    """The argv of every git process a `GIT_TRACE2_EVENT` trace records."""
+    events = [json.loads(line) for line in trace.read_text(encoding="utf-8").splitlines() if line]
+    return [event["argv"] for event in events if event.get("event") == "start"]
+
+
+def install_interpreter_shims(shims: Path, launches_log: Path) -> None:
+    """`python3` and `python` shims that log their arguments, then run this interpreter.
+
+    Put `shims` first on a hook's PATH: the log then holds one line per
+    interpreter launch, the probe included.
+    """
+    shims.mkdir()
+    for name in ("python3", "python"):
+        shim = shims / name
+        shim.write_text(
+            "#!/bin/sh\n"
+            f'printf \'%s\\n\' "$*" >> "{launches_log.as_posix()}"\n'
+            f'exec "{Path(sys.executable).as_posix()}" "$@"\n',
+            encoding="utf-8", newline="\n",
+        )
+        shim.chmod(0o755)
 
 
 class RootHookGuardTests(unittest.TestCase):
@@ -32,7 +70,7 @@ class RootHookGuardTests(unittest.TestCase):
                     ["git", "-C", str(repo), "-c", "user.name=Test",
                      "-c", "user.email=test@example.invalid", *arguments],
                     env=environment, check=check, capture_output=True,
-                    text=True, encoding="utf-8", timeout=30,
+                    text=True, encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                 )
 
             git("init", "-q", "-b", "main")
@@ -76,7 +114,7 @@ class RootHookGuardTests(unittest.TestCase):
                         ["git", "-C", str(repo), "-c", "user.name=Test",
                          "-c", "user.email=test@example.invalid", *arguments],
                         env=environment, check=check, capture_output=True,
-                        text=True, encoding="utf-8", timeout=30,
+                        text=True, encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                     )
 
                 git("init", "-q", "-b", "main")
@@ -111,6 +149,75 @@ class RootHookGuardTests(unittest.TestCase):
                     self.assertEqual(git("show", ":other.txt").stdout, "old\n")
                     self.assertEqual(git("show", "HEAD:other.txt").stdout, "current\n")
 
+    def test_path_limited_gitlink_commit_ignores_other_staged_content(self) -> None:
+        """The member probes run without this commit's index and then restore it.
+
+        `git commit --only` hands the hook a temporary index holding just the
+        selected paths. A stale file staged in the repository's own index is
+        not part of that commit, so a hook that kept probing the member
+        without it, and let every later check read the repository's index,
+        would refuse the commit for content it does not carry.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary) / "atlas"
+            member = repo / "repos" / "demo"
+            member.mkdir(parents=True)
+            environment = {
+                key: value for key, value in os.environ.items()
+                if not key.startswith("GIT_")
+            }
+            environment.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+
+            def git(path: Path, *arguments: str, check: bool = True) -> subprocess.CompletedProcess:
+                return subprocess.run(
+                    ["git", "-C", str(path), "-c", "user.name=Test",
+                     "-c", "user.email=test@example.invalid", *arguments],
+                    env=environment, check=check, capture_output=True,
+                    text=True, encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+                )
+
+            git(member, "init", "-q", "-b", "main")
+            commits = []
+            for value in ("first", "second"):
+                (member / "value.txt").write_text(f"{value}\n", encoding="utf-8")
+                git(member, "add", "value.txt")
+                git(member, "commit", "-qm", value)
+                commits.append(git(member, "rev-parse", "HEAD").stdout.strip())
+            git(member, "update-ref", "refs/remotes/origin/main", commits[1])
+            git(member, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "core.autocrlf", "false")
+            for version in ("old\n", "current\n"):
+                (repo / "a.txt").write_text(version, encoding="utf-8")
+                git(repo, "add", "a.txt")
+                git(repo, "commit", "-qm", version.strip())
+            install_hook(repo)
+            (repo / ".gitmodules").write_text(
+                '[submodule "repos/demo"]\n\tpath = repos/demo\n\turl = https://example.invalid/demo.git\n',
+                encoding="utf-8",
+            )
+            git(repo, "add", ".githooks", "scripts", ".gitmodules")
+            git(repo, "update-index", "--add", "--cacheinfo", f"160000,{commits[0]},repos/demo")
+            git(repo, "commit", "-qm", "Record demo")
+            git(repo, "config", "core.hooksPath", ".githooks")
+
+            # Stage the historical content of a.txt, then restore the file:
+            # only the repository's index carries the stale side.
+            (repo / "a.txt").write_text("old\n", encoding="utf-8")
+            git(repo, "add", "a.txt")
+            (repo / "a.txt").write_text("current\n", encoding="utf-8")
+
+            result = git(repo, "commit", "--only", "-qm", "Advance demo", "--", "repos/demo", check=False)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("STALE SIDE", result.stdout + result.stderr)
+            self.assertIn(
+                f"160000 commit {commits[1]}\trepos/demo",
+                git(repo, "ls-tree", "HEAD", "repos/demo").stdout,
+            )
+            self.assertEqual(git(repo, "show", "HEAD:a.txt").stdout, "current\n")
+            self.assertEqual(git(repo, "show", ":a.txt").stdout, "old\n")
+
     def test_linked_lane_uses_the_canonical_member_checkout_for_gitlinks(self) -> None:
         """An uninitialized lane must validate its staged gitlink from main."""
         with tempfile.TemporaryDirectory() as temporary:
@@ -135,7 +242,7 @@ class RootHookGuardTests(unittest.TestCase):
                         "-c", "user.email=test@example.invalid", *arguments,
                     ],
                     env=environment, check=check, capture_output=True,
-                    text=True, encoding="utf-8", timeout=30,
+                    text=True, encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                 )
 
             git(repo, "init", "-q", "-b", "main")
@@ -174,9 +281,34 @@ class RootHookGuardTests(unittest.TestCase):
             second = git(member, "rev-parse", "HEAD").stdout.strip()
             git(member, "update-ref", "refs/remotes/origin/main", second)
             git(lane, "update-index", "--cacheinfo", f"160000,{second},repos/demo")
+            shims = Path(temporary) / "shims"
+            launches_log = Path(temporary) / "interpreter.log"
+            install_interpreter_shims(shims, launches_log)
+            trace = Path(temporary) / "advance.trace.json"
+            environment.pop("PYTHON", None)
+            environment["GIT_TRACE2_EVENT"] = str(trace)
+            environment["PATH"] = f"{shims}{os.pathsep}{environment['PATH']}"
             result = git(lane, "commit", "-qm", "Advance demo", check=False)
+            del environment["GIT_TRACE2_EVENT"]
+            environment["PATH"] = environment["PATH"].split(os.pathsep, 1)[1]
 
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            # Each process costs seconds on a loaded Windows host: the hook
+            # resolves the canonical stack root once per commit, not once per
+            # member query (an uninitialized lane member made it five times),
+            # and reads each fact once.
+            processes = git_processes(trace)
+            self.assertEqual(
+                sum("--git-common-dir" in argv for argv in processes), 1, processes,
+            )
+            self.assertLessEqual(len(processes), LANE_COMMIT_GIT_PROCESSES, processes)
+            # The commit probes for an interpreter once and runs the stale-side
+            # guard once, check and basis together.
+            self.assertEqual(
+                launches_log.read_text(encoding="utf-8").splitlines(),
+                ["-c import sys", "scripts/atlas-stale-side-guard.py check basis --staged"],
+            )
+            launches_log.unlink()
             self.assertIn(
                 f"160000 commit {second}\trepos/demo",
                 git(lane, "ls-tree", "HEAD", "repos/demo").stdout,
@@ -314,13 +446,13 @@ class RootHookGuardTests(unittest.TestCase):
             environment["_ATLAS_HOOK_TRAMPOLINE_DEFERRED"] = "1"
             pre_commit = subprocess.run(
                 ["bash", str(lane / ".githooks" / "pre-commit")],
-                cwd=lane, env=environment, capture_output=True, text=True, timeout=30,
+                cwd=lane, env=environment, capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             )
             self.assertEqual(pre_commit.returncode, 0, pre_commit.stdout + pre_commit.stderr)
 
             commit = subprocess.run(
                 ["git", "-C", str(lane), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "advance"],
-                env=environment, capture_output=True, text=True, timeout=30,
+                env=environment, capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             )
             self.assertEqual(commit.returncode, 0, commit.stdout + commit.stderr)
 
@@ -344,18 +476,80 @@ class RootHookGuardTests(unittest.TestCase):
                 subprocess.run(
                     ["cargo", "build", "--release", "--locked", "--manifest-path", str(ROOT / "tools/gitlink-coherence/Cargo.toml")],
                     cwd=Path.home(), env=build_environment, check=True,
-                    capture_output=True, text=True, timeout=180,
+                    capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                 )
             self.assertTrue(built_auditor.is_file(), "the real coherence auditor must be built for this hook test")
             shutil.copy2(built_auditor, auditor)
             self.assertFalse((lane / "repos" / "demo" / ".git").exists())
             pre_push = subprocess.run(
                 ["bash", str(worktree / ".githooks" / "pre-push")],
-                cwd=lane, env=environment, input="", capture_output=True, text=True, timeout=30,
+                cwd=lane, env=environment, input="", capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             )
             self.assertEqual(pre_push.returncode, 0, pre_push.stdout + pre_push.stderr)
             self.assertNotIn("building it now", pre_push.stderr)
             self.assertFalse((lane / "target" / "release").exists())
+
+    def _separate_git_dir_lane(self, root: Path) -> tuple[Path, Path, dict[str, str]]:
+        """A canonical worktree whose `.git` file points at its metadata, and a lane of it.
+
+        Returns the canonical worktree, the lane and an environment free of
+        `GIT_*` variables. The metadata sits beside the worktree's parent, so
+        only a scan of ancestor directories can name the canonical worktree
+        from the lane.
+        """
+        worktree = root / "checkouts" / "canonical"
+        metadata = root / "metadata" / "repo.git"
+        metadata.parent.mkdir()
+        worktree.parent.mkdir()
+        environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+        environment.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+
+        def git(path: Path, *arguments: str) -> None:
+            subprocess.run(
+                ["git", "-C", str(path), "-c", "user.name=Test",
+                 "-c", "user.email=test@example.invalid", *arguments],
+                env=environment, check=True, capture_output=True, text=True,
+                timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+            )
+
+        subprocess.run(
+            ["git", "init", "-q", "-b", "main", "--separate-git-dir", str(metadata), str(worktree)],
+            env=environment, check=True, capture_output=True, text=True,
+            timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+        )
+        install_hook(worktree)
+        git(worktree, "add", ".githooks", "scripts")
+        git(worktree, "commit", "-qm", "root")
+        lane = root / "lane"
+        git(worktree, "worktree", "add", "-q", "-b", "lane", str(lane))
+        return worktree, lane, environment
+
+    def test_unreadable_canonical_worktree_is_reported_without_git_noise(self) -> None:
+        """A `core.worktree` naming a missing directory fails quietly, as before."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            worktree, lane, environment = self._separate_git_dir_lane(root)
+            subprocess.run(
+                ["git", "--git-dir", str(root / "metadata" / "repo.git"), "config", "core.worktree",
+                 str(root / "gone")],
+                env=environment, check=True, capture_output=True, text=True,
+                timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+            )
+            (lane / "repos" / "demo").mkdir(parents=True)
+            subprocess.run(
+                ["git", "-C", str(lane), "update-index", "--add", "--cacheinfo",
+                 f"160000,{'1' * 40},repos/demo"],
+                env=environment, check=True, capture_output=True, text=True,
+                timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+            )
+            result = subprocess.run(
+                ["bash", str(lane / ".githooks" / "pre-commit")],
+                cwd=lane, env=environment, capture_output=True, text=True,
+                timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
+            )
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("canonical member checkout is absent", result.stderr)
+            self.assertNotIn("fatal:", result.stdout + result.stderr)
 
     def test_merge_allows_inherited_board_and_gitlink_changes_only(self) -> None:
         """A real merge may combine independently valid board and pin commits."""
@@ -380,7 +574,7 @@ class RootHookGuardTests(unittest.TestCase):
                         "-c", "user.email=test@example.invalid", *arguments,
                     ],
                     env=environment, check=check, capture_output=True,
-                    text=True, encoding="utf-8", timeout=30,
+                    text=True, encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                 )
 
             git("init", "-q", "-b", "main")
@@ -483,7 +677,7 @@ class RootHookGuardTests(unittest.TestCase):
                 ["git", "-C", str(path), "-c", "user.name=Test",
                  "-c", "user.email=test@example.invalid", *arguments],
                 env=environment, check=True, capture_output=True, text=True,
-                encoding="utf-8", timeout=30,
+                encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             ).stdout.strip()
 
         git(member, "init", "-q", "-b", "main")
@@ -539,7 +733,7 @@ class RootHookGuardTests(unittest.TestCase):
         result = subprocess.run(
             ["bash", "-c", script, "debt_gate", repo.as_posix(), base, tip],
             env=run_environment, capture_output=True, text=True, encoding="utf-8",
-            timeout=60,
+            timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
         )
         return result, log.read_text(encoding="utf-8") if log.is_file() else ""
 
@@ -567,7 +761,7 @@ class RootHookGuardTests(unittest.TestCase):
             repo, environment, base, tip = self._debt_gate_stack(temporary)
             subprocess.run(
                 ["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", tip],
-                env=environment, check=True, capture_output=True, timeout=30,
+                env=environment, check=True, capture_output=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             )
 
             result, log = self._run_debt_gate(repo, environment, base, tip, 1)
@@ -580,7 +774,7 @@ class RootHookGuardTests(unittest.TestCase):
             for ref in ("refs/remotes/origin/HEAD", "refs/remotes/origin/main"):
                 subprocess.run(
                     ["git", "-C", str(repo), "update-ref", "--no-deref", "-d", ref],
-                    env=environment, check=True, capture_output=True, timeout=30,
+                    env=environment, check=True, capture_output=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                 )
 
             result, log = self._run_debt_gate(repo, environment, base, tip, 0)
