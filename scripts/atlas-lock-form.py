@@ -12,24 +12,24 @@ root `.cargo/config.toml`) rewrites working-tree locks on every local build: it
 drops the `source` line of every patched package and appends `[[patch.unused]]`
 tables. That rewrite is derived state, never an edit -- `restore` puts it back.
 
-Modes:
+The rule itself, and every mode that judges a lock against it -- the sweep
+over committed locks, the staged check of the pre-commit hook, and regeneration
+outside the overlay -- live in `lockfile.py`, the stack's one lockfile checker.
+This script keeps what acts on the stack as a whole:
 
-    check       fail when any *committed* lock is in the overlay-stripped form
-    status      same measurement, reported for committed and working copies
-    staged      same rule against one member's staged locks (pre-commit hook)
+    status      the same measurement, reported for committed and working copies
     restore     revert working-tree locks whose only diff from HEAD is the
                 overlay rewrite (refuses on any other difference)
-    regenerate  rebuild a member's lock in standalone form, by invoking cargo
-                from a directory outside the Atlas tree so the overlay is not
-                discovered
+    sync-hooks, publish-hooks
+                deploy the owned hooks into the members
     install-hooks
                 per-clone bootstrap: point member `core.hooksPath` at
                 scripts/git-hooks so every member runs the owned pre-commit
                 and pre-push hooks, whatever branch its tree has checked out
 
-`check` is the CI gate. It is deliberately narrow: it flags only a package that
-is *present in the lock* yet locked without a source despite being declared as
-a git dependency. A member with no git dependencies has nothing to flag, and a
+The rule is deliberately narrow: it flags only a package that is *present in
+the lock* yet locked without a source despite being declared as a git
+dependency. A member with no git dependencies has nothing to flag, and a
 `[workspace.dependencies]` entry no crate actually uses is legitimately absent
 from the lock -- neither is a violation, and a naive `git+` line count would
 misreport both.
@@ -45,16 +45,16 @@ import sys
 import tempfile
 import tomllib
 from pathlib import Path
+from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lockfile  # noqa: E402
 from atlas_git_process import GitProcessError, execute as execute_git  # noqa: E402
 from atlas_stack import ROOT, registered_member_names  # noqa: E402
 
 REPOS = ROOT / "repos"
 # Each member's in-tree copy of scripts/git-hooks, written by `sync-hooks`.
 MEMBER_HOOK_COPY = ".githooks"
-SKIP_DIRS = {"target", ".git", "node_modules"}
-PATCH_UNUSED = "[[patch.unused]]"
 FIRST_PARTY_HOST = "github.com/ryancinsight/"
 
 
@@ -65,235 +65,57 @@ def run(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
     return proc.returncode, proc.stdout, proc.stderr
 
 
-def tracked_locks(repo: Path) -> list[str]:
-    code, out, _ = run("git", "-C", str(repo), "ls-files", "*Cargo.lock")
-    if code != 0:
-        return []
-    return sorted(line.strip() for line in out.splitlines() if line.strip())
+class LockUnit(NamedTuple):
+    """One tracked lock at HEAD, with the facts that judge it."""
+
+    label: str
+    repository: Path
+    lock: str
+    facts: lockfile.WorkspaceFacts
+    committed: str
 
 
-def _dep_tables(data: dict):
-    for key in ("dependencies", "dev-dependencies", "build-dependencies"):
-        if isinstance(data.get(key), dict):
-            yield data[key]
-    workspace = data.get("workspace", {})
-    if isinstance(workspace.get("dependencies"), dict):
-        yield workspace["dependencies"]
-    for target in (data.get("target") or {}).values():
-        if isinstance(target, dict):
-            for key in ("dependencies", "dev-dependencies", "build-dependencies"):
-                if isinstance(target.get(key), dict):
-                    yield target[key]
+def lock_units() -> list[LockUnit]:
+    """Every tracked lock at HEAD of the registered members and the superproject.
 
-
-def workspace_facts(
-    ws_root: Path, nested: list[Path], repo: Path
-) -> tuple[set[str], set[str], bool]:
-    """Return (locally defined packages, packages declared as git deps, fixture).
-
-    `nested` lists sibling workspace roots that own their own lock; manifests
-    beneath them belong to that lock, not this one.
-
-    `fixture` marks a workspace that depends on sibling repositories by relative
-    path (`../../../hephaestus/...`). Such a workspace exists only inside a full
-    Atlas checkout -- it can never resolve standalone, so the standalone-form
-    rule does not apply to its lock. This is the one exemption (ADR-0021) and it
-    is reported rather than skipped silently.
-    """
-    local: set[str] = set()
-    git_deps: set[str] = set()
-    fixture = False
-    for manifest in ws_root.glob("**/Cargo.toml"):
-        if {part.lower() for part in manifest.parts} & SKIP_DIRS:
-            continue
-        if any(other in manifest.parents for other in nested):
-            continue
-        try:
-            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, OSError):
-            continue
-        package = data.get("package")
-        if isinstance(package, dict) and isinstance(package.get("name"), str):
-            local.add(package["name"])
-        for table in _dep_tables(data):
-            for name, spec in table.items():
-                if not isinstance(spec, dict):
-                    continue
-                if isinstance(spec.get("git"), str):
-                    git_deps.add(spec.get("package", name))
-                elif isinstance(spec.get("path"), str):
-                    target = (manifest.parent / spec["path"]).resolve()
-                    root = repo.resolve()
-                    if target != root and root not in target.parents:
-                        fixture = True
-    return local, git_deps, fixture
-
-
-def violations(lock_text: str, local: set[str], git_deps: set[str]) -> list[str]:
-    """Overlay-stripping violations in one lock's text.
-
-    Two independent signatures, both produced only by resolving under a
-    `[patch]` overlay and neither reachable from a clean standalone resolve:
-
-    1. a `[[patch.unused]]` table, and
-    2. a package declared as a git dependency, present in the lock, resolved
-       with no `source` -- i.e. locked as a local path package although no
-       manifest in the workspace defines it.
-    """
-    found: list[str] = []
-    try:
-        data = tomllib.loads(lock_text)
-    except tomllib.TOMLDecodeError as exc:
-        return [f"unparseable lock: {exc}"]
-
-    unused = lock_text.count(PATCH_UNUSED)
-    if unused:
-        found.append(f"{unused} [[patch.unused]] table(s): overlay residue")
-
-    sources: dict[str, list[str | None]] = {}
-    for package in data.get("package", []):
-        sources.setdefault(package.get("name"), []).append(package.get("source"))
-
-    for name in sorted(git_deps - local):
-        entries = sources.get(name)
-        if entries is None:
-            continue  # declared but unused (e.g. an idle [workspace.dependencies] row)
-        if not any(source and source.startswith("git+") for source in entries):
-            found.append(f"`{name}` locked without a git source (stripped)")
-    return found
-
-
-def _units_under(label: str, repo: Path) -> list[tuple[str, Path, str, set[str], set[str], bool]]:
-    """Every tracked lock in one git repository, with the facts to judge it."""
-    locks = tracked_locks(repo)
-    roots = [(repo / lock).parent for lock in locks]
-    units = []
-    for lock in locks:
-        ws_root = (repo / lock).parent
-        nested = [r for r in roots if r != ws_root and ws_root in r.parents]
-        local, git_deps, fixture = workspace_facts(ws_root, nested, repo)
-        units.append((label, repo, lock, local, git_deps, fixture))
-    return units
-
-
-def lock_units() -> list[tuple[str, Path, str, set[str], set[str], bool]]:
-    """(label, repository, lock path relative to it, local, git deps, fixture).
-
-    Covers the registered members and the superproject itself. The
-    superproject matters because its own tool workspaces live under the stack
-    root, so a cargo run inside one walks up into the development overlay
+    The superproject matters because its own tool workspaces live under the
+    stack root, so a cargo run inside one walks up into the development overlay
     exactly as a member's does and its lock is rewritten the same way -- while
     being tracked here rather than in a submodule, which is how two tool locks
-    reached `main` carrying sixty-one `[[patch.unused]]` tables each before
-    this looked at them.
+    reached `main` carrying sixty-one `[[patch.unused]]` tables each.
     """
+    repositories = [(member, REPOS / member) for member in sorted(registered_member_names())]
     units = []
-    for member in sorted(registered_member_names()):
-        repo = REPOS / member
-        if not repo.is_dir():
+    for label, repository in [*repositories, ("atlas", ROOT)]:
+        if not repository.is_dir():
             continue
-        units.extend(_units_under(member, repo))
-    units.extend(_units_under("atlas", ROOT))
+        try:
+            texts = lockfile.tracked_texts(repository, staged=False)
+        except lockfile.GitUnavailable as error:
+            print(f"warning: {label}: locks not read: {error}", file=sys.stderr)
+            continue
+        for lock, facts in lockfile.workspace_units(texts).items():
+            units.append(LockUnit(label, repository, lock, facts, texts[lock]))
     return units
-
-
-def committed_text(repo: Path, lock: str) -> str | None:
-    code, out, _ = run("git", "-C", str(repo), "show", f"HEAD:{lock}")
-    return out if code == 0 else None
-
-
-def cmd_check(_args) -> int:
-    failures = 0
-    checked = 0
-    for member, repo, lock, local, git_deps, fixture in lock_units():
-        text = committed_text(repo, lock)
-        if text is None:
-            print(f"::warning::{member}/{lock}: not readable at HEAD; skipped")
-            continue
-        if fixture:
-            print(f"exempt (in-tree fixture, not standalone-consumable): {member}/{lock}")
-            continue
-        checked += 1
-        for problem in violations(text, local, git_deps):
-            failures += 1
-            print(f"LOCK FORM VIOLATION: {member}/{lock}: {problem}")
-    if failures:
-        print(
-            f"\n{failures} violation(s) across {checked} committed lock(s).\n"
-            "A committed lock must resolve standalone: every git dependency it\n"
-            "resolves carries its `source = \"git+...\"` line and no\n"
-            "[[patch.unused]] residue (ADR-0021).\n"
-            "Repair without touching the shared overlay:\n"
-            "  python scripts/atlas-lock-form.py regenerate <member>\n"
-            "Never `git add` a lock dirtied by a local build; restore it first:\n"
-            "  python scripts/atlas-lock-form.py restore"
-        )
-        return 1
-    print(f"lock form clean: {checked} committed lock(s) resolve standalone")
-    return 0
-
-
-def cmd_staged(args) -> int:
-    """Gate one member's *staged* locks -- the member-side pre-commit hook.
-
-    `check` guards integration; this guards the commit that would create the
-    violation in the first place, which is where the churn actually escapes:
-    a `git add` of a lock a local build has just rewritten.
-    """
-    repo = Path(args.repo or ".").resolve()
-    code, out, _ = run("git", "-C", str(repo), "diff", "--cached", "--name-only")
-    staged = {line.strip() for line in out.splitlines() if line.strip().endswith("Cargo.lock")}
-    if code != 0 or not staged:
-        return 0
-    units = {
-        lock: (local, deps, fixture)
-        for _member, unit_repo, lock, local, deps, fixture in lock_units()
-        if unit_repo.resolve() == repo
-    }
-    failures = 0
-    for lock in sorted(staged):
-        if lock not in units:
-            continue
-        local, deps, fixture = units[lock]
-        if fixture:
-            continue
-        blob_code, blob, _ = run("git", "-C", str(repo), "show", f":{lock}")
-        if blob_code != 0:
-            continue
-        for problem in violations(blob, local, deps):
-            failures += 1
-            print(f"LOCK FORM VIOLATION (staged): {lock}: {problem}")
-    if failures:
-        print(
-            "\nThis lock was rewritten by the stack [patch] overlay, not edited.\n"
-            "Unstage it and restore the committed form:\n"
-            "  git restore --staged Cargo.lock\n"
-            "  python <atlas>/scripts/atlas-lock-form.py restore\n"
-            "To change the lock deliberately, regenerate it outside the overlay:\n"
-            "  python <atlas>/scripts/atlas-lock-form.py regenerate <member>"
-        )
-        return 1
-    return 0
 
 
 def cmd_status(_args) -> int:
     print(f"{'member/lock':<44} {'HEAD':<10} {'worktree':<10}")
-    for member, repo, lock, local, git_deps, fixture in lock_units():
-        head = committed_text(repo, lock)
-        path = repo / lock
+    for unit in lock_units():
+        path = unit.repository / unit.lock
         work = path.read_text(encoding="utf-8") if path.exists() else None
 
-        def verdict(text: str | None, fixture=fixture, local=local, git_deps=git_deps) -> str:
+        def verdict(text: str | None, facts=unit.facts) -> str:
             if text is None:
                 return "missing"
-            if fixture:
+            if facts.fixture:
                 return "exempt"
-            problems = violations(text, local, git_deps)
-            if problems:
+            if lockfile.violations(text, facts.local, facts.git_dependencies):
                 return "STRIPPED"
-            return "ok" if git_deps - local else "no-git-deps"
+            return "ok" if facts.git_dependencies - facts.local else "no-git-deps"
 
-        print(f"{member + '/' + lock:<44} {verdict(head):<10} {verdict(work):<10}")
+        label = f"{unit.label}/{unit.lock}"
+        print(f"{label:<44} {verdict(unit.committed):<10} {verdict(work):<10}")
     return 0
 
 
@@ -319,7 +141,7 @@ def _strip_only(head_text: str, work_text: str) -> bool:
     repair towards the committed form, not churn away from it; reverting it
     would throw the fix away. Churn only ever adds residue.
     """
-    if work_text.count(PATCH_UNUSED) < head_text.count(PATCH_UNUSED):
+    if work_text.count(lockfile.PATCH_UNUSED) < head_text.count(lockfile.PATCH_UNUSED):
         return False
     try:
         head = tomllib.loads(head_text)
@@ -361,15 +183,15 @@ def _strip_only(head_text: str, work_text: str) -> bool:
 
 def cmd_restore(_args) -> int:
     restored, kept = [], []
-    for member, repo, lock, local, git_deps, fixture in lock_units():
+    for unit in lock_units():
+        member, repo, lock, head = unit.label, unit.repository, unit.lock, unit.committed
         path = repo / lock
-        head = committed_text(repo, lock)
-        if head is None or not path.exists() or fixture:
+        if not path.exists() or unit.facts.fixture:
             continue
         work = path.read_text(encoding="utf-8")
         if work == head:
             continue
-        if violations(head, local, git_deps):
+        if lockfile.violations(head, unit.facts.local, unit.facts.git_dependencies):
             kept.append(f"{member}/{lock} (committed lock itself violates; "
                         "the working copy may be the repair -- left alone)")
             continue
@@ -386,63 +208,6 @@ def cmd_restore(_args) -> int:
         print(f"kept: {line}")
     print(f"\n{len(restored)} restored, {len(kept)} left for review")
     return 0
-
-
-def _cargo_outside(manifest: Path, *extra: str) -> subprocess.CompletedProcess:
-    """Resolve `manifest` with the stack overlay out of scope.
-
-    Cargo discovers `.cargo/config.toml` upward from the *current directory*,
-    not from the manifest path. Running from a scratch directory outside the
-    Atlas tree is therefore what makes this resolve against git rather than the
-    local working trees -- and it does so without toggling the shared overlay
-    out from under concurrent peers.
-    """
-    with tempfile.TemporaryDirectory(prefix="atlas-lock-") as scratch:
-        env = dict(os.environ)
-        # Leaving the overlay's scope also leaves `[build] target-dir` behind,
-        # so cargo would default to a per-member `target/` -- the cache fork
-        # the shared root exists to prevent. Name the canonical shared path
-        # explicitly: this is the value the config would have supplied, not an
-        # override of it.
-        env["CARGO_TARGET_DIR"] = str(ROOT / "target")
-        return subprocess.run(
-            [
-                "cargo", "metadata", "--format-version", "1",
-                "--manifest-path", str(manifest), *extra,
-            ],
-            cwd=scratch,
-            capture_output=True,
-            encoding="utf-8", errors="replace",
-            env=env,
-        )
-
-
-def cmd_regenerate(args) -> int:
-    """Repair locks into standalone form, then prove they resolve `--locked`.
-
-    `cargo metadata` re-resolves only what the lock cannot supply, so a
-    stripped source is restored without gratuitously advancing every unrelated
-    pin -- which `cargo generate-lockfile` would do.
-    """
-    members = args.members or sorted(registered_member_names())
-    failed = 0
-    for member in members:
-        manifest = REPOS / member / "Cargo.toml"
-        if not manifest.is_file():
-            print(f"{member}: no root Cargo.toml; skipped")
-            continue
-        repair = _cargo_outside(manifest)
-        if repair.returncode != 0:
-            failed += 1
-            print(f"{member}: repair FAILED\n{repair.stderr.rstrip()}")
-            continue
-        verify = _cargo_outside(manifest, "--locked")
-        if verify.returncode != 0:
-            failed += 1
-            print(f"{member}: --locked verification FAILED\n{verify.stderr.rstrip()}")
-            continue
-        print(f"{member}: repaired and verified (`cargo metadata --locked` ok)")
-    return 1 if failed else 0
 
 
 def cmd_sync_hooks(args) -> int:
@@ -896,15 +661,8 @@ def main() -> int:
         help="locally available committed Atlas ref; defaults to origin/HEAD",
     )
     publish.set_defaults(func=cmd_publish_hooks)
-    sub.add_parser("check").set_defaults(func=cmd_check)
     sub.add_parser("status").set_defaults(func=cmd_status)
     sub.add_parser("restore").set_defaults(func=cmd_restore)
-    staged = sub.add_parser("staged")
-    staged.add_argument("--repo", default=None)
-    staged.set_defaults(func=cmd_staged)
-    regen = sub.add_parser("regenerate")
-    regen.add_argument("members", nargs="*")
-    regen.set_defaults(func=cmd_regenerate)
     sub.add_parser("install-hooks").set_defaults(func=cmd_install_hooks)
     args = parser.parse_args()
     return args.func(args)
