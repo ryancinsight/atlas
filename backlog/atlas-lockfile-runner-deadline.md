@@ -1,0 +1,9 @@
+<a id="atlas-lockfile-runner-deadline"></a>
+## ATLAS-LOCKFILE-RUNNER-DEADLINE — Bound the overlay-escaping cargo runner and delete its twin [patch] — todo
+- priority: tightening
+- outcome: `lockfile.run_outside_the_overlay` carries a deadline and kills the whole process tree when it expires, and `atlas-published-drift.py` `run_cargo_metadata` calls it, so one overlay-escaping cargo runner remains.
+- evidence (basis: b2741da1b3d3, judge verdict on atlas#476): `scripts/lockfile.py:136` calls `subprocess.run` with no `timeout` and no tree kill; `check()` and `regenerate()` each make one call and `scripts/atlas-lock-sweep.py:378` another. The owned `pre-push` has no deadline of its own, so a cargo fetch that hangs under `cargo metadata --locked` stalls a push; `lockfile-guard` CI is bounded only by `timeout-minutes: 5`. `scripts/atlas-published-drift.py:348` is a second overlay-escaping runner that does carry a deadline and a tree kill. `atlas-pin-compile.py` runs cargo from a neutral directory with its own `--config` for a compile probe: a related pattern, not a lockfile runner, left alone.
+- acceptance: a test runs the runner against a stand-in `cargo` that sleeps past the deadline and asserts a typed timeout within the bound and no surviving child process; `git grep -n "def run_cargo_metadata" scripts` finds nothing and the drift scan's tests pass through the shared runner.
+- constraint: standard library only, because the hooks export `scripts/lockfile.py` alone: `start_new_session` plus `os.killpg` on POSIX, `taskkill /T /F` on Windows.
+- scope: `scripts/lockfile.py`, `scripts/atlas-published-drift.py`, `scripts/atlas-lock-sweep.py`, `scripts/tests/test_lockfile_*.py`, `scripts/tests/test_atlas_published_drift.py`.
+- next step: add the deadline and tree kill to `run_outside_the_overlay`, then move `run_cargo_metadata` onto it.
