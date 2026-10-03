@@ -12,15 +12,16 @@ from atlas_build_lock import (
     EXCLUSIVE,
     SHARED,
     BuildIdentityError,
+    SHARING_RETRY_ATTEMPTS,
     _release,
     _try_lock,
     _unlock,
     _write_record,
+    retry_sharing_violation,
 )
 
 _TICKET_MODES = {EXCLUSIVE: "x", SHARED: "s"}
 _TICKET_ATTEMPTS = 100
-_UNLINK_ATTEMPTS = 20
 _RETRY_SECONDS = 0.005
 
 
@@ -29,18 +30,16 @@ def _queue_dir(path: Path) -> Path:
 
 
 def _unlink(path: Path, attempts: int = 1) -> None:
-    # Windows refuses while a peer's liveness check has the file open; that
-    # check closes within milliseconds, and an unlocked ticket left behind is
-    # collected by the next scan.
-    for attempt in range(attempts):
-        try:
-            path.unlink()
-            return
-        except FileNotFoundError:
-            return
-        except PermissionError:
-            if attempt + 1 < attempts:
-                time.sleep(_RETRY_SECONDS)
+    # Windows refuses while a peer's liveness check has the file open, and
+    # that check closes within the sharing-violation bound. A ticket left
+    # behind when the refusal outlasts `attempts` is unlocked, and the next
+    # scan collects it, so the release that called this must not fail on it.
+    try:
+        retry_sharing_violation(path.unlink, path, attempts)
+    except FileNotFoundError:
+        return
+    except BuildIdentityError:
+        return
 
 
 def _ticket_is_live(path: Path) -> bool:
@@ -142,13 +141,13 @@ class Ticket:
         try:
             _release(previous_handle, locked=True)
         finally:
-            _unlink(previous_path, _UNLINK_ATTEMPTS)
+            _unlink(previous_path, SHARING_RETRY_ATTEMPTS)
 
     def close(self) -> None:
         try:
             _release(self.handle, locked=True)
         finally:
-            _unlink(self.path, _UNLINK_ATTEMPTS)
+            _unlink(self.path, SHARING_RETRY_ATTEMPTS)
 
 
 def _names(path: Path, handle: Any) -> bool:
