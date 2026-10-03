@@ -215,6 +215,7 @@ def run_build(
     deadline_ns = arrival_ns + int(lease_wait_seconds * 1_000_000_000)
 
     taken: list[OwnerLease] = []
+    phases = [0]
 
     def acquire(exclusive: frozenset[str]) -> ExitStack:
         # The command writes its own packages; a dependency is only read
@@ -230,7 +231,10 @@ def run_build(
             )
             for lock, owner in sorted(scopes.items(), key=lambda item: str(item[1]["package"]))
         ]
-        stack = acquire_claim(leases, lease_wait_seconds, deadline_ns, arrival_ns, run_id)
+        phases[0] += 1
+        stack = acquire_claim(
+            leases, lease_wait_seconds, deadline_ns, arrival_ns, run_id, phases[0]
+        )
         taken[:] = leases
         return stack
 

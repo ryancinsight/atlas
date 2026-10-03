@@ -3,22 +3,27 @@
 
 from __future__ import annotations
 
+import io
+import json
 import shutil
 import sys
 import tempfile
 import threading
+import time as real_time
 import unittest
-from contextlib import ExitStack
+from contextlib import ExitStack, redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import atlas_build_lease as lease_module
 import atlas_build_queue as queue_module
+import atlas_claim_log as log_module
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
     BuildIdentityError,
+    Claim,
     LeaseHeldError,
     OwnerLease,
     acquire_claim,
@@ -27,6 +32,23 @@ from atlas_build_lease import (
 )
 
 WAIT = 30
+
+
+class Clock:
+    """A clock that moves only when a test moves it, so a recorded span is exact."""
+
+    def __init__(self) -> None:
+        self.ns = 1_000_000_000_000
+
+    def advance(self, seconds: float) -> None:
+        self.ns += round(seconds * 1_000_000_000)
+
+    def monotonic_ns(self) -> int:
+        return self.ns
+
+    @staticmethod
+    def time_ns() -> int:
+        return real_time.time_ns()
 
 
 class ClaimTest(unittest.TestCase):
@@ -399,6 +421,145 @@ class ClaimTest(unittest.TestCase):
             worker.join(WAIT)
         self.assertEqual([worker.is_alive() for worker in workers], [False, False])
         self.assertEqual(failures, [])
+
+    def log_path(self) -> Path:
+        return package_target_lease_path("a", self.target).parent / "claims.jsonl"
+
+    def records(self) -> list[dict[str, object]]:
+        return [json.loads(line) for line in self.log_path().read_text(encoding="utf-8").splitlines()]
+
+    def test_a_waiting_runs_wait_is_the_hold_it_waited_for(self) -> None:
+        # The first run takes `a` at t = 0 and holds it. The second asks at
+        # t = 1 and polls after 0.1, 0.2 and 0.4 s; the first lets go during
+        # the third pause, at t = 1.7, and the second takes the lease then.
+        # Each span is therefore exact: the first held for 1.7 s and the
+        # second waited 0.7 s, from its request and not from its arrival.
+        clock = Clock()
+        pauses: list[float] = []
+        claims: list[Claim] = []
+
+        def pause(seconds: float) -> None:
+            pauses.append(seconds)
+            clock.advance(seconds)
+            if len(pauses) == 3:
+                claims[0].close()
+
+        with patch.object(lease_module, "time", clock), patch.object(lease_module, "_pause", pause):
+            claims.append(acquire_claim([self.lease("a", EXCLUSIVE, "first")], 0, arrival_ns=1))
+            clock.advance(1)
+            second = acquire_claim([self.lease("a", EXCLUSIVE, "second")], WAIT, arrival_ns=7)
+            clock.advance(2.5)
+            second.close()
+        self.assertEqual(pauses, [0.1, 0.2, 0.4])
+        held, waited = self.records()
+        self.assertEqual((held["root"], waited["root"]), ("first", "second"))
+        self.assertEqual((held["wait_s"], held["hold_s"]), (0.0, 1.7))
+        self.assertEqual((waited["wait_s"], waited["hold_s"]), (0.7, 2.5))
+        self.assertEqual(waited["blocked_on"], ["first@first-revision"])
+        self.assertEqual(held["blocked_on"], [])
+        # The second run asked while the first held the lease: its wait is
+        # bounded by that hold.
+        self.assertLessEqual(waited["wait_s"], held["hold_s"])
+
+    def test_a_claim_records_its_leases_and_closes_once(self) -> None:
+        claim = acquire_claim(
+            [self.lease("b", SHARED, "run"), self.lease("a", EXCLUSIVE, "run")],
+            0,
+            arrival_ns=7,
+            run_id="r" * 32,
+            phase=2,
+        )
+        claim.close()
+        claim.close()
+        (record,) = self.records()
+        self.assertEqual(record["leases"], ["b", "a"])
+        self.assertEqual(record["exclusive"], ["a"])
+        self.assertEqual((record["phase"], record["arrival_ns"], record["run"]), (2, 7, "r" * 32))
+        self.assertEqual((record["revision"], record["blocked_on"]), ("run-revision", []))
+
+    def test_a_claim_records_what_was_exclusive_when_taken(self) -> None:
+        # The run downgrades the leases it did not clean before its command.
+        leases = [self.lease("a", EXCLUSIVE, "run"), self.lease("b", EXCLUSIVE, "run")]
+        claim = acquire_claim(leases, 0)
+        leases[1].downgrade()
+        claim.close()
+        (record,) = self.records()
+        self.assertEqual(record["exclusive"], ["a", "b"])
+
+    def fill_log(self, text: str) -> None:
+        self.log_path().parent.mkdir(parents=True, exist_ok=True)
+        self.log_path().write_text(text, encoding="utf-8")
+
+    def test_the_claim_log_keeps_one_earlier_file_past_its_bound(self) -> None:
+        self.fill_log("x" * 100)
+        with patch.object(log_module, "CLAIM_LOG_BYTES", 50):
+            acquire_claim([self.lease("a", SHARED)], 0).close()
+        self.assertEqual(self.log_path().with_name("claims.jsonl.1").read_text(encoding="utf-8"), "x" * 100)
+        self.assertEqual(len(self.records()), 1)
+
+    def test_closers_that_see_the_log_over_its_bound_rotate_it_once(self) -> None:
+        # Closer A holds the rotation lock inside its replace; closer B finds
+        # the lock held, and rotates nothing once A's replace is done, for the
+        # log it then sees is A's fresh one and not over the bound.
+        self.fill_log("x" * 100)
+        directory = self.log_path().parent
+        inside, paused = threading.Event(), threading.Event()
+        replaced: list[Path] = []
+        real_replace = log_module.os.replace
+
+        def replace(source, target):
+            replaced.append(Path(target))
+            inside.set()
+            self.assertTrue(paused.wait(WAIT), "the second closer never waited for the lock")
+            real_replace(source, target)
+
+        def pause(seconds: float) -> None:
+            paused.set()
+            real_time.sleep(seconds)
+
+        first = threading.Thread(target=log_module.append_claim, args=(directory, {"n": 1}, 50))
+        second = threading.Thread(target=log_module.append_claim, args=(directory, {"n": 2}, 50))
+        with patch.object(log_module.os, "replace", replace), patch.object(log_module, "_pause", pause):
+            first.start()
+            self.addCleanup(first.join, WAIT)
+            self.assertTrue(inside.wait(WAIT), "the first closer never rotated")
+            second.start()
+            self.addCleanup(second.join, WAIT)
+            first.join(WAIT)
+            second.join(WAIT)
+        self.assertEqual(len(replaced), 1)
+        self.assertEqual(self.log_path().with_name("claims.jsonl.1").read_text(encoding="utf-8"), "x" * 100)
+        self.assertEqual(sorted(entry["n"] for entry in self.records()), [1, 2])
+
+    def test_a_refused_rotation_still_records_the_claim(self) -> None:
+        # Windows refuses to replace a log a peer has open: the record is
+        # appended to the whole log all the same.
+        self.fill_log("x" * 100 + "\n")
+        stderr = io.StringIO()
+        with (
+            patch.object(log_module, "CLAIM_LOG_BYTES", 50),
+            patch.object(log_module.os, "replace", side_effect=PermissionError("in use")),
+            redirect_stderr(stderr),
+        ):
+            acquire_claim([self.lease("a", SHARED, "kept")], 0).close()
+        lines = self.log_path().read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines[0], "x" * 100)
+        self.assertEqual(json.loads(lines[1])["root"], "kept")
+        self.assertIn("claim log not rotated", stderr.getvalue())
+
+    def test_a_closer_that_never_gets_the_rotation_lock_still_records_the_claim(self) -> None:
+        self.fill_log("x" * 100 + "\n")
+        held = log_module._take(self.log_path().parent / log_module._ROTATION_LOCK, EXCLUSIVE)
+        self.addCleanup(log_module._release, held, True)
+        pauses: list[float] = []
+        with (
+            patch.object(log_module, "CLAIM_LOG_BYTES", 50),
+            patch.object(log_module, "_pause", pauses.append),
+        ):
+            acquire_claim([self.lease("a", SHARED, "kept")], 0).close()
+        self.assertEqual(len(pauses), log_module._ROTATION_ATTEMPTS - 1)
+        self.assertFalse(self.log_path().with_name("claims.jsonl.1").exists())
+        self.assertEqual(json.loads(self.log_path().read_text(encoding="utf-8").splitlines()[1])["root"], "kept")
 
 
 if __name__ == "__main__":
