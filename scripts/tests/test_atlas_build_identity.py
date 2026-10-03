@@ -4485,11 +4485,13 @@ class MultiPackageRunTestCase(unittest.TestCase):
 
     def test_every_phase_of_a_run_claims_all_its_scopes_under_one_arrival(self) -> None:
         claims: list[tuple[list[str], int | None, str | None]] = []
+        phases: list[int] = []
         real = identity.acquire_claim
 
-        def recording(leases, wait, deadline, arrival, run):
+        def recording(leases, wait, deadline, arrival, run, phase):
             claims.append(([str(lease.owner["package"]) for lease in leases], arrival, run))
-            return real(leases, wait, deadline, arrival, run)
+            phases.append(phase)
+            return real(leases, wait, deadline, arrival, run, phase)
 
         with patch.object(identity, "acquire_claim", side_effect=recording):
             self.push(self.base / "gate1", packages=("c", "a"))
@@ -4503,6 +4505,9 @@ class MultiPackageRunTestCase(unittest.TestCase):
         self.assertEqual(len({run for _, _, run in claims}), 1)
         self.assertIsNotNone(claims[0][1])
         self.assertIsNotNone(claims[0][2])
+        # The claims are numbered in the order the run takes them, however
+        # many the run makes (a clean that widens makes a third).
+        self.assertEqual(phases, list(range(1, len(claims) + 1)))
 
     def test_a_dependency_change_in_any_package_refuses_the_record(self) -> None:
         marker = self.base / "built"

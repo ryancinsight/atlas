@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import time
 import uuid
 from contextlib import ExitStack
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
@@ -26,6 +28,7 @@ from atlas_build_lock import (
     _write_record,
 )
 from atlas_build_queue import Ticket, conflicting
+from atlas_claim_log import append_claim
 
 
 class LeaseHeldError(BuildIdentityError):
@@ -344,13 +347,81 @@ def _try_claim(leases: Sequence[OwnerLease]) -> tuple[OwnerLease, LeaseHeldError
     return None
 
 
+class Claim(ExitStack):
+    """The leases of one claim, recording how long the run waited for and held them.
+
+    Closing the claim releases the leases and appends one line to the
+    source-identity directory's claim log: the run and its place, the leases
+    and which of them were exclusive when the claim was taken, the seconds
+    from the request to the take (`wait_s`) and from the take to the release
+    (`hold_s`), who blocked it, and the claim's number within the run
+    (`phase`). The log is the evidence for the wait bound: a run's wait is
+    read against the hold of the claim it waited for. It rotates at 1 MiB,
+    keeping one earlier file (`atlas_claim_log.py`).
+    """
+
+    def __init__(
+        self,
+        leases: Sequence[OwnerLease],
+        arrival_ns: int,
+        requested_ns: int,
+        blockers: Sequence[str],
+        phase: int,
+    ) -> None:
+        super().__init__()
+        self._leases = tuple(leases)
+        self._phase = phase
+        self._arrival_ns = arrival_ns
+        self._blockers = tuple(blockers)
+        self._taken_ns = time.monotonic_ns()
+        self._wait_ns = self._taken_ns - requested_ns
+        # The modes at the take: the run downgrades its leases before its
+        # command, and the record names what was exclusive while it cleaned.
+        self._exclusive = tuple(
+            lease.owner.get("package") for lease in self._leases if lease.mode == EXCLUSIVE
+        )
+        self._logged = False
+        for lease in self._leases:
+            self.push(lease)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self._record_hold(time.monotonic_ns() - self._taken_ns)
+
+    def _record_hold(self, hold_ns: int) -> None:
+        if self._logged or not self._leases:
+            return
+        self._logged = True
+        owner = self._leases[0].owner
+        append_claim(
+            self._leases[0].path.parent,
+            {
+                "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "pid": os.getpid(),
+                "root": owner.get("root"),
+                "revision": owner.get("revision"),
+                "arrival_ns": self._arrival_ns,
+                "run": self._leases[0].run,
+                "phase": self._phase,
+                "leases": [lease.owner.get("package") for lease in self._leases],
+                "exclusive": list(self._exclusive),
+                "wait_s": round(self._wait_ns / 1e9, 3),
+                "hold_s": round(hold_ns / 1e9, 3),
+                "blocked_on": list(self._blockers),
+            },
+        )
+
+
 def acquire_claim(
     leases: Sequence[OwnerLease],
     wait_seconds: float,
     deadline_ns: int | None = None,
     arrival_ns: int | None = None,
     run_id: str | None = None,
-) -> ExitStack:
+    phase: int = 1,
+) -> Claim:
     """Take every lease at once, waiting while a live owner holds one or an earlier request is queued.
 
     The leases are taken together or not at all, and a request that cannot
@@ -364,11 +435,15 @@ def acquire_claim(
     the same in every queue and never tie, and a request that releases and
     asks again with a later arrival queues behind the ones already waiting. The wait
     ends when the leases are taken or at `deadline_ns` (`wait_seconds` from now
-    when omitted); the latter raises without taking any. The OS lock proves the
-    owner is alive, so its recorded `expires_ns` only reports.
+    when omitted); the latter raises without taking any. `phase` numbers the
+    run's claims, 1 for its first, so the record tells them apart: a run that
+    cleans takes two, and a run whose clean widens takes one more for each
+    widening. The OS lock proves the owner is alive, so its recorded
+    `expires_ns` only reports.
     """
     leases = tuple(leases)
-    arrival = time.monotonic_ns() if arrival_ns is None else arrival_ns
+    requested_ns = time.monotonic_ns()
+    arrival = requested_ns if arrival_ns is None else arrival_ns
     if deadline_ns is None:
         deadline_ns = time.monotonic_ns() + int(wait_seconds * 1_000_000_000)
     run = uuid.uuid4().hex if run_id is None else run_id
@@ -377,19 +452,19 @@ def acquire_claim(
         lease.run = run
     delay = _WAIT_FIRST_SECONDS
     announced = None
+    blockers: list[str] = []
     try:
         while True:
             refusal = _try_claim(leases)
             if refusal is None:
-                stack = ExitStack()
-                for lease in leases:
-                    stack.push(lease)
-                return stack
+                return Claim(leases, arrival, requested_ns, blockers, phase)
             blocked, error = refusal
             if wait_seconds <= 0:
                 raise error
             owner = error.holder.get("root", "unknown")
             revision = error.holder.get("revision", "unknown")
+            if f"{owner}@{revision}" not in blockers:
+                blockers.append(f"{owner}@{revision}")
             remaining_ns = deadline_ns - time.monotonic_ns()
             if remaining_ns <= 0:
                 raise BuildIdentityError(
