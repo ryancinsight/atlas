@@ -140,24 +140,6 @@ athena-leto = { path = "repos/athena/crates/athena-leto" }
 athena-core = { path = "repos/athena/crates/athena-core" }
 athena-leto = { path = "repos/athena/crates/athena-leto" }
 
-[patch."https://github.com/ryancinsight/Coeus"]
-coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
-coeus-core = { path = "repos/coeus/crates/coeus-core" }
-coeus-leto = { path = "repos/coeus/crates/coeus-leto" }
-coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
-coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
-coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
-coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
-
-[patch."https://github.com/ryancinsight/Coeus.git"]
-coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
-coeus-core = { path = "repos/coeus/crates/coeus-core" }
-coeus-leto = { path = "repos/coeus/crates/coeus-leto" }
-coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
-coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
-coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
-coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
-
 [patch."https://github.com/ryancinsight/consus"]
 consus-compression = { path = "repos/consus/crates/consus-compression" }
 consus-core = { path = "repos/consus/crates/consus-core" }
@@ -234,14 +216,6 @@ iris-viz = { path = "repos/iris" }
 [patch."https://github.com/ryancinsight/iris.git"]
 iris-viz = { path = "repos/iris" }
 
-[patch."https://github.com/ryancinsight/leto"]
-leto = { path = "repos/leto/crates/leto" }
-leto-ops = { path = "repos/leto/crates/leto-ops" }
-
-[patch."https://github.com/ryancinsight/leto.git"]
-leto = { path = "repos/leto/crates/leto" }
-leto-ops = { path = "repos/leto/crates/leto-ops" }
-
 [patch."https://github.com/ryancinsight/melinoe"]
 melinoe = { path = "repos/melinoe" }
 
@@ -260,15 +234,11 @@ metis-web = { path = "repos/metis/crates/metis-web" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne"]
 mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
-mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
-mnemosyne-heap = { path = "repos/mnemosyne/crates/mnemosyne-heap" }
 mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
 mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne.git"]
 mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
-mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
-mnemosyne-heap = { path = "repos/mnemosyne/crates/mnemosyne-heap" }
 mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
 mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
@@ -301,26 +271,6 @@ proteus-mat = { path = "repos/proteus" }
 
 [patch."https://github.com/ryancinsight/proteus.git"]
 proteus-mat = { path = "repos/proteus" }
-
-[patch."https://github.com/ryancinsight/ritk"]
-ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
-ritk-core = { path = "repos/ritk/crates/ritk-core" }
-ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
-ritk-image = { path = "repos/ritk/crates/ritk-image" }
-ritk-io = { path = "repos/ritk/crates/ritk-io" }
-ritk-registration = { path = "repos/ritk/crates/ritk-registration" }
-ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
-ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
-
-[patch."https://github.com/ryancinsight/ritk.git"]
-ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
-ritk-core = { path = "repos/ritk/crates/ritk-core" }
-ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
-ritk-image = { path = "repos/ritk/crates/ritk-image" }
-ritk-io = { path = "repos/ritk/crates/ritk-io" }
-ritk-registration = { path = "repos/ritk/crates/ritk-registration" }
-ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
-ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
 
 [patch."https://github.com/ryancinsight/themis"]
 themis-topology = { path = "repos/themis" }
