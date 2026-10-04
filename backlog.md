@@ -9,6 +9,7 @@
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) â€” Retire hephaestus-metal per ADR 0047 [arch] [major] â€” blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) â€” Create and register `ares` (solid momentum balance) [arch][minor] â€” blocked
 <a id="atlas-bench-budget-001"></a>- [ATLAS-BENCH-BUDGET-001](backlog/atlas-bench-budget-001.md) â€” Wall-clock budgets for benches and examples [patch] â€” todo
+<a id="atlas-gate-lease-hold-001"></a>- [ATLAS-GATE-LEASE-HOLD-001](backlog/atlas-gate-lease-hold-001.md) — Release dependency leases before the gate command runs [patch] — todo
 <a id="atlas-book-caller-pins-2026-08-20"></a>- [ATLAS-BOOK-CALLER-PINS-2026-08-20](backlog/atlas-book-caller-pins-2026-08-20.md) â€” Repin provider mdBook callers [patch] â€” todo
 <a id="atlas-book-figure-closure-2026-08-21"></a>- [ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21](backlog/atlas-book-figure-closure-2026-08-21.md) â€” Restore generated validation figures [patch] â€” todo
 <a id="atlas-branch-inventory-001"></a>- [ATLAS-BRANCH-INVENTORY-001](backlog/atlas-branch-inventory-001.md) â€” Burn down stack branch inventories [git-hygiene] [patch] â€” todo
