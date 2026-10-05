@@ -47,7 +47,7 @@ from atlas_build_lease import (
     BuildIdentityError,
     LeaseHeldError,
     OwnerLease,
-    acquire_waiting,
+    acquire_claim,
     package_target_lease_path,
     peek_owner,
 )
@@ -214,18 +214,28 @@ def hold_lease(
     return holder
 
 
+def acquire_lease(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
+    """Take one lease as a claim of its own; the caller releases it with `__exit__`."""
+    acquire_claim((lease,), wait_seconds)
+    return lease
+
+
 MODE_HOLDER = (
     "import sys, threading, time\n"
     "from pathlib import Path\n"
     "sys.path.insert(0, sys.argv[1])\n"
-    "from atlas_build_lease import OwnerLease, acquire_waiting\n"
+    "import atlas_build_lease as module\n"
+    "from atlas_build_lease import OwnerLease\n"
     "orphaned = threading.Event()\n"
     "if sys.argv[8]:\n"
     "    threading.Thread(target=lambda: (sys.stdin.read(), orphaned.set()), daemon=True).start()\n"
     "for _ in range(int(sys.argv[6])):\n"
     "    lease = OwnerLease(Path(sys.argv[2]), {'root': sys.argv[5], 'revision': 'holder-revision',"
     " 'package': 'dep'}, 600, mode=sys.argv[3])\n"
-    "    acquire_waiting(lease, 120)\n"
+    "    if hasattr(module, 'acquire_claim'):\n"
+    "        module.acquire_claim([lease], 120)\n"
+    "    else:\n"
+    "        module.acquire_waiting(lease, 120)\n"
     "    if sys.argv[7]:\n"
     "        with open(sys.argv[7], 'ab') as rounds:\n"
     "            rounds.write(b'.')\n"
@@ -441,7 +451,7 @@ class LeaseModeTestCase(unittest.TestCase):
 
     def take_and_release(self, lock: Path, mode: str) -> None:
         """Wait for `lock` in `mode`, then release it: a refusal past the wait bound raises."""
-        acquire_waiting(
+        acquire_lease(
             OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60, mode=mode), 60
         ).__exit__(None, None, None)
 
@@ -462,13 +472,9 @@ class LeaseModeTestCase(unittest.TestCase):
 
         lease = OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60, mode=mode)
         self.addCleanup(lease.dequeue)
-        try:
-            lease.attempt()
-        except LeaseHeldError:
-            queued = taken()
-            acquire_waiting(lease, 60)
-        else:
-            queued = taken()
+        lease.reserve()
+        queued = taken()
+        acquire_claim((lease,), 60)
         granted = taken()
         lease.__exit__(None, None, None)
         return granted - queued
@@ -2037,10 +2043,10 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_the_wait_bound_covers_every_lease_of_a_run(self) -> None:
         # Both leases are held when the run asks for them. `demo` is released
-        # once the run has been refused it, so the run waits on a held `demo`
-        # and then takes it; `dep` stays held for the whole run. With a bound
-        # per lease the run would start a fresh 3 s at `dep`, but the bound
-        # is for the run, so both waits share one deadline.
+        # once the run has been refused it, so the claim is still blocked at
+        # `dep`, which stays held for the whole run. The run fixes one
+        # deadline when it starts waiting, and its one claim waits against
+        # it: a bound per lease would start a fresh 3 s at `dep`.
         init_repo(self.root, "fn main() {}\n")
         demo_lock, dep_lock = self.dep_lock("demo"), self.dep_lock("dep")
         release_dep = self.base / "release-dep"
@@ -2048,14 +2054,13 @@ class BuildIdentityTestCase(unittest.TestCase):
         demo_holder = start_holder(self, demo_lock, EXCLUSIVE, 0, stop=release_demo)
         dep_holder = start_holder(self, dep_lock, EXCLUSIVE, 0, stop=release_dep)
         requested: list[int | None] = []
-        waited: list[int] = []
         refusals: dict[Path, int] = {demo_lock: 0, dep_lock: 0}
-        real_acquire = identity.acquire_waiting
-        real_wait = lease_module._wait_for
+        real_acquire = identity.acquire_claim
+        real_blocker = lease_module._blocker
 
         clock = RecordedClock()
 
-        def recording_acquire(lease, wait_seconds, deadline_ns=None):
+        def recording_acquire(leases, wait_seconds, deadline_ns=None, *args, **kwargs):
             requested.append(deadline_ns)
             # The run fixes its deadline once, when it starts: exactly the
             # 3 s bound after its one clock read. A deadline of any other
@@ -2063,46 +2068,35 @@ class BuildIdentityTestCase(unittest.TestCase):
             # before the run waits it out against the held `dep`.
             self.assertEqual(len(clock.reads), 1)
             self.assertEqual(deadline_ns, clock.reads[0] + 3_000_000_000)
-            real_attempt = lease.attempt
+            return real_acquire(leases, wait_seconds, deadline_ns, *args, **kwargs)
 
-            def counting_attempt():
-                try:
-                    return real_attempt()
-                except LeaseHeldError:
-                    refusals[lease.path] += 1
-                    if lease.path == demo_lock and demo_holder.poll() is None:
-                        # Releasing the holder frees its OS lock: the run's
-                        # next attempt takes `demo`, with no timer to release it.
-                        release_demo.write_text("release", encoding="utf-8")
-                        self.assertEqual(demo_holder.wait(60), 0)
-                    raise
-
-            lease.attempt = counting_attempt
-            return real_acquire(lease, wait_seconds, deadline_ns)
-
-        def recording_wait(lease, wait_seconds, deadline_ns):
-            waited.append(deadline_ns)
-            return real_wait(lease, wait_seconds, deadline_ns)
+        def counting_blocker(lease):
+            found = real_blocker(lease)
+            if found is not None:
+                refusals[lease.path] += 1
+                if lease.path == demo_lock and demo_holder.poll() is None:
+                    # Releasing the holder frees its OS lock and its place:
+                    # the claim is next blocked at `dep` alone, with no timer
+                    # to release `demo`.
+                    release_demo.write_text("release", encoding="utf-8")
+                    self.assertEqual(demo_holder.wait(60), 0)
+            return found
 
         with (
-            patch.object(identity, "acquire_waiting", side_effect=recording_acquire),
+            patch.object(identity, "acquire_claim", side_effect=recording_acquire),
             patch.object(identity, "time", clock),
-            patch.object(lease_module, "_wait_for", side_effect=recording_wait),
+            patch.object(lease_module, "_blocker", side_effect=counting_blocker),
         ):
             with self.assertRaises(identity.IdentityError) as caught:
                 self.dependency_build("first", wait=3)
         refused_ns = time.monotonic_ns()
         self.assertIn("after waiting 3 s", str(caught.exception))
-        # `demo` then `dep`: the run fixed one deadline and each lease's wait
-        # ran against it, and the run gave up only once it had passed. The
-        # test below bounds how far past it a wait can run.
-        self.assertEqual(len(requested), 2)
+        # One claim, one deadline, and the run gave up only once it had passed.
+        self.assertEqual(len(requested), 1)
         self.assertIsNotNone(requested[0])
-        self.assertEqual(requested[1], requested[0])
-        self.assertEqual(waited, [requested[0], requested[0]])
         self.assertGreaterEqual(refused_ns, requested[0])
-        # Each lease was held when asked for: the run waited on `demo` before
-        # taking it, and on `dep` until the deadline.
+        # Each lease was held when asked for: the claim was refused at `demo`
+        # before it was released, and at `dep` until the deadline.
         self.assertGreaterEqual(refusals[demo_lock], 1)
         self.assertGreaterEqual(refusals[dep_lock], 1)
         # `dep` was held with no clock: it lets go when told, not when a
@@ -2112,9 +2106,9 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(dep_holder.wait(60), 0)
 
     def test_a_held_lease_is_refused_at_its_deadline(self) -> None:
-        # Under a clock that moves only when the waiter sleeps, a lease that
-        # stays held is refused exactly at the deadline: each sleep is cut to
-        # the time left, so no wait runs past it.
+        # Under a clock that moves only when the waiter sleeps, a claim whose
+        # lease stays held is refused exactly at the deadline: each sleep is
+        # cut to the time left, so no wait runs past it.
         clock = [0]
 
         class Clock:
@@ -2129,31 +2123,30 @@ class BuildIdentityTestCase(unittest.TestCase):
         # Sleeps of 0.1, 0.2, 0.4, 0.8 s, then the 1.5 s left: five waits
         # between six attempts, the last refused. A wait that never reached
         # its deadline would sleep for no time and ask again for ever, so the
-        # lease allows twice those attempts and fails the test past them.
+        # claim allows twice those attempts and fails the test past them.
         analytic_attempts = 6
+        attempts = [0]
+        lease = OwnerLease(self.base / "held.lock", {"root": "waiter", "revision": "r"}, 60)
 
-        class HeldLease:
-            path = self.base / "held.lock"
-            attempts = 0
-
-            def attempt(self):
-                HeldLease.attempts += 1
-                if HeldLease.attempts > 2 * analytic_attempts:
-                    raise AssertionError(
-                        f"the wait asked {HeldLease.attempts} times without reaching its deadline"
-                    )
-                raise lease_module.LeaseHeldError("held", {"root": "holder", "revision": "r"})
+        def refuse(leases):
+            attempts[0] += 1
+            if attempts[0] > 2 * analytic_attempts:
+                raise AssertionError(
+                    f"the wait asked {attempts[0]} times without reaching its deadline"
+                )
+            return leases[0], LeaseHeldError("held", {"root": "holder", "revision": "r"})
 
         deadline_ns = 3_000_000_000
         with (
             patch.object(lease_module, "time", Clock),
+            patch.object(lease_module, "_try_claim", side_effect=refuse),
             redirect_stderr(io.StringIO()),
             self.assertRaises(lease_module.BuildIdentityError) as caught,
         ):
-            lease_module._wait_for(HeldLease(), 3, deadline_ns)
+            acquire_claim((lease,), 3, deadline_ns)
         self.assertEqual(clock[0], deadline_ns)
         self.assertIn("after waiting 3 s", str(caught.exception))
-        self.assertEqual(HeldLease.attempts, analytic_attempts)
+        self.assertEqual(attempts[0], analytic_attempts)
 
     def test_an_expired_owner_is_recovered(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -3261,7 +3254,7 @@ class LeaseDowngradeTestCase(unittest.TestCase):
         self.lock.parent.mkdir(parents=True)
 
     def hold(self) -> OwnerLease:
-        holder = acquire_waiting(
+        holder = acquire_lease(
             OwnerLease(self.lock, {"root": "holder", "revision": "r"}, 60, mode=EXCLUSIVE), 60
         )
         self.addCleanup(holder.__exit__, None, None, None)
@@ -3328,7 +3321,7 @@ class LeaseDowngradeTestCase(unittest.TestCase):
                 holder.downgrade()
         self.assertEqual((holder.held, holder.handle), (False, None))
         holder.__exit__(None, None, None)
-        taker = acquire_waiting(
+        taker = acquire_lease(
             OwnerLease(self.lock, {"root": "next", "revision": "r"}, 60, mode=EXCLUSIVE), 0
         )
         self.addCleanup(taker.__exit__, None, None, None)
@@ -3360,7 +3353,7 @@ class LeaseDowngradeTestCase(unittest.TestCase):
         self.assertTrue(writer.held)
 
     def test_a_shared_lease_is_left_as_it_is(self) -> None:
-        reader = acquire_waiting(
+        reader = acquire_lease(
             OwnerLease(self.lock, {"root": "reader", "revision": "r"}, 60, mode=SHARED), 60
         )
         self.addCleanup(reader.__exit__, None, None, None)
@@ -4476,22 +4469,31 @@ class MultiPackageRunTestCase(unittest.TestCase):
                 selection=("a",),
             )
 
-    def test_leases_are_taken_in_package_name_order(self) -> None:
-        order: list[str] = []
-        real = identity.acquire_waiting
+    def test_every_phase_of_a_run_claims_all_its_scopes_under_one_arrival(self) -> None:
+        claims: list[tuple[list[str], int | None, str | None]] = []
+        phases: list[int] = []
+        real = identity.acquire_claim
 
-        def recording(lease, *args):
-            order.append(str(lease.owner["package"]))
-            return real(lease, *args)
+        def recording(leases, wait, deadline, arrival, run, phase):
+            claims.append(([str(lease.owner["package"]) for lease in leases], arrival, run))
+            phases.append(phase)
+            return real(leases, wait, deadline, arrival, run, phase)
 
-        with patch.object(identity, "acquire_waiting", side_effect=recording):
+        with patch.object(identity, "acquire_claim", side_effect=recording):
             self.push(self.base / "gate1", packages=("c", "a"))
-        # Each acquisition takes every scope in name order whatever order the
-        # packages were named in, so two overlapping batches never each hold
-        # a lease the other waits for.
-        self.assertEqual(order[:3], ["a", "b", "c"])
-        self.assertEqual(len(order) % 3, 0)
-        self.assertTrue(all(order[i:i + 3] == ["a", "b", "c"] for i in range(0, len(order), 3)))
+        # A first push has no record: one claim to read it, one to clean and
+        # build. Each takes every scope, whatever order the packages were
+        # named in, and the second keeps the first's place, `(arrival, run)`,
+        # in every queue.
+        self.assertGreaterEqual(len(claims), 2)
+        self.assertTrue(all(names == ["a", "b", "c"] for names, _, _ in claims))
+        self.assertEqual(len({arrival for _, arrival, _ in claims}), 1)
+        self.assertEqual(len({run for _, _, run in claims}), 1)
+        self.assertIsNotNone(claims[0][1])
+        self.assertIsNotNone(claims[0][2])
+        # The claims are numbered in the order the run takes them, however
+        # many the run makes (a clean that widens makes a third).
+        self.assertEqual(phases, list(range(1, len(claims) + 1)))
 
     def test_a_dependency_change_in_any_package_refuses_the_record(self) -> None:
         marker = self.base / "built"
@@ -5508,10 +5510,10 @@ class CommandLineTestCase(unittest.TestCase):
         lock = package_target_lease_path("demo", build_source._canonical(self.target))
         holder = hold_lease(self, lock, self.target, 600, 600)
         requested: list[int | None] = []
-        real_acquire = identity.acquire_waiting
+        real_acquire = identity.acquire_claim
         clock = RecordedClock()
 
-        def recording_acquire(lease, wait_seconds, deadline_ns=None):
+        def recording_acquire(leases, wait_seconds, deadline_ns=None, *args, **kwargs):
             requested.append(deadline_ns)
             # The run fixes its deadline once, when it starts: exactly the
             # 2 s bound after its one clock read. A deadline of any other
@@ -5519,12 +5521,12 @@ class CommandLineTestCase(unittest.TestCase):
             # before the run waits it out against the holder.
             self.assertEqual(len(clock.reads), 1)
             self.assertEqual(deadline_ns, clock.reads[0] + 2_000_000_000)
-            return real_acquire(lease, wait_seconds, deadline_ns)
+            return real_acquire(leases, wait_seconds, deadline_ns, *args, **kwargs)
 
         stderr = io.StringIO()
         with (
             redirect_stderr(stderr),
-            patch.object(identity, "acquire_waiting", side_effect=recording_acquire),
+            patch.object(identity, "acquire_claim", side_effect=recording_acquire),
             patch.object(identity, "time", clock),
         ):
             code = self.pre_push("--lease-wait-seconds", "2")

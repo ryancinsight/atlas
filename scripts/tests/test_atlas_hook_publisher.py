@@ -326,6 +326,134 @@ class PullRequestCommandTestCase(unittest.TestCase):
                 _lock_form.git_in(Path("member"), "status")
 
 
+class RetiredPathTestCase(unittest.TestCase):
+    """`--retire` deletes a file the hooks no longer read, with the sync."""
+
+    HOOK = [("pre-push", b"#!/bin/sh\nexit 0\n")]
+
+    def setUp(self) -> None:
+        """`commit-tree` reads the identity from the environment, which a CI
+        runner does not configure."""
+        identity = {
+            f"GIT_{role}_{field}": value
+            for role in ("AUTHOR", "COMMITTER")
+            for field, value in (("NAME", "t"), ("EMAIL", "t@t"))
+        }
+        patcher = patch.dict("os.environ", identity)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _member(self, root: Path, files: dict[str, str]) -> tuple[Path, str]:
+        repo = root / "member"
+        repo.mkdir()
+        run = lambda *args: subprocess.run(  # noqa: E731
+            ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+            check=True,
+            capture_output=True,
+            encoding="utf-8",
+        ).stdout.strip()
+        run("init", "-q", "-b", "main")
+        for name, text in files.items():
+            (repo / name).parent.mkdir(parents=True, exist_ok=True)
+            (repo / name).write_text(text, encoding="utf-8")
+            run("add", name)
+        run("commit", "-q", "-m", "base")
+        self.run_git = run
+        return repo, run("rev-parse", "HEAD")
+
+    def _tree_files(self, repo: Path, commit: str) -> set[str]:
+        return set(self.run_git("ls-tree", "-r", "--name-only", commit).splitlines())
+
+    def test_a_retired_file_leaves_the_commit_and_the_hook_arrives(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-retire-") as temp:
+            repo, base = self._member(
+                Path(temp), {"scripts/lockfile.py": "x\n", "scripts/other.py": "y\n"}
+            )
+            commit = _lock_form.hook_commit(
+                repo, base, self.HOOK, "sync", retired=("scripts/lockfile.py",)
+            )
+            self.assertEqual(
+                self._tree_files(repo, commit),
+                {".githooks/pre-push", "scripts/other.py"},
+            )
+
+    def test_a_retired_file_already_absent_leaves_a_current_member_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-retire-") as temp:
+            repo, base = self._member(Path(temp), {"scripts/other.py": "y\n"})
+            current = _lock_form.hook_commit(repo, base, self.HOOK, "sync")
+            self.assertIsNotNone(current)
+            self.assertIsNone(
+                _lock_form.hook_commit(
+                    repo, current, self.HOOK, "sync", retired=("scripts/lockfile.py",)
+                )
+            )
+
+    def test_only_a_retirement_makes_a_current_member_publishable(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-retire-") as temp:
+            repo, base = self._member(
+                Path(temp), {"scripts/lockfile.py": "x\n", "scripts/other.py": "y\n"}
+            )
+            current = _lock_form.hook_commit(repo, base, self.HOOK, "sync")
+            commit = _lock_form.hook_commit(
+                repo, current, self.HOOK, "sync", retired=("scripts/lockfile.py",)
+            )
+            self.assertIsNotNone(commit)
+            self.assertNotIn("scripts/lockfile.py", self._tree_files(repo, commit))
+
+    def test_unsafe_retired_paths_are_refused(self) -> None:
+        for path in ("/etc/passwd", "../x", "a/../b", "", "a//b", "a\\b"):
+            with redirect_stderr(io.StringIO()):
+                self.assertIsNone(_lock_form.retired_member_paths([path]), path)
+        self.assertEqual(
+            _lock_form.retired_member_paths(["scripts/lockfile.py"]), ["scripts/lockfile.py"]
+        )
+        self.assertEqual(_lock_form.retired_member_paths(None), [])
+
+    def test_the_cli_carries_each_retired_path_and_the_message_names_them(self) -> None:
+        captured: list[Namespace] = []
+        with (
+            patch.object(
+                sys,
+                "argv",
+                [
+                    "atlas-lock-form.py", "publish-hooks", "alpha", "--push",
+                    "--retire", "scripts/lockfile.py", "--retire", "scripts/b.py",
+                ],
+            ),
+            patch.object(
+                _lock_form,
+                "cmd_publish_hooks",
+                side_effect=lambda args: captured.append(args) or 0,
+            ),
+        ):
+            self.assertEqual(_lock_form.main(), 0)
+        self.assertEqual(captured[0].retire, ["scripts/lockfile.py", "scripts/b.py"])
+
+    def test_publication_passes_the_retired_paths_and_names_them_in_the_message(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-retire-") as temp:
+            root = Path(temp)
+            (root / "repos" / "alpha").mkdir(parents=True)
+            args = Namespace(
+                members=["alpha"], push=False, hook="pre-push", source_ref=None,
+                retire=["scripts/lockfile.py"],
+            )
+            git_results = iter(
+                ["", "refs/remotes/origin/main", "a" * 40, "aaaaaaaa", "", "origin/main", "b" * 40]
+            )
+            with (
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "REPOS", root / "repos"),
+                patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+                patch.object(_lock_form, "git_in", side_effect=lambda *_args: next(git_results)),
+                patch.object(_lock_form, "committed_hooks", return_value=self.HOOK),
+                patch.object(_lock_form, "hook_commit", return_value="built") as hook_commit,
+                redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
+            self.assertEqual(hook_commit.call_args.kwargs["retired"], ("scripts/lockfile.py",))
+            self.assertIn("`scripts/lockfile.py`", hook_commit.call_args.args[3])
+
+
 class PublisherScopeTestCase(unittest.TestCase):
     def test_cli_accepts_named_members(self) -> None:
         captured: list[Namespace] = []
