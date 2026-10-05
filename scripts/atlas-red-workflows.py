@@ -32,8 +32,9 @@ the eye to skip the list.
 
 `--first-error` costs one `gh run view --log-failed` per red run, and a
 cancelled row costs one `gh api .../jobs`; the default report is one
-`gh workflow list` per repository plus one `gh run list` per active
-workflow.
+`gh workflow list` per repository plus two `gh run list` per active
+workflow — two because the run list is only eventually consistent and a
+single stale page reads as a verdict (see `latest_completed_run`).
 """
 
 from __future__ import annotations
@@ -48,7 +49,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from atlas_stack import ROOT, git, registered_members  # noqa: E402
 
-RUN_FIELDS = "databaseId,workflowName,status,conclusion,headSha,createdAt,url,event"
+RUN_FIELDS = "databaseId,workflowName,status,conclusion,headSha,createdAt,url,event,headBranch"
 GREEN = {"success"}
 # GitHub's own Pages build workflow; it supersedes itself on every deploy and
 # nothing in the repository configures it, so its cancelled runs carry no signal.
@@ -141,6 +142,42 @@ def gh(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["gh", *args], capture_output=True, encoding="utf-8", errors="replace", check=False)
 
 
+# The two shapes `run_page` merges. The server-side `branch` filter is cheap
+# and usually current, but it indexes a branch's runs separately from the
+# workflow's own list, and that index can stop weeks back while the list is
+# current; the unfiltered shape is fresh but is a fixed page, so it is asked
+# for a wider window and filtered here.
+FILTERED_PAGE = ("--branch", "5")
+UNFILTERED_PAGE = ("--limit", "30")
+
+
+def run_page(slug: str, branch: str, workflow: str | int) -> list[dict]:
+    """A workflow's runs on `branch`, newest first, merged from two shapes.
+
+    Neither shape is reliably current, and they disagree: measured 2026-10-05,
+    kwavers's `CI/CD Pipeline` answered `2026-09-03` to `--branch main` — from
+    the CLI *and* from the branch-filtered REST endpoint — while the same
+    workflow's own run list carried a `2026-10-05` success, and atlas's
+    `atlas-conformance` was stale in the opposite shape minutes later. A run
+    present in either page is a run that exists, so both are fetched, filtered
+    to `branch`, and merged.
+    """
+    merged: dict[int, dict] = {}
+    for arguments in (("--branch", branch, "--limit", FILTERED_PAGE[1]),
+                      ("--limit", UNFILTERED_PAGE[1])):
+        page = gh("run", "list", "-R", slug, "--workflow", str(workflow),
+                  *arguments, "--json", RUN_FIELDS)
+        if page.returncode != 0:
+            continue
+        for run in json.loads(page.stdout or "[]"):
+            # The unfiltered shape carries other branches' runs; the filtered
+            # one is server-side and trusted as-is, so filtering here is a
+            # no-op for it and the guard for the other.
+            if run.get("headBranch") == branch:
+                merged.setdefault(run["databaseId"], run)
+    return sorted(merged.values(), key=lambda r: r.get("createdAt", ""), reverse=True)
+
+
 def latest_completed_run(slug: str, branch: str, workflow: str | int) -> dict | None:
     """The newest completed run of one workflow on `branch`, or None.
 
@@ -148,18 +185,17 @@ def latest_completed_run(slug: str, branch: str, workflow: str | int) -> dict | 
     whether something newer already exists: GitHub's own CodeQL setup
     supersedes its runs, so its newest *completed* run is routinely a
     cancellation with a success behind it and a fresh run ahead of it.
+
+    The page merges two query shapes (see `run_page`) because either alone can
+    be stale, and a stale page is *older*, never differently shaped: it hides
+    a fresh failure behind an older success, which is the one outcome this
+    collector exists to eliminate. Two false reds — atlas's
+    `atlas-conformance` and kwavers's `CI/CD Pipeline` — came from reading a
+    single stale page as the verdict.
     """
-    completed = gh("run", "list", "-R", slug, "--workflow", str(workflow), "--branch", branch,
-                   "--limit", "5", "--json", RUN_FIELDS)
-    if completed.returncode != 0:
-        return None
-    runs = sorted(json.loads(completed.stdout or "[]"),
-                  key=lambda r: r.get("createdAt", ""), reverse=True)
-    for index, run in enumerate(runs):
+    for index, run in enumerate(run_page(slug, branch, workflow)):
         if run.get("status") == "completed":
-            run = dict(run)
-            run["_superseded"] = index > 0
-            return run
+            return dict(run, _superseded=index > 0)
     return None
 
 

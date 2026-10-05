@@ -26,7 +26,8 @@ SPEC.loader.exec_module(red)
 
 def run(workflow: str, status: str, conclusion: str | None, sha: str) -> dict:
     return {"workflowName": workflow, "status": status, "conclusion": conclusion, "headSha": sha,
-            "databaseId": 1, "createdAt": "2026-09-02T00:00:00Z", "url": "u", "event": "push"}
+            "databaseId": 1, "createdAt": "2026-09-02T00:00:00Z", "url": "u", "event": "push",
+            "headBranch": "main"}
 
 
 class SelectionTests(unittest.TestCase):
@@ -174,6 +175,100 @@ class TriggerScopeTests(unittest.TestCase):
             self.assertFalse(red.only_trigger_is_workflow_call(text), text[:30])
 
 
+def at(iso: str, **fields) -> dict:
+    """A run fixture stamped at `iso`, with fields overriding the defaults."""
+    return run("ci", "completed", "failure", "sha") | {"createdAt": iso} | fields
+
+
+class PageMergeTests(unittest.TestCase):
+    """Neither query shape is reliably current, so `run_page` merges both.
+
+    Measured 2026-10-05: kwavers's `CI/CD Pipeline` answered `2026-09-03` to
+    `--branch main` — from the CLI *and* from the branch-filtered REST
+    endpoint — while the workflow's own run list carried a `2026-10-05`
+    success. atlas's `atlas-conformance` was stale in the other shape.
+    """
+
+    @staticmethod
+    def page(runs: list[dict]) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess([], 0, stdout=json.dumps(runs), stderr="")
+
+    def merge(self, *pages):
+        with patch.object(red, "gh", side_effect=list(pages)):
+            return red.run_page("owner/repo", "main", 1)
+
+    def test_a_run_only_the_unfiltered_shape_carries_survives(self) -> None:
+        stale = [at("2026-09-03T20:54:00Z", databaseId=1)]
+        fresh = [at("2026-10-05T03:58:00Z", conclusion="success", databaseId=2)]
+        merged = self.merge(self.page(stale), self.page(fresh))
+        self.assertEqual([r["databaseId"] for r in merged], [2, 1])
+        self.assertEqual(merged[0]["conclusion"], "success")
+
+    def test_other_branches_are_filtered_out_of_the_unfiltered_shape(self) -> None:
+        # The unfiltered page is a fixed window, so it carries side branches;
+        # only `branch` may reach the verdict.
+        merged = self.merge(self.page([]), self.page([
+            at("2026-10-05T14:41:00Z", headBranch="ci/gate-pins", databaseId=9),
+            at("2026-10-05T03:58:00Z", databaseId=2),
+        ]))
+        self.assertEqual([r["databaseId"] for r in merged], [2])
+
+    def test_a_run_both_shapes_carry_appears_once(self) -> None:
+        shared = at("2026-10-05T03:58:00Z", databaseId=2)
+        merged = self.merge(self.page([shared]), self.page([shared]))
+        self.assertEqual([r["databaseId"] for r in merged], [2])
+
+    def test_a_failed_shape_does_not_discard_the_other(self) -> None:
+        merged = self.merge(subprocess.CompletedProcess([], 1, stdout="", stderr="boom"),
+                            self.page([at("2026-10-05T03:58:00Z", databaseId=2)]))
+        self.assertEqual([r["databaseId"] for r in merged], [2])
+
+    def test_the_merge_is_ordered_newest_first(self) -> None:
+        merged = self.merge(self.page([at("2026-09-03T20:54:00Z", databaseId=1)]),
+                            self.page([at("2026-10-05T03:58:00Z", databaseId=3),
+                                       at("2026-10-04T08:22:00Z", databaseId=2)]))
+        self.assertEqual([r["databaseId"] for r in merged], [3, 2, 1])
+
+
+class StalePageTests(unittest.TestCase):
+    """A stale page hides a fresh failure behind an older success."""
+
+    def latest(self, runs: list[dict]) -> dict | None:
+        with patch.object(red, "run_page", return_value=runs):
+            return red.latest_completed_run("owner/repo", "main", 1)
+
+    def test_a_stale_page_no_longer_hides_the_newer_success(self) -> None:
+        # kwavers's false red: the branch filter stopped at 2026-09-03.
+        found = self.latest([at("2026-10-05T03:58:00Z", conclusion="success", databaseId=2),
+                             at("2026-09-03T20:54:00Z", databaseId=1)])
+        self.assertEqual(found["databaseId"], 2)
+        self.assertEqual(found["conclusion"], "success")
+        self.assertFalse(found["_superseded"], "the newest run has nothing ahead of it")
+
+    def test_a_fresh_failure_is_not_hidden_by_an_older_success(self) -> None:
+        # The direction that matters: a stale page must never report green.
+        found = self.latest([at("2026-10-05T15:12:00Z", conclusion="failure", databaseId=3),
+                             at("2026-10-04T08:22:00Z", conclusion="success", databaseId=2)])
+        self.assertEqual(found["conclusion"], "failure")
+
+    def test_a_newer_run_of_any_status_marks_the_completed_one_superseded(self) -> None:
+        found = self.latest([at("2026-10-05T11:00:00Z", status="queued", conclusion=None,
+                                databaseId=6),
+                             at("2026-10-05T10:00:00Z", conclusion="cancelled", databaseId=5)])
+        self.assertEqual(found["databaseId"], 5)
+        self.assertTrue(found["_superseded"])
+
+    def test_an_in_progress_run_is_not_the_verdict(self) -> None:
+        found = self.latest([at("2026-10-05T15:12:00Z", status="in_progress", conclusion="",
+                                databaseId=7),
+                             at("2026-10-05T03:58:00Z", conclusion="success", databaseId=2)])
+        self.assertEqual(found["databaseId"], 2)
+
+    def test_no_completed_run_is_none(self) -> None:
+        self.assertIsNone(self.latest([at("2026-10-05T15:12:00Z", status="queued",
+                                          conclusion=None, databaseId=7)]))
+
+
 class WorkflowTextTests(unittest.TestCase):
     """Reading a workflow file must never abort the fleet scan.
 
@@ -283,13 +378,13 @@ class SupersededTests(unittest.TestCase):
         listed = json.dumps([
             {"workflowName": "CodeQL", "status": "queued", "conclusion": None,
              "headSha": "d" * 8, "databaseId": 4, "createdAt": "2026-09-02T18:25:00Z",
-             "url": "u", "event": "dynamic"},
+             "url": "u", "event": "dynamic", "headBranch": "main"},
             {"workflowName": "CodeQL", "status": "completed", "conclusion": "cancelled",
              "headSha": "c" * 8, "databaseId": 3, "createdAt": "2026-09-02T18:15:00Z",
-             "url": "u", "event": "dynamic"},
+             "url": "u", "event": "dynamic", "headBranch": "main"},
             {"workflowName": "CodeQL", "status": "completed", "conclusion": "success",
              "headSha": "b" * 8, "databaseId": 2, "createdAt": "2026-09-02T18:04:00Z",
-             "url": "u", "event": "dynamic"},
+             "url": "u", "event": "dynamic", "headBranch": "main"},
         ])
         with patch.object(red, "gh", return_value=subprocess.CompletedProcess(
                 [], 0, stdout=listed, stderr="")):
@@ -301,7 +396,7 @@ class SupersededTests(unittest.TestCase):
         listed = json.dumps([
             {"workflowName": "ci", "status": "completed", "conclusion": "failure",
              "headSha": "a" * 8, "databaseId": 1, "createdAt": "2026-09-02T10:00:00Z",
-             "url": "u", "event": "push"},
+             "url": "u", "event": "push", "headBranch": "main"},
         ])
         with patch.object(red, "gh", return_value=subprocess.CompletedProcess(
                 [], 0, stdout=listed, stderr="")):
