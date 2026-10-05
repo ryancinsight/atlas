@@ -20,6 +20,7 @@
 <a id="atlas-check-figures-ci-verify-defer"></a>- [ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER](backlog/atlas-check-figures-ci-verify-defer.md) â€” End-to-end CI verification of `prebook check-figures` [minor] â€” todo
 <a id="atlas-ci-runner-saturation-2026-08-25"></a>- [ATLAS-CI-RUNNER-SATURATION-2026-08-25](backlog/atlas-ci-runner-saturation-2026-08-25.md) â€” Hosted-runner queue depth delays every merge gate [patch] â€” blocked
 <a id="atlas-code-index-001"></a>- [ATLAS-CODE-INDEX-001](backlog/atlas-code-index-001.md) â€” Search-ladder infrastructure for context economy [patch] â€” todo
+<a id="atlas-codec-roundtrip-001"></a>- [ATLAS-CODEC-ROUNDTRIP-001](backlog/atlas-codec-roundtrip-001.md) — Codec read/write asymmetry census [arch] [minor] — blocked
 <a id="atlas-coeus-nlls-004"></a>- [ATLAS-COEUS-NLLS-004](backlog/atlas-coeus-nlls-004.md) â€” original specification â€” todo
 <a id="atlas-conformance-submodule-status-2026-08-19"></a>- [ATLAS-CONFORMANCE-SUBMODULE-STATUS-2026-08-19](backlog/atlas-conformance-submodule-status-2026-08-19.md) â€” classify provider dirt after root status [patch] â€” todo
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) â€” 502 blanket suppressions the ratchet never counted [major] â€” todo
