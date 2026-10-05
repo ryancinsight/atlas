@@ -260,9 +260,12 @@ class SupervisorWatcherTests(unittest.TestCase):
             return real_write(descriptor, message)
 
         with patch.object(os, "write", side_effect=blocked_write):
-            self.start(EXPIRY_HOLD_SECONDS, ["atlas-no-such-executable-for-the-supervisor"])
-            self.assertTrue(write_started.wait(HANG_GUARD_SECONDS))
             try:
+                self.start(
+                    EXPIRY_HOLD_SECONDS,
+                    ["atlas-no-such-executable-for-the-supervisor"],
+                )
+                self.assertTrue(write_started.wait(HANG_GUARD_SECONDS))
                 self.assertTrue(
                     self.killed.wait(EXPIRY_HOLD_SECONDS + HANG_GUARD_SECONDS),
                     "deadline watcher could not retire while status write was blocked",

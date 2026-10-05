@@ -112,7 +112,7 @@
 <a id="atlas-identity-member-scope"></a>- [ATLAS-IDENTITY-MEMBER-SCOPE](backlog/atlas-identity-member-scope.md) â€” A commit cleans every gated package's in-repository closure [tightening] â€” todo
 <a id="atlas-provider-versions-20261001"></a>- [ATLAS-PROVIDER-VERSIONS-20261001](backlog/atlas-provider-versions-20261001.md) â€” Adopt melinoe 0.10, themis-topology 0.11, ritk-spatial 0.3 across consumers [arch] [minor] â€” todo
 <a id="atlas-bounded-runner"></a>- [ATLAS-BOUNDED-RUNNER](backlog/atlas-bounded-runner.md) â€” Launch every agent process through one bounded runner [patch] â€” todo
-<a id="atlas-process-tree-job-creation-001"></a>- [ATLAS-PROCESS-TREE-JOB-CREATION-001](backlog/atlas-process-tree-job-creation-001.md) â€” Atomically assign Windows roots to kill-on-close jobs at process creation [correctness] â€” todo
+<a id="atlas-process-tree-job-creation-001"></a>- [ATLAS-PROCESS-TREE-JOB-CREATION-001](backlog/atlas-process-tree-job-creation-001.md) â€” Atomically assign Windows roots to kill-on-close jobs at process creation [correctness] â€” blocked; re-open: bounded Windows CreateProcess-to-AssignProcessToJobObject caller-death test
 <a id="atlas-root-hook-test-timeouts"></a>- [ATLAS-ROOT-HOOK-TEST-TIMEOUTS](backlog/atlas-root-hook-test-timeouts.md) â€” Root hook tests time out under host load [patch] â€” todo
 <a id="atlas-alloc-count-per-thread"></a>- [ATLAS-ALLOC-COUNT-PER-THREAD](backlog/atlas-alloc-count-per-thread.md) â€” Count test allocations on the measuring thread only [patch] â€” todo
 <a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) â€” Run metis mutation jobs through the stack's process-tree owner [patch] â€” blocked
