@@ -90,7 +90,7 @@ jobs:
 
       - name: Select and verify the pending set
         id: plan
-        uses: ryancinsight/atlas/.github/actions/crates-pending@9d50b8b9bca0f55f122bb21c057e826ced9fec78
+        uses: ryancinsight/atlas/.github/actions/crates-pending@976fd63889108c8620f4a03a795068f7aea9ce91
         with:
           command: plan
           owner: ${{ inputs.owner }}
@@ -98,7 +98,7 @@ jobs:
   semver:
     needs: plan
     if: needs.plan.outputs.count != '0'
-    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@9d50b8b9bca0f55f122bb21c057e826ced9fec78
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@976fd63889108c8620f4a03a795068f7aea9ce91
     permissions:
       contents: read
     with:
@@ -138,7 +138,7 @@ jobs:
 
       - name: Publish what is still pending
         id: publish
-        uses: ryancinsight/atlas/.github/actions/crates-pending@9d50b8b9bca0f55f122bb21c057e826ced9fec78
+        uses: ryancinsight/atlas/.github/actions/crates-pending@976fd63889108c8620f4a03a795068f7aea9ce91
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         with:
@@ -152,7 +152,7 @@ jobs:
       # this step creates the missing releases.
       - name: Tag a release for each published version
         if: ${{ !cancelled() && steps.auth.outcome == 'success' }}
-        uses: ryancinsight/atlas/.github/actions/crates-pending@9d50b8b9bca0f55f122bb21c057e826ced9fec78
+        uses: ryancinsight/atlas/.github/actions/crates-pending@976fd63889108c8620f4a03a795068f7aea9ce91
         with:
           command: tag
           packages: ${{ needs.plan.outputs.packages }}
