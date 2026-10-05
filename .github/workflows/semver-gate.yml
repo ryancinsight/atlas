@@ -67,6 +67,23 @@
 # notice when none remain (ATLAS-SEMVER-NO-LIBRARY-TARGET). A mixed set
 # keeps every library crate gated; only the surface-less names drop out.
 #
+# Rotted registry baseline (why an unbuildable baseline skips rather than
+# fails): the registry baseline survives first-party version moves that
+# break a tag baseline (ATLAS-APOLLO-SEMVER-BASELINE-UNBUILDABLE), but it
+# can rot in place instead. leto 0.43.1 declares `aequitas ^0.2`; aequitas
+# 0.2.1 moved its eunomia requirement 0.8 -> 0.9 in a PATCH, so a fresh
+# resolution of the baseline admits both eunomia lines at once and the
+# published crate no longer compiles (Quantity::in_unit bounds across two
+# copies). The published artifact cannot be edited or republished, so no
+# future run can render a verdict for it: failing the release on it blocks
+# every later release of the member forever. When the comparison fails,
+# the gate therefore probes whether each registry baseline still builds
+# from a fresh resolution, re-runs the comparison over the crates whose
+# baselines do build, and skips only the rotted names with a notice
+# (ATLAS-SEMVER-BASELINE-ROT). A failure with every baseline buildable
+# still blocks the release: that is a verdict, or a current tree that does
+# not compile, and neither is this case.
+#
 # Inputs:
 #   package         - crate name(s), comma-separated (required)
 #   manifest-path   - path to Cargo.toml (default "Cargo.toml")
@@ -335,7 +352,13 @@ jobs:
             prev="$(git rev-list --max-parents=0 HEAD)"
           fi
           echo "baseline=$prev" >> "$GITHUB_OUTPUT"
-      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
+      - id: semver
+        # The step's failure is not the job's conclusion: a rotted registry
+        # baseline is indistinguishable from a verdict at this point, and the
+        # probe below separates them. The verdict step fails the job for
+        # everything the probe does not exonerate.
+        continue-on-error: true
+        uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
         # Skipped for a first publication against the registry baseline,
         # which the step above established by asking crates.io rather than by
         # inferring it from a failure, and when no selected crate has a
@@ -352,3 +375,99 @@ jobs:
           # against the latest published version of each package.
           baseline-rev: ${{ inputs.baseline-source == 'tag' && steps.baseline.outputs.baseline || '' }}
           verbose: true
+      - name: Probe whether each registry baseline can still build
+        id: baseline-probe
+        # Only a failed comparison needs the split: on success there is no
+        # question to answer, and a tag baseline's rot is documented at
+        # ATLAS-APOLLO-SEMVER-BASELINE-UNBUILDABLE instead.
+        if: >-
+          steps.semver.outcome == 'failure'
+          && inputs.baseline-source == 'registry'
+          && steps.baseline-exists.outputs.published == 'true'
+        env:
+          PACKAGE: ${{ steps.baseline-exists.outputs.packages }}
+          RUST_TOOLCHAIN: ${{ inputs.rust-toolchain }}
+        run: |
+          # One probe project per crate, depending on the published name at
+          # its latest version: exactly the resolution the comparison's
+          # baseline build performs. A crate whose baseline cannot compile
+          # here cannot compile there either, and the drift that broke it is
+          # outside this release's diff.
+          set -euo pipefail
+          rotted=()
+          buildable=()
+          IFS=, read -ra names <<<"$PACKAGE"
+          for name in "${names[@]}"; do
+            name="${name// /}"
+            [[ -n "$name" ]] || continue
+            probe="$RUNNER_TEMP/baseline-probe-$name"
+            log="$RUNNER_TEMP/baseline-probe-$name.log"
+            rm -rf "$probe"
+            cargo "+$RUST_TOOLCHAIN" new --lib "$probe" >/dev/null 2>&1
+            if ( cd "$probe" \
+              && cargo add "$name" >/dev/null 2>&1 \
+              && cargo doc -p "$name" --no-deps >"$log" 2>&1 ); then
+              buildable+=("$name")
+            else
+              echo "::notice::the published baseline of ${name} does not compile from a fresh registry resolution; see the probe log below"
+              cat "$log" 2>/dev/null || true
+              rotted+=("$name")
+            fi
+          done
+          {
+            echo "rotted=$(IFS=,; echo "${rotted[*]}")"
+            echo "others=$(IFS=,; echo "${buildable[*]}")"
+          } >> "$GITHUB_OUTPUT"
+      - id: semver-retry
+        # The verdict of the comparison for the crates whose baselines still
+        # build. A rotted sibling must not consume their verdict.
+        continue-on-error: true
+        if: >-
+          steps.baseline-probe.outputs.rotted != ''
+          && steps.baseline-probe.outputs.others != ''
+        uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
+        with:
+          package: ${{ steps.baseline-probe.outputs.others }}
+          manifest-path: ${{ inputs.manifest-path }}
+          rust-toolchain: ${{ inputs.rust-toolchain }}
+          # The registry baseline, like the comparison above.
+          baseline-rev: ''
+          verbose: true
+      - name: Render the release verdict
+        id: verdict
+        env:
+          COMPARISON: ${{ steps.semver.outcome }}
+          ROTTED: ${{ steps.baseline-probe.outputs.rotted }}
+          OTHERS: ${{ steps.baseline-probe.outputs.others }}
+          RETRY: ${{ steps.semver-retry.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$COMPARISON" = "skipped" ]; then
+            : # An earlier step reported why nothing was compared.
+          elif [ "$COMPARISON" = "success" ]; then
+            {
+              echo "### SemVer: no update required"
+              echo ""
+              echo "Every selected crate's manifest version covers the changes against its published baseline."
+            } >> "$GITHUB_STEP_SUMMARY"
+          elif [ -z "$ROTTED" ]; then
+            echo "cargo-semver-checks failed with every baseline buildable: a breaking change the manifest version does not cover, or a current tree that does not compile. The release is blocked." >&2
+            exit 1
+          elif [ -z "$OTHERS" ]; then
+            echo "::notice::no semver verdict is possible: the published baseline of every selected crate is unbuildable (registry drift), so the release continues without one"
+            {
+              echo "### SemVer: not comparable"
+              echo ""
+              echo "The published baseline of \`${ROTTED}\` no longer compiles from a fresh registry resolution (dependency drift outside this release), so \`cargo-semver-checks\` can render no verdict. The release continues un-gated for these names."
+            } >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$RETRY" = "success" ]; then
+            echo "::notice::the published baseline of ${ROTTED} is unbuildable (registry drift) and was not compared; every crate whose baseline still builds passed the comparison"
+            {
+              echo "### SemVer: partially comparable"
+              echo ""
+              echo "The published baseline of \`${ROTTED}\` no longer compiles from a fresh registry resolution (dependency drift outside this release), so those names are un-gated. \`${OTHERS}\` passed the comparison against their baselines."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "the re-run comparison over ${OTHERS} failed with every one of their baselines buildable: the release is blocked." >&2
+            exit 1
+          fi
