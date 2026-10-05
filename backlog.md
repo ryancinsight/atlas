@@ -1,7 +1,6 @@
 # atlas — cross-repository integration backlog
 <!-- Compacted 2026-09-21 under the 1,000-line board budget: a board is a queue, never a ledger, so closed sections and delivery narrative are gone -- the record of a closed item is the PR that closed it and its `Item:` trailer. Live items, open checkboxes, anchors and open-marked findings are kept. Recover removed narrative with `git log -p -- <this file>`. -->
 
-<a id="atlas-arch-005"></a>- [ATLAS-ARCH-005](backlog/atlas-arch-005.md) — Replace closed-set dyn dispatch in per-timestep paths [arch] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — todo
@@ -124,3 +123,6 @@
 <a id="atlas-lockfile-copy-count-content"></a>- [ATLAS-LOCKFILE-COPY-COUNT-CONTENT](backlog/atlas-lockfile-copy-count-content.md) — Count member lockfile checkers by content, not by path [patch] — todo
 <a id="atlas-lockfile-runner-deadline"></a>- [ATLAS-LOCKFILE-RUNNER-DEADLINE](backlog/atlas-lockfile-runner-deadline.md) — Bound the overlay-escaping cargo runner and delete its twin [patch] — todo
 <a id="atlas-lockfile-workspace-assignment"></a>- [ATLAS-LOCKFILE-WORKSPACE-ASSIGNMENT](backlog/atlas-lockfile-workspace-assignment.md) — Judge a manifest against the lock of its cargo workspace [patch] — todo
+<a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Delete the member lockfile.py copies the hooks no longer run [patch] — todo
+<a id="atlas-published-git-dep-rot-001"></a>- [ATLAS-PUBLISHED-GIT-DEP-ROT-001](backlog/atlas-published-git-dep-rot-001.md) — Published members carry floating git deps that rot every fresh resolution [arch] — todo
+<a id="atlas-trusted-publisher-bootstrap-001"></a>- [ATLAS-TRUSTED-PUBLISHER-BOOTSTRAP-001](backlog/atlas-trusted-publisher-bootstrap-001.md) — Register trusted publishing for the token-first-published crates [patch] — todo
