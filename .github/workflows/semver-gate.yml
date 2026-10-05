@@ -254,15 +254,59 @@ jobs:
             prev="$(git rev-list --max-parents=0 HEAD)"
           fi
           echo "baseline=$prev" >> "$GITHUB_OUTPUT"
-      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
-        # Skipped only for a first publication against the registry baseline,
-        # which the step above established by asking crates.io rather than by
-        # inferring it from a failure.
+      - name: Select the packages cargo-semver-checks can compare
+        id: checkable
         if: >-
           inputs.baseline-source != 'registry'
           || steps.baseline-exists.outputs.published == 'true'
+        env:
+          SELECTED: ${{ inputs.baseline-source == 'registry' && steps.baseline-exists.outputs.packages || inputs.package }}
+          MANIFEST: ${{ inputs.manifest-path }}
+        run: |
+          # cargo-semver-checks compares rustdoc API surfaces, and a proc-macro
+          # target has none it can read: asked to check one it exits 101 with
+          # "no crates with library targets selected, nothing to semver-check",
+          # failing a release over a crate whose surface it cannot compare at
+          # all. apollo, hermes and moirai each list a derive crate beside
+          # their libraries (apollo-fft-macros, hermes-simd-macros,
+          # moirai-async-macros), which makes the release gate unpassable for
+          # them however correct the manifest version is.
+          #
+          # The subset comes from the workspace metadata rather than from that
+          # failure, for the same reason the baseline step asks crates.io: an
+          # exit code cannot separate "nothing to compare" from "the comparison
+          # broke", and reading the second as the first would skip the gate on
+          # every release during a regression.
+          set -euo pipefail
+          cargo metadata --no-deps --format-version=1 --manifest-path "$MANIFEST" \
+            | python3 -c '
+          import json, os, sys
+
+          selected = [n.strip() for n in os.environ["SELECTED"].split(",") if n.strip()]
+          packages = json.load(sys.stdin)["packages"]
+          checkable = []
+          for name in selected:
+              targets = [t for p in packages if p["name"] == name for t in p["targets"]]
+              if any("lib" in t["crate_types"] for t in targets):
+                  checkable.append(name)
+              else:
+                  print(f"::notice::{name} exposes no library target cargo-semver-checks "
+                        f"can compare; skipping it.")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              if checkable:
+                  out.write("any=true\n")
+                  out.write("packages=" + ",".join(checkable) + "\n")
+              else:
+                  out.write("any=false\n")
+          '
+      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
+        # Skipped for a first publication against the registry baseline, which
+        # the step above established by asking crates.io rather than by
+        # inferring it from a failure, and when no selected package has a
+        # library target to compare.
+        if: steps.checkable.outputs.any == 'true'
         with:
-          package: ${{ inputs.baseline-source == 'registry' && steps.baseline-exists.outputs.packages || inputs.package }}
+          package: ${{ steps.checkable.outputs.packages }}
           manifest-path: ${{ inputs.manifest-path }}
           rust-toolchain: ${{ inputs.rust-toolchain }}
           # Empty for the registry baseline: cargo-semver-checks then compares

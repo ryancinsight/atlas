@@ -6,6 +6,7 @@ as a first publication, and skipped cargo-semver-checks for every multi-crate ca
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import stat
@@ -63,11 +64,15 @@ RELEASE_STEPS = [
     {"id": "baseline-exists", "if": "inputs.baseline-source == 'registry'",
      "env": {"PACKAGE": "${{ inputs.package }}"}},
     {"id": "baseline", "if": "inputs.baseline-source == 'tag'"},
-    {"uses": "obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239",
+    {"id": "checkable",
      "if": "inputs.baseline-source != 'registry' || steps.baseline-exists.outputs.published == 'true'",
+     "env": {"SELECTED": "${{ inputs.baseline-source == 'registry' && steps.baseline-exists.outputs.packages "
+                         "|| inputs.package }}",
+             "MANIFEST": "${{ inputs.manifest-path }}"}},
+    {"uses": "obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239",
+     "if": "steps.checkable.outputs.any == 'true'",
      "with": {
-         "package": "${{ inputs.baseline-source == 'registry' && steps.baseline-exists.outputs.packages "
-                    "|| inputs.package }}",
+         "package": "${{ steps.checkable.outputs.packages }}",
          "manifest-path": "${{ inputs.manifest-path }}",
          "rust-toolchain": "${{ inputs.rust-toolchain }}",
          "baseline-rev": "${{ inputs.baseline-source == 'tag' && steps.baseline.outputs.baseline || '' }}",
@@ -160,6 +165,103 @@ class BaselineSplitTests(unittest.TestCase):
         self.assertEqual(asked, ["a", "b"])
         self.assertEqual(outputs, {"published": "true", "packages": "a,b"})
 
+
+# cargo metadata --no-deps --format-version=1 --manifest-path <path>: print the fixture
+# workspace. Exits 99 on any other argument list, so the gate cannot read a malformed
+# invocation's output as a real workspace.
+STUB_CARGO = """\
+#!/usr/bin/env bash
+echo "$*" >> "$STUB_DIR/cargo-args"
+[[ "$1" == metadata && "$2" == --no-deps && "$3" == --format-version=1 && "$4" == --manifest-path ]] || exit 99
+[[ $# -eq 5 ]] || exit 99
+if [[ -f "$STUB_DIR/metadata-fails" ]]; then
+  echo "error: failed to parse manifest" >&2
+  exit 101
+fi
+cat "$STUB_DIR/metadata.json"
+"""
+
+METADATA = {
+    "packages": [
+        {"name": "libcrate", "targets": [
+            {"name": "libcrate", "kind": ["lib"], "crate_types": ["lib"]}]},
+        {"name": "derivecrate", "targets": [
+            {"name": "derivecrate", "kind": ["proc-macro"], "crate_types": ["proc-macro"]}]},
+        {"name": "bincrate", "targets": [
+            {"name": "bincrate", "kind": ["bin"], "crate_types": ["bin"]}]},
+        {"name": "bothcrate", "targets": [
+            {"name": "bothcrate", "kind": ["bin"], "crate_types": ["bin"]},
+            {"name": "bothcrate", "kind": ["lib"], "crate_types": ["lib"]}]},
+    ]
+}
+
+
+@unittest.skipUnless(shutil.which("bash") and shutil.which("python3"), "the gate step is bash + python3")
+class CheckableTargetTests(unittest.TestCase):
+    """A proc-macro crate has no API surface cargo-semver-checks can read.
+
+    Asked to check one it exits 101 with "no crates with library targets selected",
+    which failed apollo's release over a crate whose surface it cannot compare at all.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["semver-release"]["steps"]
+        cls.step = next(s for s in steps if s.get("id") == "checkable")
+
+    def run_step(self, selected: str, *, fails: bool = False, metadata: dict | None = None):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "bin").mkdir()
+            path = root / "bin" / "cargo"
+            path.write_text(STUB_CARGO, encoding="utf-8", newline="\n")
+            path.chmod(path.stat().st_mode | stat.S_IXUSR)
+            (root / "metadata.json").write_text(json.dumps(metadata or METADATA), encoding="utf-8")
+            if fails:
+                (root / "metadata-fails").write_text("", encoding="utf-8")
+            script = root / "step.sh"
+            script.write_text(self.step["run"], encoding="utf-8", newline="\n")
+            output = root / "out"
+            env = dict(os.environ, PATH=f"{root / 'bin'}{os.pathsep}{os.environ['PATH']}",
+                       STUB_DIR=str(root), GITHUB_OUTPUT=str(output),
+                       SELECTED=selected, MANIFEST="Cargo.toml")
+            proc = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True)
+            outputs = dict(l.split("=", 1) for l in output.read_text().splitlines()) if output.exists() else {}
+            args = (root / "cargo-args").read_text().splitlines() if (root / "cargo-args").exists() else []
+            return proc, outputs, args
+
+    def test_only_library_targets_are_passed_to_the_comparison(self) -> None:
+        proc, outputs, args = self.run_step("libcrate,derivecrate,bincrate,bothcrate")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(outputs, {"any": "true", "packages": "libcrate,bothcrate"})
+        self.assertIn("derivecrate exposes no library target", proc.stdout)
+        self.assertIn("bincrate exposes no library target", proc.stdout)
+        self.assertEqual(args, ["metadata --no-deps --format-version=1 --manifest-path Cargo.toml"])
+
+    def test_a_list_with_no_library_target_skips_the_comparison(self) -> None:
+        proc, outputs, _ = self.run_step("derivecrate,bincrate")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(outputs, {"any": "false"})
+
+    def test_a_name_absent_from_the_workspace_is_skipped_not_assumed(self) -> None:
+        # The caller's list is caller data; a typo must not be handed to the
+        # comparison, where it would fail as "no crates ... selected" instead.
+        proc, outputs, _ = self.run_step("libcrate,typo")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(outputs, {"any": "true", "packages": "libcrate"})
+        self.assertIn("typo exposes no library target", proc.stdout)
+
+    def test_whitespace_and_empty_entries_are_tolerated(self) -> None:
+        proc, outputs, _ = self.run_step(" libcrate , ,bothcrate")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(outputs, {"any": "true", "packages": "libcrate,bothcrate"})
+
+    def test_an_unreadable_workspace_fails_the_gate(self) -> None:
+        # Not knowing the workspace must not read as "nothing to compare".
+        proc, outputs, _ = self.run_step("libcrate", fails=True)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(outputs, {})
 
 
 if __name__ == "__main__":
