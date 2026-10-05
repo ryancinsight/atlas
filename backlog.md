@@ -123,3 +123,4 @@
 <a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — A patch release that raises a dependency floor breaks already-published crates [patch] — todo
 <a id="ritk-metis-revision-213"></a>- [RITK-METIS-REVISION-213](backlog/ritk-metis-revision-213.md) — The SNAP browser workflow pins a Métis revision the lock has moved past [patch] — todo
 <a id="atlas-coeus-reduction-oracle-005"></a>- [ATLAS-COEUS-REDUCTION-ORACLE-005](backlog/atlas-coeus-reduction-oracle-005.md) — The Metal reduction test's oracle rejects the ops it is meant to verify [patch] — todo
+<a id="atlas-moirai-main-diverged-2026-10-05"></a>- [ATLAS-MOIRAI-MAIN-DIVERGED-2026-10-05](backlog/atlas-moirai-main-diverged-2026-10-05.md) — moirai's checked-out `main` is 48 commits behind `origin/main` [git-hygiene] [patch] — todo
