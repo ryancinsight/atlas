@@ -7,7 +7,9 @@ import json
 import sys
 import time
 import uuid
+from contextlib import ExitStack
 from pathlib import Path
+from typing import Sequence
 
 from atlas_build_lock import (
     BuildIdentityError,
@@ -23,7 +25,7 @@ from atlas_build_lock import (
     _unlock,
     _write_record,
 )
-from atlas_build_queue import Ticket
+from atlas_build_queue import Ticket, conflicting
 
 
 class LeaseHeldError(BuildIdentityError):
@@ -264,56 +266,148 @@ def peek_owner(path: Path) -> dict[str, object] | None:
     return None
 
 
-def acquire_waiting(
-    lease: OwnerLease, wait_seconds: float, deadline_ns: int | None = None
-) -> OwnerLease:
-    """Enter `lease`, waiting while a live owner holds it or an earlier request is queued.
+def _pause(seconds: float) -> None:
+    time.sleep(seconds)
 
-    The request keeps one ticket for the whole wait, so a holder that releases
-    and asks again queues behind it. The wait ends when the lease is taken or
-    after `wait_seconds`; the latter raises without taking the lease. The OS
-    lock proves the owner is alive, so its recorded `expires_ns` only reports.
-    Callers acquire several leases in sorted scope order: a request waits only
-    on holders of its own lease, which wait only on later leases, or on
-    earlier requests for the same lease, so no wait forms a cycle. A caller
-    taking several leases passes one `deadline_ns` (monotonic) to bound them
-    together; `wait_seconds` then only names the bound in the refusal.
+
+def _held(path: Path, mode: str) -> bool:
+    """Whether a holder conflicts with a `mode` request for the lease at `path` right now."""
+    handle = _take(path, mode)
+    if handle is None:
+        return True
+    _release(handle, locked=True)
+    return False
+
+
+def _blocker(lease: OwnerLease) -> LeaseHeldError | None:
+    """What stops `lease`'s request from being taken now, or None.
+
+    A request waits for every conflicting request that arrived before it,
+    whether that one holds the lease or only waits for it. A request that
+    arrived after it conflicts only as a holder, which the lock decides.
     """
+    ticket = lease.ticket
+    before, after = conflicting(lease.path, lease.mode, ticket.place, ticket.path)
+    if before:
+        peer = peek_owner(before[0]) or {}
+        return LeaseHeldError(
+            f"source identity is queued behind {peer.get('root', 'unknown')} at "
+            f"{peer.get('revision', 'unknown')}; retry after it releases",
+            peer,
+        )
+    if after and _held(lease.path, lease.mode):
+        peer = peek_owner(lease.path) or peek_owner(after[0]) or {}
+        return LeaseHeldError(
+            f"source identity is owned by {peer.get('root', 'unknown')} at "
+            f"{peer.get('revision', 'unknown')}; retry after it releases",
+            peer,
+        )
+    return None
+
+
+def _release_all(leases: Sequence[OwnerLease]) -> None:
+    for lease in reversed(leases):
+        lease.__exit__(None, None, None)
+
+
+def _try_claim(leases: Sequence[OwnerLease]) -> tuple[OwnerLease, LeaseHeldError] | None:
+    """Take every lease or none; the first obstacle, or None when all are taken.
+
+    The request keeps its ticket at every lease of the claim from the first
+    look until the claim is released or refused, held or not, so a later
+    request cannot overtake it at any of them. It takes the locks only when no
+    earlier request conflicts at any lease and no holder does, and gives the
+    locks back, not the places, when a peer takes one between the look and the
+    take.
+    """
+    for lease in leases:
+        lease.reserve()
+    blocked = []
+    for lease in leases:
+        found = _blocker(lease)
+        if found is not None:
+            blocked.append((lease, found))
+    if blocked:
+        return blocked[0]
+    taken: list[OwnerLease] = []
+    try:
+        for lease in leases:
+            lease.attempt()
+            taken.append(lease)
+    except LeaseHeldError as error:
+        for held in reversed(taken):
+            held.unhold()
+        return lease, error
+    except BaseException:
+        _release_all(taken)
+        raise
+    return None
+
+
+def acquire_claim(
+    leases: Sequence[OwnerLease],
+    wait_seconds: float,
+    deadline_ns: int | None = None,
+    arrival_ns: int | None = None,
+    run_id: str | None = None,
+) -> ExitStack:
+    """Take every lease at once, waiting while a live owner holds one or an earlier request is queued.
+
+    The leases are taken together or not at all, and a request that cannot
+    take them holds no lock while it waits: it keeps only its place, a ticket,
+    at every lease it needs, so no later request overtakes it at any of them
+    and the earliest request can always proceed. A run therefore waits for the
+    requests that arrived before it and conflict, and for nothing a peer holds
+    only while it waits for something else. Every lease of the claim is queued
+    under one `arrival_ns` (the call's own time when omitted) and one `run_id`
+    (a fresh one when omitted), so the places, `(arrival, run)`, are ordered
+    the same in every queue and never tie, and a request that releases and
+    asks again with a later arrival queues behind the ones already waiting. The wait
+    ends when the leases are taken or at `deadline_ns` (`wait_seconds` from now
+    when omitted); the latter raises without taking any. The OS lock proves the
+    owner is alive, so its recorded `expires_ns` only reports.
+    """
+    leases = tuple(leases)
+    arrival = time.monotonic_ns() if arrival_ns is None else arrival_ns
     if deadline_ns is None:
         deadline_ns = time.monotonic_ns() + int(wait_seconds * 1_000_000_000)
-    try:
-        return _wait_for(lease, wait_seconds, deadline_ns)
-    except BaseException:
-        lease.dequeue()
-        raise
-
-
-def _wait_for(lease: OwnerLease, wait_seconds: float, deadline_ns: int) -> OwnerLease:
+    run = uuid.uuid4().hex if run_id is None else run_id
+    for lease in leases:
+        lease.arrival = arrival
+        lease.run = run
     delay = _WAIT_FIRST_SECONDS
     announced = None
-    while True:
-        try:
-            return lease.attempt()
-        except LeaseHeldError as error:
+    try:
+        while True:
+            refusal = _try_claim(leases)
+            if refusal is None:
+                stack = ExitStack()
+                for lease in leases:
+                    stack.push(lease)
+                return stack
+            blocked, error = refusal
             if wait_seconds <= 0:
-                raise
-            current = error.holder
-        owner = current.get("root", "unknown")
-        revision = current.get("revision", "unknown")
-        remaining_ns = deadline_ns - time.monotonic_ns()
-        if remaining_ns <= 0:
-            raise BuildIdentityError(
-                f"source identity lease {lease.path.name} is still held by {owner} at "
-                f"{revision} after waiting {wait_seconds:g} s (--lease-wait-seconds); "
-                "no artifact was touched"
-            )
-        if announced != (owner, revision):
-            print(
-                f"atlas-build-identity waiting: lease {lease.path.name} held by {owner} at "
-                f"{revision}; waiting up to {remaining_ns / 1e9:.0f} s",
-                file=sys.stderr,
-                flush=True,
-            )
-            announced = (owner, revision)
-        time.sleep(min(delay, remaining_ns / 1e9))
-        delay = min(delay * 2, _WAIT_MAX_SECONDS)
+                raise error
+            owner = error.holder.get("root", "unknown")
+            revision = error.holder.get("revision", "unknown")
+            remaining_ns = deadline_ns - time.monotonic_ns()
+            if remaining_ns <= 0:
+                raise BuildIdentityError(
+                    f"source identity lease {blocked.path.name} is still held by {owner} at "
+                    f"{revision} after waiting {wait_seconds:g} s (--lease-wait-seconds); "
+                    "no artifact was touched"
+                )
+            if announced != (blocked.path, owner, revision):
+                print(
+                    f"atlas-build-identity waiting: lease {blocked.path.name} held by {owner} at "
+                    f"{revision}; waiting up to {remaining_ns / 1e9:.0f} s",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                announced = (blocked.path, owner, revision)
+            _pause(min(delay, remaining_ns / 1e9))
+            delay = min(delay * 2, _WAIT_MAX_SECONDS)
+    except BaseException:
+        for lease in leases:
+            lease.dequeue()
+        raise
