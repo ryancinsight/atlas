@@ -87,6 +87,7 @@
 <a id="substrate-contract-measured"></a>- [ATLAS-SUBSTRATE-CONTRACT-MEASURED-2026-09-03](backlog/substrate-contract-measured.md) â€” The contract is already satisfied; the guard is preventive [patch] â€” todo
 <a id="atlas-target-001"></a>- [ATLAS-TARGET-001](backlog/atlas-target-001.md) â€” One build cache, one debug budget [patch] â€” todo
 <a id="atlas-third-party-check-always-red"></a>- [ATLAS-THIRD-PARTY-CHECK-ALWAYS-RED-2026-09-09](backlog/atlas-third-party-check-always-red.md) â€” A check that fails on every pull request [patch] â€” blocked
+<a id="atlas-trusted-publisher-bootstrap-001"></a>- [ATLAS-TRUSTED-PUBLISHER-BOOTSTRAP-001](backlog/atlas-trusted-publisher-bootstrap-001.md) - Register trusted publishing for the token-first-published crates [patch] - todo
 <a id="atlas-unwired-gates-224"></a>- [ATLAS-UNWIRED-GATES-224](backlog/atlas-unwired-gates-224.md) â€” Instruments that exist, pass, and are never run [patch] â€” todo
 <a id="atlas-us-capability-023"></a>- [ATLAS-US-CAPABILITY-023](backlog/atlas-us-capability-023.md) â€” ITKUltrasound capability parity [arch] â€” todo
 <a id="atlas-usct-fwi-024"></a>- [ATLAS-USCT-FWI-024](backlog/atlas-usct-fwi-024.md) â€” Transmission-USCT FWI parity [minor] â€” todo
