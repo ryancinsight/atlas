@@ -54,6 +54,12 @@ GREEN = {"success"}
 # nothing in the repository configures it, so its cancelled runs carry no signal.
 PLATFORM_WORKFLOWS = {"pages-build-deployment"}
 ERROR_LINE = re.compile(r"(##\[error\]|\berror(\[E\d+\])?:|\bpanicked at\b|FAILED|RATCHET VIOLATION|Process completed with exit code [1-9])")
+# `git show <rev>:<path>` says this when the repository does not carry the path
+# at that revision — which is the normal answer for a platform-managed workflow
+# and for one that exists only on a side branch. An unresolvable *revision*
+# ("unknown revision or path not in the working tree") is deliberately not
+# matched: that is a stale checkout, and it must still surface.
+PATH_ABSENT = re.compile(r"path '[^']*' (?:does not exist in|exists on disk, but not in)")
 
 
 def slug_of(repo: Path) -> str | None:
@@ -166,6 +172,25 @@ def active_workflows(slug: str) -> list[dict] | None:
     return [w for w in json.loads(completed.stdout or "[]") if w.get("state") == "active"]
 
 
+def workflow_text(repo: Path, branch: str, path: str) -> str:
+    """A workflow file's text, or '' when the repository does not carry the path.
+
+    GitHub lists its own workflows (CodeQL, the Dependabot graph updater,
+    Advanced Security) with a `dynamic/...` path that exists at no revision of
+    the repository, so `git show` fails on it. An unguarded call aborted the
+    entire fleet scan at the umbrella — the first repository visited — which
+    meant not one member was reported and the collector looked like a pass.
+    Their runs still carry a verdict, so they stay in the report; only the
+    trigger lookup has to tolerate a path it cannot read.
+    """
+    try:
+        return git(repo, "show", f"origin/{branch}:{path}")
+    except RuntimeError as error:
+        if PATH_ABSENT.search(str(error)):
+            return ""
+        raise
+
+
 def only_trigger_is_workflow_call(text: str) -> bool:
     """True when the workflow's only trigger is `workflow_call`.
 
@@ -193,7 +218,7 @@ def repository_runs(slug: str, branch: str, repo: Path | None = None) -> list[di
             continue
         path = workflow.get("path")
         if repo is not None and path:
-            if only_trigger_is_workflow_call(git(repo, "show", f"origin/{branch}:{path}") or ""):
+            if only_trigger_is_workflow_call(workflow_text(repo, branch, path)):
                 continue
         run = latest_completed_run(slug, branch, workflow["id"])
         if run is not None:

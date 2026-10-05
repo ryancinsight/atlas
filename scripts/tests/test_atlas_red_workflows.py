@@ -174,6 +174,107 @@ class TriggerScopeTests(unittest.TestCase):
             self.assertFalse(red.only_trigger_is_workflow_call(text), text[:30])
 
 
+class WorkflowTextTests(unittest.TestCase):
+    """Reading a workflow file must never abort the fleet scan.
+
+    GitHub lists its own workflows (CodeQL, the Dependabot graph updater,
+    Advanced Security) with a `dynamic/...` path that exists at no revision,
+    so `git show` fails on it. The unguarded call took the whole scan down at
+    the umbrella — the first repository visited — and every member went
+    unreported while the collector exited 0.
+    """
+
+    def _raising(self, message: str):
+        def fake(repo, *args):
+            raise RuntimeError(message)
+        return fake
+
+    def test_a_platform_managed_path_reads_as_empty(self) -> None:
+        original = red.git
+        try:
+            red.git = self._raising(
+                "fatal: path 'dynamic/github-code-scanning/codeql' does not exist in 'origin/main'")
+            self.assertEqual(red.workflow_text(Path("."), "main", "dynamic/github-code-scanning/codeql"), "")
+            red.git = self._raising(
+                "fatal: path 'x/y.yml' exists on disk, but not in 'origin/main'")
+            self.assertEqual(red.workflow_text(Path("."), "main", "x/y.yml"), "")
+        finally:
+            red.git = original
+
+    def test_a_path_the_repository_carries_is_returned_verbatim(self) -> None:
+        original = red.git
+        try:
+            red.git = lambda repo, *args: "on:\n  workflow_call:\n"
+            self.assertEqual(red.workflow_text(Path("."), "main", ".github/workflows/semver-gate.yml"),
+                             "on:\n  workflow_call:\n")
+        finally:
+            red.git = original
+
+    def test_an_unresolvable_revision_still_surfaces(self) -> None:
+        # A stale checkout is a defect in the measurement, not a platform-owned
+        # workflow, so it must not be silently folded into the empty string.
+        original = red.git
+        try:
+            red.git = self._raising(
+                "fatal: ambiguous argument 'origin/nope:ci.yml': unknown revision or path not in the working tree.")
+            with self.assertRaises(RuntimeError):
+                red.workflow_text(Path("."), "nope", "ci.yml")
+        finally:
+            red.git = original
+
+    def test_an_empty_read_keeps_the_workflow_in_the_report(self) -> None:
+        # '' is not a workflow_call-only file, so the row survives — CodeQL is
+        # a real merge gate and a red one has to be reported.
+        self.assertFalse(red.only_trigger_is_workflow_call(""))
+
+
+class RepositoryRunsTests(unittest.TestCase):
+    """The integration that crashed: the umbrella lists three platform-owned
+    workflows whose paths no revision carries, and the unguarded read took the
+    scan down before a single member was visited."""
+
+    WORKFLOWS = json.dumps([
+        {"name": "CodeQL", "state": "active", "id": 7,
+         "path": "dynamic/github-code-scanning/codeql"},
+        {"name": "Dependency Graph", "state": "active", "id": 8,
+         "path": "dynamic/dependabot/update-graph"},
+        {"name": "ci", "state": "active", "id": 9, "path": ".github/workflows/ci.yml"},
+        {"name": "retired", "state": "disabled_manually", "id": 10,
+         "path": ".github/workflows/retired.yml"},
+    ])
+
+    NAMES = {7: "CodeQL", 8: "Dependency Graph", 9: "ci", 10: "retired"}
+
+    def _gh(self, *args: str) -> subprocess.CompletedProcess[str]:
+        if args[:2] == ("workflow", "list"):
+            return subprocess.CompletedProcess([], 0, stdout=self.WORKFLOWS, stderr="")
+        # `gh run list --workflow <id>`: answer with that workflow's own run, so
+        # a mis-keyed row cannot pass as another workflow's.
+        name = self.NAMES[int(args[args.index("--workflow") + 1])]
+        return subprocess.CompletedProcess(
+            [], 0, stdout=json.dumps([{**run(name, "completed", "failure", "aaaa"),
+                                       "event": "dynamic"}]), stderr="")
+
+    def test_a_platform_owned_path_does_not_abort_the_scan(self) -> None:
+        def fake_git(repo, *args):
+            if "dynamic/" in " ".join(args):
+                raise RuntimeError(f"fatal: path '{args[-1].split(':', 1)[1]}' "
+                                   "does not exist in 'origin/main'")
+            return "on:\n  push:\n"
+        original_git, original_gh = red.git, red.gh
+        try:
+            red.git = fake_git
+            red.gh = self._gh
+            found = red.repository_runs("owner/repo", "main", Path("."))
+        finally:
+            red.git, red.gh = original_git, original_gh
+        self.assertEqual(sorted(r["workflowName"] for r in found),
+                         ["CodeQL", "Dependency Graph", "ci"],
+                         "the disabled workflow is dropped; the two platform ones survive")
+        self.assertEqual(sorted(r["workflowName"] for r in red.red_runs(found)),
+                         ["CodeQL", "Dependency Graph", "ci"])
+
+
 class SupersededTests(unittest.TestCase):
     def test_a_cancelled_run_with_a_newer_one_is_marked_superseded(self) -> None:
         # GitHub's CodeQL default setup cancels its own run when a newer one
