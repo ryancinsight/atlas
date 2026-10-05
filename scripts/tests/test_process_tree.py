@@ -96,6 +96,23 @@ EXITING_PARENT = textwrap.dedent(
 READY_SECONDS = HANG_GUARD_SECONDS
 
 
+def _readline_with_timeout(process: subprocess.Popen, timeout: float) -> bytes:
+    """Read one readiness line, terminating a stalled child within the budget."""
+    result: list[bytes] = []
+    reader = threading.Thread(
+        target=lambda: result.append(process.stdout.buffer.readline()),
+        daemon=True,
+    )
+    reader.start()
+    reader.join(timeout)
+    if reader.is_alive():
+        process.kill()
+        process.wait(timeout=timeout)
+        reader.join(timeout)
+        raise AssertionError("child readiness exceeded its deadline")
+    return result[0]
+
+
 def _lock_is_held(path: pathlib.Path) -> bool:
     """Report whether a live process holds the exclusive lock the child takes."""
     with path.open("r+b") as lock:
@@ -643,7 +660,11 @@ class ProcessTreeTests(unittest.TestCase):
         )
         self.addCleanup(holder.stdout.close)
         self.addCleanup(holder.kill)
-        self.assertTrue(holder.stdout.readline().startswith("child-ready "))
+        self.assertTrue(
+            _readline_with_timeout(holder, HANG_GUARD_SECONDS).startswith(
+                b"child-ready "
+            )
+        )
         self.assertTrue(_lock_is_held(lock))
 
         _reap_lock_holder(lock)

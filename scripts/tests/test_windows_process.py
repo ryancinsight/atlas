@@ -226,7 +226,7 @@ class WindowsTreeOwnershipTests(unittest.TestCase):
                 stdout=log,
                 stderr=subprocess.STDOUT,
             )
-        self.addCleanup(helper.wait)
+        self.addCleanup(helper.wait, READY_SECONDS)
         self.addCleanup(helper.kill)
         with listener:
             try:
