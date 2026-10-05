@@ -368,7 +368,10 @@ class GateFixture:
             package = {
                 "id": f"fixture:{name}",
                 "name": name,
+                "version": "0.1.0",
+                "source": None,
                 "manifest_path": manifest,
+                "dependencies": [],
             }
             if targets is not None and name in targets:
                 package["targets"] = targets[name]
@@ -379,6 +382,18 @@ class GateFixture:
                 {
                     "packages": packages,
                     "workspace_members": [package["id"] for package in packages],
+                    "workspace_root": "@ROOT@",
+                    "resolve": {
+                        "nodes": [
+                            {
+                                "id": package["id"],
+                                "dependencies": [],
+                                "deps": [],
+                                "features": [],
+                            }
+                            for package in packages
+                        ]
+                    },
                 }
             ),
         )
@@ -418,6 +433,14 @@ class GateFixture:
                 'if [ "$1" = "doc" ]; then\n'
                 '  printf "%s\\n" "${CARGO_FAIL_LOG//@ROOT@/$here}" >&2\n'
                 "  exit 1\n"
+                "fi\nexit 0\n"
+            )
+        elif mode == "mutate-source-on-doc":
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'pwd >> "$FIXTURE_ROOT/cwd.log"\n'
+                'if [ "$1" = "doc" ]; then\n'
+                '  printf "\\nmutation\\n" >> "$CARGO_MUTATE_SOURCE"\n'
                 "fi\nexit 0\n"
             )
         elif mode == "fmt-by-content":
@@ -467,6 +490,7 @@ class GateFixture:
             '  sed "s|@ROOT@|$here|g" "$FIXTURE_ROOT/bin/metadata.json"\n'
             "  exit 0\n"
             "fi\n"
+            'if [ "$1" = "doc" ]; then printf "%s" "${RUSTDOCFLAGS:-}" > "$FIXTURE_ROOT/rustdoc-flags.log"; fi\n'
             + body,
             executable=True,
         )
@@ -596,6 +620,47 @@ _PASSTHROUGH_IDENTITY = (
     "           for value in argv[argv.index('--') + 1:]]\n"
     "raise SystemExit(subprocess.run(command, cwd=cwd).returncode)\n"
 )
+
+
+def _recording_passthrough_identity(log: pathlib.Path) -> str:
+    """Record one checker invocation, then run its command with fixture tools."""
+    return (
+        "import json, pathlib, subprocess, sys\n"
+        "argv = sys.argv[1:]\n"
+        "cwd = argv[argv.index('--command-cwd') + 1]\n"
+        "command = argv[argv.index('--') + 1:]\n"
+        f"with pathlib.Path({str(log)!r}).open('a', encoding='utf-8') as stream:\n"
+        "    stream.write(json.dumps(command) + '\\n')\n"
+        "raise SystemExit(subprocess.run(command, cwd=cwd).returncode)\n"
+    )
+
+
+def _recording_identity_invocation(log: pathlib.Path) -> str:
+    """Record a complete checker invocation, then execute its build command."""
+    return (
+        "import json, pathlib, subprocess, sys\n"
+        "argv = sys.argv[1:]\n"
+        "root = argv[argv.index('--root') + 1]\n"
+        "cwd = argv[argv.index('--command-cwd') + 1]\n"
+        "head = subprocess.run(['git', '-C', root, 'rev-parse', 'HEAD'], "
+        "capture_output=True, check=True, text=True).stdout.strip()\n"
+        f"with pathlib.Path({str(log)!r}).open('a', encoding='utf-8') as stream:\n"
+        "    stream.write(json.dumps({'path': __file__, 'argv': argv, "
+        "'root_head': head}) + '\\n')\n"
+        "command = argv[argv.index('--') + 1:]\n"
+        "raise SystemExit(subprocess.run(command, cwd=cwd).returncode)\n"
+    )
+
+
+def _install_real_identity(stack: pathlib.Path) -> None:
+    """Install the production identity CLI and its modules in a fixture stack."""
+    source = SCRIPT.parents[1]
+    destination = stack / "scripts"
+    destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source / "atlas-build-identity.py", destination)
+    shutil.copy2(source / "atlas_claim_log.py", destination)
+    for module in source.glob("atlas_build_*.py"):
+        shutil.copy2(module, destination)
 
 
 def _git_init_repo(root: pathlib.Path) -> None:
@@ -2044,6 +2109,7 @@ class LaneGateTestCase(unittest.TestCase):
             _write(fixture.bin / "metadata.json", json.dumps(metadata))
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+        env["CARGO"] = str(fixture.cargo_launcher)
         env["TMPDIR"] = fixture.tmp.as_posix()
         env.pop("CARGO_TARGET_DIR", None)
         env.update(extra_env or {})
@@ -2096,27 +2162,75 @@ class LaneGateTestCase(unittest.TestCase):
         log = stack / "identity-commands.log"
         _write(
             stack / "scripts" / "atlas-build-identity.py",
-            "import pathlib, sys\n"
-            f"log = pathlib.Path({str(log)!r})\n"
-            "command = sys.argv[sys.argv.index('--') + 1:]\n"
-            "with log.open('a', encoding='utf-8') as stream:\n"
-            "    stream.write(' '.join(command) + '\\n')\n",
+            _recording_passthrough_identity(log),
         )
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
-        commands = [line.split() for line in log.read_text(encoding="utf-8").splitlines()]
-        self.assertTrue(any("clippy" in command for command in commands), commands)
-        for command in commands:
-            self.assertIn(command[0], ("cargo", "env"), command)
-            cargo = command.index("cargo")
-            manifest = command.index("--manifest-path")
-            self.assertGreater(manifest, cargo + 1, command)
-            exported = pathlib.Path(command[manifest + 1])
-            self.assertEqual((exported.parent.name, exported.name), ("foo-lane", "Cargo.toml"))
-            self.assertNotIn(
-                os.path.normcase(str(stack.resolve())),
-                os.path.normcase(str(exported.resolve())),
-            )
+        commands = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(len(commands), 1, commands)
+        self.assertEqual(commands[0][0:2], ["bash", "-c"], commands[0])
+        manifests = [pathlib.Path(value) for value in commands[0] if value.endswith("Cargo.toml")]
+        self.assertEqual(len(manifests), 1, commands[0])
+        exported = manifests[0]
+        self.assertEqual((exported.parent.name, exported.name), ("foo-lane", "Cargo.toml"))
+        self.assertNotIn(
+            os.path.normcase(str(stack.resolve())),
+            os.path.normcase(str(exported.resolve())),
+        )
+        cargo_calls = fixture.calls.read_text(encoding="utf-8").splitlines()
+        stages = [line for line in cargo_calls if line.split()[0] in {"clippy", "nextest", "doc"}]
+        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        self.assertIn("--all-targets --locked -p foo", stages[0])
+        self.assertIn("--locked --no-tests=pass -p foo", stages[1])
+        self.assertIn("--no-deps", stages[2])
+        self.assertTrue(all("--manifest-path" in line for line in stages), stages)
+        self.assertEqual((fixture.root / "rustdoc-flags.log").read_text(), "-D warnings")
+
+    def test_identity_clippy_failure_stops_before_tests_and_rustdoc(self) -> None:
+        stack, fixture, lane = self._lane(overlay=True)
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            _recording_passthrough_identity(stack / "identity-commands.log"),
+        )
+        fixture.set_cargo_behavior("fail-clippy-ours")
+        code, err = self._run_in_lane(
+            fixture,
+            lane,
+            extra_env={"CARGO_FAIL_LOG": self.inside_log.format(root="@ROOT@")},
+            target_directory=stack / "target",
+        )
+
+        self.assertEqual(code, 1, err)
+        stages = [
+            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual(stages, ["clippy"])
+        self.assertIn("clippy fails for", err)
+
+    def test_identity_rejects_a_source_mutation_after_the_sequence(self) -> None:
+        stack, fixture, lane = self._lane(overlay=True)
+        _install_real_identity(stack)
+        fixture.set_cargo_behavior("mutate-source-on-doc")
+        code, err = self._run_in_lane(
+            fixture,
+            lane,
+            extra_env={"CARGO_MUTATE_SOURCE": "crates/foo/src/lib.rs"},
+            target_directory=stack / "target",
+        )
+
+        self.assertEqual(code, 1, err)
+        stages = [
+            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual(stages, ["clippy", "nextest", "doc"], err)
+        self.assertIn("source identity blocked verification", err)
+        self.assertIn("source tree changed while the build was running", err)
+        records = list(
+            (stack / "target" / ".atlas" / "source-identity").glob("*.json")
+        )
+        self.assertEqual(records, [], "a mutated source must not receive a build record")
 
     def test_a_new_member_gates_each_package_once_by_its_exact_name(self) -> None:
         """A root-manifest change gates every member under its exact name.
@@ -2155,9 +2269,9 @@ class LaneGateTestCase(unittest.TestCase):
         gated = gating[0].removeprefix("pre-push: gating ").split(" ")
         self.assertEqual(sorted(gated), ["bar", "foo"], repr(gating[0]))
         runs = log.read_text(encoding="utf-8").splitlines()
-        # One identity run per step (clippy, tests, rustdoc), each naming
-        # every gated package: the checker leases and queues once per step.
-        self.assertEqual(len(runs), 3, runs)
+        # One identity run names every gated package and holds their leases
+        # across the complete clippy, tests, and rustdoc sequence.
+        self.assertEqual(len(runs), 1, runs)
         self.assertEqual({frozenset(run.split()) for run in runs}, {frozenset({"'bar'", "'foo'"})})
 
     def test_a_package_without_test_targets_skips_only_the_tests_step(self) -> None:
@@ -2180,19 +2294,7 @@ class LaneGateTestCase(unittest.TestCase):
         log = stack / "identity-steps.log"
         _write(
             stack / "scripts" / "atlas-build-identity.py",
-            "import pathlib, sys\n"
-            f"log = pathlib.Path({str(log)!r})\n"
-            "packages = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--package']\n"
-            "build = sys.argv[sys.argv.index('--') + 1:]\n"
-            "command = build[1]\n"
-            "selection = [build[i + 1] for i, v in enumerate(build) if v == '-p']\n"
-            "named = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--selection']\n"
-            "with log.open('a', encoding='utf-8', newline='') as stream:\n"
-            "    stream.write('run ' + command + '\\n')\n"
-            "    stream.write('cargo ' + command + ' -p ' + ' '.join(sorted(selection)) + '\\n')\n"
-            "    stream.write('selection ' + command + ' ' + ' '.join(sorted(named)) + '\\n')\n"
-            "    for package in packages:\n"
-            "        stream.write(package + ' ' + command + '\\n')\n",
+            _recording_passthrough_identity(log),
         )
         bar_targets = {"bar": [{"kind": ["cdylib"], "test": False, "doc": True}]}
         fixture.set_workspace_packages(["foo", "bar"], targets=bar_targets)
@@ -2202,41 +2304,21 @@ class LaneGateTestCase(unittest.TestCase):
         )
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
-        lines = log.read_text(encoding="utf-8").splitlines()
-        self.assertEqual(
-            [line for line in lines if line.startswith("run ")],
-            ["run clippy", "run nextest", "run RUSTDOCFLAGS=-D warnings"],
-        )
-        # Every step's one cargo command builds every gated package, never the
-        # workspace's default members, and its identity run is told the same
-        # set: cargo unifies features across the command's packages, so steps
-        # naming different sets would each clean what the next one's record
-        # names. `bar` has no test target, so only the other two steps record it.
-        self.assertEqual(
-            [line for line in lines if line.startswith("cargo ")],
-            [
-                "cargo clippy -p bar foo",
-                "cargo nextest -p bar foo",
-                "cargo RUSTDOCFLAGS=-D warnings -p bar foo",
-            ],
-        )
-        self.assertEqual(
-            [line for line in lines if line.startswith("selection ")],
-            [
-                "selection clippy bar foo",
-                "selection nextest bar foo",
-                "selection RUSTDOCFLAGS=-D warnings bar foo",
-            ],
-        )
-        steps = set(lines)
-        self.assertIn("foo nextest", steps)
-        self.assertNotIn("bar nextest", steps)
-        self.assertIn("bar clippy", steps)
-        self.assertIn("bar RUSTDOCFLAGS=-D warnings", steps)
+        self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
+        stages = [
+            line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        for line in stages:
+            values = line.split()
+            self.assertEqual(
+                [values[index + 1] for index, value in enumerate(values) if value == "-p"],
+                ["foo", "bar"],
+            )
 
-    def test_a_step_with_no_package_runs_no_identity_check(self) -> None:
-        """Every gated package undocumented: the rustdoc step names none, and
-        an identity run given no `--package` would refuse the push."""
+    def test_all_undocumented_packages_skip_only_rustdoc(self) -> None:
+        """Every gated package undocumented: the one identity run omits rustdoc."""
         stack, fixture, lane = self._lane(overlay=True)
         _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
         _write(
@@ -2249,14 +2331,7 @@ class LaneGateTestCase(unittest.TestCase):
         log = stack / "identity-steps.log"
         _write(
             stack / "scripts" / "atlas-build-identity.py",
-            "import pathlib, sys\n"
-            f"log = pathlib.Path({str(log)!r})\n"
-            "packages = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--package']\n"
-            "if not packages:\n"
-            "    sys.exit('atlas-build-identity: the following arguments are required: --package')\n"
-            "command = sys.argv[sys.argv.index('--') + 1:]\n"
-            "with log.open('a', encoding='utf-8', newline='') as stream:\n"
-            "    stream.write(('doc' if 'doc' in command else 'other') + '\\n')\n",
+            _recording_passthrough_identity(log),
         )
         undocumented = {"kind": ["lib"], "doc": False}
         original = fixture.set_workspace_packages
@@ -2266,7 +2341,12 @@ class LaneGateTestCase(unittest.TestCase):
         fixture.set_workspace_packages(["foo", "bar"])
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
-        self.assertEqual(log.read_text(encoding="utf-8").splitlines(), ["other", "other"])
+        self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
+        stages = [
+            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual(stages, ["clippy", "nextest"])
         self.assertIn("rustdoc skipped for foo", err)
         self.assertIn("rustdoc skipped for bar", err)
 
@@ -2291,14 +2371,7 @@ class LaneGateTestCase(unittest.TestCase):
         log = stack / "identity-steps.log"
         _write(
             stack / "scripts" / "atlas-build-identity.py",
-            "import pathlib, sys\n"
-            f"log = pathlib.Path({str(log)!r})\n"
-            "packages = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--package']\n"
-            "command = sys.argv[sys.argv.index('--') + 1:]\n"
-            "step = 'doc' if 'doc' in command else 'other'\n"
-            "with log.open('a', encoding='utf-8', newline='') as stream:\n"
-            "    for package in packages:\n"
-            "        stream.write(f'{package} {step}\\n')\n",
+            _recording_passthrough_identity(log),
         )
         lib = {"kind": ["lib"], "doc": True}
         original = fixture.set_workspace_packages
@@ -2313,12 +2386,18 @@ class LaneGateTestCase(unittest.TestCase):
         fixture.set_workspace_packages(["foo", "bar", "baz"])
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
-        steps = set(log.read_text(encoding="utf-8").splitlines())
-        self.assertIn("foo doc", steps)
-        self.assertNotIn("bar doc", steps)
-        self.assertNotIn("baz doc", steps)
-        self.assertIn("bar other", steps)
-        self.assertIn("baz other", steps)
+        self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
+        stages = [
+            line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        for line in stages:
+            values = line.split()
+            self.assertEqual(
+                [values[index + 1] for index, value in enumerate(values) if value == "-p"],
+                ["foo", "bar", "baz"],
+            )
         self.assertIn("rustdoc skipped for bar", err)
 
     def test_a_reproduce_line_is_a_runnable_command(self) -> None:
@@ -3257,14 +3336,7 @@ class SourceIdentityGateTestCase(unittest.TestCase):
             log = stack / "identity-args.log"
             _write(
                 stack / "scripts" / "atlas-build-identity.py",
-                "import os, pathlib, subprocess, sys\n"
-                f"log = pathlib.Path({str(log)!r})\n"
-                "root = sys.argv[sys.argv.index('--root') + 1]\n"
-                "head = subprocess.run(['git', '-C', root, 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()\n"
-                "with log.open('a', encoding='utf-8') as stream:\n"
-                "    stream.write(' '.join([*sys.argv[1:], 'root-head=' + head]) + '\\n')\n"
-                "command = [os.environ.get('CARGO', 'cargo') if value == 'cargo' else value for value in sys.argv[sys.argv.index('--') + 1:]]\n"
-                "raise SystemExit(subprocess.run(command).returncode)\n",
+                _recording_identity_invocation(log),
             )
             _publish_stack_scripts(stack)
 
@@ -3272,18 +3344,20 @@ class SourceIdentityGateTestCase(unittest.TestCase):
 
             self.assertEqual(code, 0, stderr)
             lines = log.read_text(encoding="utf-8").splitlines()
-            self.assertTrue(
-                any("cargo clippy --manifest-path" in line and "-p foo" in line for line in lines),
-                lines,
-            )
-            first = lines[0].split()
+            self.assertEqual(len(lines), 1, lines)
+            invocation = json.loads(lines[0])
+            first = invocation["argv"]
+            command = first[first.index("--") + 1:]
+            self.assertEqual(command[0:2], ["bash", "-c"], command)
+            self.assertIn('"$cargo_command" clippy --manifest-path', command[2])
+            self.assertEqual(command[-2:], ["-p", "foo"])
             self.assertEqual(first[0], "run")
             self.assertEqual(first[first.index("--package") + 1], "foo")
             # One key for the step; the record is per package regardless.
             self.assertEqual(first[first.index("--command-key") + 1], "atlas-pre-push")
             self.assertNotIn("--ignore-path", first)
             pushed = _git(fixture.root, "rev-parse", "feat")
-            self.assertEqual(first[-1], f"root-head={pushed}")
+            self.assertEqual(invocation["root_head"], pushed)
             exported = pathlib.Path(first[first.index("--root") + 1]).resolve()
             self.assertNotIn(
                 os.path.normcase(str(stack.resolve())), os.path.normcase(str(exported))
@@ -3340,7 +3414,7 @@ class StackToolBaselineTestCase(unittest.TestCase):
             identity_log = stack / "identity-args.log"
             _write(
                 stack / "scripts" / "atlas-build-identity.py",
-                _recording_tool(identity_log, 0),
+                _recording_identity_invocation(identity_log),
             )
             _publish_stack_scripts(stack, ("atlas-build-identity.py",))
 
@@ -3349,14 +3423,27 @@ class StackToolBaselineTestCase(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             self.assertNotIn("identity checker is missing", stderr)
             lines = identity_log.read_text(encoding="utf-8").splitlines()
-            self.assertTrue(lines, "the identity checker did not run")
-            ran_from, mode, *argv = lines[0].split()
+            self.assertEqual(len(lines), 1, lines)
+            invocation = json.loads(lines[0])
+            ran_from = invocation["path"]
+            argv = invocation["argv"]
             self.assertTrue(self._extracted(stack, ran_from), ran_from)
-            self.assertEqual(mode, "run")
+            self.assertEqual(argv[0], "run")
             self.assertEqual(argv[argv.index("--package") + 1], "foo")
-            self.assertTrue(
-                any("cargo clippy" in line and "-p foo" in line for line in lines), lines
-            )
+            command = argv[argv.index("--") + 1:]
+            self.assertEqual(command[0:2], ["bash", "-c"], command)
+            self.assertIn('"$cargo_command" clippy --manifest-path', command[2])
+            stages = [
+                line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+                if line.split()[0] in {"clippy", "nextest", "doc"}
+            ]
+            self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+            for line in stages:
+                values = line.split()
+                self.assertEqual(
+                    [values[index + 1] for index, value in enumerate(values) if value == "-p"],
+                    ["foo"],
+                )
 
     def test_a_tool_changed_only_in_the_checkout_is_not_run(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
