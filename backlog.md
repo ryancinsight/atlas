@@ -121,3 +121,4 @@
 <a id="atlas-root-hook-tip-controlled"></a>- [ATLAS-ROOT-HOOK-TIP-CONTROLLED](backlog/atlas-root-hook-tip-controlled.md) — A pushed tip can replace the root hook that gates it [correctness] — todo
 <a id="atlas-test-tempdir-leaks"></a>- [ATLAS-TEST-TEMPDIR-LEAKS](backlog/atlas-test-tempdir-leaks.md) — Atlas Python tests leave temp directories behind [tightening] [patch] — todo
 <a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — A patch release that raises a dependency floor breaks already-published crates [patch] — todo
+<a id="ritk-metis-revision-213"></a>- [RITK-METIS-REVISION-213](backlog/ritk-metis-revision-213.md) — The SNAP browser workflow pins a Métis revision the lock has moved past [patch] — todo
