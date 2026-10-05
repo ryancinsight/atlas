@@ -256,14 +256,19 @@ class SupervisorWatcherTests(unittest.TestCase):
         def blocked_write(descriptor: int, message: bytes) -> int:
             if descriptor == self.status_write:
                 write_started.set()
-                self.assertTrue(release_write.wait(HANG_GUARD_SECONDS))
+                release_write.wait()
             return real_write(descriptor, message)
 
         with patch.object(os, "write", side_effect=blocked_write):
             self.start(EXPIRY_HOLD_SECONDS, ["atlas-no-such-executable-for-the-supervisor"])
             self.assertTrue(write_started.wait(HANG_GUARD_SECONDS))
-            self.assertTrue(self.killed.wait(EXPIRY_HOLD_SECONDS + HANG_GUARD_SECONDS))
-            release_write.set()
+            try:
+                self.assertTrue(
+                    self.killed.wait(EXPIRY_HOLD_SECONDS + HANG_GUARD_SECONDS),
+                    "deadline watcher could not retire while status write was blocked",
+                )
+            finally:
+                release_write.set()
 
         self.worker.join(HANG_GUARD_SECONDS)
         self.assertFalse(self.worker.is_alive(), "blocked report outlived its supervisor")
@@ -339,7 +344,7 @@ class PosixCallerDeathTests(unittest.TestCase):
             stderr=self.log,
         )
         self.addCleanup(helper.stdout.close)
-        self.addCleanup(helper.wait)
+        self.addCleanup(helper.wait, HANG_GUARD_SECONDS)
         self.addCleanup(helper.kill)
         # The helper reports its supervisor's pid, which is the group's leader
         # and its identifier. The group is retired on every exit from the test,
