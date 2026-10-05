@@ -1,0 +1,8 @@
+<a id="atlas-lockfile-workspace-assignment"></a>
+## ATLAS-LOCKFILE-WORKSPACE-ASSIGNMENT — Judge a manifest against the lock of its cargo workspace [patch] — todo
+- priority: correctness
+- outcome: the standalone-lock rule assigns each manifest to the lock of the cargo workspace it belongs to, not to the lock whose directory contains it, so no manifest outside a lock's directory escapes the rule and no unrelated workspace exempts a lock.
+- evidence (basis: b2741da1b3d3, judge probes through `judge_locks`): `workspace_facts` and `workspace_units` (`scripts/lockfile.py:464-528`) group by containing directory. Three misses: a workspace member outside the lock directory (`members = ["../shared"]`) whose git dependency lost its source is not flagged; an `exclude`d crate named like a git dependency shadows a stripped source; a lockless nested workspace with a `path` leaving the repository makes the root lock exempt. None occurs at the 28 recorded gitlinks (33 locks, 0 problems, 1 exempt). A stripped root lock still fails `--locked` at push and in CI, but the commit-time check and the conformance sweep skip it in the third case.
+- acceptance: a test per probe fails on today's rule and passes on the new one; the 28 gitlinks still give 0 problems.
+- scope: `scripts/lockfile.py` (`workspace_facts`, `workspace_units`), `scripts/tests/test_lockfile_form.py`.
+- next step: take membership from the `[workspace]` `members` and `exclude` lists (stdlib `tomllib`, glob expansion included) and key each manifest to the lock of its workspace root; `cargo metadata --no-deps` is the oracle the tests compare against.

@@ -10,9 +10,10 @@ name: Lockfile integrity (shared guard)
 # into one benchmark workflow and nowhere else.
 #
 # CI centralization: the shared workflow checks out Atlas and runs Atlas's
-# canonical `scripts/lockfile.py`, so members need not carry the script for CI
-# purposes. The local pre-commit and pre-push hooks run the copy the repository
-# carries.
+# canonical `scripts/lockfile.py`, so members need not carry the script. The
+# member pre-commit and pre-push hooks run the same script from the stack's
+# fetched default branch, never a member's copy (the conformance
+# `member_lockfile_copies` class counts those copies).
 #
 # Every lock in the caller is judged by the rule ADR-0044 defines, and the root
 # lock must resolve under --locked, which needs cargo and no build. The job is
