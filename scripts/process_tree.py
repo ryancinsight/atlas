@@ -117,8 +117,11 @@ def report(message):
         if reported:
             return
         reported.append(message)
-        os.write(status, message)
-        os.close(status)
+    # Claim the single status before entering a potentially blocking write. A
+    # launch error can be larger than the pipe buffer; the deadline watcher
+    # must still be able to retire the process group while this report drains.
+    os.write(status, message)
+    os.close(status)
 
 
 if os.getpgrp() != os.getpid():
@@ -466,11 +469,13 @@ def _read_posix_status(status: int, deadline: float) -> int | None:
     with selectors.DefaultSelector() as selector:
         selector.register(status, selectors.EVENT_READ)
         while True:
-            remaining = deadline - time.monotonic()
-            if selector.select(max(0.0, min(remaining, WAIT_SLICE_SECONDS))):
+            if selector.select(0):
                 break
+            remaining = deadline - time.monotonic()
             if remaining <= 0:
                 return None
+            if selector.select(min(remaining, WAIT_SLICE_SECONDS)):
+                break
     message = os.read(status, 4096).decode("utf-8", errors="replace")
     if message == "timeout":
         return None
@@ -576,9 +581,7 @@ def run(
                     raise RuntimeError("process-tree launcher has no input pipe")
                 input_writer = _InputWriter(process.stdin, input)
                 input_writer.start()
-            if deadline - time.monotonic() <= 0:
-                timed_out = True
-            elif sys.platform != "win32":
+            if sys.platform != "win32":
                 command_returncode = _read_posix_status(status_read, deadline)
                 timed_out = command_returncode is None
             else:
