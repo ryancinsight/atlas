@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import io
+import math
 import os
-import signal
-import subprocess
 import tarfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-CLEANUP_TIMEOUT_SECONDS = 5
+import process_tree
 
 
 class GitProcessError(RuntimeError):
@@ -30,46 +29,21 @@ class GitProcessResult:
     stderr: bytes
 
 
-def _terminate_process_tree(proc: subprocess.Popen[bytes]) -> None:
-    if os.name == "nt":
-        try:
-            result = subprocess.run(
-                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=CLEANUP_TIMEOUT_SECONDS,
-                check=False,
-            )
-            if result.returncode != 0:
-                try:
-                    proc.kill()
-                except OSError:
-                    pass
-        except (OSError, subprocess.TimeoutExpired):
-            try:
-                proc.kill()
-            except OSError:
-                pass
-    else:
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-    try:
-        proc.communicate(timeout=CLEANUP_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired as exc:
-        proc.kill()
-        raise GitProcessError(
-            "timed-out process tree did not terminate", timed_out=True
-        ) from exc
-
-
 def clean_process_env(env: dict[str, str] | None = None) -> dict[str, str]:
     """Remove inherited Git repository-selection variables."""
     cleaned = os.environ.copy() if env is None else env.copy()
     for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
         cleaned.pop(key, None)
     return cleaned
+
+
+def _timeout_error(
+    arguments: Sequence[str], timeout: float, cleanup_error: str | None = None
+) -> GitProcessError:
+    message = f"process timed out after {timeout}s: {' '.join(arguments)}"
+    if cleanup_error is not None:
+        message += f"; process-tree cleanup failed: {cleanup_error}"
+    return GitProcessError(message, timed_out=True)
 
 
 def execute_process(
@@ -80,36 +54,50 @@ def execute_process(
     env: dict[str, str] | None = None,
     timeout: int,
 ) -> GitProcessResult:
-    """Run a process with a deadline and descendant cleanup."""
+    """Run a process with a deadline and descendant cleanup.
+
+    A deadline that is zero or negative has already passed: the command is not
+    launched and the outcome is the typed timeout every expired deadline has. A
+    deadline that is not a finite number (NaN, an infinity, ``None``, a string)
+    names no instant, so it is a typed error that is not a timeout.
+    """
     arguments = tuple(command)
-    options: dict[str, object] = {}
-    if os.name == "nt":
-        options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-    else:
-        options["start_new_session"] = True
+    if (
+        isinstance(timeout, bool)
+        or not isinstance(timeout, (int, float))
+        or not math.isfinite(timeout)
+    ):
+        raise GitProcessError(
+            f"process deadline must be a finite number of seconds, got {timeout!r}: "
+            f"{' '.join(arguments)}"
+        )
+    if timeout <= 0:
+        raise _timeout_error(arguments, timeout)
     environment = clean_process_env(env)
     if env is not None and "GIT_INDEX_FILE" in env:
         environment["GIT_INDEX_FILE"] = env["GIT_INDEX_FILE"]
     try:
-        proc = subprocess.Popen(
+        completed = process_tree.run(
             arguments,
             cwd=cwd,
-            stdin=subprocess.PIPE if stdin is not None else None,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
             env=environment,
-            **options,
+            input=stdin,
+            timeout=timeout,
         )
-        stdout, stderr = proc.communicate(input=stdin, timeout=timeout)
-    except subprocess.TimeoutExpired as exc:
-        _terminate_process_tree(proc)
+    except process_tree.ProcessTreeTimeout as exc:
+        raise _timeout_error(arguments, timeout, exc.cleanup_error) from exc
+    except process_tree.ProcessTreeCleanupError as exc:
         raise GitProcessError(
-            f"process timed out after {timeout}s: {' '.join(arguments)}",
-            timed_out=True,
+            f"{arguments[0]} ran but its process-tree cleanup failed: {exc.cleanup_error}"
         ) from exc
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         raise GitProcessError(f"cannot run {arguments[0]}: {exc}") from exc
-    return GitProcessResult(arguments, proc.returncode, stdout, stderr)
+    return GitProcessResult(
+        arguments,
+        completed.returncode,
+        completed.stdout,
+        completed.stderr,
+    )
 
 
 def execute(
