@@ -65,6 +65,7 @@
 <a id="atlas-provider-chain-quality-2026-08-27"></a>- [ATLAS-PROVIDER-CHAIN-QUALITY-2026-08-27](backlog/atlas-provider-chain-quality-2026-08-27.md) â€” Perf/memory/stability/safety audit + fix wave: apollo provider chain [patch]..[minor] â€” todo
 <a id="atlas-provider-closure-2026-08-20"></a>- [ATLAS-PROVIDER-CLOSURE-2026-08-20](backlog/atlas-provider-closure-2026-08-20.md) â€” Complete active provider slices [major][arch] â€” todo
 <a id="atlas-pub-002"></a>- [ATLAS-PUB-002](backlog/atlas-pub-002.md) â€” Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] â€” todo
+<a id="atlas-published-git-dep-rot-001"></a>- [ATLAS-PUBLISHED-GIT-DEP-ROT-001](backlog/atlas-published-git-dep-rot-001.md) â€” Published members carry floating git deps that rot every fresh resolution [arch] â€” todo
 <a id="atlas-pub-003"></a>- [ATLAS-PUB-003](backlog/atlas-pub-003.md) â€” Register trusted publishers and remove the unused PyPI token [chore] â€” todo
 <a id="atlas-pub-005"></a>- [ATLAS-PUB-005](backlog/atlas-pub-005.md) â€” Flip `mdbook-test` per book as samples become compilable [patch] â€” todo
 <a id="atlas-pub-006"></a>- [ATLAS-PUB-006](backlog/atlas-pub-006.md) â€” Stand up one facade crate per package [minor] â€” todo
