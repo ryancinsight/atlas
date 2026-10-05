@@ -207,6 +207,18 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 23)
         self.assertEqual(result.stdout, b"")
 
+    @unittest.skipUnless(os.name == "posix", "POSIX status pipe")
+    def test_buffered_exit_status_wins_when_deadline_has_elapsed(self):
+        status_read, status_write = os.pipe()
+        self.addCleanup(os.close, status_read)
+        self.addCleanup(os.close, status_write)
+        os.write(status_write, b"exit:7")
+
+        self.assertEqual(
+            process_tree._read_posix_status(status_read, time.monotonic() - 1),
+            7,
+        )
+
     def test_timeout_must_be_finite_and_positive(self):
         for timeout in (0, -1, math.nan, math.inf, -math.inf):
             with self.subTest(timeout=timeout):
