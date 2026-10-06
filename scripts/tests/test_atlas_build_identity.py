@@ -3405,10 +3405,13 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_an_ignored_path_outside_the_source_tree_is_rejected(self) -> None:
         init_repo(self.root, "fn main() {}\n")
-        with self.assertRaises(identity.IdentityError):
-            build_source.source_identity(
-                self.root, ignored_paths=(self.base / "elsewhere.lock",)
-            )
+        for state in ("clean", "tracked dirty"):
+            with self.subTest(state), self.assertRaises(identity.IdentityError):
+                if state == "tracked dirty":
+                    (self.root / "src/lib.rs").write_text("fn changed() {}\n", encoding="utf-8")
+                build_source.source_identity(
+                    self.root, ignored_paths=(self.base / "elsewhere.lock",)
+                )
 
     def test_commands_run_in_the_requested_directory(self) -> None:
         init_repo(self.root, "fn main() {}\n")

@@ -102,8 +102,8 @@ def _ignored_source_path(path: Path, top: Path) -> bool:
     )
 
 
-def _diff_bytes(top: Path, ignored: Sequence[Path]) -> bytes:
-    arguments = ["diff", "--binary", "HEAD", "--", "."]
+def _ignored_pathspecs(top: Path, ignored: Sequence[Path]) -> tuple[str, ...]:
+    pathspecs: list[str] = []
     for path in ignored:
         try:
             relative = path.relative_to(top).as_posix()
@@ -111,7 +111,13 @@ def _diff_bytes(top: Path, ignored: Sequence[Path]) -> bytes:
             raise BuildIdentityError(
                 f"ignored source path is outside the repository: {path}"
             ) from error
-        arguments.append(f":(exclude){relative}")
+        pathspecs.append(f":(exclude){relative}")
+    return tuple(pathspecs)
+
+
+def _diff_bytes(top: Path, ignored_pathspecs: Sequence[str]) -> bytes:
+    arguments = ["diff", "--binary", "HEAD", "--", "."]
+    arguments.extend(ignored_pathspecs)
     return _git(top, *arguments)
 
 
@@ -220,7 +226,8 @@ def source_identity(
     revision, tracked_dirty, status_entries = _repository_status(top)
     excluded = tuple(_canonical(path) for path in excluded_roots)
     ignored = tuple(_canonical(path) for path in ignored_paths)
-    diff = _diff_bytes(top, ignored) if tracked_dirty else b""
+    ignored_pathspecs = _ignored_pathspecs(top, ignored)
+    diff = _diff_bytes(top, ignored_pathspecs) if tracked_dirty else b""
     untracked_entries: list[tuple[bytes, bytes, Path]] = []
     for marker, raw_paths in status_entries:
         for raw_path in raw_paths:
