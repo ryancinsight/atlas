@@ -291,7 +291,243 @@ class HookDeploymentTestCase(unittest.TestCase):
                 self.assertEqual(list(repos.iterdir()), [])
 
 
+def owned_hook(label: str) -> bytes:
+    """A pre-push that reports its label, each argument and its first stdin line."""
+    return (
+        "#!/usr/bin/env bash\n"
+        "read -r line\n"
+        f"printf '%s argc=%s' '{label}' \"$#\"\n"
+        "printf ' [%s]' \"$@\"\n"
+        "printf ' <%s>\\n' \"$line\"\n"
+    ).encode()
+
+
+def reap(run: subprocess.Popen) -> None:
+    """Stop a shim run a failed test left behind, so none outlives the suite."""
+    if run.poll() is None:
+        run.kill()
+    run.communicate(timeout=60)
+
+
 class HookInstallTestCase(unittest.TestCase):
+    """Shims run the owned hooks as committed at the Atlas `origin/main`."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="atlas-hooks-")
+        # First registered, so it runs last: after every run is reaped.
+        self.addCleanup(self._tmp.cleanup)
+        # A quote, a `$`, a backtick and a space: the shim names this path in bash.
+        self.atlas = Path(self._tmp.name) / "at'l$as `x` y"
+        self.repos = self.atlas / "repos"
+        subprocess.run(["git", "init", "-q", str(self.atlas)], check=True)
+
+    def git(self, repo: Path, *args: str, **kwargs) -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args],
+            capture_output=True, text=True, check=True, **kwargs,
+        ).stdout.strip()
+
+    def publish(self, hooks: dict[str, bytes]) -> None:
+        """Move origin/main to a commit whose `scripts/git-hooks` is `hooks`.
+
+        Built through a private index, so the checkout's branch, index and
+        files stay where the test left them -- as a peer's would."""
+        index = Path(self._tmp.name) / "publish-index"
+        environment = {**os.environ, "GIT_INDEX_FILE": str(index)}
+        index.unlink(missing_ok=True)
+        for name, content in hooks.items():
+            source = Path(self._tmp.name) / "publish-blob"
+            source.write_bytes(content)
+            blob = self.git(self.atlas, "hash-object", "-w", "--no-filters", str(source))
+            self.git(
+                self.atlas, "update-index", "--add", "--cacheinfo",
+                f"100755,{blob},scripts/git-hooks/{name}", env=environment,
+            )
+        tree = self.git(self.atlas, "write-tree", env=environment)
+        commit = self.git(
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+            "commit-tree", tree, "-m", "publish",
+        )
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
+
+    def member(self, name: str, hooks_path: str | None = None) -> Path:
+        repo = self.repos / name
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        if hooks_path is not None:
+            self.git(repo, "config", "core.hooksPath", hooks_path)
+        return repo
+
+    def shim_dir(self) -> Path:
+        common = self.git(self.atlas, "rev-parse", "--path-format=absolute", "--git-common-dir")
+        return Path(common) / "atlas-hooks"
+
+    def test_a_swapped_object_refuses_rather_than_runs(self) -> None:
+        """`cat-file` reads whatever the object file holds; the shim hashes the
+        copy it wrote, so a refusing hook whose object was replaced by a
+        passing one refuses."""
+        refusing = b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"
+        self.publish({"pre-push": refusing})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        blob = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main:scripts/git-hooks/pre-push")
+        passing = Path(self._tmp.name) / "passing"
+        passing.write_bytes(b"#!/usr/bin/env bash\necho PASSED\n")
+        other = self.git(self.atlas, "hash-object", "-w", "--no-filters", str(passing))
+        objects = Path(self.git(self.atlas, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "objects"
+        target = objects / blob[:2] / blob[2:]
+        target.chmod(0o644)
+        target.write_bytes((objects / other[:2] / other[2:]).read_bytes())
+        run = self.run_shim(shims)
+        out, _ = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, out.decode()), (1, ""))
+        self.assertEqual([p.name for p in (shims / "blobs").iterdir()], [])
+
+    def test_a_replace_ref_does_not_redirect_the_hook(self) -> None:
+        refusing = b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"
+        self.publish({"pre-push": refusing})
+        owned = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.publish({"pre-push": b"#!/usr/bin/env bash\necho PASSED\n"})
+        passing = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", owned)
+        self.git(self.atlas, "replace", owned, passing)
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims, GIT_REPLACE_REF_BASE="refs/replace/")
+        out, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, out.decode(), err.decode().strip()), (3, "", "refused"))
+
+    def test_a_branch_named_like_the_source_ref_is_never_used(self) -> None:
+        """With origin/main gone, `rev-parse` would resolve a local branch named
+        `refs/remotes/origin/main`; the shim refuses instead."""
+        self.publish({"pre-push": b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        self.publish({"pre-push": b"#!/usr/bin/env bash\necho PASSED\n"})
+        passing = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.git(self.atlas, "update-ref", "-d", "refs/remotes/origin/main")
+        self.git(self.atlas, "update-ref", "refs/heads/refs/remotes/origin/main", passing)
+        run = self.run_shim(shims)
+        out, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, out.decode()), (1, ""), err.decode())
+        self.assertIn("has no scripts/git-hooks/pre-push", err.decode())
+
+    def test_a_hook_holding_a_carriage_return_runs_under_autocrlf(self) -> None:
+        """A blob whose bytes hold CRLF hashes to its own id only unfiltered;
+        a filtered hash would refuse every run of that hook."""
+        self.git(self.atlas, "config", "core.autocrlf", "true")
+        hook = b"#!/usr/bin/env bash\n# written on Windows\r\necho refused >&2\nexit 3\n"
+        self.publish({"pre-push": hook})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
+        (cached,) = (shims / "blobs").iterdir()
+        self.assertEqual(cached.read_bytes(), hook)
+
+    def run_shim(self, shims: Path, *, path: str | None = None, **extra: str):
+        environment = {**os.environ, **extra}
+        if path is not None:
+            environment["PATH"] = path + os.pathsep + environment["PATH"]
+        run = subprocess.Popen(
+            ["bash", str(shims / "pre-push"), "origin", "url"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=environment,
+        )
+        self.addCleanup(reap, run)
+        return run
+
+    def test_a_refusing_hook_refuses_through_its_shim(self) -> None:
+        self.publish({"pre-push": b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
+
+    def test_a_failed_write_runs_nothing_and_leaves_no_partial(self) -> None:
+        """origin/main names a hook blob the object store lacks, and the cache
+        holds a corrupt copy: the shim refuses without running either."""
+        missing = "1" * 40
+
+        def mktree(entry: str) -> str:
+            # Bytes, so Windows text mode does not end each name in a CR.
+            return subprocess.run(
+                ["git", "-C", str(self.atlas), "mktree", "--missing"],
+                input=entry.encode(), capture_output=True, check=True,
+            ).stdout.decode().strip()
+
+        hooks = mktree(f"100755 blob {missing}\tpre-push\n")
+        scripts = mktree(f"040000 tree {hooks}\tgit-hooks\n")
+        top = mktree(f"040000 tree {scripts}\tscripts\n")
+        commit = self.git(
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", top, "-m", "gone",
+        )
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
+        shims = _lock_form.write_hook_shims(self.atlas)
+        corrupt = shims / "blobs" / missing
+        corrupt.parent.mkdir()
+        corrupt.write_bytes(b"#!/usr/bin/env bash\necho CORRUPT-CACHE-RAN\n")
+        run = self.run_shim(shims)
+        out, _ = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, out.decode()), (1, ""))
+        self.assertEqual(sorted(p.name for p in (shims / "blobs").iterdir()), [missing])
+
+    def test_an_exported_common_dir_does_not_redirect_the_lookup(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        member = self.member("alpha")
+        run = self.run_shim(
+            shims, GIT_COMMON_DIR=str(member / ".git"), GIT_OBJECT_DIRECTORY=str(member / ".git" / "objects"),
+        )
+        out, err = run.communicate(b"line\n", timeout=60)
+        self.assertEqual((run.returncode, out.decode().strip()),
+                         (0, "owned argc=2 [origin] [url] <line>"), err.decode())
+
+    def test_a_reinstall_never_exposes_a_partial_shim(self) -> None:
+        """Rewriting the shims while a refusing hook runs must never let a run pass."""
+        self.publish({"pre-push": b"#!/usr/bin/env bash\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        shim = shims / "pre-push"
+        content = shim.read_bytes()
+        with patch.object(_lock_form, "HOOK_SHIM", _lock_form.HOOK_SHIM + "# reinstalled\n"):
+            replaced = []
+            real_replace = os.replace
+
+            def observe(source, target):
+                # The target still holds the whole previous shim when the
+                # rename happens: nothing truncated it first.
+                replaced.append(Path(target).read_bytes())
+                real_replace(source, target)
+
+            with patch.object(_lock_form.os, "replace", side_effect=observe):
+                _lock_form.write_hook_shims(self.atlas)
+            self.assertEqual(replaced, [content])
+            self.assertTrue(shim.read_bytes().endswith(b"# reinstalled\n"))
+            # A second install with unchanged bytes writes nothing.
+            with patch.object(_lock_form.os, "replace", side_effect=AssertionError("rewrote")):
+                _lock_form.write_hook_shims(self.atlas)
+        self.assertEqual([p.name for p in shims.iterdir() if p.name.startswith(".")], [])
+
+    def test_a_missing_owned_hook_refuses_rather_than_passing(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        self.publish({"pre-commit": b"#!/usr/bin/env bash\n"})
+        result = subprocess.run(["bash", str(shims / "pre-push")], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no scripts/git-hooks/pre-push", result.stderr)
+
+    def test_concurrent_first_runs_each_execute_the_whole_hook(self) -> None:
+        # Large enough that a cache written in place is caught part-written.
+        padding = b"".join(b"# %06d padding\n" % line for line in range(20000))
+        hook = owned_hook("owned") + padding
+        self.publish({"pre-push": hook})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        runs = [self.run_shim(shims) for _ in range(24)]
+        outcomes = [run.communicate(b"line\n", timeout=120) for run in runs]
+        self.assertEqual(
+            [(run.returncode, out.decode().strip()) for run, (out, _) in zip(runs, outcomes)],
+            [(0, "owned argc=2 [origin] [url] <line>")] * len(runs),
+            [err.decode() for _, err in outcomes],
+        )
+        (cached,) = (shims / "blobs").iterdir()
+        self.assertEqual(cached.read_bytes(), hook)
+
     def test_member_copies_retarget_to_owned_hooks_and_custom_paths_stay(self) -> None:
         owned = (SCRIPT.parent / "git-hooks").as_posix()
         initial = {"unset": None, "copy": ".githooks", "custom": "D:/elsewhere/hooks"}
