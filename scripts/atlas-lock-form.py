@@ -49,7 +49,11 @@ from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lockfile  # noqa: E402
-from atlas_git_process import GitProcessError, execute as execute_git  # noqa: E402
+from atlas_git_process import (  # noqa: E402
+    GitProcessError,
+    execute as execute_git,
+    execute_process,
+)
 from atlas_stack import ROOT, registered_member_names  # noqa: E402
 
 REPOS = ROOT / "repos"
@@ -59,10 +63,24 @@ FIRST_PARTY_HOST = "github.com/ryancinsight/"
 
 
 def run(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
-    proc = subprocess.run(
-        args, cwd=None if cwd is None else str(cwd), capture_output=True, encoding="utf-8", errors="replace"
+    """Run a command with a deadline that ends its whole process tree.
+
+    The `staged` pre-commit mode must read the index git named, so
+    `GIT_INDEX_FILE` stays in the environment (`execute_process` keeps it when
+    the caller passes it); every other repository variable is scrubbed. A
+    deadline or a launch failure raises `RuntimeError`.
+    """
+    try:
+        result = execute_process(
+            args, cwd=cwd, env=dict(os.environ), timeout=GIT_DEADLINE_SECONDS
+        )
+    except GitProcessError as error:
+        raise RuntimeError(str(error)) from error
+    return (
+        result.returncode,
+        result.stdout.decode("utf-8", errors="replace"),
+        result.stderr.decode("utf-8", errors="replace"),
     )
-    return proc.returncode, proc.stdout, proc.stderr
 
 
 class LockUnit(NamedTuple):
