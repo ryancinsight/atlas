@@ -987,6 +987,70 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(conformance._resolved_cache(), {})
         self.assertEqual(conformance._stripped_text_cache(), {})
 
+    def test_snapshot_census_matches_all_counts_and_reads_sources_once(self) -> None:
+        """The snapshot census preserves every detector on difficult inputs."""
+        with tempfile.TemporaryDirectory(prefix="atlas-census-") as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            _write(root, ".gitignore", "/generated/\n")
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "pub mod target;\npub mod alias;\npub mod malformed;\n",
+            )
+            source = 'pub fn emit() { println!("visible"); }\n'
+            _write(root, "src/target.rs", source)
+            _write(root, "src/alias.rs", source)
+            malformed = root / "src" / "malformed.rs"
+            malformed.write_bytes(b"pub fn malformed( { // \xff\n")
+            _write(
+                root,
+                "generated/nested/ignored.rs",
+                'pub fn ignored() { println!("ignored"); }\n',
+            )
+
+            alias = root / "src" / "alias.rs"
+            target = root / "src" / "target.rs"
+            real_is_symlink = Path.is_symlink
+            real_resolve = Path.resolve
+            real_read_text = Path.read_text
+            source_reads: list[Path] = []
+
+            def fixture_is_symlink(path: Path) -> bool:
+                return path == alias or real_is_symlink(path)
+
+            def fixture_resolve(path: Path, *args, **kwargs) -> Path:
+                if path == alias:
+                    return real_resolve(target, *args, **kwargs)
+                return real_resolve(path, *args, **kwargs)
+
+            def counted_read_text(path: Path, *args, **kwargs) -> str:
+                if path.suffix == ".rs":
+                    source_reads.append(path)
+                return real_read_text(path, *args, **kwargs)
+
+            with (
+                patch.object(Path, "is_symlink", fixture_is_symlink),
+                patch.object(Path, "resolve", fixture_resolve),
+            ):
+                reference = conformance.scan_repo(root)
+                with patch.object(Path, "read_text", counted_read_text):
+                    snapshot = conformance.scan_repo(root, revision="fixture")
+
+        self.assertEqual(snapshot, reference)
+        self.assertEqual(
+            len(source_reads),
+            3,
+            f"unexpected Rust reads: {source_reads!r}",
+        )
+        self.assertNotIn(
+            Path(temp) / "generated" / "nested" / "ignored.rs",
+            source_reads,
+        )
+        self.assertEqual(snapshot["print_dbg"], 2)
+        self.assertIsNone(conformance._snapshot_paths())
+
     def test_the_comment_strip_cache_agrees_with_a_fresh_strip(self) -> None:
         # The cache exists to serve the module walk and the production-class
         # pass from one strip. It is keyed on the text, so it must be a pure
