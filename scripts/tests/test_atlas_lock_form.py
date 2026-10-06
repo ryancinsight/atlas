@@ -1130,11 +1130,21 @@ class HookInstallTestCase(unittest.TestCase):
         self.addCleanup(reap, run)
         return run
 
-    def test_a_push_from_the_stack_root_runs_secret_and_meta_debt_gates(self) -> None:
-        """The root is the stack member whose debt row is `<meta>`; locating
-        it must invoke both irreversible pre-publication gates, not merely
-        avoid the no-stack message before skipping them."""
-        self.atlas = Path(self._tmp.name).resolve() / "atlas-root"
+    def root_prepared_push(
+        self,
+        baseline_exit: int,
+        candidate_exit: int,
+        *,
+        prepared_value: str | None = None,
+        missing_tool: bool = False,
+    ) -> dict:
+        """Run a root push with different fetched and prepared debt tools."""
+        run_id = getattr(self, "_root_prepared_runs", 0)
+        self._root_prepared_runs = run_id + 1
+        self.atlas = (
+            Path(self._tmp.name).resolve()
+            / f"atlas-root-{baseline_exit}-{candidate_exit}-{run_id}"
+        )
         self.repos = self.atlas / "repos"
         subprocess.run(["git", "init", "-q", str(self.atlas)], check=True)
         self.member("alpha")
@@ -1150,28 +1160,42 @@ class HookInstallTestCase(unittest.TestCase):
             "Path(os.environ['ATLAS_SECRET_PROBE']).write_text("
             "json.dumps(sys.argv[1:]), encoding='utf-8')\n"
         ).encode()
-        conformance = (
-            "import json, os, sys\n"
-            "from pathlib import Path\n"
-            "ATLAS_STACK_ROOT = os.environ.get('ATLAS_STACK_ROOT')\n"
-            "Path(os.environ['ATLAS_DEBT_PROBE']).write_text("
-            "json.dumps({'args': sys.argv[1:], 'stack': ATLAS_STACK_ROOT}), "
-            "encoding='utf-8')\n"
-            "raise SystemExit(19)\n"
-        ).encode()
+
+        def conformance(label: str, exit_code: int) -> bytes:
+            return (
+                "import json, os, sys\n"
+                "from pathlib import Path\n"
+                "ATLAS_STACK_ROOT = os.environ.get('ATLAS_STACK_ROOT')\n"
+                "Path(os.environ['ATLAS_DEBT_PROBE']).write_text("
+                f"json.dumps({{'label': {label!r}, 'args': sys.argv[1:], "
+                "'stack': ATLAS_STACK_ROOT}), "
+                "encoding='utf-8')\n"
+                f"raise SystemExit({exit_code})\n"
+            ).encode()
         owned = (Path(__file__).resolve().parent.parent.parent
                  / "scripts" / "git-hooks" / "pre-push").read_bytes()
         self.publish(
             {"pre-push": owned},
             {
                 "scripts/atlas-secret-scan.py": secret,
-                "scripts/atlas-conformance.py": conformance,
+                "scripts/atlas-conformance.py": conformance("baseline", baseline_exit),
                 "scripts/atlas_stack.py": b"ATLAS_STACK_ROOT = True\n",
+                "scripts/atlas-build-identity.py": b"raise SystemExit(0)\n",
                 "scripts/lockfile.py": b"raise SystemExit(0)\n",
             },
         )
         baseline = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
-        self.git(self.atlas, "add", ".gitmodules")
+        scripts = self.atlas / "scripts"
+        scripts.mkdir()
+        (scripts / "atlas-conformance.py").write_bytes(
+            conformance("candidate", candidate_exit)
+        )
+        (scripts / "atlas_stack.py").write_bytes(b"ATLAS_STACK_ROOT = True\n")
+        if not missing_tool:
+            (scripts / "atlas-build-identity.py").write_bytes(
+                b"raise SystemExit(0)\n"
+            )
+        self.git(self.atlas, "add", ".gitmodules", "scripts")
         self.git(
             self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
             "commit", "-q", "-m", "root push",
@@ -1182,31 +1206,92 @@ class HookInstallTestCase(unittest.TestCase):
             cwd=self.atlas,
             ATLAS_SECRET_PROBE=str(secret_probe),
             ATLAS_DEBT_PROBE=str(debt_probe),
+            GIT_CONFIG_COUNT="1",
+            GIT_CONFIG_KEY_0="atlas.preparedTools",
+            GIT_CONFIG_VALUE_0=(pushed if prepared_value is None else prepared_value),
+            SKIP_LOCAL_GATE="1",
         )
         _, err = run.communicate(
             f"refs/heads/root {pushed} refs/heads/root {'0' * 40}\n".encode(),
             timeout=60,
         )
-        text = err.decode(errors="replace")
-        self.assertEqual(run.returncode, 1, text)
+        return {
+            "baseline": baseline,
+            "debt": (
+                json.loads(debt_probe.read_text(encoding="utf-8"))
+                if debt_probe.is_file()
+                else None
+            ),
+            "pushed": pushed,
+            "returncode": run.returncode,
+            "secret": (
+                json.loads(secret_probe.read_text(encoding="utf-8"))
+                if secret_probe.is_file()
+                else None
+            ),
+            "text": err.decode(errors="replace"),
+        }
+
+    def test_a_push_from_the_stack_root_runs_secret_and_meta_debt_gates(self) -> None:
+        """The prepared checker fails while the fetched checker would pass."""
+        result = self.root_prepared_push(0, 19)
+        text = result["text"]
+        self.assertEqual(result["returncode"], 1, text)
         self.assertNotIn("no Atlas stack above this clone", text)
         self.assertNotIn("not a registered stack member", text)
-        self.assertTrue(secret_probe.is_file(), text)
-        self.assertTrue(debt_probe.is_file(), text)
-        secret_args = json.loads(secret_probe.read_text(encoding="utf-8"))
+        self.assertIn(result["pushed"], text)
+        secret_args = result["secret"]
         self.assertEqual(secret_args[:2], ["check", "--root"])
         self.assertEqual(Path(secret_args[2]).resolve(), self.atlas)
         self.assertEqual(
             secret_args[3:],
-            ["--rev", pushed, "--allowlist-rev", baseline],
+            ["--rev", result["pushed"], "--allowlist-rev", result["baseline"]],
         )
-        debt = json.loads(debt_probe.read_text(encoding="utf-8"))
+        debt = result["debt"]
+        self.assertEqual(debt["label"], "candidate")
         self.assertEqual(
             debt["args"],
-            ["check", "--baseline-rev", baseline, "--revision", pushed],
+            [
+                "check", "--baseline-rev", result["baseline"],
+                "--revision", result["pushed"],
+            ],
         )
         self.assertEqual(Path(debt["stack"]).resolve(), self.atlas)
         self.assertIn("debt ratchet could not run (exit 19)", text)
+
+    def test_a_prepared_fix_passes_when_the_fetched_checker_would_fail(self) -> None:
+        """The candidate tool is the executable input; the baseline stays fetched."""
+        result = self.root_prepared_push(19, 0)
+        self.assertEqual(result["returncode"], 0, result["text"])
+        self.assertEqual(result["debt"]["label"], "candidate")
+        self.assertEqual(
+            result["debt"]["args"],
+            [
+                "check", "--baseline-rev", result["baseline"],
+                "--revision", result["pushed"],
+            ],
+        )
+        self.assertIn(result["pushed"], result["text"])
+
+    def test_invalid_prepared_tool_selections_fail_closed(self) -> None:
+        cases = (
+            ("", False, "full 40-character commit ID"),
+            ("abc", False, "full 40-character commit ID"),
+            ("f" * 40, False, "is unavailable in the Atlas object store"),
+            (None, True, "lacks a required prepared tool"),
+        )
+        for prepared_value, missing_tool, message in cases:
+            with self.subTest(prepared_value=prepared_value, missing_tool=missing_tool):
+                result = self.root_prepared_push(
+                    0,
+                    0,
+                    prepared_value=prepared_value,
+                    missing_tool=missing_tool,
+                )
+                self.assertEqual(result["returncode"], 1, result["text"])
+                self.assertIn(message, result["text"])
+                self.assertIsNone(result["secret"])
+                self.assertIsNone(result["debt"])
 
     def test_a_registered_submodule_with_a_registry_ascends_to_stack(self) -> None:
         """A member's own registry never captures the member as a stack.

@@ -3367,6 +3367,35 @@ class SourceIdentityGateTestCase(unittest.TestCase):
                 (stack / "target").resolve(),
             )
 
+    def test_prepared_identity_checker_runs_from_the_selected_commit(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack, fixture = self._member_at_pushed_tip(temp)
+            log = stack / "prepared-identity-args.log"
+            _write(
+                stack / "scripts" / "atlas-build-identity.py",
+                _recording_identity_invocation(log),
+            )
+            _commit_all(stack, "prepared tools")
+            prepared = _git(stack, "rev-parse", "HEAD")
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("feat"),
+                {
+                    "GIT_CONFIG_COUNT": "1",
+                    "GIT_CONFIG_KEY_0": "atlas.preparedTools",
+                    "GIT_CONFIG_VALUE_0": prepared,
+                },
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn(prepared, stderr)
+            lines = log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 1, lines)
+            invocation = json.loads(lines[0])
+            ran_from = pathlib.Path(invocation["path"]).resolve()
+            self.assertNotIn(stack.resolve(), ran_from.parents)
+            self.assertEqual(invocation["argv"][0], "run")
+
     def test_a_missing_identity_checker_blocks_a_stack_member(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             _, fixture = self._member_at_pushed_tip(temp, identity=False)

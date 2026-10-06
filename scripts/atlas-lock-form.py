@@ -477,9 +477,13 @@ def hook_commit(
 
 
 def push_hook_branch(
-    repo: Path, commit: str, branch: str, pre_push_hook: bytes
+    repo: Path,
+    commit: str,
+    branch: str,
+    pre_push_hook: bytes,
+    prepared_tools: str | None = None,
 ) -> None:
-    """Update the publication branch under a freshly observed explicit lease."""
+    """Update the publication branch under a lease using its source tools."""
     ref = f"refs/heads/{branch}"
     listing = git_bytes(repo, "ls-remote", "--heads", "origin", ref)
     if listing == b"":
@@ -541,10 +545,12 @@ def push_hook_branch(
         hook_path = Path(temporary) / "pre-push"
         hook_path.write_bytes(pre_push_hook)
         hook_path.chmod(0o755)
+        command_config = ["-c", f"core.hooksPath={temporary}"]
+        if prepared_tools is not None:
+            command_config.extend(("-c", f"atlas.preparedTools={prepared_tools}"))
         git_in(
             repo,
-            "-c",
-            f"core.hooksPath={temporary}",
+            *command_config,
             "push",
             "-q",
             f"--force-with-lease={ref}:{expected}",
@@ -712,7 +718,7 @@ def cmd_publish_hooks(args) -> int:
                 print(f"would publish: {member} onto {default}")
                 continue
             branch = PUBLISH_BRANCH
-            push_hook_branch(repo, commit, branch, pre_push_hook)
+            push_hook_branch(repo, commit, branch, pre_push_hook, source_commit)
             url, created = pull_request_for(
                 repo,
                 branch,

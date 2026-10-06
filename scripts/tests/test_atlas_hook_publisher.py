@@ -188,7 +188,8 @@ class HookBranchPushTestCase(unittest.TestCase):
             patch.object(_lock_form, "git_in", return_value="") as git_in,
         ):
             _lock_form.push_hook_branch(
-                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK
+                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK,
+                "b" * 40,
             )
 
         self.assertEqual(git_in.call_args.args[1], "-c")
@@ -196,6 +197,7 @@ class HookBranchPushTestCase(unittest.TestCase):
         self.assertEqual(
             git_in.call_args.args[3:],
             (
+                "-c", f"atlas.preparedTools={'b' * 40}",
                 "push", "-q", f"--force-with-lease={ref}:{observed}",
                 "origin", f"commit:{ref}",
             ),
@@ -206,11 +208,16 @@ class HookBranchPushTestCase(unittest.TestCase):
             patch.object(_lock_form, "git_in", return_value="") as git_in,
         ):
             _lock_form.push_hook_branch(
-                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK
+                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK,
+                "b" * 40,
             )
         self.assertEqual(
-            git_in.call_args.args[5],
-            f"--force-with-lease={ref}:",
+            git_in.call_args.args[3:],
+            (
+                "-c", f"atlas.preparedTools={'b' * 40}",
+                "push", "-q", f"--force-with-lease={ref}:",
+                "origin", f"commit:{ref}",
+            ),
         )
 
     def test_push_rejects_untrusted_remote_ref_output(self) -> None:
@@ -557,7 +564,8 @@ class PublisherScopeTestCase(unittest.TestCase):
             self.assertEqual(hook_commit.call_args.args[2], [hook_bytes[1]])
             self.assertEqual(hook_commit.call_args.args[1], "b" * 40)
             push_hook_branch.assert_called_once_with(
-                member_root / "alpha", "built", "ci/sync-stack-hooks", hook_bytes[1][1]
+                member_root / "alpha", "built", "ci/sync-stack-hooks",
+                hook_bytes[1][1], source_commit,
             )
 
     def test_unknown_hook_filter_stops_before_member_publication(self) -> None:
