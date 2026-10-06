@@ -136,8 +136,8 @@ def _dependency_data(
 ) -> dict[str, dict[str, object]]:
     """Each package's dependency snapshot, by package name.
 
-    One `cargo metadata` and one source identity per path package serve the
-    whole set: a package several closures share is read once.
+    One `cargo metadata`, path-repository identity, and external package
+    digest serve the whole set: a package several closures share is read once.
     """
     if has_explicit_artifacts:
         snapshots: dict[str, dict[str, object]] = {
@@ -155,6 +155,7 @@ def _dependency_data(
         # repository's identity, so it is computed once per pass.
         source_cache: dict[tuple[Path, str], dict[str, object]] = {}
         package_source_cache = target_dir / ".atlas" / "source-identity" / "package-source"
+        package_digests: dict[Path, str] = {}
 
         def identify_source(path: Path) -> dict[str, object]:
             head = repository_head(path)
@@ -163,13 +164,21 @@ def _dependency_data(
                 source_cache[head] = _content(identified.as_dict())
             return source_cache[head]
 
+        def digest_package_source(path: Path) -> str:
+            canonical = _canonical(path, strict=True)
+            if canonical not in package_digests:
+                package_digests[canonical] = cached_package_source_digest(
+                    canonical, package_source_cache
+                )
+            return package_digests[canonical]
+
         snapshots = {
             package: dependency_snapshot(
                 metadata,
                 manifest,
                 package,
                 identify_source,
-                lambda path: cached_package_source_digest(path, package_source_cache),
+                digest_package_source,
             )
             for package in packages
         }
