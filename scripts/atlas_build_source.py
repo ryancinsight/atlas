@@ -200,6 +200,7 @@ def _repository_status(
         revision is None
         or not revision
         or revision == b"(initial)"
+        or len(revision) not in {40, 64}
         or any(byte not in hexadecimal for byte in revision)
     ):
         raise BuildIdentityError(f"git status did not print a committed HEAD in {top}: {revision!r}")

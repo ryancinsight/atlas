@@ -2420,11 +2420,24 @@ class BuildIdentityTestCase(unittest.TestCase):
             "no revision": b"# branch.head main\0",
             "unborn revision": b"# branch.oid (initial)\0# branch.head main\0",
             "spaced revision": b"# branch.oid bad revision\0# branch.head main\0",
+            "abbreviated revision": b"# branch.oid deadbeef\0# branch.head main\0",
+            "short sha1": b"# branch.oid " + b"a" * 39 + b"\0# branch.head main\0",
+            "long sha256": b"# branch.oid " + b"a" * 65 + b"\0# branch.head main\0",
             "two revisions": b"# branch.oid one\0# branch.oid two\0",
         }.items():
             with self.subTest(name), patch.object(build_source, "_git", return_value=printed):
                 with self.assertRaises(build_source.BuildIdentityError):
                     build_source._repository_status(self.base)
+        sha256 = b"a" * 64
+        with patch.object(
+            build_source,
+            "_git",
+            return_value=b"# branch.oid " + sha256 + b"\0# branch.head main\0",
+        ):
+            revision, tracked_dirty, entries = build_source._repository_status(self.base)
+        self.assertEqual(revision, sha256.decode())
+        self.assertFalse(tracked_dirty)
+        self.assertEqual(entries, ((b"untracked", []), (b"ignored", [])))
 
     def test_each_repository_is_identified_once_per_dependency_pass(self) -> None:
         # Every path package of one repository has that repository's
