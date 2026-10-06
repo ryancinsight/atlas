@@ -1,5 +1,0 @@
-<a id="atlas-arch-005"></a>
-## ATLAS-ARCH-005 — Replace closed-set dyn dispatch in per-timestep paths [arch] — todo
-- **outcome:** per-timestep `dyn` dispatch converts to exhaustively matched enums — static dispatch, no vtable — with criterion evidence per family; families whose implementor set is open or plugin-extensible stay dyn as the sanctioned boundary.
-- **kwavers scope: adjudication before conversion.** The item's original list is stale: `Signal` is an ADR 012-sanctioned open boundary (22 impls across 6 crates, Python-extensible, O(sources)/step); `Solver`/`Boundary` sit behind the plugin-based solver seam. A blind 665-site conversion would fight the ADR. What remains genuinely open: the `dyn Medium` parameter-flow sites (163, a case analysis of which calls dispatch inside loops) and `Source` (49).
-- **next:** adjudicate the kwavers families per ADR 012's standard (closed-and-per-timestep vs open-extensible), then convert only the adjudicated-closed ones with criterion evidence.
