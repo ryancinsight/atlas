@@ -134,6 +134,31 @@ class HookCommitTestCase(unittest.TestCase):
             check=True, capture_output=True, encoding="utf-8",
         ).stdout.strip()
 
+    @contextlib.contextmanager
+    def _rollout_repositories(self, prefix: str):
+        with tempfile.TemporaryDirectory(prefix=prefix) as temp:
+            root = Path(temp)
+            remote = root / "remote.git"
+            seed = root / "seed"
+            publisher = root / "publisher"
+            remote.mkdir()
+            seed.mkdir()
+            self._git(remote, "init", "-q", "--bare")
+            self._git(seed, "init", "-q", "-b", "main")
+            (seed / "seed").write_text("seed\n", encoding="utf-8")
+            self._git(seed, "add", "seed")
+            self._git(seed, "commit", "-q", "-m", "seed")
+            self._git(seed, "remote", "add", "origin", str(remote))
+            self._git(seed, "push", "-q", "-u", "origin", "main")
+            self._git(remote, "symbolic-ref", "HEAD", "refs/heads/main")
+            subprocess.run(
+                ["git", "clone", "-q", str(remote), str(publisher)],
+                check=True,
+            )
+            self._git(publisher, "config", "user.email", "t@t")
+            self._git(publisher, "config", "user.name", "t")
+            yield remote, seed, publisher
+
     def test_commit_carries_the_hooks_and_leaves_the_checkout_alone(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-") as temp:
             root = Path(temp)
@@ -176,6 +201,111 @@ class HookCommitTestCase(unittest.TestCase):
             self.assertEqual(self._git(repo, "show", f"{commit}:lib.rs"), "one")
             self.assertEqual(self._git(repo, "status", "--porcelain"), status_before)
             self.assertEqual(self._git(repo, "rev-parse", "--abbrev-ref", "HEAD"), "peer")
+
+    def test_item_is_an_actual_generated_commit_trailer(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-item-") as temp:
+            repo = Path(temp) / "member"
+            repo.mkdir()
+            self._git(repo, "init", "-q", "-b", "main")
+            self._git(repo, "config", "user.email", "t@t")
+            self._git(repo, "config", "user.name", "t")
+            (repo / "seed").write_text("seed\n", encoding="utf-8")
+            self._git(repo, "add", "seed")
+            self._git(repo, "commit", "-q", "-m", "seed")
+            item = "ATLAS-MOIRAI-MAIN-DIVERGED-2026-10-05"
+            message = _lock_form.hook_publish_message("a109abb8ac02", [], item)
+
+            commit = _lock_form.hook_commit(
+                repo,
+                self._git(repo, "rev-parse", "HEAD"),
+                [("pre-push", b"#!/bin/sh\nexit 0\n")],
+                message,
+            )
+
+            self.assertIsNotNone(commit)
+            body = self._git(repo, "show", "-s", "--format=%B", commit)
+            parsed = subprocess.run(
+                ["git", "interpret-trailers", "--parse"],
+                input=body,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            self.assertEqual(parsed, f"Item: {item}")
+
+    def test_unique_remote_rollout_head_is_not_overwritten(self) -> None:
+        with self._rollout_repositories("atlas-publish-lease-") as repositories:
+            remote, seed, publisher = repositories
+            self._git(seed, "switch", "-q", "-c", _lock_form.PUBLISH_BRANCH)
+            (seed / "unique").write_text("preserve\n", encoding="utf-8")
+            self._git(seed, "add", "unique")
+            self._git(seed, "commit", "-q", "-m", "unique rollout work")
+            self._git(seed, "push", "-q", "origin", _lock_form.PUBLISH_BRANCH)
+            remote_head = self._git(
+                remote, "rev-parse", f"refs/heads/{_lock_form.PUBLISH_BRANCH}"
+            )
+            candidate = _lock_form.hook_commit(
+                publisher,
+                self._git(publisher, "rev-parse", "origin/main"),
+                [("pre-push", b"#!/bin/sh\nexit 0\n")],
+                "ci: sync\n",
+            )
+            self.assertIsNotNone(candidate)
+
+            with self.assertRaisesRegex(RuntimeError, "unique remote work"):
+                _lock_form.push_hook_branch(
+                    publisher,
+                    candidate,
+                    _lock_form.PUBLISH_BRANCH,
+                    b"#!/bin/sh\nexit 0\n",
+                )
+
+            self.assertEqual(
+                self._git(
+                    remote, "rev-parse", f"refs/heads/{_lock_form.PUBLISH_BRANCH}"
+                ),
+                remote_head,
+            )
+
+    def test_rollout_head_landed_on_default_can_be_superseded(self) -> None:
+        with self._rollout_repositories("atlas-publish-landed-") as repositories:
+            remote, seed, publisher = repositories
+            base = self._git(publisher, "rev-parse", "origin/main")
+            self._git(seed, "switch", "-q", "-c", _lock_form.PUBLISH_BRANCH)
+            (seed / "landed").write_text("landed\n", encoding="utf-8")
+            self._git(seed, "add", "landed")
+            self._git(seed, "commit", "-q", "-m", "landed rollout work")
+            self._git(seed, "push", "-q", "origin", _lock_form.PUBLISH_BRANCH)
+            rollout_head = self._git(seed, "rev-parse", "HEAD")
+            self._git(seed, "switch", "-q", "main")
+            self._git(seed, "merge", "-q", "--no-ff", _lock_form.PUBLISH_BRANCH)
+            self._git(seed, "push", "-q", "origin", "main")
+            self._git(publisher, "fetch", "-q", "origin")
+            candidate = _lock_form.hook_commit(
+                publisher,
+                base,
+                [("pre-push", b"#!/bin/sh\nexit 0\n")],
+                "ci: sync\n",
+            )
+            self.assertIsNotNone(candidate)
+
+            _lock_form.push_hook_branch(
+                publisher,
+                candidate,
+                _lock_form.PUBLISH_BRANCH,
+                b"#!/bin/sh\nexit 0\n",
+            )
+
+            self.assertEqual(
+                self._git(
+                    remote, "rev-parse", f"refs/heads/{_lock_form.PUBLISH_BRANCH}"
+                ),
+                candidate,
+            )
+            self.assertEqual(
+                self._git(remote, "merge-base", "--is-ancestor", rollout_head, "main"),
+                "",
+            )
 
     def test_publish_reads_the_committed_hooks_not_the_checkout(self) -> None:
         """A peer's uncommitted edit to the hook in a shared atlas checkout must
