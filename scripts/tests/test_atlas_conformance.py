@@ -1006,42 +1006,64 @@ class AtlasConformanceTestCase(unittest.TestCase):
             malformed.write_bytes(b"pub fn malformed( { // \xff\n")
             _write(
                 root,
+                "src/target_generated/orphan.rs",
+                "pub fn orphan() {}\n",
+            )
+            _write(root, "src/broken.rs", "unreachable symlink target\n")
+            _write(root, "src/special.rs", "unreadable non-file entry\n")
+            _write(
+                root,
                 "generated/nested/ignored.rs",
                 'pub fn ignored() { println!("ignored"); }\n',
             )
 
             alias = root / "src" / "alias.rs"
             target = root / "src" / "target.rs"
+            broken = root / "src" / "broken.rs"
+            missing = root / "src" / "missing.rs"
+            special = root / "src" / "special.rs"
             real_is_symlink = Path.is_symlink
+            real_is_file = Path.is_file
             real_resolve = Path.resolve
             real_read_text = Path.read_text
             source_reads: list[Path] = []
 
             def fixture_is_symlink(path: Path) -> bool:
-                return path == alias or real_is_symlink(path)
+                return path in (alias, broken) or real_is_symlink(path)
+
+            def fixture_is_file(path: Path) -> bool:
+                if path in (broken, missing, special):
+                    return False
+                return real_is_file(path)
 
             def fixture_resolve(path: Path, *args, **kwargs) -> Path:
                 if path == alias:
                     return real_resolve(target, *args, **kwargs)
+                if path == broken:
+                    return missing
                 return real_resolve(path, *args, **kwargs)
 
             def counted_read_text(path: Path, *args, **kwargs) -> str:
                 if path.suffix == ".rs":
                     source_reads.append(path)
+                if path in (broken, special):
+                    raise OSError("fixture entry is not readable as a file")
                 return real_read_text(path, *args, **kwargs)
 
             with (
                 patch.object(Path, "is_symlink", fixture_is_symlink),
+                patch.object(Path, "is_file", fixture_is_file),
                 patch.object(Path, "resolve", fixture_resolve),
+                patch.object(Path, "read_text", counted_read_text),
             ):
                 reference = conformance.scan_repo(root)
-                with patch.object(Path, "read_text", counted_read_text):
-                    snapshot = conformance.scan_repo(root, revision="fixture")
+                source_reads.clear()
+                snapshot = conformance.scan_repo(root, revision="fixture")
 
         self.assertEqual(snapshot, reference)
         self.assertEqual(
             len(source_reads),
-            3,
+            6,
             f"unexpected Rust reads: {source_reads!r}",
         )
         self.assertNotIn(
@@ -1049,6 +1071,7 @@ class AtlasConformanceTestCase(unittest.TestCase):
             source_reads,
         )
         self.assertEqual(snapshot["print_dbg"], 2)
+        self.assertEqual(snapshot["orphan_modules"], 3)
         self.assertIsNone(conformance._snapshot_paths())
 
     def test_the_comment_strip_cache_agrees_with_a_fresh_strip(self) -> None:
