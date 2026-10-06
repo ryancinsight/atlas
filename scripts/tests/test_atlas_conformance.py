@@ -1748,6 +1748,50 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(tracked, 1)
         self.assertEqual(live_tracked, 1)
 
+    def test_live_namespace_pollution_prunes_ignored_ancestors(self) -> None:
+        """An ignored namespace ancestor excludes every checkout below it."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            subprocess.run(
+                ["git", "init", "-q", "-b", "main"],
+                cwd=root,
+                check=True,
+                timeout=10,
+            )
+            _write(root, ".gitmodules", "")
+            _write(root, ".gitignore", "/repos/\n")
+            _write(root, "repos/private/README.md", "peer checkout\n")
+
+            ignored = conformance.git_ignored_paths(root)
+            pollution = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertIn((root / "repos").resolve(), ignored)
+        self.assertEqual(pollution, 0)
+
+    def test_live_namespace_pollution_decodes_non_ascii_ignored_paths(self) -> None:
+        """NUL-delimited Git output preserves non-ASCII ignored paths."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            subprocess.run(
+                ["git", "init", "-q", "-b", "main"],
+                cwd=root,
+                check=True,
+                timeout=10,
+            )
+            _write(root, ".gitmodules", "")
+            _write(root, ".gitignore", "/repos/café/\n")
+            _write(root, "repos/café/README.md", "peer checkout\n")
+
+            ignored = conformance.git_ignored_paths(root)
+            pollution = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertIn((root / "repos" / "café").resolve(), ignored)
+        self.assertEqual(pollution, 0)
+
     def test_generate_refuses_to_raise_a_count(self) -> None:
         """`generate` must not launder a regression into the baseline.
 

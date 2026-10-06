@@ -1581,6 +1581,7 @@ def git_ignored_paths(repo: Path) -> frozenset[Path]:
                 "--ignored",
                 "--exclude-standard",
                 "--directory",
+                "-z",
             ),
             timeout=GIT_TIMEOUT_SECONDS,
         )
@@ -1590,11 +1591,17 @@ def git_ignored_paths(repo: Path) -> frozenset[Path]:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(detail or f"cannot list ignored paths in {repo}")
     paths = set()
-    for line in result.stdout.decode("utf-8", errors="replace").splitlines():
-        entry = line.strip().rstrip("/")
+    for raw_entry in result.stdout.split(b"\0"):
+        entry = os.fsdecode(raw_entry).removesuffix("/")
         if entry:
             paths.add((repo / entry).resolve())
     return frozenset(paths)
+
+
+def is_under_ignored_path(path: Path, ignored: frozenset[Path]) -> bool:
+    """Return whether `path` or one of its ancestors is ignored."""
+    resolved = _resolved(path)
+    return resolved in ignored or any(parent in ignored for parent in resolved.parents)
 
 
 def rust_files(repo: Path):
@@ -2479,7 +2486,7 @@ def scan_stack(
                     repo.is_dir()
                     and not repo.name.startswith(".")
                     and repo.name not in members
-                    and _resolved(repo) not in namespace_ignored
+                    and not is_under_ignored_path(repo, namespace_ignored)
                 ):
                     meta["member_namespace_pollution"] += 1
         meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(
