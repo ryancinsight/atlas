@@ -1700,6 +1700,98 @@ class AtlasConformanceTestCase(unittest.TestCase):
             self.assertEqual(live["gitattributes_missing"], 1)
             self.assertEqual(live["board_items_outside_status_set"], 1)
 
+    def test_recorded_revision_namespace_pollution_uses_revision_tree(self) -> None:
+        """A live unregistered checkout cannot contaminate a revision scan."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *ident, *arguments],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                ).stdout.strip()
+
+            git("init", "-q", "-b", "main")
+            _write(root, ".gitmodules", "")
+            git("add", ".gitmodules")
+            git("commit", "-q", "-m", "candidate")
+            candidate = git("rev-parse", "HEAD")
+
+            _write(root, "repos/coeus-push/README.md", "peer checkout\n")
+            candidate_with_live_directory = conformance.scan_stack(
+                root, candidate
+            )["<meta>"]["member_namespace_pollution"]
+            live_untracked = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+            git("add", "repos/coeus-push/README.md")
+            git("commit", "-q", "-m", "track unregistered directory")
+            tracked_revision = git("rev-parse", "HEAD")
+            candidate_after_commit = conformance.scan_stack(root, candidate)[
+                "<meta>"
+            ]["member_namespace_pollution"]
+            tracked = conformance.scan_stack(root, tracked_revision)["<meta>"][
+                "member_namespace_pollution"
+            ]
+            live_tracked = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertEqual(candidate_with_live_directory, 0)
+        self.assertEqual(live_untracked, 1)
+        self.assertEqual(candidate_after_commit, 0)
+        self.assertEqual(tracked, 1)
+        self.assertEqual(live_tracked, 1)
+
+    def test_live_namespace_pollution_prunes_ignored_ancestors(self) -> None:
+        """An ignored namespace ancestor excludes every checkout below it."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            subprocess.run(
+                ["git", "init", "-q", "-b", "main"],
+                cwd=root,
+                check=True,
+                timeout=10,
+            )
+            _write(root, ".gitmodules", "")
+            _write(root, ".gitignore", "/repos/\n")
+            _write(root, "repos/private/README.md", "peer checkout\n")
+
+            ignored = conformance.git_ignored_paths(root)
+            pollution = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertIn((root / "repos").resolve(), ignored)
+        self.assertEqual(pollution, 0)
+
+    def test_live_namespace_pollution_decodes_non_ascii_ignored_paths(self) -> None:
+        """NUL-delimited Git output preserves non-ASCII ignored paths."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            subprocess.run(
+                ["git", "init", "-q", "-b", "main"],
+                cwd=root,
+                check=True,
+                timeout=10,
+            )
+            _write(root, ".gitmodules", "")
+            _write(root, ".gitignore", "/repos/café/\n")
+            _write(root, "repos/café/README.md", "peer checkout\n")
+
+            ignored = conformance.git_ignored_paths(root)
+            pollution = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertIn((root / "repos" / "café").resolve(), ignored)
+        self.assertEqual(pollution, 0)
+
     def test_generate_refuses_to_raise_a_count(self) -> None:
         """`generate` must not launder a regression into the baseline.
 
