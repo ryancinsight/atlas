@@ -1058,7 +1058,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         """The export's index carries each file's size and modification time,
         and the export is identified clean at its revision.
 
-        `git diff HEAD` can skip re-hashing an entry only when its recorded
+        `git status` can skip re-hashing an entry only when its recorded
         size and modification time match the file's, and a read-tree index
         with no stat data re-hashed kwavers for 348 s. That match is a
         necessary condition, not a sufficient one: all 19 of this fixture's
@@ -1090,7 +1090,11 @@ class BuildIdentityTestCase(unittest.TestCase):
 
         with patch.object(build_source, "_git", side_effect=recording_git):
             found = build_source.source_identity(export)
-        self.assertIn("diff", [arguments[0] for arguments in calls])
+        self.assertEqual(
+            [arguments[1] if arguments[0] == "--no-optional-locks" else arguments[0]
+             for arguments in calls],
+            ["status"],
+        )
         self.assertEqual(found.revision, revision)
         self.assertFalse(found.dirty)
 
@@ -1103,7 +1107,20 @@ class BuildIdentityTestCase(unittest.TestCase):
         git(export, "read-tree", "HEAD")
         (export / "src/lib.rs").write_text("fn main() { edited(); }\n", encoding="utf-8")
         (export / "Cargo.lock").unlink()
-        found = build_source.source_identity(export)
+        calls: list[tuple[str, ...]] = []
+        real_git = build_source._git
+
+        def recording_git(root: Path, *arguments: str) -> bytes:
+            calls.append(arguments)
+            return real_git(root, *arguments)
+
+        with patch.object(build_source, "_git", side_effect=recording_git):
+            found = build_source.source_identity(export)
+        self.assertEqual(
+            [arguments[1] if arguments[0] == "--no-optional-locks" else arguments[0]
+             for arguments in calls],
+            ["status", "diff"],
+        )
         self.assertEqual(found.revision, revision)
         self.assertTrue(found.dirty)
 
@@ -2295,6 +2312,31 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertTrue(after.dirty)
         self.assertNotEqual(before.tree_digest, after.tree_digest)
 
+    def test_tracked_bytes_are_identical_before_and_after_staging(self) -> None:
+        init_repo(self.root, "fn one() {}\n")
+        clean = build_source.source_identity(self.root)
+        source = self.root / "src/lib.rs"
+        source.write_text("fn two() {}\n", encoding="utf-8")
+        unstaged = build_source.source_identity(self.root)
+        git(self.root, "add", "src/lib.rs")
+        staged = build_source.source_identity(self.root)
+        self.assertTrue(unstaged.dirty)
+        self.assertEqual(staged, unstaged)
+        self.assertNotEqual(staged.tree_digest, clean.tree_digest)
+
+    def test_the_nearest_git_marker_owns_a_nested_repository(self) -> None:
+        init_repo(self.root, "fn outer() {}\n")
+        nested = self.root / "nested"
+        init_repo(nested, "fn nested() {}\n")
+        self.assertEqual(
+            build_source.repository_top(nested / "src"),
+            nested.resolve(),
+        )
+        self.assertEqual(
+            build_source.repository_top(self.root / "src"),
+            self.root.resolve(),
+        )
+
     def test_untracked_and_ignored_files_are_listed_as_ls_files_lists_them(self) -> None:
         # The digest frames each untracked and ignored file in this order, so
         # one `git status` must list exactly what the two `ls-files --others`
@@ -2336,30 +2378,44 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertIn(b"nested/", listed[0][1])
         self.assertIn(b"untracked/build/y.o", listed[1][1])
         self.assertNotIn(b"orig.rs", listed[1][1])
-        self.assertEqual(build_source._untracked_paths(self.root.resolve()), listed)
+        revision, tracked_dirty, status_entries = build_source._repository_status(
+            self.root.resolve()
+        )
+        self.assertEqual(revision, git(self.root, "rev-parse", "HEAD"))
+        self.assertTrue(tracked_dirty)
+        self.assertEqual(status_entries, listed)
 
     def test_a_top_level_path_holding_a_newline_is_read_whole(self) -> None:
-        # POSIX allows a newline in a directory name, so the revision is
-        # taken from the last line and the path from everything before it.
-        revision = "0123456789abcdef0123456789abcdef01234567"
-        cases = {
-            "newline": (b"/srv/line\nbreak\n" + revision.encode() + b"\n", "line\nbreak"),
-            "trailing newline": (b"/srv/line\n\n" + revision.encode() + b"\n", "line\n"),
-            "trailing space": (b"/srv/trail \n" + revision.encode() + b"\n", "trail "),
-            "plain": (b"/srv/plain\n" + revision.encode() + b"\n", "plain"),
-        }
-        for name, (printed, leaf) in cases.items():
-            with self.subTest(name), patch.object(build_source, "_git", return_value=printed):
-                top, found = build_source.repository_head(self.base)
-            self.assertEqual(top.name, leaf)
-            self.assertEqual(found, revision)
-        for name, printed in {
-            "no path": revision.encode() + b"\n",
-            "no revision": b"/srv/plain\n\n",
+        # POSIX permits whitespace in a work-tree name. Marker discovery uses
+        # Path components directly, so no command output can split that name.
+        for name, leaf in {
+            "newline": "line\nbreak",
+            "trailing newline": "line\n",
+            "trailing space": "trail ",
+            "plain": "plain",
         }.items():
-            with self.subTest(name), patch.object(build_source, "_git", return_value=printed):
-                with self.assertRaises(build_source.BuildIdentityError):
-                    build_source.repository_head(self.base)
+            with self.subTest(name):
+                top = self.base / leaf
+                nested = top / "member" / "src"
+                marker = top / ".git"
+
+                def marker_stat(path: Path):
+                    if path == marker:
+                        return None
+                    raise FileNotFoundError(path)
+
+                with (
+                    patch.object(build_source, "_canonical", return_value=nested),
+                    patch.object(Path, "lstat", autospec=True, side_effect=marker_stat),
+                ):
+                    self.assertEqual(build_source.repository_top(self.base), top)
+        without_marker = self.base / "not-a-repository"
+        with (
+            patch.object(build_source, "_canonical", return_value=without_marker),
+            patch.object(Path, "lstat", autospec=True, side_effect=FileNotFoundError),
+            self.assertRaises(build_source.BuildIdentityError),
+        ):
+            build_source.repository_top(self.base)
 
     def test_each_repository_is_identified_once_per_dependency_pass(self) -> None:
         # Every path package of one repository has that repository's
@@ -2371,11 +2427,11 @@ class BuildIdentityTestCase(unittest.TestCase):
         sibling = self.base / "sibling"
         init_repo(sibling, "pub fn sibling() {}\n")
         identified: list[Path] = []
-        real_worktree_identity = build_inputs.worktree_identity
+        real_source_identity = build_inputs.source_identity
 
-        def counting_worktree_identity(top, *arguments):
+        def counting_source_identity(top, *arguments):
             identified.append(top)
-            return real_worktree_identity(top, *arguments)
+            return real_source_identity(top, *arguments)
 
         def snapshot(metadata, manifest, package, identify_source, content_digest):
             return {
@@ -2386,7 +2442,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             }
 
         with (
-            patch.object(build_inputs, "worktree_identity", side_effect=counting_worktree_identity),
+            patch.object(build_inputs, "source_identity", side_effect=counting_source_identity),
             patch.object(build_inputs, "dependency_snapshot", side_effect=snapshot),
             patch.object(build_inputs, "_cargo_metadata", return_value={}),
         ):
