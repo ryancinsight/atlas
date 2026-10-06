@@ -23,9 +23,10 @@ This script keeps what acts on the stack as a whole:
     sync-hooks, publish-hooks
                 deploy the owned hooks into the members
     install-hooks
-                per-clone bootstrap: point member `core.hooksPath` at
-                scripts/git-hooks so every member runs the owned pre-commit
-                and pre-push hooks, whatever branch its tree has checked out
+                per-clone bootstrap: write one shim per owned hook into the
+                Atlas git directory and point member `core.hooksPath` at
+                them, so every member runs the hooks committed at the Atlas
+                `origin/main`, whatever branch any tree has checked out
 
 The rule is deliberately narrow: it flags only a package that is *present in
 the lock* yet locked without a source despite being declared as a git
@@ -862,45 +863,113 @@ def write_hook_shims(atlas: Path) -> Path:
     return shims
 
 
+def _comparable_hooks_path(value: str) -> str:
+    """One spelling per `core.hooksPath` location, for equality tests.
+
+    An absolute path is resolved and folded as the platform folds file names:
+    a trailing separator, backslashes, and drive-letter or directory case
+    name the same directory on Windows. A relative value is a name resolved
+    against each work tree (`.githooks`), so only its separators are unified.
+    """
+    if os.path.isabs(value):
+        return os.path.normcase(os.path.realpath(value))
+    return value.replace("\\", "/").rstrip("/")
+
+
+def _same_directory(first: str | Path, second: str | Path) -> bool:
+    """Whether two existing paths name one directory."""
+    try:
+        return os.path.samefile(first, second)
+    except OSError:
+        return False
+
+
 def cmd_install_hooks(_args) -> int:
-    """Point every member's `core.hooksPath` at the committed guard.
+    """Point every member's `core.hooksPath` at the owned-hook shims.
 
     Local git config, so it is a per-clone bootstrap rather than committed
     state -- the same shape as the meta-repo's own
     `git config core.hooksPath .githooks`.
 
-    A member pointing at `.githooks` is retargeted: that directory is the
-    copy `sync-hooks` deploys from this same source for standalone clones,
-    but as a relative hooks path it runs whatever copy the checked-out branch
-    carries, so a tree left on an old branch runs an old gate (CFDrs sat 80
-    commits behind on 2026-09-28 and its pre-push failed on the Windows Store
-    `python3` stub). Any other value is reported and left alone: silently
-    retargeting someone else's hooks would disable them.
+    Two earlier values are retargeted, because each ran a working-tree copy.
+    `.githooks` is the copy `sync-hooks` deploys for standalone clones, and a
+    tree left on an old branch ran an old gate (CFDrs sat 80 commits behind
+    on 2026-09-28 and its pre-push failed on the Windows Store `python3`
+    stub). `scripts/git-hooks` in the Atlas tree ran whatever branch that
+    shared checkout held: on 2026-10-01 a peer branch's pre-push refused the
+    metis fuzz push on a standalone workspace that `origin/main`'s hook gates.
+    Any other value is reported and left alone, and the install exits 1:
+    silently retargeting someone else's hooks would disable them, and a member
+    left on its own hooks does not run the owned gate.
+
+    Every git call is bounded and ignores an inherited `GIT_DIR`, so a member's
+    configuration is written in that member. A directory under `repos/` that
+    is not a repository of its own is refused: git would resolve it to the
+    Atlas repository, or the directory is a linked working tree of it or
+    carries a `.git` file naming its git directory, and the write would
+    retarget the umbrella's hooks.
     """
-    hooks = (Path(__file__).resolve().parent / "git-hooks").as_posix()
-    installed, skipped = 0, 0
+    try:
+        hooks = write_hook_shims(ROOT).as_posix()
+    except (RuntimeError, OSError) as err:
+        print(f"install-hooks: shims not all written, members left unchanged: {err}")
+        return 1
+    # The stack's tree and, when this copy runs from elsewhere (an export),
+    # the tree it runs from.
+    working_tree_copies = {
+        (ROOT / "scripts" / "git-hooks").as_posix(),
+        (Path(__file__).resolve().parent / "git-hooks").as_posix(),
+    }
+    owned = {_comparable_hooks_path(path) for path in (hooks, *working_tree_copies)}
+    owned.add(MEMBER_HOOK_COPY)
+    atlas_common = Path(hooks).parent
+    installed, failed = 0, 0
+    left_alone: list[str] = []
     for member in sorted(registered_member_names()):
         repo = REPOS / member
         if not repo.is_dir():
             continue
-        code, existing, _ = run(
-            "git", "-C", str(repo), "config", "--local", "--get", "core.hooksPath"
-        )
-        current = existing.strip()
-        if code == 0 and current and current not in (hooks, MEMBER_HOOK_COPY):
-            print(f"{member}: core.hooksPath already set to {current}; left alone")
-            skipped += 1
+        try:
+            top = git_in(repo, "rev-parse", "--show-toplevel")
+            common = common_git_dir(repo)
+            if not _same_directory(top, repo) or _same_directory(common, atlas_common):
+                print(
+                    f"{member}: {repo} is not a repository of its own "
+                    f"(git resolves it to {top}, git directory {common}); refused"
+                )
+                failed += 1
+                continue
+            read = git_result(repo, "config", "--local", "--get", "core.hooksPath")
+            # Exit 1 is "no such key"; any other failure is not an unset value.
+            if read.returncode not in (0, 1):
+                detail = read.stderr.decode("utf-8", errors="replace").strip()
+                print(f"{member}: FAILED to read core.hooksPath: {detail}")
+                failed += 1
+                continue
+            current = read.stdout.decode("utf-8", errors="replace").strip()
+            if current and _comparable_hooks_path(current) not in owned:
+                print(f"{member}: core.hooksPath already set to {current}; left alone")
+                left_alone.append(member)
+                continue
+            write = git_result(repo, "config", "--local", "core.hooksPath", hooks)
+        except RuntimeError as err:
+            print(f"{member}: FAILED to install: {err}")
+            failed += 1
             continue
-        code, _, err = run(
-            "git", "-C", str(repo), "config", "--local", "core.hooksPath", hooks
-        )
-        if code != 0:
-            print(f"{member}: FAILED to set core.hooksPath: {err.strip()}")
-            skipped += 1
+        if write.returncode != 0:
+            detail = write.stderr.decode("utf-8", errors="replace").strip()
+            print(f"{member}: FAILED to set core.hooksPath: {detail}")
+            failed += 1
             continue
         installed += 1
-    print(f"lock-form pre-commit guard installed in {installed} member(s), {skipped} skipped")
-    return 0
+    print(
+        f"owned hook shims installed in {installed} member(s), "
+        f"{len(left_alone)} left alone, {failed} failed"
+    )
+    if left_alone:
+        print(f"install-hooks: left on their own core.hooksPath: {', '.join(left_alone)}")
+    # A member left on other hooks does not run the owned gate.
+    return 1 if failed or left_alone else 0
 
 
 def main() -> int:
