@@ -3205,13 +3205,9 @@ class BuildIdentityTestCase(unittest.TestCase):
             if len(command) < 2 or command[1] != "clean":
                 artifact.write_text("built", encoding="utf-8")
 
-        artifact_value = {"files": {"debug/deps/libdemo-123.rlib": "digest"}, "digest": "artifact"}
         with (
             patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.object(build_inputs, "dependency_snapshot", return_value=snapshot),
-            patch.object(identity, "artifact_identity", return_value=artifact_value),
-            patch.object(artifacts, "recorded_artifact_identity", return_value=artifact_value),
-            patch.object(build_records, "recorded_artifact_identity", return_value=artifact_value),
             patch.object(identity, "_run_checked", side_effect=run_command),
         ):
             first = identity.run_build(
@@ -3221,6 +3217,13 @@ class BuildIdentityTestCase(unittest.TestCase):
                 self.target,
                 [sys.executable, "-c", "pass"],
             )[0]
+            relative = "debug/deps/libdemo-123.rlib"
+            files = {relative: artifacts._file_digest(artifact)}
+            first_record = json.loads(first.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(first_record["artifact"]["files"], files)
+            self.assertEqual(
+                first_record["artifact"]["digest"], artifacts.artifact_digest(files)
+            )
             second = identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
