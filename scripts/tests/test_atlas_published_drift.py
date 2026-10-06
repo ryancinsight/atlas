@@ -106,12 +106,12 @@ class MeasureCrateTestCase(unittest.TestCase):
     def measure(self, published: dict[str, bytes]):
         crate = make_crate("demo", "0.1.0", published)
         registry = Registry({"demo": ["0.0.9", "0.1.0"]}, {("demo", "0.1.0"): crate})
-        reading = tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, registry)
+        reading = tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
         return reading, registry
 
     @staticmethod
     def published() -> dict[str, bytes]:
-        return {**SOURCE, "Cargo.toml.orig": MANIFEST}
+        return {**SOURCE, "Cargo.toml.orig": MANIFEST, "Cargo.toml": MANIFEST}
 
     def test_identical_source_reads_as_not_drifted(self) -> None:
         self.write_tree(SOURCE)
@@ -159,14 +159,15 @@ class MeasureCrateTestCase(unittest.TestCase):
 
     def test_line_endings_alone_do_not_read_as_drift(self) -> None:
         self.write_tree({"src/lib.rs": b"a\nb\n"}, manifest=b"[package]\nname = \"demo\"\n")
-        published = {"src/lib.rs": b"a\r\nb\r\n", "Cargo.toml.orig": b"[package]\r\nname = \"demo\"\r\n"}
+        published = {"src/lib.rs": b"a\r\nb\r\n", "Cargo.toml": MANIFEST,
+                     "Cargo.toml.orig": b"[package]\r\nname = \"demo\"\r\n"}
         reading, _ = self.measure(published)
         self.assertEqual(reading.drift, tool.Drift())
 
     def test_never_published_crate_is_reported_and_downloads_nothing(self) -> None:
         self.write_tree(SOURCE)
         registry = Registry({})
-        reading = tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, registry)
+        reading = tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
         self.assertEqual(reading.status, tool.NEVER_PUBLISHED)
         self.assertIsNone(reading.drift)
         self.assertIsNone(reading.latest_published)
@@ -175,7 +176,7 @@ class MeasureCrateTestCase(unittest.TestCase):
     def test_version_absent_from_the_index_is_unpublished_and_names_the_latest(self) -> None:
         self.write_tree(SOURCE)
         registry = Registry({"demo": ["0.1.0", "0.10.0", "0.9.0", "0.10.0-rc.1"]})
-        reading = tool.measure_crate("demo", "0.2.0", "Cargo.toml", self.package, registry)
+        reading = tool.measure_crate("demo", "0.2.0", "Cargo.toml", self.package, [], registry)
         self.assertEqual(reading.status, tool.UNPUBLISHED_VERSION)
         self.assertEqual(reading.latest_published, "0.10.0")
         self.assertEqual(registry.asked, ["https://index.crates.io/de/mo/demo",
@@ -186,7 +187,7 @@ class MeasureCrateTestCase(unittest.TestCase):
         crate = make_crate("demo", "0.1.0", self.published())
         registry = Registry({"demo": ["0.1.0"]}, {("demo", "0.1.0"): crate},
                             owners={"demo": ["someone-else", "another"]})
-        reading = tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, registry)
+        reading = tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
         self.assertEqual(reading.status, tool.FOREIGN_NAME)
         self.assertIsNone(reading.drift)
         self.assertIsNone(reading.latest_published)
@@ -196,7 +197,7 @@ class MeasureCrateTestCase(unittest.TestCase):
     def test_a_name_with_no_owner_at_all_is_foreign(self) -> None:
         self.write_tree(SOURCE)
         registry = Registry({"demo": ["0.1.0"]}, owners={"demo": []})
-        reading = tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, registry)
+        reading = tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
         self.assertEqual(reading.status, tool.FOREIGN_NAME)
 
     def test_the_expected_owner_comes_from_the_argument(self) -> None:
@@ -204,7 +205,7 @@ class MeasureCrateTestCase(unittest.TestCase):
         crate = make_crate("demo", "0.1.0", self.published())
         registry = Registry({"demo": ["0.1.0"]}, {("demo", "0.1.0"): crate},
                             owners={"demo": ["someone-else"]})
-        reading = tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, registry,
+        reading = tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry,
                                      owner="someone-else")
         self.assertEqual(reading.status, tool.PUBLISHED_CURRENT)
 
@@ -222,32 +223,32 @@ class MeasureCrateTestCase(unittest.TestCase):
         self.write_tree(SOURCE)
         registry = Registry({"demo": ["0.1.0"]}, status={OWNERS_URL.format(name="demo"): 503})
         with self.assertRaisesRegex(tool.RegistryError, "owners API returned HTTP 503 for demo"):
-            tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, registry)
+            tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
 
     def test_index_outage_fails_instead_of_reading_as_not_drifted(self) -> None:
         self.write_tree(SOURCE)
         registry = Registry({"demo": ["0.1.0"]}, status={"https://index.crates.io/de/mo/demo": 503})
         with self.assertRaisesRegex(tool.RegistryError, "HTTP 503 for demo"):
-            tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, registry)
+            tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
 
     def test_missing_crate_file_for_an_indexed_version_fails(self) -> None:
         self.write_tree(SOURCE)
         registry = Registry({"demo": ["0.1.0"]})
         with self.assertRaisesRegex(tool.RegistryError, "HTTP 404 for demo 0.1.0"):
-            tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, registry)
+            tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
 
     def test_corrupt_crate_fails(self) -> None:
         self.write_tree(SOURCE)
         registry = Registry({"demo": ["0.1.0"]}, {("demo", "0.1.0"): b"not gzip"})
         with self.assertRaisesRegex(tool.RegistryError, "unreadable"):
-            tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, registry)
+            tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
 
     def test_crate_entry_outside_its_directory_fails(self) -> None:
         self.write_tree(SOURCE)
         wrong = make_crate("other", "0.1.0", {"src/lib.rs": b""})
         registry = Registry({"demo": ["0.1.0"]}, {("demo", "0.1.0"): wrong})
         with self.assertRaisesRegex(tool.RegistryError, "outside demo-0.1.0/"):
-            tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, registry)
+            tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
 
 
 class HttpTestCase(unittest.TestCase):
@@ -451,7 +452,7 @@ class StackTestCase(unittest.TestCase):
         crate = make_crate("alpha", "0.1.0", {
             "src/lib.rs": published_source.encode(),
             "Cargo.toml.orig": self.ALPHA["Cargo.toml"].encode(),
-            "Cargo.toml": b"normalized",
+            "Cargo.toml": self.ALPHA["Cargo.toml"].encode(),
         })
         return Registry({"alpha": ["0.1.0"]}, {("alpha", "0.1.0"): crate})
 
@@ -475,7 +476,8 @@ class StackTestCase(unittest.TestCase):
             [{
                 "name": "alpha", "version": "0.1.0", "manifest": "Cargo.toml",
                 "status": "published-drifted", "published": True, "latest_published": "0.1.0",
-                "drift": {"changed": ["src/lib.rs"], "added": [], "removed": []},
+                "drift": {"changed": ["src/lib.rs"], "added": [], "removed": [],
+                          "dependencies": []},
                 "dependents": [{"member": "beta", "crate": "beta", "requirement": "^0.1",
                                 "kind": "normal", "rename": "a"}],
             }])
@@ -510,7 +512,7 @@ class StackTestCase(unittest.TestCase):
                       "1 never published", out)
         self.assertIn("| alpha | 1 | 0 | 0 | 0 | 0 | 1 |", out)
         self.assertIn("| alpha | alpha | 0.1.0 | published-current | 0.1.0 | 0 | 0 | 0 | "
-                      "beta: beta as a `^0.1` |", out)
+                      " | beta: beta as a `^0.1` |", out)
 
     def test_an_index_outage_fails_the_tool_with_status_two(self) -> None:
         self.build_stack({"alpha": self.ALPHA})
@@ -545,7 +547,8 @@ class StackTestCase(unittest.TestCase):
         registry = Registry({"alpha": ["0.1.0"]}, owners={"alpha": ["someone-else"]})
         registry.crates[("alpha", "0.1.0")] = make_crate("alpha", "0.1.0", {
             "src/lib.rs": self.ALPHA["src/lib.rs"].encode(),
-            "Cargo.toml.orig": self.ALPHA["Cargo.toml"].encode()})
+            "Cargo.toml.orig": self.ALPHA["Cargo.toml"].encode(),
+            "Cargo.toml": self.ALPHA["Cargo.toml"].encode()})
         status, out, _ = self.run_tool(registry, "--owner", "someone-else")
         self.assertEqual(status, 0)
         self.assertEqual(json.loads(out)["members"][0]["crates"][0]["status"], "published-current")
@@ -558,11 +561,266 @@ class StackTestCase(unittest.TestCase):
         self.assertEqual((status, out), (2, ""))
         self.assertIn("owners API returned HTTP 500 for alpha", err)
 
+    GAMMA = {
+        "Cargo.toml": (
+            '[workspace]\nresolver = "2"\nmembers = ["crates/*"]\n'
+            '[workspace.dependencies]\neunomia = "0.9"\n'),
+        "crates/gamma/Cargo.toml": (
+            '[package]\nname = "gamma"\nversion = "0.3.0"\n'
+            '[dependencies]\neunomia = { workspace = true, optional = true }\n'
+            'core = { package = "gamma-core", version = "0.2", features = ["x"] }\n'
+            '[target.\'cfg(target_os = "linux")\'.dependencies]\nlibc = "0.2"\n'
+            '[build-dependencies]\ncc = "1"\n'
+            '[dev-dependencies]\nproptest = "1.5"\n'),
+        "crates/gamma/src/lib.rs": "pub fn g() {}\n",
+    }
+    # The registry's normalized manifest: inheritance resolved, `eunomia` at `{eunomia}`.
+    GAMMA_RESOLVED = (
+        '[dependencies.eunomia]\nversion = "{eunomia}"\noptional = true\n'
+        '[dependencies.core]\nversion = "0.2"\nfeatures = ["x"]\npackage = "gamma-core"\n'
+        '[target."cfg(target_os=\\"linux\\")".dependencies.libc]\nversion = "0.2"\n'
+        '[build-dependencies.cc]\nversion = "1"\n'
+        '[dev-dependencies.proptest]\nversion = "1.4"\n')
+
+    def gamma_registry(self, eunomia: str) -> Registry:
+        """A registry holding gamma 0.3.0 as published when the workspace required `eunomia`."""
+        crate = make_crate("gamma", "0.3.0", {
+            "src/lib.rs": self.GAMMA["crates/gamma/src/lib.rs"].encode(),
+            "Cargo.toml.orig": self.GAMMA["crates/gamma/Cargo.toml"].encode(),
+            "Cargo.toml": ('[package]\nname = "gamma"\nversion = "0.3.0"\n'
+                           + self.GAMMA_RESOLVED.format(eunomia=eunomia)).encode()})
+        return Registry({"gamma": ["0.3.0"]}, {("gamma", "0.3.0"): crate})
+
+    def test_a_workspace_requirement_that_moved_since_publication_is_reported_in_json(self) -> None:
+        self.build_stack({"gamma": self.GAMMA})
+        status, out, err = self.run_tool(self.gamma_registry("0.8"))
+        self.assertEqual((status, err), (1, ""))
+        crate = json.loads(out)["members"][0]["crates"][0]
+        self.assertEqual(crate["status"], "published-drifted")
+        self.assertEqual(crate["drift"], {
+            "changed": [], "added": [], "removed": [],
+            "dependencies": [{
+                "name": "eunomia", "kind": "normal", "target": None,
+                "published": {"package": "eunomia", "req": "0.8", "optional": True,
+                              "default_features": True, "features": []},
+                "source": {"package": "eunomia", "req": "^0.9", "optional": True,
+                           "default_features": True, "features": []},
+                "reason": "req 0.8 -> ^0.9"}]})
+
+    def test_the_markdown_cell_names_the_dependency_that_moved(self) -> None:
+        self.build_stack({"gamma": self.GAMMA})
+        status, out, _ = self.run_tool(self.gamma_registry("0.8"), "--format", "md")
+        self.assertEqual(status, 1)
+        self.assertIn("| gamma | gamma | 0.3.0 | published-drifted | 0.3.0 | 0 | 0 | 0 | "
+                      "eunomia: req 0.8 -> ^0.9 |  |", out)
+
+    def test_resolved_requirements_equal_to_the_source_exit_zero(self) -> None:
+        self.build_stack({"gamma": self.GAMMA})
+        status, out, _ = self.run_tool(self.gamma_registry("0.9"))
+        self.assertEqual(status, 0)
+        crate = json.loads(out)["members"][0]["crates"][0]
+        self.assertEqual((crate["status"], crate["drift"]["dependencies"]),
+                         ("published-current", []))
+
     def test_an_unregistered_member_name_fails_the_tool(self) -> None:
         self.build_stack({"alpha": self.ALPHA})
         status, _, err = self.run_tool(Registry({}), "--member", "nope")
         self.assertEqual(status, 2)
         self.assertIn("not registered members: nope", err)
+
+
+def metadata_dependency(name: str, req: str, *, kind: str | None = None,
+                        target: str | None = None, optional: bool = False,
+                        features: tuple[str, ...] = (), uses_default_features: bool = True,
+                        rename: str | None = None) -> dict:
+    """One `cargo metadata` dependency entry, with the keys the comparison reads."""
+    return {"name": name, "req": req, "kind": kind, "target": target, "optional": optional,
+            "features": list(features), "uses_default_features": uses_default_features,
+            "rename": rename}
+
+
+INHERITED = MANIFEST + b'[dependencies]\neunomia = { workspace = true }\n'
+EUNOMIA_08 = '[dependencies.eunomia]\nversion = "0.8.0"\n'
+
+
+class RequirementDriftTestCase(unittest.TestCase):
+    """Dependency requirements: the registry's normalized manifest against `cargo metadata`.
+
+    The source manifest text is `INHERITED` throughout, so `Cargo.toml.orig` and `Cargo.toml`
+    always agree and any drift reported here is the requirement comparison's alone.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="atlas-published-drift-deps-")
+        self.addCleanup(self._tmp.cleanup)
+        self.package = Path(self._tmp.name)
+        for path, data in SOURCE.items():
+            target = self.package / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+        (self.package / "Cargo.toml").write_bytes(INHERITED)
+
+    def measure(self, published: str, source: list[dict]):
+        """Measure `demo` whose normalized registry manifest ends in `published` (TOML)."""
+        crate = make_crate("demo", "0.1.0", {
+            **SOURCE, "Cargo.toml.orig": INHERITED, "Cargo.toml": MANIFEST + published.encode()})
+        registry = Registry({"demo": ["0.1.0"]}, {("demo", "0.1.0"): crate})
+        return tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, source, registry)
+
+    def assertCurrent(self, reading) -> None:
+        self.assertEqual((reading.status, reading.drift), (tool.PUBLISHED_CURRENT, tool.Drift()))
+
+    def reasons(self, reading) -> list[str]:
+        self.assertEqual(reading.status, tool.PUBLISHED_DRIFTED)
+        return [d.reason for d in reading.drift.dependencies]
+
+    def test_an_inherited_workspace_requirement_that_moved_reads_as_drifted(self) -> None:
+        reading = self.measure(EUNOMIA_08, [metadata_dependency("eunomia", "^0.9.0")])
+        self.assertEqual(reading.status, tool.PUBLISHED_DRIFTED)
+        self.assertEqual(reading.drift, tool.Drift(dependencies=(tool.DependencyDrift(
+            name="eunomia", kind="normal", target=None,
+            published={"package": "eunomia", "req": "0.8.0", "optional": False,
+                       "default_features": True, "features": []},
+            source={"package": "eunomia", "req": "^0.9.0", "optional": False,
+                    "default_features": True, "features": []},
+            reason="req 0.8.0 -> ^0.9.0"),)))
+
+    def test_the_same_resolved_requirement_under_different_manifest_text_is_not_drift(self) -> None:
+        # Source `eunomia = { workspace = true }`; registry `version = "0.9.0"`: the text
+        # differs, the bound requirement does not.
+        reading = self.measure('[dependencies.eunomia]\nversion = "0.9.0"\n',
+                               [metadata_dependency("eunomia", "^0.9.0")])
+        self.assertCurrent(reading)
+
+    def test_one_requirement_written_two_ways_is_not_drift(self) -> None:
+        for published, source in [("0.9", "^0.9"), ("^0.9", "^0.9.0"), ("0.9.0", "^0.9"),
+                                  ("1.2.3", "^1.2.3"), ("1.*", "^1"), (">=1.2, <2", "^1.2"),
+                                  ("~1.2", "~1.2.0"), ("0.0.3", "^0.0.3"), ("=1.2", "=1.2.*")]:
+            with self.subTest(published=published, source=source):
+                reading = self.measure(
+                    f'[dependencies.eunomia]\nversion = "{published}"\n',
+                    [metadata_dependency("eunomia", source)])
+                self.assertCurrent(reading)
+
+    def test_requirements_that_bind_different_versions_are_drift(self) -> None:
+        # `^0.0` is >=0.0.0,<0.1.0 and `^0.0.0` is >=0.0.0,<0.0.1; `^0` is <1.0.0.
+        for published, source in [("0.9", "^0.9.1"), ("0.9", "^0.10"), ("1.2", "~1.2"),
+                                  ("0", "^0.0"), ("0.0", "^0.0.0"), ("1", "=1.0.0"),
+                                  ("1.2", ">=1.2"), ("1.2", "^1.2.0-rc.1"), ("*", "^1")]:
+            with self.subTest(published=published, source=source):
+                reading = self.measure(
+                    f'[dependencies.eunomia]\nversion = "{published}"\n',
+                    [metadata_dependency("eunomia", source)])
+                self.assertEqual(self.reasons(reading), [f"req {published} -> {source}"])
+
+    def test_a_dependency_made_optional_reads_as_drifted(self) -> None:
+        reading = self.measure(EUNOMIA_08, [metadata_dependency("eunomia", "^0.8.0",
+                                                                optional=True)])
+        self.assertEqual(self.reasons(reading), ["optional false -> true"])
+
+    def test_a_feature_change_reads_as_drifted(self) -> None:
+        reading = self.measure(
+            '[dependencies.eunomia]\nversion = "0.8.0"\nfeatures = ["b", "a"]\n',
+            [metadata_dependency("eunomia", "^0.8.0", features=("a", "b", "c"))])
+        self.assertEqual(self.reasons(reading), ["features ['a', 'b'] -> ['a', 'b', 'c']"])
+
+    def test_the_same_features_in_another_order_are_not_drift(self) -> None:
+        reading = self.measure(
+            '[dependencies.eunomia]\nversion = "0.8.0"\nfeatures = ["b", "a"]\n',
+            [metadata_dependency("eunomia", "^0.8.0", features=("a", "b"))])
+        self.assertCurrent(reading)
+
+    def test_a_default_features_change_reads_as_drifted(self) -> None:
+        reading = self.measure(
+            '[dependencies.eunomia]\nversion = "0.8.0"\ndefault-features = false\n',
+            [metadata_dependency("eunomia", "^0.8.0")])
+        self.assertEqual(self.reasons(reading), ["default-features false -> true"])
+
+    def test_the_underscore_default_features_spelling_is_read(self) -> None:
+        reading = self.measure(
+            '[dependencies.eunomia]\nversion = "0.8.0"\ndefault_features = false\n',
+            [metadata_dependency("eunomia", "^0.8.0", uses_default_features=False)])
+        self.assertCurrent(reading)
+
+    def test_a_target_specific_dependency_change_reads_as_drifted(self) -> None:
+        published = '[target."cfg(loom)".dependencies.loom]\nversion = "0.7"\n'
+        reading = self.measure(published, [metadata_dependency("loom", "^0.8",
+                                                               target="cfg(loom)")])
+        self.assertEqual(self.reasons(reading), ["req 0.7 -> ^0.8"])
+        (found,) = reading.drift.dependencies
+        self.assertEqual((found.name, found.kind, found.target), ("loom", "normal", "cfg(loom)"))
+
+    def test_a_target_dependency_and_a_plain_one_of_one_name_are_distinct(self) -> None:
+        reading = self.measure(
+            '[target."cfg(loom)".dependencies.loom]\nversion = "0.7"\n',
+            [metadata_dependency("loom", "^0.7")])
+        self.assertEqual([(d.name, d.target, d.reason) for d in reading.drift.dependencies],
+                         [("loom", None, "added: ^0.7"), ("loom", "cfg(loom)", "removed: 0.7")])
+
+    def test_target_spelling_whitespace_is_not_drift(self) -> None:
+        reading = self.measure(
+            '[target.\'cfg(target_os="linux")\'.dependencies.libc]\nversion = "0.2"\n',
+            [metadata_dependency("libc", "^0.2", target='cfg(target_os = "linux")')])
+        self.assertCurrent(reading)
+
+    def test_a_build_dependency_change_reads_as_drifted(self) -> None:
+        reading = self.measure('[build-dependencies.cc]\nversion = "1.0"\n',
+                               [metadata_dependency("cc", "^1.1", kind="build")])
+        self.assertEqual(self.reasons(reading), ["req 1.0 -> ^1.1"])
+        self.assertEqual(reading.drift.dependencies[0].kind, "build")
+
+    def test_a_dependency_added_or_removed_reads_as_drifted(self) -> None:
+        reading = self.measure('[dependencies.gone]\nversion = "1"\n',
+                               [metadata_dependency("new", "^2")])
+        self.assertEqual([(d.name, d.reason, d.published is None, d.source is None)
+                          for d in reading.drift.dependencies],
+                         [("gone", "removed: 1", False, True), ("new", "added: ^2", True, False)])
+
+    def test_a_dependency_moved_between_normal_and_build_reads_as_drifted(self) -> None:
+        reading = self.measure('[dependencies.cc]\nversion = "1.0"\n',
+                               [metadata_dependency("cc", "^1.0", kind="build")])
+        self.assertEqual([(d.name, d.kind, d.reason) for d in reading.drift.dependencies],
+                         [("cc", "build", "added: ^1.0"), ("cc", "normal", "removed: 1.0")])
+
+    def test_a_dev_dependency_difference_is_not_drift(self) -> None:
+        published = EUNOMIA_08 + '[dev-dependencies.proptest]\nversion = "1.4"\n'
+        reading = self.measure(published, [
+            metadata_dependency("eunomia", "^0.8.0"),
+            metadata_dependency("proptest", "^1.5", kind="dev"),
+            metadata_dependency("criterion", "^0.5", kind="dev", optional=True)])
+        self.assertCurrent(reading)
+
+    def test_a_renamed_dependency_is_matched_under_its_declared_name(self) -> None:
+        published = '[dependencies.core]\nversion = "0.3.0"\npackage = "demo-memory-core"\n'
+        current = self.measure(published, [
+            metadata_dependency("demo-memory-core", "^0.3.0", rename="core")])
+        self.assertCurrent(current)
+        moved = self.measure(published, [
+            metadata_dependency("demo-memory-core", "^0.4.0", rename="core")])
+        self.assertEqual([(d.name, d.published["package"], d.reason)
+                          for d in moved.drift.dependencies],
+                         [("core", "demo-memory-core", "req 0.3.0 -> ^0.4.0")])
+
+    def test_a_dependency_pointed_at_another_package_under_one_alias_is_drift(self) -> None:
+        reading = self.measure(
+            '[dependencies.core]\nversion = "0.3.0"\npackage = "demo-memory-core"\n',
+            [metadata_dependency("demo-other-core", "^0.3.0", rename="core")])
+        self.assertEqual(self.reasons(reading), ["package demo-memory-core -> demo-other-core"])
+
+    def test_a_file_digest_drift_and_a_requirement_drift_are_reported_together(self) -> None:
+        (self.package / "src" / "lib.rs").write_bytes(b"pub fn one() -> u32 { 2 }\n")
+        reading = self.measure(EUNOMIA_08, [metadata_dependency("eunomia", "^0.9.0")])
+        self.assertEqual(reading.drift.changed, ("src/lib.rs",))
+        self.assertEqual(self.reasons(reading), ["req 0.8.0 -> ^0.9.0"])
+
+    def test_a_crate_without_its_normalized_manifest_is_unreadable(self) -> None:
+        crate = make_crate("demo", "0.1.0", {**SOURCE, "Cargo.toml.orig": MANIFEST})
+        with self.assertRaisesRegex(tool.RegistryError, "has no normalized Cargo.toml"):
+            tool.read_published_crate(crate, "demo", "0.1.0")
+
+    def test_an_unreadable_requirement_fails_instead_of_reading_as_equal(self) -> None:
+        with self.assertRaisesRegex(tool.RequirementError, "unreadable version requirement"):
+            self.measure(EUNOMIA_08, [metadata_dependency("eunomia", "^banana")])
 
 
 if __name__ == "__main__":

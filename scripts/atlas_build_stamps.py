@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Iterable
 
 from atlas_build_lease import BuildIdentityError
-from atlas_build_records import _write_atomic
+from atlas_build_records import _write_atomic, read_record_text
 from atlas_build_source import _sha256_bytes
 
 
@@ -76,7 +76,7 @@ def _git_names(dependencies: dict[str, object]) -> set[str]:
 def _git_stamp(directory: BuildDirectory, record: dict[str, object]) -> str | None:
     """The content digest the stamp names, or `_BUILDING`; None without a stamp."""
     try:
-        value = json.loads(directory.stamp(record).read_text(encoding="utf-8"))
+        value = json.loads(read_record_text(directory.stamp(record)))
     except FileNotFoundError:
         return None
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:

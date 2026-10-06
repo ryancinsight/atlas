@@ -2,6 +2,13 @@
 
 - Status: Accepted
 - Date: 2026-08-17
+- Revision 2026-10-02: the rule, the committed sweep, the staged check and
+  regeneration moved from `atlas-lock-form.py` into `scripts/lockfile.py`, the
+  stack's one checker (the hooks export that file alone), and the push and CI
+  check (`--check`) now judges a lock by the same rule instead of counting
+  `git+` lines, nested locks included. The decision is unchanged: repair still
+  uses `cargo metadata`, which advances no pin, and the committed form is the
+  same.
 - Driver: backlog ATLAS-LOCK-CONVENTION-079
 
 ## Context
@@ -98,13 +105,16 @@ than skipping silently.
 ## Consequences
 
 - Ten members need their committed lock repaired. Repair is
-  `python scripts/atlas-lock-form.py regenerate <member>`, which runs `cargo
-  metadata` from a scratch directory **outside** the Atlas tree. Cargo discovers
-  `.cargo/config.toml` upward from the current directory, not from
-  `--manifest-path`, so this resolves against git without toggling the shared
-  overlay out from under concurrent agents. `cargo metadata` rather than `cargo
-  generate-lockfile`: it re-resolves only what the lock cannot supply, so a
-  restored source does not drag every unrelated pin forward with it.
+  `python scripts/lockfile.py --regenerate --manifest-path <member>/Cargo.toml`,
+  which runs `cargo metadata` from a scratch directory **outside** the Atlas
+  tree. Cargo discovers `.cargo/config.toml` upward from the current directory,
+  not from `--manifest-path`, so this resolves against git without toggling the
+  shared overlay out from under concurrent agents. `cargo metadata` rather than
+  `cargo generate-lockfile`: it re-resolves only what the lock cannot supply, so
+  a restored source does not drag every unrelated pin forward with it.
+  `restore` is the narrower route, for a lock whose only difference from HEAD is
+  the overlay rewrite; a lock already committed in the stripped form is repaired
+  by regeneration.
 - Repairing a lock **by rebuilding it under the overlay produces exactly the
   defect**. This is the single most likely wrong fix and is called out here for
   that reason.
@@ -131,15 +141,21 @@ than skipping silently.
 
 ## Verification
 
-- `python scripts/atlas-lock-form.py check` fails on any committed lock in the
-  stripped form. Wired into `.github/workflows/atlas-conformance.yml`, which
-  already triggers on `repos/**`, so every gitlink advance re-measures.
-- `python scripts/atlas-lock-form.py staged` is the member-side pre-commit arm,
-  installed per clone by `install-hooks`. It rejects the `git add` that would
-  create the violation, rather than catching it after integration.
-- `scripts/tests/test_atlas_lock_form.py` asserts both directions, including an
-  end-to-end run over a synthetic member repository observed **failing** on a
-  committed stripped lock and passing on a standalone one, and covers the two
-  false positives named above.
+- `python scripts/lockfile.py --check-committed . <member>...` fails on any
+  committed lock in the stripped form. Wired into
+  `.github/workflows/atlas-conformance.yml`, which already triggers on
+  `repos/**`, so every gitlink advance re-measures.
+- `python scripts/lockfile.py --check-staged` is the member-side pre-commit arm,
+  run by the owned hook from the copy the repository carries. It rejects the
+  `git add` that would create the violation, rather than catching it after
+  integration, and reads the index, never the working tree. `--check
+  --manifest-path`, run by `pre-push` and the shared `lockfile-guard` workflow,
+  applies the same rule to every lock on disk and then proves the root lock
+  resolves under `--locked`.
+- `scripts/tests/test_lockfile_form.py` and
+  `scripts/tests/test_lockfile_check_staged.py` assert both directions,
+  including an end-to-end run over a synthetic repository observed **failing**
+  on a committed stripped lock and passing on a standalone one, and cover the
+  two false positives named above.
 - A repaired member is confirmed with `cargo metadata --locked` executed from
   outside the Atlas tree — the only place the committed form's claim is real.

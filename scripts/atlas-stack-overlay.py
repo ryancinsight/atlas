@@ -35,6 +35,7 @@ import tomllib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lockfile  # noqa: E402
 from atlas_stack import registered_member_names  # noqa: E402
 
 ATLAS_ROOT = Path(__file__).resolve().parent.parent
@@ -145,21 +146,6 @@ def load_packages() -> dict[str, tuple[Path, str | None]]:
     return packages
 
 
-def iter_dependency_tables(data: dict):
-    for key in ("dependencies", "dev-dependencies", "build-dependencies"):
-        table = data.get(key)
-        if isinstance(table, dict):
-            yield table
-    ws = data.get("workspace", {})
-    if isinstance(ws.get("dependencies"), dict):
-        yield ws["dependencies"]
-    for target in (data.get("target") or {}).values():
-        if isinstance(target, dict):
-            for key in ("dependencies", "dev-dependencies", "build-dependencies"):
-                if isinstance(target.get(key), dict):
-                    yield target[key]
-
-
 def normalize_url(url: str) -> str:
     return url.rstrip("/")
 
@@ -177,7 +163,7 @@ def collect_first_party_deps() -> list[tuple[str, str, str | None, Path]]:
             data = tomllib.loads(manifest.read_text(encoding="utf-8"))
         except (tomllib.TOMLDecodeError, OSError):
             continue
-        for table in iter_dependency_tables(data):
+        for table in lockfile.dependency_tables(data):
             for name, spec in table.items():
                 if not isinstance(spec, dict):
                     continue
@@ -228,7 +214,7 @@ def local_dependency_lags(
                 break
         if not workspace_dependencies:
             continue
-        for table in iter_dependency_tables(data):
+        for table in lockfile.dependency_tables(data):
             for name, spec in table.items():
                 if not isinstance(spec, dict):
                     continue
