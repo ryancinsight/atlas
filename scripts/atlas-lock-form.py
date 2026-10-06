@@ -504,6 +504,34 @@ def push_hook_branch(
             )
         if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", expected) is None:
             raise RuntimeError(f"git ls-remote returned a malformed object ID for {ref}")
+        try:
+            git_in(repo, "cat-file", "-e", f"{expected}^{{commit}}")
+        except RuntimeError:
+            git_in(repo, "fetch", "-q", "origin", ref)
+            try:
+                git_in(repo, "cat-file", "-e", f"{expected}^{{commit}}")
+            except RuntimeError as error:
+                raise RuntimeError(
+                    f"could not fetch the observed {ref} head {expected}"
+                ) from error
+        candidate_contains_head = True
+        try:
+            git_in(repo, "merge-base", "--is-ancestor", expected, commit)
+        except RuntimeError:
+            candidate_contains_head = False
+        default = git_in(
+            repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"
+        )
+        default_contains_head = True
+        try:
+            git_in(repo, "merge-base", "--is-ancestor", expected, default)
+        except RuntimeError:
+            default_contains_head = False
+        if not candidate_contains_head and not default_contains_head:
+            raise RuntimeError(
+                f"{ref} at {expected} is not an ancestor of candidate {commit}; "
+                "refusing to overwrite unique remote work"
+            )
     # A member checkout may hold an older or dirty .githooks copy. Select the
     # committed source hook for this push only; Git still invokes it normally
     # with the pushed ref range on stdin.
@@ -571,6 +599,25 @@ def enqueue_pull_request(repo: Path, url: str) -> None:
     hosting_in(repo, "pr", "merge", url, "--merge", "--auto")
 
 
+def hook_publish_message(source: str, retired: list[str], item: str | None) -> str:
+    """Build the commit and pull-request message for one hook publication."""
+    subject = "ci: Sync the stack-owned git hooks"
+    message = (
+        f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
+        "source every member's `.githooks/` copies; a copy that differs is the\n"
+        "gate-version drift the conformance scan counts.\n"
+    )
+    if retired:
+        message += (
+            "\nRemoves "
+            + ", ".join(f"`{path}`" for path in retired)
+            + ", which the hooks no longer read.\n"
+        )
+    if item is not None:
+        message += f"\nItem: {item}\n"
+    return message
+
+
 def cmd_publish_hooks(args) -> int:
     """Publish the owned hooks to every member's default branch, one PR each.
 
@@ -632,15 +679,15 @@ def cmd_publish_hooks(args) -> int:
             file=sys.stderr,
         )
         return 2
+    item = args.item
+    if item is not None and (
+        not item or item.strip() != item or "\n" in item or "\r" in item
+    ):
+        print("invalid item: expected one non-empty line", file=sys.stderr)
+        return 2
     source = git_in(ROOT, "rev-parse", "--short", source_commit)
     subject = "ci: Sync the stack-owned git hooks"
-    message = (
-        f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
-        "source every member's `.githooks/` copies; a copy that differs is the\n"
-        "gate-version drift the conformance scan counts.\n"
-    )
-    if retired:
-        message += "\nRemoves " + ", ".join(f"`{path}`" for path in retired) + ", which the hooks no longer read.\n"
+    message = hook_publish_message(source, retired, item)
     failures = 0
     for member in members:
         repo = REPOS / member
@@ -1032,6 +1079,11 @@ def main() -> int:
         "--source-ref",
         metavar="REF",
         help="locally available committed Atlas ref; defaults to origin/HEAD",
+    )
+    publish.add_argument(
+        "--item",
+        metavar="ID",
+        help="append an Item trailer to each generated member commit",
     )
     publish.set_defaults(func=cmd_publish_hooks)
     sub.add_parser("status").set_defaults(func=cmd_status)
