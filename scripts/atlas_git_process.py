@@ -32,7 +32,7 @@ class GitProcessResult:
 def clean_process_env(env: dict[str, str] | None = None) -> dict[str, str]:
     """Remove inherited Git repository-selection variables."""
     cleaned = os.environ.copy() if env is None else env.copy()
-    for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
+    for key in REPOSITORY_ENVIRONMENT:
         cleaned.pop(key, None)
     return cleaned
 
@@ -44,6 +44,29 @@ def _timeout_error(
     if cleanup_error is not None:
         message += f"; process-tree cleanup failed: {cleanup_error}"
     return GitProcessError(message, timed_out=True)
+
+
+# The variables `git rev-parse --local-env-vars` lists as describing one
+# repository, which a command run in another must not inherit. The two
+# per-setting entries that list also names (`GIT_CONFIG_PARAMETERS`,
+# `GIT_CONFIG_COUNT` with its `KEY_n`/`VALUE_n`) are the caller's settings and
+# pass through; `GIT_CONFIG` redirects the repository's own configuration
+# file, so it goes.
+REPOSITORY_ENVIRONMENT = (
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_COMMON_DIR",
+    "GIT_CONFIG",
+    "GIT_DIR",
+    "GIT_GRAFT_FILE",
+    "GIT_IMPLICIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_NO_REPLACE_OBJECTS",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_PREFIX",
+    "GIT_REPLACE_REF_BASE",
+    "GIT_SHALLOW_FILE",
+    "GIT_WORK_TREE",
+)
 
 
 def execute_process(

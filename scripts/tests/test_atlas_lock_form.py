@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
-"""Regression tests for the committed-Cargo.lock-form gate (ADR-0021).
+"""Tests for what `atlas-lock-form.py` keeps: `status`, `restore` and the hook publisher.
 
-The gate's whole value is that it separates two things a `git+` line count
-cannot: a lock whose git source was *stripped* by the stack overlay, and a
-member that legitimately resolves no git dependency at all. Both directions are
-asserted here, plus an end-to-end run against a synthetic member repository so
-the failure path is exercised through `check` itself and not only through the
-predicate it calls.
+The rule that judges a lock, the committed sweep, the staged check and
+regeneration live in `lockfile.py` and are tested in `test_lockfile_form.py`
+and `test_lockfile_check_staged.py`. What remains here acts on the stack as a
+whole: it must find every tracked lock of the registered members and the
+superproject, restore only locks the overlay alone rewrote, and publish hooks
+without touching a checkout.
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import subprocess
+import time
+import sys
+import os
 import tempfile
 import textwrap
 import unittest
@@ -60,58 +65,6 @@ STRIPPED = textwrap.dedent(
     version = "0.3.0"
     """
 )
-
-
-class ViolationPredicateTestCase(unittest.TestCase):
-    LOCAL = {"member"}
-    DEPS = {"eunomia"}
-
-    def test_standalone_lock_is_clean(self) -> None:
-        self.assertEqual(_lock_form.violations(STANDALONE, self.LOCAL, self.DEPS), [])
-
-    def test_stripped_source_is_flagged(self) -> None:
-        found = _lock_form.violations(STRIPPED, self.LOCAL, self.DEPS)
-        self.assertTrue(any("`eunomia` locked without a git source" in f for f in found))
-
-    def test_patch_unused_residue_is_flagged_even_without_git_deps(self) -> None:
-        """A member with zero git dependencies can still carry overlay residue:
-        the overlay patches URLs it does not use, and cargo records them."""
-        found = _lock_form.violations(STRIPPED, self.LOCAL, set())
-        self.assertEqual(len(found), 1)
-        self.assertIn("[[patch.unused]]", found[0])
-
-    def test_member_with_no_git_dependencies_is_not_a_violation(self) -> None:
-        """The false positive a `git+` line count would produce: zero git
-        sources is correct when nothing is sourced from git."""
-        registry_only = textwrap.dedent(
-            """\
-            version = 4
-
-            [[package]]
-            name = "member"
-            version = "0.1.0"
-
-            [[package]]
-            name = "serde"
-            version = "1.0.0"
-            source = "registry+https://github.com/rust-lang/crates.io-index"
-            """
-        )
-        self.assertEqual(_lock_form.violations(registry_only, {"member"}, set()), [])
-
-    def test_declared_but_unused_workspace_dependency_is_not_a_violation(self) -> None:
-        """A `[workspace.dependencies]` row no crate consumes never reaches the
-        lock; absence is correct, not a stripped source."""
-        found = _lock_form.violations(
-            STANDALONE, self.LOCAL, self.DEPS | {"ritk-core"}
-        )
-        self.assertEqual(found, [])
-
-    def test_local_path_package_shadowing_a_git_name_is_not_a_violation(self) -> None:
-        """A workspace that both declares and defines a package resolves it by
-        path; a sourceless entry is then correct."""
-        found = _lock_form.violations(STRIPPED, {"member", "eunomia"}, self.DEPS)
-        self.assertTrue(all("eunomia" not in f for f in found))
 
 
 class RestoreGuardTestCase(unittest.TestCase):
@@ -168,165 +121,6 @@ class RestoreGuardTestCase(unittest.TestCase):
     def test_added_untouched_package_is_not_restorable(self) -> None:
         added = STRIPPED + '\n[[package]]\nname = "rand"\nversion = "0.9.0"\n'
         self.assertFalse(_lock_form._strip_only(STANDALONE, added))
-
-
-class FixtureDetectionTestCase(unittest.TestCase):
-    """Only a workspace reaching *outside its own repository* by path is an
-    in-tree fixture. An intra-repo `path = ".."` (the fuzz-crate idiom) must
-    not exempt the whole member from the gate."""
-
-    def _facts(self, dep_line: str, sub: str = "fuzz"):
-        tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        repo = Path(tmp.name) / "repos" / "member"
-        (repo / sub).mkdir(parents=True)
-        (repo / "Cargo.toml").write_text(
-            '[package]\nname = "member"\nversion = "0.1.0"\n', encoding="utf-8"
-        )
-        (repo / sub / "Cargo.toml").write_text(
-            f'[package]\nname = "sub"\nversion = "0.1.0"\n\n[dependencies]\n{dep_line}\n',
-            encoding="utf-8",
-        )
-        (Path(tmp.name) / "repos" / "sibling").mkdir(parents=True, exist_ok=True)
-        return _lock_form.workspace_facts(repo, [], repo)
-
-    def test_intra_repo_parent_path_is_not_a_fixture(self) -> None:
-        _, _, fixture = self._facts('member = { path = ".." }')
-        self.assertFalse(fixture)
-
-    def test_cross_repo_path_is_a_fixture(self) -> None:
-        _, _, fixture = self._facts('other = { path = "../../sibling" }')
-        self.assertTrue(fixture)
-
-
-class EndToEndCheckTestCase(unittest.TestCase):
-    """Drive `check` over a synthetic member so the gate is observed failing."""
-
-    def _member(self, root: Path, lock_text: str) -> None:
-        repo = root / "repos" / "synthetic"
-        repo.mkdir(parents=True)
-        (repo / "Cargo.toml").write_text(
-            textwrap.dedent(
-                """\
-                [package]
-                name = "member"
-                version = "0.1.0"
-
-                [dependencies]
-                eunomia = { version = "0.8", git = "https://github.com/ryancinsight/eunomia" }
-                """
-            ),
-            encoding="utf-8",
-        )
-        (repo / "Cargo.lock").write_text(lock_text, encoding="utf-8")
-        for args in (
-            ["init", "-q", "-b", "main"],
-            ["add", "Cargo.toml", "Cargo.lock"],
-            ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "seed"],
-        ):
-            subprocess.run(["git", "-C", str(repo), *args], check=True)
-
-    def _run_check(self, lock_text: str) -> int:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self._member(root, lock_text)
-            with (
-                patch.object(_lock_form, "REPOS", root / "repos"),
-                # The superproject's own workspaces are scanned too, so the
-                # fixture must own that root as well; otherwise the case reads
-                # the real Atlas tree and its verdict depends on the checkout.
-                patch.object(_lock_form, "ROOT", root),
-                patch.object(
-                    _lock_form, "registered_member_names", lambda: {"synthetic"}
-                ),
-            ):
-                return _lock_form.cmd_check(None)
-
-    def _tool_root(self, root: Path, lock_text: str) -> None:
-        """A workspace under the superproject's own `tools/`, tracked here."""
-        tool = root / "tools" / "synthetic-tool"
-        tool.mkdir(parents=True)
-        (tool / "Cargo.toml").write_text(
-            textwrap.dedent(
-                """                [package]
-                name = "synthetic-tool"
-                version = "0.1.0"
-
-                [dependencies]
-                eunomia = { version = "0.8", git = "https://github.com/ryancinsight/eunomia" }
-                """
-            ),
-            encoding="utf-8",
-        )
-        (tool / "Cargo.lock").write_text(lock_text, encoding="utf-8")
-        for args in (
-            ["init", "-q", "-b", "main"],
-            ["add", "tools/synthetic-tool/Cargo.toml", "tools/synthetic-tool/Cargo.lock"],
-            ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "seed"],
-        ):
-            subprocess.run(["git", "-C", str(root), *args], check=True)
-
-    def _run_check_tool_only(self, lock_text: str) -> int:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self._tool_root(root, lock_text)
-            with (
-                patch.object(_lock_form, "REPOS", root / "repos"),
-                patch.object(_lock_form, "ROOT", root),
-                patch.object(_lock_form, "registered_member_names", set),
-            ):
-                return _lock_form.cmd_check(None)
-
-    def test_a_stripped_lock_in_the_superprojects_own_tools_is_flagged(self) -> None:
-        """The guard covers `tools/`, not only `repos/`.
-
-        A cargo run inside a tool workspace walks up into the stack overlay
-        exactly as a member's does, so its lock is rewritten the same way --
-        and it is tracked in the superproject, which is how two such locks
-        reached `main` while every mode of this guard looked only at members.
-        """
-        self.assertEqual(self._run_check_tool_only(STRIPPED), 1)
-
-    def test_a_standalone_lock_in_the_superprojects_own_tools_passes(self) -> None:
-        self.assertEqual(self._run_check_tool_only(STANDALONE), 0)
-
-    def test_check_fails_on_a_committed_stripped_lock(self) -> None:
-        self.assertEqual(self._run_check(STRIPPED), 1)
-
-    def test_check_passes_on_a_committed_standalone_lock(self) -> None:
-        self.assertEqual(self._run_check(STANDALONE), 0)
-
-
-class StagedGateTestCase(EndToEndCheckTestCase):
-    """The pre-commit arm: the churn is caught where it would escape."""
-
-    def _run_staged(self, committed: str, staged: str) -> int:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self._member(root, committed)
-            repo = root / "repos" / "synthetic"
-            (repo / "Cargo.lock").write_text(staged, encoding="utf-8")
-            subprocess.run(["git", "-C", str(repo), "add", "Cargo.lock"], check=True)
-            with (
-                patch.object(_lock_form, "REPOS", root / "repos"),
-                # The superproject's own workspaces are scanned too, so the
-                # fixture must own that root as well; otherwise the case reads
-                # the real Atlas tree and its verdict depends on the checkout.
-                patch.object(_lock_form, "ROOT", root),
-                patch.object(
-                    _lock_form, "registered_member_names", lambda: {"synthetic"}
-                ),
-            ):
-                args = type("Args", (), {"repo": str(repo)})()
-                return _lock_form.cmd_staged(args)
-
-    def test_staging_overlay_churn_is_rejected(self) -> None:
-        self.assertEqual(self._run_staged(STANDALONE, STRIPPED), 1)
-
-    def test_staging_a_deliberate_standalone_regeneration_is_allowed(self) -> None:
-        repinned = STANDALONE.replace("#abc123", "#feedface")
-        self.assertEqual(self._run_staged(STANDALONE, repinned), 0)
-
 
 
 class HookCommitTestCase(unittest.TestCase):
@@ -497,7 +291,243 @@ class HookDeploymentTestCase(unittest.TestCase):
                 self.assertEqual(list(repos.iterdir()), [])
 
 
+def owned_hook(label: str) -> bytes:
+    """A pre-push that reports its label, each argument and its first stdin line."""
+    return (
+        "#!/usr/bin/env bash\n"
+        "read -r line\n"
+        f"printf '%s argc=%s' '{label}' \"$#\"\n"
+        "printf ' [%s]' \"$@\"\n"
+        "printf ' <%s>\\n' \"$line\"\n"
+    ).encode()
+
+
+def reap(run: subprocess.Popen) -> None:
+    """Stop a shim run a failed test left behind, so none outlives the suite."""
+    if run.poll() is None:
+        run.kill()
+    run.communicate(timeout=60)
+
+
 class HookInstallTestCase(unittest.TestCase):
+    """Shims run the owned hooks as committed at the Atlas `origin/main`."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="atlas-hooks-")
+        # First registered, so it runs last: after every run is reaped.
+        self.addCleanup(self._tmp.cleanup)
+        # A quote, a `$`, a backtick and a space: the shim names this path in bash.
+        self.atlas = Path(self._tmp.name) / "at'l$as `x` y"
+        self.repos = self.atlas / "repos"
+        subprocess.run(["git", "init", "-q", str(self.atlas)], check=True)
+
+    def git(self, repo: Path, *args: str, **kwargs) -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args],
+            capture_output=True, text=True, check=True, **kwargs,
+        ).stdout.strip()
+
+    def publish(self, hooks: dict[str, bytes]) -> None:
+        """Move origin/main to a commit whose `scripts/git-hooks` is `hooks`.
+
+        Built through a private index, so the checkout's branch, index and
+        files stay where the test left them -- as a peer's would."""
+        index = Path(self._tmp.name) / "publish-index"
+        environment = {**os.environ, "GIT_INDEX_FILE": str(index)}
+        index.unlink(missing_ok=True)
+        for name, content in hooks.items():
+            source = Path(self._tmp.name) / "publish-blob"
+            source.write_bytes(content)
+            blob = self.git(self.atlas, "hash-object", "-w", "--no-filters", str(source))
+            self.git(
+                self.atlas, "update-index", "--add", "--cacheinfo",
+                f"100755,{blob},scripts/git-hooks/{name}", env=environment,
+            )
+        tree = self.git(self.atlas, "write-tree", env=environment)
+        commit = self.git(
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+            "commit-tree", tree, "-m", "publish",
+        )
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
+
+    def member(self, name: str, hooks_path: str | None = None) -> Path:
+        repo = self.repos / name
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        if hooks_path is not None:
+            self.git(repo, "config", "core.hooksPath", hooks_path)
+        return repo
+
+    def shim_dir(self) -> Path:
+        common = self.git(self.atlas, "rev-parse", "--path-format=absolute", "--git-common-dir")
+        return Path(common) / "atlas-hooks"
+
+    def test_a_swapped_object_refuses_rather_than_runs(self) -> None:
+        """`cat-file` reads whatever the object file holds; the shim hashes the
+        copy it wrote, so a refusing hook whose object was replaced by a
+        passing one refuses."""
+        refusing = b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"
+        self.publish({"pre-push": refusing})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        blob = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main:scripts/git-hooks/pre-push")
+        passing = Path(self._tmp.name) / "passing"
+        passing.write_bytes(b"#!/usr/bin/env bash\necho PASSED\n")
+        other = self.git(self.atlas, "hash-object", "-w", "--no-filters", str(passing))
+        objects = Path(self.git(self.atlas, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "objects"
+        target = objects / blob[:2] / blob[2:]
+        target.chmod(0o644)
+        target.write_bytes((objects / other[:2] / other[2:]).read_bytes())
+        run = self.run_shim(shims)
+        out, _ = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, out.decode()), (1, ""))
+        self.assertEqual([p.name for p in (shims / "blobs").iterdir()], [])
+
+    def test_a_replace_ref_does_not_redirect_the_hook(self) -> None:
+        refusing = b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"
+        self.publish({"pre-push": refusing})
+        owned = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.publish({"pre-push": b"#!/usr/bin/env bash\necho PASSED\n"})
+        passing = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", owned)
+        self.git(self.atlas, "replace", owned, passing)
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims, GIT_REPLACE_REF_BASE="refs/replace/")
+        out, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, out.decode(), err.decode().strip()), (3, "", "refused"))
+
+    def test_a_branch_named_like_the_source_ref_is_never_used(self) -> None:
+        """With origin/main gone, `rev-parse` would resolve a local branch named
+        `refs/remotes/origin/main`; the shim refuses instead."""
+        self.publish({"pre-push": b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        self.publish({"pre-push": b"#!/usr/bin/env bash\necho PASSED\n"})
+        passing = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.git(self.atlas, "update-ref", "-d", "refs/remotes/origin/main")
+        self.git(self.atlas, "update-ref", "refs/heads/refs/remotes/origin/main", passing)
+        run = self.run_shim(shims)
+        out, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, out.decode()), (1, ""), err.decode())
+        self.assertIn("has no scripts/git-hooks/pre-push", err.decode())
+
+    def test_a_hook_holding_a_carriage_return_runs_under_autocrlf(self) -> None:
+        """A blob whose bytes hold CRLF hashes to its own id only unfiltered;
+        a filtered hash would refuse every run of that hook."""
+        self.git(self.atlas, "config", "core.autocrlf", "true")
+        hook = b"#!/usr/bin/env bash\n# written on Windows\r\necho refused >&2\nexit 3\n"
+        self.publish({"pre-push": hook})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
+        (cached,) = (shims / "blobs").iterdir()
+        self.assertEqual(cached.read_bytes(), hook)
+
+    def run_shim(self, shims: Path, *, path: str | None = None, **extra: str):
+        environment = {**os.environ, **extra}
+        if path is not None:
+            environment["PATH"] = path + os.pathsep + environment["PATH"]
+        run = subprocess.Popen(
+            ["bash", str(shims / "pre-push"), "origin", "url"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=environment,
+        )
+        self.addCleanup(reap, run)
+        return run
+
+    def test_a_refusing_hook_refuses_through_its_shim(self) -> None:
+        self.publish({"pre-push": b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        run = self.run_shim(shims)
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
+
+    def test_a_failed_write_runs_nothing_and_leaves_no_partial(self) -> None:
+        """origin/main names a hook blob the object store lacks, and the cache
+        holds a corrupt copy: the shim refuses without running either."""
+        missing = "1" * 40
+
+        def mktree(entry: str) -> str:
+            # Bytes, so Windows text mode does not end each name in a CR.
+            return subprocess.run(
+                ["git", "-C", str(self.atlas), "mktree", "--missing"],
+                input=entry.encode(), capture_output=True, check=True,
+            ).stdout.decode().strip()
+
+        hooks = mktree(f"100755 blob {missing}\tpre-push\n")
+        scripts = mktree(f"040000 tree {hooks}\tgit-hooks\n")
+        top = mktree(f"040000 tree {scripts}\tscripts\n")
+        commit = self.git(
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", top, "-m", "gone",
+        )
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
+        shims = _lock_form.write_hook_shims(self.atlas)
+        corrupt = shims / "blobs" / missing
+        corrupt.parent.mkdir()
+        corrupt.write_bytes(b"#!/usr/bin/env bash\necho CORRUPT-CACHE-RAN\n")
+        run = self.run_shim(shims)
+        out, _ = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, out.decode()), (1, ""))
+        self.assertEqual(sorted(p.name for p in (shims / "blobs").iterdir()), [missing])
+
+    def test_an_exported_common_dir_does_not_redirect_the_lookup(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        member = self.member("alpha")
+        run = self.run_shim(
+            shims, GIT_COMMON_DIR=str(member / ".git"), GIT_OBJECT_DIRECTORY=str(member / ".git" / "objects"),
+        )
+        out, err = run.communicate(b"line\n", timeout=60)
+        self.assertEqual((run.returncode, out.decode().strip()),
+                         (0, "owned argc=2 [origin] [url] <line>"), err.decode())
+
+    def test_a_reinstall_never_exposes_a_partial_shim(self) -> None:
+        """Rewriting the shims while a refusing hook runs must never let a run pass."""
+        self.publish({"pre-push": b"#!/usr/bin/env bash\nexit 3\n"})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        shim = shims / "pre-push"
+        content = shim.read_bytes()
+        with patch.object(_lock_form, "HOOK_SHIM", _lock_form.HOOK_SHIM + "# reinstalled\n"):
+            replaced = []
+            real_replace = os.replace
+
+            def observe(source, target):
+                # The target still holds the whole previous shim when the
+                # rename happens: nothing truncated it first.
+                replaced.append(Path(target).read_bytes())
+                real_replace(source, target)
+
+            with patch.object(_lock_form.os, "replace", side_effect=observe):
+                _lock_form.write_hook_shims(self.atlas)
+            self.assertEqual(replaced, [content])
+            self.assertTrue(shim.read_bytes().endswith(b"# reinstalled\n"))
+            # A second install with unchanged bytes writes nothing.
+            with patch.object(_lock_form.os, "replace", side_effect=AssertionError("rewrote")):
+                _lock_form.write_hook_shims(self.atlas)
+        self.assertEqual([p.name for p in shims.iterdir() if p.name.startswith(".")], [])
+
+    def test_a_missing_owned_hook_refuses_rather_than_passing(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        self.publish({"pre-commit": b"#!/usr/bin/env bash\n"})
+        result = subprocess.run(["bash", str(shims / "pre-push")], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no scripts/git-hooks/pre-push", result.stderr)
+
+    def test_concurrent_first_runs_each_execute_the_whole_hook(self) -> None:
+        # Large enough that a cache written in place is caught part-written.
+        padding = b"".join(b"# %06d padding\n" % line for line in range(20000))
+        hook = owned_hook("owned") + padding
+        self.publish({"pre-push": hook})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        runs = [self.run_shim(shims) for _ in range(24)]
+        outcomes = [run.communicate(b"line\n", timeout=120) for run in runs]
+        self.assertEqual(
+            [(run.returncode, out.decode().strip()) for run, (out, _) in zip(runs, outcomes)],
+            [(0, "owned argc=2 [origin] [url] <line>")] * len(runs),
+            [err.decode() for _, err in outcomes],
+        )
+        (cached,) = (shims / "blobs").iterdir()
+        self.assertEqual(cached.read_bytes(), hook)
+
     def test_member_copies_retarget_to_owned_hooks_and_custom_paths_stay(self) -> None:
         owned = (SCRIPT.parent / "git-hooks").as_posix()
         initial = {"unset": None, "copy": ".githooks", "custom": "D:/elsewhere/hooks"}
@@ -558,3 +588,185 @@ class PublishRequestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LockUnitsTestCase(unittest.TestCase):
+    """`status` and `restore` act on every tracked lock at HEAD, members and
+    superproject alike."""
+
+    MANIFEST = textwrap.dedent(
+        """\
+        [package]
+        name = "member"
+        version = "0.1.0"
+
+        [dependencies]
+        eunomia = { version = "0.8", git = "https://github.com/ryancinsight/eunomia" }
+        """
+    )
+
+    def _git(self, repo: Path, *args: str) -> None:
+        subprocess.run(
+            ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+            check=True,
+            capture_output=True,
+        )
+
+    def _commit(self, repo: Path, files: dict[str, str]) -> None:
+        repo.mkdir(parents=True, exist_ok=True)
+        self._git(repo, "init", "-q", "-b", "main")
+        for name, text in files.items():
+            path = repo / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8", newline="\n")
+        self._git(repo, "add", "-A")
+        self._git(repo, "commit", "-q", "-m", "seed")
+
+    @contextlib.contextmanager
+    def _stack(self, member_lock: str, tool_lock: str):
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-units-") as temp:
+            root = Path(temp)
+            self._commit(root / "repos" / "synthetic", {"Cargo.toml": self.MANIFEST, "Cargo.lock": member_lock})
+            self._commit(
+                root,
+                {"tools/t/Cargo.toml": self.MANIFEST, "tools/t/Cargo.lock": tool_lock},
+            )
+            with (
+                patch.object(_lock_form, "REPOS", root / "repos"),
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "registered_member_names", lambda: {"synthetic"}),
+            ):
+                yield root
+
+    def test_every_tracked_lock_of_the_members_and_the_superproject_is_a_unit(self) -> None:
+        with self._stack(STANDALONE, STRIPPED):
+            units = _lock_form.lock_units()
+        self.assertEqual(
+            [(unit.label, unit.lock) for unit in units],
+            [("synthetic", "Cargo.lock"), ("atlas", "tools/t/Cargo.lock")],
+        )
+        self.assertEqual(units[0].committed, STANDALONE)
+        self.assertEqual(units[0].facts.git_dependencies, {"eunomia"})
+        self.assertEqual(units[1].facts.local, {"member"})
+
+    def test_restore_reverts_a_lock_only_the_overlay_rewrote(self) -> None:
+        with self._stack(STANDALONE, STANDALONE) as root:
+            lock = root / "repos" / "synthetic" / "Cargo.lock"
+            lock.write_text(STRIPPED, encoding="utf-8", newline="\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                _lock_form.cmd_restore(None)
+            self.assertEqual(lock.read_text(encoding="utf-8"), STANDALONE)
+        self.assertIn("restored overlay churn: synthetic/Cargo.lock", output.getvalue())
+
+    def test_restore_leaves_a_real_change_alone(self) -> None:
+        repinned = STANDALONE.replace("#abc123", "#feedface")
+        with self._stack(STANDALONE, STANDALONE) as root:
+            lock = root / "repos" / "synthetic" / "Cargo.lock"
+            lock.write_text(repinned, encoding="utf-8", newline="\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                _lock_form.cmd_restore(None)
+            self.assertEqual(lock.read_text(encoding="utf-8"), repinned)
+        self.assertIn("kept: synthetic/Cargo.lock (real change, left alone)", output.getvalue())
+
+    def test_restore_leaves_a_working_copy_alone_when_the_committed_lock_violates(self) -> None:
+        """The working copy may be the repair, and reverting it would restore the
+        defect; `lockfile.py --regenerate` is the route for such a lock."""
+        with self._stack(STRIPPED, STANDALONE) as root:
+            lock = root / "repos" / "synthetic" / "Cargo.lock"
+            lock.write_text(STANDALONE, encoding="utf-8", newline="\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                _lock_form.cmd_restore(None)
+            self.assertEqual(lock.read_text(encoding="utf-8"), STANDALONE)
+        self.assertIn("committed lock itself violates", output.getvalue())
+
+    def test_a_unit_is_the_committed_lock_not_the_staged_one(self) -> None:
+        with self._stack(STANDALONE, STANDALONE) as root:
+            member = root / "repos" / "synthetic"
+            (member / "Cargo.lock").write_text(STRIPPED, encoding="utf-8", newline="\n")
+            self._git(member, "add", "Cargo.lock")
+            units = _lock_form.lock_units()
+        self.assertEqual(units[0].committed, STANDALONE)
+
+    def test_status_reports_the_committed_and_working_verdicts(self) -> None:
+        with self._stack(STANDALONE, STRIPPED) as root:
+            (root / "repos" / "synthetic" / "Cargo.lock").write_text(STRIPPED, encoding="utf-8", newline="\n")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                _lock_form.cmd_status(None)
+        rows = {line.split()[0]: line.split()[1:] for line in output.getvalue().splitlines()[1:]}
+        self.assertEqual(rows["synthetic/Cargo.lock"], ["ok", "STRIPPED"])
+        self.assertEqual(rows["atlas/tools/t/Cargo.lock"], ["STRIPPED", "STRIPPED"])
+
+
+# The tree is ended by a kill and a drain of the pipes it held, which the
+# runner bounds at a few seconds each; the margin also absorbs host load. The
+# child outlives any deadline plus this margin, so a call that waited for it
+# would exceed it.
+TEARDOWN_MARGIN_SECONDS = 20
+STALL_DEADLINE_SECONDS = 5
+
+
+STALLED_TREE = textwrap.dedent(
+    """\
+    import os, subprocess, sys, time
+
+    beat = os.environ["FAKE_HEARTBEAT"]
+    if sys.argv[1:2] == ["--child"]:
+        # Holds the pipes the parent was given, beating until told to stop or
+        # for 80 s, so a test that fails to end it cannot leave it behind.
+        for count in range(400):
+            if os.path.exists(beat + ".stop"):
+                break
+            with open(beat, "w") as handle:
+                handle.write(str(count))
+            time.sleep(0.2)
+        sys.exit(0)
+    subprocess.Popen([sys.executable, __file__, "--child"])
+    time.sleep(80)
+    """
+)
+
+# The tree is ended by a kill and a drain of the pipes it held, which the
+# runner bounds at a few seconds each; the margin also absorbs host load. The
+# child outlives any deadline plus this margin, so a call that waited for it
+# would exceed it.
+TEARDOWN_MARGIN_SECONDS = 20
+STALL_DEADLINE_SECONDS = 5
+
+
+class TreeDeadlineTestCase(unittest.TestCase):
+    """A command that outlives its deadline is ended together with its child.
+
+    A parent killed alone leaves a descendant holding the output pipes, and
+    reading them then blocks until the descendant exits."""
+
+    def _assert_tree_ended(self, call) -> object:
+        with tempfile.TemporaryDirectory(prefix="atlas-tree-") as tmp:
+            script = Path(tmp) / "stalled_tree.py"
+            script.write_text(STALLED_TREE, encoding="utf-8")
+            beat = Path(tmp) / "beat"
+            try:
+                with patch.dict(os.environ, {"FAKE_HEARTBEAT": str(beat)}):
+                    started = time.monotonic()
+                    outcome = call(script)
+                    elapsed = time.monotonic() - started
+                self.assertLess(elapsed, STALL_DEADLINE_SECONDS + TEARDOWN_MARGIN_SECONDS)
+                self.assertTrue(beat.exists(), "the child never started")
+                first = int(beat.read_text(encoding="utf-8") or "0")
+                time.sleep(1.0)
+                # Five beats would have passed had the child survived.
+                self.assertEqual(int(beat.read_text(encoding="utf-8") or "0"), first)
+            finally:
+                Path(str(beat) + ".stop").write_text("stop", encoding="utf-8")
+            return outcome
+
+    def test_a_command_whose_child_outlives_the_deadline_is_ended_with_its_tree(self) -> None:
+        def call(script: Path) -> None:
+            with patch.object(_lock_form, "GIT_DEADLINE_SECONDS", STALL_DEADLINE_SECONDS):
+                with self.assertRaisesRegex(RuntimeError, "timed out"):
+                    _lock_form.run(sys.executable, str(script))
+
+        self._assert_tree_ended(call)

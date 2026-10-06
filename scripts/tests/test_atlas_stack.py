@@ -106,6 +106,37 @@ class StalenessTestCase(unittest.TestCase):
                 self.assertEqual(dict(os.environ), before)
                 self.assertFalse({"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"} & cleaned.keys())
 
+    def test_the_scrubbed_variables_are_gits_own_repository_list(self) -> None:
+        """`git rev-parse --local-env-vars` is the source of truth for what a
+        command in another repository must not inherit; the per-setting
+        entries it lists are the caller's configuration and stay."""
+        import atlas_git_process
+
+        listed = set(subprocess.run(
+            ["git", "rev-parse", "--local-env-vars"], capture_output=True, text=True, check=True,
+        ).stdout.split())
+        settings = {"GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT"}
+        self.assertEqual(set(atlas_git_process.REPOSITORY_ENVIRONMENT), listed - settings)
+        cleaned = atlas_git_process.clean_process_env({name: "x" for name in listed})
+        self.assertEqual(set(cleaned), listed & settings)
+
+    def test_an_inherited_git_config_cannot_redirect_a_config_write(self) -> None:
+        """`git config <key> <value>` writes the file `GIT_CONFIG` names, so an
+        unscrubbed call would edit that file and leave the repository alone."""
+        with tempfile.TemporaryDirectory(prefix="atlas-stack-config-") as directory:
+            repo = Path(directory) / "repo"
+            repo.mkdir()
+            _git(repo, "init", "-q", "-b", "main")
+            foreign = Path(directory) / "foreign-config"
+            foreign.write_bytes(b"")
+            with patch.dict(os.environ, {"GIT_CONFIG": str(foreign)}):
+                atlas_stack.git(repo, "config", "extensions.worktreeConfig", "true")
+            written = subprocess.run(
+                ["git", "-C", str(repo), "config", "--local", "--get", "extensions.worktreeConfig"],
+                capture_output=True, text=True, env=clean_process_env(),
+            ).stdout.strip()
+            self.assertEqual((written, foreign.read_bytes()), ("true", b""))
+
     def _clone_one_behind(self, root: Path) -> Path:
         """A clone whose HEAD is one commit behind its fetched origin."""
         origin, clone = root / "origin", root / "clone"

@@ -96,6 +96,23 @@ EXITING_PARENT = textwrap.dedent(
 READY_SECONDS = HANG_GUARD_SECONDS
 
 
+def _readline_with_timeout(process: subprocess.Popen, timeout: float) -> bytes:
+    """Read one readiness line, terminating a stalled child within the budget."""
+    result: list[bytes] = []
+    reader = threading.Thread(
+        target=lambda: result.append(process.stdout.buffer.readline()),
+        daemon=True,
+    )
+    reader.start()
+    reader.join(timeout)
+    if reader.is_alive():
+        process.kill()
+        process.wait(timeout=timeout)
+        reader.join(timeout)
+        raise AssertionError("child readiness exceeded its deadline")
+    return result[0]
+
+
 def _lock_is_held(path: pathlib.Path) -> bool:
     """Report whether a live process holds the exclusive lock the child takes."""
     with path.open("r+b") as lock:
@@ -206,6 +223,18 @@ class ProcessTreeTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 23)
         self.assertEqual(result.stdout, b"")
+
+    @unittest.skipUnless(os.name == "posix", "POSIX status pipe")
+    def test_buffered_exit_status_wins_when_deadline_has_elapsed(self):
+        status_read, status_write = os.pipe()
+        self.addCleanup(os.close, status_read)
+        self.addCleanup(os.close, status_write)
+        os.write(status_write, b"exit:7")
+
+        self.assertEqual(
+            process_tree._read_posix_status(status_read, time.monotonic() - 1),
+            7,
+        )
 
     def test_timeout_must_be_finite_and_positive(self):
         for timeout in (0, -1, math.nan, math.inf, -math.inf):
@@ -631,7 +660,11 @@ class ProcessTreeTests(unittest.TestCase):
         )
         self.addCleanup(holder.stdout.close)
         self.addCleanup(holder.kill)
-        self.assertTrue(holder.stdout.readline().startswith("child-ready "))
+        self.assertTrue(
+            _readline_with_timeout(holder, HANG_GUARD_SECONDS).startswith(
+                b"child-ready "
+            )
+        )
         self.assertTrue(_lock_is_held(lock))
 
         _reap_lock_holder(lock)

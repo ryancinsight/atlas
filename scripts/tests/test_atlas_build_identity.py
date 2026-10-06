@@ -3,11 +3,13 @@
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import importlib.util
 import io
 import json
 import os
+import queue
 import re
 import shutil
 import subprocess
@@ -21,6 +23,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from readonly_tree import clear_readonly_tree
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas_build_identity.py"
@@ -44,7 +47,7 @@ from atlas_build_lease import (
     BuildIdentityError,
     LeaseHeldError,
     OwnerLease,
-    acquire_waiting,
+    acquire_claim,
     package_target_lease_path,
     peek_owner,
 )
@@ -120,8 +123,44 @@ def gate_export(source: Path, export: Path) -> str:
     return revision
 
 
+def index_stat_data(root: Path) -> dict[str, tuple[int, int]]:
+    """Each index entry's recorded modification time (whole seconds) and size."""
+    entries: dict[str, tuple[int, int]] = {}
+    path = None
+    mtime = None
+    for line in git(root, "ls-files", "--debug").splitlines():
+        field, _, value = line.strip().partition(":")
+        if not line.startswith((" ", "\t")):
+            path = line
+        elif field == "mtime":
+            mtime = int(value.strip().split(":")[0])
+        elif field == "size":
+            assert path is not None and mtime is not None
+            entries[path] = (mtime, int(value.split()[0]))
+    return entries
+
+
 def write_script(path: Path, body: str) -> None:
     path.write_text(body, encoding="utf-8")
+
+
+class RecordedClock:
+    """The `time` module, remembering what each `monotonic_ns` read returned.
+
+    Patched over `identity.time`, whose only use is the single read that
+    fixes a run's lease deadline: the first value recorded is the instant the
+    deadline is measured from.
+    """
+
+    def __init__(self) -> None:
+        self.reads: list[int] = []
+
+    def monotonic_ns(self) -> int:
+        self.reads.append(time.monotonic_ns())
+        return self.reads[-1]
+
+    def __getattr__(self, name: str):
+        return getattr(time, name)
 
 
 # Holds until argv[6] exists, or for argv[5] seconds without one. A hold
@@ -175,17 +214,37 @@ def hold_lease(
     return holder
 
 
+def acquire_lease(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
+    """Take one lease as a claim of its own; the caller releases it with `__exit__`."""
+    acquire_claim((lease,), wait_seconds)
+    return lease
+
+
 MODE_HOLDER = (
-    "import sys, time\n"
+    "import sys, threading, time\n"
     "from pathlib import Path\n"
     "sys.path.insert(0, sys.argv[1])\n"
-    "from atlas_build_lease import OwnerLease, acquire_waiting\n"
+    "import atlas_build_lease as module\n"
+    "from atlas_build_lease import OwnerLease\n"
+    "orphaned = threading.Event()\n"
+    "if sys.argv[8]:\n"
+    "    threading.Thread(target=lambda: (sys.stdin.read(), orphaned.set()), daemon=True).start()\n"
     "for _ in range(int(sys.argv[6])):\n"
     "    lease = OwnerLease(Path(sys.argv[2]), {'root': sys.argv[5], 'revision': 'holder-revision',"
     " 'package': 'dep'}, 600, mode=sys.argv[3])\n"
-    "    acquire_waiting(lease, 120)\n"
+    "    if hasattr(module, 'acquire_claim'):\n"
+    "        module.acquire_claim([lease], 120)\n"
+    "    else:\n"
+    "        module.acquire_waiting(lease, 120)\n"
+    "    if sys.argv[7]:\n"
+    "        with open(sys.argv[7], 'ab') as rounds:\n"
+    "            rounds.write(b'.')\n"
     "    print('held', flush=True)\n"
-    "    time.sleep(float(sys.argv[4]))\n"
+    "    if sys.argv[8]:\n"
+    "        while not Path(sys.argv[8]).exists() and not orphaned.is_set():\n"
+    "            time.sleep(0.01)\n"
+    "    else:\n"
+    "        time.sleep(float(sys.argv[4]))\n"
     "    lease.__exit__(None, None, None)\n"
 )
 
@@ -220,11 +279,17 @@ def start_holder(
     name: str = "holder-root",
     repeat: int = 1,
     wait_until_held: bool = True,
+    rounds: Path | None = None,
+    stop: Path | None = None,
 ) -> subprocess.Popen:
     """Hold `lock` in `mode` from a separate process, `repeat` times back to back.
 
     Each round waits its turn, holds for `hold_seconds`, releases, and asks
-    again at once: the pattern of a push hook re-running its steps.
+    again at once: the pattern of a push hook re-running its steps. When
+    `rounds` names a file, each round appends one byte to it as it takes the
+    lease, so the file's size counts the rounds taken. When `stop` names a
+    file, each round holds until that file exists or the test process ends,
+    with no clock, and `hold_seconds` is not used.
     """
     holder = subprocess.Popen(
         [
@@ -237,13 +302,18 @@ def start_holder(
             str(hold_seconds),
             name,
             str(repeat),
+            str(rounds or ""),
+            str(stop or ""),
         ],
+        stdin=subprocess.PIPE if stop else None,
         stdout=subprocess.PIPE,
         text=True,
     )
     test.addCleanup(holder.wait, 60)
     test.addCleanup(holder.kill)
     test.addCleanup(holder.stdout.close)
+    if stop:
+        test.addCleanup(holder.stdin.close)
     if wait_until_held:
         test.assertEqual(holder.stdout.readline().strip(), "held")
     return holder
@@ -379,46 +449,76 @@ class LeaseModeTestCase(unittest.TestCase):
         faults = [int(worker.communicate(timeout=60)[0].strip()) for worker in workers]
         self.assertEqual(faults, [0] * 6)
 
-    def waited(self, lock: Path, mode: str) -> float:
-        started = time.monotonic()
-        lease = acquire_waiting(OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60, mode=mode), 60)
-        elapsed = time.monotonic() - started
+    def take_and_release(self, lock: Path, mode: str) -> None:
+        """Wait for `lock` in `mode`, then release it: a refusal past the wait bound raises."""
+        acquire_lease(
+            OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60, mode=mode), 60
+        ).__exit__(None, None, None)
+
+    def rounds_taken_while_queued(self, lock: Path, mode: str, *counts: Path) -> int:
+        """The rounds the holders counted in `counts` take between this request's
+        place in line and its grant.
+
+        A request is served after every request that arrived before it, so
+        of a holder that releases and asks again only the round already
+        running when this request queued can come first. A round counted just
+        after the request queued, having taken the lease before it, is that
+        same round: at most one round per holder is taken while queued,
+        whatever the host's speed.
+        """
+
+        def taken() -> int:
+            return sum(path.stat().st_size for path in counts)
+
+        lease = OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60, mode=mode)
+        self.addCleanup(lease.dequeue)
+        lease.reserve()
+        queued = taken()
+        acquire_claim((lease,), 60)
+        granted = taken()
         lease.__exit__(None, None, None)
-        return elapsed
+        return granted - queued
 
     def test_a_repeating_exclusive_holder_does_not_starve_a_waiter(self) -> None:
         # Twelve back-to-back 1 s holds: without arrival order the holder asks
-        # again the instant it releases and the polling waiter never gets in.
+        # again the instant it releases and the polling waiter never gets in,
+        # so it sees the holder take round after round.
         for mode in (EXCLUSIVE, SHARED):
             with self.subTest(waiter=mode):
                 lock = self.lock(f"repeat-{mode}")
-                holder = start_holder(self, lock, EXCLUSIVE, 1, repeat=12)
+                rounds = self.base / f"repeat-{mode}.rounds"
+                holder = start_holder(self, lock, EXCLUSIVE, 1, repeat=12, rounds=rounds)
                 # A waiting reader also holds back the writer's next round.
-                self.assertLess(self.waited(lock, mode), 6)
+                self.assertLessEqual(self.rounds_taken_while_queued(lock, mode, rounds), 1)
                 holder.kill()
                 holder.wait(60)
 
     def test_a_stream_of_shared_readers_does_not_starve_a_writer(self) -> None:
         # Two readers overlap, so the lease is never free of a shared holder.
         lock = self.lock("stream")
-        start_holder(self, lock, SHARED, 1, name="reader-a", repeat=12)
-        time.sleep(0.5)
-        start_holder(self, lock, SHARED, 1, name="reader-b", repeat=12)
-        self.assertLess(self.waited(lock, EXCLUSIVE), 6)
+        counts = [self.base / "stream-a.rounds", self.base / "stream-b.rounds"]
+        # The second reader starts while the first holds, which keeps their
+        # rounds overlapping; each is then running a round when the writer
+        # queues, and neither starts another before the writer is served.
+        start_holder(self, lock, SHARED, 1, name="reader-a", repeat=12, rounds=counts[0])
+        start_holder(self, lock, SHARED, 1, name="reader-b", repeat=12, rounds=counts[1])
+        self.assertLessEqual(self.rounds_taken_while_queued(lock, EXCLUSIVE, *counts), 2)
 
     def test_a_crashed_holder_or_waiter_gives_up_its_place(self) -> None:
         lock = self.lock("crash")
-        holder = start_holder(self, lock, SHARED, 60)
-        waiter = start_holder(self, lock, EXCLUSIVE, 60, name="waiter", wait_until_held=False)
+        holder = start_holder(self, lock, SHARED, 0, stop=self.base / "release-crash")
+        # The waiter reports once it is queued behind the holder: both
+        # tickets are live, so neither is collected before the kills.
+        waiter = start_script(self, QUEUED_WAITER, str(lock), ready="queued")
         queue = lock.with_name(f"{lock.stem}.queue")
-        deadline = time.monotonic() + 30
-        while len(list(queue.glob("*.ticket"))) < 2:
-            self.assertLess(time.monotonic(), deadline, "the waiter never queued")
-            time.sleep(0.05)
+        self.assertEqual(len(list(queue.glob("*.ticket"))), 2)
         for process in (waiter, holder):
             process.kill()
             process.wait(60)
-        self.assertLess(self.waited(lock, SHARED), 2)
+        # Both processes have exited, so their tickets are dead and the very
+        # first request collects them and is granted: nothing waits on a
+        # place whose requester has crashed.
+        self.assertEqual(request(lock, SHARED), "granted")
         self.assertEqual(list(queue.glob("*.ticket")), [])
 
     def test_dead_tickets_of_every_mode_are_collected(self) -> None:
@@ -431,8 +531,9 @@ class LeaseModeTestCase(unittest.TestCase):
             arrival = now + (index - 10) * 1_000_000_000
             (queue / f"{arrival:020d}-{mode}-1-dead{index}.ticket").write_bytes(b" {}")
         # A shared request, which only waits on exclusive tickets, still
-        # collects the dead shared ones, including those after its own.
-        self.assertLess(self.waited(lock, SHARED), 2)
+        # collects the dead shared ones, including those after its own. No
+        # process holds anything, so the first attempt is granted.
+        self.assertEqual(request(lock, SHARED), "granted")
         self.assertEqual(list(queue.glob("*.ticket")), [])
 
     @unittest.skipIf(os.name == "nt", "Windows cannot delete a file its requester holds open")
@@ -490,28 +591,41 @@ class LeaseModeTestCase(unittest.TestCase):
             "handle = open(sys.argv[2], 'rb')\n"
             "assert lease._try_lock(handle, 'shared')\n"
             "print('held', flush=True)\n"
-            "time.sleep(0.3)\n"
+            "sys.stdin.read()\n"
         )
+        ticket_locks = []
 
         def contended(handle, mode=EXCLUSIVE):
-            if not probes and str(handle.name).endswith(".ticket") and mode == EXCLUSIVE:
+            if str(handle.name).endswith(".ticket") and mode == EXCLUSIVE:
+                ticket_locks.append(handle.name)
+            if len(ticket_locks) == 1 and not probes:
                 process = subprocess.Popen(
                     [sys.executable, "-c", probe, str(SCRIPT.parent), str(handle.name)],
+                    stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     text=True,
                 )
                 self.addCleanup(process.wait, 60)
                 self.addCleanup(process.kill)
                 self.addCleanup(process.stdout.close)
+                self.addCleanup(process.stdin.close)
                 self.assertEqual(process.stdout.readline().strip(), "held")
                 probes.append(process)
+                # The probe holds the ticket until it is told to let go, so
+                # the requester's lock is refused however long the host takes.
+                locked = real_try_lock(handle, mode)
+                process.stdin.close()
+                self.assertFalse(locked)
+                return locked
             return real_try_lock(handle, mode)
 
         with patch.object(queue_module, "_try_lock", side_effect=contended):
-            self.assertLess(self.waited(lock, EXCLUSIVE), 5)
+            self.take_and_release(lock, EXCLUSIVE)
         self.assertEqual(len(probes), 1)
+        # The refused lock is retried under a new name, which is then locked.
+        self.assertGreaterEqual(len(ticket_locks), 2)
         probes[0].wait(60)
-        self.waited(lock, SHARED)
+        self.take_and_release(lock, SHARED)
         self.assertEqual(list(lock.with_name(f"{lock.stem}.queue").glob("*.ticket")), [])
 
     def test_a_ticket_survives_peers_probing_it_as_it_is_created(self) -> None:
@@ -525,10 +639,9 @@ class LeaseModeTestCase(unittest.TestCase):
             "from pathlib import Path\n"
             "sys.path.insert(0, sys.argv[1])\n"
             "import atlas_build_lease as lease\n"
-            "queue = Path(sys.argv[2])\n"
+            "queue, stop = Path(sys.argv[2]), Path(sys.argv[3])\n"
             "print('probing', flush=True)\n"
-            "end = time.monotonic() + 4\n"
-            "while time.monotonic() < end:\n"
+            "while not stop.exists():\n"
             "    for path in queue.glob('*.ticket'):\n"
             "        try:\n"
             "            handle = path.open('rb')\n"
@@ -541,10 +654,12 @@ class LeaseModeTestCase(unittest.TestCase):
             "        finally:\n"
             "            handle.close()\n"
         )
+        stop = self.base / "stop-probing"
+        self.addCleanup(stop.write_text, "stop", encoding="utf-8")
         probers = []
         for _ in range(3):
             process = subprocess.Popen(
-                [sys.executable, "-c", prober, str(SCRIPT.parent), str(queue)],
+                [sys.executable, "-c", prober, str(SCRIPT.parent), str(queue), str(stop)],
                 stdout=subprocess.PIPE,
                 text=True,
             )
@@ -553,16 +668,15 @@ class LeaseModeTestCase(unittest.TestCase):
             self.addCleanup(process.stdout.close)
             self.assertEqual(process.stdout.readline().strip(), "probing")
             probers.append(process)
-        end = time.monotonic() + 3
-        taken = 0
-        while time.monotonic() < end:
-            self.assertLess(self.waited(lock, EXCLUSIVE), 2)
-            taken += 1
-        self.assertGreater(taken, 10)
+        # The probers run until told to stop, so every request is made
+        # under probing, however long the host takes to make them.
+        for _ in range(30):
+            self.take_and_release(lock, EXCLUSIVE)
+        stop.write_text("stop", encoding="utf-8")
         for process in probers:
             process.wait(60)
         # A release a probe held open stays behind, dead, for the next request.
-        self.waited(lock, SHARED)
+        self.take_and_release(lock, SHARED)
         self.assertEqual(list(queue.glob("*.ticket")), [])
 
     @unittest.skipUnless(os.name == "nt", "only Windows refuses to delete an open file")
@@ -615,7 +729,10 @@ class LeaseModeTestCase(unittest.TestCase):
 
 
 # A shared reader of `dep` that builds new variants of it beside the ones
-# a record names, writing each in slow chunks so a hash can catch it half done.
+# a record names, writing each in slow chunks so a hash can catch it half done,
+# until the file argv[4] names exists or its standard input closes, which
+# happens when the test process ends however it ends. It prints `writing`
+# once its first variant is under way.
 VARIANT_WRITER = (
     "import sys, time\n"
     "from pathlib import Path\n"
@@ -625,14 +742,19 @@ VARIANT_WRITER = (
     "lease.__enter__()\n"
     "print('held', flush=True)\n"
     "deps = Path(sys.argv[3])\n"
-    "end = time.monotonic() + float(sys.argv[4])\n"
+    "stop = Path(sys.argv[4])\n"
+    "import threading\n"
+    "orphaned = threading.Event()\n"
+    "threading.Thread(target=lambda: (sys.stdin.read(), orphaned.set()), daemon=True).start()\n"
     "variant = 0\n"
-    "while time.monotonic() < end:\n"
+    "while not stop.exists() and not orphaned.is_set():\n"
     "    variant += 1\n"
     "    with (deps / f'libdep-variant{variant}.rlib').open('wb') as stream:\n"
     "        for _ in range(20):\n"
     "            stream.write(b'x' * 65536)\n"
     "            stream.flush()\n"
+    "            if variant == 1 and _ == 0:\n"
+    "                print('writing', flush=True)\n"
     "            time.sleep(0.005)\n"
     "lease.__exit__(None, None, None)\n"
 )
@@ -657,18 +779,91 @@ REBUILDING_READER = (
 )
 
 
-def start_script(test: unittest.TestCase, script: str, *arguments: str) -> subprocess.Popen:
+# A wait for a step takes this many times the step's start-up, measured once
+# per test process the first time a script starts. The factor covers the host
+# slowing after that measurement: an interpreter that imports the lease module
+# took 0.104 s on a quiet 24-CPU host and 0.711 s with 30 busy loops beside
+# it, a ratio of about 6.8, and 15 is more than twice that. It is a measured
+# constant that ends a hang, not an assertion bound derived from a property,
+# and a larger factor would cost nothing but a slower failure.
+HOST_SLOWDOWN_MARGIN = 15
+
+
+@functools.cache
+def child_startup_seconds() -> float:
+    """Seconds a fresh interpreter takes to import the lease module, measured once.
+
+    That is the work a helper script does before it first prints (the
+    imports, then taking a lease). The measure is taken per test process, the
+    first time a script is started, and reused for the rest of the process.
+    """
+    started = time.monotonic()
+    subprocess.run(
+        [sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import atlas_build_lease",
+         str(SCRIPT.parent)],
+        check=True,
+        timeout=120,
+    )
+    return time.monotonic() - started
+
+
+def next_line_within(test: unittest.TestCase, process: subprocess.Popen, seconds: float) -> str:
+    """The next line `process` prints, or a test failure once `seconds` pass.
+
+    Nothing else ends a wait for a line a process that keeps running never
+    prints: the test is the one waiting. The line is read on a thread so the
+    wait has a deadline. At it the process is killed and reaped, which also
+    ends the thread's read and lets the test's cleanups close the pipe, and
+    then the test fails.
+    """
+    line: queue.Queue[str] = queue.Queue()
+    reader = threading.Thread(target=lambda: line.put(process.stdout.readline()), daemon=True)
+    reader.start()
+    try:
+        return line.get(timeout=seconds).strip()
+    except queue.Empty:
+        process.kill()
+        process.wait(60)
+        reader.join(60)
+        test.fail(f"the process printed no line within {seconds:.1f} s")
+
+
+def start_script(
+    test: unittest.TestCase, script: str, *arguments: str, ready: str = "held"
+) -> subprocess.Popen:
+    """Start `script` and wait, under a deadline, for the line `ready` it prints."""
+    # Standard input stays open for the script's life, so a script can tell
+    # the test process ended by reading it to end of file.
     process = subprocess.Popen(
         [sys.executable, "-c", script, str(SCRIPT.parent), *arguments],
+        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         text=True,
     )
     test.addCleanup(process.wait, 60)
     test.addCleanup(process.kill)
     test.addCleanup(process.stdout.close)
-    test.assertEqual(process.stdout.readline().strip(), "held")
+    test.addCleanup(process.stdin.close)
+    test.assertEqual(
+        next_line_within(test, process, HOST_SLOWDOWN_MARGIN * child_startup_seconds()), ready
+    )
     return process
 
+
+# A request that queues behind a holder of the lease and waits there, its
+# ticket live until the process is killed. It prints `queued` once queued.
+QUEUED_WAITER = (
+    "import sys\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from atlas_build_lease import LeaseHeldError, OwnerLease\n"
+    "lease = OwnerLease(Path(sys.argv[2]), {'root': 'waiter', 'revision': 'r'}, 60)\n"
+    "try:\n"
+    "    lease.attempt()\n"
+    "except LeaseHeldError:\n"
+    "    print('queued', flush=True)\n"
+    "    sys.stdin.read()\n"
+)
 
 # A shared reader of `dep` whose build, once the run's own command signals,
 # rewrites a recorded dependency file in place: it opens the file with no
@@ -859,18 +1054,33 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(record["source"]["revision"], revision)
         self.assertEqual(record["source"]["root"], second_export.resolve().as_posix())
 
-    def test_a_fresh_gate_export_is_identified_without_rehashing_it(self) -> None:
-        """The export's index carries stat data, so `git diff HEAD` compares
-        stats: a read-tree index without it re-hashed kwavers for 348 s."""
+    def test_a_fresh_gate_exports_index_records_each_files_stat_data(self) -> None:
+        """The export's index carries each file's size and modification time,
+        and the export is identified clean at its revision.
+
+        `git diff HEAD` can skip re-hashing an entry only when its recorded
+        size and modification time match the file's, and a read-tree index
+        with no stat data re-hashed kwavers for 348 s. That match is a
+        necessary condition, not a sufficient one: all 19 of this fixture's
+        entries carry the whole second its index was written in, which Git
+        treats as racily clean and re-reads whatever they record. The test
+        checks the condition, not the speed.
+        """
         init_repo(self.root, "fn main() {}\n")
         bulk = self.root / "data"
         bulk.mkdir()
-        for index in range(2000):
+        for index in range(16):
             (bulk / f"part-{index:04}.txt").write_text(f"{index}\n" * 64, encoding="utf-8")
         git(self.root, "add", "data")
         git(self.root, "commit", "-qm", "bulk")
         export = self.base / "export" / "member"
         revision = gate_export(self.root, export)
+        entries = index_stat_data(export)
+        self.assertEqual(len(entries), 19)
+        for path, (mtime_seconds, size) in entries.items():
+            status = (export / path).stat()
+            self.assertEqual(size, status.st_size, path)
+            self.assertEqual(mtime_seconds, status.st_mtime_ns // 1_000_000_000, path)
         calls: list[tuple[str, ...]] = []
         real_git = build_source._git
 
@@ -879,13 +1089,10 @@ class BuildIdentityTestCase(unittest.TestCase):
             return real_git(root, *arguments)
 
         with patch.object(build_source, "_git", side_effect=recording_git):
-            started = time.monotonic()
             found = build_source.source_identity(export)
-            elapsed = time.monotonic() - started
         self.assertIn("diff", [arguments[0] for arguments in calls])
         self.assertEqual(found.revision, revision)
         self.assertFalse(found.dirty)
-        self.assertLess(elapsed, 30.0)
 
     def test_an_edited_export_is_dirty_whatever_its_index_holds(self) -> None:
         """An index read from `HEAD` and never stat'ed proves nothing about
@@ -1041,6 +1248,23 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertFalse(self.clean_log.exists())
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "changed elsewhere")
 
+    def test_a_wait_for_a_line_that_never_comes_ends_at_its_deadline(self) -> None:
+        silent = subprocess.Popen(
+            [sys.executable, "-c", "import sys; sys.stdin.read()"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        self.addCleanup(silent.wait, 60)
+        self.addCleanup(silent.kill)
+        self.addCleanup(silent.stdout.close)
+        self.addCleanup(silent.stdin.close)
+        with self.assertRaises(AssertionError) as caught:
+            next_line_within(self, silent, 0.5)
+        self.assertIn("no line within 0.5 s", str(caught.exception))
+        # The silent process was killed and reaped, not left running.
+        self.assertIsNotNone(silent.poll())
+
     def test_a_reader_writing_new_variants_does_not_tear_another_readers_check(self) -> None:
         # Cargo can write new variants of a dependency under a shared lease.
         # A reader compares only the files its record names, so a variant
@@ -1051,14 +1275,27 @@ class BuildIdentityTestCase(unittest.TestCase):
         deps = self.artifact.parent
         (deps / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
         self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
-        start_script(self, VARIANT_WRITER, str(self.dep_lock()), str(deps), "6")
+        stop = self.base / "stop-variants"
+        writer = start_script(self, VARIANT_WRITER, str(self.dep_lock()), str(deps), str(stop))
+        self.addCleanup(stop.write_text, "stop", encoding="utf-8")
+        # The rounds start only once a variant is being written. That takes
+        # one 64 KiB write, which measured 1.5 ms against a start-up (the
+        # interpreter, the imports, the lease) of 0.13 to 0.7 s across idle
+        # and loaded hosts, so the wait the margin gives it is a deadline no
+        # healthy writer nears.
+        self.assertEqual(
+            next_line_within(self, writer, HOST_SLOWDOWN_MARGIN * child_startup_seconds()),
+            "writing",
+        )
         self.clean_log.unlink(missing_ok=True)
-        end = time.monotonic() + 4
-        rounds = 0
-        while time.monotonic() < end:
+        for _ in range(3):
             self.assertEqual(self.dependency_build("first", wait=2, discover=True).status, "reused")
-            rounds += 1
-        self.assertGreater(rounds, 2)
+        # The writer was writing before the first round and stops only when
+        # told to, so it wrote through every round.
+        self.assertIsNone(writer.poll())
+        stop.write_text("stop", encoding="utf-8")
+        self.assertEqual(writer.wait(60), 0)
+        self.assertTrue(any(deps.glob("libdep-variant*.rlib")))
         self.assertFalse(self.clean_log.exists())
 
     @unittest.skipUnless(os.name == "nt", "only Windows refuses reads during a rewrite")
@@ -1091,7 +1328,9 @@ class BuildIdentityTestCase(unittest.TestCase):
         init_repo(self.root, "fn main() {}\n")
         (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
         self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
-        reads = iter(range(1_000_000))
+        # Twice the reads a one-second budget allows: a reader that ignored
+        # its deadline exhausts them and fails at once instead of hanging.
+        reads = iter(range(2 * (2 + round(1.0 / artifacts._SETTLE_INTERVAL))))
         settle = artifacts.settled_digest
 
         def unsettled(path, deadline_ns):
@@ -1104,7 +1343,48 @@ class BuildIdentityTestCase(unittest.TestCase):
             result = self.dependency_build("first", wait=3, discover=True)
         files = json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"]
         self.assertEqual(files["debug/deps/libdep-0ecdeded.rlib"], artifacts.UNVERIFIED)
-        self.assertGreater(next(reads), 2)
+        # Two reads are made whatever the budget left; how many more depends
+        # on the time the run has left, which the next test pins.
+        self.assertGreaterEqual(next(reads), 2)
+
+    def test_a_file_that_never_reads_the_same_twice_is_read_until_its_budget_ends(self) -> None:
+        # Under a clock that moves only when the reader sleeps, a file that
+        # never agrees is read once, confirmed at once, then re-read after
+        # each `_SETTLE_INTERVAL` sleep until the one-second budget is spent:
+        # 2 + 1.0 / 0.02 reads.
+        # `reads` is rebound per case; the digest lambda reads it at call time.
+        target = self.base / "unsettled.rlib"
+        target.write_bytes(b"artifact")
+        clock = [0]
+
+        class Clock:
+            @staticmethod
+            def monotonic_ns() -> int:
+                return clock[0]
+
+            @staticmethod
+            def sleep(seconds: float) -> None:
+                clock[0] += round(seconds * 1_000_000_000)
+
+        for deadline_ns, expected_reads in (
+            (1_000_000_000, 2 + round(1.0 / artifacts._SETTLE_INTERVAL)),
+            # A budget already spent still gets its two reads.
+            (-1, 2),
+        ):
+            with self.subTest(deadline_ns=deadline_ns):
+                clock[0] = 0
+                # Twice the most this case can read, so a reader that ignored
+                # its deadline exhausts them and fails at once.
+                reads = iter(range(2 * (2 + round(1.0 / artifacts._SETTLE_INTERVAL))))
+                with (
+                    patch.object(artifacts, "time", Clock),
+                    patch.object(
+                        artifacts, "_file_digest", side_effect=lambda _: f"read-{next(reads)}"
+                    ),
+                ):
+                    digest = artifacts.settled_digest(target, deadline_ns)
+                self.assertEqual(digest, artifacts.UNVERIFIED)
+                self.assertEqual(next(reads), expected_reads)
 
     def test_an_unverified_file_cleans_only_its_package(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -1762,18 +2042,111 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertFalse(self.clean_log.exists())
 
     def test_the_wait_bound_covers_every_lease_of_a_run(self) -> None:
-        # `demo` frees after 2 s and `dep` never: with a 3 s bound per lease
-        # the run would wait 5 s, but the bound is for the run.
+        # Both leases are held when the run asks for them. `demo` is released
+        # once the run has been refused it, so the claim is still blocked at
+        # `dep`, which stays held for the whole run. The run fixes one
+        # deadline when it starts waiting, and its one claim waits against
+        # it: a bound per lease would start a fresh 3 s at `dep`.
         init_repo(self.root, "fn main() {}\n")
-        start_holder(self, self.dep_lock("demo"), EXCLUSIVE, 2)
-        start_holder(self, self.dep_lock("dep"), EXCLUSIVE, 60)
-        started = time.monotonic()
-        with self.assertRaises(identity.IdentityError) as caught:
-            self.dependency_build("first", wait=3)
-        elapsed = time.monotonic() - started
+        demo_lock, dep_lock = self.dep_lock("demo"), self.dep_lock("dep")
+        release_dep = self.base / "release-dep"
+        release_demo = self.base / "release-demo"
+        demo_holder = start_holder(self, demo_lock, EXCLUSIVE, 0, stop=release_demo)
+        dep_holder = start_holder(self, dep_lock, EXCLUSIVE, 0, stop=release_dep)
+        requested: list[int | None] = []
+        refusals: dict[Path, int] = {demo_lock: 0, dep_lock: 0}
+        real_acquire = identity.acquire_claim
+        real_blocker = lease_module._blocker
+
+        clock = RecordedClock()
+
+        def recording_acquire(leases, wait_seconds, deadline_ns=None, *args, **kwargs):
+            requested.append(deadline_ns)
+            # The run fixes its deadline once, when it starts: exactly the
+            # 3 s bound after its one clock read. A deadline of any other
+            # length fails whatever the host's speed, and it fails here,
+            # before the run waits it out against the held `dep`.
+            self.assertEqual(len(clock.reads), 1)
+            self.assertEqual(deadline_ns, clock.reads[0] + 3_000_000_000)
+            return real_acquire(leases, wait_seconds, deadline_ns, *args, **kwargs)
+
+        def counting_blocker(lease):
+            found = real_blocker(lease)
+            if found is not None:
+                refusals[lease.path] += 1
+                if lease.path == demo_lock and demo_holder.poll() is None:
+                    # Releasing the holder frees its OS lock and its place:
+                    # the claim is next blocked at `dep` alone, with no timer
+                    # to release `demo`.
+                    release_demo.write_text("release", encoding="utf-8")
+                    self.assertEqual(demo_holder.wait(60), 0)
+            return found
+
+        with (
+            patch.object(identity, "acquire_claim", side_effect=recording_acquire),
+            patch.object(identity, "time", clock),
+            patch.object(lease_module, "_blocker", side_effect=counting_blocker),
+        ):
+            with self.assertRaises(identity.IdentityError) as caught:
+                self.dependency_build("first", wait=3)
+        refused_ns = time.monotonic_ns()
         self.assertIn("after waiting 3 s", str(caught.exception))
-        self.assertGreaterEqual(elapsed, 2.9)
-        self.assertLess(elapsed, 4.2)
+        # One claim, one deadline, and the run gave up only once it had passed.
+        self.assertEqual(len(requested), 1)
+        self.assertIsNotNone(requested[0])
+        self.assertGreaterEqual(refused_ns, requested[0])
+        # Each lease was held when asked for: the claim was refused at `demo`
+        # before it was released, and at `dep` until the deadline.
+        self.assertGreaterEqual(refusals[demo_lock], 1)
+        self.assertGreaterEqual(refusals[dep_lock], 1)
+        # `dep` was held with no clock: it lets go when told, not when a
+        # timer runs out.
+        self.assertIsNone(dep_holder.poll())
+        release_dep.write_text("release", encoding="utf-8")
+        self.assertEqual(dep_holder.wait(60), 0)
+
+    def test_a_held_lease_is_refused_at_its_deadline(self) -> None:
+        # Under a clock that moves only when the waiter sleeps, a claim whose
+        # lease stays held is refused exactly at the deadline: each sleep is
+        # cut to the time left, so no wait runs past it.
+        clock = [0]
+
+        class Clock:
+            @staticmethod
+            def monotonic_ns() -> int:
+                return clock[0]
+
+            @staticmethod
+            def sleep(seconds: float) -> None:
+                clock[0] += round(seconds * 1_000_000_000)
+
+        # Sleeps of 0.1, 0.2, 0.4, 0.8 s, then the 1.5 s left: five waits
+        # between six attempts, the last refused. A wait that never reached
+        # its deadline would sleep for no time and ask again for ever, so the
+        # claim allows twice those attempts and fails the test past them.
+        analytic_attempts = 6
+        attempts = [0]
+        lease = OwnerLease(self.base / "held.lock", {"root": "waiter", "revision": "r"}, 60)
+
+        def refuse(leases):
+            attempts[0] += 1
+            if attempts[0] > 2 * analytic_attempts:
+                raise AssertionError(
+                    f"the wait asked {attempts[0]} times without reaching its deadline"
+                )
+            return leases[0], LeaseHeldError("held", {"root": "holder", "revision": "r"})
+
+        deadline_ns = 3_000_000_000
+        with (
+            patch.object(lease_module, "time", Clock),
+            patch.object(lease_module, "_try_claim", side_effect=refuse),
+            redirect_stderr(io.StringIO()),
+            self.assertRaises(lease_module.BuildIdentityError) as caught,
+        ):
+            acquire_claim((lease,), 3, deadline_ns)
+        self.assertEqual(clock[0], deadline_ns)
+        self.assertIn("after waiting 3 s", str(caught.exception))
+        self.assertEqual(attempts[0], analytic_attempts)
 
     def test_an_expired_owner_is_recovered(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -2825,21 +3198,6 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(Path(marker.read_text(encoding="utf-8")).resolve(), elsewhere.resolve())
 
 
-def _clear_readonly_tree(path: Path) -> None:
-    """Remove a tree whose entries may be read-only (the gate's exports).
-
-    `shutil.rmtree(onexc=)` is 3.12+ and the hosted runners hold 3.11, so the
-    entries are made writable first and removed with the version-agnostic
-    plain form.
-    """
-    if not path.exists():
-        return
-    for root, dirs, files in os.walk(path):
-        for name in (root, *(os.path.join(root, entry) for entry in dirs + files)):
-            os.chmod(name, 0o700)
-    shutil.rmtree(path)
-
-
 # Run as the build command: records how each named lease answers a request
 # from another process while run_build holds its leases around the command.
 LEASE_PROBE = (
@@ -2896,7 +3254,7 @@ class LeaseDowngradeTestCase(unittest.TestCase):
         self.lock.parent.mkdir(parents=True)
 
     def hold(self) -> OwnerLease:
-        holder = acquire_waiting(
+        holder = acquire_lease(
             OwnerLease(self.lock, {"root": "holder", "revision": "r"}, 60, mode=EXCLUSIVE), 60
         )
         self.addCleanup(holder.__exit__, None, None, None)
@@ -2963,7 +3321,7 @@ class LeaseDowngradeTestCase(unittest.TestCase):
                 holder.downgrade()
         self.assertEqual((holder.held, holder.handle), (False, None))
         holder.__exit__(None, None, None)
-        taker = acquire_waiting(
+        taker = acquire_lease(
             OwnerLease(self.lock, {"root": "next", "revision": "r"}, 60, mode=EXCLUSIVE), 0
         )
         self.addCleanup(taker.__exit__, None, None, None)
@@ -2995,7 +3353,7 @@ class LeaseDowngradeTestCase(unittest.TestCase):
         self.assertTrue(writer.held)
 
     def test_a_shared_lease_is_left_as_it_is(self) -> None:
-        reader = acquire_waiting(
+        reader = acquire_lease(
             OwnerLease(self.lock, {"root": "reader", "revision": "r"}, 60, mode=SHARED), 60
         )
         self.addCleanup(reader.__exit__, None, None, None)
@@ -3302,7 +3660,7 @@ class RepeatedExportPushTestCase(unittest.TestCase):
             for push in range(pushes):
                 export = self.base / ("export" if stable_path else f"export-{push}")
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -3425,7 +3783,7 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
                         os.environ["CARGO_BUILD_RUSTFLAGS"] = "-Cdebug-assertions=off"
                 export = self.stack / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 results.append(
                     identity.run_build(
@@ -3545,7 +3903,7 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
                     git(self.drepo, "commit", "-qam", "change d only")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 result = identity.run_build(
@@ -4111,22 +4469,31 @@ class MultiPackageRunTestCase(unittest.TestCase):
                 selection=("a",),
             )
 
-    def test_leases_are_taken_in_package_name_order(self) -> None:
-        order: list[str] = []
-        real = identity.acquire_waiting
+    def test_every_phase_of_a_run_claims_all_its_scopes_under_one_arrival(self) -> None:
+        claims: list[tuple[list[str], int | None, str | None]] = []
+        phases: list[int] = []
+        real = identity.acquire_claim
 
-        def recording(lease, *args):
-            order.append(str(lease.owner["package"]))
-            return real(lease, *args)
+        def recording(leases, wait, deadline, arrival, run, phase):
+            claims.append(([str(lease.owner["package"]) for lease in leases], arrival, run))
+            phases.append(phase)
+            return real(leases, wait, deadline, arrival, run, phase)
 
-        with patch.object(identity, "acquire_waiting", side_effect=recording):
+        with patch.object(identity, "acquire_claim", side_effect=recording):
             self.push(self.base / "gate1", packages=("c", "a"))
-        # Each acquisition takes every scope in name order whatever order the
-        # packages were named in, so two overlapping batches never each hold
-        # a lease the other waits for.
-        self.assertEqual(order[:3], ["a", "b", "c"])
-        self.assertEqual(len(order) % 3, 0)
-        self.assertTrue(all(order[i:i + 3] == ["a", "b", "c"] for i in range(0, len(order), 3)))
+        # A first push has no record: one claim to read it, one to clean and
+        # build. Each takes every scope, whatever order the packages were
+        # named in, and the second keeps the first's place, `(arrival, run)`,
+        # in every queue.
+        self.assertGreaterEqual(len(claims), 2)
+        self.assertTrue(all(names == ["a", "b", "c"] for names, _, _ in claims))
+        self.assertEqual(len({arrival for _, arrival, _ in claims}), 1)
+        self.assertEqual(len({run for _, _, run in claims}), 1)
+        self.assertIsNotNone(claims[0][1])
+        self.assertIsNotNone(claims[0][2])
+        # The claims are numbered in the order the run takes them, however
+        # many the run makes (a clean that widens makes a third).
+        self.assertEqual(phases, list(range(1, len(claims) + 1)))
 
     def test_a_dependency_change_in_any_package_refuses_the_record(self) -> None:
         marker = self.base / "built"
@@ -4363,7 +4730,7 @@ class PathDependencyFeatureChangeTestCase(unittest.TestCase):
                     git(self.source, "commit", "-qam", "enable x/f")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -4472,7 +4839,7 @@ class DependencyAdditionTestCase(unittest.TestCase):
                         git(self.source, "commit", "-qam", f"relock before push {push}")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -4601,7 +4968,7 @@ class GitDependencyTestCase(unittest.TestCase):
                     before[push]()
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 root, package = (self.second, "q") if push in second else (self.source, "p")
                 shutil.copytree(root, export, copy_function=shutil.copy)
                 cleaned.append([])
@@ -4965,7 +5332,7 @@ class RootProfileChangeTestCase(unittest.TestCase):
                     git(self.source, "commit", "-qam", "profile opt-level 1")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -5141,16 +5508,35 @@ class CommandLineTestCase(unittest.TestCase):
 
     def test_the_pre_push_wait_ends_at_the_wait_bound(self) -> None:
         lock = package_target_lease_path("demo", build_source._canonical(self.target))
-        hold_lease(self, lock, self.target, 600, 60)
-        started = time.monotonic()
+        holder = hold_lease(self, lock, self.target, 600, 600)
+        requested: list[int | None] = []
+        real_acquire = identity.acquire_claim
+        clock = RecordedClock()
+
+        def recording_acquire(leases, wait_seconds, deadline_ns=None, *args, **kwargs):
+            requested.append(deadline_ns)
+            # The run fixes its deadline once, when it starts: exactly the
+            # 2 s bound after its one clock read. A deadline of any other
+            # length fails whatever the host's speed, and it fails here,
+            # before the run waits it out against the holder.
+            self.assertEqual(len(clock.reads), 1)
+            self.assertEqual(deadline_ns, clock.reads[0] + 2_000_000_000)
+            return real_acquire(leases, wait_seconds, deadline_ns, *args, **kwargs)
+
         stderr = io.StringIO()
-        with redirect_stderr(stderr):
+        with (
+            redirect_stderr(stderr),
+            patch.object(identity, "acquire_claim", side_effect=recording_acquire),
+            patch.object(identity, "time", clock),
+        ):
             code = self.pre_push("--lease-wait-seconds", "2")
-        elapsed = time.monotonic() - started
+        refused_ns = time.monotonic_ns()
         self.assertEqual(code, 1)
-        self.assertGreaterEqual(elapsed, 2)
-        # The holder's 600 s lease and 60 s hold both outlast the bound.
-        self.assertLess(elapsed, 30)
+        # The refusal came only after that deadline.
+        self.assertGreaterEqual(refused_ns, requested[0])
+        # The run gave up at its bound with the holder still holding: it did
+        # not wait the holder out, however long the host took to give up.
+        self.assertIsNone(holder.poll())
         self.assertIn(
             "still held by holder-root at holder-revision after waiting 2 s (--lease-wait-seconds)",
             stderr.getvalue(),

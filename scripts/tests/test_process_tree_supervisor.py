@@ -248,6 +248,34 @@ class SupervisorWatcherTests(unittest.TestCase):
         self.worker.join(HANG_GUARD_SECONDS)
         self.assertIsInstance(self.outcome["error"], FileNotFoundError)
 
+    def test_blocked_status_write_does_not_hold_deadline_watcher(self):
+        write_started = threading.Event()
+        release_write = threading.Event()
+        real_write = os.write
+
+        def blocked_write(descriptor: int, message: bytes) -> int:
+            if descriptor == self.status_write:
+                write_started.set()
+                release_write.wait()
+            return real_write(descriptor, message)
+
+        with patch.object(os, "write", side_effect=blocked_write):
+            try:
+                self.start(
+                    EXPIRY_HOLD_SECONDS,
+                    ["atlas-no-such-executable-for-the-supervisor"],
+                )
+                self.assertTrue(write_started.wait(HANG_GUARD_SECONDS))
+                self.assertTrue(
+                    self.killed.wait(EXPIRY_HOLD_SECONDS + HANG_GUARD_SECONDS),
+                    "deadline watcher could not retire while status write was blocked",
+                )
+            finally:
+                release_write.set()
+
+        self.worker.join(HANG_GUARD_SECONDS)
+        self.assertFalse(self.worker.is_alive(), "blocked report outlived its supervisor")
+
 
 def retire_group(group: int) -> None:
     """Kill whatever still runs in ``group``, a leader's identifier."""
@@ -319,14 +347,14 @@ class PosixCallerDeathTests(unittest.TestCase):
             stderr=self.log,
         )
         self.addCleanup(helper.stdout.close)
-        self.addCleanup(helper.wait)
+        self.addCleanup(helper.wait, HANG_GUARD_SECONDS)
         self.addCleanup(helper.kill)
         # The helper reports its supervisor's pid, which is the group's leader
         # and its identifier. The group is retired on every exit from the test,
         # so a defect that leaves it running cannot outlive the failure.
         ready, _, _ = select.select([helper.stdout], [], [], HANG_GUARD_SECONDS)
         self.assertTrue(ready, "the helper never launched")
-        self.addCleanup(retire_group, int(helper.stdout.readline()))
+        self.addCleanup(retire_group, int(os.read(helper.stdout.fileno(), 4096)))
         return helper
 
     def assert_holders_gone(self) -> None:
@@ -409,7 +437,7 @@ class PosixSupervisorProcessTests(unittest.TestCase):
         occurs in, so the kill does not depend on the leader being alive.
         """
         retire_group(supervisor.pid)
-        supervisor.wait()
+        supervisor.wait(timeout=HANG_GUARD_SECONDS)
 
     def test_supervisor_ends_when_the_caller_vanishes_after_its_status_write(self):
         supervisor = self.launch(

@@ -19,7 +19,8 @@ for each publishable crate in it (`cargo metadata --no-deps`, `publish` not `[]`
                 unpublished-version   the name is ours and published, this version is not
                 published-current     the registry `.crate` matches the source
                 published-drifted     the registry `.crate` differs from the source
-    drift       paths changed, added, or removed since the published version
+    drift       paths changed, added, or removed since the published version, and
+                the dependencies whose requirement differs
     dependents  other members' crates whose manifests require this crate, with the
                 requirement, kind, and any rename
 
@@ -33,12 +34,23 @@ are spaced one second apart (crates.io's crawler policy).
 
 Comparison: the `.crate` at the manifest version comes from static.crates.io; its
 `src/**` and `Cargo.toml.orig` are compared by SHA-256 with `src/**` and `Cargo.toml`
-in the crate's directory at the tip. `.cargo_vcs_info.json`, `Cargo.lock`, and the
-normalized `Cargo.toml` are ignored, as is anything else outside `src/` and the
-manifest (a `build.rs`, a README). Line endings are normalized (CRLF to LF) on both
+in the crate's directory at the tip. `.cargo_vcs_info.json` and `Cargo.lock` are
+ignored, as is anything else outside `src/` and the manifest (a `build.rs`, a README).
+Line endings are normalized (CRLF to LF) on both
 sides: a crate packaged from a Windows checkout differs from a `git archive` of the
 same commit only there, and reading that as drift would send a bump to a crate with
 nothing to release. Files marked `export-ignore` are absent from the archive read.
+
+The manifest text does not say what a dependency binds: `eunomia = { workspace = true }`
+reads the same before and after the workspace root moves eunomia from 0.8 to 0.9. So the
+requirements are compared as well, for normal and build dependencies (what consumers
+resolve; dev-dependencies never reach them). The registry side is the `.crate`'s
+normalized `Cargo.toml`, where cargo has resolved the inheritance; the source side is
+`cargo metadata`, which resolves it the same way. Each dependency, keyed by kind, target,
+and declared name, is compared on its package, its requirement as a semver requirement
+(`0.9` and `^0.9` are one), `optional`, `default-features`, and `features`; any
+difference, or a dependency present on one side only, is drift and is reported with both
+sides (scripts/atlas_crate_requirements.py).
 
 An index 404 is "never published". Every other non-200 answer, an owners API answer
 other than 200, and a network error that outlasts its retries (five attempts, backoff
@@ -80,6 +92,14 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
+from atlas_crate_requirements import (  # noqa: E402
+    DependencyDrift,
+    Requirement,
+    RequirementError,
+    compare_requirements,
+    manifest_requirements,
+    metadata_requirements,
+)
 from atlas_git_process import (  # noqa: E402
     GitProcessError,
     archive as git_archive,
@@ -227,10 +247,23 @@ def normalized_digest(data: bytes) -> str:
     return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
 
 
-def published_digests(crate: bytes, name: str, version: str) -> dict[str, str]:
-    """Digests of the `.crate`'s `src/**` and `Cargo.toml.orig` (keyed `Cargo.toml`)."""
+@dataclass(frozen=True)
+class PublishedCrate:
+    """What the comparison reads from a `.crate`."""
+
+    digests: dict[str, str]
+    requirements: dict[tuple, Requirement]
+
+
+def read_published_crate(crate: bytes, name: str, version: str) -> PublishedCrate:
+    """The `.crate`'s file digests and its normalized manifest's dependency requirements.
+
+    The digests cover `src/**` and `Cargo.toml.orig` (keyed `Cargo.toml`). Every `.crate`
+    carries the normalized `Cargo.toml` cargo writes; one without it is unreadable.
+    """
     prefix = f"{name}-{version}/"
     digests: dict[str, str] = {}
+    normalized: bytes | None = None
     try:
         with tarfile.open(fileobj=io.BytesIO(crate), mode="r:gz") as tree:
             for entry in tree:
@@ -243,15 +276,25 @@ def published_digests(crate: bytes, name: str, version: str) -> dict[str, str]:
                 relative = entry.name[len(prefix):]
                 if relative == "Cargo.toml.orig":
                     relative = "Cargo.toml"
-                elif not relative.startswith("src/"):
+                elif relative != "Cargo.toml" and not relative.startswith("src/"):
                     continue
                 handle = tree.extractfile(entry)
                 if handle is None:
                     raise RegistryError(f"{name} {version}: cannot read {entry.name}")
-                digests[relative] = normalized_digest(handle.read())
+                data = handle.read()
+                if entry.name == f"{prefix}Cargo.toml":
+                    normalized = data
+                else:
+                    digests[relative] = normalized_digest(data)
     except (tarfile.TarError, gzip.BadGzipFile, EOFError, zlib.error) as error:
         raise RegistryError(f"{name} {version}: unreadable `.crate`: {error}") from error
-    return digests
+    if normalized is None:
+        raise RegistryError(f"{name} {version}: `.crate` has no normalized Cargo.toml")
+    try:
+        requirements = manifest_requirements(normalized)
+    except RequirementError as error:
+        raise RegistryError(f"{name} {version}: {error}") from error
+    return PublishedCrate(digests, requirements)
 
 
 def source_digests(package_dir: Path) -> dict[str, str]:
@@ -275,19 +318,26 @@ class Drift:
     changed: tuple[str, ...] = ()
     added: tuple[str, ...] = ()
     removed: tuple[str, ...] = ()
+    dependencies: tuple[DependencyDrift, ...] = ()
 
     @property
     def drifted(self) -> bool:
-        return bool(self.changed or self.added or self.removed)
+        return bool(self.changed or self.added or self.removed or self.dependencies)
 
 
-def compare(published: dict[str, str], source: dict[str, str]) -> Drift:
-    """Set-difference and digest comparison of the registry copy against the source."""
+def compare(published: PublishedCrate, source: dict[str, str],
+            dependencies: Sequence[dict]) -> Drift:
+    """The registry copy against the source: file digests, then dependency requirements.
+
+    `dependencies` is the package's `cargo metadata` dependency list.
+    """
     return Drift(
-        changed=tuple(sorted(p for p in published.keys() & source.keys()
-                             if published[p] != source[p])),
-        added=tuple(sorted(source.keys() - published.keys())),
-        removed=tuple(sorted(published.keys() - source.keys())),
+        changed=tuple(sorted(p for p in published.digests.keys() & source.keys()
+                             if published.digests[p] != source[p])),
+        added=tuple(sorted(source.keys() - published.digests.keys())),
+        removed=tuple(sorted(published.digests.keys() - source.keys())),
+        dependencies=compare_requirements(published.requirements,
+                                          metadata_requirements(dependencies)),
     )
 
 
@@ -317,7 +367,8 @@ class CrateReading:
 
 
 def measure_crate(name: str, version: str, manifest: str, package_dir: Path,
-                  fetch: Fetch, owner: str = DEFAULT_OWNER) -> CrateReading:
+                  dependencies: Sequence[dict], fetch: Fetch,
+                  owner: str = DEFAULT_OWNER) -> CrateReading:
     """Classify one crate against the registry.
 
     The owners API is asked only for a name the index has, and a name `owner` does not
@@ -339,7 +390,8 @@ def measure_crate(name: str, version: str, manifest: str, package_dir: Path,
             f"static.crates.io returned HTTP {status} for {name} {version}, "
             "which the index lists"
         )
-    drift = compare(published_digests(body, name, version), source_digests(package_dir))
+    drift = compare(read_published_crate(body, name, version), source_digests(package_dir),
+                    dependencies)
     return CrateReading(name, version, manifest,
                         PUBLISHED_DRIFTED if drift.drifted else PUBLISHED_CURRENT,
                         latest, drift)
@@ -394,8 +446,8 @@ def measure_member(name: str, repo: Path, branch: str, revision: str,
             package_manifest = Path(package["manifest_path"]).resolve()
             relative = package_manifest.relative_to(root)
             crates.append(measure_crate(package["name"], package["version"],
-                                        relative.as_posix(), package_manifest.parent, fetch,
-                                        owner))
+                                        relative.as_posix(), package_manifest.parent,
+                                        package["dependencies"], fetch, owner))
         packages = [
             {"name": p["name"], "dependencies": p["dependencies"]} for p in metadata["packages"]
         ]
@@ -505,6 +557,16 @@ def dependents_cell(dependents: Sequence[dict]) -> str:
     return "; ".join(f"{member}: {', '.join(items)}" for member, items in per_member.items())
 
 
+def dependency_drift_cell(dependencies: Sequence[dict]) -> str:
+    """`name (kind, target): reason` per dependency whose requirement differs."""
+    cells = []
+    for item in dependencies:
+        where = ", ".join(filter(None, (None if item["kind"] == "normal" else item["kind"],
+                                        item["target"])))
+        cells.append(f"{item['name']}{f' ({where})' if where else ''}: {item['reason']}")
+    return "; ".join(cells).replace("|", "\\|")
+
+
 def render_markdown(document: dict) -> str:
     summary = document["summary"]
     lines = [
@@ -528,16 +590,18 @@ def render_markdown(document: dict) -> str:
     lines += [
         "",
         "| member | crate | manifest version | status | latest on registry | "
-        "changed | added | removed | required by |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "changed | added | removed | dependency requirements | required by |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for member in document["members"]:
         for crate in member["crates"]:
-            drift = crate["drift"] or {"changed": [], "added": [], "removed": []}
+            drift = crate["drift"] or {"changed": [], "added": [], "removed": [],
+                                       "dependencies": []}
             lines.append(
                 f"| {member['name']} | {crate['name']} | {crate['version']} | {crate['status']} | "
                 f"{crate['latest_published'] or ''} | {len(drift['changed'])} | "
                 f"{len(drift['added'])} | {len(drift['removed'])} | "
+                f"{dependency_drift_cell(drift['dependencies'])} | "
                 f"{dependents_cell(crate['dependents'])} |")
     return "\n".join(lines) + "\n"
 
@@ -563,7 +627,7 @@ def main(argv: Sequence[str] | None = None, fetch: Fetch = http_get) -> int:
     try:
         atlas_tip, readings = measure_stack(
             options.stack_root, fetch, options.member, options.jobs, options.owner)
-    except (RegistryError, MeasurementError, GitProcessError) as error:
+    except (RegistryError, MeasurementError, GitProcessError, RequirementError) as error:
         print(f"atlas-published-drift: {error}", file=sys.stderr)
         return 2
     document = report(atlas_tip, readings)

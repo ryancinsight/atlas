@@ -1,175 +1,974 @@
-#!/usr/bin/env python3
-"""Executable behavior tests for the rescue pre-push exception."""
-
-from __future__ import annotations
-
-import hashlib
 import os
+import hashlib
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from readonly_tree import clear_readonly_tree
+
 ROOT = Path(__file__).resolve().parents[2]
+HOOK = ROOT / ".githooks" / "pre-push"
 HELPER = ROOT / "scripts" / "git-hooks" / "rescue-push"
 SCANNER = ROOT / "scripts" / "atlas-secret-scan.py"
-ROOT_HOOK = ROOT / ".githooks" / "pre-push"
 MEMBER_HOOK = ROOT / "scripts" / "git-hooks" / "pre-push"
 ZERO = "0" * 40
-IDENTITY = ("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid")
 
 
-def git(root: Path, *args: str) -> str:
-    return subprocess.run(
-        ["git", "-C", str(root), *args],
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    ).stdout.strip()
+def git(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), "-c", "user.name=test", "-c", "user.email=test@example.invalid", *args], check=True, capture_output=True, text=True).stdout.strip()
 
 
-def commit(root: Path, message: str) -> str:
-    git(root, *IDENTITY, "add", "-A")
-    git(root, *IDENTITY, "commit", "-qm", message)
-    return git(root, "rev-parse", "HEAD")
+def write_file(path, content):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    path.chmod(path.stat().st_mode | 0o755)
 
+class RescuePushHookTests(unittest.TestCase):
+    def fixture(self):
+        temporary = tempfile.TemporaryDirectory(prefix="atlas-rescue-hook-")
+        root = Path(temporary.name)
+        (root / ".githooks").mkdir()
+        (root / "scripts" / "git-hooks").mkdir(parents=True)
+        shutil.copyfile(HOOK, root / ".githooks" / "pre-push")
+        shutil.copyfile(SCANNER, root / "scripts" / "atlas-secret-scan.py")
+        shutil.copyfile(HELPER, root / "scripts" / "git-hooks" / "rescue-push")
+        target = root / "target" / "release"
+        target.mkdir(parents=True)
+        write_file(root / "auditor-source", "#!/usr/bin/env bash\nprintf \"%s\\n\" \"$*\" >> \"$PWD/auditor.log\"\nexit 0\n")
+        write_file(root / "tools" / "gitlink-coherence" / "Cargo.toml", "[package]\nname = \"gitlink-coherence\"\nversion = \"0.1.0\"\nedition = \"2021\"\n")
+        write_file(root / "tools" / "gitlink-coherence" / "src" / "main.rs", "fn main() {}\n")
+        cargo_bin = root / "bin"
+        write_file(cargo_bin / "cargo", "#!/usr/bin/env bash\nmkdir -p \"$CARGO_TARGET_DIR/release\"\ncp \"$AUDITOR_SOURCE\" \"$CARGO_TARGET_DIR/release/gitlink-coherence\"\nchmod +x \"$CARGO_TARGET_DIR/release/gitlink-coherence\"\nexit 0\n")
+        git(root, "init", "-q", "-b", "main")
+        git(root, "add", ".githooks", "scripts", "tools")
+        git(root, "commit", "-qm", "seed")
+        remote = root / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+        git(root, "remote", "add", "origin", str(remote))
+        git(root, "push", "-q", "origin", "HEAD:main")
+        git(root, "fetch", "-q", "origin", "main")
+        return temporary, root
 
-class RescueFixture:
-    """An Atlas root and one registered member with fetched default refs."""
+    def member_fixture(self):
+        temporary = tempfile.TemporaryDirectory(prefix="atlas-member-rescue-hook-")
+        stack = Path(temporary.name) / "stack"
+        root = stack / "repos" / "member"
+        (stack / "scripts").mkdir(parents=True)
+        root.mkdir(parents=True)
+        shutil.copyfile(SCANNER, stack / "scripts" / "atlas-secret-scan.py")
+        (stack / "scripts" / "git-hooks").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(HELPER, stack / "scripts" / "git-hooks" / "rescue-push")
+        # The member hook recognises a stack by the members it registers.
+        write_file(
+            stack / ".gitmodules",
+            '[submodule "member"]\n\tpath = repos/member\n\turl = ./member\n',
+        )
+        git(stack, "init", "-q", "-b", "main")
+        git(stack, "add", ".gitmodules", "scripts")
+        git(stack, "commit", "-qm", "stack seed")
+        stack_remote = stack / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(stack_remote)], check=True)
+        git(stack, "remote", "add", "origin", str(stack_remote))
+        git(stack, "push", "-q", "origin", "HEAD:main")
+        (root / ".githooks").mkdir()
+        shutil.copyfile(MEMBER_HOOK, root / ".githooks" / "pre-push")
+        git(root, "init", "-q", "-b", "main")
+        (root / "Cargo.toml").write_text("[package]\nname = \"member\"\nversion = \"0.1.0\"\nedition = \"2021\"\n", encoding="utf-8")
+        (root / "src").mkdir()
+        (root / "src" / "main.rs").write_text("fn main() {}\n", encoding="utf-8")
+        (root / "Cargo.lock").write_text(
+            "# This file is automatically @generated by Cargo.\n"
+            "version = 3\n\n"
+            "[[package]]\n"
+            "name = \"member\"\n"
+            "version = \"0.1.0\"\n",
+            encoding="utf-8",
+        )
+        git(root, "add", "Cargo.toml", "Cargo.lock", "src", ".githooks")
+        git(root, "commit", "-qm", "member seed")
+        remote = root / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+        git(root, "remote", "add", "origin", str(remote))
+        git(root, "push", "-q", "origin", "HEAD:main")
+        git(root, "fetch", "-q", "origin", "main")
+        return temporary, root
 
-    def __init__(self, directory: str) -> None:
-        self.stack = Path(directory) / "atlas"
-        self.member = self.stack / "repos" / "demo"
-        self.member.mkdir(parents=True)
-        git(self.stack, "init", "-q", "-b", "main")
-        for source, relative in (
-            (HELPER, "scripts/git-hooks/rescue-push"),
-            (SCANNER, "scripts/atlas-secret-scan.py"),
-            (ROOT_HOOK, ".githooks/pre-push"),
-        ):
-            target = self.stack / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, target)
-        self.stack_base = commit(self.stack, "trusted stack tools")
-        self._trust_default(self.stack, self.stack_base)
+    def run_member_hook(self, root, line, extra=None):
+        environment = dict(os.environ)
+        environment["PYTHON"] = sys.executable
+        environment.update(extra or {})
+        result = subprocess.run(["bash", str(root / ".githooks" / "pre-push")], cwd=root, input=line.encode(), capture_output=True, env=environment)
+        result.stderr = result.stderr.decode("utf-8", errors="replace")
+        result.stdout = result.stdout.decode("utf-8", errors="replace")
+        return result
 
-        git(self.member, "init", "-q", "-b", "main")
-        (self.member / "README.md").write_text("base\n", encoding="utf-8")
-        self.member_base = commit(self.member, "member base")
-        self._trust_default(self.member, self.member_base)
+    def run_hook(self, root, line, extra=None):
+        environment = dict(os.environ)
+        environment["PYTHON"] = sys.executable
+        environment.update(extra or {})
+        environment["PATH"] = str(root / "bin") + os.pathsep + environment.get("PATH", "")
+        environment["AUDITOR_SOURCE"] = str(root / "auditor-source")
+        result = subprocess.run(["bash", str(root / ".githooks" / "pre-push")], cwd=root, input=line.encode(), capture_output=True, env=environment)
+        result.stderr = result.stderr.decode("utf-8", errors="replace")
+        result.stdout = result.stdout.decode("utf-8", errors="replace")
+        return result
 
-    @staticmethod
-    def _trust_default(root: Path, revision: str) -> None:
-        git(root, "update-ref", "refs/remotes/origin/main", revision)
-        git(root, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
-
-    def rescue_tip(self, root: Path | None = None) -> str:
-        repo = root or self.member
-        git(repo, "switch", "-qc", "rescue/work", "main")
-        (repo / "work.txt").write_text("unfinished\n", encoding="utf-8")
-        return commit(repo, "rescue work")
-
-    def run_helper(self, *updates: str) -> subprocess.CompletedProcess[str]:
+    def run_helper(self, root, line):
+        environment = dict(os.environ)
+        environment["PYTHON"] = sys.executable
         return subprocess.run(
-            [
-                "bash", str(HELPER), str(self.member), str(self.stack),
-                self.stack_base, self.member_base, *updates,
-            ],
+            ["bash", str(root / "scripts" / "git-hooks" / "rescue-push"),
+             str(root), str(root), "origin/main", "origin/main", line],
+            cwd=root,
             capture_output=True,
             text=True,
-            encoding="utf-8",
-            env={**os.environ, "PYTHON": os.environ.get("PYTHON", "python")},
+            env=environment,
         )
 
-    @staticmethod
-    def run_hook(
-        script: Path,
-        cwd: Path,
-        update: str,
-        environment: dict[str, str] | None = None,
-    ) -> subprocess.CompletedProcess[bytes]:
-        hook_environment = dict(os.environ)
-        if environment is not None:
-            hook_environment.update(environment)
-        return subprocess.run(
-            ["bash", str(script)],
-            cwd=cwd,
-            input=(update + "\n").encode(),
-            capture_output=True,
-            env=hook_environment,
-        )
+    def test_tracked_hooks_are_executable(self):
+        if not (ROOT / ".git").exists():
+            self.skipTest("archive fixture has no Git index for mode inspection")
+        for hook in (".githooks/pre-push", "scripts/git-hooks/pre-push"):
+            self.assertEqual(git(ROOT, "ls-tree", "HEAD", "--", hook).split()[0], "100755")
 
-
-class RescuePushTests(unittest.TestCase):
-    def test_destination_classification_accepts_every_source_shape(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-rescue-") as directory:
-            fixture = RescueFixture(directory)
-            tip = fixture.rescue_tip()
+    def test_destination_classification_accepts_branch_and_object_sources(self):
+        temporary, root = self.fixture()
+        with temporary:
+            tip = git(root, "rev-parse", "HEAD")
             for source in ("HEAD", "refs/heads/wip", tip):
                 with self.subTest(source=source):
-                    result = fixture.run_helper(
-                        f"{source} {tip} refs/heads/rescue/work {ZERO}"
+                    result = self.run_helper(
+                        root,
+                        f"{source} {tip} refs/heads/rescue/work {ZERO}",
                     )
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertIn("no credential", result.stdout)
 
-    def test_updates_mixed_pushes_and_deletions_use_the_normal_gate(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-rescue-") as directory:
-            fixture = RescueFixture(directory)
-            tip = fixture.rescue_tip()
-            cases = (
-                (f"HEAD {tip} refs/heads/rescue/work {fixture.member_base}",),
-                (f"(delete) {ZERO} refs/heads/rescue/work {fixture.member_base}",),
-                (
-                    f"HEAD {tip} refs/heads/rescue/work {ZERO}",
-                    f"HEAD {tip} refs/heads/ordinary {ZERO}",
-                ),
-            )
-            for updates in cases:
-                with self.subTest(updates=updates):
-                    self.assertEqual(fixture.run_helper(*updates).returncode, 3)
-
-    def test_pushed_allowlist_cannot_hide_its_credential(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-rescue-") as directory:
-            fixture = RescueFixture(directory)
-            git(fixture.member, "switch", "-qc", "rescue/work", "main")
+    def test_pushed_allowlist_cannot_hide_its_credential(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/work", "main")
             value = "ci" + "o" + "A" * 32
-            (fixture.member / "secret.txt").write_text(value + "\n", encoding="utf-8")
+            (root / "secret.txt").write_text(value + "\n", encoding="utf-8")
             fingerprint = hashlib.sha256(value.encode()).hexdigest()
-            (fixture.member / ".secret-scan-allowlist").write_text(
+            (root / ".secret-scan-allowlist").write_text(
                 fingerprint + "\n", encoding="utf-8"
             )
-            tip = commit(fixture.member, "self allowlist")
-            result = fixture.run_helper(
-                f"HEAD {tip} refs/heads/rescue/work {ZERO}"
+            git(root, "add", "secret.txt", ".secret-scan-allowlist")
+            git(root, "commit", "-qm", "self allowlist")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(
+                root,
+                f"HEAD {tip} refs/heads/rescue/work {ZERO}\n",
             )
-            self.assertEqual(result.returncode, 1)
+            self.assertNotEqual(result.returncode, 0)
             self.assertIn(fingerprint[:12], result.stdout)
 
-    def test_both_hooks_dispatch_initial_rescue_to_the_shared_helper(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-rescue-") as directory:
-            fixture = RescueFixture(directory)
-            member_tip = fixture.rescue_tip()
-            member = fixture.run_hook(
-                MEMBER_HOOK,
-                fixture.member,
-                f"HEAD {member_tip} refs/heads/rescue/work {ZERO}",
-                {
-                    "GIT_DIR": str(fixture.member / ".git"),
-                    "GIT_WORK_TREE": str(fixture.member),
-                },
-            )
-            self.assertEqual(member.returncode, 0, member.stderr.decode())
+    def test_initial_rescue_push_runs_only_secret_scan(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            (root / "unfinished.txt").write_text("incomplete\n", encoding="utf-8")
+            git(root, "add", "unfinished.txt")
+            git(root, "commit", "-qm", "rescue work")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {ZERO}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("secret-scan: no credential", result.stdout)
+            self.assertFalse((root / "auditor.log").exists())
+            self.assertNotIn("gitlink auditor", result.stderr)
 
-            stack_tip = fixture.rescue_tip(fixture.stack)
-            root = fixture.run_hook(
-                ROOT_HOOK,
-                fixture.stack,
-                f"{stack_tip} {stack_tip} refs/heads/rescue/work {ZERO}",
+    def test_rescue_update_uses_normal_gate(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            (root / "unfinished.txt").write_text("first\n", encoding="utf-8")
+            git(root, "add", "unfinished.txt")
+            git(root, "commit", "-qm", "rescue work")
+            base = git(root, "rev-parse", "HEAD")
+            (root / "unfinished.txt").write_text("second\n", encoding="utf-8")
+            git(root, "add", "unfinished.txt")
+            git(root, "commit", "-qm", "rescue update")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {base}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f"--revision {tip}", (root / "auditor.log").read_text(encoding="utf-8"))
+            self.assertIn(f"..{tip[:12]}", result.stdout)
+
+    def test_rescue_to_main_uses_normal_gate(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            (root / "unfinished.txt").write_text("first\n", encoding="utf-8")
+            git(root, "add", "unfinished.txt")
+            git(root, "commit", "-qm", "rescue work")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/main {ZERO}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f"--revision {tip}", (root / "auditor.log").read_text(encoding="utf-8"))
+
+    def test_main_to_rescue_runs_initial_rescue_scan(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-q", "main")
+            (root / "main.txt").write_text("change\n", encoding="utf-8")
+            git(root, "add", "main.txt")
+            git(root, "commit", "-qm", "main work")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/main {tip} refs/heads/rescue/preserved-work {ZERO}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("secret-scan: no credential", result.stdout)
+
+    def test_mixed_refs_use_normal_gate_for_every_tip(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            (root / "rescue.txt").write_text("rescue\n", encoding="utf-8")
+            git(root, "add", "rescue.txt")
+            git(root, "commit", "-qm", "rescue work")
+            rescue_tip = git(root, "rev-parse", "HEAD")
+            git(root, "switch", "-q", "main")
+            (root / "main.txt").write_text("main\n", encoding="utf-8")
+            git(root, "add", "main.txt")
+            git(root, "commit", "-qm", "main work")
+            main_tip = git(root, "rev-parse", "HEAD")
+            stream = f"refs/heads/rescue/preserved-work {rescue_tip} refs/heads/rescue/preserved-work {ZERO}\nrefs/heads/main {main_tip} refs/heads/main {ZERO}\n"
+            result = self.run_hook(root, stream)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            log = (root / "auditor.log").read_text(encoding="utf-8")
+            self.assertIn(f"--revision {rescue_tip}", log)
+            self.assertIn(f"--revision {main_tip}", log)
+
+    def test_deletion_only_push_does_not_substitute_head(self):
+        temporary, root = self.fixture()
+        with temporary:
+            result = self.run_hook(root, f"refs/heads/old {ZERO} refs/heads/old {git(root, 'rev-parse', 'HEAD')}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("gitlink auditor", result.stderr)
+            self.assertFalse((root / "auditor.log").exists())
+
+    def test_mixed_rescue_and_deletion_uses_normal_gate(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            (root / "unfinished.txt").write_text("incomplete\n", encoding="utf-8")
+            git(root, "add", "unfinished.txt")
+            git(root, "commit", "-qm", "rescue work")
+            tip = git(root, "rev-parse", "HEAD")
+            stream = f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {ZERO}\nrefs/heads/old {ZERO} refs/heads/old {git(root, 'rev-parse', 'origin/main')}\n"
+            result = self.run_hook(root, stream)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("secret-scan: no credential", result.stdout)
+            self.assertIn(f"--revision {tip}", (root / "auditor.log").read_text(encoding="utf-8"))
+
+    def test_rescue_tip_without_scanner_uses_trusted_source(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            (root / "scripts" / "atlas-secret-scan.py").unlink()
+            git(root, "add", "scripts/atlas-secret-scan.py")
+            git(root, "commit", "-qm", "remove untrusted scanner")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {ZERO}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("secret-scan: no credential", result.stdout)
+
+    def test_normal_update_scans_when_pushed_tip_deletes_scanner(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            (root / "unfinished.txt").write_text("first\n", encoding="utf-8")
+            git(root, "add", "unfinished.txt")
+            git(root, "commit", "-qm", "rescue work")
+            base = git(root, "rev-parse", "HEAD")
+            (root / "scripts" / "atlas-secret-scan.py").unlink()
+            token = "ghp_" + "q" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "scripts/atlas-secret-scan.py", "secret.txt")
+            git(root, "commit", "-qm", "remove scanner and add credential")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(
+                root,
+                f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {base}\n",
             )
-            self.assertEqual(root.returncode, 0, root.stderr.decode())
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(hashlib.sha256(token.encode()).hexdigest()[:12], result.stdout)
+
+    def test_member_initial_rescue_uses_local_tip(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            (root / "unfinished.txt").write_text("incomplete\n", encoding="utf-8")
+            git(root, "add", "unfinished.txt")
+            git(root, "commit", "-qm", "rescue work")
+            tip = git(root, "rev-parse", "HEAD")
+            (root / "head-only.txt").write_text("ghp_" + "z" * 36 + "\n", encoding="utf-8")
+            git(root, "add", "head-only.txt")
+            git(root, "commit", "-qm", "unrelated head credential")
+            result = self.run_member_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {ZERO}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("secret-scan: no credential", result.stdout)
+
+    def test_malformed_remote_in_later_ref_blocks_before_any_gate(self):
+        temporary, root = self.fixture()
+        with temporary:
+            tip = git(root, "rev-parse", "HEAD")
+            malformed = "1" * 40
+            stream = f"refs/heads/main {tip} refs/heads/main {tip}\nrefs/heads/other {tip} refs/heads/other {malformed}\n"
+            result = self.run_hook(root, stream)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("remote commit is unavailable", result.stderr)
+            self.assertFalse((root / "auditor.log").exists())
+
+    def test_a_ref_update_with_an_extra_field_blocks_before_any_gate(self):
+        temporary, root = self.fixture()
+        with temporary:
+            tip = git(root, "rev-parse", "HEAD")
+            stream = f"refs/heads/main {tip} refs/heads/main {tip} surplus\n"
+            result = self.run_hook(root, stream)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("malformed ref update", result.stderr)
+            self.assertFalse((root / "auditor.log").exists())
+
+    def test_root_rescue_enumeration_failure_blocks(self):
+        temporary, root = self.fixture()
+        with temporary:
+            invalid_tip = "1" * 40
+            result = self.run_hook(root, f"refs/heads/rescue/preserved-work {invalid_tip} refs/heads/rescue/preserved-work {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("pushed local commit", result.stderr)
+
+    def test_member_rescue_enumeration_failure_blocks(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            invalid_tip = "1" * 40
+            result = self.run_member_hook(root, f"refs/heads/rescue/preserved-work {invalid_tip} refs/heads/rescue/preserved-work {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("pushed local commit", result.stderr)
+
+    def test_member_rescue_to_main_uses_normal_gate(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            token = "ghp_" + "m" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "rescue secret")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_member_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/main {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(tip[:12], result.stdout)
+
+    def test_member_update_uses_member_allowlist_and_rejects_candidate_list(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            approved = "ghp_" + "r" * 36
+            approved_fingerprint = hashlib.sha256(approved.encode()).hexdigest()
+            (root / ".secret-scan-allowlist").write_text(
+                approved_fingerprint + "\n", encoding="utf-8"
+            )
+            git(root, "add", ".secret-scan-allowlist")
+            git(root, "commit", "-qm", "approve member fixture credential")
+            member_base = git(root, "rev-parse", "HEAD")
+            git(root, "push", "-q", "origin", "HEAD:main")
+            (root / "approved.txt").write_text(approved + "\n", encoding="utf-8")
+            git(root, "add", "approved.txt")
+            git(root, "commit", "-qm", "use approved member credential")
+            approved_tip = git(root, "rev-parse", "HEAD")
+            approved_result = self.run_member_hook(
+                root,
+                f"refs/heads/main {approved_tip} refs/heads/main {member_base}\n",
+            )
+            self.assertEqual(approved_result.returncode, 0, approved_result.stderr)
+            self.assertNotIn(approved_fingerprint[:12], approved_result.stdout)
+            candidate = "ghp_" + "s" * 36
+            candidate_fingerprint = hashlib.sha256(candidate.encode()).hexdigest()
+            (root / "secret.txt").write_text(candidate + "\n", encoding="utf-8")
+            (root / ".secret-scan-allowlist").write_text(
+                candidate_fingerprint + "\n", encoding="utf-8"
+            )
+            git(root, "add", "approved.txt", "secret.txt", ".secret-scan-allowlist")
+            git(root, "commit", "-qm", "candidate self allowlist")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_member_hook(
+                root,
+                f"refs/heads/main {tip} refs/heads/main {approved_tip}\n",
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(candidate_fingerprint[:12], result.stdout)
+
+    def test_member_mixed_rescue_and_ordinary_refs_use_normal_gate(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            (root / "rescue.txt").write_text("unfinished\n", encoding="utf-8")
+            git(root, "add", "rescue.txt")
+            git(root, "commit", "-qm", "rescue work")
+            rescue_tip = git(root, "rev-parse", "HEAD")
+            git(root, "switch", "-q", "main")
+            token = "ghp_" + "n" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "ordinary secret")
+            ordinary_tip = git(root, "rev-parse", "HEAD")
+            stream = f"refs/heads/rescue/preserved-work {rescue_tip} refs/heads/rescue/preserved-work {ZERO}\nrefs/heads/main {ordinary_tip} refs/heads/main {ZERO}\n"
+            result = self.run_member_hook(root, stream)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(ordinary_tip[:12], result.stdout)
+
+    def test_member_intermediate_secret_is_scanned(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            token = "ghp_" + "a" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "temporary secret")
+            first = git(root, "rev-parse", "HEAD")
+            (root / "secret.txt").unlink()
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "remove secret")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_member_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(first[:12], result.stdout)
+
+    def test_member_orphan_rescue_scans_all_commits(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            git(root, "switch", "--orphan", "rescue/orphan")
+            (root / ".githooks").mkdir(exist_ok=True)
+            shutil.copyfile(MEMBER_HOOK, root / ".githooks" / "pre-push")
+            (root / "first.txt").write_text("first\n", encoding="utf-8")
+            git(root, "add", "first.txt")
+            git(root, "commit", "-qm", "orphan first")
+            first = git(root, "rev-parse", "HEAD")
+            token = "ghp_" + "b" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "orphan secret")
+            secret = git(root, "rev-parse", "HEAD")
+            (root / "secret.txt").unlink()
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "orphan remove")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_member_hook(root, f"refs/heads/rescue/orphan {tip} refs/heads/rescue/orphan {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(secret[:12], result.stdout)
+
+    def test_member_merge_rescue_scans_each_parent_history(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/merge")
+            (root / "left.txt").write_text("left\n", encoding="utf-8")
+            git(root, "add", "left.txt")
+            git(root, "commit", "-qm", "left")
+            left = git(root, "rev-parse", "HEAD")
+            git(root, "switch", "-qc", "rescue/side")
+            token = "ghp_" + "d" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "side secret")
+            side = git(root, "rev-parse", "HEAD")
+            git(root, "switch", "-q", "rescue/merge")
+            git(root, "merge", "--no-ff", "--no-edit", "rescue/side")
+            (root / "secret.txt").unlink()
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "remove merge secret")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_member_hook(root, f"refs/heads/rescue/merge {tip} refs/heads/rescue/merge {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(side[:12], result.stdout)
+
+    def test_member_deletion_only_skips_without_head(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            result = self.run_member_hook(root, f"refs/heads/old {ZERO} refs/heads/old {git(root, 'rev-parse', 'HEAD')}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("push carries no commits", result.stderr)
+
+    def test_intermediate_rescue_commit_is_scanned(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            token = "ghp_" + "a" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "temporary secret")
+            first = git(root, "rev-parse", "HEAD")
+            (root / "secret.txt").unlink()
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "remove secret")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(first[:12], result.stdout)
+            self.assertNotIn("gitlink auditor", result.stderr)
+
+    def commit_stub_scanner(self, root):
+        """Replace the pushed tip's scanner with one that reports every push clean."""
+        write_file(
+            root / "scripts" / "atlas-secret-scan.py",
+            "import sys\nprint('secret-scan: stub reports clean')\nsys.exit(0)\n",
+        )
+        git(root, "add", "scripts/atlas-secret-scan.py")
+
+    def test_normal_push_scans_with_trusted_scanner_not_the_tips(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "feature/work")
+            token = "ghp_" + "e" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            self.commit_stub_scanner(root)
+            git(root, "commit", "-qm", "add credential and a scanner that ignores it")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/feature/work {tip} refs/heads/feature/work {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(hashlib.sha256(token.encode()).hexdigest()[:12], result.stdout)
+            self.assertNotIn("stub reports clean", result.stdout)
+
+    def test_initial_rescue_scans_with_trusted_scanner_not_the_tips(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/work")
+            token = "ghp_" + "f" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            self.commit_stub_scanner(root)
+            git(root, "commit", "-qm", "add credential and a scanner that ignores it")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/rescue/work {tip} refs/heads/rescue/work {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(hashlib.sha256(token.encode()).hexdigest()[:12], result.stdout)
+            self.assertNotIn("stub reports clean", result.stdout)
+
+    def test_normal_push_reads_the_allowlist_from_the_trusted_revision(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "feature/work")
+            token = "ghp_" + "g" * 36
+            fingerprint = hashlib.sha256(token.encode()).hexdigest()
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            (root / ".secret-scan-allowlist").write_text(fingerprint + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt", ".secret-scan-allowlist")
+            git(root, "commit", "-qm", "add credential and allow it")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/feature/work {tip} refs/heads/feature/work {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(fingerprint[:12], result.stdout)
+
+    def test_normal_push_scans_a_credential_added_then_removed(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "feature/work")
+            token = "ghp_" + "h" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "temporary credential")
+            added = git(root, "rev-parse", "HEAD")
+            (root / "secret.txt").unlink()
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "remove credential")
+            tip = git(root, "rev-parse", "HEAD")
+            self.assertEqual(git(root, "diff", "origin/main", tip, "--", "secret.txt"), "")
+            result = self.run_hook(root, f"refs/heads/feature/work {tip} refs/heads/feature/work {ZERO}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(added[:12], result.stdout)
+
+    def test_member_normal_push_scans_a_credential_added_then_removed(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            base = git(root, "rev-parse", "HEAD")
+            token = "ghp_" + "i" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "temporary credential")
+            added = git(root, "rev-parse", "HEAD")
+            (root / "secret.txt").unlink()
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "remove credential")
+            tip = git(root, "rev-parse", "HEAD")
+            self.assertEqual(git(root, "diff", base, tip, "--", "secret.txt"), "")
+            result = self.run_member_hook(root, f"refs/heads/main {tip} refs/heads/main {base}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(added[:12], result.stdout)
+
+    def test_member_dispatches_to_the_trusted_classifier(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            stack = root.parent.parent
+            log = stack / "classifier.log"
+            recorder = "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> '" + log.as_posix() + "'\nexit 0\n"
+            write_file(stack / "scripts" / "git-hooks" / "rescue-push", recorder)
+            git(stack, "add", "scripts/git-hooks/rescue-push")
+            git(stack, "commit", "-qm", "trusted classifier records its call")
+            git(stack, "push", "-q", "origin", "HEAD:main")
+            untrusted = "#!/usr/bin/env bash\necho untrusted >> '" + log.as_posix() + "'\nexit 0\n"
+            write_file(stack / "scripts" / "git-hooks" / "rescue-push", untrusted)
+            tip = git(root, "rev-parse", "HEAD")
+            line = f"refs/heads/rescue/work {tip} refs/heads/rescue/work {ZERO}"
+            result = self.run_member_hook(root, line + "\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calls = log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(calls), 1, calls)
+            self.assertTrue(calls[0].endswith(line), calls)
+            self.assertNotIn("untrusted", calls[0])
+
+    def test_member_without_the_trusted_scanner_blocks_the_push(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            stack = root.parent.parent
+            git(stack, "rm", "-q", "scripts/atlas-secret-scan.py")
+            git(stack, "commit", "-qm", "drop the scanner")
+            git(stack, "push", "-q", "origin", "HEAD:main")
+            base = git(root, "rev-parse", "HEAD")
+            (root / "notes.txt").write_text("harmless\n", encoding="utf-8")
+            git(root, "add", "notes.txt")
+            git(root, "commit", "-qm", "harmless change")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_member_hook(root, f"refs/heads/main {tip} refs/heads/main {base}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn("credential scanner is not reachable", result.stderr)
+
+    SCAN_PATHS = ("root rescue", "root normal", "member rescue", "member normal")
+
+    def scan_path_result(self, path, prepare, environment=None):
+        """Push a tip built by `prepare` through one of the four scan paths."""
+        member = path.startswith("member")
+        temporary, root = self.member_fixture() if member else self.fixture()
+        with temporary:
+            base = git(root, "rev-parse", "HEAD")
+            if path == "member normal":
+                branch, remote = "main", base
+            else:
+                branch = "rescue/work" if path.endswith("rescue") else "feature/work"
+                git(root, "switch", "-qc", branch)
+                remote = ZERO
+            git(root, "add", *prepare(root))
+            git(root, "commit", "-qm", "tip")
+            tip = git(root, "rev-parse", "HEAD")
+            line = f"refs/heads/{branch} {tip} refs/heads/{branch} {remote}\n"
+            extra = environment(root) if environment else None
+            return (self.run_member_hook if member else self.run_hook)(root, line, extra)
+
+    def assert_blocked_on_every_path(self, token, prepare, environment=None):
+        fingerprint = hashlib.sha256(token.encode()).hexdigest()[:12]
+        for path in self.SCAN_PATHS:
+            with self.subTest(path=path):
+                result = self.scan_path_result(path, prepare, environment)
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertIn(fingerprint, result.stdout)
+
+    def test_a_pushed_diff_attribute_cannot_hide_a_credential(self):
+        token = "ghp_" + "j" * 36
+
+        def prepare(root):
+            (root / ".gitattributes").write_text("* -diff\n", encoding="utf-8")
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            return [".gitattributes", "secret.txt"]
+
+        self.assert_blocked_on_every_path(token, prepare)
+
+    def test_a_nul_byte_cannot_hide_a_credential(self):
+        token = "ghp_" + "k" * 36
+
+        def prepare(root):
+            (root / "secret.bin").write_bytes(b"\x00" + token.encode() + b"\n")
+            return ["secret.bin"]
+
+        self.assert_blocked_on_every_path(token, prepare)
+
+    def test_a_diff_driver_cannot_rewrite_the_scanned_patch(self):
+        token = "ghp_" + "m" * 36
+
+        def prepare(root):
+            git(root, "config", "diff.hide.textconv", "echo converted")
+            (root / ".gitattributes").write_text("*.env diff=hide\n", encoding="utf-8")
+            (root / "driven.env").write_text(token + "\n", encoding="utf-8")
+            return [".gitattributes", "driven.env"]
+
+        self.assert_blocked_on_every_path(token, prepare)
+
+    def test_a_module_path_from_the_environment_cannot_replace_the_scanners_import(self):
+        token = "ghp_" + "n" * 36
+
+        def prepare(root):
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            return ["secret.txt"]
+
+        def environment(root):
+            hostile = root / "hostile-modules"
+            write_file(
+                hostile / "argparse.py",
+                "import sys\nprint('secret-scan: no credential in the hostile module')\nsys.exit(0)\n",
+            )
+            return {"PYTHONPATH": str(hostile)}
+
+        self.assert_blocked_on_every_path(token, prepare, environment)
+
+    def test_a_pushed_stdlib_module_cannot_replace_the_scanners_import(self):
+        token = "ghp_" + "l" * 36
+
+        def prepare(root):
+            (root / "argparse.py").write_text(
+                "import sys\nprint('secret-scan: no credential in the hostile module')\nsys.exit(0)\n",
+                encoding="utf-8",
+            )
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            return ["argparse.py", "secret.txt"]
+
+        self.assert_blocked_on_every_path(token, prepare)
+
+    def run_helper_with(self, root, scanner_ref, allowlist_ref, line, environment=None):
+        environment = dict(os.environ if environment is None else environment)
+        return subprocess.run(
+            ["bash", str(root / "scripts" / "git-hooks" / "rescue-push"),
+             str(root), str(root), scanner_ref, allowlist_ref, line],
+            cwd=root, capture_output=True, text=True, env=environment,
+        )
+
+    def test_only_a_branch_under_refs_heads_rescue_is_the_exception(self):
+        temporary, root = self.fixture()
+        with temporary:
+            tip = git(root, "rev-parse", "HEAD")
+            for ref in (
+                "refs/tags/rescue/x", "refs/heads/a/rescue/y", "refs/rescue/x",
+                "refs/heads/rescue", "refs/heads/rescuex/y", "refs/heads/Rescue/y",
+                "refs/remotes/origin/rescue/x",
+            ):
+                with self.subTest(ref=ref):
+                    self.assertEqual(self.run_helper(root, f"HEAD {tip} {ref} {ZERO}").returncode, 3)
+
+    def test_helper_blocks_when_its_trusted_inputs_are_unavailable(self):
+        temporary, root = self.fixture()
+        with temporary:
+            tip = git(root, "rev-parse", "HEAD")
+            line = f"HEAD {tip} refs/heads/rescue/work {ZERO}"
+            environment = dict(os.environ, PYTHON=sys.executable)
+            empty_tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+            scannerless = git(root, "commit-tree", empty_tree, "-m", "no scanner")
+            cases = (
+                ("malformed tip", "origin/main", "origin/main", f"HEAD zzz refs/heads/rescue/work {ZERO}",
+                 "malformed rescue tip"),
+                ("absent tip", "origin/main", "origin/main", f"HEAD {'1' * 40} refs/heads/rescue/work {ZERO}",
+                 "rescue tip is unavailable"),
+                ("absent allowlist revision", "origin/main", "refs/remotes/origin/absent", line,
+                 "trusted allowlist revision is unavailable"),
+                ("scannerless trusted revision", scannerless, "origin/main", line,
+                 "trusted credential scanner is unavailable"),
+            )
+            for name, scanner_ref, allowlist_ref, update, message in cases:
+                with self.subTest(case=name):
+                    result = self.run_helper_with(root, scanner_ref, allowlist_ref, update, environment)
+                    self.assertEqual(result.returncode, 1, result.stdout)
+                    self.assertIn(message, result.stderr)
+                    self.assertNotIn("secret-scan:", result.stdout)
+
+    def test_helper_blocks_without_a_working_interpreter(self):
+        temporary, root = self.fixture()
+        with temporary:
+            tip = git(root, "rev-parse", "HEAD")
+            stubs = root / "interpreter-stubs"
+            for name in ("python3", "python"):
+                write_file(stubs / name, "#!/usr/bin/env bash\nexit 127\n")
+            environment = dict(os.environ)
+            environment.pop("PYTHON", None)
+            environment["PATH"] = str(stubs) + os.pathsep + environment.get("PATH", "")
+            result = self.run_helper_with(
+                root, "origin/main", "origin/main",
+                f"HEAD {tip} refs/heads/rescue/work {ZERO}", environment,
+            )
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn("no Python interpreter", result.stderr)
+
+    def test_normal_push_scans_from_the_merge_base_with_a_renamed_default(self):
+        temporary, root = self.fixture()
+        with temporary:
+            base = git(root, "rev-parse", "HEAD")
+            git(root, "push", "-q", "origin", "main:trunk")
+            git(root, "fetch", "-q", "origin", "trunk")
+            git(root, "update-ref", "-d", "refs/remotes/origin/main")
+            git(root, "remote", "set-head", "origin", "trunk")
+            git(root, "switch", "-qc", "feature/work")
+            (root / "notes.txt").write_text("harmless\n", encoding="utf-8")
+            git(root, "add", "notes.txt")
+            git(root, "commit", "-qm", "harmless change")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/feature/work {tip} refs/heads/feature/work {ZERO}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f"{base[:12]}..{tip[:12]}", result.stdout)
+
+    def partial_clone_behind_main(self, root, changed):
+        """Make `root` a blob:none clone whose origin main moved; return a merge of it.
+
+        The merge is built with plumbing on a branch from the old main, so
+        git never reads the blobs main changed: they stay missing locally.
+        """
+        remote = root / "origin.git"
+        git(remote, "config", "uploadpack.allowFilter", "true")
+        git(remote, "config", "uploadpack.allowAnySHA1InWant", "true")
+        work = Path(tempfile.mkdtemp(prefix="atlas-remote-work-"))
+        self.addCleanup(clear_readonly_tree, work)
+        subprocess.run(["git", "clone", "-q", "-b", "main", remote.as_uri(), str(work)], check=True, capture_output=True)
+        (work / "other.txt").write_text("added on main\n", encoding="utf-8")
+        (work / changed).write_text("// changed on main\n", encoding="utf-8")
+        git(work, "add", "-A")
+        git(work, "commit", "-qm", "main moves")
+        git(work, "push", "-q", "origin", "HEAD:main")
+        old_main = git(root, "rev-parse", "HEAD")
+        for key, value in (
+            ("core.repositoryformatversion", "1"), ("extensions.partialClone", "origin"),
+            ("remote.origin.promisor", "true"), ("remote.origin.partialclonefilter", "blob:none"),
+        ):
+            git(root, "config", key, value)
+        git(root, "fetch", "-q", "--filter=blob:none", "origin", "main")
+        main = git(root, "rev-parse", "origin/main")
+        env = {
+            **os.environ, "GIT_INDEX_FILE": str(work / "plumbing.index"),
+            "GIT_AUTHOR_NAME": "test", "GIT_AUTHOR_EMAIL": "test@example.invalid",
+            "GIT_COMMITTER_NAME": "test", "GIT_COMMITTER_EMAIL": "test@example.invalid",
+        }
+
+        def plumbing(*args, data=None):
+            return subprocess.run(["git", "-C", str(root), *args], check=True, text=True,
+                                  capture_output=True, env=env, input=data).stdout.strip()
+
+        plumbing("read-tree", old_main)
+        blob = plumbing("hash-object", "-w", "--stdin", data="branch file\n")
+        plumbing("update-index", "--add", "--cacheinfo", f"100644,{blob},branch.txt")
+        branch = plumbing("commit-tree", plumbing("write-tree"), "-p", old_main, "-m", "branch change")
+        merged = plumbing("merge-tree", "--write-tree", branch, main).splitlines()[0]
+        merge = plumbing("commit-tree", merged, "-p", branch, "-p", main, "-m", "merge main")
+        self.assertIn("?", plumbing("rev-list", "--objects", "--missing=print", main, f"^{old_main}"))
+        return merge, main
+
+    def partial_push_result(self, path):
+        member = path.startswith("member")
+        temporary, root = self.member_fixture() if member else self.fixture()
+        with temporary:
+            changed = "src/main.rs" if member else "tools/gitlink-coherence/src/main.rs"
+            merge, main = self.partial_clone_behind_main(root, changed)
+            branch = "rescue/work" if path.endswith("rescue") else "feature/work"
+            if path == "member normal":
+                line = f"refs/heads/main {merge} refs/heads/main {main}\n"
+            else:
+                line = f"refs/heads/{branch} {merge} refs/heads/{branch} {ZERO}\n"
+            return (self.run_member_hook if member else self.run_hook)(root, line)
+
+    def test_a_partial_clone_pushes_a_merge_of_main_it_never_read(self):
+        for path in self.SCAN_PATHS:
+            with self.subTest(path=path):
+                result = self.partial_push_result(path)
+                self.assertIn("secret-scan: no credential", result.stdout, result.stderr)
+                self.assertNotIn("could not run", result.stderr)
+                if path.endswith("rescue"):
+                    self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_a_scan_that_cannot_run_is_not_reported_as_a_credential(self):
+        for path in self.SCAN_PATHS:
+            with self.subTest(path=path):
+                result = self.unrunnable_scanner_result(path)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn("the secret scan could not run (exit 2)", result.stderr)
+                self.assertNotIn("adds a credential", result.stderr)
+
+    def unrunnable_scanner_result(self, path):
+        """Push through a trusted scanner that exits 2, as one that cannot read the range does."""
+        member = path.startswith("member")
+        temporary, root = self.member_fixture() if member else self.fixture()
+        with temporary:
+            stack = root.parent.parent if member else root
+            write_file(
+                stack / "scripts" / "atlas-secret-scan.py",
+                "import sys\nprint('secret-scan: could not run: stub', file=sys.stderr)\nsys.exit(2)\n",
+            )
+            git(stack, "add", "scripts/atlas-secret-scan.py")
+            git(stack, "commit", "-qm", "scanner that cannot run")
+            git(stack, "push", "-q", "origin", "HEAD:main")
+            git(stack, "fetch", "-q", "origin", "main")
+            if path == "member normal":
+                branch, remote = "main", git(root, "rev-parse", "HEAD")
+            else:
+                branch = "rescue/work" if path.endswith("rescue") else "feature/work"
+                git(root, "switch", "-qc", branch)
+                remote = ZERO
+            (root / "notes.txt").write_text("harmless\n", encoding="utf-8")
+            git(root, "add", "notes.txt")
+            git(root, "commit", "-qm", "harmless change")
+            tip = git(root, "rev-parse", "HEAD")
+            line = f"refs/heads/{branch} {tip} refs/heads/{branch} {remote}\n"
+            return (self.run_member_hook if member else self.run_hook)(root, line)
+
+    def test_member_without_a_default_ref_blocks_instead_of_trusting_the_tip(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            base = git(root, "rev-parse", "HEAD")
+            git(root, "update-ref", "-d", "refs/remotes/origin/main")
+            token = "ghp_" + "o" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            (root / ".secret-scan-allowlist").write_text(
+                hashlib.sha256(token.encode()).hexdigest() + "\n", encoding="utf-8"
+            )
+            git(root, "add", "secret.txt", ".secret-scan-allowlist")
+            git(root, "commit", "-qm", "credential and its own allowlist entry")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_member_hook(root, f"refs/heads/main {tip} refs/heads/main {base}\n")
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn("member default revision is unavailable", result.stderr)
+
+    def test_member_hook_dispatches_rescue_with_git_variables_exported(self):
+        temporary, root = self.member_fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/work")
+            (root / "unfinished.txt").write_text("incomplete\n", encoding="utf-8")
+            git(root, "add", "unfinished.txt")
+            git(root, "commit", "-qm", "rescue work")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_member_hook(
+                root,
+                f"refs/heads/rescue/work {tip} refs/heads/rescue/work {ZERO}\n",
+                {"GIT_DIR": str(root / ".git"), "GIT_WORK_TREE": str(root)},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("secret-scan: no credential", result.stdout)
+
+    def test_a_lane_and_a_harness_worktree_dispatch_to_the_stack_classifier(self):
+        """The stack is found by the checkout's object store, not by a depth of
+        two: a lane sits directly below the stack and a harness worktree three
+        levels below a member, and a rescue push from either reaches the
+        stack's classifier like the member's own."""
+        temporary, root = self.member_fixture()
+        with temporary:
+            stack = root.parent.parent
+            log = stack / "classifier.log"
+            recorder = "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> '" + log.as_posix() + "'\nexit 0\n"
+            write_file(stack / "scripts" / "git-hooks" / "rescue-push", recorder)
+            git(stack, "add", "scripts/git-hooks/rescue-push")
+            git(stack, "commit", "-qm", "trusted classifier records its call")
+            git(stack, "push", "-q", "origin", "HEAD:main")
+            for index, where in enumerate((
+                stack / "worktrees" / "member-lane",
+                root / ".claude" / "worktrees" / "harness",
+            )):
+                with self.subTest(where=where.relative_to(stack).as_posix()):
+                    where.parent.mkdir(parents=True, exist_ok=True)
+                    branch = f"rescue/work-{index}"
+                    git(root, "worktree", "add", "-q", "-b", branch, str(where), "main")
+                    (where / "work.txt").write_text("unfinished\n", encoding="utf-8")
+                    git(where, "add", "work.txt")
+                    git(where, "commit", "-qm", "rescue work")
+                    tip = git(where, "rev-parse", "HEAD")
+                    line = f"refs/heads/{branch} {tip} refs/heads/{branch} {ZERO}"
+                    result = self.run_member_hook(where, line + "\n")
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertTrue(
+                        any(call.endswith(line) for call in log.read_text(encoding="utf-8").splitlines()),
+                        "the stack's classifier was not reached",
+                    )
 
 
 if __name__ == "__main__":
