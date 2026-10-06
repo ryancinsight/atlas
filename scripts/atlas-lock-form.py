@@ -519,14 +519,16 @@ def push_hook_branch(
             git_in(repo, "merge-base", "--is-ancestor", expected, commit)
         except RuntimeError:
             candidate_contains_head = False
-        default = git_in(
-            repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"
-        )
-        default_contains_head = True
-        try:
-            git_in(repo, "merge-base", "--is-ancestor", expected, default)
-        except RuntimeError:
-            default_contains_head = False
+        default_contains_head = False
+        if not candidate_contains_head:
+            default = git_in(
+                repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"
+            )
+            try:
+                git_in(repo, "merge-base", "--is-ancestor", expected, default)
+                default_contains_head = True
+            except RuntimeError:
+                pass
         if not candidate_contains_head and not default_contains_head:
             raise RuntimeError(
                 f"{ref} at {expected} is not an ancestor of candidate {commit}; "
@@ -679,7 +681,7 @@ def cmd_publish_hooks(args) -> int:
             file=sys.stderr,
         )
         return 2
-    item = args.item
+    item = getattr(args, "item", None)
     if item is not None and (
         not item or item.strip() != item or "\n" in item or "\r" in item
     ):
