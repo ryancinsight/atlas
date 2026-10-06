@@ -2,6 +2,10 @@
 
 <!-- Compacted 2026-09-26 under the 1,000-line board budget: a risk entry holds risk/evidence/re-open-trigger/owner in ~5 lines; closed findings and delivery narrative are gone -- the record of a closed finding is the commit or PR that closed it. Recover removed narrative with `git log -p -- gap_audit.md`. -->
 
+## Finding 2026-10-05: path-package identity follows repository revision
+
+Risk: an unrelated commit can invalidate unchanged path-package records and trigger shared-target cleaning. Evidence: `atlas_build_inputs.py` assigns every path package one repository identity, and a clean tree's identity includes that repository's commit revision; observed contention is consistent with this static mechanism, but no benchmark attributes its runtime share. A replacement fingerprint must retain workspace/config, external, build-script, and Git-derived inputs rather than hashing `src/` alone. Owner: none. Re-open: a measured build-input redesign item is claimed.
+
 ## Finding 2026-10-02: no check enforces the bare-cast rule
 
 Risk: new bare `as` casts land unmeasured; the cast rule (engineering_gates: lint floor) names a push-time check that does not exist (`git grep -i -E 'force-warn|as_conversions' -- scripts` is empty at origin/main 2026-10-02). Check that would catch it: the owned pre-push clippy run adds `--force-warn clippy::as_conversions --message-format=json`, dedupes by span, excludes by path the conversion module (`repos/eunomia/crates/eunomia/src/convert/count.rs`) and each crate's cast module, fails on a site on an added line or a crate count above its row in `scripts/conformance-baseline.json`. Owner: none. Re-open: the next hook change.
