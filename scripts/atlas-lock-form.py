@@ -57,6 +57,7 @@ from atlas_git_process import (  # noqa: E402
     execute as execute_git,
     execute_process,
 )
+from atlas_board_items import ITEM_ID as BOARD_ITEM_HEADING  # noqa: E402
 from atlas_stack import ROOT, registered_member_names  # noqa: E402
 
 REPOS = ROOT / "repos"
@@ -565,9 +566,11 @@ def pull_request_for(
     base: str,
     subject: str,
     message: str,
+    *,
+    draft: bool = False,
 ) -> tuple[str, bool]:
     """Return the branch's open pull request, creating it when absent."""
-    url = hosting_in(
+    pull_request = hosting_in(
         repo,
         "pr",
         "list",
@@ -578,28 +581,46 @@ def pull_request_for(
         "--state",
         "open",
         "--json",
-        "url",
+        "url,isDraft",
         "--jq",
-        ".[0].url",
+        ".[0] | select(. != null) | [.url, .isDraft] | @tsv",
     )
-    if url and url != "null":
+    if pull_request:
+        try:
+            url, draft_text = pull_request.rsplit("\t", 1)
+        except ValueError as error:
+            raise RuntimeError(
+                f"unexpected pull request state for {branch}: {pull_request!r}"
+            ) from error
+        if not url or draft_text not in {"true", "false"}:
+            raise RuntimeError(
+                f"unexpected pull request state for {branch}: {pull_request!r}"
+            )
+        if draft and draft_text == "false":
+            raise RuntimeError(
+                f"existing pull request {url} is ready; refusing --draft"
+            )
         return url, False
-    return (
-        hosting_in(
-            repo,
-            "pr",
-            "create",
-            "--head",
-            branch,
-            "--base",
-            base,
-            "--title",
-            subject,
-            "--body",
-            message,
-        ),
-        True,
-    )
+    create = [
+        "pr",
+        "create",
+        "--head",
+        branch,
+        "--base",
+        base,
+        "--title",
+        subject,
+        "--body",
+        message,
+    ]
+    if draft:
+        create.append("--draft")
+    return hosting_in(repo, *create), True
+
+
+def valid_board_item(item: str | None) -> bool:
+    """Whether `item` is absent or follows the shared board-ID grammar."""
+    return item is None or BOARD_ITEM_HEADING.fullmatch(f"## {item}") is not None
 
 
 def enqueue_pull_request(repo: Path, url: str) -> None:
@@ -609,6 +630,8 @@ def enqueue_pull_request(repo: Path, url: str) -> None:
 
 def hook_publish_message(source: str, retired: list[str], item: str | None) -> str:
     """Build the commit and pull-request message for one hook publication."""
+    if not valid_board_item(item):
+        raise ValueError(f"invalid board item ID: {item!r}")
     subject = "ci: Sync the stack-owned git hooks"
     message = (
         f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
@@ -642,6 +665,10 @@ def cmd_publish_hooks(args) -> int:
 
     Without `--push` it reports what it would publish.
     """
+    item = getattr(args, "item", None)
+    if not valid_board_item(item):
+        print("invalid item: expected a board item ID", file=sys.stderr)
+        return 2
     members = member_scope(args.members)
     if members is None:
         return 2
@@ -687,12 +714,6 @@ def cmd_publish_hooks(args) -> int:
             file=sys.stderr,
         )
         return 2
-    item = getattr(args, "item", None)
-    if item is not None and (
-        not item or item.strip() != item or "\n" in item or "\r" in item
-    ):
-        print("invalid item: expected one non-empty line", file=sys.stderr)
-        return 2
     source = git_in(ROOT, "rev-parse", "--short", source_commit)
     subject = "ci: Sync the stack-owned git hooks"
     message = hook_publish_message(source, retired, item)
@@ -719,16 +740,21 @@ def cmd_publish_hooks(args) -> int:
                 continue
             branch = PUBLISH_BRANCH
             push_hook_branch(repo, commit, branch, pre_push_hook, source_commit)
+            draft = bool(getattr(args, "draft", False))
             url, created = pull_request_for(
                 repo,
                 branch,
                 default.removeprefix("origin/"),
                 subject,
                 message,
+                draft=draft,
             )
-            enqueue_pull_request(repo, url)
             action = "published" if created else "reused"
-            print(f"{action}: {member} {url} enqueued")
+            if draft:
+                print(f"{action}: {member} {url} draft")
+            else:
+                enqueue_pull_request(repo, url)
+                print(f"{action}: {member} {url} enqueued")
         except RuntimeError as error:
             failures += 1
             print(f"FAILED: {error}")
@@ -1092,6 +1118,11 @@ def main() -> int:
         "--item",
         metavar="ID",
         help="append an Item trailer to each generated member commit",
+    )
+    publish.add_argument(
+        "--draft",
+        action="store_true",
+        help="create draft pull requests without enabling merge-on-green",
     )
     publish.set_defaults(func=cmd_publish_hooks)
     sub.add_parser("status").set_defaults(func=cmd_status)
