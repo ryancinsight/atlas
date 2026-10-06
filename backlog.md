@@ -94,7 +94,6 @@
 <a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — todo
 <a id="atlas-ritk-fssurf-013"></a>- [ATLAS-RITK-FSSURF-013](backlog/atlas-ritk-fssurf-013.md) — FreeSurfer surface formats and label table [minor] — todo
 <a id="atlas-root-hook-test-timeouts"></a>- [ATLAS-ROOT-HOOK-TEST-TIMEOUTS](backlog/atlas-root-hook-test-timeouts.md) — Root hook tests time out under host load [patch] — todo
-<a id="atlas-root-hook-tip-controlled"></a>- [ATLAS-ROOT-HOOK-TIP-CONTROLLED](backlog/atlas-root-hook-tip-controlled.md) — A pushed tip can replace the root hook that gates it [correctness] — todo
 <a id="atlas-runner-capacity-001"></a>- [ATLAS-RUNNER-CAPACITY-001](backlog/atlas-runner-capacity-001.md) — Size runner slots to fleet width [infra] [patch] — todo
 <a id="atlas-runner-starvation-2026-09-02"></a>- [ATLAS-RUNNER-STARVATION-2026-09-02](backlog/atlas-runner-starvation-2026-09-02.md) — Hosted runner queue starves every verification run [infra] — todo
 <a id="atlas-secret-scan-allowlist-source"></a>- [ATLAS-SECRET-SCAN-ALLOWLIST-SOURCE](backlog/atlas-secret-scan-allowlist-source.md) — Read the secret allowlist from a trusted revision [patch] — todo
