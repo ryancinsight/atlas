@@ -969,6 +969,35 @@ def cmd_install_hooks(_args) -> int:
             failed += 1
             continue
         installed += 1
+    # The Atlas root gates its own pushes with the same shims. Its
+    # `core.hooksPath=.githooks` runs the checked-out tip's hook: the
+    # trampoline prelude corrects only a copy that still contains the
+    # prelude, so a tip that replaces `.githooks/pre-push` edits the gate
+    # that judges it (ATLAS-ROOT-HOOK-TIP-CONTROLLED). The shim runs the
+    # origin/main blob, which no pushed tip can alter.
+    try:
+        read = git_result(ROOT, "config", "--local", "--get", "core.hooksPath")
+        if read.returncode not in (0, 1):
+            detail = read.stderr.decode("utf-8", errors="replace").strip()
+            print(f"atlas: FAILED to read core.hooksPath: {detail}")
+            failed += 1
+        else:
+            current = read.stdout.decode("utf-8", errors="replace").strip()
+            if current and _comparable_hooks_path(current) not in owned:
+                print(f"atlas: core.hooksPath already set to {current}; left alone")
+                left_alone.append("atlas")
+            else:
+                write = git_result(ROOT, "config", "--local", "core.hooksPath", hooks)
+                if write.returncode != 0:
+                    detail = write.stderr.decode("utf-8", errors="replace").strip()
+                    print(f"atlas: FAILED to set core.hooksPath: {detail}")
+                    failed += 1
+                else:
+                    print("atlas: core.hooksPath -> owned-hook shims")
+    except RuntimeError as err:
+        print(f"atlas: FAILED to install: {err}")
+        failed += 1
+
     print(
         f"owned hook shims installed in {installed} member(s), "
         f"{len(left_alone)} left alone, {failed} failed"
