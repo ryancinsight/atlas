@@ -49,7 +49,11 @@ from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lockfile  # noqa: E402
-from atlas_git_process import GitProcessError, execute as execute_git  # noqa: E402
+from atlas_git_process import (  # noqa: E402
+    GitProcessError,
+    execute as execute_git,
+    execute_process,
+)
 from atlas_stack import ROOT, registered_member_names  # noqa: E402
 
 REPOS = ROOT / "repos"
@@ -59,10 +63,24 @@ FIRST_PARTY_HOST = "github.com/ryancinsight/"
 
 
 def run(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
-    proc = subprocess.run(
-        args, cwd=None if cwd is None else str(cwd), capture_output=True, encoding="utf-8", errors="replace"
+    """Run a command with a deadline that ends its whole process tree.
+
+    The `staged` pre-commit mode must read the index git named, so
+    `GIT_INDEX_FILE` stays in the environment (`execute_process` keeps it when
+    the caller passes it); every other repository variable is scrubbed. A
+    deadline or a launch failure raises `RuntimeError`.
+    """
+    try:
+        result = execute_process(
+            args, cwd=cwd, env=dict(os.environ), timeout=GIT_DEADLINE_SECONDS
+        )
+    except GitProcessError as error:
+        raise RuntimeError(str(error)) from error
+    return (
+        result.returncode,
+        result.stdout.decode("utf-8", errors="replace"),
+        result.stderr.decode("utf-8", errors="replace"),
     )
-    return proc.returncode, proc.stdout, proc.stderr
 
 
 class LockUnit(NamedTuple):
@@ -387,14 +405,35 @@ def committed_hooks(atlas: Path, ref: str) -> list[tuple[str, bytes]]:
     return hooks
 
 
+def retired_member_paths(requested: list[str] | None) -> list[str] | None:
+    """The member-relative files a publication deletes, or None when one is unsafe.
+
+    A retired file is one the owned hooks no longer read, so a member's copy is
+    a second source (`scripts/lockfile.py`). Only plain relative paths are
+    accepted: the deletion is applied to every member's default branch.
+    """
+    paths = list(requested or [])
+    for path in paths:
+        parts = path.split("/")
+        if path == "" or path.startswith("/") or "\\" in path or ".." in parts or "" in parts:
+            print(f"invalid retired path {path!r}: not a plain relative path", file=sys.stderr)
+            return None
+    return paths
+
+
 def hook_commit(
-    repo: Path, base: str, hooks: list[tuple[str, bytes]], message: str
+    repo: Path,
+    base: str,
+    hooks: list[tuple[str, bytes]],
+    message: str,
+    retired: tuple[str, ...] = (),
 ) -> str | None:
     """A commit on `base` whose `.githooks/` carries `hooks`, or None if current.
 
     `hooks` are (file name, bytes) pairs, so line endings are exactly the
     owned copy's whatever any checkout's `core.autocrlf` says, and the mode is
-    executable so the hook runs on a Unix clone.
+    executable so the hook runs on a Unix clone. Each `retired` path is
+    removed from the commit's tree when `base` carries it.
     """
     with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as scratch:
         index = Path(scratch) / "index"
@@ -405,6 +444,8 @@ def hook_commit(
                 repo, "update-index", "--add", "--cacheinfo",
                 f"{HOOK_MODE},{blob},.githooks/{name}", index=index,
             )
+        for path in retired:
+            git_in(repo, "update-index", "--force-remove", "--", path, index=index)
         tree = git_in(repo, "write-tree", index=index)
     if tree == git_in(repo, "rev-parse", f"{base}^{{tree}}"):
         return None
@@ -517,10 +558,16 @@ def cmd_publish_hooks(args) -> int:
     registered ones only: iterating the `repos/` directory would include
     anything else checked out there, a private consumer among them.
 
+    `--retire PATH` also deletes a repository-relative file the owned hooks no
+    longer read, in the same commit and pull request.
+
     Without `--push` it reports what it would publish.
     """
     members = member_scope(args.members)
     if members is None:
+        return 2
+    retired = retired_member_paths(getattr(args, "retire", None))
+    if retired is None:
         return 2
     requested_source = args.source_ref
     if requested_source == "":
@@ -568,6 +615,8 @@ def cmd_publish_hooks(args) -> int:
         "source every member's `.githooks/` copies; a copy that differs is the\n"
         "gate-version drift the conformance scan counts.\n"
     )
+    if retired:
+        message += "\nRemoves " + ", ".join(f"`{path}`" for path in retired) + ", which the hooks no longer read.\n"
     failures = 0
     for member in members:
         repo = REPOS / member
@@ -576,7 +625,13 @@ def cmd_publish_hooks(args) -> int:
         try:
             git_in(repo, "fetch", "-q", "origin")
             default = git_in(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
-            commit = hook_commit(repo, git_in(repo, "rev-parse", default), hooks, message)
+            commit = hook_commit(
+                repo,
+                git_in(repo, "rev-parse", default),
+                hooks,
+                message,
+                retired=tuple(retired),
+            )
             if commit is None:
                 print(f"current: {member}")
                 continue
@@ -599,6 +654,164 @@ def cmd_publish_hooks(args) -> int:
             failures += 1
             print(f"FAILED: {error}")
     return 1 if failures else 0
+
+
+# The hooks ref a shim resolves: the Atlas default branch as last fetched.
+HOOK_SOURCE_REF = "refs/remotes/origin/main"
+
+# The client-side hook names in githooks(5), without the `p4-*` and
+# `fsmonitor-watchman` integrations no member uses. An owned file under
+# another name (`rescue-push`, which the pre-push hook reads from the stack
+# ref itself) gets no shim.
+GIT_HOOK_NAMES = frozenset({
+    "applypatch-msg", "pre-applypatch", "post-applypatch", "pre-commit",
+    "pre-merge-commit", "prepare-commit-msg", "commit-msg", "post-commit",
+    "pre-rebase", "post-checkout", "post-merge", "pre-push", "pre-auto-gc",
+    "post-rewrite", "reference-transaction", "sendemail-validate",
+    "post-index-change",
+})
+
+# A shim runs the owned hook as committed at `HOOK_SOURCE_REF`, never a
+# working-tree copy or the checked-out branch. It resolves the blob at every
+# invocation, so a fetch of the Atlas repository moves every member to a
+# newer copy of each installed hook; a hook name new to `HOOK_SOURCE_REF`
+# needs `install-hooks` again, and one it dropped refuses until
+# `install-hooks` removes its shim. The blob is cached by id: a cached file
+# is re-hashed before it runs and a fresh copy before it is renamed into
+# place, so a corrupt or altered cache, or a blob object whose content does
+# not match its id, refuses instead of running. A writer that fails removes
+# its partial file; one killed mid-write leaves `<blob>.XXXXXX`, which is
+# never run. The cache keeps one file per hook revision.
+# Trust: `HOOK_SOURCE_REF` and the commit and tree objects that resolve the
+# path are trusted as Git stores them -- Git does not hash a tree it reads,
+# and whoever can rewrite them can move the ref too -- but replace refs are
+# ignored (`--no-replace-objects`), since `git replace` would redirect the
+# lookup without touching either. The environment git runs the hook with is
+# trusted as the owned hook itself trusts it: an exported function or a
+# `BASH_ENV` file redirects the hook's own `cargo` and `git` as surely as
+# the shim's `exec`.
+# The lookups name Atlas with `--git-dir`, which outranks any `GIT_DIR` in
+# the hook's environment (`git -C <atlas>` would not), and drop the
+# variables that would still redirect them to another object store; the
+# hook itself runs with the environment git gave it.
+HOOK_SHIM = """#!/usr/bin/env bash
+# Written by `scripts/atlas-lock-form.py install-hooks`; rerun it instead of
+# editing. Runs the owned `{name}` hook as committed at the Atlas
+# `{ref}`, never the Atlas checkout's copy, which holds whatever branch a
+# peer left checked out.
+# The shim's variables carry a reserved prefix and are unset before the exec,
+# so a caller's own `cache` or `commit` never reaches the hook altered.
+set -euo pipefail
+__atlas_shim_git={git_dir}
+__atlas_shim_lookup() {{
+  env -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES \\
+    -u GIT_REPLACE_REF_BASE git --no-replace-objects --git-dir="$__atlas_shim_git" "$@"
+}}
+# `show-ref --verify` takes only the full ref name: `rev-parse` would fall
+# back to a branch named `{ref}` when the ref itself is gone.
+if ! __atlas_shim_commit="$(__atlas_shim_lookup show-ref --verify --hash '{ref}' 2>/dev/null)" ||
+   ! __atlas_shim_blob="$(__atlas_shim_lookup rev-parse --verify --quiet "$__atlas_shim_commit:scripts/git-hooks/{name}")"; then
+  echo "atlas hooks: {ref} in $__atlas_shim_git has no scripts/git-hooks/{name}; fetch the Atlas repository, then run scripts/atlas-lock-form.py install-hooks there" >&2
+  exit 1
+fi
+__atlas_shim_cache="$__atlas_shim_git/atlas-hooks/blobs/$__atlas_shim_blob"
+if [ ! -f "$__atlas_shim_cache" ] || [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_cache")" != "$__atlas_shim_blob" ]; then
+  mkdir -p "${{__atlas_shim_cache%/*}}"
+  __atlas_shim_partial="$(mktemp "$__atlas_shim_cache.XXXXXX")"
+  # `cat-file` does not check an object against its id, so the copy is
+  # hashed before it can run: an altered blob object refuses instead of
+  # running. `--no-filters` on every hash: `core.autocrlf` would otherwise
+  # give a CRLF copy the id of its LF blob.
+  if ! {{ __atlas_shim_lookup cat-file blob "$__atlas_shim_blob" >| "$__atlas_shim_partial" &&
+         [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_partial")" = "$__atlas_shim_blob" ] &&
+         chmod +x "$__atlas_shim_partial" && mv -f "$__atlas_shim_partial" "$__atlas_shim_cache"; }}; then
+    rm -f "$__atlas_shim_partial"
+    exit 1
+  fi
+fi
+set +euo pipefail
+set -- "$__atlas_shim_cache" "$@"
+unset -f __atlas_shim_lookup
+unset __atlas_shim_git __atlas_shim_commit __atlas_shim_blob __atlas_shim_cache __atlas_shim_partial
+exec "$@"
+"""
+
+
+def _replace_shim(shim: Path, content: bytes) -> None:
+    """Install `content` at `shim` by rename, never by truncating in place.
+
+    Git executes the shim file itself, so a shim rewritten in place is
+    briefly empty, and a hook started in that window exits 0 without running
+    the owned hook: a refusing gate passes. Unchanged bytes are left alone.
+    """
+    # Windows has no execute bit; Git for Windows runs a hook by its shebang.
+    if (
+        shim.is_file()
+        and shim.read_bytes() == content
+        and (os.name == "nt" or shim.stat().st_mode & 0o100)
+    ):
+        return
+    temporary = shim.with_name(f".{shim.name}.{os.getpid()}.partial")
+    temporary.write_bytes(content)
+    temporary.chmod(0o755)
+    os.replace(temporary, shim)
+
+
+def _shell_word(text: str) -> str:
+    """`text` as one single-quoted bash word, whatever characters it holds."""
+    return "'" + text.replace("'", "'\\''") + "'"
+
+
+def hook_source_commit(atlas: Path) -> str | None:
+    """The commit `HOOK_SOURCE_REF` names in `atlas`, matched by full name only."""
+    try:
+        commit = git_in(atlas, "show-ref", "--verify", "--hash", HOOK_SOURCE_REF)
+    except RuntimeError:
+        return None
+    return commit or None
+
+
+def common_git_dir(repo: Path) -> Path:
+    """The git directory `repo` shares with its linked working trees."""
+    return Path(git_in(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+
+
+def write_hook_shims(atlas: Path) -> Path:
+    """The shim directory for `atlas`'s owned hooks, written in its git directory.
+
+    The common git directory, so a linked Atlas tree and the main one share
+    one set, and no checkout, branch switch or `git clean` of any Atlas tree
+    touches it. Each shim's bytes are written exactly (LF), whatever
+    `core.autocrlf` says.
+    """
+    commit = hook_source_commit(atlas)
+    if commit is None:
+        raise RuntimeError(f"{atlas} has no {HOOK_SOURCE_REF}; fetch it first")
+    git_dir = common_git_dir(atlas)
+    shims = git_dir / "atlas-hooks"
+    shims.mkdir(parents=True, exist_ok=True)
+    # Read as the shim reads it: replace refs ignored.
+    listing = git_in(
+        atlas, "--no-replace-objects", "ls-tree", "--name-only", f"{commit}:scripts/git-hooks"
+    )
+    names = set(listing.splitlines()) & GIT_HOOK_NAMES
+    # A hook `HOOK_SOURCE_REF` no longer carries loses its shim, which would
+    # otherwise refuse every invocation.
+    for stale in sorted(GIT_HOOK_NAMES - names):
+        if (shims / stale).is_file():
+            (shims / stale).unlink()
+            print(
+                f"install-hooks: removed the {stale} shim; "
+                f"{HOOK_SOURCE_REF} has no scripts/git-hooks/{stale}"
+            )
+    for name in sorted(names):
+        _replace_shim(
+            shims / name,
+            HOOK_SHIM.format(
+                name=name, ref=HOOK_SOURCE_REF, git_dir=_shell_word(git_dir.as_posix())
+            ).encode(),
+        )
+    return shims
 
 
 def cmd_install_hooks(_args) -> int:
@@ -655,6 +868,13 @@ def main() -> int:
     publish.add_argument("members", nargs="*", help="registered members; defaults to all")
     publish.add_argument("--push", action="store_true", help="push and open the pull requests")
     publish.add_argument("--hook", help="publish only this owned hook")
+    publish.add_argument(
+        "--retire",
+        action="append",
+        metavar="PATH",
+        help="also delete this repository-relative file in the same commit "
+        "(repeatable); for a file the owned hooks no longer read",
+    )
     publish.add_argument(
         "--source-ref",
         metavar="REF",

@@ -59,20 +59,48 @@ RELEASE_JOB = {
 # A `continue-on-error` on the job or any step, or a changed condition, changes this table.
 RELEASE_STEPS = [
     {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"fetch-depth": 0}},
+    {"id": "checkable",
+     "env": {"PACKAGE": "${{ inputs.package }}", "MANIFEST": "${{ inputs.manifest-path }}"}},
     {"if": "inputs.apt-packages != ''"},
     {"id": "baseline-exists", "if": "inputs.baseline-source == 'registry'",
-     "env": {"PACKAGE": "${{ inputs.package }}"}},
+     "env": {"PACKAGE": "${{ steps.checkable.outputs.packages }}"}},
     {"id": "baseline", "if": "inputs.baseline-source == 'tag'"},
-    {"uses": "obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239",
-     "if": "inputs.baseline-source != 'registry' || steps.baseline-exists.outputs.published == 'true'",
+    # A failed comparison splits into "the published baseline cannot build" (registry
+    # drift, no verdict exists) and everything else (a verdict, or a current tree that
+    # does not compile -- both block). The probe and the re-run carry the split; the
+    # verdict step renders it and blocks only what the probe does not exonerate.
+    {"id": "semver", "continue-on-error": True,
+     "uses": "obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239",
+     "if": "steps.checkable.outputs.packages != '' && (inputs.baseline-source != 'registry' "
+           "|| steps.baseline-exists.outputs.published == 'true')",
      "with": {
          "package": "${{ inputs.baseline-source == 'registry' && steps.baseline-exists.outputs.packages "
-                    "|| inputs.package }}",
+                    "|| steps.checkable.outputs.packages }}",
          "manifest-path": "${{ inputs.manifest-path }}",
          "rust-toolchain": "${{ inputs.rust-toolchain }}",
          "baseline-rev": "${{ inputs.baseline-source == 'tag' && steps.baseline.outputs.baseline || '' }}",
          "verbose": True,
      }},
+    {"id": "baseline-probe",
+     "if": "steps.semver.outcome == 'failure' && inputs.baseline-source == 'registry' "
+           "&& steps.baseline-exists.outputs.published == 'true'",
+     "env": {"PACKAGE": "${{ steps.baseline-exists.outputs.packages }}",
+             "RUST_TOOLCHAIN": "${{ inputs.rust-toolchain }}"}},
+    {"id": "semver-retry", "continue-on-error": True,
+     "uses": "obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239",
+     "if": "steps.baseline-probe.outputs.rotted != '' && steps.baseline-probe.outputs.others != ''",
+     "with": {
+         "package": "${{ steps.baseline-probe.outputs.others }}",
+         "manifest-path": "${{ inputs.manifest-path }}",
+         "rust-toolchain": "${{ inputs.rust-toolchain }}",
+         "baseline-rev": "",
+         "verbose": True,
+     }},
+    {"id": "verdict",
+     "env": {"COMPARISON": "${{ steps.semver.outcome }}",
+             "ROTTED": "${{ steps.baseline-probe.outputs.rotted }}",
+             "OTHERS": "${{ steps.baseline-probe.outputs.others }}",
+             "RETRY": "${{ steps.semver-retry.outcome }}"}},
 ]
 
 
@@ -160,6 +188,241 @@ class BaselineSplitTests(unittest.TestCase):
         self.assertEqual(asked, ["a", "b"])
         self.assertEqual(outputs, {"published": "true", "packages": "a,b"})
 
+
+# cargo metadata --no-deps --format-version 1 --manifest-path MANIFEST: print the fixture
+# workspace. Anything else exits 99 so the selection cannot pass on an unexpected query.
+STUB_CARGO = """\
+#!/usr/bin/env bash
+[[ "$#" -eq 6 && "$1" == metadata && "$2" == --no-deps && "$3" == --format-version \
+&& "$4" == 1 && "$5" == --manifest-path ]] || exit 99
+cat "$STUB_DIR/metadata.json"
+"""
+
+
+# A library, a proc-macro, a binary, a cdylib-only, and a crate whose proc-macro
+# target sits beside a library one -- the shapes the pending sets actually carry.
+FIXTURE_METADATA = """\
+{"packages": [
+  {"name": "lib-crate", "targets": [{"kind": ["lib"]}]},
+  {"name": "macro-crate", "targets": [{"kind": ["proc-macro"]}]},
+  {"name": "bin-crate", "targets": [{"kind": ["bin"]}]},
+  {"name": "cdylib-crate", "targets": [{"kind": ["cdylib"]}]},
+  {"name": "two-target-crate", "targets": [{"kind": ["proc-macro"]}, {"kind": ["lib"]}]}
+]}
+"""
+
+
+@unittest.skipUnless(os.name == "posix" and shutil.which("bash"),
+                     "the step resolves its `cargo` stub through a POSIX PATH")
+class LibraryTargetSelectionTests(unittest.TestCase):
+    """A selection with no library target skips the comparison instead of failing the release.
+
+    cargo-semver-checks renders a verdict from rustdoc-documented API surfaces and exits 101 on
+    a selection where every crate lacks one (a proc-macro-only pending set), so the gate selects
+    the library-bearing names itself and skips -- with a notice -- when none remain.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        cls.steps = {job: next(s for s in spec["steps"] if s.get("id") == "checkable")
+                     for job, spec in workflow["jobs"].items()}
+
+    def run_step(self, job: str, package: str, metadata: str = FIXTURE_METADATA):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "bin").mkdir()
+            stub = root / "bin" / "cargo"
+            stub.write_text(STUB_CARGO, encoding="utf-8", newline="\n")
+            stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
+            (root / "metadata.json").write_text(metadata, encoding="utf-8")
+            script = root / "step.sh"
+            script.write_text(self.steps[job]["run"], encoding="utf-8", newline="\n")
+            output, summary = root / "out", root / "summary"
+            env = dict(os.environ, PATH=f"{root / 'bin'}{os.pathsep}{os.environ['PATH']}",
+                       STUB_DIR=str(root), GITHUB_OUTPUT=str(output),
+                       GITHUB_STEP_SUMMARY=str(summary), PACKAGE=package, MANIFEST="Cargo.toml")
+            proc = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True)
+            outputs = dict(l.split("=", 1) for l in output.read_text().splitlines()) if output.exists() else {}
+            return proc, outputs, summary.read_text() if summary.exists() else ""
+
+    def test_the_library_bearing_subset_is_selected_in_the_caller_s_order(self) -> None:
+        proc, outputs, summary = self.run_step(
+            "semver-release", "lib-crate, macro-crate,bin-crate,cdylib-crate,two-target-crate,absent")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(outputs, {"packages": "lib-crate,cdylib-crate,two-target-crate"})
+        self.assertNotIn("::notice::", proc.stdout)
+        self.assertEqual(summary, "")
+
+    def test_a_surface_less_selection_skips_with_a_notice_and_a_summary(self) -> None:
+        proc, outputs, summary = self.run_step("semver-release", "macro-crate,bin-crate")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(outputs, {"packages": ""})
+        self.assertIn("::notice::none of macro-crate,bin-crate has a library target", proc.stdout)
+        self.assertIn("SemVer: not compared", summary)
+
+    def test_a_metadata_query_that_cannot_run_fails_the_step(self) -> None:
+        # A workspace whose metadata cargo cannot produce must fail closed, not
+        # read as "no library targets" and skip the release gate.
+        proc, outputs, _ = self.run_step("semver-release", "lib-crate", metadata="not json")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(outputs, {})
+
+    def test_both_jobs_select_with_the_same_step(self) -> None:
+        self.assertEqual(self.steps["semver-pr"]["run"], self.steps["semver-release"]["run"])
+
+
+# cargo [+toolchain] new --lib DIR makes the probe project; cargo add NAME and
+# cargo doc -p NAME --no-deps fail for any name listed in $STUB_DIR/rot, which
+# stands for a published baseline that no longer compiles from a fresh resolution.
+STUB_CARGO_PROBE = """\
+#!/usr/bin/env bash
+[[ "${1:-}" == +* ]] && shift
+case "${1:-}" in
+  new)
+    mkdir -p "${@: -1}"
+    ;;
+  add)
+    name="${2:-}"
+    echo "add $name" >> "$STUB_DIR/calls"
+    [[ -f "$STUB_DIR/rot/$name" ]] && exit 1
+    ;;
+  doc)
+    name=""
+    previous=""
+    for argument in "$@"; do
+      [[ "$previous" == "-p" ]] && name="$argument"
+      previous="$argument"
+    done
+    echo "doc $name" >> "$STUB_DIR/calls"
+    [[ -f "$STUB_DIR/rot/$name" ]] && exit 1
+    ;;
+  *)
+    exit 99
+    ;;
+esac
+exit 0
+"""
+
+
+@unittest.skipUnless(os.name == "posix" and shutil.which("bash"),
+                     "the step resolves its `cargo` stub through a POSIX PATH")
+class BaselineProbeTests(unittest.TestCase):
+    """A failed comparison is split into rotted baselines and buildable ones.
+
+    A published baseline that cannot compile from a fresh registry resolution is
+    dependency drift outside the release's diff (leto 0.43.1 admits aequitas 0.2.1,
+    whose eunomia move leaves the baseline two eunomia copies at once). No future run
+    can render a verdict for it, so it is split out rather than blocking the release.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        cls.step = next(s for s in workflow["jobs"]["semver-release"]["steps"]
+                        if s.get("id") == "baseline-probe")
+
+    def run_step(self, package: str, rot: tuple[str, ...] = ()):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "bin").mkdir()
+            (root / "rot").mkdir()
+            (root / "temp").mkdir()
+            stub = root / "bin" / "cargo"
+            stub.write_text(STUB_CARGO_PROBE, encoding="utf-8", newline="\n")
+            stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
+            for name in rot:
+                (root / "rot" / name).write_text("", encoding="utf-8")
+            script = root / "step.sh"
+            script.write_text(self.step["run"], encoding="utf-8", newline="\n")
+            output = root / "out"
+            env = dict(os.environ, PATH=f"{root / 'bin'}{os.pathsep}{os.environ['PATH']}",
+                       STUB_DIR=str(root), GITHUB_OUTPUT=str(output),
+                       GITHUB_STEP_SUMMARY=str(root / "summary"), RUNNER_TEMP=str(root / "temp"),
+                       PACKAGE=package, RUST_TOOLCHAIN="1.97.0")
+            proc = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True)
+            outputs = dict(l.split("=", 1) for l in output.read_text().splitlines()) if output.exists() else {}
+            return proc, outputs
+
+    def test_every_buildable_baseline_stays_in_the_comparison(self) -> None:
+        proc, outputs = self.run_step("alpha,beta")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(outputs, {"rotted": "", "others": "alpha,beta"})
+        self.assertNotIn("::notice::", proc.stdout)
+
+    def test_a_rotted_baseline_is_split_out_with_a_notice(self) -> None:
+        proc, outputs = self.run_step("alpha,beta,gamma", rot=("beta",))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(outputs, {"rotted": "beta", "others": "alpha,gamma"})
+        self.assertIn("::notice::the published baseline of beta does not compile", proc.stdout)
+
+    def test_a_fully_rotted_selection_leaves_nothing_to_recheck(self) -> None:
+        proc, outputs = self.run_step("alpha,beta", rot=("alpha", "beta"))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(outputs, {"rotted": "alpha,beta", "others": ""})
+
+    def test_empty_list_entries_are_skipped(self) -> None:
+        proc, outputs = self.run_step("alpha,, beta")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(outputs, {"rotted": "", "others": "alpha,beta"})
+
+
+class ReleaseVerdictTests(unittest.TestCase):
+    """The verdict blocks only what the probe does not exonerate.
+
+    A failure with every baseline buildable is a verdict (or a current tree that does
+    not compile) and blocks; a rotted baseline cannot render one and does not.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        cls.step = next(s for s in workflow["jobs"]["semver-release"]["steps"]
+                        if s.get("id") == "verdict")
+
+    def run_step(self, comparison: str, rotted: str = "", others: str = "", retry: str = "skipped"):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            script = root / "step.sh"
+            script.write_text(self.step["run"], encoding="utf-8", newline="\n")
+            summary = root / "summary"
+            env = dict(os.environ, GITHUB_STEP_SUMMARY=str(summary),
+                       COMPARISON=comparison, ROTTED=rotted, OTHERS=others, RETRY=retry)
+            proc = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True)
+            return proc, summary.read_text() if summary.exists() else ""
+
+    def test_a_comparison_that_ran_clean_releases(self) -> None:
+        proc, summary = self.run_step("success")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("SemVer: no update required", summary)
+
+    def test_a_comparison_never_attempted_releases(self) -> None:
+        proc, _ = self.run_step("skipped")
+        self.assertEqual(proc.returncode, 0)
+
+    def test_a_failure_with_every_baseline_buildable_blocks(self) -> None:
+        proc, _ = self.run_step("failure")
+        self.assertNotEqual(proc.returncode, 0)
+
+    def test_a_fully_rotted_selection_releases_without_a_verdict(self) -> None:
+        proc, summary = self.run_step("failure", rotted="alpha,beta")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("SemVer: not comparable", summary)
+        self.assertIn("`alpha,beta`", summary)
+
+    def test_clean_siblings_of_a_rotted_baseline_release(self) -> None:
+        proc, summary = self.run_step("failure", rotted="alpha", others="beta", retry="success")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("SemVer: partially comparable", summary)
+
+    def test_a_verdict_among_buildable_siblings_blocks(self) -> None:
+        proc, _ = self.run_step("failure", rotted="alpha", others="beta", retry="failure")
+        self.assertNotEqual(proc.returncode, 0)
+
+    def test_a_recheck_that_never_ran_blocks(self) -> None:
+        # fail closed: a split the gate could not render must not release
+        proc, _ = self.run_step("failure", rotted="alpha", others="beta")
+        self.assertNotEqual(proc.returncode, 0)
 
 
 if __name__ == "__main__":

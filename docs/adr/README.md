@@ -74,4 +74,5 @@
 | [0064](0064-shared-build-source-identity.md) | Shared build source and artifact identity | Accepted |
 | [0065](0065-nurbs-derivative-scaling.md) | Overflow-safe rational derivative products | Accepted |
 | [0066](0066-lane-tool-sole-worktree-path.md) | The lane tool is the only way to create a worktree | Accepted |
+| [0067](0067-process-tree-runner-ownership.md) | Atlas owns bounded process-tree execution | Accepted |
 | [0068](0068-publish-on-version-change.md) | Crates publish when their manifest version changes | Accepted |

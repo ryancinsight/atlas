@@ -23,6 +23,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from readonly_tree import clear_readonly_tree
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas_build_identity.py"
@@ -3197,21 +3198,6 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(Path(marker.read_text(encoding="utf-8")).resolve(), elsewhere.resolve())
 
 
-def _clear_readonly_tree(path: Path) -> None:
-    """Remove a tree whose entries may be read-only (the gate's exports).
-
-    `shutil.rmtree(onexc=)` is 3.12+ and the hosted runners hold 3.11, so the
-    entries are made writable first and removed with the version-agnostic
-    plain form.
-    """
-    if not path.exists():
-        return
-    for root, dirs, files in os.walk(path):
-        for name in (root, *(os.path.join(root, entry) for entry in dirs + files)):
-            os.chmod(name, 0o700)
-    shutil.rmtree(path)
-
-
 # Run as the build command: records how each named lease answers a request
 # from another process while run_build holds its leases around the command.
 LEASE_PROBE = (
@@ -3674,7 +3660,7 @@ class RepeatedExportPushTestCase(unittest.TestCase):
             for push in range(pushes):
                 export = self.base / ("export" if stable_path else f"export-{push}")
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -3797,7 +3783,7 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
                         os.environ["CARGO_BUILD_RUSTFLAGS"] = "-Cdebug-assertions=off"
                 export = self.stack / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 results.append(
                     identity.run_build(
@@ -3917,7 +3903,7 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
                     git(self.drepo, "commit", "-qam", "change d only")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 result = identity.run_build(
@@ -4744,7 +4730,7 @@ class PathDependencyFeatureChangeTestCase(unittest.TestCase):
                     git(self.source, "commit", "-qam", "enable x/f")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -4853,7 +4839,7 @@ class DependencyAdditionTestCase(unittest.TestCase):
                         git(self.source, "commit", "-qam", f"relock before push {push}")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -4982,7 +4968,7 @@ class GitDependencyTestCase(unittest.TestCase):
                     before[push]()
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 root, package = (self.second, "q") if push in second else (self.source, "p")
                 shutil.copytree(root, export, copy_function=shutil.copy)
                 cleaned.append([])
@@ -5346,7 +5332,7 @@ class RootProfileChangeTestCase(unittest.TestCase):
                     git(self.source, "commit", "-qam", "profile opt-level 1")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
