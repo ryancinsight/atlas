@@ -195,7 +195,13 @@ def _repository_status(
             ignored.append(field[2:])
         elif field:
             raise BuildIdentityError(f"git status printed an unknown record in {top}: {field!r}")
-    if revision is None or not revision or revision == b"(initial)" or revision != revision.strip():
+    hexadecimal = b"0123456789abcdef"
+    if (
+        revision is None
+        or not revision
+        or revision == b"(initial)"
+        or any(byte not in hexadecimal for byte in revision)
+    ):
         raise BuildIdentityError(f"git status did not print a committed HEAD in {top}: {revision!r}")
     return (
         os.fsdecode(revision),

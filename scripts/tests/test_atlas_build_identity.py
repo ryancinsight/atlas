@@ -2416,6 +2416,15 @@ class BuildIdentityTestCase(unittest.TestCase):
             self.assertRaises(build_source.BuildIdentityError),
         ):
             build_source.repository_top(self.base)
+        for name, printed in {
+            "no revision": b"# branch.head main\0",
+            "unborn revision": b"# branch.oid (initial)\0# branch.head main\0",
+            "spaced revision": b"# branch.oid bad revision\0# branch.head main\0",
+            "two revisions": b"# branch.oid one\0# branch.oid two\0",
+        }.items():
+            with self.subTest(name), patch.object(build_source, "_git", return_value=printed):
+                with self.assertRaises(build_source.BuildIdentityError):
+                    build_source._repository_status(self.base)
 
     def test_each_repository_is_identified_once_per_dependency_pass(self) -> None:
         # Every path package of one repository has that repository's
