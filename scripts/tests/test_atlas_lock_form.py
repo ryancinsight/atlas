@@ -651,7 +651,9 @@ class HookInstallTestCase(unittest.TestCase):
             self.install(["alpha"])
         self.assertEqual(self.config(member, "core.hooksPath"), self.shim_dir().as_posix())
         self.assertIsNone(self.config(stranger, "core.hooksPath"))
-        self.assertIsNone(self.config(self.atlas, "core.hooksPath"))
+        self.assertEqual(
+            self.config(self.atlas, "core.hooksPath"), self.shim_dir().as_posix()
+        )
 
     def test_one_hooks_path_in_any_spelling_is_ours_and_retargeted(self) -> None:
         self.publish({"pre-push": owned_hook("owned")})
@@ -684,7 +686,7 @@ class HookInstallTestCase(unittest.TestCase):
             self.assertIn("is not a repository of its own", line)
         # `.githooks` is a value the installer retargets, so only the refusal
         # keeps it.
-        self.assertEqual(self.config(self.atlas, "core.hooksPath"), _lock_form.MEMBER_HOOK_COPY)
+        self.assertEqual(self.config(self.atlas, "core.hooksPath"), self.shim_dir().as_posix())
         self.assertEqual(self.config(outer, "core.hooksPath"), "D:/elsewhere/hooks")
         self.assertEqual(self.config(real, "core.hooksPath"), self.shim_dir().as_posix())
         self.assertIn("2 failed", output)
@@ -735,7 +737,9 @@ class HookInstallTestCase(unittest.TestCase):
             [self.config(member, "core.hooksPath") for member in members],
             [self.shim_dir().as_posix()] * 2,
         )
-        self.assertIsNone(self.config(self.atlas, "core.hooksPath"))
+        self.assertEqual(
+            self.config(self.atlas, "core.hooksPath"), self.shim_dir().as_posix()
+        )
 
     def test_git_result_ignores_an_inherited_index_and_honours_a_named_one(self) -> None:
         member = self.member("alpha")
@@ -765,7 +769,7 @@ class HookInstallTestCase(unittest.TestCase):
         for member in ("linked", "pointer"):
             (line,) = [text for text in output.splitlines() if text.startswith(f"{member}:")]
             self.assertIn("is not a repository of its own", line)
-        self.assertEqual(self.config(self.atlas, "core.hooksPath"), _lock_form.MEMBER_HOOK_COPY)
+        self.assertEqual(self.config(self.atlas, "core.hooksPath"), self.shim_dir().as_posix())
         self.assertIn("2 failed", output)
 
     def test_a_failed_read_of_a_members_hooks_path_leaves_it_untouched(self) -> None:
@@ -922,6 +926,7 @@ class HookInstallTestCase(unittest.TestCase):
             [
                 "custom: core.hooksPath already set to D:/elsewhere/hooks; left alone",
                 "locked: FAILED to set core.hooksPath: error: could not lock config file",
+                "atlas: core.hooksPath -> owned-hook shims",
                 "owned hook shims installed in 0 member(s), 1 left alone, 1 failed",
                 "install-hooks: left on their own core.hooksPath: custom",
             ],
@@ -984,6 +989,33 @@ class HookInstallTestCase(unittest.TestCase):
         )
         self.addCleanup(reap, run)
         return run
+
+    def test_a_tip_that_edits_the_root_hook_cannot_replace_its_gate(self) -> None:
+        """The atlas root's `core.hooksPath=.githooks` runs the checked-out
+        tip's own hook, and the trampoline prelude corrects only a copy that
+        still contains the prelude (ATLAS-ROOT-HOOK-TIP-CONTROLLED). After
+        install-hooks the root runs the shim, which executes the origin/main
+        blob: a tip that rewrites `.githooks/pre-push` to allow everything
+        still gates with main's refusing hook."""
+        refusing = b"#!/usr/bin/env bash" + bytes([10]) + b"echo main-refused >&2" + bytes([10]) + b"exit 3" + bytes([10])
+        self.publish({"pre-push": refusing})
+        # The root sits on `.githooks`, whose pre-push a pushed tip controls.
+        self.git(self.atlas, "config", "core.hooksPath", ".githooks")
+        root_hooks = self.atlas / ".githooks"
+        root_hooks.mkdir(parents=True, exist_ok=True)
+        allowing = b"#!/usr/bin/env bash" + bytes([10]) + b"echo tip-allowed >&2" + bytes([10]) + b"exit 0" + bytes([10])
+        (root_hooks / "pre-push").write_bytes(allowing)
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout),                 patch.object(_lock_form, "ROOT", self.atlas),                 patch.object(_lock_form, "REPOS", self.repos),                 patch.object(_lock_form, "registered_member_names", return_value=()):
+            self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), 0)
+        self.assertIn("atlas: core.hooksPath -> owned-hook shims", stdout.getvalue())
+        hooks_path = self.git(self.atlas, "config", "--get", "core.hooksPath")
+        shims = _lock_form.write_hook_shims(self.atlas)
+        self.assertEqual(os.path.normcase(os.path.realpath(hooks_path)),
+                         os.path.normcase(os.path.realpath(str(shims))))
+        run = self.run_shim(Path(hooks_path))
+        _, err = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, err.decode().strip()), (3, "main-refused"))
 
     def test_a_refusing_hook_refuses_through_its_shim(self) -> None:
         self.publish({"pre-push": b"#!/usr/bin/env bash\necho refused >&2\nexit 3\n"})
