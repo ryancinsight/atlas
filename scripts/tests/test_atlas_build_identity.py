@@ -1925,12 +1925,12 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.dependency_build("first", discover=True)
         (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
         related_packages_seen: list[tuple[str, ...]] = []
-        real_discover = artifacts.discover_artifacts
+        real_discover = identity.artifact_identities
         run_checked = identity._run_checked
 
         def spy_discover(*args: object, **kwargs: object):
-            related = args[6] if len(args) > 6 else kwargs.get("related_packages", ())
-            related_packages_seen.append(tuple(related))
+            requests = args[2] if len(args) > 2 else kwargs["packages"]
+            related_packages_seen.extend(tuple(related) for related in requests.values())
             return real_discover(*args, **kwargs)
 
         def skip_real_clean(command, cwd, environment):
@@ -1943,7 +1943,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             run_checked(command, cwd, environment)
 
         with (
-            patch.object(artifacts, "discover_artifacts", side_effect=spy_discover),
+            patch.object(identity, "artifact_identities", side_effect=spy_discover),
             patch.object(identity, "_run_checked", side_effect=skip_real_clean),
         ):
             result = self.dependency_build("second", discover=True, clean=False)
@@ -2959,6 +2959,57 @@ class BuildIdentityTestCase(unittest.TestCase):
                 self.target, "my-pkg", "debug", manifest=self.root / "Cargo.toml"
             )
         self.assertEqual(set(paths), {artifact.resolve(), output.resolve()})
+
+    def test_batch_artifact_identity_preserves_each_overlapping_closure(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprints = self.target / "debug" / ".fingerprint"
+        deps.mkdir(parents=True, exist_ok=True)
+        owners = {
+            "a": frozenset({"a"}),
+            "b": frozenset({"b"}),
+            "shared": frozenset({"shared"}),
+        }
+        for name in ("a", "b", "shared"):
+            (deps / f"lib{name}-111.rlib").write_bytes(name.encode())
+            directory = fingerprints / f"{name}-111"
+            directory.mkdir(parents=True)
+            (directory / "output").write_bytes(f"fingerprint-{name}".encode())
+
+        separate = {
+            package: artifacts.artifact_identity(
+                self.root,
+                self.target,
+                package,
+                "debug",
+                (),
+                related_packages=("shared",),
+                owners=owners,
+            )
+            for package in ("a", "b")
+        }
+        batch = artifacts.artifact_identities(
+            self.root,
+            self.target,
+            {"a": ("shared",), "b": ("shared",)},
+            "debug",
+            owners=owners,
+        )
+
+        self.assertEqual(
+            artifacts.artifact_identities(
+                self.root,
+                self.target,
+                {},
+                "debug",
+                owners=owners,
+            ),
+            {},
+        )
+        self.assertEqual(batch, separate)
+        self.assertIn("debug/deps/libshared-111.rlib", batch["a"]["files"])
+        self.assertNotIn("debug/deps/libb-111.rlib", batch["a"]["files"])
+        self.assertNotIn("debug/deps/liba-111.rlib", batch["b"]["files"])
 
     def test_dependency_snapshot_tracks_reachable_path_sources(self) -> None:
         init_repo(self.root, "fn main() {}\n")
