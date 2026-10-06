@@ -574,6 +574,17 @@ class HookInstallTestCase(unittest.TestCase):
         self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
         self.assertEqual(cached.read_bytes(), refusing)
 
+    def test_git_result_ignores_an_inherited_index_and_honours_a_named_one(self) -> None:
+        member = self.member("alpha")
+        foreign, named = Path(self._tmp.name) / "foreign-index", Path(self._tmp.name) / "named-index"
+        locate = ("rev-parse", "--path-format=absolute", "--git-path", "index")
+        with patch.dict(os.environ, {"GIT_INDEX_FILE": str(foreign)}):
+            inherited = _lock_form.git_in(member, *locate)
+            explicit = _lock_form.git_in(member, *locate, index=named)
+        self.assertEqual(Path(inherited).resolve(), (member / ".git" / "index").resolve())
+        self.assertEqual(Path(explicit).resolve(), named.resolve())
+
+
     def test_a_hook_holding_a_carriage_return_runs_under_autocrlf(self) -> None:
         """A blob whose bytes hold CRLF hashes to its own id only unfiltered;
         a filtered hash would refuse every run of that hook."""
