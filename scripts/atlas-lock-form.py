@@ -43,6 +43,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 from pathlib import Path
 from typing import NamedTuple
@@ -51,6 +52,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lockfile  # noqa: E402
 from atlas_git_process import (  # noqa: E402
     GitProcessError,
+    GitProcessResult,
+    clean_process_env,
     execute as execute_git,
     execute_process,
 )
@@ -320,6 +323,39 @@ def member_scope(requested: list[str]) -> tuple[str, ...] | None:
     return tuple(sorted(members))
 
 
+def git_result(
+    repo: Path,
+    *args: str,
+    stdin: bytes | None = None,
+    index: Path | None = None,
+) -> GitProcessResult:
+    """Run bounded git in `repo` with the inherited repository selection removed.
+
+    None of the variables `git rev-parse --local-env-vars` lists (`GIT_DIR`,
+    `GIT_COMMON_DIR`, `GIT_INDEX_FILE`, ...) in the caller's environment
+    redirects the command away from `repo`; only `index` names an index. A
+    launch failure or a deadline raises; a non-zero exit is the caller's to
+    read.
+
+    `index` points git at a private index file, so a commit can be built from a
+    member's fetched default without reading or touching its working tree or
+    its real index -- which may belong to a peer mid-edit.
+    """
+    env = clean_process_env()
+    if index is not None:
+        env["GIT_INDEX_FILE"] = str(index)
+    try:
+        return execute_git(
+            repo,
+            tuple(args),
+            stdin=stdin,
+            env=env,
+            timeout=GIT_DEADLINE_SECONDS,
+        )
+    except GitProcessError as error:
+        raise RuntimeError(str(error)) from error
+
+
 def git_bytes(
     repo: Path,
     *args: str,
@@ -332,19 +368,7 @@ def git_bytes(
     member's fetched default without reading or touching its working tree or
     its real index -- which may belong to a peer mid-edit.
     """
-    env = dict(os.environ)
-    if index is not None:
-        env["GIT_INDEX_FILE"] = str(index)
-    try:
-        result = execute_git(
-            repo,
-            tuple(args),
-            stdin=stdin,
-            env=env,
-            timeout=GIT_DEADLINE_SECONDS,
-        )
-    except GitProcessError as error:
-        raise RuntimeError(str(error)) from error
+    result = git_result(repo, *args, stdin=stdin, index=index)
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(f"git {' '.join(args)} in {repo.name}: {detail}")
@@ -699,8 +723,14 @@ HOOK_SHIM = """#!/usr/bin/env bash
 # editing. Runs the owned `{name}` hook as committed at the Atlas
 # `{ref}`, never the Atlas checkout's copy, which holds whatever branch a
 # peer left checked out.
-# The shim's variables carry a reserved prefix and are unset before the exec,
-# so a caller's own `cache` or `commit` never reaches the hook altered.
+# The caller's options, restored for the hook: with SHELLOPTS exported they
+# reach it exactly as in a direct run. Read from SHELLOPTS, not `$(set +o)`,
+# whose subshell drops errexit. The shim's variables carry a reserved prefix
+# and are unset before the exec, so a caller's own `cache` or `commit`, or an
+# inherited allexport that would export the shim's assignments, never reaches
+# the hook altered. A caller's xtrace is off inside the shim, so the shim's
+# own commands never reach the hook's stderr, and back on for the exec.
+{{ __atlas_shim_options=":$SHELLOPTS:"; set +x; }} 2>/dev/null
 set -euo pipefail
 __atlas_shim_git={git_dir}
 __atlas_shim_lookup() {{
@@ -733,8 +763,26 @@ set +euo pipefail
 set -- "$__atlas_shim_cache" "$@"
 unset -f __atlas_shim_lookup
 unset __atlas_shim_git __atlas_shim_commit __atlas_shim_blob __atlas_shim_cache __atlas_shim_partial
+case $__atlas_shim_options in *:errexit:*) set -e ;; esac
+case $__atlas_shim_options in *:nounset:*) set -u ;; esac
+case $__atlas_shim_options in *:pipefail:*) set -o pipefail ;; esac
+case $__atlas_shim_options in
+  *:xtrace:*) unset __atlas_shim_options; set -x ;;
+  *) unset __atlas_shim_options ;;
+esac
 exec "$@"
 """
+
+
+# A shim replaced while bash has it open: Windows refuses the rename with a
+# denial (WinError 5) until every reader closes it. One hook start reads it in
+# milliseconds; overlapping runs can keep it open past the bound, and the
+# install then fails rather than leave a member half-installed.
+SHIM_REPLACE_ATTEMPTS = 50
+SHIM_REPLACE_BACKOFF_SECONDS = 0.1
+
+SHIM_REPLACE_ATTEMPTS = 50
+SHIM_REPLACE_BACKOFF_SECONDS = 0.1
 
 
 def _replace_shim(shim: Path, content: bytes) -> None:
@@ -754,7 +802,15 @@ def _replace_shim(shim: Path, content: bytes) -> None:
     temporary = shim.with_name(f".{shim.name}.{os.getpid()}.partial")
     temporary.write_bytes(content)
     temporary.chmod(0o755)
-    os.replace(temporary, shim)
+    for attempt in range(SHIM_REPLACE_ATTEMPTS):
+        try:
+            os.replace(temporary, shim)
+            return
+        except PermissionError:
+            if attempt + 1 == SHIM_REPLACE_ATTEMPTS:
+                temporary.unlink(missing_ok=True)
+                raise
+            time.sleep(SHIM_REPLACE_BACKOFF_SECONDS)
 
 
 def _shell_word(text: str) -> str:
@@ -814,45 +870,113 @@ def write_hook_shims(atlas: Path) -> Path:
     return shims
 
 
+def _comparable_hooks_path(value: str) -> str:
+    """One spelling per `core.hooksPath` location, for equality tests.
+
+    An absolute path is resolved and folded as the platform folds file names:
+    a trailing separator, backslashes, and drive-letter or directory case
+    name the same directory on Windows. A relative value is a name resolved
+    against each work tree (`.githooks`), so only its separators are unified.
+    """
+    if os.path.isabs(value):
+        return os.path.normcase(os.path.realpath(value))
+    return value.replace("\\", "/").rstrip("/")
+
+
+def _same_directory(first: str | Path, second: str | Path) -> bool:
+    """Whether two existing paths name one directory."""
+    try:
+        return os.path.samefile(first, second)
+    except OSError:
+        return False
+
+
 def cmd_install_hooks(_args) -> int:
-    """Point every member's `core.hooksPath` at the committed guard.
+    """Point every member's `core.hooksPath` at the owned-hook shims.
 
     Local git config, so it is a per-clone bootstrap rather than committed
     state -- the same shape as the meta-repo's own
     `git config core.hooksPath .githooks`.
 
-    A member pointing at `.githooks` is retargeted: that directory is the
-    copy `sync-hooks` deploys from this same source for standalone clones,
-    but as a relative hooks path it runs whatever copy the checked-out branch
-    carries, so a tree left on an old branch runs an old gate (CFDrs sat 80
-    commits behind on 2026-09-28 and its pre-push failed on the Windows Store
-    `python3` stub). Any other value is reported and left alone: silently
-    retargeting someone else's hooks would disable them.
+    Two earlier values are retargeted, because each ran a working-tree copy.
+    `.githooks` is the copy `sync-hooks` deploys for standalone clones, and a
+    tree left on an old branch ran an old gate (CFDrs sat 80 commits behind
+    on 2026-09-28 and its pre-push failed on the Windows Store `python3`
+    stub). `scripts/git-hooks` in the Atlas tree ran whatever branch that
+    shared checkout held: on 2026-10-01 a peer branch's pre-push refused the
+    metis fuzz push on a standalone workspace that `origin/main`'s hook gates.
+    Any other value is reported and left alone, and the install exits 1:
+    silently retargeting someone else's hooks would disable them, and a member
+    left on its own hooks does not run the owned gate.
+
+    Every git call is bounded and ignores an inherited `GIT_DIR`, so a member's
+    configuration is written in that member. A directory under `repos/` that
+    is not a repository of its own is refused: git would resolve it to the
+    Atlas repository, or the directory is a linked working tree of it or
+    carries a `.git` file naming its git directory, and the write would
+    retarget the umbrella's hooks.
     """
-    hooks = (Path(__file__).resolve().parent / "git-hooks").as_posix()
-    installed, skipped = 0, 0
+    try:
+        hooks = write_hook_shims(ROOT).as_posix()
+    except (RuntimeError, OSError) as err:
+        print(f"install-hooks: shims not all written, members left unchanged: {err}")
+        return 1
+    # The stack's tree and, when this copy runs from elsewhere (an export),
+    # the tree it runs from.
+    working_tree_copies = {
+        (ROOT / "scripts" / "git-hooks").as_posix(),
+        (Path(__file__).resolve().parent / "git-hooks").as_posix(),
+    }
+    owned = {_comparable_hooks_path(path) for path in (hooks, *working_tree_copies)}
+    owned.add(MEMBER_HOOK_COPY)
+    atlas_common = Path(hooks).parent
+    installed, failed = 0, 0
+    left_alone: list[str] = []
     for member in sorted(registered_member_names()):
         repo = REPOS / member
         if not repo.is_dir():
             continue
-        code, existing, _ = run(
-            "git", "-C", str(repo), "config", "--local", "--get", "core.hooksPath"
-        )
-        current = existing.strip()
-        if code == 0 and current and current not in (hooks, MEMBER_HOOK_COPY):
-            print(f"{member}: core.hooksPath already set to {current}; left alone")
-            skipped += 1
+        try:
+            top = git_in(repo, "rev-parse", "--show-toplevel")
+            common = common_git_dir(repo)
+            if not _same_directory(top, repo) or _same_directory(common, atlas_common):
+                print(
+                    f"{member}: {repo} is not a repository of its own "
+                    f"(git resolves it to {top}, git directory {common}); refused"
+                )
+                failed += 1
+                continue
+            read = git_result(repo, "config", "--local", "--get", "core.hooksPath")
+            # Exit 1 is "no such key"; any other failure is not an unset value.
+            if read.returncode not in (0, 1):
+                detail = read.stderr.decode("utf-8", errors="replace").strip()
+                print(f"{member}: FAILED to read core.hooksPath: {detail}")
+                failed += 1
+                continue
+            current = read.stdout.decode("utf-8", errors="replace").strip()
+            if current and _comparable_hooks_path(current) not in owned:
+                print(f"{member}: core.hooksPath already set to {current}; left alone")
+                left_alone.append(member)
+                continue
+            write = git_result(repo, "config", "--local", "core.hooksPath", hooks)
+        except RuntimeError as err:
+            print(f"{member}: FAILED to install: {err}")
+            failed += 1
             continue
-        code, _, err = run(
-            "git", "-C", str(repo), "config", "--local", "core.hooksPath", hooks
-        )
-        if code != 0:
-            print(f"{member}: FAILED to set core.hooksPath: {err.strip()}")
-            skipped += 1
+        if write.returncode != 0:
+            detail = write.stderr.decode("utf-8", errors="replace").strip()
+            print(f"{member}: FAILED to set core.hooksPath: {detail}")
+            failed += 1
             continue
         installed += 1
-    print(f"lock-form pre-commit guard installed in {installed} member(s), {skipped} skipped")
-    return 0
+    print(
+        f"owned hook shims installed in {installed} member(s), "
+        f"{len(left_alone)} left alone, {failed} failed"
+    )
+    if left_alone:
+        print(f"install-hooks: left on their own core.hooksPath: {', '.join(left_alone)}")
+    # A member left on other hooks does not run the owned gate.
+    return 1 if failed or left_alone else 0
 
 
 def main() -> int:
