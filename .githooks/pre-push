@@ -413,17 +413,30 @@ done
 # advance as its raise (CFDrs/scattered_containers 0 -> 24 on a branch whose
 # baseline predated the class) and could not push.
 debt_gate() {
-    local tip="$1" changed python_bin member output base member_revision
+    local tip="$1" changed raw_changed python_bin member output base member_revision
     local checker_rev checker_dir ref status default_revision
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
     # there would skip the gate on the pushes it most needs to see.
     base="$gate_base"
     [ -z "$base" ] && return 0
-    changed="$(MSYS_NO_PATHCONV=1 git -C "$atlas_root" diff --name-only \
-        "$base".."$tip" -- ':(top,literal)repos/' 2>/dev/null \
-        | awk -F/ 'NF > 1 && !seen[$2]++ { print $2 }')"
-    [ -z "$changed" ] && return 0
+    if ! raw_changed="$(MSYS_NO_PATHCONV=1 git -C "$atlas_root" diff --name-only \
+            "$base".."$tip" -- ':(top,literal)repos/' 2>&1)"; then
+        echo "pre-push: BLOCKED -- could not compare pushed tip ${tip:0:12}" >&2
+        echo "with debt-gate base ${base}; moved member pins are unknown." >&2
+        echo "$raw_changed" >&2
+        return 1
+    fi
+    [ -z "$raw_changed" ] && return 0
+    if ! changed="$(printf '%s\n' "$raw_changed" \
+            | awk -F/ 'NF > 1 && !seen[$2]++ { print $2 }')"; then
+        echo "pre-push: BLOCKED -- could not parse moved member pins." >&2
+        return 1
+    fi
+    if [ -z "$changed" ]; then
+        echo "pre-push: BLOCKED -- debt diff returned unrecognized repos/ paths." >&2
+        return 1
+    fi
 
     python_bin="${PYTHON:-}"
     if [ -z "$python_bin" ]; then
