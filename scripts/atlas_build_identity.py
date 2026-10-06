@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Sequence
 
 from atlas_build_artifacts import (
+    artifact_identities,
     artifact_identity,
     artifact_owners,
     shared_artifact_identity,
@@ -432,6 +433,23 @@ def run_build(
             _write_git_stamps(dependencies, directory, git_built[package], building=False)
         # A file several packages' records list is read once per run.
         settled: dict[str, str] = {}
+        discovered = {}
+        if not artifact_paths:
+            discovered = artifact_identities(
+                root,
+                target_dir,
+                {
+                    package: tuple(
+                        sorted(recorded_packages[package] - shared_recorded[package])
+                    )
+                    for package in packages
+                },
+                profile,
+                target,
+                manifest,
+                execution_root,
+                workspace_owners(),
+            )
         results = []
         for package in packages:
             dependencies, spec = inputs[package]
@@ -459,21 +477,26 @@ def run_build(
                     workspace_owners(),
                     settled,
                     deadline_ns,
+                    discovered[package],
                 )
             else:
                 # Declared paths are hashed as named; otherwise every recorded
                 # package is held exclusive, so each is discovered.
-                artifact = artifact_identity(
-                    root,
-                    target_dir,
-                    package,
-                    profile,
-                    artifact_paths,
-                    target,
-                    manifest,
-                    execution_root,
-                    tuple(sorted(recorded_packages[package])),
-                    workspace_owners(),
+                artifact = (
+                    artifact_identity(
+                        root,
+                        target_dir,
+                        package,
+                        profile,
+                        artifact_paths,
+                        target,
+                        manifest,
+                        execution_root,
+                        tuple(sorted(recorded_packages[package])),
+                        workspace_owners(),
+                    )
+                    if artifact_paths
+                    else discovered[package]
                 )
             _write_atomic(
                 records[package],

@@ -987,6 +987,93 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(conformance._resolved_cache(), {})
         self.assertEqual(conformance._stripped_text_cache(), {})
 
+    def test_snapshot_census_matches_all_counts_and_reads_sources_once(self) -> None:
+        """The snapshot census preserves every detector on difficult inputs."""
+        with tempfile.TemporaryDirectory(prefix="atlas-census-") as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            _write(root, ".gitignore", "/generated/\n")
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "pub mod target;\npub mod alias;\npub mod malformed;\n",
+            )
+            source = 'pub fn emit() { println!("visible"); }\n'
+            _write(root, "src/target.rs", source)
+            _write(root, "src/alias.rs", source)
+            malformed = root / "src" / "malformed.rs"
+            malformed.write_bytes(b"pub fn malformed( { // \xff\n")
+            _write(
+                root,
+                "src/target_generated/orphan.rs",
+                "pub fn orphan() {}\n",
+            )
+            _write(root, "src/broken.rs", "unreachable symlink target\n")
+            _write(root, "src/special.rs", "unreadable non-file entry\n")
+            _write(
+                root,
+                "generated/nested/ignored.rs",
+                'pub fn ignored() { println!("ignored"); }\n',
+            )
+
+            alias = root / "src" / "alias.rs"
+            target = root / "src" / "target.rs"
+            broken = root / "src" / "broken.rs"
+            missing = root / "src" / "missing.rs"
+            special = root / "src" / "special.rs"
+            real_is_symlink = Path.is_symlink
+            real_is_file = Path.is_file
+            real_resolve = Path.resolve
+            real_read_text = Path.read_text
+            source_reads: list[Path] = []
+
+            def fixture_is_symlink(path: Path) -> bool:
+                return path in (alias, broken) or real_is_symlink(path)
+
+            def fixture_is_file(path: Path) -> bool:
+                if path in (broken, missing, special):
+                    return False
+                return real_is_file(path)
+
+            def fixture_resolve(path: Path, *args, **kwargs) -> Path:
+                if path == alias:
+                    return real_resolve(target, *args, **kwargs)
+                if path == broken:
+                    return missing
+                return real_resolve(path, *args, **kwargs)
+
+            def counted_read_text(path: Path, *args, **kwargs) -> str:
+                if path.suffix == ".rs":
+                    source_reads.append(path)
+                if path in (broken, special):
+                    raise OSError("fixture entry is not readable as a file")
+                return real_read_text(path, *args, **kwargs)
+
+            with (
+                patch.object(Path, "is_symlink", fixture_is_symlink),
+                patch.object(Path, "is_file", fixture_is_file),
+                patch.object(Path, "resolve", fixture_resolve),
+                patch.object(Path, "read_text", counted_read_text),
+            ):
+                reference = conformance.scan_repo(root)
+                source_reads.clear()
+                snapshot = conformance.scan_repo(root, revision="fixture")
+
+        self.assertEqual(snapshot, reference)
+        self.assertEqual(
+            len(source_reads),
+            6,
+            f"unexpected Rust reads: {source_reads!r}",
+        )
+        self.assertNotIn(
+            Path(temp) / "generated" / "nested" / "ignored.rs",
+            source_reads,
+        )
+        self.assertEqual(snapshot["print_dbg"], 2)
+        self.assertEqual(snapshot["orphan_modules"], 3)
+        self.assertIsNone(conformance._snapshot_paths())
+
     def test_the_comment_strip_cache_agrees_with_a_fresh_strip(self) -> None:
         # The cache exists to serve the module walk and the production-class
         # pass from one strip. It is keyed on the text, so it must be a pure
@@ -1699,6 +1786,98 @@ class AtlasConformanceTestCase(unittest.TestCase):
             self.assertEqual(at_revision["board_items_outside_status_set"], 0)
             self.assertEqual(live["gitattributes_missing"], 1)
             self.assertEqual(live["board_items_outside_status_set"], 1)
+
+    def test_recorded_revision_namespace_pollution_uses_revision_tree(self) -> None:
+        """A live unregistered checkout cannot contaminate a revision scan."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *ident, *arguments],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                ).stdout.strip()
+
+            git("init", "-q", "-b", "main")
+            _write(root, ".gitmodules", "")
+            git("add", ".gitmodules")
+            git("commit", "-q", "-m", "candidate")
+            candidate = git("rev-parse", "HEAD")
+
+            _write(root, "repos/coeus-push/README.md", "peer checkout\n")
+            candidate_with_live_directory = conformance.scan_stack(
+                root, candidate
+            )["<meta>"]["member_namespace_pollution"]
+            live_untracked = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+            git("add", "repos/coeus-push/README.md")
+            git("commit", "-q", "-m", "track unregistered directory")
+            tracked_revision = git("rev-parse", "HEAD")
+            candidate_after_commit = conformance.scan_stack(root, candidate)[
+                "<meta>"
+            ]["member_namespace_pollution"]
+            tracked = conformance.scan_stack(root, tracked_revision)["<meta>"][
+                "member_namespace_pollution"
+            ]
+            live_tracked = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertEqual(candidate_with_live_directory, 0)
+        self.assertEqual(live_untracked, 1)
+        self.assertEqual(candidate_after_commit, 0)
+        self.assertEqual(tracked, 1)
+        self.assertEqual(live_tracked, 1)
+
+    def test_live_namespace_pollution_prunes_ignored_ancestors(self) -> None:
+        """An ignored namespace ancestor excludes every checkout below it."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            subprocess.run(
+                ["git", "init", "-q", "-b", "main"],
+                cwd=root,
+                check=True,
+                timeout=10,
+            )
+            _write(root, ".gitmodules", "")
+            _write(root, ".gitignore", "/repos/\n")
+            _write(root, "repos/private/README.md", "peer checkout\n")
+
+            ignored = conformance.git_ignored_paths(root)
+            pollution = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertIn((root / "repos").resolve(), ignored)
+        self.assertEqual(pollution, 0)
+
+    def test_live_namespace_pollution_decodes_non_ascii_ignored_paths(self) -> None:
+        """NUL-delimited Git output preserves non-ASCII ignored paths."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            subprocess.run(
+                ["git", "init", "-q", "-b", "main"],
+                cwd=root,
+                check=True,
+                timeout=10,
+            )
+            _write(root, ".gitmodules", "")
+            _write(root, ".gitignore", "/repos/café/\n")
+            _write(root, "repos/café/README.md", "peer checkout\n")
+
+            ignored = conformance.git_ignored_paths(root)
+            pollution = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertIn((root / "repos" / "café").resolve(), ignored)
+        self.assertEqual(pollution, 0)
 
     def test_generate_refuses_to_raise_a_count(self) -> None:
         """`generate` must not launder a regression into the baseline.

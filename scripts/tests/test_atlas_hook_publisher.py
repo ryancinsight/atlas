@@ -42,7 +42,7 @@ class HookBranchPushTestCase(unittest.TestCase):
         self._git(repo, "commit", "-q", "-m", value)
         return self._git(repo, "rev-parse", "HEAD")
 
-    def test_push_uses_absent_and_fresh_remote_tip_leases(self) -> None:
+    def test_push_uses_absent_and_ancestral_remote_tip_leases(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-lease-") as temp:
             root = Path(temp)
             repo = root / "member"
@@ -64,7 +64,7 @@ class HookBranchPushTestCase(unittest.TestCase):
             remote_tip = self._commit(repo, "remote-tip")
             self._git(repo, "push", "-q", "origin", f"{remote_tip}:{ref}")
             self._git(repo, "update-ref", f"refs/remotes/origin/{branch}", base)
-            self._git(repo, "switch", "-q", "-c", "desired", first)
+            self._git(repo, "switch", "-q", "-c", "desired", remote_tip)
             desired = self._commit(repo, "desired")
             _lock_form.push_hook_branch(repo, desired, branch, self.ACCEPTING_HOOK)
 
@@ -87,7 +87,7 @@ class HookBranchPushTestCase(unittest.TestCase):
             self._git(repo, "push", "-q", "origin", f"{observed}:{ref}")
             concurrent = self._commit(repo, "concurrent")
             self._git(repo, "push", "-q", "origin", f"{concurrent}:refs/heads/race")
-            self._git(repo, "switch", "-q", "-c", "desired", base)
+            self._git(repo, "switch", "-q", "-c", "desired", observed)
             desired = self._commit(repo, "desired")
             real_git_bytes = _lock_form.git_bytes
 
@@ -188,7 +188,8 @@ class HookBranchPushTestCase(unittest.TestCase):
             patch.object(_lock_form, "git_in", return_value="") as git_in,
         ):
             _lock_form.push_hook_branch(
-                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK
+                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK,
+                "b" * 40,
             )
 
         self.assertEqual(git_in.call_args.args[1], "-c")
@@ -196,6 +197,7 @@ class HookBranchPushTestCase(unittest.TestCase):
         self.assertEqual(
             git_in.call_args.args[3:],
             (
+                "-c", f"atlas.preparedTools={'b' * 40}",
                 "push", "-q", f"--force-with-lease={ref}:{observed}",
                 "origin", f"commit:{ref}",
             ),
@@ -206,11 +208,16 @@ class HookBranchPushTestCase(unittest.TestCase):
             patch.object(_lock_form, "git_in", return_value="") as git_in,
         ):
             _lock_form.push_hook_branch(
-                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK
+                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK,
+                "b" * 40,
             )
         self.assertEqual(
-            git_in.call_args.args[5],
-            f"--force-with-lease={ref}:",
+            git_in.call_args.args[3:],
+            (
+                "-c", f"atlas.preparedTools={'b' * 40}",
+                "push", "-q", f"--force-with-lease={ref}:",
+                "origin", f"commit:{ref}",
+            ),
         )
 
     def test_push_rejects_untrusted_remote_ref_output(self) -> None:
@@ -557,7 +564,8 @@ class PublisherScopeTestCase(unittest.TestCase):
             self.assertEqual(hook_commit.call_args.args[2], [hook_bytes[1]])
             self.assertEqual(hook_commit.call_args.args[1], "b" * 40)
             push_hook_branch.assert_called_once_with(
-                member_root / "alpha", "built", "ci/sync-stack-hooks", hook_bytes[1][1]
+                member_root / "alpha", "built", "ci/sync-stack-hooks",
+                hook_bytes[1][1], source_commit,
             )
 
     def test_unknown_hook_filter_stops_before_member_publication(self) -> None:

@@ -1058,7 +1058,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         """The export's index carries each file's size and modification time,
         and the export is identified clean at its revision.
 
-        `git diff HEAD` can skip re-hashing an entry only when its recorded
+        `git status` can skip re-hashing an entry only when its recorded
         size and modification time match the file's, and a read-tree index
         with no stat data re-hashed kwavers for 348 s. That match is a
         necessary condition, not a sufficient one: all 19 of this fixture's
@@ -1090,7 +1090,11 @@ class BuildIdentityTestCase(unittest.TestCase):
 
         with patch.object(build_source, "_git", side_effect=recording_git):
             found = build_source.source_identity(export)
-        self.assertIn("diff", [arguments[0] for arguments in calls])
+        self.assertEqual(
+            [arguments[1] if arguments[0] == "--no-optional-locks" else arguments[0]
+             for arguments in calls],
+            ["status"],
+        )
         self.assertEqual(found.revision, revision)
         self.assertFalse(found.dirty)
 
@@ -1103,7 +1107,20 @@ class BuildIdentityTestCase(unittest.TestCase):
         git(export, "read-tree", "HEAD")
         (export / "src/lib.rs").write_text("fn main() { edited(); }\n", encoding="utf-8")
         (export / "Cargo.lock").unlink()
-        found = build_source.source_identity(export)
+        calls: list[tuple[str, ...]] = []
+        real_git = build_source._git
+
+        def recording_git(root: Path, *arguments: str) -> bytes:
+            calls.append(arguments)
+            return real_git(root, *arguments)
+
+        with patch.object(build_source, "_git", side_effect=recording_git):
+            found = build_source.source_identity(export)
+        self.assertEqual(
+            [arguments[1] if arguments[0] == "--no-optional-locks" else arguments[0]
+             for arguments in calls],
+            ["status", "diff"],
+        )
         self.assertEqual(found.revision, revision)
         self.assertTrue(found.dirty)
 
@@ -1925,12 +1942,12 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.dependency_build("first", discover=True)
         (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
         related_packages_seen: list[tuple[str, ...]] = []
-        real_discover = artifacts.discover_artifacts
+        real_discover = identity.artifact_identities
         run_checked = identity._run_checked
 
         def spy_discover(*args: object, **kwargs: object):
-            related = args[6] if len(args) > 6 else kwargs.get("related_packages", ())
-            related_packages_seen.append(tuple(related))
+            requests = args[2] if len(args) > 2 else kwargs["packages"]
+            related_packages_seen.extend(tuple(related) for related in requests.values())
             return real_discover(*args, **kwargs)
 
         def skip_real_clean(command, cwd, environment):
@@ -1943,7 +1960,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             run_checked(command, cwd, environment)
 
         with (
-            patch.object(artifacts, "discover_artifacts", side_effect=spy_discover),
+            patch.object(identity, "artifact_identities", side_effect=spy_discover),
             patch.object(identity, "_run_checked", side_effect=skip_real_clean),
         ):
             result = self.dependency_build("second", discover=True, clean=False)
@@ -2295,6 +2312,31 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertTrue(after.dirty)
         self.assertNotEqual(before.tree_digest, after.tree_digest)
 
+    def test_tracked_bytes_are_identical_before_and_after_staging(self) -> None:
+        init_repo(self.root, "fn one() {}\n")
+        clean = build_source.source_identity(self.root)
+        source = self.root / "src/lib.rs"
+        source.write_text("fn two() {}\n", encoding="utf-8")
+        unstaged = build_source.source_identity(self.root)
+        git(self.root, "add", "src/lib.rs")
+        staged = build_source.source_identity(self.root)
+        self.assertTrue(unstaged.dirty)
+        self.assertEqual(staged, unstaged)
+        self.assertNotEqual(staged.tree_digest, clean.tree_digest)
+
+    def test_the_nearest_git_marker_owns_a_nested_repository(self) -> None:
+        init_repo(self.root, "fn outer() {}\n")
+        nested = self.root / "nested"
+        init_repo(nested, "fn nested() {}\n")
+        self.assertEqual(
+            build_source.repository_top(nested / "src"),
+            nested.resolve(),
+        )
+        self.assertEqual(
+            build_source.repository_top(self.root / "src"),
+            self.root.resolve(),
+        )
+
     def test_untracked_and_ignored_files_are_listed_as_ls_files_lists_them(self) -> None:
         # The digest frames each untracked and ignored file in this order, so
         # one `git status` must list exactly what the two `ls-files --others`
@@ -2336,30 +2378,66 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertIn(b"nested/", listed[0][1])
         self.assertIn(b"untracked/build/y.o", listed[1][1])
         self.assertNotIn(b"orig.rs", listed[1][1])
-        self.assertEqual(build_source._untracked_paths(self.root.resolve()), listed)
+        revision, tracked_dirty, status_entries = build_source._repository_status(
+            self.root.resolve()
+        )
+        self.assertEqual(revision, git(self.root, "rev-parse", "HEAD"))
+        self.assertTrue(tracked_dirty)
+        self.assertEqual(status_entries, listed)
 
     def test_a_top_level_path_holding_a_newline_is_read_whole(self) -> None:
-        # POSIX allows a newline in a directory name, so the revision is
-        # taken from the last line and the path from everything before it.
-        revision = "0123456789abcdef0123456789abcdef01234567"
-        cases = {
-            "newline": (b"/srv/line\nbreak\n" + revision.encode() + b"\n", "line\nbreak"),
-            "trailing newline": (b"/srv/line\n\n" + revision.encode() + b"\n", "line\n"),
-            "trailing space": (b"/srv/trail \n" + revision.encode() + b"\n", "trail "),
-            "plain": (b"/srv/plain\n" + revision.encode() + b"\n", "plain"),
-        }
-        for name, (printed, leaf) in cases.items():
-            with self.subTest(name), patch.object(build_source, "_git", return_value=printed):
-                top, found = build_source.repository_head(self.base)
-            self.assertEqual(top.name, leaf)
-            self.assertEqual(found, revision)
+        # POSIX permits whitespace in a work-tree name. Marker discovery uses
+        # Path components directly, so no command output can split that name.
+        for name, leaf in {
+            "newline": "line\nbreak",
+            "trailing newline": "line\n",
+            "trailing space": "trail ",
+            "plain": "plain",
+        }.items():
+            with self.subTest(name):
+                top = self.base / leaf
+                nested = top / "member" / "src"
+                marker = top / ".git"
+
+                def marker_stat(path: Path):
+                    if path == marker:
+                        return None
+                    raise FileNotFoundError(path)
+
+                with (
+                    patch.object(build_source, "_canonical", return_value=nested),
+                    patch.object(Path, "lstat", autospec=True, side_effect=marker_stat),
+                ):
+                    self.assertEqual(build_source.repository_top(self.base), top)
+        without_marker = self.base / "not-a-repository"
+        with (
+            patch.object(build_source, "_canonical", return_value=without_marker),
+            patch.object(Path, "lstat", autospec=True, side_effect=FileNotFoundError),
+            self.assertRaises(build_source.BuildIdentityError),
+        ):
+            build_source.repository_top(self.base)
         for name, printed in {
-            "no path": revision.encode() + b"\n",
-            "no revision": b"/srv/plain\n\n",
+            "no revision": b"# branch.head main\0",
+            "unborn revision": b"# branch.oid (initial)\0# branch.head main\0",
+            "spaced revision": b"# branch.oid bad revision\0# branch.head main\0",
+            "abbreviated revision": b"# branch.oid deadbeef\0# branch.head main\0",
+            "short sha1": b"# branch.oid " + b"a" * 39 + b"\0# branch.head main\0",
+            "long sha256": b"# branch.oid " + b"a" * 65 + b"\0# branch.head main\0",
+            "two revisions": b"# branch.oid one\0# branch.oid two\0",
         }.items():
             with self.subTest(name), patch.object(build_source, "_git", return_value=printed):
                 with self.assertRaises(build_source.BuildIdentityError):
-                    build_source.repository_head(self.base)
+                    build_source._repository_status(self.base)
+        sha256 = b"a" * 64
+        with patch.object(
+            build_source,
+            "_git",
+            return_value=b"# branch.oid " + sha256 + b"\0# branch.head main\0",
+        ):
+            revision, tracked_dirty, entries = build_source._repository_status(self.base)
+        self.assertEqual(revision, sha256.decode())
+        self.assertFalse(tracked_dirty)
+        self.assertEqual(entries, ((b"untracked", []), (b"ignored", [])))
 
     def test_each_repository_is_identified_once_per_dependency_pass(self) -> None:
         # Every path package of one repository has that repository's
@@ -2371,11 +2449,11 @@ class BuildIdentityTestCase(unittest.TestCase):
         sibling = self.base / "sibling"
         init_repo(sibling, "pub fn sibling() {}\n")
         identified: list[Path] = []
-        real_worktree_identity = build_inputs.worktree_identity
+        real_source_identity = build_inputs.source_identity
 
-        def counting_worktree_identity(top, *arguments):
+        def counting_source_identity(top, *arguments):
             identified.append(top)
-            return real_worktree_identity(top, *arguments)
+            return real_source_identity(top, *arguments)
 
         def snapshot(metadata, manifest, package, identify_source, content_digest):
             return {
@@ -2386,7 +2464,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             }
 
         with (
-            patch.object(build_inputs, "worktree_identity", side_effect=counting_worktree_identity),
+            patch.object(build_inputs, "source_identity", side_effect=counting_source_identity),
             patch.object(build_inputs, "dependency_snapshot", side_effect=snapshot),
             patch.object(build_inputs, "_cargo_metadata", return_value={}),
         ):
@@ -2409,6 +2487,119 @@ class BuildIdentityTestCase(unittest.TestCase):
             build_records._content(build_source.source_identity(sibling, (self.target,)).as_dict()),
         )
         self.assertNotEqual(sibling_identity, expected_root)
+
+    def test_each_package_source_is_fingerprinted_once_per_dependency_pass(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        member = self.root / "member"
+        member.mkdir()
+        (member / "Cargo.toml").write_text(
+            "[package]\nname = \"other\"\nversion = \"0.1.0\"\n", encoding="utf-8"
+        )
+        git(self.root, "add", "member/Cargo.toml")
+        git(self.root, "commit", "-q", "-m", "add member")
+        registry_root = self.base / "registry-dependency"
+        git_root = self.base / "git-dependency"
+        for root, name, source in (
+            (registry_root, "registry-dep", "pub fn value() -> u8 { 1 }\n"),
+            (git_root, "git-dep", "pub fn value() -> u8 { 3 }\n"),
+        ):
+            (root / "src").mkdir(parents=True)
+            (root / "Cargo.toml").write_text(
+                f"[package]\nname = \"{name}\"\nversion = \"0.1.0\"\n",
+                encoding="utf-8",
+            )
+            (root / "src" / "lib.rs").write_text(source, encoding="utf-8")
+        metadata = {
+            "workspace_root": str(self.root),
+            "packages": [
+                {
+                    "id": "root demo",
+                    "name": "demo",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str(self.root / "Cargo.toml"),
+                },
+                {
+                    "id": "root other",
+                    "name": "other",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str(member / "Cargo.toml"),
+                },
+                {
+                    "id": "registry dep",
+                    "name": "registry-dep",
+                    "version": "0.1.0",
+                    "source": "registry+https://example.invalid/index",
+                    "manifest_path": str(registry_root / "Cargo.toml"),
+                },
+                {
+                    "id": "git dep",
+                    "name": "git-dep",
+                    "version": "0.1.0",
+                    "source": "git+https://example.invalid/repository#01234567",
+                    "manifest_path": str(git_root / "Cargo.toml"),
+                },
+            ],
+            "workspace_members": ["root demo", "root other"],
+            "resolve": {
+                "nodes": [
+                    {
+                        "id": root,
+                        "deps": [
+                            {"pkg": "registry dep", "dep_kinds": []},
+                            {"pkg": "git dep", "dep_kinds": []},
+                        ],
+                    }
+                    for root in ("root demo", "root other")
+                ]
+                + [
+                    {"id": "registry dep", "deps": []},
+                    {"id": "git dep", "deps": []},
+                ]
+            },
+        }
+        fingerprinted: list[Path] = []
+
+        def counting_digest(path: Path, _cache_dir: Path) -> str:
+            fingerprinted.append(path.resolve())
+            return package_source.package_source_digest(path)
+
+        def external_digests(snapshot: dict[str, object]) -> dict[str, str]:
+            return {
+                str(package["name"]): str(package["content_digest"])
+                for package in snapshot["packages"]
+                if package["kind"] != "path"
+            }
+
+        with (
+            patch.object(build_inputs, "_cargo_metadata", return_value=metadata),
+            patch.object(
+                build_inputs, "cached_package_source_digest", side_effect=counting_digest
+            ),
+        ):
+            first = build_inputs._dependency_data(
+                self.root / "Cargo.toml", ("demo", "other"), self.target, self.root, (), False
+            )
+            first_calls = list(fingerprinted)
+            fingerprinted.clear()
+            (registry_root / "src" / "lib.rs").write_text(
+                "pub fn value() -> u8 { 2 }\n", encoding="utf-8"
+            )
+            second = build_inputs._dependency_data(
+                self.root / "Cargo.toml", ("demo", "other"), self.target, self.root, (), False
+            )
+        expected_roots = [git_root.resolve(), registry_root.resolve()]
+        self.assertEqual(first_calls, expected_roots)
+        self.assertEqual(fingerprinted, expected_roots)
+        first_digests = external_digests(first["demo"])
+        self.assertEqual(first_digests, external_digests(first["other"]))
+        second_digests = external_digests(second["demo"])
+        self.assertEqual(second_digests, external_digests(second["other"]))
+        self.assertNotEqual(first_digests["registry-dep"], second_digests["registry-dep"])
+        self.assertEqual(first_digests["git-dep"], second_digests["git-dep"])
+        self.assertNotEqual(first["demo"]["digest"], second["demo"]["digest"])
+        self.assertNotEqual(first["other"]["digest"], second["other"]["digest"])
 
     def test_ignored_source_files_are_hashed_and_can_be_explicitly_excluded(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -2847,6 +3038,57 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertEqual(set(paths), {artifact.resolve(), output.resolve()})
 
+    def test_batch_artifact_identity_preserves_each_overlapping_closure(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprints = self.target / "debug" / ".fingerprint"
+        deps.mkdir(parents=True, exist_ok=True)
+        owners = {
+            "a": frozenset({"a"}),
+            "b": frozenset({"b"}),
+            "shared": frozenset({"shared"}),
+        }
+        for name in ("a", "b", "shared"):
+            (deps / f"lib{name}-111.rlib").write_bytes(name.encode())
+            directory = fingerprints / f"{name}-111"
+            directory.mkdir(parents=True)
+            (directory / "output").write_bytes(f"fingerprint-{name}".encode())
+
+        separate = {
+            package: artifacts.artifact_identity(
+                self.root,
+                self.target,
+                package,
+                "debug",
+                (),
+                related_packages=("shared",),
+                owners=owners,
+            )
+            for package in ("a", "b")
+        }
+        batch = artifacts.artifact_identities(
+            self.root,
+            self.target,
+            {"a": ("shared",), "b": ("shared",)},
+            "debug",
+            owners=owners,
+        )
+
+        self.assertEqual(
+            artifacts.artifact_identities(
+                self.root,
+                self.target,
+                {},
+                "debug",
+                owners=owners,
+            ),
+            {},
+        )
+        self.assertEqual(batch, separate)
+        self.assertIn("debug/deps/libshared-111.rlib", batch["a"]["files"])
+        self.assertNotIn("debug/deps/libb-111.rlib", batch["a"]["files"])
+        self.assertNotIn("debug/deps/liba-111.rlib", batch["b"]["files"])
+
     def test_dependency_snapshot_tracks_reachable_path_sources(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         dependency_root = self.base / "dependency"
@@ -3041,13 +3283,9 @@ class BuildIdentityTestCase(unittest.TestCase):
             if len(command) < 2 or command[1] != "clean":
                 artifact.write_text("built", encoding="utf-8")
 
-        artifact_value = {"files": {"debug/deps/libdemo-123.rlib": "digest"}, "digest": "artifact"}
         with (
             patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.object(build_inputs, "dependency_snapshot", return_value=snapshot),
-            patch.object(identity, "artifact_identity", return_value=artifact_value),
-            patch.object(artifacts, "recorded_artifact_identity", return_value=artifact_value),
-            patch.object(build_records, "recorded_artifact_identity", return_value=artifact_value),
             patch.object(identity, "_run_checked", side_effect=run_command),
         ):
             first = identity.run_build(
@@ -3057,6 +3295,13 @@ class BuildIdentityTestCase(unittest.TestCase):
                 self.target,
                 [sys.executable, "-c", "pass"],
             )[0]
+            relative = "debug/deps/libdemo-123.rlib"
+            files = {relative: artifacts._file_digest(artifact)}
+            first_record = json.loads(first.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(first_record["artifact"]["files"], files)
+            self.assertEqual(
+                first_record["artifact"]["digest"], artifacts.artifact_digest(files)
+            )
             second = identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
@@ -3160,10 +3405,13 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_an_ignored_path_outside_the_source_tree_is_rejected(self) -> None:
         init_repo(self.root, "fn main() {}\n")
-        with self.assertRaises(identity.IdentityError):
-            build_source.source_identity(
-                self.root, ignored_paths=(self.base / "elsewhere.lock",)
-            )
+        for state in ("clean", "tracked dirty"):
+            with self.subTest(state), self.assertRaises(identity.IdentityError):
+                if state == "tracked dirty":
+                    (self.root / "src/lib.rs").write_text("fn changed() {}\n", encoding="utf-8")
+                build_source.source_identity(
+                    self.root, ignored_paths=(self.base / "elsewhere.lock",)
+                )
 
     def test_commands_run_in_the_requested_directory(self) -> None:
         init_repo(self.root, "fn main() {}\n")

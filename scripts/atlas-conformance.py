@@ -88,7 +88,7 @@ from atlas_git_process import (
     extract_archive,
 )
 from atlas_stack import (
-    ROOT, WORKTREE_BOUND, canonical_lane, is_git_ignored, registered_member_names,
+    ROOT, WORKTREE_BOUND, canonical_lane, registered_member_names,
     staleness_note,
 )
 from atlas_scattered_containers_classify import VEC_VEC
@@ -1062,6 +1062,30 @@ def _resolved_cache() -> dict[Path, Path]:
     return cache
 
 
+def _lexical_path(path: Path) -> Path:
+    """Return an absolute normalized path without querying the filesystem."""
+    return Path(os.path.abspath(os.fspath(path)))
+
+
+def _snapshot_paths() -> dict[Path, Path] | None:
+    """Return the current immutable snapshot's lexical-to-canonical map."""
+    return getattr(_scan_local, "snapshot_paths", None)
+
+
+def _snapshot_file_exists(path: Path) -> bool:
+    """Return whether `path` is a file in the current immutable snapshot."""
+    files = getattr(_scan_local, "snapshot_files", None)
+    return path.is_file() if files is None else _lexical_path(path) in files
+
+
+def _snapshot_child_mods(parent: Path):
+    """Return immediate child `mod.rs` files without a snapshot glob."""
+    children = getattr(_scan_local, "snapshot_child_mods", None)
+    if children is None:
+        return parent.glob("*/mod.rs")
+    return children.get(_lexical_path(parent), ())
+
+
 def _resolved(path: Path) -> Path:
     """`path.resolve()`, once per scan worker.
 
@@ -1074,6 +1098,10 @@ def _resolved(path: Path) -> Path:
     of a 28 s scan, none of which can differ within a scan because the tree is
     not mutated while it is read.
     """
+    snapshot_paths = _snapshot_paths()
+    if snapshot_paths is not None:
+        lexical = _lexical_path(path)
+        return snapshot_paths.get(lexical, lexical)
     cache = _resolved_cache()
     got = cache.get(path)
     if got is None:
@@ -1142,6 +1170,9 @@ def _clear_scan_caches() -> None:
     _cfg_test_decl_cache().clear()
     _resolved_cache().clear()
     _stripped_text_cache().clear()
+    _scan_local.snapshot_paths = None
+    _scan_local.snapshot_files = None
+    _scan_local.snapshot_child_mods = None
 
 
 def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
@@ -1166,7 +1197,7 @@ def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
                 stems.add(match.group("stem"))
                 attr = PATH_ATTR.search(match.group("attrs").rstrip())
                 if attr:
-                    paths.add((cand.parent / attr.group(1)).resolve())
+                    paths.add(_resolved(cand.parent / attr.group(1)))
             cached = (frozenset(stems), frozenset(paths))
         else:
             cached = (frozenset(), frozenset())
@@ -1187,6 +1218,10 @@ def _cached_text(path: Path) -> str | None:
     so a shared canonical-path cache turns cold scans' repeated disk I/O and
     transient allocations into one read per file.
     """
+    snapshot_paths = _snapshot_paths()
+    lexical = _lexical_path(path)
+    if snapshot_paths is not None and lexical not in snapshot_paths:
+        return None
     key = _resolved(path)
     cache = _file_text_cache()
     if key not in cache:
@@ -1195,6 +1230,103 @@ def _cached_text(path: Path) -> str | None:
         except OSError:
             cache[key] = None
     return cache[key]
+
+
+def _snapshot_source_census(
+    repo: Path,
+) -> tuple[list[Path], list[Path], list[Path]]:
+    """Inventory an immutable snapshot and cache every Rust source once.
+
+    A materialized revision cannot change during its scan and contains only
+    tracked files. One traversal can therefore supply both source and manifest
+    inventories, seed canonical paths without a filesystem resolution per
+    entry, and read each canonical Rust source once. The detector inventory
+    retains its cache/output pruning. A separate orphan inventory descends
+    every directory below `src/`, matching `src.rglob("*.rs")` exactly even
+    for a valid module whose directory begins with `target`. Symlinks retain
+    `Path.resolve` semantics at their boundary; ordinary descendants derive
+    their canonical path from the already-canonical parent.
+    """
+    root = _lexical_path(repo)
+    root_canonical = repo.resolve()
+    paths: dict[Path, Path] = {root: root_canonical}
+    manifests: list[Path] = []
+    sources: list[Path] = []
+    orphan_sources: list[Path] = []
+    canonical_sources: dict[Path, Path] = {}
+    files: set[Path] = set()
+    stack: list[tuple[Path, Path, bool, bool]] = [
+        (repo, root_canonical, True, repo.name == "src")
+    ]
+    text_cache = _file_text_cache()
+    ignored = git_ignored_paths(repo)
+
+    while stack:
+        directory, canonical_directory, detector_visible, under_src = stack.pop()
+        for entry in _iterdir_or_empty(directory):
+            lexical = _lexical_path(entry)
+            canonical = (
+                entry.resolve()
+                if entry.is_symlink()
+                else canonical_directory / entry.name
+            )
+            paths[lexical] = canonical
+            paths[_lexical_path(canonical_directory / entry.name)] = canonical
+            paths[_lexical_path(canonical)] = canonical
+            name = entry.name
+            if canonical in ignored:
+                continue
+            if entry.is_dir():
+                child_under_src = under_src or name == "src"
+                child_visible = detector_visible and not (
+                    name in PRUNE_DIRS or name.startswith("target")
+                )
+                if not child_visible and not child_under_src:
+                    continue
+                stack.append(
+                    (entry, canonical, child_visible, child_under_src)
+                )
+            else:
+                if entry.is_file():
+                    files.update(
+                        (lexical, _lexical_path(canonical_directory / name))
+                    )
+                    files.add(_lexical_path(canonical))
+                if detector_visible and name == "Cargo.toml":
+                    manifests.append(entry)
+                elif name.endswith(".rs"):
+                    if detector_visible:
+                        sources.append(entry)
+                    if under_src:
+                        orphan_sources.append(entry)
+                    if detector_visible or under_src:
+                        canonical_sources.setdefault(canonical, entry)
+
+    child_mods: dict[Path, list[Path]] = {}
+    for source in canonical_sources.values():
+        if source.name != "mod.rs":
+            continue
+        parent = source.parent.parent
+        canonical_parent = paths.get(_lexical_path(parent), _lexical_path(parent))
+        for key in {_lexical_path(parent), _lexical_path(canonical_parent)}:
+            child_mods.setdefault(key, []).append(source)
+
+    def read_source(item: tuple[Path, Path]) -> tuple[Path, str | None]:
+        canonical, source = item
+        try:
+            text = source.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = None
+        return canonical, text
+
+    with ThreadPoolExecutor(max_workers=MAX_SCAN_WORKERS) as pool:
+        for canonical, text in pool.map(read_source, canonical_sources.items()):
+            text_cache[canonical] = text
+
+    _scan_local.snapshot_paths = paths
+    _scan_local.snapshot_files = files
+    _scan_local.snapshot_child_mods = child_mods
+    return manifests, sources, orphan_sources
 
 
 def _literal_end(text: str, start: int) -> int:
@@ -1360,7 +1492,7 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
     rustc, clippy and the test runner never built.
     """
     root = _resolved(root)
-    if root in seen or not root.is_file():
+    if root in seen or not _snapshot_file_exists(root):
         return
     seen.add(root)
     code = _stripped(_cached_text(root))
@@ -1369,12 +1501,12 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
     for m in MOD_DECL.finditer(code):
         attr = PATH_ATTR.search(code[:m.start()].rstrip())
         for cand in _child_candidates(root, m.group(1), attr.group(1) if attr else None):
-            if cand.is_file():
+            if _snapshot_file_exists(cand):
                 _walk_mods(cand, seen)
                 break
     crate_root = next(
         (parent for parent in (root.parent, *root.parents)
-         if (parent / "Cargo.toml").is_file()),
+         if _snapshot_file_exists(parent / "Cargo.toml")),
         root.parent,
     )
     for match in INCLUDE_PATH.finditer(code):
@@ -1382,7 +1514,7 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
         included = match.group("concat") or relative
         owner = crate_root if match.group("concat") else root.parent
         candidate = owner / included.lstrip("/\\")
-        if candidate.is_file():
+        if _snapshot_file_exists(candidate):
             _walk_mods(candidate, seen)
 
 
@@ -1414,7 +1546,11 @@ def count_nonzero_nextest_retries(text: str) -> int:
     return offenders
 
 
-def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int:
+def count_orphan_modules(
+    repo: Path,
+    manifests: list[Path] | None = None,
+    source_paths: list[Path] | None = None,
+) -> int:
     """`.rs` files under a crate `src/` that no source edge reaches.
 
     Cargo compiles only what the module or include graph names, so an undeclared
@@ -1425,9 +1561,9 @@ def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int
     Cargo builds: `src/lib.rs`, `src/main.rs`, `src/bin/*.rs`, and
     `src/bin/<name>/main.rs`.
 
-    `manifests` is the per-repository inventory collected by [scan_repo].
-    Reusing it avoids a second full directory traversal when the caller has
-    already collected the manifest set.
+    `manifests` and `source_paths` are the per-repository inventory collected
+    by [scan_repo]. Reusing them avoids another directory traversal when the
+    caller already holds the immutable snapshot census.
     """
     sources: set[Path] = set()
     roots: list[Path] = []
@@ -1437,7 +1573,14 @@ def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int
         src = manifest.parent / "src"
         if not src.is_dir():
             continue
-        sources.update(_resolved(p) for p in src.rglob("*.rs"))
+        if source_paths is None:
+            sources.update(_resolved(p) for p in src.rglob("*.rs"))
+        else:
+            sources.update(
+                _resolved(path)
+                for path in source_paths
+                if path.is_relative_to(src)
+            )
         roots.extend(src / stem for stem in ("lib.rs", "main.rs")
                      if (src / stem).is_file())
         bins = src / "bin"
@@ -1484,12 +1627,12 @@ def declared_cfg_test(entry: Path, _depth: int = 0) -> bool:
         stems_to_check.append(parent.name)
     candidates = [parent / "mod.rs", parent / "lib.rs", parent / "main.rs",
                   parent.with_suffix(".rs")]
-    candidates.extend(parent.glob("*/mod.rs"))
+    candidates.extend(_snapshot_child_mods(parent))
     if entry.name in ("mod.rs", "lib.rs"):
         grandparent = parent.parent
         candidates.extend([grandparent / "mod.rs", grandparent / "lib.rs",
                            grandparent / "main.rs", grandparent / f"{parent.name}.rs"])
-        candidates.extend(grandparent.glob("*/mod.rs"))
+        candidates.extend(_snapshot_child_mods(grandparent))
     for cand in candidates:
         if cand == entry:
             continue
@@ -1504,7 +1647,7 @@ def declared_cfg_test(entry: Path, _depth: int = 0) -> bool:
     # line of it changing. Ask the declaring file the same question.
     if entry.name != "mod.rs" and _depth < _MAX_MODULE_DEPTH:
         owner = parent / "mod.rs"
-        if owner.is_file() and owner != entry:
+        if _snapshot_file_exists(owner) and owner != entry:
             return declared_cfg_test(owner, _depth + 1)
     return False
 
@@ -1581,6 +1724,7 @@ def git_ignored_paths(repo: Path) -> frozenset[Path]:
                 "--ignored",
                 "--exclude-standard",
                 "--directory",
+                "-z",
             ),
             timeout=GIT_TIMEOUT_SECONDS,
         )
@@ -1590,11 +1734,17 @@ def git_ignored_paths(repo: Path) -> frozenset[Path]:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(detail or f"cannot list ignored paths in {repo}")
     paths = set()
-    for line in result.stdout.decode("utf-8", errors="replace").splitlines():
-        entry = line.strip().rstrip("/")
+    for raw_entry in result.stdout.split(b"\0"):
+        entry = os.fsdecode(raw_entry).removesuffix("/")
         if entry:
             paths.add((repo / entry).resolve())
     return frozenset(paths)
+
+
+def is_under_ignored_path(path: Path, ignored: frozenset[Path]) -> bool:
+    """Return whether `path` or one of its ancestors is ignored."""
+    resolved = _resolved(path)
+    return resolved in ignored or any(parent in ignored for parent in resolved.parents)
 
 
 def rust_files(repo: Path):
@@ -2015,10 +2165,27 @@ def scan_repo(
     _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
     has_cargo = (repo / "Cargo.toml").is_file()
-    manifests = list(cargo_manifests(repo))
+    if revision is None:
+        manifests = list(cargo_manifests(repo))
+        source_paths = None
+        orphan_source_paths = None
+    else:
+        manifests, source_paths, orphan_source_paths = _snapshot_source_census(repo)
     executable_dirs = executable_source_dirs(repo, manifests)
 
-    for path, testish in rust_files(repo):
+    sources = (
+        rust_files(repo)
+        if source_paths is None
+        else (
+            (
+                path,
+                any(_is_testish_path_part(part) for part in path.parent.parts)
+                or declared_cfg_test(path),
+            )
+            for path in source_paths
+        )
+    )
+    for path, testish in sources:
         text = _cached_text(path)
         if text is None:
             continue
@@ -2139,7 +2306,9 @@ def scan_repo(
         policy = config_root / "scripts" / "data" / "atlas-cache-retention.toml"
         if not routed or not policy.is_file():
             c["cache_retention_policy_missing"] = 1
-    c["orphan_modules"] = count_orphan_modules(repo, manifests)
+    c["orphan_modules"] = count_orphan_modules(
+        repo, manifests, orphan_source_paths
+    )
     if has_cargo:
         nx = repo / ".config" / "nextest.toml"
         nx_text = nx.read_text(errors="replace") if nx.is_file() else ""
@@ -2456,15 +2625,6 @@ def scan_stack(
                     else:
                         gate_hashes.add("<absent>")
                 meta["member_gate_versions"] = len(gate_hashes)
-        if stack_root == ROOT:
-            for repo in sorted(member_root.iterdir()):
-                if (
-                    repo.is_dir()
-                    and not repo.name.startswith(".")
-                    and repo.name not in members
-                    and not is_git_ignored(repo)
-                ):
-                    meta["member_namespace_pollution"] += 1
     # The meta row measures the revision, as every member row does: a clean
     # checkout at that commit is its own snapshot and anything else is
     # archived (`materialize_member`). Reading the live tree let a checkout
@@ -2478,6 +2638,19 @@ def scan_stack(
                 "rev-parse", f"{root_revision}^{{commit}}", cwd=stack_root
             ).strip()
             content, _ = materialize_member(stack_root, expected, Path(scratch))
+        namespace_root = content / "repos"
+        namespace_ignored = (
+            frozenset() if root_revision is not None else git_ignored_paths(stack_root)
+        )
+        if namespace_root.is_dir():
+            for repo in sorted(namespace_root.iterdir()):
+                if (
+                    repo.is_dir()
+                    and not repo.name.startswith(".")
+                    and repo.name not in members
+                    and not is_under_ignored_path(repo, namespace_ignored)
+                ):
+                    meta["member_namespace_pollution"] += 1
         meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(
             content, live_repo=stack_root
         )
