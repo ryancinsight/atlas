@@ -131,7 +131,7 @@ outside_checkout() {
 # Identical to the function in the other hook, which a test holds so.
 locate_stack() {
   local probe="$1" hook="${BASH_SOURCE[0]##*/}" line section name top path store own_store unreadable
-  local index stack_common superproject facts outer unmatched=""
+  local index stack_common superproject facts outer parent prefix unmatched=""
   local path_pattern='^[[:space:]]*path[[:space:]]*=[[:space:]]*(repos/[^[:space:]]+)[[:space:]]*$'
   local section_pattern='^[[:space:]]*\[submodule[[:space:]]+"(.*)"\][[:space:]]*$'
   local -a registered names order rest
@@ -153,14 +153,14 @@ locate_stack() {
         names+=("$section")
       fi
     done < "$probe/.gitmodules"
-    [ "${#registered[@]}" -gt 0 ] || continue
-    [ -e "$probe/.git" ] || continue
+    if [ "${#registered[@]}" -gt 0 ]; then
     top=""
     stack_common=""
     superproject=""
     facts="$(outside_checkout git -C "$probe" rev-parse --path-format=absolute --show-toplevel --git-common-dir --show-superproject-working-tree 2>/dev/null || true)"
     { IFS= read -r top; IFS= read -r stack_common; IFS= read -r superproject; } <<<"$facts" || true
-    if [ -z "$top" ] || [ "$(cd "$top" && pwd)" != "$probe" ]; then
+    prefix="$(outside_checkout git -C "$probe" rev-parse --show-prefix 2>/dev/null || true)"
+    if [ -z "$top" ] || [ -n "$prefix" ]; then
       echo "$hook: the Atlas stack at $probe registers members but git cannot read it, so its lockfile checker cannot be used; refusing. If git reports dubious ownership and you trust that checkout: git config --global --add safe.directory $probe" >&2
       return 2
     fi
@@ -171,16 +171,20 @@ locate_stack() {
     # stack is.
     outer="${probe%/*}"
     while [ -n "$outer" ] && [ ! -e "$outer/.git" ]; do
-      outer="${outer%/*}"
+      parent="${outer%/*}"
+      if [ "$parent" = "$outer" ]; then
+        outer=""
+      else
+        outer="$parent"
+      fi
     done
     if [ -n "$outer" ] && ! outside_checkout git -C "$outer" rev-parse --show-toplevel >/dev/null 2>&1; then
       echo "$hook: the candidate Atlas stack at $probe sits inside a repository at $outer that git cannot read, so it cannot be told apart from a submodule; refusing. If git reports dubious ownership and you trust that checkout: git config --global --add safe.directory $outer" >&2
       return 2
     fi
-    [ -z "$superproject" ] || continue
+    if [ -z "$superproject" ] && [ -z "$outer" ]; then
     # A checkout whose own object store is the candidate stack's is the stack
-    # root itself -- the Atlas tree pushing its own branches -- so it matches
-    # the same way a registered member does.
+    # root itself, so it matches the same way a registered member does.
     if [ "$own_store" = "$stack_common" ]; then
       printf '%s\n' "$probe"
       return 0
@@ -215,7 +219,14 @@ locate_stack() {
     fi
     [ -n "$unmatched" ] || unmatched="$probe"
     fi
-    probe="${probe%/*}"
+    fi
+    fi
+    parent="${probe%/*}"
+    if [ "$parent" = "$probe" ]; then
+      probe=""
+    else
+      probe="$parent"
+    fi
     if [ -z "$probe" ]; then
       if [ -n "$unmatched" ]; then
         printf '%s\n' "$unmatched"
@@ -328,7 +339,7 @@ fi
 # checker (see locate_stack).
 located=0
 unmatched_stack=""
-stack_root="$(locate_stack "$(cd "$repo_root" && pwd)")" || located=$?
+stack_root="$(locate_stack "$repo_root")" || located=$?
 case "$located" in
   0) ;;
   3) unmatched_stack="$stack_root"; stack_root="" ;;
@@ -821,18 +832,25 @@ fi
 # deleted elsewhere cannot refuse a push that cites nothing new.
 if [ -n "$stack_baseline" ] && [ -n "$python_bin" ] \
   && outside_checkout git -C "$stack_root" cat-file -e "$stack_baseline:scripts/atlas-conformance.py" 2>/dev/null; then
-  # The member is the registered directory sharing this checkout's object
-  # store, so a lane (`worktrees/<repo>-<branch>`) resolves to its repository.
-  own_store="$(outside_checkout git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
+  # The root's pushed revision carries the meta row and every recorded
+  # gitlink, so it takes the stack scan. A member is the registered directory
+  # sharing this checkout's object store; a lane therefore resolves to its
+  # repository rather than to its worktree directory.
   conformance_member=""
-  for candidate in "$stack_root/repos/${repo_root##*/}" "$stack_root"/repos/*; do
-    [ -d "$candidate" ] || continue
-    candidate_store="$(outside_checkout git -C "$candidate" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || continue
-    if [ "$candidate_store" = "$own_store" ]; then
-      conformance_member="${candidate##*/}"
-      break
-    fi
-  done
+  repo_store="$(outside_checkout git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
+  stack_store="$(outside_checkout git -C "$stack_root" rev-parse --path-format=absolute --git-common-dir)"
+  if [ "$repo_store" = "$stack_store" ]; then
+    conformance_member="<meta>"
+  else
+    for candidate in "$stack_root/repos/${repo_root##*/}" "$stack_root"/repos/*; do
+      [ -d "$candidate" ] || continue
+      candidate_store="$(outside_checkout git -C "$candidate" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || continue
+      if [ "$candidate_store" = "$repo_store" ]; then
+        conformance_member="${candidate##*/}"
+        break
+      fi
+    done
+  fi
   if [ -z "$conformance_member" ]; then
     echo "pre-push: not a registered stack member; debt ratchet not run" >&2
   else
@@ -845,10 +863,16 @@ if [ -n "$stack_baseline" ] && [ -n "$python_bin" ] \
       echo "pre-push: the stack's checker at ${stack_baseline:0:12} predates revision scans;" >&2
       echo "debt ratchet not run. Run: git -C $stack_root fetch origin" >&2
     else
+      conformance_args=(check --baseline-rev "$stack_baseline")
+      if [ "$conformance_member" = "<meta>" ]; then
+        conformance_args+=(--revision "$range_rev")
+      else
+        conformance_args+=(--repo "$conformance_member" --member-path "$repo_root" \
+          --member-revision "$range_rev")
+      fi
       set +e
-      ATLAS_STACK_ROOT="$stack_root" outside_checkout "$python_bin" "$conformance_checker" check \
-        --repo "$conformance_member" --member-path "$repo_root" \
-        --member-revision "$range_rev" --baseline-rev "$stack_baseline" \
+      ATLAS_STACK_ROOT="$stack_root" outside_checkout "$python_bin" "$conformance_checker" \
+        "${conformance_args[@]}" \
         >&2
       conformance_status=$?
       set -e
@@ -856,7 +880,7 @@ if [ -n "$stack_baseline" ] && [ -n "$python_bin" ] \
         echo "pre-push: BLOCKED -- the pushed revision raises a debt class above the" >&2
         echo "baseline atlas ${stack_baseline:0:12} records for $conformance_member." >&2
         echo "Fix the debt; never regenerate the baseline over it. Reproduce:" >&2
-        echo "  ATLAS_STACK_ROOT=$stack_root python $conformance_checker check --repo $conformance_member --member-path $repo_root --member-revision $range_rev --baseline-rev $stack_baseline" >&2
+        echo "  ATLAS_STACK_ROOT=$stack_root python $conformance_checker ${conformance_args[*]}" >&2
         exit 1
       elif [ "$conformance_status" -ne 0 ]; then
         echo "pre-push: BLOCKED -- the debt ratchet could not run (exit $conformance_status)." >&2

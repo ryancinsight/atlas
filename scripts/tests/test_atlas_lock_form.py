@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib.util
+import json
 import shutil
 import io
 import subprocess
@@ -332,7 +333,9 @@ class HookInstallTestCase(unittest.TestCase):
             capture_output=True, text=True, check=True, **kwargs,
         ).stdout.strip()
 
-    def publish(self, hooks: dict[str, bytes]) -> None:
+    def publish(
+        self, hooks: dict[str, bytes], files: dict[str, bytes] | None = None
+    ) -> None:
         """Move origin/main to a commit whose `scripts/git-hooks` is `hooks`.
 
         Built through a private index, so the checkout's branch, index and
@@ -340,13 +343,20 @@ class HookInstallTestCase(unittest.TestCase):
         index = Path(self._tmp.name) / "publish-index"
         environment = {**os.environ, "GIT_INDEX_FILE": str(index)}
         index.unlink(missing_ok=True)
-        for name, content in hooks.items():
+        entries = {
+            f"scripts/git-hooks/{name}": ("100755", content)
+            for name, content in hooks.items()
+        }
+        entries.update(
+            {path: ("100644", content) for path, content in (files or {}).items()}
+        )
+        for path, (mode, content) in entries.items():
             source = Path(self._tmp.name) / "publish-blob"
             source.write_bytes(content)
             blob = self.git(self.atlas, "hash-object", "-w", "--no-filters", str(source))
             self.git(
                 self.atlas, "update-index", "--add", "--cacheinfo",
-                f"100755,{blob},scripts/git-hooks/{name}", env=environment,
+                f"{mode},{blob},{path}", env=environment,
             )
         tree = self.git(self.atlas, "write-tree", env=environment)
         commit = self.git(
@@ -990,30 +1000,147 @@ class HookInstallTestCase(unittest.TestCase):
         self.addCleanup(reap, run)
         return run
 
-    def test_a_push_from_the_stack_root_itself_matches_its_stack(self) -> None:
-        """The root gates its own pushes through the shim, and the hook's
-        stack discovery must treat the checkout it runs from as a candidate:
-        walking only upward from the Atlas tree finds no .gitmodules above it,
-        so the root's own pushes read "no Atlas stack above this clone" and
-        skip every stack check. With the root matched, the same run reaches
-        the stack-matched path instead."""
-        member = self.member("alpha")
+    def test_a_push_from_the_stack_root_runs_secret_and_meta_debt_gates(self) -> None:
+        """The root is the stack member whose debt row is `<meta>`; locating
+        it must invoke both irreversible pre-publication gates, not merely
+        avoid the no-stack message before skipping them."""
+        self.atlas = Path(self._tmp.name).resolve() / "atlas-root"
+        self.repos = self.atlas / "repos"
+        subprocess.run(["git", "init", "-q", str(self.atlas)], check=True)
+        self.member("alpha")
         self.git(self.atlas, "config", "--file", ".gitmodules",
                  "submodule.alpha.path", "repos/alpha")
         self.git(self.atlas, "config", "--file", ".gitmodules",
                  "submodule.alpha.url", "https://example.invalid/alpha")
+        secret_probe = Path(self._tmp.name) / "secret-probe.json"
+        debt_probe = Path(self._tmp.name) / "debt-probe.json"
+        secret = (
+            "import json, os, sys\n"
+            "from pathlib import Path\n"
+            "Path(os.environ['ATLAS_SECRET_PROBE']).write_text("
+            "json.dumps(sys.argv[1:]), encoding='utf-8')\n"
+        ).encode()
+        conformance = (
+            "import json, os, sys\n"
+            "from pathlib import Path\n"
+            "ATLAS_STACK_ROOT = os.environ.get('ATLAS_STACK_ROOT')\n"
+            "Path(os.environ['ATLAS_DEBT_PROBE']).write_text("
+            "json.dumps({'args': sys.argv[1:], 'stack': ATLAS_STACK_ROOT}), "
+            "encoding='utf-8')\n"
+            "raise SystemExit(19)\n"
+        ).encode()
         owned = (Path(__file__).resolve().parent.parent.parent
                  / "scripts" / "git-hooks" / "pre-push").read_bytes()
-        self.publish({"pre-push": owned})
-        run = self.run_shim(_lock_form.write_hook_shims(self.atlas), cwd=self.atlas)
-        _, err = run.communicate(b"", timeout=60)
-        text = err.decode(errors="replace")
-        self.assertNotIn("no Atlas stack above this clone", text)
-        self.assertTrue(
-            any(m in text for m in
-                ("not reachable from this clone", "the Atlas stack at")),
-            text,
+        self.publish(
+            {"pre-push": owned},
+            {
+                "scripts/atlas-secret-scan.py": secret,
+                "scripts/atlas-conformance.py": conformance,
+                "scripts/atlas_stack.py": b"ATLAS_STACK_ROOT = True\n",
+                "scripts/lockfile.py": b"raise SystemExit(0)\n",
+            },
         )
+        baseline = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.git(self.atlas, "add", ".gitmodules")
+        self.git(
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+            "commit", "-q", "-m", "root push",
+        )
+        pushed = self.git(self.atlas, "rev-parse", "HEAD")
+        run = self.run_shim(
+            _lock_form.write_hook_shims(self.atlas),
+            cwd=self.atlas,
+            ATLAS_SECRET_PROBE=str(secret_probe),
+            ATLAS_DEBT_PROBE=str(debt_probe),
+        )
+        _, err = run.communicate(
+            f"refs/heads/root {pushed} refs/heads/root {'0' * 40}\n".encode(),
+            timeout=60,
+        )
+        text = err.decode(errors="replace")
+        self.assertEqual(run.returncode, 1, text)
+        self.assertNotIn("no Atlas stack above this clone", text)
+        self.assertNotIn("not a registered stack member", text)
+        self.assertTrue(secret_probe.is_file(), text)
+        self.assertTrue(debt_probe.is_file(), text)
+        secret_args = json.loads(secret_probe.read_text(encoding="utf-8"))
+        self.assertEqual(secret_args[:2], ["check", "--root"])
+        self.assertEqual(Path(secret_args[2]).resolve(), self.atlas)
+        self.assertEqual(
+            secret_args[3:],
+            ["--rev", pushed, "--allowlist-rev", baseline],
+        )
+        debt = json.loads(debt_probe.read_text(encoding="utf-8"))
+        self.assertEqual(
+            debt["args"],
+            ["check", "--baseline-rev", baseline, "--revision", pushed],
+        )
+        self.assertEqual(Path(debt["stack"]).resolve(), self.atlas)
+        self.assertIn("debt ratchet could not run (exit 19)", text)
+
+    def test_a_registered_submodule_with_a_registry_ascends_to_stack(self) -> None:
+        """A member's own registry never captures the member as a stack.
+
+        An actual submodule reports a superproject, so the locator must advance
+        past it and run the owning stack's lock checker in finite time.
+        """
+        source = Path(self._tmp.name) / "member-source"
+        subprocess.run(["git", "init", "-q", str(source)], check=True)
+        (source / "Cargo.toml").write_text(
+            '[package]\nname = "member"\nversion = "0.1.0"\n\n'
+            '[dependencies]\nprovider = { git = '
+            '"https://github.com/ryancinsight/provider", version = "0.1" }\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        (source / "Cargo.lock").write_text(
+            '[[package]]\nname = "provider"\nversion = "0.1.0"\n'
+            'source = "git+https://github.com/ryancinsight/provider.git?'
+            'branch=main#abc123"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        (source / ".gitmodules").write_text(
+            '[submodule "nested"]\n\tpath = repos/nested\n\turl = ./nested\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        self.git(source, "add", "Cargo.toml", "Cargo.lock", ".gitmodules")
+        self.git(
+            source, "-c", "user.name=t", "-c", "user.email=t@t",
+            "commit", "-q", "-m", "member",
+        )
+        owned = (Path(__file__).resolve().parent.parent.parent
+                 / "scripts" / "git-hooks" / "pre-commit").read_bytes()
+        checker = (Path(__file__).resolve().parent.parent.parent
+                   / "scripts" / "lockfile.py").read_bytes()
+        self.publish({"pre-commit": owned}, {"scripts/lockfile.py": checker})
+        self.git(
+            self.atlas, "-c", "protocol.file.allow=always", "submodule", "add",
+            "-q", str(source), "repos/alpha",
+        )
+        self.git(
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+            "commit", "-q", "-m", "register member",
+        )
+        member = self.repos / "alpha"
+        (member / "Cargo.lock").write_text(
+            '[[package]]\nname = "provider"\nversion = "0.1.0"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        self.git(member, "add", "Cargo.lock")
+        completed = subprocess.run(
+            ["bash", str(Path(__file__).resolve().parent.parent.parent
+                         / "scripts" / "git-hooks" / "pre-commit")],
+            cwd=member,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        self.assertIn("LOCK FORM VIOLATION (staged)", completed.stderr)
 
     def test_a_tip_that_edits_the_root_hook_cannot_replace_its_gate(self) -> None:
         """The atlas root's `core.hooksPath=.githooks` runs the checked-out
