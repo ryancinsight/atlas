@@ -96,7 +96,9 @@ fi
 # A managed worktree may be owned by a different filesystem account than the
 # process pushing from it. Re-inject the checkout path so child Git calls stay
 # valid without retaining other command-scoped configuration.
-repo_root="$(git -c safe.directory="$PWD" rev-parse --show-toplevel)"
+repo_facts="$(git -c safe.directory="$PWD" rev-parse --path-format=absolute \
+  --show-toplevel --absolute-git-dir --git-common-dir)"
+{ IFS= read -r repo_root; IFS= read -r repo_git_dir; IFS= read -r repo_store; } <<<"$repo_facts"
 export GIT_CONFIG_COUNT=1
 export GIT_CONFIG_KEY_0=safe.directory
 export GIT_CONFIG_VALUE_0="$repo_root"
@@ -136,21 +138,21 @@ outside_checkout() {
 # stack does not register). The cost of a hit is therefore constant,
 # wherever the member sits in `.gitmodules`.
 #
-# Exit status: 0 with the stack on stdout, or with nothing for a clone with
-# no stack above it; 2 with a message when the stack cannot be established
-# (git cannot read a stack or one of its members, or cannot identify this
-# checkout): the caller refuses; 3 with the nearest readable stack on stdout
-# when a stack sits above this clone but registers none of this clone's
+# Exit status: 0 with the stack root and common directory on stdout, or with
+# nothing for a clone with no stack above it; 2 with a message when the stack
+# cannot be established (git cannot read a stack or one of its members, or
+# cannot identify this checkout): the caller refuses; 3 with the nearest
+# readable stack root and common directory on stdout when a stack sits above
+# this clone but registers none of this clone's
 # store (a `--shared` or `--reference` clone, a copy): the stack does not
 # claim it, so the caller passes with a message that names the stack.
 # Identical to the function in the other hook, which a test holds so.
 locate_stack() {
-  local probe="$1" hook="${BASH_SOURCE[0]##*/}" line section name top path store own_store unreadable
-  local index stack_common superproject facts outer parent prefix unmatched=""
+  local probe="$1" own_store="$2" hook="${BASH_SOURCE[0]##*/}" line section name top path store unreadable
+  local index stack_common superproject facts outer parent prefix unmatched="" unmatched_common=""
   local path_pattern='^[[:space:]]*path[[:space:]]*=[[:space:]]*(repos/[^[:space:]]+)[[:space:]]*$'
   local section_pattern='^[[:space:]]*\[submodule[[:space:]]+"(.*)"\][[:space:]]*$'
   local -a registered names order rest
-  own_store="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
   if [ -z "$own_store" ]; then
     echo "$hook: git cannot identify this checkout's object store, so the Atlas stack cannot be located; refusing" >&2
     return 2
@@ -172,9 +174,8 @@ locate_stack() {
     top=""
     stack_common=""
     superproject=""
-    facts="$(outside_checkout git -C "$probe" rev-parse --path-format=absolute --show-toplevel --git-common-dir --show-superproject-working-tree 2>/dev/null || true)"
-    { IFS= read -r top; IFS= read -r stack_common; IFS= read -r superproject; } <<<"$facts" || true
-    prefix="$(outside_checkout git -C "$probe" rev-parse --show-prefix 2>/dev/null || true)"
+    facts="$(outside_checkout git -C "$probe" rev-parse --path-format=absolute --show-toplevel --git-common-dir --show-superproject-working-tree --show-prefix 2>/dev/null || true)"
+    { IFS= read -r top; IFS= read -r stack_common; IFS= read -r superproject; IFS= read -r prefix; } <<<"$facts" || true
     if [ -z "$top" ] || [ -n "$prefix" ]; then
       echo "$hook: the Atlas stack at $probe registers members but git cannot read it, so its lockfile checker cannot be used; refusing. If git reports dubious ownership and you trust that checkout: git config --global --add safe.directory $probe" >&2
       return 2
@@ -201,7 +202,7 @@ locate_stack() {
     # A checkout whose own object store is the candidate stack's is the stack
     # root itself, so it matches the same way a registered member does.
     if [ "$own_store" = "$stack_common" ]; then
-      printf '%s\n' "$probe"
+      printf '%s\n%s\n' "$probe" "$stack_common"
       return 0
     fi
     order=()
@@ -224,7 +225,7 @@ locate_stack() {
         continue
       fi
       if [ "$store" = "$own_store" ]; then
-        printf '%s\n' "$probe"
+        printf '%s\n%s\n' "$probe" "$stack_common"
         return 0
       fi
     done
@@ -232,7 +233,10 @@ locate_stack() {
       echo "$hook: a member registered by the Atlas stack at $probe cannot be read by git, so this checkout cannot be matched to the stack; refusing. If git reports dubious ownership and you trust it: git config --global --add safe.directory $probe/<member>" >&2
       return 2
     fi
-    [ -n "$unmatched" ] || unmatched="$probe"
+    if [ -z "$unmatched" ]; then
+      unmatched="$probe"
+      unmatched_common="$stack_common"
+    fi
     fi
     fi
     fi
@@ -244,7 +248,7 @@ locate_stack() {
     fi
     if [ -z "$probe" ]; then
       if [ -n "$unmatched" ]; then
-        printf '%s\n' "$unmatched"
+        printf '%s\n%s\n' "$unmatched" "$unmatched_common"
         return 3
       fi
       return 0
@@ -354,10 +358,11 @@ fi
 # checker (see locate_stack).
 located=0
 unmatched_stack=""
-stack_root="$(locate_stack "$repo_root")" || located=$?
+stack_facts="$(locate_stack "$repo_root" "$repo_store")" || located=$?
+{ IFS= read -r stack_root; IFS= read -r stack_store; } <<<"$stack_facts" || true
 case "$located" in
   0) ;;
-  3) unmatched_stack="$stack_root"; stack_root="" ;;
+  3) unmatched_stack="$stack_root"; stack_root=""; stack_store="" ;;
   *) exit 1 ;;
 esac
 
@@ -516,19 +521,17 @@ fi
 # starts: a push must not repack the member it reads (moirai's auto-gc
 # fails on a foreign ref), and the export reads the member's objects.
 export_revision() {
-  local sha="$1" directory="$2" member_git objects
-  member_git="$(git rev-parse --absolute-git-dir)" || return 1
-  objects="$(git rev-parse --path-format=absolute --git-common-dir)/objects" || return 1
+  local sha="$1" directory="$2"
   # `git init` creates the directory: the lock export runs before a PATH
   # without an interpreter is refused, and such a PATH need not carry mkdir.
   if [ ! -d "$directory/.git" ]; then
     outside_checkout git init -q "$directory" || return 1
   fi
-  printf '%s\n' "$objects" > "$directory/.git/objects/info/alternates" \
+  printf '%s\n' "$repo_store/objects" > "$directory/.git/objects/info/alternates" \
     && outside_checkout git -C "$directory" config core.longpaths true \
     && outside_checkout git -C "$directory" config gc.auto 0 \
     && outside_checkout git -C "$directory" config maintenance.auto false \
-    && GIT_DIR="$member_git" GIT_WORK_TREE="$directory" GIT_INDEX_FILE="$directory/.git/index" \
+    && GIT_DIR="$repo_git_dir" GIT_WORK_TREE="$directory" GIT_INDEX_FILE="$directory/.git/index" \
       git -c core.longpaths=true -c core.sparseCheckout=false -c gc.auto=0 -c maintenance.auto=false \
         read-tree -u --reset "$sha" \
     && outside_checkout git -C "$directory" update-ref HEAD "$sha" \
@@ -888,8 +891,6 @@ if [ -n "$stack_baseline" ] && [ -n "$python_bin" ] \
   # sharing this checkout's object store; a lane therefore resolves to its
   # repository rather than to its worktree directory.
   conformance_member=""
-  repo_store="$(outside_checkout git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
-  stack_store="$(outside_checkout git -C "$stack_root" rev-parse --path-format=absolute --git-common-dir)"
   if [ "$repo_store" = "$stack_store" ]; then
     conformance_member="<meta>"
   else
