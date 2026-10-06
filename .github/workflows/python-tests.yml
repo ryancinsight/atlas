@@ -62,7 +62,9 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
-          python -m pytest -v -p xdist.plugin -m "not slow" -n auto --maxprocesses=4 --max-worker-restart=0
+          # Per-test fixtures cannot be reused across batches; one-test chunks
+          # keep pending work available to all four workers.
+          python -m pytest -v -p xdist.plugin -m "not slow" -n auto --maxprocesses=4 --max-worker-restart=0 --maxschedchunk=1
 
   pytest-slow:
     name: Run pytest (slow)
