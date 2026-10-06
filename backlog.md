@@ -57,13 +57,11 @@
 <a id="atlas-kwavers-swe3d-baseline-regression-2026-08-26"></a>- [ATLAS-KWAVERS-SWE3D-BASELINE-REGRESSION-2026-08-26](backlog/atlas-kwavers-swe3d-baseline-regression-2026-08-26.md) — integration oracle regression on main [major] — todo
 <a id="atlas-lane-audit-001"></a>- [ATLAS-LANE-AUDIT-001](backlog/atlas-lane-audit-001.md) — Lane-root sweep results and residuals [patch] — todo
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — todo
-<a id="atlas-lock-sweep-lane-bound-2026-10-02"></a>- [ATLAS-LOCK-SWEEP-LANE-BOUND-2026-10-02](backlog/atlas-lock-sweep-lane-bound-2026-10-02.md) — The two-worktree bound is blocking the stack's own lock sweep [correctness] — todo
 <a id="atlas-lockfile-check-test-gaps"></a>- [ATLAS-LOCKFILE-CHECK-TEST-GAPS](backlog/atlas-lockfile-check-test-gaps.md) — Pin three behaviours of `--check` and `--regenerate` no test fails on [patch] — todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Delete the member lockfile.py copies the hooks no longer run [patch] — todo
 <a id="atlas-lockfile-copy-count-content"></a>- [ATLAS-LOCKFILE-COPY-COUNT-CONTENT](backlog/atlas-lockfile-copy-count-content.md) — Count member lockfile checkers by content, not by path [patch] — todo
 <a id="atlas-lockfile-runner-deadline"></a>- [ATLAS-LOCKFILE-RUNNER-DEADLINE](backlog/atlas-lockfile-runner-deadline.md) — Bound the overlay-escaping cargo runner and delete its twin [patch] — todo
 <a id="atlas-lockfile-workspace-assignment"></a>- [ATLAS-LOCKFILE-WORKSPACE-ASSIGNMENT](backlog/atlas-lockfile-workspace-assignment.md) — Judge a manifest against the lock of its cargo workspace [patch] — todo
-<a id="atlas-mnemosyne-08-sweep"></a>- [ATLAS-MNEMOSYNE-08-SWEEP](backlog/atlas-mnemosyne-08-sweep.md) — Every member locks one Mnemosyne generation [correctness] — blocked
 <a id="mnemosyne-pin-campaign-stranded"></a>- [ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06](backlog/mnemosyne-pin-campaign-stranded.md) — A provider-pin campaign stalled undelivered in five members [patch] — todo
 <a id="atlas-modality-003"></a>- [ATLAS-MODALITY-003](backlog/atlas-modality-003.md) — Optical-transport and RF/EM promotion watchpoint [arch] — blocked
 <a id="atlas-moirai-accelerator-route-2026-08-21"></a>- [ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21](backlog/atlas-moirai-accelerator-route-2026-08-21.md) — Execute accelerator routes [major] [arch] — todo
@@ -81,7 +79,6 @@
 <a id="atlas-provider-chain-quality-2026-08-27"></a>- [ATLAS-PROVIDER-CHAIN-QUALITY-2026-08-27](backlog/atlas-provider-chain-quality-2026-08-27.md) — Perf/memory/stability/safety audit + fix wave: apollo provider chain [patch]..[minor] — todo
 <a id="atlas-provider-closure-2026-08-20"></a>- [ATLAS-PROVIDER-CLOSURE-2026-08-20](backlog/atlas-provider-closure-2026-08-20.md) — Complete active provider slices [major][arch] — todo
 <a id="atlas-provider-versions-20261001"></a>- [ATLAS-PROVIDER-VERSIONS-20261001](backlog/atlas-provider-versions-20261001.md) — Adopt melinoe 0.10, themis-topology 0.11, ritk-spatial 0.3 across consumers [arch] [minor] — todo
-<a id="atlas-provider-versions-20261002"></a>- [ATLAS-PROVIDER-VERSIONS-20261002](backlog/atlas-provider-versions-20261002.md) — Adopt eunomia 0.9 and leto 0.44 across consumers [correctness] — todo
 <a id="atlas-pub-002"></a>- [ATLAS-PUB-002](backlog/atlas-pub-002.md) — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — todo
 <a id="atlas-pub-003"></a>- [ATLAS-PUB-003](backlog/atlas-pub-003.md) — Register trusted publishers and remove the unused PyPI token [chore] — todo
 <a id="atlas-pub-005"></a>- [ATLAS-PUB-005](backlog/atlas-pub-005.md) — Flip `mdbook-test` per book as samples become compilable [patch] — todo
