@@ -978,17 +978,42 @@ class HookInstallTestCase(unittest.TestCase):
         self.assertTrue(self.run_hook(member).startswith("owned "))
         self.assertEqual(cached.read_bytes(), owned_hook("owned"))
 
-    def run_shim(self, shims: Path, *, path: str | None = None, **extra: str):
+    def run_shim(self, shims: Path, *, path: str | None = None, cwd: Path | None = None, **extra: str):
         environment = {**os.environ, **extra}
         if path is not None:
             environment["PATH"] = path + os.pathsep + environment["PATH"]
         run = subprocess.Popen(
             ["bash", str(shims / "pre-push"), "origin", "url"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            env=environment,
+            env=environment, cwd=None if cwd is None else str(cwd),
         )
         self.addCleanup(reap, run)
         return run
+
+    def test_a_push_from_the_stack_root_itself_matches_its_stack(self) -> None:
+        """The root gates its own pushes through the shim, and the hook's
+        stack discovery must treat the checkout it runs from as a candidate:
+        walking only upward from the Atlas tree finds no .gitmodules above it,
+        so the root's own pushes read "no Atlas stack above this clone" and
+        skip every stack check. With the root matched, the same run reaches
+        the stack-matched path instead."""
+        member = self.member("alpha")
+        self.git(self.atlas, "config", "--file", ".gitmodules",
+                 "submodule.alpha.path", "repos/alpha")
+        self.git(self.atlas, "config", "--file", ".gitmodules",
+                 "submodule.alpha.url", "https://example.invalid/alpha")
+        owned = (Path(__file__).resolve().parent.parent.parent
+                 / "scripts" / "git-hooks" / "pre-push").read_bytes()
+        self.publish({"pre-push": owned})
+        run = self.run_shim(_lock_form.write_hook_shims(self.atlas), cwd=self.atlas)
+        _, err = run.communicate(b"", timeout=60)
+        text = err.decode(errors="replace")
+        self.assertNotIn("no Atlas stack above this clone", text)
+        self.assertTrue(
+            any(m in text for m in
+                ("not reachable from this clone", "the Atlas stack at")),
+            text,
+        )
 
     def test_a_tip_that_edits_the_root_hook_cannot_replace_its_gate(self) -> None:
         """The atlas root's `core.hooksPath=.githooks` runs the checked-out

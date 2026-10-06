@@ -141,15 +141,7 @@ locate_stack() {
     return 2
   fi
   while :; do
-    probe="${probe%/*}"
-    if [ -z "$probe" ]; then
-      if [ -n "$unmatched" ]; then
-        printf '%s\n' "$unmatched"
-        return 3
-      fi
-      return 0
-    fi
-    [ -f "$probe/.gitmodules" ] || continue
+    if [ -f "$probe/.gitmodules" ] && [ -e "$probe/.git" ]; then
     registered=()
     names=()
     section=""
@@ -186,6 +178,13 @@ locate_stack() {
       return 2
     fi
     [ -z "$superproject" ] || continue
+    # A checkout whose own object store is the candidate stack's is the stack
+    # root itself -- the Atlas tree pushing its own branches -- so it matches
+    # the same way a registered member does.
+    if [ "$own_store" = "$stack_common" ]; then
+      printf '%s\n' "$probe"
+      return 0
+    fi
     order=()
     rest=()
     for index in "${!registered[@]}"; do
@@ -215,6 +214,15 @@ locate_stack() {
       return 2
     fi
     [ -n "$unmatched" ] || unmatched="$probe"
+    fi
+    probe="${probe%/*}"
+    if [ -z "$probe" ]; then
+      if [ -n "$unmatched" ]; then
+        printf '%s\n' "$unmatched"
+        return 3
+      fi
+      return 0
+    fi
   done
 }
 
