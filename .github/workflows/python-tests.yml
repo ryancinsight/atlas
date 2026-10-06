@@ -2,6 +2,7 @@ name: Python script tests
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       # The tools under test live in scripts/*.py; a fix there must re-run
       # the tests that cover it (09064d28 fixed a red test and produced no run).
@@ -36,6 +37,7 @@ permissions:
 
 jobs:
   pytest-fast:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Run pytest (fast)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -67,6 +69,7 @@ jobs:
           python -m pytest -v -p xdist.plugin -m "not slow" -n auto --maxprocesses=4 --max-worker-restart=0 --maxschedchunk=1
 
   pytest-slow:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Run pytest (slow)
     runs-on: ubuntu-latest
     timeout-minutes: 15
