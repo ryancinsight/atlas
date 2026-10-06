@@ -2410,6 +2410,119 @@ class BuildIdentityTestCase(unittest.TestCase):
         )
         self.assertNotEqual(sibling_identity, expected_root)
 
+    def test_each_package_source_is_fingerprinted_once_per_dependency_pass(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        member = self.root / "member"
+        member.mkdir()
+        (member / "Cargo.toml").write_text(
+            "[package]\nname = \"other\"\nversion = \"0.1.0\"\n", encoding="utf-8"
+        )
+        git(self.root, "add", "member/Cargo.toml")
+        git(self.root, "commit", "-q", "-m", "add member")
+        registry_root = self.base / "registry-dependency"
+        git_root = self.base / "git-dependency"
+        for root, name, source in (
+            (registry_root, "registry-dep", "pub fn value() -> u8 { 1 }\n"),
+            (git_root, "git-dep", "pub fn value() -> u8 { 3 }\n"),
+        ):
+            (root / "src").mkdir(parents=True)
+            (root / "Cargo.toml").write_text(
+                f"[package]\nname = \"{name}\"\nversion = \"0.1.0\"\n",
+                encoding="utf-8",
+            )
+            (root / "src" / "lib.rs").write_text(source, encoding="utf-8")
+        metadata = {
+            "workspace_root": str(self.root),
+            "packages": [
+                {
+                    "id": "root demo",
+                    "name": "demo",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str(self.root / "Cargo.toml"),
+                },
+                {
+                    "id": "root other",
+                    "name": "other",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str(member / "Cargo.toml"),
+                },
+                {
+                    "id": "registry dep",
+                    "name": "registry-dep",
+                    "version": "0.1.0",
+                    "source": "registry+https://example.invalid/index",
+                    "manifest_path": str(registry_root / "Cargo.toml"),
+                },
+                {
+                    "id": "git dep",
+                    "name": "git-dep",
+                    "version": "0.1.0",
+                    "source": "git+https://example.invalid/repository#01234567",
+                    "manifest_path": str(git_root / "Cargo.toml"),
+                },
+            ],
+            "workspace_members": ["root demo", "root other"],
+            "resolve": {
+                "nodes": [
+                    {
+                        "id": root,
+                        "deps": [
+                            {"pkg": "registry dep", "dep_kinds": []},
+                            {"pkg": "git dep", "dep_kinds": []},
+                        ],
+                    }
+                    for root in ("root demo", "root other")
+                ]
+                + [
+                    {"id": "registry dep", "deps": []},
+                    {"id": "git dep", "deps": []},
+                ]
+            },
+        }
+        fingerprinted: list[Path] = []
+
+        def counting_digest(path: Path, _cache_dir: Path) -> str:
+            fingerprinted.append(path.resolve())
+            return package_source.package_source_digest(path)
+
+        def external_digests(snapshot: dict[str, object]) -> dict[str, str]:
+            return {
+                str(package["name"]): str(package["content_digest"])
+                for package in snapshot["packages"]
+                if package["kind"] != "path"
+            }
+
+        with (
+            patch.object(build_inputs, "_cargo_metadata", return_value=metadata),
+            patch.object(
+                build_inputs, "cached_package_source_digest", side_effect=counting_digest
+            ),
+        ):
+            first = build_inputs._dependency_data(
+                self.root / "Cargo.toml", ("demo", "other"), self.target, self.root, (), False
+            )
+            first_calls = list(fingerprinted)
+            fingerprinted.clear()
+            (registry_root / "src" / "lib.rs").write_text(
+                "pub fn value() -> u8 { 2 }\n", encoding="utf-8"
+            )
+            second = build_inputs._dependency_data(
+                self.root / "Cargo.toml", ("demo", "other"), self.target, self.root, (), False
+            )
+        expected_roots = [git_root.resolve(), registry_root.resolve()]
+        self.assertEqual(first_calls, expected_roots)
+        self.assertEqual(fingerprinted, expected_roots)
+        first_digests = external_digests(first["demo"])
+        self.assertEqual(first_digests, external_digests(first["other"]))
+        second_digests = external_digests(second["demo"])
+        self.assertEqual(second_digests, external_digests(second["other"]))
+        self.assertNotEqual(first_digests["registry-dep"], second_digests["registry-dep"])
+        self.assertEqual(first_digests["git-dep"], second_digests["git-dep"])
+        self.assertNotEqual(first["demo"]["digest"], second["demo"]["digest"])
+        self.assertNotEqual(first["other"]["digest"], second["other"]["digest"])
+
     def test_ignored_source_files_are_hashed_and_can_be_explicitly_excluded(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         (self.root / ".gitignore").write_text("generated.rs\n", encoding="utf-8")
