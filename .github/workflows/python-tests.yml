@@ -59,8 +59,10 @@ jobs:
           python -m pip install -r scripts/requirements-test.txt
 
       - name: Run pytest (fast)
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
-          python -m pytest -v -m "not slow" -n auto --maxprocesses=4 --max-worker-restart=0
+          python -m pytest -v -p xdist.plugin -m "not slow" -n auto --maxprocesses=4 --max-worker-restart=0
 
   pytest-slow:
     name: Run pytest (slow)
