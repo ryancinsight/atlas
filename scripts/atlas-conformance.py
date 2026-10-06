@@ -1062,6 +1062,16 @@ def _resolved_cache() -> dict[Path, Path]:
     return cache
 
 
+def _lexical_path(path: Path) -> Path:
+    """Return an absolute normalized path without querying the filesystem."""
+    return Path(os.path.abspath(os.fspath(path)))
+
+
+def _snapshot_paths() -> dict[Path, Path] | None:
+    """Return the current immutable snapshot's lexical-to-canonical map."""
+    return getattr(_scan_local, "snapshot_paths", None)
+
+
 def _resolved(path: Path) -> Path:
     """`path.resolve()`, once per scan worker.
 
@@ -1074,6 +1084,10 @@ def _resolved(path: Path) -> Path:
     of a 28 s scan, none of which can differ within a scan because the tree is
     not mutated while it is read.
     """
+    snapshot_paths = _snapshot_paths()
+    if snapshot_paths is not None:
+        lexical = _lexical_path(path)
+        return snapshot_paths.get(lexical, lexical)
     cache = _resolved_cache()
     got = cache.get(path)
     if got is None:
@@ -1142,6 +1156,7 @@ def _clear_scan_caches() -> None:
     _cfg_test_decl_cache().clear()
     _resolved_cache().clear()
     _stripped_text_cache().clear()
+    _scan_local.snapshot_paths = None
 
 
 def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
@@ -1166,7 +1181,7 @@ def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
                 stems.add(match.group("stem"))
                 attr = PATH_ATTR.search(match.group("attrs").rstrip())
                 if attr:
-                    paths.add((cand.parent / attr.group(1)).resolve())
+                    paths.add(_resolved(cand.parent / attr.group(1)))
             cached = (frozenset(stems), frozenset(paths))
         else:
             cached = (frozenset(), frozenset())
@@ -1187,6 +1202,10 @@ def _cached_text(path: Path) -> str | None:
     so a shared canonical-path cache turns cold scans' repeated disk I/O and
     transient allocations into one read per file.
     """
+    snapshot_paths = _snapshot_paths()
+    lexical = _lexical_path(path)
+    if snapshot_paths is not None and lexical not in snapshot_paths:
+        return None
     key = _resolved(path)
     cache = _file_text_cache()
     if key not in cache:
@@ -1195,6 +1214,60 @@ def _cached_text(path: Path) -> str | None:
         except OSError:
             cache[key] = None
     return cache[key]
+
+
+def _snapshot_source_census(repo: Path) -> tuple[list[Path], list[Path]]:
+    """Inventory an immutable snapshot and cache every Rust source once.
+
+    A materialized revision cannot change during its scan and contains only
+    tracked files. One traversal can therefore supply both source and manifest
+    inventories, seed canonical paths without a filesystem resolution per
+    entry, and read each canonical Rust source once. Symlinks retain
+    `Path.resolve` semantics at their boundary; ordinary descendants derive
+    their canonical path from the already-canonical parent.
+    """
+    root = _lexical_path(repo)
+    root_canonical = repo.resolve()
+    paths: dict[Path, Path] = {root: root_canonical}
+    manifests: list[Path] = []
+    sources: list[Path] = []
+    stack: list[tuple[Path, Path]] = [(repo, root_canonical)]
+    text_cache = _file_text_cache()
+    ignored = git_ignored_paths(repo)
+
+    while stack:
+        directory, canonical_directory = stack.pop()
+        for entry in _iterdir_or_empty(directory):
+            lexical = _lexical_path(entry)
+            canonical = (
+                entry.resolve()
+                if entry.is_symlink()
+                else canonical_directory / entry.name
+            )
+            paths[lexical] = canonical
+            paths[_lexical_path(canonical_directory / entry.name)] = canonical
+            paths[_lexical_path(canonical)] = canonical
+            name = entry.name
+            if canonical in ignored:
+                continue
+            if entry.is_dir():
+                if name in PRUNE_DIRS or name.startswith("target"):
+                    continue
+                stack.append((entry, canonical))
+            elif name == "Cargo.toml":
+                manifests.append(entry)
+            elif name.endswith(".rs"):
+                sources.append(entry)
+                if canonical not in text_cache:
+                    try:
+                        text_cache[canonical] = entry.read_text(
+                            encoding="utf-8", errors="replace"
+                        )
+                    except OSError:
+                        text_cache[canonical] = None
+
+    _scan_local.snapshot_paths = paths
+    return manifests, sources
 
 
 def _literal_end(text: str, start: int) -> int:
@@ -2022,10 +2095,26 @@ def scan_repo(
     _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
     has_cargo = (repo / "Cargo.toml").is_file()
-    manifests = list(cargo_manifests(repo))
+    if revision is None:
+        manifests = list(cargo_manifests(repo))
+        source_paths = None
+    else:
+        manifests, source_paths = _snapshot_source_census(repo)
     executable_dirs = executable_source_dirs(repo, manifests)
 
-    for path, testish in rust_files(repo):
+    sources = (
+        rust_files(repo)
+        if source_paths is None
+        else (
+            (
+                path,
+                any(_is_testish_path_part(part) for part in path.parent.parts)
+                or declared_cfg_test(path),
+            )
+            for path in source_paths
+        )
+    )
+    for path, testish in sources:
         text = _cached_text(path)
         if text is None:
             continue
