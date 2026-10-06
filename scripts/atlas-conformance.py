@@ -88,7 +88,7 @@ from atlas_git_process import (
     extract_archive,
 )
 from atlas_stack import (
-    ROOT, WORKTREE_BOUND, canonical_lane, is_git_ignored, registered_member_names,
+    ROOT, WORKTREE_BOUND, canonical_lane, registered_member_names,
     staleness_note,
 )
 from atlas_scattered_containers_classify import VEC_VEC
@@ -2456,15 +2456,6 @@ def scan_stack(
                     else:
                         gate_hashes.add("<absent>")
                 meta["member_gate_versions"] = len(gate_hashes)
-        if stack_root == ROOT:
-            for repo in sorted(member_root.iterdir()):
-                if (
-                    repo.is_dir()
-                    and not repo.name.startswith(".")
-                    and repo.name not in members
-                    and not is_git_ignored(repo)
-                ):
-                    meta["member_namespace_pollution"] += 1
     # The meta row measures the revision, as every member row does: a clean
     # checkout at that commit is its own snapshot and anything else is
     # archived (`materialize_member`). Reading the live tree let a checkout
@@ -2478,6 +2469,19 @@ def scan_stack(
                 "rev-parse", f"{root_revision}^{{commit}}", cwd=stack_root
             ).strip()
             content, _ = materialize_member(stack_root, expected, Path(scratch))
+        namespace_root = content / "repos"
+        namespace_ignored = (
+            frozenset() if root_revision is not None else git_ignored_paths(stack_root)
+        )
+        if namespace_root.is_dir():
+            for repo in sorted(namespace_root.iterdir()):
+                if (
+                    repo.is_dir()
+                    and not repo.name.startswith(".")
+                    and repo.name not in members
+                    and _resolved(repo) not in namespace_ignored
+                ):
+                    meta["member_namespace_pollution"] += 1
         meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(
             content, live_repo=stack_root
         )
