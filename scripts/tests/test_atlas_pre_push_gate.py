@@ -1478,6 +1478,14 @@ class DefaultBranchTestCase(unittest.TestCase):
     def test_first_push_on_master_default_gates(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = _stacked_fixture(temp, default_branch="master")
+            metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+            metadata["target_directory"] = str(fixture.stack / "target")
+            _write(fixture.bin / "metadata.json", json.dumps(metadata))
+            _write(
+                fixture.stack / "scripts" / "atlas-build-identity.py",
+                _PASSTHROUGH_IDENTITY,
+            )
+            _publish_stack_scripts(fixture.stack)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -2581,6 +2589,59 @@ class DebtRatchetTestCase(unittest.TestCase):
             self.assertEqual(args["--member-revision"], pushed)
             self.assertEqual(args["--baseline-rev"], stack_head)
 
+    def test_stack_root_push_uses_meta_ratchet_identity(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack = pathlib.Path(temp)
+            fixture = GateFixture(stack)
+            metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+            metadata["target_directory"] = str(stack / "target")
+            _write(fixture.bin / "metadata.json", json.dumps(metadata))
+            log = stack / "conformance-args.log"
+            _write(stack / "scripts" / "atlas-build-identity.py", _PASSTHROUGH_IDENTITY)
+            _write(
+                stack / "scripts" / "atlas-conformance.py",
+                "#!/usr/bin/env python3\n"
+                "import os, pathlib, sys\n"
+                f"pathlib.Path({str(log)!r}).write_text("
+                "'\\n'.join([os.environ.get('ATLAS_STACK_ROOT', ''), *sys.argv[1:]]))\n",
+                executable=True,
+            )
+            _write(stack / "scripts" / "atlas_stack.py", "ROOT = None  # honours ATLAS_STACK_ROOT\n")
+            _seed_scanner(stack)
+            _register_stack(stack)
+            subprocess.run(
+                ["git", "-C", str(stack), *_IDENT, "add", ".gitmodules", "scripts"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(stack), *_IDENT, "commit", "-q", "-m", "stack"],
+                check=True,
+            )
+            stack_head = _git(stack, "rev-parse", "HEAD")
+            _git(stack, "update-ref", "refs/remotes/origin/main", stack_head)
+            subprocess.run(
+                ["git", "-C", str(stack), *_IDENT, "checkout", "-q", "-b", "feat"],
+                check=True,
+            )
+            (stack / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn f() {}\n// pushed\n"
+            )
+            subprocess.run(
+                ["git", "-C", str(stack), *_IDENT, "commit", "-q", "-am", "pushed"],
+                check=True,
+            )
+            pushed = _git(stack, "rev-parse", "feat")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            assert_gated_on_the_export(self, code, stderr, fixture)
+            stack_root, *argv = log.read_text().split("\n")
+            self.assertEqual(pathlib.Path(stack_root).resolve(), stack.resolve())
+            self.assertEqual(argv[0], "check")
+            self.assertEqual(argv[argv.index("--revision") + 1], pushed)
+            self.assertEqual(argv[argv.index("--baseline-rev") + 1], stack_head)
+            self.assertNotIn("--repo", argv)
+
     def test_a_raise_refuses_the_push_before_compiling(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture, log, _, _, _ = self._stack(temp, 1)
@@ -2720,6 +2781,14 @@ class PushedRevisionGateTestCase(unittest.TestCase):
     def _push_from_a_peer_checkout(self, temp: str, pushed_source: str) -> tuple:
         fixture = _stacked_fixture(temp)
         fixture.set_cargo_behavior("fmt-by-content")
+        metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+        metadata["target_directory"] = str(fixture.stack / "target")
+        _write(fixture.bin / "metadata.json", json.dumps(metadata))
+        _write(
+            fixture.stack / "scripts" / "atlas-build-identity.py",
+            _PASSTHROUGH_IDENTITY,
+        )
+        _publish_stack_scripts(fixture.stack)
         root = fixture.root
         base = _git(root, "rev-parse", "main")
 
@@ -2832,6 +2901,14 @@ class PushShapeTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = _stacked_fixture(temp)
             fixture.set_cargo_behavior("fmt-by-content")
+            metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+            metadata["target_directory"] = str(fixture.stack / "target")
+            _write(fixture.bin / "metadata.json", json.dumps(metadata))
+            _write(
+                fixture.stack / "scripts" / "atlas-build-identity.py",
+                _PASSTHROUGH_IDENTITY,
+            )
+            _publish_stack_scripts(fixture.stack)
             root = fixture.root
             # An orphan keeps the tree but shares no history with main.
             _git(root, "checkout", "-q", "--orphan", "orphan")
