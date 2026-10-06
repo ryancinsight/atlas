@@ -159,7 +159,11 @@ locate_stack() {
     # root itself, so it matches the same way a registered member does.
     if [ "$own_store" = "$stack_common" ]; then
       stack_root="$probe"
-      stack_store="$stack_common"
+      if ! stack_store="$(cd "$stack_common" && pwd)"; then
+        echo "$hook: git identified the Atlas stack store at $stack_common but it cannot be opened; refusing" >&2
+        return 2
+      fi
+      stack_member="<meta>"
       return 0
     fi
     order=()
@@ -183,7 +187,11 @@ locate_stack() {
       fi
       if [ "$store" = "$own_store" ]; then
         stack_root="$probe"
-        stack_store="$stack_common"
+        if ! stack_store="$(cd "$stack_common" && pwd)"; then
+          echo "$hook: git identified the Atlas stack store at $stack_common but it cannot be opened; refusing" >&2
+          return 2
+        fi
+        stack_member="${path##*/}"
         return 0
       fi
     done
@@ -219,10 +227,11 @@ located=0
 unmatched_stack=""
 stack_root=""
 stack_store=""
+stack_member=""
 locate_stack "$repo_root" "$repo_store" || located=$?
 case "$located" in
   0) ;;
-  3) unmatched_stack="$stack_root"; stack_root=""; stack_store="" ;;
+  3) unmatched_stack="$stack_root"; stack_root=""; stack_store=""; stack_member="" ;;
   *) exit 1 ;;
 esac
 if [ -n "$unmatched_stack" ]; then
