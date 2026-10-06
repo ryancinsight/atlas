@@ -415,6 +415,9 @@ done
 debt_gate() {
     local tip="$1" changed python_bin member output base member_revision
     local checker_rev checker_dir ref status default_revision
+    # Keep native Git from rewriting the repository-relative pathspec using
+    # Bash's verification-stack working directory. The export is local to this gate.
+    local -x MSYS_NO_PATHCONV=1
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
     # there would skip the gate on the pushes it most needs to see.
@@ -485,8 +488,7 @@ debt_gate() {
             echo "pre-push: BLOCKED -- advancing ${member} raises a debt class." >&2
             echo "$output" >&2
             echo >&2
-            echo "pre-push: fix it in ${member} and advance the pin to the fix, or" >&2
-            echo "push with --no-verify if the raise is deliberate and recorded." >&2
+            echo "pre-push: fix it in ${member} and advance the pin to the fix." >&2
             status=1
             break
         fi
