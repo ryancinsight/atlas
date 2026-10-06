@@ -43,6 +43,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 from pathlib import Path
 from typing import NamedTuple
@@ -699,8 +700,14 @@ HOOK_SHIM = """#!/usr/bin/env bash
 # editing. Runs the owned `{name}` hook as committed at the Atlas
 # `{ref}`, never the Atlas checkout's copy, which holds whatever branch a
 # peer left checked out.
-# The shim's variables carry a reserved prefix and are unset before the exec,
-# so a caller's own `cache` or `commit` never reaches the hook altered.
+# The caller's options, restored for the hook: with SHELLOPTS exported they
+# reach it exactly as in a direct run. Read from SHELLOPTS, not `$(set +o)`,
+# whose subshell drops errexit. The shim's variables carry a reserved prefix
+# and are unset before the exec, so a caller's own `cache` or `commit`, or an
+# inherited allexport that would export the shim's assignments, never reaches
+# the hook altered. A caller's xtrace is off inside the shim, so the shim's
+# own commands never reach the hook's stderr, and back on for the exec.
+{{ __atlas_shim_options=":$SHELLOPTS:"; set +x; }} 2>/dev/null
 set -euo pipefail
 __atlas_shim_git={git_dir}
 __atlas_shim_lookup() {{
@@ -733,8 +740,23 @@ set +euo pipefail
 set -- "$__atlas_shim_cache" "$@"
 unset -f __atlas_shim_lookup
 unset __atlas_shim_git __atlas_shim_commit __atlas_shim_blob __atlas_shim_cache __atlas_shim_partial
+case $__atlas_shim_options in *:errexit:*) set -e ;; esac
+case $__atlas_shim_options in *:nounset:*) set -u ;; esac
+case $__atlas_shim_options in *:pipefail:*) set -o pipefail ;; esac
+case $__atlas_shim_options in
+  *:xtrace:*) unset __atlas_shim_options; set -x ;;
+  *) unset __atlas_shim_options ;;
+esac
 exec "$@"
 """
+
+
+# A shim replaced while bash has it open: Windows refuses the rename with a
+# denial (WinError 5) until every reader closes it. One hook start reads it in
+# milliseconds; overlapping runs can keep it open past the bound, and the
+# install then fails rather than leave a member half-installed.
+SHIM_REPLACE_ATTEMPTS = 50
+SHIM_REPLACE_BACKOFF_SECONDS = 0.1
 
 
 def _replace_shim(shim: Path, content: bytes) -> None:
@@ -754,7 +776,15 @@ def _replace_shim(shim: Path, content: bytes) -> None:
     temporary = shim.with_name(f".{shim.name}.{os.getpid()}.partial")
     temporary.write_bytes(content)
     temporary.chmod(0o755)
-    os.replace(temporary, shim)
+    for attempt in range(SHIM_REPLACE_ATTEMPTS):
+        try:
+            os.replace(temporary, shim)
+            return
+        except PermissionError:
+            if attempt + 1 == SHIM_REPLACE_ATTEMPTS:
+                temporary.unlink(missing_ok=True)
+                raise
+            time.sleep(SHIM_REPLACE_BACKOFF_SECONDS)
 
 
 def _shell_word(text: str) -> str:
