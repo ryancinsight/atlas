@@ -60,7 +60,7 @@ jobs:
 
       - name: Run pytest (fast)
         run: |
-          python -m pytest -v -m "not slow"
+          python -m pytest -v -m "not slow" -n auto --maxprocesses=4 --max-worker-restart=0
 
   pytest-slow:
     name: Run pytest (slow)
