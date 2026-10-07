@@ -38,7 +38,6 @@
 <a id="atlas-hygiene-baseline-001"></a>- [ATLAS-HYGIENE-BASELINE-001](backlog/atlas-hygiene-baseline-001.md) — Eleven-class conformance baseline and namespace hygiene [patch] — todo
 <a id="atlas-identity-ignored-files"></a>- [ATLAS-IDENTITY-IGNORED-FILES](backlog/atlas-identity-ignored-files.md) — Keep gitignored run output out of a path package's identity [patch] — todo
 <a id="atlas-identity-lease-starvation"></a>- [ATLAS-IDENTITY-LEASE-STARVATION](backlog/atlas-identity-lease-starvation.md) — Gated pushes starve on the 900 s identity-lease wait [verification] — todo
-<a id="atlas-identity-member-scope"></a>- [ATLAS-IDENTITY-MEMBER-SCOPE](backlog/atlas-identity-member-scope.md) — A commit cleans every gated package's in-repository closure [tightening] — todo
 <a id="atlas-identity-midrun-git-edit"></a>- [ATLAS-IDENTITY-MIDRUN-GIT-EDIT](backlog/atlas-identity-midrun-git-edit.md) — Stamp a trusted Git package whose checkout moved during a failed run [patch] — todo
 <a id="atlas-identity-overlay-locked-metadata"></a>- [ATLAS-IDENTITY-OVERLAY-LOCKED-METADATA](backlog/atlas-identity-overlay-locked-metadata.md) — Read the overlay's dependency graph without refusing its lock [patch] — todo
 <a id="atlas-identity-suite-runtime"></a>- [ATLAS-IDENTITY-SUITE-RUNTIME](backlog/atlas-identity-suite-runtime.md) — Five build-identity tests run for minutes against a 60 s budget [tightening] [patch] — todo
