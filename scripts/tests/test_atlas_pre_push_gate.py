@@ -26,6 +26,8 @@ import tomllib
 import unittest
 import weakref
 
+from identity_fixture import PASSTHROUGH_IDENTITY
+
 SCRIPT = (
     pathlib.Path(__file__).resolve().parents[1] / "git-hooks" / "pre-push"
 )
@@ -221,16 +223,35 @@ class GateFixture:
                 '[package]\nname = "foo"\nversion = "0.1.0"\nedition = "2021"\n',
             )
             _write(root / "crates" / "foo" / "src" / "lib.rs", "pub fn f() {}\n")
-        else:
+        elif layout == "single":
             _write(
                 root / "Cargo.toml",
                 '[package]\nname = "solo"\nversion = "0.1.0"\nedition = "2021"\n',
             )
             _write(root / "src" / "lib.rs", "pub fn f() {}\n")
+        elif layout == "meta":
+            for directory in (
+                "checkout-path-dependencies",
+                "criterion-regression",
+                "gitlink-coherence",
+                "version-guard",
+            ):
+                workspace = root / "tools" / directory
+                _write(
+                    workspace / "Cargo.toml",
+                    f'[package]\nname = "{directory}"\nversion = "0.1.0"\nedition = "2024"\n',
+                )
+                _write(workspace / "Cargo.lock", "# lock\n")
+                _write(workspace / "src" / "lib.rs", "pub fn f() {}\n")
+        else:
+            raise ValueError(f"unknown gate fixture layout {layout}")
         self.set_workspace_packages(
-            ["unrelated-member", "foo"] if layout == "crates" else ["solo"]
+            ["unrelated-member", "foo"]
+            if layout == "crates"
+            else (["solo"] if layout == "single" else ["tool"])
         )
-        _write(root / "Cargo.lock", "# lock\n")
+        if layout != "meta":
+            _write(root / "Cargo.lock", "# lock\n")
         # The member carries no lockfile checker: the hook runs the stack's
         # (`install_stack_lockfile`).
         self.set_cargo_behavior("pass")
@@ -361,14 +382,17 @@ class GateFixture:
         packages = []
         for name in names:
             manifest = (
-                "@ROOT@/Cargo.toml"
-                if self.layout == "single"
-                else f"@ROOT@/crates/{name}/Cargo.toml"
+                f"@ROOT@/crates/{name}/Cargo.toml"
+                if self.layout == "crates"
+                else "@ROOT@/Cargo.toml"
             )
             package = {
                 "id": f"fixture:{name}",
                 "name": name,
+                "version": "0.1.0",
+                "source": None,
                 "manifest_path": manifest,
+                "dependencies": [],
             }
             if targets is not None and name in targets:
                 package["targets"] = targets[name]
@@ -379,6 +403,19 @@ class GateFixture:
                 {
                     "packages": packages,
                     "workspace_members": [package["id"] for package in packages],
+                    "workspace_root": "@ROOT@",
+                    "target_directory": str(self.stack / "target"),
+                    "resolve": {
+                        "nodes": [
+                            {
+                                "id": package["id"],
+                                "dependencies": [],
+                                "deps": [],
+                                "features": [],
+                            }
+                            for package in packages
+                        ]
+                    },
                 }
             ),
         )
@@ -420,6 +457,14 @@ class GateFixture:
                 "  exit 1\n"
                 "fi\nexit 0\n"
             )
+        elif mode == "mutate-source-on-doc":
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'pwd >> "$FIXTURE_ROOT/cwd.log"\n'
+                'if [ "$1" = "doc" ]; then\n'
+                '  printf "\\nmutation\\n" >> "$CARGO_MUTATE_SOURCE"\n'
+                "fi\nexit 0\n"
+            )
         elif mode == "fmt-by-content":
             # fmt fails exactly when the tree it runs in carries the marker,
             # so a verdict names the content that was judged.
@@ -450,7 +495,10 @@ class GateFixture:
         elif mode.startswith("fail-clippy"):
             body = (
                 'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
-                'if [ "$1" = "clippy" ]; then\n'
+                'if [ "$1" = "clippy" ]'
+                + (' && [[ "$here" = */version-guard ]]'
+                   if mode == "fail-clippy-version-guard" else '')
+                + '; then\n'
                 '  printf "%s\\n" "${CARGO_FAIL_LOG//@ROOT@/$here}" >&2\n'
                 "  exit 1\n"
                 "fi\nexit 0\n"
@@ -467,6 +515,7 @@ class GateFixture:
             '  sed "s|@ROOT@|$here|g" "$FIXTURE_ROOT/bin/metadata.json"\n'
             "  exit 0\n"
             "fi\n"
+            'if [ "$1" = "doc" ]; then printf "%s" "${RUSTDOCFLAGS:-}" > "$FIXTURE_ROOT/rustdoc-flags.log"; fi\n'
             + body,
             executable=True,
         )
@@ -536,7 +585,6 @@ def _register_stack(stack: pathlib.Path) -> None:
 # step carries one. This stand-in reports a clean range.
 _CLEAN_RANGE_SCANNER = "import sys\nsys.exit(0)\n"
 
-
 def _seed_scanner(stack: pathlib.Path) -> None:
     """Give the stack a credential scanner unless the test wrote its own."""
     scanner = stack / "scripts" / "atlas-secret-scan.py"
@@ -544,9 +592,16 @@ def _seed_scanner(stack: pathlib.Path) -> None:
         _write(scanner, _CLEAN_RANGE_SCANNER, executable=True)
 
 
+def _seed_identity(stack: pathlib.Path) -> None:
+    """Give valid stack fixtures the command-running identity checker."""
+    identity = stack / "scripts" / "atlas-build-identity.py"
+    if not identity.exists():
+        _write(identity, PASSTHROUGH_IDENTITY, executable=True)
+
+
 def _stacked_fixture(temp: str, **options: object) -> "GateFixture":
     """A member at `<temp>/repos/member` of a stack that carries the scanner
-    and the lockfile checker."""
+    and lockfile checkers plus the command-running identity checker."""
     return GateFixture.in_stack(pathlib.Path(temp), **options)
 
 
@@ -560,6 +615,7 @@ def _publish_stack_scripts(
     when the stack checkout sits on a branch that predates them.
     """
     _seed_scanner(stack)
+    _seed_identity(stack)
     if not (stack / ".git").exists():
         _git_init_repo(stack)
     _register_stack(stack)
@@ -587,15 +643,45 @@ def _recording_tool(log: pathlib.Path, exit_code: int) -> str:
     )
 
 
-# A stack identity checker that runs the step it is handed, where it is told.
-_PASSTHROUGH_IDENTITY = (
-    "import os, subprocess, sys\n"
-    "argv = sys.argv[1:]\n"
-    "cwd = argv[argv.index('--command-cwd') + 1]\n"
-    "command = [os.environ.get('CARGO', 'cargo') if value == 'cargo' else value\n"
-    "           for value in argv[argv.index('--') + 1:]]\n"
-    "raise SystemExit(subprocess.run(command, cwd=cwd).returncode)\n"
-)
+def _recording_passthrough_identity(log: pathlib.Path) -> str:
+    """Record one checker invocation, then run its command with fixture tools."""
+    return (
+        "import json, pathlib, subprocess, sys\n"
+        "argv = sys.argv[1:]\n"
+        "cwd = argv[argv.index('--command-cwd') + 1]\n"
+        "command = argv[argv.index('--') + 1:]\n"
+        f"with pathlib.Path({str(log)!r}).open('a', encoding='utf-8') as stream:\n"
+        "    stream.write(json.dumps(command) + '\\n')\n"
+        "raise SystemExit(subprocess.run(command, cwd=cwd).returncode)\n"
+    )
+
+
+def _recording_identity_invocation(log: pathlib.Path) -> str:
+    """Record a complete checker invocation, then execute its build command."""
+    return (
+        "import json, pathlib, subprocess, sys\n"
+        "argv = sys.argv[1:]\n"
+        "root = argv[argv.index('--root') + 1]\n"
+        "cwd = argv[argv.index('--command-cwd') + 1]\n"
+        "head = subprocess.run(['git', '-C', root, 'rev-parse', 'HEAD'], "
+        "capture_output=True, check=True, text=True).stdout.strip()\n"
+        f"with pathlib.Path({str(log)!r}).open('a', encoding='utf-8') as stream:\n"
+        "    stream.write(json.dumps({'path': __file__, 'argv': argv, "
+        "'root_head': head}) + '\\n')\n"
+        "command = argv[argv.index('--') + 1:]\n"
+        "raise SystemExit(subprocess.run(command, cwd=cwd).returncode)\n"
+    )
+
+
+def _install_real_identity(stack: pathlib.Path) -> None:
+    """Install the production identity CLI and its modules in a fixture stack."""
+    source = SCRIPT.parents[1]
+    destination = stack / "scripts"
+    destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source / "atlas-build-identity.py", destination)
+    shutil.copy2(source / "atlas_claim_log.py", destination)
+    for module in source.glob("atlas_build_*.py"):
+        shutil.copy2(module, destination)
 
 
 def _git_init_repo(root: pathlib.Path) -> None:
@@ -960,7 +1046,7 @@ class PackageMapperTestCase(unittest.TestCase):
             calls = (fixture.root / "calls.log").read_text(encoding="utf-8")
             self.assertIn("-p solo", calls)
             self.assertTrue(
-                any(line.startswith("doc --no-deps ") and line.endswith(" -p solo --locked")
+                any(line.startswith("doc --no-deps ") and line.endswith(" --locked -p solo")
                     for line in calls.splitlines()),
                 calls,
             )
@@ -1019,8 +1105,247 @@ class PackageMapperTestCase(unittest.TestCase):
             self.assertIn("gating solo", stderr)
 
 
+class MetaRootCargoGateTestCase(unittest.TestCase):
+    """The Atlas root owns independent Cargo workspaces below ``tools/``."""
+
+    workspaces = (
+        "checkout-path-dependencies",
+        "criterion-regression",
+        "gitlink-coherence",
+        "version-guard",
+    )
+
+    def _fixture(self, temp: str) -> tuple[GateFixture, pathlib.Path, pathlib.Path]:
+        stack = pathlib.Path(temp)
+        fixture = GateFixture(stack, layout="meta")
+        fixture.stack = stack
+        metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+        metadata["target_directory"] = str(stack / "target")
+        _write(fixture.bin / "metadata.json", json.dumps(metadata))
+        content_log = stack / "content-gates.log"
+        identity_log = stack / "identity-gates.log"
+        _write(stack / "scripts" / "lockfile.py", _STACK_LOCKFILE_STUB, executable=True)
+        _write(
+            stack / "scripts" / "atlas-artifact-budget.py",
+            _recording_tool(content_log, 0),
+            executable=True,
+        )
+        _write(
+            stack / "scripts" / "atlas-secret-scan.py",
+            _recording_tool(content_log, 0),
+            executable=True,
+        )
+        _write(
+            stack / "scripts" / "atlas-conformance.py",
+            _recording_tool(content_log, 0),
+            executable=True,
+        )
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            _recording_identity_invocation(identity_log),
+            executable=True,
+        )
+        _write(stack / "scripts" / "atlas_stack.py", "ROOT = None  # honours ATLAS_STACK_ROOT\n")
+        _publish_stack_scripts(stack)
+        subprocess.run(
+            ["git", "-C", str(stack), *_IDENT, "checkout", "-q", "-b", "feat"],
+            check=True,
+        )
+        return fixture, content_log, identity_log
+
+    @staticmethod
+    def _commit(fixture: GateFixture, *paths: str) -> None:
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "add", "--", *paths], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "change"],
+            check=True,
+        )
+
+    def _point_branch_at_unique_tree(
+        self, fixture: GateFixture, with_parent: bool
+    ) -> pathlib.Path:
+        _write(fixture.root / "changed.txt", "changed\n")
+        self._commit(fixture, "changed.txt")
+        tree = _git(fixture.root, "rev-parse", "HEAD^{tree}")
+        if not with_parent:
+            result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(fixture.root),
+                    *_IDENT,
+                    "commit-tree",
+                    tree,
+                    "-F",
+                    "-",
+                ],
+                input=b"orphan\n",
+                check=True,
+                capture_output=True,
+            )
+            revision = result.stdout.decode("ascii").strip()
+            subprocess.run(
+                ["git", "-C", str(fixture.root), "update-ref", "refs/heads/feat", revision],
+                check=True,
+            )
+        object_path = fixture.root / ".git" / "objects" / tree[:2] / tree[2:]
+        self.assertTrue(object_path.is_file())
+        return object_path
+
+    def test_changed_path_discovery_failures_block_before_native_gates(self) -> None:
+        for label, with_parent in (("range-diff", True), ("whole-revision", False)):
+            with self.subTest(discovery=label), tempfile.TemporaryDirectory(
+                prefix="atlas-meta-gate-"
+            ) as temp:
+                fixture, content_log, identity_log = self._fixture(temp)
+                _write(
+                    fixture.stack / "scripts" / "atlas-conformance.py",
+                    "import atexit, os, pathlib, stat\n"
+                    "def remove_object():\n"
+                    "    path = pathlib.Path(os.environ['REMOVE_OBJECT'])\n"
+                    "    path.chmod(path.stat().st_mode | stat.S_IWRITE)\n"
+                    "    path.unlink()\n"
+                    "atexit.register(remove_object)\n"
+                    + _recording_tool(content_log, 0),
+                    executable=True,
+                )
+                _publish_stack_scripts(fixture.stack)
+                object_path = self._point_branch_at_unique_tree(fixture, with_parent)
+
+                code, stderr = fixture.run_hook(
+                    fixture.push_line_new_branch(),
+                    {"REMOVE_OBJECT": str(object_path)},
+                )
+
+                self.assertEqual(code, 1, stderr)
+                self.assertIn("BLOCKED -- could not discover", stderr)
+                self.assertNotIn("native gate not applicable", stderr)
+                self.assertEqual(
+                    len(content_log.read_text(encoding="utf-8").splitlines()), 3
+                )
+                self.assertFalse(identity_log.exists())
+                self.assertFalse(fixture.calls.exists())
+
+    def test_content_only_root_change_runs_content_gates_without_cargo(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, content_log, identity_log = self._fixture(temp)
+            _write(fixture.root / "README.md", "# changed\n")
+            self._commit(fixture, "README.md")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("native gate not applicable", stderr)
+            self.assertEqual(len(content_log.read_text(encoding="utf-8").splitlines()), 3)
+            self.assertFalse(identity_log.exists())
+            self.assertFalse(fixture.calls.exists())
+
+    def test_nested_workspace_uses_its_manifest_cwd_and_complete_sequence(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            source = fixture.root / "tools" / "version-guard" / "src" / "lib.rs"
+            source.write_text("pub fn f() {}\n// changed\n", encoding="utf-8")
+            self._commit(fixture, "tools/version-guard/src/lib.rs")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating tool", stderr)
+            invocation = json.loads(identity_log.read_text(encoding="utf-8").splitlines()[0])
+            argv = invocation["argv"]
+            manifest = pathlib.Path(argv[argv.index("--manifest") + 1])
+            command_cwd = pathlib.Path(argv[argv.index("--command-cwd") + 1])
+            self.assertEqual(manifest.parent, command_cwd)
+            self.assertEqual(manifest.parent.name, "version-guard")
+            self.assertEqual(invocation["root_head"], _git(fixture.root, "rev-parse", "feat"))
+            calls = fixture.calls.read_text(encoding="utf-8").splitlines()
+            self.assertTrue(any(line.startswith("clippy ") for line in calls), calls)
+            self.assertTrue(any(line.startswith("nextest run ") for line in calls), calls)
+            self.assertTrue(any(line.startswith("doc ") for line in calls), calls)
+
+    def test_root_build_inputs_gate_all_four_workspaces(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            _write(fixture.root / ".cargo" / "config.toml", "[build]\nincremental = false\n")
+            self._commit(fixture, ".cargo/config.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            invocations = [json.loads(line) for line in identity_log.read_text(encoding="utf-8").splitlines()]
+            manifests = {
+                pathlib.Path(item["argv"][item["argv"].index("--manifest") + 1]).parent.name
+                for item in invocations
+            }
+            self.assertEqual(manifests, set(self.workspaces))
+
+    def test_two_workspaces_run_before_a_later_stage_failure_propagates(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            fixture.set_cargo_behavior("fail-clippy-version-guard")
+            for workspace in ("checkout-path-dependencies", "version-guard"):
+                source = fixture.root / "tools" / workspace / "src" / "lib.rs"
+                source.write_text(f"pub fn f() {{}}\n// {workspace}\n", encoding="utf-8")
+            self._commit(
+                fixture,
+                "tools/checkout-path-dependencies/src/lib.rs",
+                "tools/version-guard/src/lib.rs",
+            )
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(),
+                {"CARGO_FAIL_LOG": "error: failed\n  --> @ROOT@/src/lib.rs:1:1"},
+            )
+
+            self.assertEqual(code, 1)
+            self.assertIn("clippy fails for tool", stderr)
+            invocations = [json.loads(line) for line in identity_log.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(invocations), 2)
+            self.assertEqual(
+                [
+                    pathlib.Path(item["argv"][item["argv"].index("--manifest") + 1]).parent.name
+                    for item in invocations
+                ],
+                ["checkout-path-dependencies", "version-guard"],
+            )
+
+    def test_removed_selected_manifest_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            manifest = fixture.root / "tools" / "version-guard" / "Cargo.toml"
+            manifest.unlink()
+            self._commit(fixture, "tools/version-guard/Cargo.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 1)
+            self.assertIn("selected Cargo workspace manifest tools/version-guard/Cargo.toml is missing", stderr)
+            self.assertFalse(identity_log.exists())
+
+    def test_malformed_selected_manifest_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            manifest = fixture.root / "tools" / "version-guard" / "Cargo.toml"
+            manifest.write_text("[package\n", encoding="utf-8")
+            self._commit(fixture, "tools/version-guard/Cargo.toml")
+            fixture.set_cargo_behavior("missing")
+            fixture.cargo_launcher.unlink(missing_ok=True)
+            cargo = shutil.which("cargo")
+            self.assertIsNotNone(cargo)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), {"CARGO": str(cargo)}
+            )
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("cargo metadata could not establish testable packages", stderr)
+            self.assertFalse(identity_log.exists())
+
+
 class BlameClassifierTestCase(unittest.TestCase):
-    """Failures inside the repo block; environment failures do not."""
+    """Failures inside the repo block; identity keeps environment failures unverified."""
 
     inside_log = (
         "error: something broke\n"
@@ -1103,8 +1428,9 @@ class BlameClassifierTestCase(unittest.TestCase):
             code, stderr = self._gate(
                 _stacked_fixture(temp), self.outside_log
             )
-            self.assertEqual(code, 0)
+            self.assertEqual(code, 1)
             self.assertIn("dependency graph is broken", stderr)
+            self.assertIn("source identity did not verify", stderr)
 
     def test_locked_metadata_failure_reports_the_overlay_environment(self) -> None:
         log = (
@@ -1113,8 +1439,9 @@ class BlameClassifierTestCase(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             code, stderr = self._gate(_stacked_fixture(temp), log)
-        self.assertEqual(code, 0, stderr)
+        self.assertEqual(code, 1, stderr)
         self.assertIn("dependency graph is broken", stderr)
+        self.assertIn("source identity did not verify", stderr)
 
     def test_windows_drive_path_outside_repo_reports_environment(self) -> None:
         """cygpath spells a converted path with an upper-case drive letter
@@ -1132,8 +1459,9 @@ class BlameClassifierTestCase(unittest.TestCase):
                 "error: could not compile `foreign-crate`\n"
             )
             code, stderr = self._gate(_stacked_fixture(temp), log)
-            self.assertEqual(code, 0, stderr)
+            self.assertEqual(code, 1, stderr)
             self.assertIn("dependency graph is broken", stderr)
+            self.assertIn("source identity did not verify", stderr)
 
 
 class MissingToolchainTestCase(unittest.TestCase):
@@ -1413,6 +1741,14 @@ class DefaultBranchTestCase(unittest.TestCase):
     def test_first_push_on_master_default_gates(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = _stacked_fixture(temp, default_branch="master")
+            metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+            metadata["target_directory"] = str(fixture.stack / "target")
+            _write(fixture.bin / "metadata.json", json.dumps(metadata))
+            _write(
+                fixture.stack / "scripts" / "atlas-build-identity.py",
+                PASSTHROUGH_IDENTITY,
+            )
+            _publish_stack_scripts(fixture.stack)
             subprocess.run(
                 ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
                  "-b", "feat"],
@@ -2044,6 +2380,7 @@ class LaneGateTestCase(unittest.TestCase):
             _write(fixture.bin / "metadata.json", json.dumps(metadata))
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+        env["CARGO"] = str(fixture.cargo_launcher)
         env["TMPDIR"] = fixture.tmp.as_posix()
         env.pop("CARGO_TARGET_DIR", None)
         env.update(extra_env or {})
@@ -2096,27 +2433,75 @@ class LaneGateTestCase(unittest.TestCase):
         log = stack / "identity-commands.log"
         _write(
             stack / "scripts" / "atlas-build-identity.py",
-            "import pathlib, sys\n"
-            f"log = pathlib.Path({str(log)!r})\n"
-            "command = sys.argv[sys.argv.index('--') + 1:]\n"
-            "with log.open('a', encoding='utf-8') as stream:\n"
-            "    stream.write(' '.join(command) + '\\n')\n",
+            _recording_passthrough_identity(log),
         )
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
-        commands = [line.split() for line in log.read_text(encoding="utf-8").splitlines()]
-        self.assertTrue(any("clippy" in command for command in commands), commands)
-        for command in commands:
-            self.assertIn(command[0], ("cargo", "env"), command)
-            cargo = command.index("cargo")
-            manifest = command.index("--manifest-path")
-            self.assertGreater(manifest, cargo + 1, command)
-            exported = pathlib.Path(command[manifest + 1])
-            self.assertEqual((exported.parent.name, exported.name), ("foo-lane", "Cargo.toml"))
-            self.assertNotIn(
-                os.path.normcase(str(stack.resolve())),
-                os.path.normcase(str(exported.resolve())),
-            )
+        commands = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(len(commands), 1, commands)
+        self.assertEqual(commands[0][0:2], ["bash", "-c"], commands[0])
+        manifests = [pathlib.Path(value) for value in commands[0] if value.endswith("Cargo.toml")]
+        self.assertEqual(len(manifests), 1, commands[0])
+        exported = manifests[0]
+        self.assertEqual((exported.parent.name, exported.name), ("foo-lane", "Cargo.toml"))
+        self.assertNotIn(
+            os.path.normcase(str(stack.resolve())),
+            os.path.normcase(str(exported.resolve())),
+        )
+        cargo_calls = fixture.calls.read_text(encoding="utf-8").splitlines()
+        stages = [line for line in cargo_calls if line.split()[0] in {"clippy", "nextest", "doc"}]
+        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        self.assertIn("--all-targets --locked -p foo", stages[0])
+        self.assertIn("--locked --no-tests=pass -p foo", stages[1])
+        self.assertIn("--no-deps", stages[2])
+        self.assertTrue(all("--manifest-path" in line for line in stages), stages)
+        self.assertEqual((fixture.root / "rustdoc-flags.log").read_text(), "-D warnings")
+
+    def test_identity_clippy_failure_stops_before_tests_and_rustdoc(self) -> None:
+        stack, fixture, lane = self._lane(overlay=True)
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            _recording_passthrough_identity(stack / "identity-commands.log"),
+        )
+        fixture.set_cargo_behavior("fail-clippy-ours")
+        code, err = self._run_in_lane(
+            fixture,
+            lane,
+            extra_env={"CARGO_FAIL_LOG": self.inside_log.format(root="@ROOT@")},
+            target_directory=stack / "target",
+        )
+
+        self.assertEqual(code, 1, err)
+        stages = [
+            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual(stages, ["clippy"])
+        self.assertIn("clippy fails for", err)
+
+    def test_identity_rejects_a_source_mutation_after_the_sequence(self) -> None:
+        stack, fixture, lane = self._lane(overlay=True)
+        _install_real_identity(stack)
+        fixture.set_cargo_behavior("mutate-source-on-doc")
+        code, err = self._run_in_lane(
+            fixture,
+            lane,
+            extra_env={"CARGO_MUTATE_SOURCE": "crates/foo/src/lib.rs"},
+            target_directory=stack / "target",
+        )
+
+        self.assertEqual(code, 1, err)
+        stages = [
+            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual(stages, ["clippy", "nextest", "doc"], err)
+        self.assertIn("source identity blocked verification", err)
+        self.assertIn("source tree changed while the build was running", err)
+        records = list(
+            (stack / "target" / ".atlas" / "source-identity").glob("*.json")
+        )
+        self.assertEqual(records, [], "a mutated source must not receive a build record")
 
     def test_a_new_member_gates_each_package_once_by_its_exact_name(self) -> None:
         """A root-manifest change gates every member under its exact name.
@@ -2155,9 +2540,9 @@ class LaneGateTestCase(unittest.TestCase):
         gated = gating[0].removeprefix("pre-push: gating ").split(" ")
         self.assertEqual(sorted(gated), ["bar", "foo"], repr(gating[0]))
         runs = log.read_text(encoding="utf-8").splitlines()
-        # One identity run per step (clippy, tests, rustdoc), each naming
-        # every gated package: the checker leases and queues once per step.
-        self.assertEqual(len(runs), 3, runs)
+        # One identity run names every gated package and holds their leases
+        # across the complete clippy, tests, and rustdoc sequence.
+        self.assertEqual(len(runs), 1, runs)
         self.assertEqual({frozenset(run.split()) for run in runs}, {frozenset({"'bar'", "'foo'"})})
 
     def test_a_package_without_test_targets_skips_only_the_tests_step(self) -> None:
@@ -2180,19 +2565,7 @@ class LaneGateTestCase(unittest.TestCase):
         log = stack / "identity-steps.log"
         _write(
             stack / "scripts" / "atlas-build-identity.py",
-            "import pathlib, sys\n"
-            f"log = pathlib.Path({str(log)!r})\n"
-            "packages = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--package']\n"
-            "build = sys.argv[sys.argv.index('--') + 1:]\n"
-            "command = build[1]\n"
-            "selection = [build[i + 1] for i, v in enumerate(build) if v == '-p']\n"
-            "named = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--selection']\n"
-            "with log.open('a', encoding='utf-8', newline='') as stream:\n"
-            "    stream.write('run ' + command + '\\n')\n"
-            "    stream.write('cargo ' + command + ' -p ' + ' '.join(sorted(selection)) + '\\n')\n"
-            "    stream.write('selection ' + command + ' ' + ' '.join(sorted(named)) + '\\n')\n"
-            "    for package in packages:\n"
-            "        stream.write(package + ' ' + command + '\\n')\n",
+            _recording_passthrough_identity(log),
         )
         bar_targets = {"bar": [{"kind": ["cdylib"], "test": False, "doc": True}]}
         fixture.set_workspace_packages(["foo", "bar"], targets=bar_targets)
@@ -2202,41 +2575,21 @@ class LaneGateTestCase(unittest.TestCase):
         )
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
-        lines = log.read_text(encoding="utf-8").splitlines()
-        self.assertEqual(
-            [line for line in lines if line.startswith("run ")],
-            ["run clippy", "run nextest", "run RUSTDOCFLAGS=-D warnings"],
-        )
-        # Every step's one cargo command builds every gated package, never the
-        # workspace's default members, and its identity run is told the same
-        # set: cargo unifies features across the command's packages, so steps
-        # naming different sets would each clean what the next one's record
-        # names. `bar` has no test target, so only the other two steps record it.
-        self.assertEqual(
-            [line for line in lines if line.startswith("cargo ")],
-            [
-                "cargo clippy -p bar foo",
-                "cargo nextest -p bar foo",
-                "cargo RUSTDOCFLAGS=-D warnings -p bar foo",
-            ],
-        )
-        self.assertEqual(
-            [line for line in lines if line.startswith("selection ")],
-            [
-                "selection clippy bar foo",
-                "selection nextest bar foo",
-                "selection RUSTDOCFLAGS=-D warnings bar foo",
-            ],
-        )
-        steps = set(lines)
-        self.assertIn("foo nextest", steps)
-        self.assertNotIn("bar nextest", steps)
-        self.assertIn("bar clippy", steps)
-        self.assertIn("bar RUSTDOCFLAGS=-D warnings", steps)
+        self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
+        stages = [
+            line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        for line in stages:
+            values = line.split()
+            self.assertEqual(
+                [values[index + 1] for index, value in enumerate(values) if value == "-p"],
+                ["foo", "bar"],
+            )
 
-    def test_a_step_with_no_package_runs_no_identity_check(self) -> None:
-        """Every gated package undocumented: the rustdoc step names none, and
-        an identity run given no `--package` would refuse the push."""
+    def test_all_undocumented_packages_skip_only_rustdoc(self) -> None:
+        """Every gated package undocumented: the one identity run omits rustdoc."""
         stack, fixture, lane = self._lane(overlay=True)
         _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
         _write(
@@ -2249,14 +2602,7 @@ class LaneGateTestCase(unittest.TestCase):
         log = stack / "identity-steps.log"
         _write(
             stack / "scripts" / "atlas-build-identity.py",
-            "import pathlib, sys\n"
-            f"log = pathlib.Path({str(log)!r})\n"
-            "packages = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--package']\n"
-            "if not packages:\n"
-            "    sys.exit('atlas-build-identity: the following arguments are required: --package')\n"
-            "command = sys.argv[sys.argv.index('--') + 1:]\n"
-            "with log.open('a', encoding='utf-8', newline='') as stream:\n"
-            "    stream.write(('doc' if 'doc' in command else 'other') + '\\n')\n",
+            _recording_passthrough_identity(log),
         )
         undocumented = {"kind": ["lib"], "doc": False}
         original = fixture.set_workspace_packages
@@ -2266,7 +2612,12 @@ class LaneGateTestCase(unittest.TestCase):
         fixture.set_workspace_packages(["foo", "bar"])
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
-        self.assertEqual(log.read_text(encoding="utf-8").splitlines(), ["other", "other"])
+        self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
+        stages = [
+            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual(stages, ["clippy", "nextest"])
         self.assertIn("rustdoc skipped for foo", err)
         self.assertIn("rustdoc skipped for bar", err)
 
@@ -2291,14 +2642,7 @@ class LaneGateTestCase(unittest.TestCase):
         log = stack / "identity-steps.log"
         _write(
             stack / "scripts" / "atlas-build-identity.py",
-            "import pathlib, sys\n"
-            f"log = pathlib.Path({str(log)!r})\n"
-            "packages = [sys.argv[i + 1] for i, v in enumerate(sys.argv) if v == '--package']\n"
-            "command = sys.argv[sys.argv.index('--') + 1:]\n"
-            "step = 'doc' if 'doc' in command else 'other'\n"
-            "with log.open('a', encoding='utf-8', newline='') as stream:\n"
-            "    for package in packages:\n"
-            "        stream.write(f'{package} {step}\\n')\n",
+            _recording_passthrough_identity(log),
         )
         lib = {"kind": ["lib"], "doc": True}
         original = fixture.set_workspace_packages
@@ -2313,33 +2657,64 @@ class LaneGateTestCase(unittest.TestCase):
         fixture.set_workspace_packages(["foo", "bar", "baz"])
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
-        steps = set(log.read_text(encoding="utf-8").splitlines())
-        self.assertIn("foo doc", steps)
-        self.assertNotIn("bar doc", steps)
-        self.assertNotIn("baz doc", steps)
-        self.assertIn("bar other", steps)
-        self.assertIn("baz other", steps)
+        self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
+        stages = [
+            line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        for line in stages:
+            values = line.split()
+            self.assertEqual(
+                [values[index + 1] for index, value in enumerate(values) if value == "-p"],
+                ["foo", "bar", "baz"],
+            )
         self.assertIn("rustdoc skipped for bar", err)
 
-    def test_a_reproduce_line_is_a_runnable_command(self) -> None:
-        """The reproduce line names the revision, not the deleted export.
-
-        The export is removed when the hook exits, so a manifest path into it
-        is a command that cannot run; and the package flags stay separate
-        arguments (`--no-deps--manifest-path` once glued them together).
-        """
-        _, fixture, lane = self._lane(overlay=True)
+    def test_identity_rustdoc_failure_uses_the_pushed_export(self) -> None:
+        """The identity checker receives the pushed export and exact Cargo argv."""
+        stack, fixture, lane = self._lane(overlay=True)
+        identity_log = stack / "identity-invocations.log"
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            _recording_identity_invocation(identity_log),
+        )
         fixture.set_cargo_behavior("fail-doc")
         env = {"CARGO_FAIL_LOG": self.inside_log.format(root="@ROOT@")}
         code, err = self._run_in_lane(fixture, lane, extra_env=env)
         self.assertEqual(code, 1, err)
-        self.assertIn(f"From a checkout of {_git(lane, 'rev-parse', 'HEAD')}", err)
-        reproduce = [
-            line.strip() for line in err.splitlines() if "cargo doc" in line
+        self.assertIn("rustdoc fails for foo", err)
+
+        records = [
+            json.loads(line)
+            for line in identity_log.read_text(encoding="utf-8").splitlines()
         ]
-        self.assertTrue(reproduce, err)
-        for line in reproduce:
-            self.assertTrue(line.endswith("cargo doc --no-deps -p foo --locked"), line)
+        self.assertEqual(len(records), 1, records)
+        record = records[0]
+        argv = record["argv"]
+        pushed = _git(lane, "rev-parse", "HEAD")
+        self.assertEqual(record["root_head"], pushed)
+        exported = pathlib.Path(argv[argv.index("--root") + 1]).resolve()
+        command_cwd = pathlib.Path(argv[argv.index("--command-cwd") + 1]).resolve()
+        self.assertEqual(exported, command_cwd)
+        self.assertNotIn(
+            os.path.normcase(str(stack.resolve())),
+            os.path.normcase(str(exported)),
+        )
+        self.assertEqual(argv[argv.index("--command-key") + 1], "atlas-pre-push")
+
+        stages = [
+            line.split()
+            for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual([stage[0] for stage in stages], ["clippy", "nextest", "doc"])
+        manifest = argv[argv.index("--manifest") + 1]
+        self.assertEqual(pathlib.Path(manifest).resolve(), exported / "Cargo.toml")
+        self.assertEqual(
+            stages[-1],
+            ["doc", "--no-deps", "--manifest-path", manifest, "--locked", "-p", "foo"],
+        )
 
     def test_a_lockfile_package_collision_is_the_environment(self) -> None:
         _, fixture, lane = self._lane(overlay=False)
@@ -2428,7 +2803,7 @@ class DebtRatchetTestCase(unittest.TestCase):
         if identity:
             # A registered member's package steps run through the stack's
             # identity checker; this one runs the step it is handed.
-            _write(stack / "scripts" / "atlas-build-identity.py", _PASSTHROUGH_IDENTITY)
+            _write(stack / "scripts" / "atlas-build-identity.py", PASSTHROUGH_IDENTITY)
         log = stack / "conformance-args.log"
         # The stack's committed checker: it logs the stack it was told to
         # measure, then its arguments, one per line.
@@ -2501,6 +2876,60 @@ class DebtRatchetTestCase(unittest.TestCase):
             )
             self.assertEqual(args["--member-revision"], pushed)
             self.assertEqual(args["--baseline-rev"], stack_head)
+
+    def test_stack_root_push_uses_meta_ratchet_identity(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack = pathlib.Path(temp)
+            fixture = GateFixture(stack, layout="meta")
+            fixture.set_workspace_packages(["foo"])
+            metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+            metadata["target_directory"] = str(stack / "target")
+            _write(fixture.bin / "metadata.json", json.dumps(metadata))
+            log = stack / "conformance-args.log"
+            _write(stack / "scripts" / "atlas-build-identity.py", PASSTHROUGH_IDENTITY)
+            _write(
+                stack / "scripts" / "atlas-conformance.py",
+                "#!/usr/bin/env python3\n"
+                "import os, pathlib, sys\n"
+                f"pathlib.Path({str(log)!r}).write_text("
+                "'\\n'.join([os.environ.get('ATLAS_STACK_ROOT', ''), *sys.argv[1:]]))\n",
+                executable=True,
+            )
+            _write(stack / "scripts" / "atlas_stack.py", "ROOT = None  # honours ATLAS_STACK_ROOT\n")
+            _seed_scanner(stack)
+            _register_stack(stack)
+            subprocess.run(
+                ["git", "-C", str(stack), *_IDENT, "add", ".gitmodules", "scripts"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(stack), *_IDENT, "commit", "-q", "-m", "stack"],
+                check=True,
+            )
+            stack_head = _git(stack, "rev-parse", "HEAD")
+            _git(stack, "update-ref", "refs/remotes/origin/main", stack_head)
+            subprocess.run(
+                ["git", "-C", str(stack), *_IDENT, "checkout", "-q", "-b", "feat"],
+                check=True,
+            )
+            (stack / "tools" / "version-guard" / "src" / "lib.rs").write_text(
+                "pub fn f() {}\n// pushed\n"
+            )
+            subprocess.run(
+                ["git", "-C", str(stack), *_IDENT, "commit", "-q", "-am", "pushed"],
+                check=True,
+            )
+            pushed = _git(stack, "rev-parse", "feat")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            assert_gated_on_the_export(self, code, stderr, fixture)
+            stack_root, *argv = log.read_text().split("\n")
+            self.assertEqual(pathlib.Path(stack_root).resolve(), stack.resolve())
+            self.assertEqual(argv[0], "check")
+            self.assertEqual(argv[argv.index("--revision") + 1], pushed)
+            self.assertEqual(argv[argv.index("--baseline-rev") + 1], stack_head)
+            self.assertNotIn("--repo", argv)
 
     def test_a_raise_refuses_the_push_before_compiling(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -2641,6 +3070,14 @@ class PushedRevisionGateTestCase(unittest.TestCase):
     def _push_from_a_peer_checkout(self, temp: str, pushed_source: str) -> tuple:
         fixture = _stacked_fixture(temp)
         fixture.set_cargo_behavior("fmt-by-content")
+        metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+        metadata["target_directory"] = str(fixture.stack / "target")
+        _write(fixture.bin / "metadata.json", json.dumps(metadata))
+        _write(
+            fixture.stack / "scripts" / "atlas-build-identity.py",
+            PASSTHROUGH_IDENTITY,
+        )
+        _publish_stack_scripts(fixture.stack)
         root = fixture.root
         base = _git(root, "rev-parse", "main")
 
@@ -2753,6 +3190,14 @@ class PushShapeTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = _stacked_fixture(temp)
             fixture.set_cargo_behavior("fmt-by-content")
+            metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+            metadata["target_directory"] = str(fixture.stack / "target")
+            _write(fixture.bin / "metadata.json", json.dumps(metadata))
+            _write(
+                fixture.stack / "scripts" / "atlas-build-identity.py",
+                PASSTHROUGH_IDENTITY,
+            )
+            _publish_stack_scripts(fixture.stack)
             root = fixture.root
             # An orphan keeps the tree but shares no history with main.
             _git(root, "checkout", "-q", "--orphan", "orphan")
@@ -3018,6 +3463,126 @@ def _live_msys_pid(test: unittest.TestCase) -> str:
 class ExportSourceTestCase(unittest.TestCase):
     """The export is written through the member, reused, and never too long."""
 
+    @staticmethod
+    def _export_function() -> str:
+        source = SCRIPT.read_text(encoding="utf-8")
+        start = source.index("export_revision() (")
+        end = source.index("\n)\n\n# Exports a killed push", start) + 2
+        return source[start:end]
+
+    def _run_export(
+        self,
+        source: pathlib.Path,
+        outer: pathlib.Path,
+        revision: str,
+        destination: pathlib.Path,
+        declaration: str,
+    ) -> subprocess.CompletedProcess:
+        before = destination.parent / f"{destination.name}-{declaration}-before"
+        after = destination.parent / f"{destination.name}-{declaration}-after"
+        script = self._export_function() + r'''
+repo_git_dir="$1"
+repo_store="$2"
+revision="$3"
+destination="$4"
+declaration="$5"
+before="$6"
+after="$7"
+outer_git_dir="$8"
+outer_work_tree="$9"
+outer_index="${10}"
+outer_prefix="${11}"
+outer_common_dir="${12}"
+case "$declaration" in
+  absent)
+    unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR
+    ;;
+  unexported)
+    GIT_DIR="$outer_git_dir"
+    GIT_WORK_TREE="$outer_work_tree"
+    GIT_INDEX_FILE="$outer_index"
+    GIT_PREFIX="$outer_prefix"
+    GIT_COMMON_DIR="$outer_common_dir"
+    ;;
+  exported)
+    export GIT_DIR="$outer_git_dir"
+    export GIT_WORK_TREE="$outer_work_tree"
+    export GIT_INDEX_FILE="$outer_index"
+    export GIT_PREFIX="$outer_prefix"
+    export GIT_COMMON_DIR="$outer_common_dir"
+    ;;
+  *) exit 97 ;;
+esac
+{ declare -p GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR 2>/dev/null || true; } > "$before"
+export_revision "$revision" "$destination"
+status=$?
+{ declare -p GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR 2>/dev/null || true; } > "$after"
+exit "$status"
+'''
+        return subprocess.run(
+            [
+                "bash", "-c", script, "export-boundary",
+                _git(source, "rev-parse", "--absolute-git-dir"),
+                _git(source, "rev-parse", "--path-format=absolute", "--git-common-dir"),
+                revision,
+                str(destination),
+                declaration,
+                str(before),
+                str(after),
+                _git(outer, "rev-parse", "--absolute-git-dir"),
+                str(outer),
+                str(outer / ".git" / "index"),
+                "outer-prefix/",
+                _git(outer, "rev-parse", "--path-format=absolute", "--git-common-dir"),
+            ],
+            capture_output=True,
+        )
+
+    @staticmethod
+    def _export_block(start_marker: str, end_marker: str) -> str:
+        source = SCRIPT.read_text(encoding="utf-8")
+        start = source.index(start_marker)
+        end = source.index(end_marker, start)
+        return source[start:end]
+
+    def _run_gate_export(
+        self,
+        source: pathlib.Path,
+        revision: str,
+        destination: pathlib.Path,
+        trace: pathlib.Path,
+    ) -> subprocess.CompletedProcess:
+        block = self._export_block(
+            'if ! export_revision "$gate_sha" "$gate_export"; then',
+            "\n\nrun_cargo_workspace_gate()",
+        )
+        script = self._export_function() + "\n" + block
+        environment = dict(os.environ)
+        environment["GIT_TRACE2_EVENT"] = str(trace)
+        return subprocess.run(
+            [
+                "bash", "-c",
+                'repo_git_dir="$1"; repo_store="$2"; gate_sha="$3"; '
+                'gate_export="$4"; shift 4; ' + script,
+                "gate-export",
+                _git(source, "rev-parse", "--absolute-git-dir"),
+                _git(source, "rev-parse", "--path-format=absolute", "--git-common-dir"),
+                revision,
+                str(destination),
+            ],
+            env=environment,
+            capture_output=True,
+        )
+
+    def assert_read_tree_count(self, trace: pathlib.Path, expected: int) -> None:
+        events = [json.loads(line) for line in trace.read_text(encoding="utf-8").splitlines()]
+        commands = [
+            event["argv"]
+            for event in events
+            if event.get("event") == "start" and "read-tree" in event.get("argv", [])
+        ]
+        self.assertEqual(len(commands), expected, commands)
+
     def test_a_partial_clone_exports_blobs_it_never_fetched(self) -> None:
         """13 of 28 members are `blob:none` clones; the export fetches on demand."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -3111,6 +3676,226 @@ class ExportSourceTestCase(unittest.TestCase):
             runs = (fixture.root / "exports.log").read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(runs), 2, runs)
             self.assertEqual(runs[0], runs[1], "the export moved or rewrote an unchanged file")
+
+    def test_an_export_isolated_from_the_source_repository(self) -> None:
+        """An export reads its source while preserving the caller's Git state."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            base = pathlib.Path(temp)
+            outer = base / "outer"
+            source = base / "source"
+            for repository, value in ((outer, "outer-content"), (source, "source-content")):
+                _git_init_repo(repository)
+                _write(repository / "value.txt", value)
+                _git(repository, "add", "value.txt")
+                _git(repository, "commit", "-m", "seed")
+            source_head = _git(source, "rev-parse", "HEAD")
+            source_tree = _git(source, "write-tree")
+            repository_states = {
+                repository: (
+                    _git(repository, "rev-parse", "HEAD"),
+                    _git(repository, "write-tree"),
+                    _git(repository, "status", "--porcelain=v1"),
+                    _git(repository, "config", "--local", "--list"),
+                )
+                for repository in (outer, source)
+            }
+
+            for declaration in ("absent", "unexported", "exported"):
+                with self.subTest(declaration=declaration):
+                    destination = base / f"export-{declaration}"
+                    result = self._run_export(
+                        source, outer, source_head, destination, declaration
+                    )
+                    self.assertEqual(
+                        result.returncode,
+                        0,
+                        result.stderr.decode("utf-8", errors="replace"),
+                    )
+                    before = base / f"export-{declaration}-{declaration}-before"
+                    after = base / f"export-{declaration}-{declaration}-after"
+                    self.assertEqual(before.read_bytes(), after.read_bytes())
+                    self.assertEqual(_git(destination, "rev-parse", "HEAD"), source_head)
+                    self.assertEqual(_git(destination, "write-tree"), source_tree)
+                    self.assertEqual(
+                        (destination / "value.txt").read_bytes(), b"source-content"
+                    )
+                    self.assertTrue((destination / ".git" / "index").is_file())
+                    self.assertEqual(
+                        (destination / ".git" / "objects" / "info" / "alternates")
+                        .read_text(encoding="utf-8").strip(),
+                        f"{_git(source, 'rev-parse', '--path-format=absolute', '--git-common-dir')}/objects",
+                    )
+                    for key, value in (
+                        ("core.longpaths", "true"),
+                        ("gc.auto", "0"),
+                        ("maintenance.auto", "false"),
+                    ):
+                        self.assertEqual(_git(destination, "config", "--get", key), value)
+
+            reused = base / "export-exported"
+            untracked = reused / "untracked.txt"
+            untracked.write_bytes(b"remove after a complete replacement\n")
+            repeated = self._run_export(
+                source, outer, source_head, reused, "exported"
+            )
+            self.assertEqual(
+                repeated.returncode,
+                0,
+                repeated.stderr.decode("utf-8", errors="replace"),
+            )
+            self.assertEqual(_git(reused, "rev-parse", "HEAD"), source_head)
+            self.assertEqual(_git(reused, "write-tree"), source_tree)
+            self.assertEqual((reused / "value.txt").read_bytes(), b"source-content")
+            self.assertFalse(untracked.exists())
+
+            for repository, state in repository_states.items():
+                self.assertEqual(
+                    (
+                        _git(repository, "rev-parse", "HEAD"),
+                        _git(repository, "write-tree"),
+                        _git(repository, "status", "--porcelain=v1"),
+                        _git(repository, "config", "--local", "--list"),
+                    ),
+                    state,
+                )
+
+    def test_a_missing_object_preserves_the_last_complete_export(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            base = pathlib.Path(temp)
+            outer = base / "outer"
+            source = base / "source"
+            for repository in (outer, source):
+                _git_init_repo(repository)
+                _write(repository / "value.txt", f"{repository.name}\n")
+                _git(repository, "add", "value.txt")
+                _git(repository, "commit", "-m", "seed")
+            destination = base / "export"
+            source_head = _git(source, "rev-parse", "HEAD")
+            valid = self._run_export(source, outer, source_head, destination, "exported")
+            self.assertEqual(valid.returncode, 0, valid.stderr.decode(errors="replace"))
+            previous_head = _git(destination, "rev-parse", "HEAD")
+            previous_tree = _git(destination, "write-tree")
+            sentinel = destination / "untracked.txt"
+            sentinel.write_bytes(b"retain until a complete replacement\n")
+            _write(source / "value.txt", "candidate-content")
+            _git(source, "add", "value.txt")
+            _git(source, "commit", "-m", "candidate")
+            missing = _git(source, "rev-parse", "HEAD")
+            missing_blob = _git(source, "rev-parse", "HEAD:value.txt")
+            loose_blob = source / ".git" / "objects" / missing_blob[:2] / missing_blob[2:]
+            self.assertTrue(loose_blob.is_file())
+            loose_blob.chmod(stat.S_IWRITE)
+            loose_blob.unlink()
+            self.assertNotEqual(
+                subprocess.run(
+                    ["git", "-C", str(source), "cat-file", "-e", "HEAD:value.txt"],
+                    capture_output=True,
+                ).returncode,
+                0,
+            )
+
+            failed = self._run_export(source, outer, missing, destination, "unexported")
+
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertEqual(_git(destination, "rev-parse", "HEAD"), previous_head)
+            self.assertEqual(_git(destination, "write-tree"), previous_tree)
+            self.assertEqual(sentinel.read_bytes(), b"retain until a complete replacement\n")
+
+    def test_the_gate_rebuilds_one_incomplete_export_then_blocks(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            base = pathlib.Path(temp)
+            source = base / "source"
+            _git_init_repo(source)
+            _write(source / "value.txt", "source-content")
+            _git(source, "add", "value.txt")
+            _git(source, "commit", "-m", "seed")
+            revision = _git(source, "rev-parse", "HEAD")
+            destination = base / "export"
+            valid = self._run_export(source, source, revision, destination, "absent")
+            self.assertEqual(valid.returncode, 0, valid.stderr.decode(errors="replace"))
+            (destination / ".git" / "index").unlink()
+            (destination / ".git" / "index").mkdir()
+            sentinel = destination / "untracked.txt"
+            sentinel.write_bytes(b"discard an incomplete export\n")
+            retry_trace = base / "retry-trace.json"
+
+            retried = self._run_gate_export(
+                source, revision, destination, retry_trace
+            )
+
+            self.assertEqual(
+                retried.returncode, 0, retried.stderr.decode("utf-8", errors="replace")
+            )
+            self.assert_read_tree_count(retry_trace, 2)
+            self.assertEqual(_git(destination, "rev-parse", "HEAD"), revision)
+            self.assertFalse(sentinel.exists())
+            self.assertTrue((destination / ".git" / "index").is_file())
+
+            blocked_trace = base / "blocked-trace.json"
+            blocked = self._run_gate_export(
+                source, "1" * 40, destination, blocked_trace
+            )
+
+            stderr = blocked.stderr.decode("utf-8", errors="replace")
+            self.assertEqual(blocked.returncode, 1, stderr)
+            self.assert_read_tree_count(blocked_trace, 2)
+            self.assertIn("could not export", stderr)
+            self.assertIn("for the local gate", stderr)
+            self.assertFalse((destination / "value.txt").exists())
+
+    def test_the_lock_export_blocks_on_a_missing_real_object(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            base = pathlib.Path(temp)
+            source = base / "source"
+            _git_init_repo(source)
+            _write(source / "Cargo.lock", "candidate-lock-content")
+            _git(source, "add", "Cargo.lock")
+            _git(source, "commit", "-m", "candidate")
+            revision = _git(source, "rev-parse", "HEAD")
+            blob = _git(source, "rev-parse", "HEAD:Cargo.lock")
+            loose_blob = source / ".git" / "objects" / blob[:2] / blob[2:]
+            self.assertTrue(loose_blob.is_file())
+            loose_blob.chmod(stat.S_IWRITE)
+            loose_blob.unlink()
+            self.assertEqual(_git(source, "rev-parse", "--verify", "HEAD^{commit}"), revision)
+            self.assertNotEqual(
+                subprocess.run(
+                    ["git", "-C", str(source), "cat-file", "-e", "HEAD:Cargo.lock"],
+                    capture_output=True,
+                ).returncode,
+                0,
+            )
+            block = self._export_block(
+                'if ! export_revision "$(git rev-parse --verify "$lock_rev^{commit}")" "$lock_export"; then',
+                '\nfi\nif [ -n "$unmatched_stack" ]',
+            ) + "\nfi"
+            script = self._export_function() + "\n" + block
+            trace = base / "lock-trace.json"
+            environment = dict(os.environ)
+            environment["GIT_TRACE2_EVENT"] = str(trace)
+            result = subprocess.run(
+                [
+                    "bash", "-c",
+                    'repo_git_dir="$1"; repo_store="$2"; lock_rev="$3"; '
+                    'lock_export="$4"; shift 4; ' + script,
+                    "lock-export",
+                    _git(source, "rev-parse", "--absolute-git-dir"),
+                    _git(source, "rev-parse", "--path-format=absolute", "--git-common-dir"),
+                    revision,
+                    str(base / "lock-export"),
+                ],
+                cwd=source,
+                env=environment,
+                capture_output=True,
+            )
+
+            stderr = result.stderr.decode("utf-8", errors="replace")
+            self.assertEqual(result.returncode, 1, stderr)
+            self.assert_read_tree_count(trace, 1)
+            self.assertIn(blob, stderr)
+            self.assertNotIn("not a git repository", stderr)
+            self.assertIn("could not export", stderr)
+            self.assertIn("for the lockfile check", stderr)
 
     def test_a_held_export_is_not_shared(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -3257,14 +4042,7 @@ class SourceIdentityGateTestCase(unittest.TestCase):
             log = stack / "identity-args.log"
             _write(
                 stack / "scripts" / "atlas-build-identity.py",
-                "import os, pathlib, subprocess, sys\n"
-                f"log = pathlib.Path({str(log)!r})\n"
-                "root = sys.argv[sys.argv.index('--root') + 1]\n"
-                "head = subprocess.run(['git', '-C', root, 'rev-parse', 'HEAD'], capture_output=True, text=True).stdout.strip()\n"
-                "with log.open('a', encoding='utf-8') as stream:\n"
-                "    stream.write(' '.join([*sys.argv[1:], 'root-head=' + head]) + '\\n')\n"
-                "command = [os.environ.get('CARGO', 'cargo') if value == 'cargo' else value for value in sys.argv[sys.argv.index('--') + 1:]]\n"
-                "raise SystemExit(subprocess.run(command).returncode)\n",
+                _recording_identity_invocation(log),
             )
             _publish_stack_scripts(stack)
 
@@ -3272,18 +4050,20 @@ class SourceIdentityGateTestCase(unittest.TestCase):
 
             self.assertEqual(code, 0, stderr)
             lines = log.read_text(encoding="utf-8").splitlines()
-            self.assertTrue(
-                any("cargo clippy --manifest-path" in line and "-p foo" in line for line in lines),
-                lines,
-            )
-            first = lines[0].split()
+            self.assertEqual(len(lines), 1, lines)
+            invocation = json.loads(lines[0])
+            first = invocation["argv"]
+            command = first[first.index("--") + 1:]
+            self.assertEqual(command[0:2], ["bash", "-c"], command)
+            self.assertIn('"$cargo_command" clippy --manifest-path', command[2])
+            self.assertEqual(command[-2:], ["-p", "foo"])
             self.assertEqual(first[0], "run")
             self.assertEqual(first[first.index("--package") + 1], "foo")
             # One key for the step; the record is per package regardless.
             self.assertEqual(first[first.index("--command-key") + 1], "atlas-pre-push")
             self.assertNotIn("--ignore-path", first)
             pushed = _git(fixture.root, "rev-parse", "feat")
-            self.assertEqual(first[-1], f"root-head={pushed}")
+            self.assertEqual(invocation["root_head"], pushed)
             exported = pathlib.Path(first[first.index("--root") + 1]).resolve()
             self.assertNotIn(
                 os.path.normcase(str(stack.resolve())), os.path.normcase(str(exported))
@@ -3292,6 +4072,35 @@ class SourceIdentityGateTestCase(unittest.TestCase):
                 pathlib.Path(first[first.index("--target-dir") + 1]).resolve(),
                 (stack / "target").resolve(),
             )
+
+    def test_prepared_identity_checker_runs_from_the_selected_commit(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack, fixture = self._member_at_pushed_tip(temp)
+            log = stack / "prepared-identity-args.log"
+            _write(
+                stack / "scripts" / "atlas-build-identity.py",
+                _recording_identity_invocation(log),
+            )
+            _commit_all(stack, "prepared tools")
+            prepared = _git(stack, "rev-parse", "HEAD")
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("feat"),
+                {
+                    "GIT_CONFIG_COUNT": "1",
+                    "GIT_CONFIG_KEY_0": "atlas.preparedTools",
+                    "GIT_CONFIG_VALUE_0": prepared,
+                },
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn(prepared, stderr)
+            lines = log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 1, lines)
+            invocation = json.loads(lines[0])
+            ran_from = pathlib.Path(invocation["path"]).resolve()
+            self.assertNotIn(stack.resolve(), ran_from.parents)
+            self.assertEqual(invocation["argv"][0], "run")
 
     def test_a_missing_identity_checker_blocks_a_stack_member(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -3340,7 +4149,7 @@ class StackToolBaselineTestCase(unittest.TestCase):
             identity_log = stack / "identity-args.log"
             _write(
                 stack / "scripts" / "atlas-build-identity.py",
-                _recording_tool(identity_log, 0),
+                _recording_identity_invocation(identity_log),
             )
             _publish_stack_scripts(stack, ("atlas-build-identity.py",))
 
@@ -3349,14 +4158,27 @@ class StackToolBaselineTestCase(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             self.assertNotIn("identity checker is missing", stderr)
             lines = identity_log.read_text(encoding="utf-8").splitlines()
-            self.assertTrue(lines, "the identity checker did not run")
-            ran_from, mode, *argv = lines[0].split()
+            self.assertEqual(len(lines), 1, lines)
+            invocation = json.loads(lines[0])
+            ran_from = invocation["path"]
+            argv = invocation["argv"]
             self.assertTrue(self._extracted(stack, ran_from), ran_from)
-            self.assertEqual(mode, "run")
+            self.assertEqual(argv[0], "run")
             self.assertEqual(argv[argv.index("--package") + 1], "foo")
-            self.assertTrue(
-                any("cargo clippy" in line and "-p foo" in line for line in lines), lines
-            )
+            command = argv[argv.index("--") + 1:]
+            self.assertEqual(command[0:2], ["bash", "-c"], command)
+            self.assertIn('"$cargo_command" clippy --manifest-path', command[2])
+            stages = [
+                line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+                if line.split()[0] in {"clippy", "nextest", "doc"}
+            ]
+            self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+            for line in stages:
+                values = line.split()
+                self.assertEqual(
+                    [values[index + 1] for index, value in enumerate(values) if value == "-p"],
+                    ["foo"],
+                )
 
     def test_a_tool_changed_only_in_the_checkout_is_not_run(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:

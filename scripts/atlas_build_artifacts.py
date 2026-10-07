@@ -72,21 +72,17 @@ def artifact_identity(
     selected = set(validate_artifact_paths(target_dir, paths))
 
     if not selected:
-        selected.update(
-            discover_artifacts(
-                target_dir,
-                package,
-                profile,
-                target,
-                manifest,
-                metadata_cwd,
-                related_packages,
-                owners,
-            )
-        )
+        return artifact_identities(
+            root,
+            target_dir,
+            {package: related_packages},
+            profile,
+            target,
+            manifest,
+            metadata_cwd,
+            owners,
+        )[package]
 
-    if not selected:
-        raise BuildIdentityError(f"no artifact found for {package} in {target_dir / profile}")
     relative = []
     for path in selected:
         try:
@@ -94,6 +90,55 @@ def artifact_identity(
         except ValueError as error:
             raise BuildIdentityError(f"artifact is outside the shared target: {path}") from error
     return recorded_artifact_identity(target_dir, relative)
+
+
+def artifact_identities(
+    root: Path,
+    target_dir: Path,
+    packages: dict[str, Sequence[str]],
+    profile: str,
+    target: str = "host",
+    manifest: Path | None = None,
+    metadata_cwd: Path | None = None,
+    owners: dict[str, frozenset[str]] | None = None,
+) -> dict[str, dict[str, object]]:
+    """Discover several packages' overlapping artifact closures in one target census."""
+
+    _canonical(root, strict=True)
+    target_dir = _canonical(target_dir)
+    if not packages:
+        return {}
+    if owners is None:
+        if manifest is None:
+            owners = {
+                package: frozenset({_normalize_stem(package)}) for package in packages
+            }
+        else:
+            owners = _workspace_artifact_owners(manifest, metadata_cwd)
+    by_owner = _discover_artifacts_by_owner(target_dir, profile, target, owners)
+    selected = {
+        package: set().union(
+            *(by_owner.get(owner, set()) for owner in {package, *related})
+        )
+        for package, related in packages.items()
+    }
+    missing = [package for package, paths in selected.items() if not paths]
+    if missing:
+        raise BuildIdentityError(
+            f"no artifact found for {', '.join(sorted(missing))} in {target_dir / profile}"
+        )
+    digests = {
+        path: _file_digest(path)
+        for path in sorted(set().union(*(paths for paths in selected.values())))
+    }
+    results = {}
+    for package, paths in selected.items():
+        files = {
+            path.relative_to(target_dir).as_posix(): digests[path]
+            for path in sorted(paths)
+        }
+        results[package] = {"files": files, "digest": artifact_digest(files)}
+    return results
 
 
 def recorded_artifact_identity(target_dir: Path, relative_paths: Iterable[str]) -> dict[str, object]:
@@ -212,6 +257,7 @@ def shared_artifact_identity(
     owners: dict[str, frozenset[str]],
     settled: dict[str, str],
     deadline_ns: int,
+    exclusive_artifact: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """A run's record of `package`'s artifacts when it held some path packages shared.
 
@@ -227,22 +273,24 @@ def shared_artifact_identity(
     digest across the run's packages; each file gets up to SETTLE_SECONDS, never
     past `deadline_ns`, and at least two reads are always attempted.
     """
-    own = recorded_artifact_identity(
-        target_dir,
-        [
-            path.relative_to(target_dir).as_posix()
-            for path in discover_artifacts(
-                target_dir,
-                package,
-                profile,
-                target,
-                manifest,
-                metadata_cwd,
-                tuple(sorted(exclusive_packages)),
-                owners,
-            )
-        ],
-    )
+    own = exclusive_artifact
+    if own is None:
+        own = recorded_artifact_identity(
+            target_dir,
+            [
+                path.relative_to(target_dir).as_posix()
+                for path in discover_artifacts(
+                    target_dir,
+                    package,
+                    profile,
+                    target,
+                    manifest,
+                    metadata_cwd,
+                    tuple(sorted(exclusive_packages)),
+                    owners,
+                )
+            ],
+        )
     files = {}
     for relative, verified in named.items():
         if artifact_package(relative, owners) not in shared_packages:
@@ -329,8 +377,22 @@ def discover_artifacts(
             if manifest is not None
             else {package: frozenset({_normalize_stem(package)})}
         )
-    requested_packages = set((package, *related_packages))
-    selected: set[Path] = set()
+    requested_packages = {package, *related_packages}
+    by_owner = _discover_artifacts_by_owner(target_dir, profile, target, owners)
+    return tuple(
+        sorted(set().union(*(by_owner.get(owner, set()) for owner in requested_packages)))
+    )
+
+
+def _discover_artifacts_by_owner(
+    target_dir: Path,
+    profile: str,
+    target: str,
+    owners: dict[str, frozenset[str]],
+) -> dict[str, set[Path]]:
+    """Enumerate one target directory once and group every artifact by package."""
+
+    selected: dict[str, set[Path]] = {}
     dep_dirs = [target_dir / profile / "deps"]
     if target != "host":
         dep_dirs.append(target_dir / target / profile / "deps")
@@ -338,12 +400,9 @@ def discover_artifacts(
         if not deps.is_dir():
             continue
         for path in deps.iterdir():
-            if (
-                path.is_file()
-                and path.suffix in ARTIFACT_SUFFIXES
-                and _artifact_owner(path.name, owners, package) in requested_packages
-            ):
-                selected.add(path.resolve())
+            owner = _artifact_owner(path.name, owners, "")
+            if path.is_file() and path.suffix in ARTIFACT_SUFFIXES and owner is not None:
+                selected.setdefault(owner, set()).add(path.resolve())
     fingerprint_dirs = [
         target_dir / profile / ".fingerprint",
         target_dir / ".fingerprint",
@@ -354,11 +413,9 @@ def discover_artifacts(
         if not fingerprints.is_dir():
             continue
         for directory in fingerprints.iterdir():
-            if (
-                directory.is_dir()
-                and _artifact_owner(directory.name, owners, package) in requested_packages
-            ):
-                selected.update(
+            owner = _artifact_owner(directory.name, owners, "")
+            if directory.is_dir() and owner is not None:
+                selected.setdefault(owner, set()).update(
                     path.resolve() for path in directory.rglob("*") if path.is_file()
                 )
-    return tuple(sorted(selected))
+    return selected

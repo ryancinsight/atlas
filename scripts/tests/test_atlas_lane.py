@@ -297,14 +297,25 @@ class LaneToolTestCase(unittest.TestCase):
 
 
     def submodule_shape(self) -> Path:
-        """Move the member's gitdir under the umbrella's `.git/modules`, as a submodule has it."""
-        gitdir = self.stack / ".git" / "modules" / "repos" / "demo"
-        gitdir.parent.mkdir(parents=True)
-        (self.member / ".git").rename(gitdir)
-        (self.member / ".git").write_text("gitdir: ../../.git/modules/repos/demo\n", encoding="utf-8")
-        subprocess.run(["git", "config", "-f", str(gitdir / "config"), "core.worktree",
-                        "../../../../repos/demo"], check=True)
-        return gitdir
+        """Register the member as a submodule and let Git absorb its gitdir."""
+        gitmodules = self.stack / ".gitmodules"
+        subprocess.run(
+            ["git", "config", "-f", str(gitmodules),
+             "submodule.repos/demo.path", "repos/demo"],
+            check=True, capture_output=True, text=True,
+        )
+        subprocess.run(
+            ["git", "config", "-f", str(gitmodules),
+             "submodule.repos/demo.url", git(self.member, "remote", "get-url", "origin")],
+            check=True, capture_output=True, text=True,
+        )
+        git(self.stack, "add", ".gitmodules", "repos/demo")
+        git(self.stack, "commit", "-q", "-m", "register demo")
+        subprocess.run(
+            ["git", "-C", str(self.stack), "submodule", "absorbgitdirs", "repos/demo"],
+            check=True, capture_output=True, text=True,
+        )
+        return Path(git(self.member, "rev-parse", "--absolute-git-dir")).resolve()
 
     def toplevel(self, tree: Path) -> Path:
         return Path(git(tree, "rev-parse", "--show-toplevel")).resolve()

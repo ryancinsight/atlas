@@ -16,10 +16,9 @@ from atlas_build_source import (
     _sha256_bytes,
     cargo_config_digest,
     environment_digest,
-    repository_head,
+    repository_top,
     source_identity,
     toolchain_identity,
-    worktree_identity,
 )
 
 
@@ -136,8 +135,8 @@ def _dependency_data(
 ) -> dict[str, dict[str, object]]:
     """Each package's dependency snapshot, by package name.
 
-    One `cargo metadata` and one source identity per path package serve the
-    whole set: a package several closures share is read once.
+    One `cargo metadata`, path-repository identity, and external package
+    digest serve the whole set: a package several closures share is read once.
     """
     if has_explicit_artifacts:
         snapshots: dict[str, dict[str, object]] = {
@@ -153,15 +152,24 @@ def _dependency_data(
         metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False)
         # Keyed by work tree: every path package of one repository has that
         # repository's identity, so it is computed once per pass.
-        source_cache: dict[tuple[Path, str], dict[str, object]] = {}
+        source_cache: dict[Path, dict[str, object]] = {}
         package_source_cache = target_dir / ".atlas" / "source-identity" / "package-source"
+        package_digests: dict[Path, str] = {}
 
         def identify_source(path: Path) -> dict[str, object]:
-            head = repository_head(path)
-            if head not in source_cache:
-                identified = worktree_identity(*head, (target_dir,), ignore_paths)
-                source_cache[head] = _content(identified.as_dict())
-            return source_cache[head]
+            top = repository_top(path)
+            if top not in source_cache:
+                identified = source_identity(top, (target_dir,), ignore_paths)
+                source_cache[top] = _content(identified.as_dict())
+            return source_cache[top]
+
+        def digest_package_source(path: Path) -> str:
+            canonical = _canonical(path, strict=True)
+            if canonical not in package_digests:
+                package_digests[canonical] = cached_package_source_digest(
+                    canonical, package_source_cache
+                )
+            return package_digests[canonical]
 
         snapshots = {
             package: dependency_snapshot(
@@ -169,7 +177,7 @@ def _dependency_data(
                 manifest,
                 package,
                 identify_source,
-                lambda path: cached_package_source_digest(path, package_source_cache),
+                digest_package_source,
             )
             for package in packages
         }

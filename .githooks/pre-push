@@ -413,15 +413,30 @@ done
 # advance as its raise (CFDrs/scattered_containers 0 -> 24 on a branch whose
 # baseline predated the class) and could not push.
 debt_gate() {
-    local tip="$1" changed python_bin member output base member_revision
+    local tip="$1" changed raw_changed python_bin member output base member_revision
     local checker_rev checker_dir ref status default_revision
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
     # there would skip the gate on the pushes it most needs to see.
     base="$gate_base"
     [ -z "$base" ] && return 0
-    changed="$(git -C "$atlas_root" diff --name-only "$base".."$tip" -- repos/ 2>/dev/null | awk -F/ 'NF > 1 { print $2 }' | sort -u)"
-    [ -z "$changed" ] && return 0
+    if ! raw_changed="$(MSYS_NO_PATHCONV=1 git -C "$atlas_root" diff --name-only \
+            "$base".."$tip" -- ':(top,literal)repos/' 2>&1)"; then
+        echo "pre-push: BLOCKED -- could not compare pushed tip ${tip:0:12}" >&2
+        echo "with debt-gate base ${base}; moved member pins are unknown." >&2
+        echo "$raw_changed" >&2
+        return 1
+    fi
+    [ -z "$raw_changed" ] && return 0
+    if ! changed="$(printf '%s\n' "$raw_changed" \
+            | awk -F/ 'NF > 1 && !seen[$2]++ { print $2 }')"; then
+        echo "pre-push: BLOCKED -- could not parse moved member pins." >&2
+        return 1
+    fi
+    if [ -z "$changed" ]; then
+        echo "pre-push: BLOCKED -- debt diff returned unrecognized repos/ paths." >&2
+        return 1
+    fi
 
     python_bin="${PYTHON:-}"
     if [ -z "$python_bin" ]; then
@@ -485,8 +500,7 @@ debt_gate() {
             echo "pre-push: BLOCKED -- advancing ${member} raises a debt class." >&2
             echo "$output" >&2
             echo >&2
-            echo "pre-push: fix it in ${member} and advance the pin to the fix, or" >&2
-            echo "push with --no-verify if the raise is deliberate and recorded." >&2
+            echo "pre-push: fix it in ${member} and advance the pin to the fix." >&2
             status=1
             break
         fi
@@ -528,24 +542,18 @@ budget_gate() {
 # rather than in CI. The scanner and allowlist come from the fetched default;
 # the pushed revision supplies only the lines being scanned.
 secret_gate() {
-    local tip="$1" base python_bin candidate
+    local tip="$1" base
     base="$gate_base"
-    python_bin="${PYTHON:-}"
-    if [ -z "$python_bin" ]; then
-        for candidate in python3 python; do
-            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
-        done
-    fi
-    if [ -z "$python_bin" ]; then
-        echo "pre-push: BLOCKED -- no python interpreter; the pushed range was not scanned for credentials." >&2
+    if ! git -C "$atlas_root" cat-file -e \
+        "$trusted_rescue_ref:scripts/git-hooks/rescue-push" 2>/dev/null; then
+        echo "pre-push: BLOCKED -- the trusted credential scanner runner is unavailable." >&2
         return 1
     fi
-    local args=()
-    [ -n "$base" ] && args=(--base "$base")
     local scan_status=0
-    git -C "$atlas_root" show "$trusted_rescue_ref:scripts/atlas-secret-scan.py" \
-        | "$python_bin" -I - check --root "$atlas_root" --rev "$tip" \
-            --allowlist-rev "$trusted_rescue_ref" "${args[@]}" \
+    git -C "$atlas_root" show \
+        "$trusted_rescue_ref:scripts/git-hooks/rescue-push" \
+        | bash -s -- --scan "$atlas_root" "$atlas_root" \
+            "$trusted_rescue_ref" "$trusted_rescue_ref" "$tip" "$base" \
         || scan_status=$?
     case "$scan_status" in
         0) return 0 ;;

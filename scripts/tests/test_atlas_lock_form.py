@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib.util
+import json
 import shutil
 import io
 import subprocess
@@ -133,6 +134,31 @@ class HookCommitTestCase(unittest.TestCase):
             check=True, capture_output=True, encoding="utf-8",
         ).stdout.strip()
 
+    @contextlib.contextmanager
+    def _rollout_repositories(self, prefix: str):
+        with tempfile.TemporaryDirectory(prefix=prefix) as temp:
+            root = Path(temp)
+            remote = root / "remote.git"
+            seed = root / "seed"
+            publisher = root / "publisher"
+            remote.mkdir()
+            seed.mkdir()
+            self._git(remote, "init", "-q", "--bare")
+            self._git(seed, "init", "-q", "-b", "main")
+            (seed / "seed").write_text("seed\n", encoding="utf-8")
+            self._git(seed, "add", "seed")
+            self._git(seed, "commit", "-q", "-m", "seed")
+            self._git(seed, "remote", "add", "origin", str(remote))
+            self._git(seed, "push", "-q", "-u", "origin", "main")
+            self._git(remote, "symbolic-ref", "HEAD", "refs/heads/main")
+            subprocess.run(
+                ["git", "clone", "-q", str(remote), str(publisher)],
+                check=True,
+            )
+            self._git(publisher, "config", "user.email", "t@t")
+            self._git(publisher, "config", "user.name", "t")
+            yield remote, seed, publisher
+
     def test_commit_carries_the_hooks_and_leaves_the_checkout_alone(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-") as temp:
             root = Path(temp)
@@ -175,6 +201,111 @@ class HookCommitTestCase(unittest.TestCase):
             self.assertEqual(self._git(repo, "show", f"{commit}:lib.rs"), "one")
             self.assertEqual(self._git(repo, "status", "--porcelain"), status_before)
             self.assertEqual(self._git(repo, "rev-parse", "--abbrev-ref", "HEAD"), "peer")
+
+    def test_item_is_an_actual_generated_commit_trailer(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-item-") as temp:
+            repo = Path(temp) / "member"
+            repo.mkdir()
+            self._git(repo, "init", "-q", "-b", "main")
+            self._git(repo, "config", "user.email", "t@t")
+            self._git(repo, "config", "user.name", "t")
+            (repo / "seed").write_text("seed\n", encoding="utf-8")
+            self._git(repo, "add", "seed")
+            self._git(repo, "commit", "-q", "-m", "seed")
+            item = "ATLAS-MOIRAI-MAIN-DIVERGED-2026-10-05"
+            message = _lock_form.hook_publish_message("a109abb8ac02", [], item)
+
+            commit = _lock_form.hook_commit(
+                repo,
+                self._git(repo, "rev-parse", "HEAD"),
+                [("pre-push", b"#!/bin/sh\nexit 0\n")],
+                message,
+            )
+
+            self.assertIsNotNone(commit)
+            body = self._git(repo, "show", "-s", "--format=%B", commit)
+            parsed = subprocess.run(
+                ["git", "interpret-trailers", "--parse"],
+                input=body,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            self.assertEqual(parsed, f"Item: {item}")
+
+    def test_unique_remote_rollout_head_is_not_overwritten(self) -> None:
+        with self._rollout_repositories("atlas-publish-lease-") as repositories:
+            remote, seed, publisher = repositories
+            self._git(seed, "switch", "-q", "-c", _lock_form.PUBLISH_BRANCH)
+            (seed / "unique").write_text("preserve\n", encoding="utf-8")
+            self._git(seed, "add", "unique")
+            self._git(seed, "commit", "-q", "-m", "unique rollout work")
+            self._git(seed, "push", "-q", "origin", _lock_form.PUBLISH_BRANCH)
+            remote_head = self._git(
+                remote, "rev-parse", f"refs/heads/{_lock_form.PUBLISH_BRANCH}"
+            )
+            candidate = _lock_form.hook_commit(
+                publisher,
+                self._git(publisher, "rev-parse", "origin/main"),
+                [("pre-push", b"#!/bin/sh\nexit 0\n")],
+                "ci: sync\n",
+            )
+            self.assertIsNotNone(candidate)
+
+            with self.assertRaisesRegex(RuntimeError, "unique remote work"):
+                _lock_form.push_hook_branch(
+                    publisher,
+                    candidate,
+                    _lock_form.PUBLISH_BRANCH,
+                    b"#!/bin/sh\nexit 0\n",
+                )
+
+            self.assertEqual(
+                self._git(
+                    remote, "rev-parse", f"refs/heads/{_lock_form.PUBLISH_BRANCH}"
+                ),
+                remote_head,
+            )
+
+    def test_rollout_head_landed_on_default_can_be_superseded(self) -> None:
+        with self._rollout_repositories("atlas-publish-landed-") as repositories:
+            remote, seed, publisher = repositories
+            base = self._git(publisher, "rev-parse", "origin/main")
+            self._git(seed, "switch", "-q", "-c", _lock_form.PUBLISH_BRANCH)
+            (seed / "landed").write_text("landed\n", encoding="utf-8")
+            self._git(seed, "add", "landed")
+            self._git(seed, "commit", "-q", "-m", "landed rollout work")
+            self._git(seed, "push", "-q", "origin", _lock_form.PUBLISH_BRANCH)
+            rollout_head = self._git(seed, "rev-parse", "HEAD")
+            self._git(seed, "switch", "-q", "main")
+            self._git(seed, "merge", "-q", "--no-ff", _lock_form.PUBLISH_BRANCH)
+            self._git(seed, "push", "-q", "origin", "main")
+            self._git(publisher, "fetch", "-q", "origin")
+            candidate = _lock_form.hook_commit(
+                publisher,
+                base,
+                [("pre-push", b"#!/bin/sh\nexit 0\n")],
+                "ci: sync\n",
+            )
+            self.assertIsNotNone(candidate)
+
+            _lock_form.push_hook_branch(
+                publisher,
+                candidate,
+                _lock_form.PUBLISH_BRANCH,
+                b"#!/bin/sh\nexit 0\n",
+            )
+
+            self.assertEqual(
+                self._git(
+                    remote, "rev-parse", f"refs/heads/{_lock_form.PUBLISH_BRANCH}"
+                ),
+                candidate,
+            )
+            self.assertEqual(
+                self._git(remote, "merge-base", "--is-ancestor", rollout_head, "main"),
+                "",
+            )
 
     def test_publish_reads_the_committed_hooks_not_the_checkout(self) -> None:
         """A peer's uncommitted edit to the hook in a shared atlas checkout must
@@ -332,7 +463,9 @@ class HookInstallTestCase(unittest.TestCase):
             capture_output=True, text=True, check=True, **kwargs,
         ).stdout.strip()
 
-    def publish(self, hooks: dict[str, bytes]) -> None:
+    def publish(
+        self, hooks: dict[str, bytes], files: dict[str, bytes] | None = None
+    ) -> None:
         """Move origin/main to a commit whose `scripts/git-hooks` is `hooks`.
 
         Built through a private index, so the checkout's branch, index and
@@ -340,13 +473,20 @@ class HookInstallTestCase(unittest.TestCase):
         index = Path(self._tmp.name) / "publish-index"
         environment = {**os.environ, "GIT_INDEX_FILE": str(index)}
         index.unlink(missing_ok=True)
-        for name, content in hooks.items():
+        entries = {
+            f"scripts/git-hooks/{name}": ("100755", content)
+            for name, content in hooks.items()
+        }
+        entries.update(
+            {path: ("100644", content) for path, content in (files or {}).items()}
+        )
+        for path, (mode, content) in entries.items():
             source = Path(self._tmp.name) / "publish-blob"
             source.write_bytes(content)
             blob = self.git(self.atlas, "hash-object", "-w", "--no-filters", str(source))
             self.git(
                 self.atlas, "update-index", "--add", "--cacheinfo",
-                f"100755,{blob},scripts/git-hooks/{name}", env=environment,
+                f"{mode},{blob},{path}", env=environment,
             )
         tree = self.git(self.atlas, "write-tree", env=environment)
         commit = self.git(
@@ -990,30 +1130,232 @@ class HookInstallTestCase(unittest.TestCase):
         self.addCleanup(reap, run)
         return run
 
-    def test_a_push_from_the_stack_root_itself_matches_its_stack(self) -> None:
-        """The root gates its own pushes through the shim, and the hook's
-        stack discovery must treat the checkout it runs from as a candidate:
-        walking only upward from the Atlas tree finds no .gitmodules above it,
-        so the root's own pushes read "no Atlas stack above this clone" and
-        skip every stack check. With the root matched, the same run reaches
-        the stack-matched path instead."""
-        member = self.member("alpha")
+    def root_prepared_push(
+        self,
+        baseline_exit: int,
+        candidate_exit: int,
+        *,
+        prepared_value: str | None = None,
+        missing_tool: bool = False,
+    ) -> dict:
+        """Run a root push with different fetched and prepared debt tools."""
+        run_id = getattr(self, "_root_prepared_runs", 0)
+        self._root_prepared_runs = run_id + 1
+        self.atlas = (
+            Path(self._tmp.name).resolve()
+            / f"atlas-root-{baseline_exit}-{candidate_exit}-{run_id}"
+        )
+        self.repos = self.atlas / "repos"
+        subprocess.run(["git", "init", "-q", str(self.atlas)], check=True)
+        self.member("alpha")
         self.git(self.atlas, "config", "--file", ".gitmodules",
                  "submodule.alpha.path", "repos/alpha")
         self.git(self.atlas, "config", "--file", ".gitmodules",
                  "submodule.alpha.url", "https://example.invalid/alpha")
+        secret_probe = Path(self._tmp.name) / "secret-probe.json"
+        debt_probe = Path(self._tmp.name) / "debt-probe.json"
+        secret = (
+            "import json, os, sys\n"
+            "from pathlib import Path\n"
+            "Path(os.environ['ATLAS_SECRET_PROBE']).write_text("
+            "json.dumps(sys.argv[1:]), encoding='utf-8')\n"
+        ).encode()
+
+        def conformance(label: str, exit_code: int) -> bytes:
+            return (
+                "import json, os, sys\n"
+                "from pathlib import Path\n"
+                "ATLAS_STACK_ROOT = os.environ.get('ATLAS_STACK_ROOT')\n"
+                "Path(os.environ['ATLAS_DEBT_PROBE']).write_text("
+                f"json.dumps({{'label': {label!r}, 'args': sys.argv[1:], "
+                "'stack': ATLAS_STACK_ROOT}), "
+                "encoding='utf-8')\n"
+                f"raise SystemExit({exit_code})\n"
+            ).encode()
         owned = (Path(__file__).resolve().parent.parent.parent
                  / "scripts" / "git-hooks" / "pre-push").read_bytes()
-        self.publish({"pre-push": owned})
-        run = self.run_shim(_lock_form.write_hook_shims(self.atlas), cwd=self.atlas)
-        _, err = run.communicate(b"", timeout=60)
-        text = err.decode(errors="replace")
-        self.assertNotIn("no Atlas stack above this clone", text)
-        self.assertTrue(
-            any(m in text for m in
-                ("not reachable from this clone", "the Atlas stack at")),
-            text,
+        self.publish(
+            {"pre-push": owned},
+            {
+                "scripts/atlas-secret-scan.py": secret,
+                "scripts/atlas-conformance.py": conformance("baseline", baseline_exit),
+                "scripts/atlas_stack.py": b"ATLAS_STACK_ROOT = True\n",
+                "scripts/atlas-build-identity.py": b"raise SystemExit(0)\n",
+                "scripts/lockfile.py": b"raise SystemExit(0)\n",
+            },
         )
+        baseline = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        scripts = self.atlas / "scripts"
+        scripts.mkdir()
+        (scripts / "atlas-conformance.py").write_bytes(
+            conformance("candidate", candidate_exit)
+        )
+        (scripts / "atlas_stack.py").write_bytes(b"ATLAS_STACK_ROOT = True\n")
+        if not missing_tool:
+            (scripts / "atlas-build-identity.py").write_bytes(
+                b"raise SystemExit(0)\n"
+            )
+        self.git(self.atlas, "add", ".gitmodules", "scripts")
+        self.git(
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+            "commit", "-q", "-m", "root push",
+        )
+        pushed = self.git(self.atlas, "rev-parse", "HEAD")
+        run = self.run_shim(
+            _lock_form.write_hook_shims(self.atlas),
+            cwd=self.atlas,
+            ATLAS_SECRET_PROBE=str(secret_probe),
+            ATLAS_DEBT_PROBE=str(debt_probe),
+            GIT_CONFIG_COUNT="1",
+            GIT_CONFIG_KEY_0="atlas.preparedTools",
+            GIT_CONFIG_VALUE_0=(pushed if prepared_value is None else prepared_value),
+            SKIP_LOCAL_GATE="1",
+        )
+        _, err = run.communicate(
+            f"refs/heads/root {pushed} refs/heads/root {'0' * 40}\n".encode(),
+            timeout=60,
+        )
+        return {
+            "baseline": baseline,
+            "debt": (
+                json.loads(debt_probe.read_text(encoding="utf-8"))
+                if debt_probe.is_file()
+                else None
+            ),
+            "pushed": pushed,
+            "returncode": run.returncode,
+            "secret": (
+                json.loads(secret_probe.read_text(encoding="utf-8"))
+                if secret_probe.is_file()
+                else None
+            ),
+            "text": err.decode(errors="replace"),
+        }
+
+    def test_a_push_from_the_stack_root_runs_secret_and_meta_debt_gates(self) -> None:
+        """The prepared checker fails while the fetched checker would pass."""
+        result = self.root_prepared_push(0, 19)
+        text = result["text"]
+        self.assertEqual(result["returncode"], 1, text)
+        self.assertNotIn("no Atlas stack above this clone", text)
+        self.assertNotIn("not a registered stack member", text)
+        self.assertIn(result["pushed"], text)
+        secret_args = result["secret"]
+        self.assertEqual(secret_args[:2], ["check", "--root"])
+        self.assertEqual(Path(secret_args[2]).resolve(), self.atlas)
+        self.assertEqual(
+            secret_args[3:],
+            ["--rev", result["pushed"], "--allowlist-rev", result["baseline"]],
+        )
+        debt = result["debt"]
+        self.assertEqual(debt["label"], "candidate")
+        self.assertEqual(
+            debt["args"],
+            [
+                "check", "--baseline-rev", result["baseline"],
+                "--revision", result["pushed"],
+            ],
+        )
+        self.assertEqual(Path(debt["stack"]).resolve(), self.atlas)
+        self.assertIn("debt ratchet could not run (exit 19)", text)
+
+    def test_a_prepared_fix_passes_when_the_fetched_checker_would_fail(self) -> None:
+        """The candidate tool is the executable input; the baseline stays fetched."""
+        result = self.root_prepared_push(19, 0)
+        self.assertEqual(result["returncode"], 0, result["text"])
+        self.assertEqual(result["debt"]["label"], "candidate")
+        self.assertEqual(
+            result["debt"]["args"],
+            [
+                "check", "--baseline-rev", result["baseline"],
+                "--revision", result["pushed"],
+            ],
+        )
+        self.assertIn(result["pushed"], result["text"])
+
+    def test_invalid_prepared_tool_selections_fail_closed(self) -> None:
+        cases = (
+            ("", False, "full 40-character commit ID"),
+            ("abc", False, "full 40-character commit ID"),
+            ("f" * 40, False, "is unavailable in the Atlas object store"),
+            (None, True, "lacks a required prepared tool"),
+        )
+        for prepared_value, missing_tool, message in cases:
+            with self.subTest(prepared_value=prepared_value, missing_tool=missing_tool):
+                result = self.root_prepared_push(
+                    0,
+                    0,
+                    prepared_value=prepared_value,
+                    missing_tool=missing_tool,
+                )
+                self.assertEqual(result["returncode"], 1, result["text"])
+                self.assertIn(message, result["text"])
+                self.assertIsNone(result["secret"])
+                self.assertIsNone(result["debt"])
+
+    def test_a_registered_submodule_with_a_registry_ascends_to_stack(self) -> None:
+        """A member's own registry never captures the member as a stack.
+
+        An actual submodule reports a superproject, so the locator must advance
+        past it and run the owning stack's lock checker in finite time.
+        """
+        source = Path(self._tmp.name) / "member-source"
+        subprocess.run(["git", "init", "-q", str(source)], check=True)
+        (source / "Cargo.toml").write_text(
+            '[package]\nname = "member"\nversion = "0.1.0"\n\n'
+            '[dependencies]\nprovider = { git = '
+            '"https://github.com/ryancinsight/provider", version = "0.1" }\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        (source / "Cargo.lock").write_text(
+            '[[package]]\nname = "provider"\nversion = "0.1.0"\n'
+            'source = "git+https://github.com/ryancinsight/provider.git?'
+            'branch=main#abc123"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        (source / ".gitmodules").write_text(
+            '[submodule "nested"]\n\tpath = repos/nested\n\turl = ./nested\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        self.git(source, "add", "Cargo.toml", "Cargo.lock", ".gitmodules")
+        self.git(
+            source, "-c", "user.name=t", "-c", "user.email=t@t",
+            "commit", "-q", "-m", "member",
+        )
+        owned = (Path(__file__).resolve().parent.parent.parent
+                 / "scripts" / "git-hooks" / "pre-commit").read_bytes()
+        checker = (Path(__file__).resolve().parent.parent.parent
+                   / "scripts" / "lockfile.py").read_bytes()
+        self.publish({"pre-commit": owned}, {"scripts/lockfile.py": checker})
+        self.git(
+            self.atlas, "-c", "protocol.file.allow=always", "submodule", "add",
+            "-q", str(source), "repos/alpha",
+        )
+        self.git(
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+            "commit", "-q", "-m", "register member",
+        )
+        member = self.repos / "alpha"
+        (member / "Cargo.lock").write_text(
+            '[[package]]\nname = "provider"\nversion = "0.1.0"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        self.git(member, "add", "Cargo.lock")
+        completed = subprocess.run(
+            ["bash", str(Path(__file__).resolve().parent.parent.parent
+                         / "scripts" / "git-hooks" / "pre-commit")],
+            cwd=member,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        self.assertIn("LOCK FORM VIOLATION (staged)", completed.stderr)
 
     def test_a_tip_that_edits_the_root_hook_cannot_replace_its_gate(self) -> None:
         """The atlas root's `core.hooksPath=.githooks` runs the checked-out

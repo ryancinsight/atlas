@@ -19,6 +19,7 @@ from pathlib import Path
 from unittest import mock
 
 from readonly_tree import clear_readonly_tree
+from process_tree_support import HANG_GUARD_SECONDS, NEVER_ENDS
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas-secret-scan.py"
 _SPEC = importlib.util.spec_from_file_location("atlas_secret_scan", SCRIPT)
@@ -61,8 +62,8 @@ def _git(root: Path, *args: str) -> str:
                           capture_output=True, text=True, env=GIT_ENV).stdout.strip()
 
 
-def _is_running(pid: int, wait_for_exit: bool = False) -> bool:
-    """Whether process `pid` is alive; with `wait_for_exit`, after waiting for it to end."""
+def _is_running(pid: int) -> bool:
+    """Whether process `pid` is active after process-tree cleanup returns."""
     if os.name == "nt":
         import ctypes
 
@@ -72,7 +73,7 @@ def _is_running(pid: int, wait_for_exit: bool = False) -> bool:
             return False
         try:
             # WAIT_OBJECT_0: the process has exited.
-            return kernel.WaitForSingleObject(handle, 10_000 if wait_for_exit else 0) != 0
+            return kernel.WaitForSingleObject(handle, 0) != 0
         finally:
             kernel.CloseHandle(handle)
     try:
@@ -488,20 +489,22 @@ class PushedRangeTestCase(unittest.TestCase):
                     scan.check(clone, main, self.base)
 
     def test_ending_a_process_tree_ends_the_grandchild(self) -> None:
-        code = (
-            "import subprocess, sys\n"
-            "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(300)'])\n"
-            "print(child.pid, flush=True)\n"
-            "child.wait()\n"
-        )
-        proc = scan._start([sys.executable, "-c", code], stdout=subprocess.PIPE)
-        assert proc.stdout is not None
-        grandchild = int(proc.stdout.readline())
-        self.assertTrue(_is_running(grandchild))
-        scan._kill_tree(proc)
-        proc.wait()
-        proc.stdout.close()
-        self.assertFalse(_is_running(grandchild, wait_for_exit=True))
+        with tempfile.TemporaryDirectory(prefix="atlas-secret-scan-tree-") as temp:
+            pid_path = Path(temp) / "grandchild.pid"
+            code = (
+                "import pathlib, subprocess, sys\n"
+                "child = subprocess.Popen([sys.executable, '-c', sys.argv[2]], "
+                "stdout=subprocess.PIPE, text=True)\n"
+                "assert child.stdout.readline() == 'ready\\n'\n"
+                "pathlib.Path(sys.argv[1]).write_text(str(child.pid))\n"
+            )
+            child_code = "print('ready', flush=True); " + NEVER_ENDS
+            status = scan._run_bounded(
+                [sys.executable, "-c", code, str(pid_path), child_code],
+                b"", HANG_GUARD_SECONDS,
+            )
+            self.assertEqual(status, 0)
+            self.assertFalse(_is_running(int(pid_path.read_text())))
 
     def test_a_command_past_its_deadline_is_reported(self) -> None:
         with self.assertRaises(subprocess.TimeoutExpired):

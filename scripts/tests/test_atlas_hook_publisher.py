@@ -42,7 +42,7 @@ class HookBranchPushTestCase(unittest.TestCase):
         self._git(repo, "commit", "-q", "-m", value)
         return self._git(repo, "rev-parse", "HEAD")
 
-    def test_push_uses_absent_and_fresh_remote_tip_leases(self) -> None:
+    def test_push_uses_absent_and_ancestral_remote_tip_leases(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-lease-") as temp:
             root = Path(temp)
             repo = root / "member"
@@ -64,7 +64,7 @@ class HookBranchPushTestCase(unittest.TestCase):
             remote_tip = self._commit(repo, "remote-tip")
             self._git(repo, "push", "-q", "origin", f"{remote_tip}:{ref}")
             self._git(repo, "update-ref", f"refs/remotes/origin/{branch}", base)
-            self._git(repo, "switch", "-q", "-c", "desired", first)
+            self._git(repo, "switch", "-q", "-c", "desired", remote_tip)
             desired = self._commit(repo, "desired")
             _lock_form.push_hook_branch(repo, desired, branch, self.ACCEPTING_HOOK)
 
@@ -87,7 +87,7 @@ class HookBranchPushTestCase(unittest.TestCase):
             self._git(repo, "push", "-q", "origin", f"{observed}:{ref}")
             concurrent = self._commit(repo, "concurrent")
             self._git(repo, "push", "-q", "origin", f"{concurrent}:refs/heads/race")
-            self._git(repo, "switch", "-q", "-c", "desired", base)
+            self._git(repo, "switch", "-q", "-c", "desired", observed)
             desired = self._commit(repo, "desired")
             real_git_bytes = _lock_form.git_bytes
 
@@ -188,7 +188,8 @@ class HookBranchPushTestCase(unittest.TestCase):
             patch.object(_lock_form, "git_in", return_value="") as git_in,
         ):
             _lock_form.push_hook_branch(
-                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK
+                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK,
+                "b" * 40,
             )
 
         self.assertEqual(git_in.call_args.args[1], "-c")
@@ -196,6 +197,7 @@ class HookBranchPushTestCase(unittest.TestCase):
         self.assertEqual(
             git_in.call_args.args[3:],
             (
+                "-c", f"atlas.preparedTools={'b' * 40}",
                 "push", "-q", f"--force-with-lease={ref}:{observed}",
                 "origin", f"commit:{ref}",
             ),
@@ -206,11 +208,16 @@ class HookBranchPushTestCase(unittest.TestCase):
             patch.object(_lock_form, "git_in", return_value="") as git_in,
         ):
             _lock_form.push_hook_branch(
-                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK
+                Path("member"), "commit", "ci/sync-stack-hooks", self.ACCEPTING_HOOK,
+                "b" * 40,
             )
         self.assertEqual(
-            git_in.call_args.args[5],
-            f"--force-with-lease={ref}:",
+            git_in.call_args.args[3:],
+            (
+                "-c", f"atlas.preparedTools={'b' * 40}",
+                "push", "-q", f"--force-with-lease={ref}:",
+                "origin", f"commit:{ref}",
+            ),
         )
 
     def test_push_rejects_untrusted_remote_ref_output(self) -> None:
@@ -254,7 +261,7 @@ class PullRequestCommandTestCase(unittest.TestCase):
         repo = Path("member")
         url = "https://github.com/example/member/pull/7"
         responses = [
-            subprocess.CompletedProcess([], 0, stdout=f"{url}\n", stderr=""),
+            subprocess.CompletedProcess([], 0, stdout=f"{url}\tfalse\n", stderr=""),
             subprocess.CompletedProcess([], 0, stdout="", stderr=""),
         ]
         with patch.object(_lock_form.subprocess, "run", side_effect=responses) as run:
@@ -268,8 +275,8 @@ class PullRequestCommandTestCase(unittest.TestCase):
             run.call_args_list[0].args[0],
             [
                 "gh", "pr", "list", "--head", "ci/sync-stack-hooks",
-                "--base", "main", "--state", "open", "--json", "url",
-                "--jq", ".[0].url",
+                "--base", "main", "--state", "open", "--json", "url,isDraft",
+                "--jq", ".[0] | select(. != null) | [.url, .isDraft] | @tsv",
             ],
         )
         self.assertEqual(
@@ -303,6 +310,50 @@ class PullRequestCommandTestCase(unittest.TestCase):
                 "--base", "main", "--title", "subject", "--body", "body",
             ],
         )
+
+    def test_new_draft_pull_request_is_created_as_draft(self) -> None:
+        url = "https://github.com/example/member/pull/9"
+        responses = [
+            subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+            subprocess.CompletedProcess([], 0, stdout=f"{url}\n", stderr=""),
+        ]
+        with patch.object(_lock_form.subprocess, "run", side_effect=responses) as run:
+            found, created = _lock_form.pull_request_for(
+                Path("member"),
+                "ci/sync-stack-hooks",
+                "main",
+                "subject",
+                "body",
+                draft=True,
+            )
+
+        self.assertEqual((found, created), (url, True))
+        self.assertEqual(
+            run.call_args_list[1].args[0],
+            [
+                "gh", "pr", "create", "--head", "ci/sync-stack-hooks",
+                "--base", "main", "--title", "subject", "--body", "body",
+                "--draft",
+            ],
+        )
+
+    def test_draft_refuses_an_existing_ready_pull_request(self) -> None:
+        url = "https://github.com/example/member/pull/10"
+        response = subprocess.CompletedProcess(
+            [], 0, stdout=f"{url}\tfalse\n", stderr=""
+        )
+        with patch.object(_lock_form.subprocess, "run", return_value=response) as run:
+            with self.assertRaisesRegex(RuntimeError, "is ready; refusing --draft"):
+                _lock_form.pull_request_for(
+                    Path("member"),
+                    "ci/sync-stack-hooks",
+                    "main",
+                    "subject",
+                    "body",
+                    draft=True,
+                )
+
+        self.assertEqual(run.call_count, 1)
 
     def test_hosting_timeout_is_reported_as_failure(self) -> None:
         timeout = subprocess.TimeoutExpired(["gh", "pr", "list"], 30)
@@ -471,6 +522,9 @@ class PublisherScopeTestCase(unittest.TestCase):
                     "pre-push",
                     "--source-ref",
                     "refs/remotes/origin/pr/286",
+                    "--item",
+                    "ATLAS-HOOK-ROLLOUT-2026-10-06",
+                    "--draft",
                 ],
             ),
             patch.object(
@@ -485,6 +539,24 @@ class PublisherScopeTestCase(unittest.TestCase):
         self.assertTrue(captured[0].push)
         self.assertEqual(captured[0].hook, "pre-push")
         self.assertEqual(captured[0].source_ref, "refs/remotes/origin/pr/286")
+        self.assertEqual(captured[0].item, "ATLAS-HOOK-ROLLOUT-2026-10-06")
+        self.assertTrue(captured[0].draft)
+
+    def test_invalid_item_is_rejected_before_external_commands(self) -> None:
+        for item in ("", "ATLAS-HOOK\nInjected: value", "ATLAS-HOOK-\x1fVALUE"):
+            with self.subTest(item=repr(item)):
+                args = Namespace(
+                    members=["alpha"], push=True, source_ref=None, item=item
+                )
+                with (
+                    patch.object(_lock_form, "member_scope") as member_scope,
+                    patch.object(_lock_form, "git_in") as git_in,
+                    redirect_stderr(io.StringIO()) as error_output,
+                ):
+                    self.assertEqual(_lock_form.cmd_publish_hooks(args), 2)
+                member_scope.assert_not_called()
+                git_in.assert_not_called()
+                self.assertIn("invalid item", error_output.getvalue())
 
     def test_unknown_member_is_rejected_before_external_commands(self) -> None:
         args = Namespace(members=["../other"], push=True, source_ref=None)
@@ -509,6 +581,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                 push=True,
                 hook="pre-push",
                 source_ref="refs/remotes/origin/pr/286",
+                item="ATLAS-HOOK-ROLLOUT-2026-10-06",
             )
             git_results = iter(
                 [
@@ -538,8 +611,8 @@ class PublisherScopeTestCase(unittest.TestCase):
                 patch.object(_lock_form, "push_hook_branch") as push_hook_branch,
                 patch.object(
                     _lock_form, "pull_request_for", return_value=("url", True)
-                ),
-                patch.object(_lock_form, "enqueue_pull_request"),
+                ) as pull_request_for,
+                patch.object(_lock_form, "enqueue_pull_request") as enqueue,
                 redirect_stdout(io.StringIO()),
             ):
                 self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
@@ -557,8 +630,72 @@ class PublisherScopeTestCase(unittest.TestCase):
             self.assertEqual(hook_commit.call_args.args[2], [hook_bytes[1]])
             self.assertEqual(hook_commit.call_args.args[1], "b" * 40)
             push_hook_branch.assert_called_once_with(
-                member_root / "alpha", "built", "ci/sync-stack-hooks", hook_bytes[1][1]
+                member_root / "alpha", "built", "ci/sync-stack-hooks",
+                hook_bytes[1][1], source_commit,
             )
+            expected_message = (
+                "ci: Sync the stack-owned git hooks\n\n"
+                "Deploys atlas `scripts/git-hooks` at aaaaaaaa, the single\n"
+                "source every member's `.githooks/` copies; a copy that differs is the\n"
+                "gate-version drift the conformance scan counts.\n\n"
+                "Item: ATLAS-HOOK-ROLLOUT-2026-10-06\n"
+            )
+            self.assertEqual(hook_commit.call_args.args[3], expected_message)
+            pull_request_for.assert_called_once_with(
+                member_root / "alpha",
+                "ci/sync-stack-hooks",
+                "main",
+                "ci: Sync the stack-owned git hooks",
+                expected_message,
+                draft=False,
+            )
+            enqueue.assert_called_once_with(member_root / "alpha", "url")
+
+    def test_draft_publication_skips_enqueue(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hook-draft-") as temp:
+            root = Path(temp)
+            member_root = root / "repos"
+            (member_root / "alpha").mkdir(parents=True)
+            source_commit = "a" * 40
+            hook_bytes = [("pre-push", b"#!/bin/sh\nexit 0\n")]
+            args = Namespace(
+                members=["alpha"],
+                push=True,
+                hook="pre-push",
+                source_ref="refs/remotes/origin/pr/286",
+                draft=True,
+            )
+            git_results = iter(
+                [
+                    "",
+                    "refs/remotes/origin/main",
+                    source_commit,
+                    "aaaaaaaa",
+                    "",
+                    "origin/main",
+                    "b" * 40,
+                ]
+            )
+            with (
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "REPOS", member_root),
+                patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+                patch.object(
+                    _lock_form, "git_in", side_effect=lambda *_args: next(git_results)
+                ),
+                patch.object(_lock_form, "committed_hooks", return_value=hook_bytes),
+                patch.object(_lock_form, "hook_commit", return_value="built"),
+                patch.object(_lock_form, "push_hook_branch"),
+                patch.object(
+                    _lock_form, "pull_request_for", return_value=("url", True)
+                ) as pull_request_for,
+                patch.object(_lock_form, "enqueue_pull_request") as enqueue,
+                redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
+
+            self.assertTrue(pull_request_for.call_args.kwargs["draft"])
+            enqueue.assert_not_called()
 
     def test_unknown_hook_filter_stops_before_member_publication(self) -> None:
         args = Namespace(

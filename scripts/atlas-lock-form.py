@@ -57,6 +57,7 @@ from atlas_git_process import (  # noqa: E402
     execute as execute_git,
     execute_process,
 )
+from atlas_board_items import ITEM_ID as BOARD_ITEM_HEADING  # noqa: E402
 from atlas_stack import ROOT, registered_member_names  # noqa: E402
 
 REPOS = ROOT / "repos"
@@ -477,9 +478,13 @@ def hook_commit(
 
 
 def push_hook_branch(
-    repo: Path, commit: str, branch: str, pre_push_hook: bytes
+    repo: Path,
+    commit: str,
+    branch: str,
+    pre_push_hook: bytes,
+    prepared_tools: str | None = None,
 ) -> None:
-    """Update the publication branch under a freshly observed explicit lease."""
+    """Update the publication branch under a lease using its source tools."""
     ref = f"refs/heads/{branch}"
     listing = git_bytes(repo, "ls-remote", "--heads", "origin", ref)
     if listing == b"":
@@ -504,6 +509,36 @@ def push_hook_branch(
             )
         if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", expected) is None:
             raise RuntimeError(f"git ls-remote returned a malformed object ID for {ref}")
+        try:
+            git_in(repo, "cat-file", "-e", f"{expected}^{{commit}}")
+        except RuntimeError:
+            git_in(repo, "fetch", "-q", "origin", ref)
+            try:
+                git_in(repo, "cat-file", "-e", f"{expected}^{{commit}}")
+            except RuntimeError as error:
+                raise RuntimeError(
+                    f"could not fetch the observed {ref} head {expected}"
+                ) from error
+        candidate_contains_head = True
+        try:
+            git_in(repo, "merge-base", "--is-ancestor", expected, commit)
+        except RuntimeError:
+            candidate_contains_head = False
+        default_contains_head = False
+        if not candidate_contains_head:
+            default = git_in(
+                repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"
+            )
+            try:
+                git_in(repo, "merge-base", "--is-ancestor", expected, default)
+                default_contains_head = True
+            except RuntimeError:
+                pass
+        if not candidate_contains_head and not default_contains_head:
+            raise RuntimeError(
+                f"{ref} at {expected} is not an ancestor of candidate {commit}; "
+                "refusing to overwrite unique remote work"
+            )
     # A member checkout may hold an older or dirty .githooks copy. Select the
     # committed source hook for this push only; Git still invokes it normally
     # with the pushed ref range on stdin.
@@ -511,10 +546,12 @@ def push_hook_branch(
         hook_path = Path(temporary) / "pre-push"
         hook_path.write_bytes(pre_push_hook)
         hook_path.chmod(0o755)
+        command_config = ["-c", f"core.hooksPath={temporary}"]
+        if prepared_tools is not None:
+            command_config.extend(("-c", f"atlas.preparedTools={prepared_tools}"))
         git_in(
             repo,
-            "-c",
-            f"core.hooksPath={temporary}",
+            *command_config,
             "push",
             "-q",
             f"--force-with-lease={ref}:{expected}",
@@ -529,9 +566,11 @@ def pull_request_for(
     base: str,
     subject: str,
     message: str,
+    *,
+    draft: bool = False,
 ) -> tuple[str, bool]:
     """Return the branch's open pull request, creating it when absent."""
-    url = hosting_in(
+    pull_request = hosting_in(
         repo,
         "pr",
         "list",
@@ -542,33 +581,72 @@ def pull_request_for(
         "--state",
         "open",
         "--json",
-        "url",
+        "url,isDraft",
         "--jq",
-        ".[0].url",
+        ".[0] | select(. != null) | [.url, .isDraft] | @tsv",
     )
-    if url and url != "null":
+    if pull_request:
+        try:
+            url, draft_text = pull_request.rsplit("\t", 1)
+        except ValueError as error:
+            raise RuntimeError(
+                f"unexpected pull request state for {branch}: {pull_request!r}"
+            ) from error
+        if not url or draft_text not in {"true", "false"}:
+            raise RuntimeError(
+                f"unexpected pull request state for {branch}: {pull_request!r}"
+            )
+        if draft and draft_text == "false":
+            raise RuntimeError(
+                f"existing pull request {url} is ready; refusing --draft"
+            )
         return url, False
-    return (
-        hosting_in(
-            repo,
-            "pr",
-            "create",
-            "--head",
-            branch,
-            "--base",
-            base,
-            "--title",
-            subject,
-            "--body",
-            message,
-        ),
-        True,
-    )
+    create = [
+        "pr",
+        "create",
+        "--head",
+        branch,
+        "--base",
+        base,
+        "--title",
+        subject,
+        "--body",
+        message,
+    ]
+    if draft:
+        create.append("--draft")
+    return hosting_in(repo, *create), True
+
+
+def valid_board_item(item: str | None) -> bool:
+    """Whether `item` is absent or follows the shared board-ID grammar."""
+    return item is None or BOARD_ITEM_HEADING.fullmatch(f"## {item}") is not None
 
 
 def enqueue_pull_request(repo: Path, url: str) -> None:
     """Enable merge-on-green for a pull request, surfacing refusal as failure."""
     hosting_in(repo, "pr", "merge", url, "--merge", "--auto")
+
+
+def hook_publish_message(source: str, retired: list[str], item: str | None) -> str:
+    """Build the commit and pull-request message for one hook publication."""
+    if not valid_board_item(item):
+        raise ValueError(f"invalid board item ID: {item!r}")
+    subject = "ci: Sync the stack-owned git hooks"
+    message = (
+        f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
+        "source every member's `.githooks/` copies; a copy that differs is the\n"
+        "gate-version drift the conformance scan counts.\n"
+    )
+    if retired:
+        message += (
+            "\nRemoves "
+            + ", ".join(f"`{path}`" for path in retired)
+            + ", which the hooks no longer read.\n"
+        )
+    if item is not None:
+        message += f"\nItem: {item}\n"
+    return message
 
 
 def cmd_publish_hooks(args) -> int:
@@ -587,6 +665,10 @@ def cmd_publish_hooks(args) -> int:
 
     Without `--push` it reports what it would publish.
     """
+    item = getattr(args, "item", None)
+    if not valid_board_item(item):
+        print("invalid item: expected a board item ID", file=sys.stderr)
+        return 2
     members = member_scope(args.members)
     if members is None:
         return 2
@@ -634,13 +716,7 @@ def cmd_publish_hooks(args) -> int:
         return 2
     source = git_in(ROOT, "rev-parse", "--short", source_commit)
     subject = "ci: Sync the stack-owned git hooks"
-    message = (
-        f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
-        "source every member's `.githooks/` copies; a copy that differs is the\n"
-        "gate-version drift the conformance scan counts.\n"
-    )
-    if retired:
-        message += "\nRemoves " + ", ".join(f"`{path}`" for path in retired) + ", which the hooks no longer read.\n"
+    message = hook_publish_message(source, retired, item)
     failures = 0
     for member in members:
         repo = REPOS / member
@@ -663,17 +739,22 @@ def cmd_publish_hooks(args) -> int:
                 print(f"would publish: {member} onto {default}")
                 continue
             branch = PUBLISH_BRANCH
-            push_hook_branch(repo, commit, branch, pre_push_hook)
+            push_hook_branch(repo, commit, branch, pre_push_hook, source_commit)
+            draft = bool(getattr(args, "draft", False))
             url, created = pull_request_for(
                 repo,
                 branch,
                 default.removeprefix("origin/"),
                 subject,
                 message,
+                draft=draft,
             )
-            enqueue_pull_request(repo, url)
             action = "published" if created else "reused"
-            print(f"{action}: {member} {url} enqueued")
+            if draft:
+                print(f"{action}: {member} {url} draft")
+            else:
+                enqueue_pull_request(repo, url)
+                print(f"{action}: {member} {url} enqueued")
         except RuntimeError as error:
             failures += 1
             print(f"FAILED: {error}")
@@ -1032,6 +1113,16 @@ def main() -> int:
         "--source-ref",
         metavar="REF",
         help="locally available committed Atlas ref; defaults to origin/HEAD",
+    )
+    publish.add_argument(
+        "--item",
+        metavar="ID",
+        help="append an Item trailer to each generated member commit",
+    )
+    publish.add_argument(
+        "--draft",
+        action="store_true",
+        help="create draft pull requests without enabling merge-on-green",
     )
     publish.set_defaults(func=cmd_publish_hooks)
     sub.add_parser("status").set_defaults(func=cmd_status)
