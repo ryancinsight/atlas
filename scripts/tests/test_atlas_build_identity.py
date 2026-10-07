@@ -4715,7 +4715,9 @@ class MultiPackageRunTestCase(unittest.TestCase):
             "//! c\n/// c\npub fn c() -> u32 { 4 }\n", encoding="utf-8"
         )
         git(self.source, "commit", "-q", "-am", "edit c")
-        self.assertEqual(push("gate3"), [["a", "b", "c"]])
+        # By its own files: the commit moves `c`'s record alone, and the
+        # shared steps name one selection, so the push cleans `c` once.
+        self.assertEqual(push("gate3"), [["c"]])
         self.assertEqual(push("gate4"), [])
 
     def test_a_package_outside_the_selection_is_refused(self) -> None:
