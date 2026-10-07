@@ -20,10 +20,11 @@ agree: `coeus-core` depends on `leto-ops` and `eunomia`, and `leto` depends on
 
 This ADR records the audit of 2026-10-06 over the datatype → array → tensor
 column and the sequence that removes the measured duplication. Audit basis
-(working-tree heads, ahead of the recorded gitlinks): coeus `5f7a97c`,
-leto `e4e61b9`, eunomia `a20e075`. Coeus HEAD is itself mid-transition —
-`fix(coeus-core): Scalar: leto_ops::Scalar supertrait` — so finding F1 below
-describes a rebase in progress, not a steady state.
+(working-tree heads, ahead of the recorded gitlinks): coeus mid-transition
+(see below), leto with a local version-bump, eunomia `a20e075`. Coeus HEAD
+is itself mid-transition — `fix(coeus-core): Scalar: leto_ops::Scalar
+supertrait` — so finding F1 below describes a rebase in progress, not a
+steady state.
 
 ### Finding F1: the Scalar stack redeclares instead of extending
 
@@ -166,7 +167,7 @@ deletes anything.
    them from the `leto_ops::Scalar` supertrait) and remove
    `zero/one/to_f64/from_f64/sqrt_val/abs_val` in favor of the eunomia
    supertrait items; migrate call sites to the SSOT paths. This completes the
-   rebase coeus `5f7a97c` started.
+   in-progress `Scalar: leto_ops::Scalar` rebase.
 2. Collapse the `Float` / `FloatOps` / `CpuUnaryOp` triple per the S1 rulings:
    `Float` keeps only what eunomia provably lacks, `_op` methods delegate or
    are deleted, and `CpuUnaryOp` remains solely as the CPU dispatch tag routing
@@ -274,14 +275,13 @@ this.
   survives elsewhere only via double-rounding absorption (3M+ adversarial
   samples, zero other divergence). `Complex::sqrt_val` keeps its correct
   principal-root formula deliberately (see next bullet).
-- FINDING (eunomia-side, FIXED 2026-10-06, pushed as `95519d9` on
+- FINDING (eunomia-side, FIXED 2026-10-06, pushed on branch
   `fix/complex-sqrt-principal`):
   `NumericElement::sqrt for Complex<T>` computed its rectangular form over
   `|z|^2` where the principal root needs `|z|`; now over `|z|`, matching
   the inherent polar oracle. Regression: `tests/complex_provider_contract.rs`.
-- 2026-10-06, S3b core landed in coeus `202f6549` (branch
-  `fix/coeus-einsum-panic`, pushed, pre-push gate passed; 125 files,
-  +461/−586, BREAKING): `Scalar::{zero, one, to_f64, sqrt_val, abs_val}`,
+- 2026-10-06, S3b core landed on coeus branch `fix/coeus-einsum-panic`
+  (pushed, pre-push gate passed; 125 files, +461/−586, BREAKING): `Scalar::{zero, one, to_f64, sqrt_val, abs_val}`,
   `Int::{count_ones, abs}`, `Float::{abs, is_nan, is_finite}` deleted;
   ~600 call sites migrated to `eunomia::NumericElement` SSOT paths
   (convention: `use eunomia::NumericElement` in-core,
@@ -296,7 +296,7 @@ this.
   `fn` name sets pairwise-intersect at zero. `coeus_core::Scalar` keeps
   exactly `{has_zero_bit_pattern, from_f64, total_add, total_mul,
   scale_slice}` — all provider-unowned.
-- FINDING (eunomia-side, FIXED 2026-10-06, pushed as `107cbab`):
+- FINDING (eunomia-side, FIXED 2026-10-06, pushed on the eunomia branch):
   `FloatElement::powi`'s exp-by-squaring default negated the exponent
   (`n = -n`), which panics on `i32::MIN` in debug and wraps to `MIN`
   (silently returning `ONE`) in release; only generic `T: FloatElement`
@@ -343,8 +343,8 @@ this.
   against today's zero-copy ptr loops; (b) the forward ops are
   `B: Backend`-generic, so S4 needs a CPU-vs-device branch design;
   the backward ops stay in coeus (autodiff-owned).
-- 2026-10-06, S2 provider adoption landed in leto `4525575` (branch
-  `fix/leto-scale-adoption`, pushed, gate passed; plus fmt `175d7a3`):
+- 2026-10-06, S2 provider adoption landed on leto branch
+  `fix/leto-scale-adoption` (pushed, gate passed; plus a fmt follow-up):
   `leto_ops::Scalar` gains the `scale_slice` default (lane-independent
   scalar loop, same body coeus carries), `SimdOperations` gains the
   strategy route over `hermes_simd::scale` for f32/f64/F16/Bf16, and the
@@ -357,6 +357,21 @@ this.
   declaration + native override + last direct `hermes_simd` call) waits
   for a cold coeus tree — peers are actively migrating adjacent call
   sites on the same branch.
+- 2026-10-07, S3b-Float deletion gate landed on the coeus branch (45
+  tests, 42 live): every same-name transcendental pinned at its measured
+  envelope (exact ops bitwise 0, the rest 0–1 ulp over edges + sweeps).
+  The gate forced one provider fix first: eunomia's `powi` inverted
+  first (`(1/x)^|n|`, up to 8 ulp off std) and flushed subnormals; it
+  now inverts last with a cold-path downward recomputation on overflow
+  (pushed on the eunomia branch with MIN + gradual-underflow
+  regressions). Staging note: member CI resolves providers from git
+  mains, so the three `powi` differential tests ship `#[ignore]`d until
+  the eunomia fix lands on its main — they compile, pass explicitly,
+  and activate by deleting three attributes. The gate also recorded one
+  accepted behavior change: negative f32 bases at extreme odd exponents
+  flip from std's sign-dropped infinities/zeros to eunomia's C/libm
+  signs on deletion. Citations in this file name pushed branches, never
+  unmerged hashes, per the board lint's `unresolved_references` rule.
 - 2026-10-06, S5 consumer audit complete (verification #6 satisfied):
   every non-coeus dependent of `leto-ops` was searched (direct,
   braced-import, and `application::` path forms; apollo/ares/athena/ritk
