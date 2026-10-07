@@ -70,7 +70,12 @@ jobs:
     name: Debt-class ratchet (counts non-increasing vs committed baseline)
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The bundled script suite below is the budget blowout under runner
+    # contention: a 20-minute job cap plus the runner's kill grace ended every
+    # saturated attempt at exactly 25:00 mid-suite, so the ratchet verdict
+    # never reported and no gate PR could merge. 45 covers the suite at
+    # contention multiples while a genuinely hung run is still reclaimed.
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
