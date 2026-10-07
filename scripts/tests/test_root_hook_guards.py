@@ -17,6 +17,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from root_hook_support import FIXTURE_PROCESS_TIMEOUT_SECONDS, build_coherence_auditor
+
 
 ROOT = Path(__file__).resolve().parents[2]
 PRE_PUSH = ROOT / ".githooks" / "pre-push"
@@ -50,7 +52,7 @@ class RootHookGuardTests(unittest.TestCase):
                     ["git", "-C", str(repo), "-c", "user.name=Test",
                      "-c", "user.email=test@example.invalid", *arguments],
                     env=environment, check=check, capture_output=True,
-                    text=True, encoding="utf-8", timeout=30,
+                    text=True, encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                 )
 
             git("init", "-q", "-b", "main")
@@ -94,7 +96,7 @@ class RootHookGuardTests(unittest.TestCase):
                         ["git", "-C", str(repo), "-c", "user.name=Test",
                          "-c", "user.email=test@example.invalid", *arguments],
                         env=environment, check=check, capture_output=True,
-                        text=True, encoding="utf-8", timeout=30,
+                        text=True, encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                     )
 
                 git("init", "-q", "-b", "main")
@@ -153,7 +155,7 @@ class RootHookGuardTests(unittest.TestCase):
                         "-c", "user.email=test@example.invalid", *arguments,
                     ],
                     env=environment, check=check, capture_output=True,
-                    text=True, encoding="utf-8", timeout=30,
+                    text=True, encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                 )
 
             git(repo, "init", "-q", "-b", "main")
@@ -332,13 +334,13 @@ class RootHookGuardTests(unittest.TestCase):
             environment["_ATLAS_HOOK_TRAMPOLINE_DEFERRED"] = "1"
             pre_commit = subprocess.run(
                 ["bash", str(lane / ".githooks" / "pre-commit")],
-                cwd=lane, env=environment, capture_output=True, text=True, timeout=30,
+                cwd=lane, env=environment, capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             )
             self.assertEqual(pre_commit.returncode, 0, pre_commit.stdout + pre_commit.stderr)
 
             commit = subprocess.run(
                 ["git", "-C", str(lane), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "advance"],
-                env=environment, capture_output=True, text=True, timeout=30,
+                env=environment, capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             )
             self.assertEqual(commit.returncode, 0, commit.stdout + commit.stderr)
 
@@ -356,20 +358,16 @@ class RootHookGuardTests(unittest.TestCase):
             auditor_name = "gitlink-coherence.exe" if os.name == "nt" else "gitlink-coherence"
             auditor = Path(common) / "atlas-auditor" / auditor_tree / auditor_name
             auditor.parent.mkdir(parents=True)
-            built_auditor = ROOT / "target" / "release" / auditor_name
-            if not built_auditor.is_file():
-                build_environment = dict(os.environ, CARGO_TARGET_DIR=str(ROOT / "target"))
-                subprocess.run(
-                    ["cargo", "build", "--release", "--locked", "--manifest-path", str(ROOT / "tools/gitlink-coherence/Cargo.toml")],
-                    cwd=Path.home(), env=build_environment, check=True,
-                    capture_output=True, text=True, timeout=180,
-                )
+            # Built in the shared cache with the stack's profile keys (see
+            # `root_hook_support.build_coherence_auditor`); this test then
+            # copies it to the fixture's own cache under the git directory.
+            built_auditor = build_coherence_auditor()
             self.assertTrue(built_auditor.is_file(), "the real coherence auditor must be built for this hook test")
             shutil.copy2(built_auditor, auditor)
             self.assertFalse((lane / "repos" / "demo" / ".git").exists())
             pre_push = subprocess.run(
                 ["bash", str(worktree / ".githooks" / "pre-push")],
-                cwd=lane, env=environment, input="", capture_output=True, text=True, timeout=30,
+                cwd=lane, env=environment, input="", capture_output=True, text=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             )
             self.assertEqual(pre_push.returncode, 0, pre_push.stdout + pre_push.stderr)
             self.assertNotIn("building it now", pre_push.stderr)
@@ -398,7 +396,7 @@ class RootHookGuardTests(unittest.TestCase):
                         "-c", "user.email=test@example.invalid", *arguments,
                     ],
                     env=environment, check=check, capture_output=True,
-                    text=True, encoding="utf-8", timeout=30,
+                    text=True, encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                 )
 
             git("init", "-q", "-b", "main")
@@ -501,7 +499,7 @@ class RootHookGuardTests(unittest.TestCase):
                 ["git", "-C", str(path), "-c", "user.name=Test",
                  "-c", "user.email=test@example.invalid", *arguments],
                 env=environment, check=True, capture_output=True, text=True,
-                encoding="utf-8", timeout=30,
+                encoding="utf-8", timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             ).stdout.strip()
 
         git(member, "init", "-q", "-b", "main")
@@ -598,7 +596,7 @@ class RootHookGuardTests(unittest.TestCase):
             repo, environment, base, tip = self._debt_gate_stack(temporary)
             subprocess.run(
                 ["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", tip],
-                env=environment, check=True, capture_output=True, timeout=30,
+                env=environment, check=True, capture_output=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
             )
 
             result, log = self._run_debt_gate(repo, environment, base, tip, 1)
@@ -611,7 +609,7 @@ class RootHookGuardTests(unittest.TestCase):
             for ref in ("refs/remotes/origin/HEAD", "refs/remotes/origin/main"):
                 subprocess.run(
                     ["git", "-C", str(repo), "update-ref", "--no-deref", "-d", ref],
-                    env=environment, check=True, capture_output=True, timeout=30,
+                    env=environment, check=True, capture_output=True, timeout=FIXTURE_PROCESS_TIMEOUT_SECONDS,
                 )
 
             result, log = self._run_debt_gate(repo, environment, base, tip, 0)
