@@ -3,15 +3,14 @@
 - Status: Accepted
 - Date: 2026-09-24
 - Class: [arch]
-- Revision: 2026-10-06 — Consolidated the current decision; prior revisions remain in Git history.
+- Revision: October 6, 2026 - Defined meta-root Cargo applicability and tooling authority.
 - Driver: [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and
   [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 
 ## Context
-Atlas members share one Cargo target directory. Cargo fingerprints and dep-info do not identify the checkout that produced an
-artifact, so different source bytes can address the same artifact name. A revision omits dirty and untracked source, a branch is
-mutable, and Cargo's fingerprint format is internal. Concurrent roots also need one protocol that prevents a clean or artifact
-rewrite from silently invalidating another build.
+Atlas members share one target. Cargo fingerprints and dep-info omit the producing checkout, so different source bytes can
+address the same artifact. Revisions omit dirty and untracked source, branches are mutable, and Cargo's fingerprint format is
+internal. Concurrent roots need one protocol that prevents a clean or artifact rewrite from invalidating another build.
 
 ## Decision
 ### Tool source
@@ -91,19 +90,27 @@ releases all leases. Exact match prevents cleaning under readers but does not as
 through the command and final source/dependency verification.
 
 ### Build entry points
-Pre-push builds each pushed commit, not the working tree. It exports from that commit's object store into one reusable short,
-claimed path using a symlink-preserving, long-path-safe checkout outside the overlay and cleans it on interruption. Deletion
-refs need no build. One identity sequence covers all gated packages and holds leases from clippy through nextest, rustdoc, and
-the final identity read. Every step uses the committed lock. Records are written only after command success and unchanged final
-source and dependencies. Other build entry points reuse the same modules and protocol.
+Pre-push builds each pushed commit, not the working tree. It exports the commit's object store into one reusable short path by a
+symlink-preserving, long-path-safe checkout outside the overlay and cleans it on interruption. Deletion refs need no build. One
+identity sequence covers all gated packages and holds leases from clippy through nextest, rustdoc, and the final identity read.
+Every step uses the committed lock; records require command success and unchanged final source and dependencies. Other build
+entry points reuse the same modules and protocol.
+
+Atlas has no root Cargo manifest and fabricates none. Secret/artifact-budget/lock/baseline checks use fetched default; only
+conformance and build identity may use prepared scripts. `<meta>` carries revision and baseline without a repository. Changed
+paths map to the nearest actual nested Cargo manifest before metadata. Owners: `tools/checkout-path-dependencies`,
+`tools/criterion-regression`, `tools/gitlink-coherence`, and `tools/version-guard`; `tools/_template/template-Cargo.toml` is
+excluded. Each selected owner runs the complete bounded locked metadata/fmt/clippy/nextest/rustdoc/final-identity sequence on
+its actual manifest/export/lock/shared target. Cargo is inapplicable only after content gates pass and owner selection finds no
+owner. Removed/unreadable/malformed selected manifests/locks and ownership/metadata/stage errors fail closed. Meta adds no
+legacy relative `.githooks` switch or separate skip/bypass. The immutable fetched hook stays the trust root; prepared selection
+remains public. Provider changes require all 28 executable member copies before pin advance; versions/releases remain unchanged.
 
 ## Known limits
 - Alias-internal config paths are not followed unless present in executed arguments. Unhandled TOML 1.1 syntax fails closed.
-- Cargo-internal environment effects such as build-script `rustc-env` or wrapper exports are not separately decomposed;
-  configuration `[env]` remains covered by the configuration digest.
+- Cargo-internal build-script `rustc-env` and wrapper exports are not decomposed; configuration `[env]` stays covered.
 - A package-source edit preserving both size and modification time can evade the persistent stat-keyed digest cache.
-- Unstamped Git artifacts made outside this protocol can initially be reused; stamps cover one package build directory, and
-  registry artifacts are never cleaned.
+- External unstamped Git artifacts may be reused; one build directory is stamped; registry artifacts are not cleaned.
 - A matched Git build can miss a source edit made and reverted during the command. `ATLAS-IDENTITY-MIDRUN-GIT-EDIT` tracks it.
 - Cargo fingerprints remain part of rustdoc and external-artifact reuse. During mixed-version rollout, an old sequential lease
   holder can block the all-or-none protocol until its bounded deadline.
@@ -115,6 +122,7 @@ caches are derived state, so deletion causes conservative rebuilding. One shared
 metadata, and lease cost exposed by claim histories and stage timings.
 
 ## Alternatives rejected
+- Legacy `.githooks` lets the tip replace its gate and duplicates policy; immutable fetched tooling remains the trust boundary.
 - Per-source targets fork the cache; manual cleaning has no ownership; Cargo fingerprint JSON is unstable. Whole-target or
   whole-closure cleaning discards unrelated reuse, and repository-name filters miss actual shared dependencies.
 - Sequential lease acquisition permits deadlock. Relinquishing partial-claim queue position permits reader starvation; strict
@@ -132,15 +140,11 @@ package-cache invalidation and snapshot deduplication; path/Git cleaning, stamps
 shared/exclusive claims, fairness, all-or-none acquisition, downgrade, interoperability, deadlines, and dead owners. Real-Cargo
 cases cover repeated exports, multi-package commands, and failures. Integrated hook tests cover pushed-revision export,
 committed locks, manifest and live-owner changes, prepared-tool selection, and refusal paths. Configured identity, pre-push,
-conformance, architecture, and pin-drift suites remain the executable gates.
+conformance, architecture, and pin-drift suites remain executable gates; final combined, normal-push, hosted, and independent
+evidence remains pending.
 
 ## References
-- `scripts/atlas_build_records.py`
-- `scripts/atlas_build_inputs.py`
-- `scripts/atlas_build_source.py`
-- `scripts/atlas_build_artifacts.py`
-- `scripts/atlas_build_lease.py`
-- `scripts/atlas_build_identity.py`
-- `scripts/git-hooks/pre-push`
-- `scripts/tests/test_atlas_build_identity.py`
-- `scripts/tests/test_atlas_pre_push_gate.py`
+- `scripts/atlas_build_records.py`; `scripts/atlas_build_inputs.py`
+- `scripts/atlas_build_source.py`; `scripts/atlas_build_artifacts.py`
+- `scripts/atlas_build_lease.py`; `scripts/atlas_build_identity.py`
+- `scripts/git-hooks/pre-push`; `scripts/tests/test_atlas_build_identity.py`; `scripts/tests/test_atlas_pre_push_gate.py`
