@@ -3732,6 +3732,22 @@ exit "$status"
                     ):
                         self.assertEqual(_git(destination, "config", "--get", key), value)
 
+            reused = base / "export-exported"
+            untracked = reused / "untracked.txt"
+            untracked.write_bytes(b"remove after a complete replacement\n")
+            repeated = self._run_export(
+                source, outer, source_head, reused, "exported"
+            )
+            self.assertEqual(
+                repeated.returncode,
+                0,
+                repeated.stderr.decode("utf-8", errors="replace"),
+            )
+            self.assertEqual(_git(reused, "rev-parse", "HEAD"), source_head)
+            self.assertEqual(_git(reused, "write-tree"), source_tree)
+            self.assertEqual((reused / "value.txt").read_bytes(), b"source-content")
+            self.assertFalse(untracked.exists())
+
             for repository, state in repository_states.items():
                 self.assertEqual(
                     (
@@ -3854,6 +3870,9 @@ exit "$status"
                 '\nfi\nif [ -n "$unmatched_stack" ]',
             ) + "\nfi"
             script = self._export_function() + "\n" + block
+            trace = base / "lock-trace.json"
+            environment = dict(os.environ)
+            environment["GIT_TRACE2_EVENT"] = str(trace)
             result = subprocess.run(
                 [
                     "bash", "-c",
@@ -3865,11 +3884,16 @@ exit "$status"
                     revision,
                     str(base / "lock-export"),
                 ],
+                cwd=source,
+                env=environment,
                 capture_output=True,
             )
 
             stderr = result.stderr.decode("utf-8", errors="replace")
             self.assertEqual(result.returncode, 1, stderr)
+            self.assert_read_tree_count(trace, 1)
+            self.assertIn(blob, stderr)
+            self.assertNotIn("not a git repository", stderr)
             self.assertIn("could not export", stderr)
             self.assertIn("for the lockfile check", stderr)
 
