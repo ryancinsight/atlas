@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-24
 - Class: [arch]
-- Revision: October 6, 2026 — Defined Cargo applicability for the manifest-free Atlas meta root.
+- Revision: October 6, 2026 â€” Defined meta-root Cargo applicability and tooling authority.
 - Driver: [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and
   [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 
@@ -96,15 +96,15 @@ identity sequence covers all gated packages and holds leases from clippy through
 Every step uses the committed lock; records require command success and unchanged final source and dependencies. Other build
 entry points reuse the same modules and protocol.
 
-Atlas lacks and never fabricates a root Cargo manifest. Artifact-budget, secret, lock-policy, and full conformance gates keep
-fetched/prepared ownership; `<meta>` uses revision and baseline revision without a repository. Changed export paths map to the
-nearest real nested Cargo manifest before metadata. Owners are `tools/checkout-path-dependencies`, `tools/criterion-regression`,
-`tools/gitlink-coherence`, and `tools/version-guard`; `tools/_template/template-Cargo.toml` is not an owner. Each selected owner
-runs the same complete bounded locked metadata, format, clippy, nextest, rustdoc, and final identity sequence against the real
-manifest, lock, export, and shared target. No owner is inapplicable until content gates pass. Removed, unreadable, or malformed
-selected manifests or locks fail closed; so does any ownership, metadata, or stage error. No legacy relative `.githooks` route
-or skip variable exists. The immutable fetched shared hook is the trust root and prepared selection stays public. Provider-byte
-changes require all 28 executable member copies before pin advance; no version or release changes.
+Atlas has no root Cargo manifest and fabricates none. Secret/artifact-budget/lock/baseline checks use fetched default; only
+conformance and build identity may use prepared scripts. `<meta>` carries revision and baseline without a repository. Changed
+paths map to the nearest actual nested Cargo manifest before metadata. Owners: `tools/checkout-path-dependencies`,
+`tools/criterion-regression`, `tools/gitlink-coherence`, and `tools/version-guard`; `tools/_template/template-Cargo.toml` is
+excluded. Each selected owner runs the complete bounded locked metadata/fmt/clippy/nextest/rustdoc/final-identity sequence on
+its actual manifest/export/lock/shared target. Cargo is inapplicable only after content gates find no owner.
+Removed/unreadable/malformed selected manifests/locks and ownership/metadata/stage errors fail closed. Meta adds no legacy
+relative `.githooks` switch or separate skip/bypass. The immutable fetched hook stays the trust root; prepared selection remains
+public. Provider changes require all 28 executable member copies before pin advance; versions/releases remain unchanged.
 
 ## Known limits
 - Alias-internal config paths are not followed unless present in executed arguments. Unhandled TOML 1.1 syntax fails closed.
