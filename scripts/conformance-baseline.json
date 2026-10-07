@@ -799,7 +799,7 @@
     "nextest_budget_missing": 0,
     "nextest_retries_nonzero": 0,
     "orphan_modules": 0,
-    "oversized_files": 24,
+    "oversized_files": 23,
     "oversized_tracked_images": 0,
     "pm_lines_over_budget": 0,
     "print_dbg": 0,
