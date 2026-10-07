@@ -3557,6 +3557,86 @@ class ExportSourceTestCase(unittest.TestCase):
             self.assertEqual(len(runs), 2, runs)
             self.assertEqual(runs[0], runs[1], "the export moved or rewrote an unchanged file")
 
+    def test_an_export_isolated_from_the_source_repository(self) -> None:
+        """The export may not inherit the repository Git gives the hook."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = _stacked_fixture(temp)
+            root = fixture.root
+            stub = fixture.bin / "cargo"
+            stub.write_text(
+                stub.read_text(encoding="utf-8").replace(
+                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n',
+                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                    'if [ "$1" = clippy ]; then\n'
+                    '  printf "%s\\t%s\\t%s\\t%s\\t%s\\n" "$GIT_DIR" "$GIT_WORK_TREE" '
+                    '"$GIT_INDEX_FILE" "${GIT_PREFIX+x}:$GIT_PREFIX" "$GIT_COMMON_DIR" '
+                    '> "$FIXTURE_ROOT/export-env.log"\n'
+                    "fi\n",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            _git(root, "switch", "-q", "-c", "feat")
+            source = root / "crates" / "foo" / "src" / "lib.rs"
+            source.write_text("pub fn exported() {}\n", encoding="utf-8")
+            pushed = _commit_all(root, "feat")
+            source_head = _git(root, "rev-parse", "HEAD")
+            source_index = _git(root, "write-tree")
+            source_config = _git(root, "config", "--local", "--list")
+            git_dir = str(root / ".git")
+            git_index = str(root / ".git" / "index")
+            inherited = {
+                "GIT_DIR": git_dir,
+                "GIT_WORK_TREE": str(root),
+                "GIT_INDEX_FILE": git_index,
+                "GIT_PREFIX": "",
+                "GIT_COMMON_DIR": git_dir,
+            }
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("feat"), inherited
+            )
+
+            self.assertEqual(code, 0, stderr)
+            exports = [
+                path for path in fixture.tmp.glob("pg-??????????") if path.is_dir()
+            ]
+            self.assertEqual(len(exports), 1, exports)
+            exported = exports[0] / root.name
+            self.assertEqual(_git(exported, "rev-parse", "HEAD"), pushed)
+            self.assertEqual(_git(exported, "write-tree"), source_index)
+            self.assertEqual((exported / source.relative_to(root)).read_bytes(), source.read_bytes())
+            self.assertEqual(
+                (exported / ".git" / "objects" / "info" / "alternates")
+                .read_text(encoding="utf-8")
+                .strip(),
+                f"{_git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir')}/objects",
+            )
+            for key, value in (
+                ("core.longpaths", "true"),
+                ("gc.auto", "0"),
+                ("maintenance.auto", "false"),
+            ):
+                self.assertEqual(_git(exported, "config", "--get", key), value)
+            self.assertEqual(_git(root, "rev-parse", "HEAD"), source_head)
+            self.assertEqual(_git(root, "write-tree"), source_index)
+            self.assertEqual(_git(root, "config", "--local", "--list"), source_config)
+            self.assertEqual(
+                (root / "export-env.log").read_text(encoding="utf-8").strip(),
+                f"{git_dir}\t{root}\t{git_index}\tx:\t{git_dir}",
+            )
+            untracked = exported / "untracked"
+            untracked.write_text("remove me\n", encoding="utf-8")
+
+            repeated, repeated_stderr = fixture.run_hook(
+                fixture.push_line_new_branch("feat"), inherited
+            )
+
+            self.assertEqual(repeated, 0, repeated_stderr)
+            self.assertFalse(untracked.exists())
+            self.assertEqual(_git(root, "rev-parse", "HEAD"), source_head)
+            self.assertEqual(_git(root, "write-tree"), source_index)
+
     def test_a_held_export_is_not_shared(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = _stacked_fixture(temp)

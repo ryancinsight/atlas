@@ -532,23 +532,24 @@ fi
 # gc and maintenance are off for the member-side read and the fetches it
 # starts: a push must not repack the member it reads (moirai's auto-gc
 # fails on a foreign ref), and the export reads the member's objects.
-export_revision() {
+export_revision() (
   local sha="$1" directory="$2"
+  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR
   # `git init` creates the directory: the lock export runs before a PATH
   # without an interpreter is refused, and such a PATH need not carry mkdir.
   if [ ! -d "$directory/.git" ]; then
-    outside_checkout git init -q "$directory" || return 1
+    git init -q "$directory" || return 1
   fi
   printf '%s\n' "$repo_store/objects" > "$directory/.git/objects/info/alternates" \
-    && outside_checkout git -C "$directory" config core.longpaths true \
-    && outside_checkout git -C "$directory" config gc.auto 0 \
-    && outside_checkout git -C "$directory" config maintenance.auto false \
+    && git -C "$directory" config core.longpaths true \
+    && git -C "$directory" config gc.auto 0 \
+    && git -C "$directory" config maintenance.auto false \
     && GIT_DIR="$repo_git_dir" GIT_WORK_TREE="$directory" GIT_INDEX_FILE="$directory/.git/index" \
       git -c core.longpaths=true -c core.sparseCheckout=false -c gc.auto=0 -c maintenance.auto=false \
         read-tree -u --reset "$sha" \
-    && outside_checkout git -C "$directory" update-ref HEAD "$sha" \
-    && outside_checkout git -C "$directory" clean -ffdxq
-}
+    && git -C "$directory" update-ref HEAD "$sha" \
+    && git -C "$directory" clean -ffdxq
+)
 
 # Exports a killed push left behind (ritk's reached 1.5 GB each). A directory
 # naming its owner (`.pre-push-owner`) goes only once that pid is gone. One
