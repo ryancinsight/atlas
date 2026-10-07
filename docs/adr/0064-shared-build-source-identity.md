@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-24
 - Class: [arch]
-- Revision: October 6, 2026 â€” Defined meta-root Cargo applicability and tooling authority.
+- Revision: October 6, 2026 - Defined meta-root Cargo applicability and tooling authority.
 - Driver: [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and
   [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 
@@ -101,10 +101,10 @@ conformance and build identity may use prepared scripts. `<meta>` carries revisi
 paths map to the nearest actual nested Cargo manifest before metadata. Owners: `tools/checkout-path-dependencies`,
 `tools/criterion-regression`, `tools/gitlink-coherence`, and `tools/version-guard`; `tools/_template/template-Cargo.toml` is
 excluded. Each selected owner runs the complete bounded locked metadata/fmt/clippy/nextest/rustdoc/final-identity sequence on
-its actual manifest/export/lock/shared target. Cargo is inapplicable only after content gates find no owner.
-Removed/unreadable/malformed selected manifests/locks and ownership/metadata/stage errors fail closed. Meta adds no legacy
-relative `.githooks` switch or separate skip/bypass. The immutable fetched hook stays the trust root; prepared selection remains
-public. Provider changes require all 28 executable member copies before pin advance; versions/releases remain unchanged.
+its actual manifest/export/lock/shared target. Cargo is inapplicable only after content gates pass and owner selection finds no
+owner. Removed/unreadable/malformed selected manifests/locks and ownership/metadata/stage errors fail closed. Meta adds no
+legacy relative `.githooks` switch or separate skip/bypass. The immutable fetched hook stays the trust root; prepared selection
+remains public. Provider changes require all 28 executable member copies before pin advance; versions/releases remain unchanged.
 
 ## Known limits
 - Alias-internal config paths are not followed unless present in executed arguments. Unhandled TOML 1.1 syntax fails closed.
