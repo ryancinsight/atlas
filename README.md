@@ -1138,13 +1138,20 @@ nobody is looking at cannot rot silently:
   a runner ever took it. `--first-error` appends the failing step's first
   error line, `--fail-on-red` makes it a gate.
 - `python scripts/atlas-semver-gate-adopt.py <member>` — adopts the shared
-  SemVer gate in one member as an API pull request: the publishable crates
-  come from the member's own manifests, the informational job goes in the
-  verification workflow, and the blocking job goes in the release workflow
+  SemVer gate in one member as an API pull request with auto-merge enabled
+  (`--merge`, through `scripts/atlas_pull_request.py`, the PR-opening path
+  shared with `atlas-lock-sweep.py` and the concurrency sweep below; a PR whose
+  auto-merge cannot be enabled exits non-zero with its URL): the publishable
+  crates come from the member's own manifests, the informational job goes in
+  the verification workflow, and the blocking job goes in the release workflow
   under that workflow's own guard with the other jobs waiting on it.
   `--dry-run` prints the diffs and opens nothing.
 - `python scripts/atlas-lane-audit.py` — the two-tree worktree bound and lane
-  placement per member.
+  placement per member, plus the shared target cache: the generated
+  `worktrees/.cargo/config.toml`, any lane config or `include` that redirects
+  `target-dir` or `build-dir`, any Cargo output directory inside a lane, a
+  `CARGO_*_DIR` variable that leaves the shared target, and umbrella lanes
+  (the umbrella repository opens none).
 - `python scripts/atlas-lane.py create|repoint|close|export` — the only way to
   make a worktree (ADR 0066): refuses a third tree, a lane outside
   `worktrees/`, and detached HEAD; A/B baselines use `export`, a tree archive.
@@ -1157,8 +1164,14 @@ nobody is looking at cannot rot silently:
   revisions and a distinct unavailable status when the pair cannot be measured.
 - `python scripts/lockfile.py --check --manifest-path <Cargo.toml>` — a lock
   regenerated inside the stack overlay has its first-party git sources stripped
-  and fails every `--locked` job; `--regenerate` rewrites it from outside the
-  overlay.
+  and fails every `--locked` job; `--regenerate` repairs it from outside the
+  overlay without advancing any pin, `--check-staged` judges the staged locks
+  from the index, and `--check-committed <repository>...` judges every tracked
+  lock at HEAD. The one home of the rule defining a standalone lock (ADR-0044):
+  `--check` (the `pre-push` hook and the shared `lockfile-guard` workflow),
+  `--check-staged` (the `pre-commit` hook) and `--check-committed` (the
+  conformance workflow) all judge by it. `atlas-lock-form.py` keeps `status`,
+  `restore` and the hook publishers.
 - `python scripts/atlas-pr-waiter.py --require '<check name regex>' owner/repo#N …`
   — the bounded merge gate: polls each PR up to `--timeout-minutes` (default 60),
   merges by rebase only when no check is pending or failed *and* a check matching
@@ -1166,7 +1179,7 @@ nobody is looking at cannot rot silently:
   changed workflow's own job: a rollup lacking it is the file being rejected.
 - `python scripts/atlas-workflow-concurrency-sweep.py <member> [--dry-run] [--update]`
   — moves a member's workflows out of the `default_branch_cancel_in_progress`
-  class as an API-authored PR (verification: per-commit group on the default
+  class as an API-authored PR with auto-merge enabled (verification: per-commit group on the default
   branch, pull-request-only cancellation; deploys: `cancel-in-progress: false`);
   `--dry-run` prints the diffs, `--update` rebuilds an open branch from current
   `origin`. A clean fleet reads "nothing to change" for every member.

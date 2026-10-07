@@ -83,9 +83,14 @@ def build_spec(
     ignore_paths: Sequence[Path] = (),
     dependency_digest: str = "",
     execution_root: Path | None = None,
+    selection: Sequence[str] = (),
 ) -> BuildSpec:
+    """`selection` is every package the command builds, `package` alone by default."""
     if not package:
         raise BuildIdentityError("package must not be empty")
+    selected = sorted(set(selection) or {package})
+    if package not in selected:
+        raise BuildIdentityError(f"package {package} is not in its selection {selected}")
     canonical_root = _canonical(root, strict=True)
     canonical_target = _canonical(target_dir)
     if canonical_target == canonical_root:
@@ -111,6 +116,7 @@ def build_spec(
         toolchain=toolchain_identity(root),
         target_dir=canonical_target.as_posix(),
         command_key=normalized_key,
+        selection=",".join(selected),
         environment_digest=environment_digest(merged_environment),
         cargo_config_digest=cargo_config_digest(
             resolved_execution_root, _config_arguments(normalized_command), merged_environment
@@ -129,10 +135,11 @@ def _dependency_data(
 ) -> dict[str, dict[str, object]]:
     """Each package's dependency snapshot, by package name.
 
-    One `cargo metadata` and one `package_identities` serve the whole set:
-    a package several closures share is read once. Every path package in the
-    metadata is identified, not only the closures', so a nested package's
-    files never fall to the package around it.
+    One `cargo metadata`, one `package_identities`, and one external
+    package digest serve the whole set: a package several closures share is
+    read once. Every path package in the metadata is identified, not only
+    the closures', so a nested package's files never fall to the package
+    around it.
     """
     if has_explicit_artifacts:
         snapshots: dict[str, dict[str, object]] = {
@@ -147,6 +154,7 @@ def _dependency_data(
     else:
         metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False)
         package_source_cache = target_dir / ".atlas" / "source-identity" / "package-source"
+        package_digests: dict[Path, str] = {}
         try:
             directories = [
                 Path(str(value["manifest_path"])).parent
@@ -163,13 +171,21 @@ def _dependency_data(
             except KeyError as error:
                 raise BuildIdentityError(f"no path package is identified at {path}") from error
 
+        def digest_package_source(path: Path) -> str:
+            canonical = _canonical(path, strict=True)
+            if canonical not in package_digests:
+                package_digests[canonical] = cached_package_source_digest(
+                    canonical, package_source_cache
+                )
+            return package_digests[canonical]
+
         snapshots = {
             package: dependency_snapshot(
                 metadata,
                 manifest,
                 package,
                 identify_source,
-                lambda path: cached_package_source_digest(path, package_source_cache),
+                digest_package_source,
             )
             for package in packages
         }

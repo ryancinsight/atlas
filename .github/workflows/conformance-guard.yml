@@ -12,6 +12,12 @@
 # `oversized_files` and `type_suffixed_fns` were closed to zero on 2026-09-10
 # and stood at 7 and 4 eleven days later, which is the cost of learning late.
 #
+# One class is reported here, not gated: `unresolved_references` resolves cited
+# hashes against every stack member's history, which a member's checkout (its
+# own history and a depth-1 atlas) does not hold, and fetching more of the
+# member's history cannot supply the others'. The check prints its count on a
+# `NOT GATED` line; the umbrella `atlas-conformance` job gates it.
+#
 # Callers:
 #   conformance:
 #     uses: ryancinsight/atlas/.github/workflows/conformance-guard.yml@<sha>

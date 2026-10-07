@@ -2,6 +2,10 @@
 
 - Status: Accepted
 - Date: 2026-09-24
+- Class: [arch]
+- Revision: October 6, 2026 - Defined meta-root Cargo applicability and tooling authority.
+- Driver: [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and
+  [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Revision: 2026-10-01 — A path package is identified by its own directory's files, never its repository (ATLAS-IDENTITY-MEMBER-SCOPE). Its record identity is a digest of its `HEAD` entries and of its share of the working tree's changes, each file belonging to the deepest path-package directory containing it, so a commit editing one member moves no other member's record: in a real-Cargo workspace where `a` depends on `b` and `c` is independent, a commit editing `c` cleaned `a b c`, and now cleans `c` alone. The files a package's units read outside its directory, named by Cargo's dep-info and its build scripts' `rerun-if-changed`, are a new record field, `inputs`, hashed again on every run. The repository's revision and tree digest stay in the record for diagnostics, lease ownership and the mid-build guard, and still decide a run of declared artifact paths. Record version is 7, so each member's first push under it finds no current record and cleans its path packages once.
 - Revision: 2026-10-01 — The pre-push gate makes one identity run per step (clippy, tests, rustdoc) covering every gated package. That run issues one Cargo command naming each `-p` and keeps one record per package. It replaces one run per package per step: a 12-package metis push was 36 runs, each one reading the snapshot, taking its closure's leases and queueing behind every peer gate's Cargo, and one such push gated from 00:17 to 01:53 (ATLAS-GATE-STEP-BATCH). A run reads `cargo metadata` once for its package set and holds the union of the packages' leases. It cleans, in one `cargo clean`, the union of what each stale package's own rule names, so a matched package is never cleaned beside a stale one. It downgrades only when every package's record names its closure, and it writes no record when the command fails. The step's command key is `atlas-pre-push`, with no package suffix. Each member's first batched push therefore finds no record under the new key and cleans its gated packages once. `check_record` moved to `atlas_build_check.py`.
 - Revision: 2026-10-01 — The identity script is split by operation family into the modules listed under References (ATLAS-BUILD-IDENTITY-SPLIT); no behavior changed. `atlas_build_identity.py` keeps `run_build`, `check_record` and the clean command.
@@ -32,14 +36,28 @@
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed; delivered by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296) and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
 
 ## Context
-
-Atlas intentionally gives members one shared Cargo target directory. Cargo's fingerprint and dep-info records do not identify the source checkout that produced a proc-macro or other package artifact. Two exports with identical relative dependency names can therefore reuse an artifact compiled from different source bytes. Apollo's retained release-macro incident recorded a scratch-checkout path and an obsolete parser diagnostic while the canonical source accepted the new syntax.
-
-A Git revision alone is insufficient for a dirty checkout, a branch name is not an identity, and a Cargo fingerprint is an implementation detail rather than a stable contract. A second source tree must not silently overwrite the first tree's record or artifact.
+Atlas members share one target. Cargo fingerprints and dep-info omit the producing checkout, so different source bytes can
+address the same artifact. Revisions omit dirty and untracked source, branches are mutable, and Cargo's fingerprint format is
+internal. Concurrent roots need one protocol that prevents a clean or artifact rewrite from invalidating another build.
 
 ## Decision
+### Tool source
+Hooks normally extract conformance and build-identity tools from fetched Atlas default. A coordinated provider update may select
+exactly one immutable Atlas commit for those tools with command-scoped `git -c atlas.preparedTools=<full-sha> push`. The value
+must occur once, be a full 40-character commit ID, resolve in the registered Atlas object store, and contain a complete scripts
+tree. Empty, malformed, unavailable, or incomplete values fail closed, and the hook prints the selected commit. Secret scanning,
+artifact-budget checks, lockfile tools, and conformance baselines remain fetched-default inputs. `publish-hooks --source-ref`
+forwards its resolved source as `atlas.preparedTools`; without that selection, every tool comes from fetched default.
 
-### Stable scope and record
+### Record and input identity
+`atlas_build_records.py` owns the record format, `atlas_build_inputs.py` owns dimensions and dependency data, and
+`atlas_build_identity.py` owns the run protocol. Record version 6 stores one atomic record under `target/.atlas/source-identity`
+per shared target, package, profile and target, features, toolchain, environment, Cargo configuration, dependency closure,
+command key, and complete Cargo selection. Selection includes every package in one invocation because feature unification can
+change all selected artifacts. Older, missing, malformed, or unsupported records are mismatches. Records contain the diagnostic
+source root, revision, dirty-state digest, dependency closure, dimensions, and actual artifact hashes. The source root is not
+compared; workspace path sources are workspace-relative. Revision is excluded from record paths and lease keys so transitions
+contend for the same artifacts.
 
 `scripts/atlas_build_records.py` owns one record for each build scope (`scripts/atlas_build_inputs.py` computes its dimensions and dependency data, and `scripts/atlas_build_identity.py` runs the lease protocol that reads and writes it): shared target directory, package, profile, target triple, feature set, toolchain identity, build-affecting environment digest, effective Cargo configuration digest, dependency-closure digest, and the caller's stable command key. The environment digest covers `CARGO_PROFILE_*`, `CARGO_BUILD_*`, `CARGO_TARGET_*`, `CARGO_UNSTABLE_*`, `CARGO_HOST_*`, and `CARGO_ALIAS_*` (an `[alias]` table entry set as env, which can itself carry compile-affecting flags, e.g. `CARGO_ALIAS_CLIPPY="check --config build.rustflags=[...]"`) (excluding `CARGO_TARGET_DIR`, already the record's own canonicalized `target_dir`), and a fixed set (`CARGO`, `CARGO_ENCODED_RUSTFLAGS`, `CARGO_INCREMENTAL`, `RUSTC`, `RUSTC_BOOTSTRAP`, `RUSTC_WORKSPACE_WRAPPER`, `RUSTC_WRAPPER`, `RUSTFLAGS`); a leading `env NAME=VALUE ...` prefix on the build command is parsed and overlaid on the ambient environment first, so a variable it sets is covered exactly as if it were exported. Rustdoc-only inputs -- `RUSTDOCFLAGS`, `CARGO_ENCODED_RUSTDOCFLAGS`, `RUSTDOC`, and their `CARGO_BUILD_*`-prefixed spellings (`CARGO_BUILD_RUSTDOCFLAGS`, `CARGO_BUILD_RUSTDOC`) -- are deliberately excluded, even though the record does name doc-unit fingerprint files (`discover_artifacts` walks a package's whole `.fingerprint/<pkg>-<hash>/` directory, which holds `doc-lib-*`/`output-doc-lib-*` beside the compile-unit files). Exclusion is sound because Cargo's own fingerprint scheme makes the omission moot, not because a later mismatch here would catch a stale one: Cargo's per-unit fingerprint for a `doc` unit already incorporates that unit's effective rustdoc flags, so `cargo doc` unconditionally re-invokes rustdoc -- rewriting `doc-lib-*`/`output-doc-lib-*` -- whenever those flags differ from the last run, before this scheme ever reads the resulting bytes. There is consequently no stale-doc case to guard against: whatever a given `cargo doc` run writes already reflects that run's own flags, so `run_build`'s matched branch simply adopts those bytes into the record, unconditionally once settled, rather than comparing them against a prior expectation -- adoption, not mismatch detection, because Cargo already enforced freshness before this module looked. The actual reason for exclusion: the pre-push gate runs clippy, nextest, and `env RUSTDOCFLAGS=... cargo doc` under one shared command key for one package specifically so they read one record; including a rustdoc-only input would give the doc step's `env`-prefixed invocation a different digest from the clippy and test steps' plain ones, splitting that one record into two mutually-stale halves and cleaning the whole dependency closure on every push instead of once. The configuration digest covers, for every directory between the execution root and the filesystem root, both `.cargo/config.toml` and the legacy `.cargo/config` when both are present (Cargo itself prefers the extensionless file when both exist at one level; this digest hashes both rather than picking one, so either changing is visible), `$CARGO_HOME/config.toml` and `$CARGO_HOME/config` the same way (with `$CARGO_HOME` itself resolved from the same `env`-prefix-overlaid environment as the environment digest, never `os.environ` alone, so an `env CARGO_HOME=<h> cargo ...` command prefix is not invisible to it), and any `--config` command-line argument -- a file path (hashed by content, resolved against the execution root exactly as Cargo resolves it -- never this process's own working directory -- when relative) or inline TOML text (parsed the same as a file's content). Every config source's own `include` value (stable since Cargo 1.97) is followed recursively and cycle-guarded, so an edit confined to an included file is not invisible; Cargo accepts `include` only as a list of strings (`["a.toml"]`) or a list of tables (`[{ path = "a.toml", optional = true }]`, `optional` skipping a missing path exactly as `is_file()` already does here) -- never a bare string, which Cargo itself rejects, so this digest does not treat one as a one-element list either. Each config's text is parsed by this checker's own `tomllib` (strict TOML 1.0), one grammar step stricter than Cargo's own parser, which additionally accepts a trailing comma after an inline table's last element, an inline table split across lines, and the TOML 1.1 string escapes `\e`/`\xHH`; a leading UTF-8 BOM is stripped before parsing (Cargo accepts one), and any other parse failure fails closed by raising rather than silently treating the config as `include`-free, naming the offending file. That raised error is surfaced through the pre-push gate's identity-branch classification (`classify_gate_step`'s `atlas-build-identity:`-prefixed match, reported as "source identity blocked ... no artifact was accepted"), never its environment-failure branch (reserved for a lockfile collision or a `--locked cargo metadata` failure) -- the two are distinct verdicts and a config parse failure is the former. A directory config is framed by its depth from the execution root and its filename, never its absolute path, so a config file committed inside the repository itself does not look new merely because the pre-push gate exports each push to a fresh temporary directory; such an in-tree `.cargo/config.toml` is itself one of the sources this digest covers, at depth 0, alongside the stack-mirrored config that sits outside the diffed repository -- one case does not make the other irrelevant. The command key names the build-entry-point dimensions without treating `clippy`, tests, and documentation as different source identities -- true because every dimension besides the command key, including the environment and configuration digests, is identical across those three steps for one package. The record is stored atomically under `target/.atlas/source-identity/`, inside the existing cache root. It contains the canonical source root, full Git revision, clean/dirty state, source-tree digest, resolved dependency closure, build dimensions, hashes of the discovered or explicitly supplied package artifacts, and each path package's inputs outside its directory (below). Record version is 7; versions 1 through 6 are stale (versions 6 and earlier identify a path package by its whole repository; version 4 names Git packages' files, which version 5 no longer records; version 3 predates the configuration digest and every field it added, so it is treated as stale rather than failing the current version's field-presence check). Malformed or unsupported current-version records fail closed.
 
@@ -49,15 +67,55 @@ A path package's identity is its own directory's files, never its repository's r
 
 A unit can read files outside its package's directory: an `include_str!` of a sibling directory, a `#[path]` module, a build script's watched path. The record's `inputs` field (`scripts/atlas_build_dep_info.py`) lists, per path package, each file that the package's recorded dep-info (`deps/*.d`, and a build script's `build/<unit>/*.d`) or build-script output (`build/<unit>/output`, its `rerun-if-changed` lines, a directory hashed whole) names, other than the package's own files and anything under the target, `CARGO_HOME` or the toolchain, with its digest. rustc runs in the workspace root, so a member's dep-info paths are relative to it, and the field keeps them relative and stable across exports; a path in a path package's repository outside the workspace is kept absolute. A path in no tree of ours makes that package's inputs `unverified`, as is a dep-info file that cannot be read; `unverified` equals no re-hash, so the next run cleans the package. Every run hashes the listed files again under its leases, as it re-hashes the recorded artifacts, and an input that moved makes its package stale. The inputs cannot be part of the identity: the snapshot is read before any record names them. Discovery records each path package's `build/<unit>/output` and `*.d` for this, and attributes a file under `build/<unit>/` by its unit directory, since every build script's own files are named `build_script_build-*`.
 
-The record path excludes the source revision deliberately. A source transition must contend with the existing owner of the same build scope; otherwise a second source tree could acquire a different lock and overwrite the first record.
+Repository identity hashes the revision, tracked dirty diff, and untracked or ignored source bytes. Target output is excluded;
+an ignored overlay lockfile is excluded only after lock validation or restoration. Status and identity are read afresh at each
+phase and final verification. The environment digest covers Cargo profile/build/target/unstable/host/alias namespaces, `CARGO`,
+encoded Rust flags, incremental mode, compiler/bootstrap settings, compiler wrappers, Rust flags, and leading `env NAME=VALUE`
+assignments. Rustdoc-only variables are excluded so clippy, tests, and rustdoc share a record; Cargo's own doc-unit fingerprint
+still tracks them, and the run adopts newly written rustdoc fingerprint bytes. Any required environment identity command failure
+fails closed and cannot create a verified artifact record.
 
-### Mismatch and ownership
+The configuration digest covers both config filenames in every `.cargo` directory from repository root to filesystem root,
+Cargo-home configuration, explicit path or inline `--config` arguments, and recursive include lists or tables. Includes are
+cycle-guarded and paths are framed by depth and name, not machine-specific absolute roots. UTF-8 BOMs and Cargo's known
+trailing-inline-table-comma, multiline-inline-table, `\e`, and `\xHH` divergences are accepted; other parse failures fail
+closed.
 
-A missing, malformed, or mismatched record is stale. The gate resolves the package's reachable path and Git dependency closure, acquires the scope lease, cleans the packages whose source content may differ from what built their artifacts (below), then runs the requested build command and writes the record only after success. Ordinary matching builds reuse the existing artifacts without cleaning. Registry and Git packages also carry a digest of their unpacked source content, since Cargo does not fingerprint edits there. That digest is memoized under `.atlas/source-identity/package-source/` against a stat fingerprint of the same file set (each path, size, and modification time, and each symlink's target), and a stored entry is written only when the fingerprint after the read equals the one before it; a content edit that preserves both size and modification time is not detected, the bound Cargo's own fingerprint places on path packages. Re-reading every file instead was rejected: a run takes the snapshot up to four times, the last under its closure's exclusive leases, and one kwavers pass read 587 MB across 437 registry packages in 71 s, and a kwavers push was still in its post-build snapshot, holding about 110 exclusive leases, 25 minutes after it started while every push sharing a dependency waited.
+Complete Cargo metadata supplies normal, build, and development edges; resolved manifests, features, target expressions and
+kinds, editions, targets, dependency edges, and workspace manifest. Path, Git, and registry sources receive content identities.
+The overlay-rewritten lockfile is not hashed because resolved package identities and revisions are recorded. Package-source
+digests use a persistent cache under `.atlas/source-identity/package-source`, keyed by path, size, modification time, and
+symlink-target stat data, and are written only when that fingerprint is stable before and after the read. Within one dependency
+snapshot each distinct repository or package root is fingerprinted once; another snapshot repeats fresh fingerprint checks and
+observes intervening mutations.
 
-The lease stores owner root, revision, package, target directory, token, and expiry. The OS file lock is authoritative while a process is alive; the expiry is diagnostic only, since a crashed owner releases its lock and that alone makes the lease reclaimable. The lock covers byte 0 only and the owner record starts at byte 1, because a Windows byte-range lock refuses reads of the locked range from every other handle; keeping the lock on byte 0 keeps exclusion with holders that predate the offset. A lease is held shared or exclusive. A held lease file is never empty: an earlier checker that finds it empty writes byte 0 and crashes on the lock, so an opener writes a placeholder byte before it locks, and a write refused because a holder locked the byte meanwhile is left to that holder's byte. Only an exclusive holder writes the record, which it overwrites and then cuts to length rather than truncating first. Windows takes the byte-0 lock with `LockFileEx`, whose shared mode conflicts with the `msvcrt.locking` exclusive lock of earlier holders, and treats only `ERROR_LOCK_VIOLATION` as contention. POSIX takes it with `flock`, the call earlier holders used; `fcntl` record locks would not see theirs. A check only reads artifacts, so it probes shared.
+### Artifacts and cleaning
+Managed artifacts must be inside the shared target. Explicit and discovered ownership matches exact Cargo target names, never
+prefixes. A matching record hashes only named artifacts; an exclusive rebuild rediscovers names and drops retired artifacts. A
+stable artifact needs two reads with unchanged size and modification time within a bounded deadline. Changed, unreadable, or
+never-settling artifacts are not accepted; an unverified marker forces the next clean. Dependencies are rehashed after each
+Cargo command because Cargo can rewrite them in place. Shared packages use recorded or sibling names; exclusive packages are
+rediscovered.
 
-Requests are served in arrival order. Each request creates a ticket file in the lease's queue directory, named by the system-wide monotonic clock at arrival, and holds an exclusive lock on it until it releases the lease. An exclusive request waits for every earlier live ticket; a shared request waits only for earlier exclusive tickets. Readers that arrive together therefore share, and a waiting writer holds back every later reader, so a stream of readers cannot starve it. A holder that releases and asks again gets a new ticket behind the requests already waiting, so a repeating holder cannot starve them either. A waiter keeps its ticket for its whole wait. Writer preference alone was rejected: it still lets a repeating writer win every race against a polling waiter, which is the failure observed. Liveness is probed with a shared lock, so concurrent probes never make a dead ticket look held to one another. A requester that loses the race between creating its ticket and locking it retries under a new name with the same arrival; it closes the losing handle on every path. On POSIX a peer that saw a new ticket unlocked can still unlink it after its requester locked it; each attempt checks that the ticket's path still names the locked file and re-creates it with the same arrival if not, so the ticket is missing for at most one polling interval. Every request scans the whole queue and removes each dead ticket, whatever its mode or position. A dead ticket that cannot be removed because a probe has it open at that moment, the only Windows case, is removed by the next request, so dead tickets never outlive the next request. Holders whose checker predates the queue take no ticket and are ordered by the lock alone until they fetch the current checker. The test suite runs that pre-mode lease module itself, vendored byte for byte from atlas f96b218, to prove the two protocols exclude each other; the vendored copy and its interop tests are removed once every member's pinned atlas checker is at or past #320, when no hook runs the pre-mode protocol any more.
+An artifact-only mismatch cleans its owners. Source, configuration, or dependency-shape mismatch cleans affected path packages;
+an unattributable changed file cleans every path package. Registry packages are never cleaned. One `cargo clean` receives the
+union with profile and target dimensions. Git dependencies use stamps under `.atlas/source-identity/git-build`, keyed by build
+directory, source/package identity, profile, and target. A building sentinel precedes cleaning and Cargo; only success plus a
+stable final snapshot writes the digest. Failed or killed commands leave a stale sentinel, which is honored even when the record
+matches or a custom clean command runs.
+
+### Lease protocol
+Each `(package name, target directory)` has one lease. Revision and target triple are omitted because host artifacts overlap;
+linked worktrees use the Git common directory. Cross-platform shared/exclusive byte-range locks reserve byte 0 for the lock and
+byte 1 onward for owner diagnostics. The operating-system lock is authoritative, only an exclusive holder writes owner data,
+expiry is diagnostic, and unlocked malformed state is reclaimable.
+
+Queue tickets carry a system-monotonic arrival, mode, and shared run ID; every scope orders `(arrival, run)` identically.
+Exclusive claims wait behind earlier live tickets and shared claims behind earlier exclusive tickets. A run claims every phase
+lease together or none, holds no lock while waiting, retains tickets at every scope, and shares one deadline. This removes
+hold-and-wait deadlock and prevents later readers starving a multi-package writer, at the cost of a possible idle convoy.
+`claims.jsonl` records run, order, leases and modes, wait and hold times, blocker, and phase, rotating at 1 MiB with one prior
+file.
 
 A live conflicting owner refuses the operation without cleaning, deleting, or overwriting artifacts; the command-line `run` entry point, which the pre-push gate invokes, first waits for that owner with backoff, bounded by `--lease-wait-seconds` across every lease and both acquisition phases below, and fails without the lease when the bound passes. The recorded expiry is reported but never ends the wait, and holders do not renew it: the lock already proves liveness, so renewal would only refresh a field nothing decides on. Leases are taken in sorted scope order, and a request waits only on holders of its own lease, which wait only on later leases, or on earlier requests for that lease, so no wait forms a cycle. An unlocked lease is reclaimed whatever its content: no live process can hold it, and a writer killed mid-record leaves a partial one. A malformed record fails closed.
 
@@ -67,7 +125,20 @@ Under a shared lease, Cargo can still write into a dependency's `deps/` and `.fi
 
 The lease key is (package name, target directory), without the source revision or target triple. Two revisions of one source root produce the same artifact names, so a revision key would let them clean and overwrite each other; a cross-target build still compiles its proc-macro and build-script dependencies into the host directory, so a triple key would let two triples clean and rebuild one host artifact concurrently. The target resolver uses the Git common directory so a linked Atlas worktree still addresses the primary cache.
 
+A first shared claim proceeds only on an exact record match. A mismatch releases all leases, acquires the complete set
+exclusively, and re-reads before cleaning; there is no in-place upgrade. An equivalent sibling record can establish reuse.
+Before Cargo starts, unchanged non-root packages downgrade to shared without losing queue position. Full/custom cleaning or
+explicit artifacts retains exclusive leases; a failed conversion fails closed. Live-owner conflict is bounded by
+`--lease-wait-seconds`, identifies the owner, and changes nothing. Command failure preserves the previous successful record and
+releases all leases. Exact match prevents cleaning under readers but does not assume Cargo is read-only, so leases remain held
+through the command and final source/dependency verification.
+
 ### Build entry points
+Pre-push builds each pushed commit, not the working tree. It exports the commit's object store into one reusable short path by a
+symlink-preserving, long-path-safe checkout outside the overlay and cleans it on interruption. Deletion refs need no build. One
+identity sequence covers all gated packages and holds leases from clippy through nextest, rustdoc, and the final identity read.
+Every step uses the committed lock; records require command success and unchanged final source and dependencies. Other build
+entry points reuse the same modules and protocol.
 
 The shared identity module is the single policy surface. The member pre-push gate builds an export of each pushed revision -- a checkout of it in a repository of its own, written by `read-tree -u --reset` run in the member so a partial clone fetches missing blobs, with `core.longpaths` set, at one short path per checkout that a run claims by lock and the next run updates in place, so links stay links, the index carries stat data, and unchanged files keep the times cargo fingerprinted -- in a temporary directory outside the stack's `[patch]` overlay, never the checkout, which a shared tree holds on a peer's branch or dirty. The export is a repository whose `HEAD` is the pushed commit and whose object store is the member's, so the module records the pushed revision as the source; the gate invokes the module with the export as `--root` once per step for every changed package before accepting clippy, tests, or documentation, all under `--locked` against the committed lock. One stable command key lets those steps share each package's record. The integration composes with the existing conformance push guard in PR #277; it must not duplicate that guard or hand-edit member hook copies. Other build entry points use the same module when they compile packages, rather than implementing a second provenance format.
 
@@ -105,12 +176,42 @@ Bounded by a no-regression-vs-main acceptance: main today has none of this effec
 - The provenance record is derived cache state; removing it causes a conservative rebuild, not a false pass.
 - The gate adds one deterministic identity check before compilation and retains the existing shared target root.
 
-## Alternatives rejected
+Atlas has no root Cargo manifest and fabricates none. Secret/artifact-budget/lock/baseline checks use fetched default; only
+conformance and build identity may use prepared scripts. `<meta>` carries revision and baseline without a repository. Changed
+paths map to the nearest actual nested Cargo manifest before metadata. Owners: `tools/checkout-path-dependencies`,
+`tools/criterion-regression`, `tools/gitlink-coherence`, and `tools/version-guard`; `tools/_template/template-Cargo.toml` is
+excluded. Each selected owner runs the complete bounded locked metadata/fmt/clippy/nextest/rustdoc/final-identity sequence on
+its actual manifest/export/lock/shared target. Cargo is inapplicable only after content gates pass and owner selection finds no
+owner. Removed/unreadable/malformed selected manifests/locks and ownership/metadata/stage errors fail closed. Meta adds no
+legacy relative `.githooks` switch or separate skip/bypass. The immutable fetched hook stays the trust root; prepared selection
+remains public. Provider changes require all 28 executable member copies before pin advance; versions/releases remain unchanged.
 
-- A per-source target directory prevents reuse but forks the cache and violates the one-target budget.
-- Manual `cargo clean -p` repairs one incident but does not protect a concurrent owner or record identity.
-- Cargo fingerprint JSON as a public contract couples Atlas to an unstable internal schema.
-- Cleaning the entire target on every source transition destroys unaffected artifacts and violates the rebuild-scope requirement.
+## Known limits
+- Alias-internal config paths are not followed unless present in executed arguments. Unhandled TOML 1.1 syntax fails closed.
+- Cargo-internal build-script `rustc-env` and wrapper exports are not decomposed; configuration `[env]` stays covered.
+- A package-source edit preserving both size and modification time can evade the persistent stat-keyed digest cache.
+- External unstamped Git artifacts may be reused; one build directory is stamped; registry artifacts are not cleaned.
+- A matched Git build can miss a source edit made and reverted during the command. `ATLAS-IDENTITY-MIDRUN-GIT-EDIT` tracks it.
+- Cargo fingerprints remain part of rustdoc and external-artifact reuse. During mixed-version rollout, an old sequential lease
+  holder can block the all-or-none protocol until its bounded deadline.
+
+## Consequences
+Equivalent exports and worktrees reuse exact-input artifacts. Changed inputs rebuild the narrowest sound package set; ambiguous
+ownership fails closed and broadens cleaning. Concurrent roots cannot silently clean or overwrite managed artifacts. Records and
+caches are derived state, so deletion causes conservative rebuilding. One shared target remains, with measurable hashing,
+metadata, and lease cost exposed by claim histories and stage timings.
+
+## Alternatives rejected
+- Legacy `.githooks` lets the tip replace its gate and duplicates policy; immutable fetched tooling remains the trust boundary.
+- Per-source targets fork the cache; manual cleaning has no ownership; Cargo fingerprint JSON is unstable. Whole-target or
+  whole-closure cleaning discards unrelated reuse, and repository-name filters miss actual shared dependencies.
+- Sequential lease acquisition permits deadlock. Relinquishing partial-claim queue position permits reader starvation; strict
+  global FIFO delays nonconflicting runs without strengthening correctness.
+- A longer lease wait only delays refusal. Holding every dependency exclusively serializes safe readers, so unchanged non-root
+  packages downgrade to shared.
+- Rehashing every package for every closure dominated dependency snapshots. The stable stat-keyed cache bounds that work and
+  per-snapshot memoization removes duplicates while retaining fresh checks between snapshots. A persistent cache that skipped
+  fresh fingerprint checks was rejected.
 
 ## Verification
 
@@ -139,3 +240,18 @@ The core regression suite covers a source transition, matching-source reuse, sam
 - [scripts/atlas_build_dep_info.py](../../scripts/atlas_build_dep_info.py)
 - [scripts/git-hooks/pre-push](../../scripts/git-hooks/pre-push)
 - [Apollo ADR 0051](../../repos/apollo/docs/adr/0051-composite-phase-schedules.md)
+
+Focused identity tests cover dirty, ignored, exported, and final-mutated source; environment and configuration inputs and
+failures; dependency shape, features, manifests, and profiles; artifact attribution, settling, retirement, and ownership;
+package-cache invalidation and snapshot deduplication; path/Git cleaning, stamps, sentinels, profiles, and custom cleans; and
+shared/exclusive claims, fairness, all-or-none acquisition, downgrade, interoperability, deadlines, and dead owners. Real-Cargo
+cases cover repeated exports, multi-package commands, and failures. Integrated hook tests cover pushed-revision export,
+committed locks, manifest and live-owner changes, prepared-tool selection, and refusal paths. Configured identity, pre-push,
+conformance, architecture, and pin-drift suites remain executable gates. Atlas pin readiness additionally requires the exact
+combined candidate's normal push, hosted checks, and independent acceptance; the driver PR records their results.
+
+## References
+- `scripts/atlas_build_records.py`; `scripts/atlas_build_inputs.py`
+- `scripts/atlas_build_source.py`; `scripts/atlas_build_artifacts.py`
+- `scripts/atlas_build_lease.py`; `scripts/atlas_build_identity.py`
+- `scripts/git-hooks/pre-push`; `scripts/tests/test_atlas_build_identity.py`; `scripts/tests/test_atlas_pre_push_gate.py`

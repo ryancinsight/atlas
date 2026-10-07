@@ -1,0 +1,644 @@
+#!/usr/bin/env python3
+"""Report which published stack crates carry source their registry copy lacks.
+
+A crate whose manifest version is on crates.io reads as current in every release
+check, yet its source can have moved on since: members bump the crate they release,
+not the providers whose source changed, and `cargo package --no-verify` resolves
+versions without compiling. On 2026-09-30, 100 published crates had drifted this
+way and their dependents' releases failed at `cargo publish` verification against
+the stale registry copy (ATLAS-PUB-011). This is the measurement that item's
+acceptance re-runs.
+
+For every stack member (the `repos/*` paths in atlas's `.gitmodules`) it reads the
+member's published default branch tip, never the shared working tree, and reports
+for each publishable crate in it (`cargo metadata --no-deps`, `publish` not `[]`):
+
+    status      never-published       the index has no entry for the name
+                foreign-name          the index has the name, but its owners exclude
+                                      the expected owner: another account's crate
+                unpublished-version   the name is ours and published, this version is not
+                published-current     the registry `.crate` matches the source
+                published-drifted     the registry `.crate` differs from the source
+    drift       paths changed, added, or removed since the published version, and
+                the dependencies whose requirement differs
+    dependents  other members' crates whose manifests require this crate, with the
+                requirement, kind, and any rename
+
+Ownership: for a name the index has, the crates.io owners API
+(`/api/v1/crates/<name>/owners`) must list the expected owner (`--owner`, default
+`ryancinsight`). Otherwise the registry copy is another account's crate, never the
+stack crate's published form: it is reported `foreign-name` and never compared with the
+source, since no version bump can reconcile them; the crate needs a registry name of its
+own (ADR 0037 section 3). A name the index lacks is not asked about, and owners requests
+are spaced one second apart (crates.io's crawler policy).
+
+Comparison: the `.crate` at the manifest version comes from static.crates.io; its
+`src/**` and `Cargo.toml.orig` are compared by SHA-256 with `src/**` and `Cargo.toml`
+in the crate's directory at the tip. `.cargo_vcs_info.json` and `Cargo.lock` are
+ignored, as is anything else outside `src/` and the manifest (a `build.rs`, a README).
+Line endings are normalized (CRLF to LF) on both
+sides: a crate packaged from a Windows checkout differs from a `git archive` of the
+same commit only there, and reading that as drift would send a bump to a crate with
+nothing to release. Files marked `export-ignore` are absent from the archive read.
+
+The manifest text does not say what a dependency binds: `eunomia = { workspace = true }`
+reads the same before and after the workspace root moves eunomia from 0.8 to 0.9. So the
+requirements are compared as well, for normal and build dependencies (what consumers
+resolve; dev-dependencies never reach them). The registry side is the `.crate`'s
+normalized `Cargo.toml`, where cargo has resolved the inheritance; the source side is
+`cargo metadata`, which resolves it the same way. Each dependency, keyed by kind, target,
+and declared name, is compared on its package, its requirement as a semver requirement
+(`0.9` and `^0.9` are one), `optional`, `default-features`, and `features`; any
+difference, or a dependency present on one side only, is drift and is reported with both
+sides (scripts/atlas_crate_requirements.py).
+
+An index 404 is "never published". Every other non-200 answer, an owners API answer
+other than 200, and a network error that outlasts its retries (five attempts, backoff
+doubling from two seconds) fail the tool: an outage is never read as "not drifted" or as
+"owned".
+
+Exit status: 0 every crate measured and none drifted or foreign-named; 1 a published
+crate drifted or a name belongs to another account; 2 the measurement failed (registry,
+git, or cargo).
+
+    python scripts/atlas-published-drift.py                  # JSON, whole stack
+    python scripts/atlas-published-drift.py --format md      # markdown table
+    python scripts/atlas-published-drift.py --member hermes --member leto
+    python scripts/atlas-published-drift.py --owner ryancinsight
+"""
+
+from __future__ import annotations
+
+import argparse
+import gzip
+import hashlib
+import http.client
+import importlib.util
+import io
+import json
+import random
+import sys
+import tarfile
+import tempfile
+import threading
+import time
+import urllib.error
+import urllib.request
+import zlib
+from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+
+SCRIPTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS))
+from atlas_crate_requirements import (  # noqa: E402
+    DependencyDrift,
+    Requirement,
+    RequirementError,
+    compare_requirements,
+    manifest_requirements,
+    metadata_requirements,
+)
+from atlas_git_process import (  # noqa: E402
+    GitProcessError,
+    archive as git_archive,
+    execute as execute_git,
+    execute_process,
+    extract_archive,
+)
+from atlas_stack import ROOT  # noqa: E402
+
+
+def load_sibling(name: str, path: Path):
+    """Import a first-party script whose file name is not a Python identifier."""
+    loaded = sys.modules.get(name)
+    if loaded is not None:
+        return loaded
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+# The registry index reader and the publishable-set rule are the push-mode planner's:
+# one definition of "has this name and version been published".
+crates_pending = load_sibling(
+    "crates_pending",
+    SCRIPTS.parent / ".github" / "actions" / "crates-pending" / "crates_pending.py",
+)
+# The member universe and the published-default read are the pin-drift guard's.
+pin_drift = load_sibling("atlas_pin_drift", SCRIPTS / "atlas-pin-drift.py")
+
+RegistryError = crates_pending.RegistryError
+
+USER_AGENT = "atlas-published-drift (github.com/ryancinsight/atlas)"
+DEFAULT_OWNER = "ryancinsight"
+API_PREFIX = "https://crates.io/api/"
+# A GET is idempotent and crates.io's edge resets a share of connections: a transport
+# failure retries with exponential backoff and jitter, then fails the tool.
+TRANSPORT_ATTEMPTS = 5
+TRANSPORT_BACKOFF_SECONDS = 2.0
+CRATE_URL = "https://static.crates.io/crates/{name}/{name}-{version}.crate"
+HTTP_TIMEOUT_SECONDS = 120.0
+GIT_TIMEOUT_SECONDS = 300
+CARGO_TIMEOUT_SECONDS = 600
+DEFAULT_JOBS = 4
+# Private ref a missing default tip is fetched into: never a remote-tracking ref
+# (ATLAS-ORIGIN-REF-CLOBBER-2026-09-21, scripts/atlas-refspec-guard.py).
+SCRATCH_TIP_REF = "refs/scratch/atlas-published-drift"
+
+NEVER_PUBLISHED = "never-published"
+FOREIGN_NAME = "foreign-name"
+UNPUBLISHED_VERSION = "unpublished-version"
+PUBLISHED_CURRENT = "published-current"
+PUBLISHED_DRIFTED = "published-drifted"
+STATUSES = (NEVER_PUBLISHED, FOREIGN_NAME, UNPUBLISHED_VERSION, PUBLISHED_CURRENT,
+            PUBLISHED_DRIFTED)
+
+Fetch = Callable[[str], "tuple[int, bytes]"]
+
+
+class MeasurementError(RuntimeError):
+    """Git or cargo could not give the answer the measurement needs."""
+
+
+class ApiThrottle:
+    """Spaces `crates.io/api` requests one interval apart across threads.
+
+    crates.io's crawler policy allows one API request per second; the index and
+    static hosts carry no such limit. The lock is held through the wait so that
+    concurrent members queue instead of bursting.
+    """
+
+    def __init__(self, interval: float = crates_pending.API_INTERVAL_SECONDS) -> None:
+        self.interval = interval
+        self._lock = threading.Lock()
+        self._last: float | None = None
+
+    def wait(self) -> None:
+        with self._lock:
+            if self._last is not None:
+                remaining = self._last + self.interval - time.monotonic()
+                if remaining > 0:
+                    time.sleep(remaining)
+            self._last = time.monotonic()
+
+
+API_THROTTLE = ApiThrottle()
+
+
+def http_get(url: str, timeout: float = HTTP_TIMEOUT_SECONDS) -> tuple[int, bytes]:
+    """GET with the tool's User-Agent and no other identifying header.
+
+    A non-2xx status is returned, not raised: the index's 404 is an answer, and a status
+    is never retried. A transport failure retries `TRANSPORT_ATTEMPTS` times in all, then
+    raises `RegistryError`. Every `crates.io/api` attempt is throttled.
+    """
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    for attempt in range(1, TRANSPORT_ATTEMPTS + 1):
+        if url.startswith(API_PREFIX):
+            API_THROTTLE.wait()
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.status, response.read()
+        except urllib.error.HTTPError as error:
+            return error.code, b""
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
+            if attempt == TRANSPORT_ATTEMPTS:
+                raise RegistryError(f"{url}: {error} (after {attempt} attempts)") from error
+            time.sleep(TRANSPORT_BACKOFF_SECONDS * 2 ** (attempt - 1) * random.uniform(0.5, 1.0))
+    raise AssertionError("unreachable: the last attempt returns or raises")
+
+
+def index_versions(name: str, fetch: Fetch) -> list[str] | None:
+    """Versions the index lists for `name`, or None when it was never published."""
+
+    def text(url: str) -> tuple[int, str]:
+        status, body = fetch(url)
+        return status, body.decode("utf-8")
+
+    return crates_pending.published_versions(name, text)
+
+
+def crate_owners(name: str, fetch: Fetch) -> list[str]:
+    """Logins the crates.io owners API lists for `name`; any answer but 200 fails."""
+
+    def text(url: str) -> tuple[int, str]:
+        status, body = fetch(url)
+        return status, body.decode("utf-8")
+
+    return crates_pending.owners(name, text)
+
+
+def version_key(version: str) -> tuple:
+    """Order key for crates.io versions: a pre-release sorts below its release."""
+    core, _, _build = version.partition("+")
+    release, _, pre = core.partition("-")
+    numbers = tuple(int(part) if part.isdigit() else 0 for part in release.split("."))
+    return (*numbers, 0 if pre else 1, pre)
+
+
+def normalized_digest(data: bytes) -> str:
+    """SHA-256 of `data` with CRLF line endings read as LF."""
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+
+
+@dataclass(frozen=True)
+class PublishedCrate:
+    """What the comparison reads from a `.crate`."""
+
+    digests: dict[str, str]
+    requirements: dict[tuple, Requirement]
+
+
+def read_published_crate(crate: bytes, name: str, version: str) -> PublishedCrate:
+    """The `.crate`'s file digests and its normalized manifest's dependency requirements.
+
+    The digests cover `src/**` and `Cargo.toml.orig` (keyed `Cargo.toml`). Every `.crate`
+    carries the normalized `Cargo.toml` cargo writes; one without it is unreadable.
+    """
+    prefix = f"{name}-{version}/"
+    digests: dict[str, str] = {}
+    normalized: bytes | None = None
+    try:
+        with tarfile.open(fileobj=io.BytesIO(crate), mode="r:gz") as tree:
+            for entry in tree:
+                if not entry.isfile():
+                    continue
+                if not entry.name.startswith(prefix):
+                    raise RegistryError(
+                        f"{name} {version}: `.crate` entry {entry.name!r} is outside {prefix}"
+                    )
+                relative = entry.name[len(prefix):]
+                if relative == "Cargo.toml.orig":
+                    relative = "Cargo.toml"
+                elif relative != "Cargo.toml" and not relative.startswith("src/"):
+                    continue
+                handle = tree.extractfile(entry)
+                if handle is None:
+                    raise RegistryError(f"{name} {version}: cannot read {entry.name}")
+                data = handle.read()
+                if entry.name == f"{prefix}Cargo.toml":
+                    normalized = data
+                else:
+                    digests[relative] = normalized_digest(data)
+    except (tarfile.TarError, gzip.BadGzipFile, EOFError, zlib.error) as error:
+        raise RegistryError(f"{name} {version}: unreadable `.crate`: {error}") from error
+    if normalized is None:
+        raise RegistryError(f"{name} {version}: `.crate` has no normalized Cargo.toml")
+    try:
+        requirements = manifest_requirements(normalized)
+    except RequirementError as error:
+        raise RegistryError(f"{name} {version}: {error}") from error
+    return PublishedCrate(digests, requirements)
+
+
+def source_digests(package_dir: Path) -> dict[str, str]:
+    """Digests of `src/**` and `Cargo.toml` under one crate directory of an export."""
+    digests: dict[str, str] = {}
+    source = package_dir / "src"
+    if source.is_dir():
+        for path in sorted(source.rglob("*")):
+            if path.is_file():
+                digests[path.relative_to(package_dir).as_posix()] = normalized_digest(
+                    path.read_bytes()
+                )
+    digests["Cargo.toml"] = normalized_digest((package_dir / "Cargo.toml").read_bytes())
+    return digests
+
+
+@dataclass(frozen=True)
+class Drift:
+    """Paths by which the source differs from the registry copy."""
+
+    changed: tuple[str, ...] = ()
+    added: tuple[str, ...] = ()
+    removed: tuple[str, ...] = ()
+    dependencies: tuple[DependencyDrift, ...] = ()
+
+    @property
+    def drifted(self) -> bool:
+        return bool(self.changed or self.added or self.removed or self.dependencies)
+
+
+def compare(published: PublishedCrate, source: dict[str, str],
+            dependencies: Sequence[dict]) -> Drift:
+    """The registry copy against the source: file digests, then dependency requirements.
+
+    `dependencies` is the package's `cargo metadata` dependency list.
+    """
+    return Drift(
+        changed=tuple(sorted(p for p in published.digests.keys() & source.keys()
+                             if published.digests[p] != source[p])),
+        added=tuple(sorted(source.keys() - published.digests.keys())),
+        removed=tuple(sorted(published.digests.keys() - source.keys())),
+        dependencies=compare_requirements(published.requirements,
+                                          metadata_requirements(dependencies)),
+    )
+
+
+@dataclass
+class CrateReading:
+    """One publishable crate at a member's default tip."""
+
+    name: str
+    version: str
+    manifest: str
+    status: str
+    latest_published: str | None = None
+    drift: Drift | None = None
+    dependents: list[dict] = field(default_factory=list)
+
+    def as_json(self) -> dict:
+        return {
+            "name": self.name,
+            "version": self.version,
+            "manifest": self.manifest,
+            "status": self.status,
+            "published": self.status in (PUBLISHED_CURRENT, PUBLISHED_DRIFTED),
+            "latest_published": self.latest_published,
+            "drift": None if self.drift is None else asdict(self.drift),
+            "dependents": self.dependents,
+        }
+
+
+def measure_crate(name: str, version: str, manifest: str, package_dir: Path,
+                  dependencies: Sequence[dict], fetch: Fetch,
+                  owner: str = DEFAULT_OWNER) -> CrateReading:
+    """Classify one crate against the registry.
+
+    The owners API is asked only for a name the index has, and a name `owner` does not
+    own is `foreign-name` before any version or `.crate` is read. The `.crate` is
+    downloaded only for an owned, indexed version.
+    """
+    versions = index_versions(name, fetch)
+    if versions is None:
+        return CrateReading(name, version, manifest, NEVER_PUBLISHED)
+    if owner not in crate_owners(name, fetch):
+        return CrateReading(name, version, manifest, FOREIGN_NAME)
+    latest = max(versions, key=version_key) if versions else None
+    if version not in versions:
+        return CrateReading(name, version, manifest, UNPUBLISHED_VERSION, latest)
+    url = CRATE_URL.format(name=name, version=version)
+    status, body = fetch(url)
+    if status != 200:
+        raise RegistryError(
+            f"static.crates.io returned HTTP {status} for {name} {version}, "
+            "which the index lists"
+        )
+    drift = compare(read_published_crate(body, name, version), source_digests(package_dir),
+                    dependencies)
+    return CrateReading(name, version, manifest,
+                        PUBLISHED_DRIFTED if drift.drifted else PUBLISHED_CURRENT,
+                        latest, drift)
+
+
+def run_cargo_metadata(manifest: Path) -> dict:
+    """`cargo metadata --no-deps` from a directory outside every stack and member config.
+
+    Cargo resolves `.cargo/config.toml` and `rust-toolchain.toml` from the working
+    directory, never from `--manifest-path`; a neutral directory excludes the stack's
+    overlay and its toolchain pin, neither of which the manifests alone need.
+    """
+    with tempfile.TemporaryDirectory(prefix="atlas-published-drift-cwd-") as neutral:
+        result = execute_process(
+            ("cargo", "metadata", "--no-deps", "--format-version", "1",
+             "--manifest-path", str(manifest)),
+            cwd=Path(neutral),
+            timeout=CARGO_TIMEOUT_SECONDS,
+        )
+    if result.returncode:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise MeasurementError(f"cargo metadata failed for {manifest}: {detail}")
+    return json.loads(result.stdout.decode("utf-8"))
+
+
+@dataclass
+class MemberReading:
+    name: str
+    branch: str
+    revision: str
+    crates: list[CrateReading]
+    packages: list[dict]
+
+
+def measure_member(name: str, repo: Path, branch: str, revision: str,
+                   fetch: Fetch, owner: str = DEFAULT_OWNER) -> MemberReading:
+    """Measure every publishable crate of `repo` at commit `revision`."""
+    try:
+        tree = git_archive(repo, revision, timeout=GIT_TIMEOUT_SECONDS)
+    except GitProcessError as error:
+        raise MeasurementError(f"{name}: cannot archive {revision}: {error}") from error
+    with tempfile.TemporaryDirectory(prefix=f"atlas-published-drift-{name}-") as scratch:
+        root = Path(scratch).resolve()
+        extract_archive(tree, root)
+        manifest = root / "Cargo.toml"
+        if not manifest.is_file():
+            raise MeasurementError(f"{name}: no root Cargo.toml at {revision}")
+        metadata = run_cargo_metadata(manifest)
+        crates = []
+        for package in sorted(filter(crates_pending.publishable, metadata["packages"]),
+                              key=lambda p: p["name"]):
+            package_manifest = Path(package["manifest_path"]).resolve()
+            relative = package_manifest.relative_to(root)
+            crates.append(measure_crate(package["name"], package["version"],
+                                        relative.as_posix(), package_manifest.parent,
+                                        package["dependencies"], fetch, owner))
+        packages = [
+            {"name": p["name"], "dependencies": p["dependencies"]} for p in metadata["packages"]
+        ]
+    return MemberReading(name, branch, revision, crates, packages)
+
+
+def reverse_edges(members: Sequence[MemberReading]) -> None:
+    """Fill each crate's `dependents` with the other members' manifests requiring it.
+
+    `cargo metadata` reports a dependency by the package's real name and carries the
+    alias in `rename`, so a `package = "..."` dependency is matched by the crate it names.
+    """
+    owner = {crate.name: member.name for member in members for crate in member.crates}
+    by_name = {crate.name: crate for member in members for crate in member.crates}
+    for member in members:
+        for package in member.packages:
+            for dependency in package["dependencies"]:
+                crate = by_name.get(dependency["name"])
+                if crate is None or owner[crate.name] == member.name:
+                    continue
+                crate.dependents.append({
+                    "member": member.name,
+                    "crate": package["name"],
+                    "requirement": dependency["req"],
+                    "kind": dependency.get("kind") or "normal",
+                    "rename": dependency.get("rename"),
+                })
+    for crate in by_name.values():
+        crate.dependents.sort(key=lambda d: (d["member"], d["crate"], d["kind"]))
+
+
+def published_tip(repo: Path, url: str) -> tuple[str, str]:
+    """The remote's default branch and its tip, present in `repo`'s object store."""
+    branch, tip = pin_drift.published_default(repo, url, GIT_TIMEOUT_SECONDS)
+    present = execute_git(repo, ("cat-file", "-e", f"{tip}^{{commit}}"),
+                          timeout=GIT_TIMEOUT_SECONDS)
+    if present.returncode:
+        fetched = execute_git(
+            repo, ("fetch", "--no-tags", "--quiet", url, f"+{branch}:{SCRATCH_TIP_REF}"),
+            timeout=GIT_TIMEOUT_SECONDS)
+        if fetched.returncode:
+            detail = fetched.stderr.decode("utf-8", errors="replace").strip()
+            raise MeasurementError(f"{repo}: cannot fetch {branch}: {detail}")
+    return branch, tip
+
+
+def measure_stack(root: Path, fetch: Fetch, only: Sequence[str] = (),
+                  jobs: int = DEFAULT_JOBS,
+                  owner: str = DEFAULT_OWNER) -> tuple[str, list[MemberReading]]:
+    """Measure the members registered in `root`'s `.gitmodules` at their default tips."""
+    _branch, atlas_tip = published_tip(root, "origin")
+    urls = pin_drift.member_urls(root, atlas_tip, GIT_TIMEOUT_SECONDS)
+    unknown = sorted(set(only) - urls.keys())
+    if unknown:
+        raise MeasurementError(f"not registered members: {', '.join(unknown)}")
+    names = sorted(only or urls)
+
+    def one(name: str) -> MemberReading:
+        repo = root / "repos" / name
+        branch, tip = published_tip(repo, urls[name])
+        return measure_member(name, repo, branch, tip, fetch, owner)
+
+    with ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+        readings = list(pool.map(one, names))
+    reverse_edges(readings)
+    return atlas_tip, readings
+
+
+def summarize(readings: Sequence[MemberReading]) -> dict:
+    def counts(crates: Sequence[CrateReading]) -> dict[str, int]:
+        found = {"crates": len(crates)}
+        for status in STATUSES:
+            found[status.replace("-", "_")] = sum(1 for c in crates if c.status == status)
+        found["drifted"] = found["published_drifted"]
+        found["findings"] = found["published_drifted"] + found["foreign_name"]
+        return found
+
+    every = [crate for member in readings for crate in member.crates]
+    return {**counts(every), "by_member": {m.name: counts(m.crates) for m in readings}}
+
+
+def report(atlas_tip: str, readings: Sequence[MemberReading]) -> dict:
+    return {
+        "tool": "atlas-published-drift",
+        "atlas_revision": atlas_tip,
+        "summary": summarize(readings),
+        "members": [
+            {
+                "name": m.name,
+                "branch": m.branch,
+                "revision": m.revision,
+                "crates": [c.as_json() for c in m.crates],
+            }
+            for m in readings
+        ],
+    }
+
+
+def dependents_cell(dependents: Sequence[dict]) -> str:
+    """`member crate req` per distinct dependent, merged per member."""
+    per_member: dict[str, list[str]] = {}
+    for edge in dependents:
+        label = edge["crate"] + (f" as {edge['rename']}" if edge["rename"] else "")
+        suffix = "" if edge["kind"] == "normal" else f" ({edge['kind']})"
+        per_member.setdefault(edge["member"], []).append(
+            f"{label} `{edge['requirement']}`{suffix}")
+    return "; ".join(f"{member}: {', '.join(items)}" for member, items in per_member.items())
+
+
+def dependency_drift_cell(dependencies: Sequence[dict]) -> str:
+    """`name (kind, target): reason` per dependency whose requirement differs."""
+    cells = []
+    for item in dependencies:
+        where = ", ".join(filter(None, (None if item["kind"] == "normal" else item["kind"],
+                                        item["target"])))
+        cells.append(f"{item['name']}{f' ({where})' if where else ''}: {item['reason']}")
+    return "; ".join(cells).replace("|", "\\|")
+
+
+def render_markdown(document: dict) -> str:
+    summary = document["summary"]
+    lines = [
+        f"Measured at atlas `{document['atlas_revision']}`: {summary['crates']} publishable "
+        f"crates, {summary['drifted']} drifted, {summary['foreign_name']} on a name another "
+        f"account owns, {summary['never_published']} never published, "
+        f"{summary['unpublished_version']} at a version the registry lacks, "
+        f"{summary['published_current']} current.",
+        "",
+        "| member | crates | drifted | foreign name | never published | unpublished version "
+        "| current | tip |",
+        "|---|---:|---:|---:|---:|---:|---:|---|",
+    ]
+    revisions = {m["name"]: (m["branch"], m["revision"]) for m in document["members"]}
+    for name, counts in summary["by_member"].items():
+        branch, revision = revisions[name]
+        lines.append(
+            f"| {name} | {counts['crates']} | {counts['drifted']} | {counts['foreign_name']} | "
+            f"{counts['never_published']} | {counts['unpublished_version']} | "
+            f"{counts['published_current']} | {branch} `{revision[:12]}` |")
+    lines += [
+        "",
+        "| member | crate | manifest version | status | latest on registry | "
+        "changed | added | removed | dependency requirements | required by |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for member in document["members"]:
+        for crate in member["crates"]:
+            drift = crate["drift"] or {"changed": [], "added": [], "removed": [],
+                                       "dependencies": []}
+            lines.append(
+                f"| {member['name']} | {crate['name']} | {crate['version']} | {crate['status']} | "
+                f"{crate['latest_published'] or ''} | {len(drift['changed'])} | "
+                f"{len(drift['added'])} | {len(drift['removed'])} | "
+                f"{dependency_drift_cell(drift['dependencies'])} | "
+                f"{dependents_cell(crate['dependents'])} |")
+    return "\n".join(lines) + "\n"
+
+
+def parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--stack-root", type=Path, default=ROOT,
+                        help="the atlas checkout whose repos/ hold the members")
+    parser.add_argument("--member", action="append", default=[],
+                        help="measure only this member (repeatable); reverse edges then "
+                             "cover the measured members only")
+    parser.add_argument("--format", choices=("json", "md"), default="json")
+    parser.add_argument("--output", type=Path, help="write the report here instead of stdout")
+    parser.add_argument("--owner", default=DEFAULT_OWNER,
+                        help="crates.io login that must own every indexed name "
+                             "(default: %(default)s)")
+    parser.add_argument("--jobs", type=int, default=DEFAULT_JOBS)
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None, fetch: Fetch = http_get) -> int:
+    options = parse_arguments(argv)
+    try:
+        atlas_tip, readings = measure_stack(
+            options.stack_root, fetch, options.member, options.jobs, options.owner)
+    except (RegistryError, MeasurementError, GitProcessError, RequirementError) as error:
+        print(f"atlas-published-drift: {error}", file=sys.stderr)
+        return 2
+    document = report(atlas_tip, readings)
+    text = (render_markdown(document) if options.format == "md"
+            else json.dumps(document, indent=2) + "\n")
+    if options.output:
+        options.output.write_text(text, encoding="utf-8", newline="\n")
+    else:
+        sys.stdout.write(text)
+    return 1 if document["summary"]["findings"] else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -212,6 +212,28 @@ if [ ! -t 0 ]; then
     push_stream="$(cat)"
 fi
 
+# Validate every live ref object before classification or gate construction.
+# Deletion-only streams return below without consulting their old remote tip.
+if [ -n "$push_stream" ]; then
+    while read -r local_ref local_sha remote_ref remote_sha extra; do
+        [ -z "${extra:-}" ] || {
+            echo "pre-push: BLOCKED -- malformed ref update" >&2
+            exit 1
+        }
+        if [ "$local_sha" != "0000000000000000000000000000000000000000" ] \
+            && ! git -C "$atlas_root" cat-file -e "$local_sha^{commit}" 2>/dev/null; then
+            echo "pre-push: BLOCKED -- pushed local commit is unavailable" >&2
+            exit 1
+        fi
+        if [ "$local_sha" != "0000000000000000000000000000000000000000" ] \
+            && [ "$remote_sha" != "0000000000000000000000000000000000000000" ] \
+            && ! git -C "$atlas_root" cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+            echo "pre-push: BLOCKED -- remote commit is unavailable" >&2
+            exit 1
+        fi
+    done <<<"$push_stream"
+fi
+
 # The classifier and credential scan come from the fetched default branch.
 # A pushed branch therefore cannot relax its own first-push gate or allowlist.
 trusted_rescue_ref=""
@@ -232,6 +254,19 @@ if [ -n "$push_stream" ] && [ -n "$trusted_rescue_ref" ] \
     rescue_status=$?
     [ "$rescue_status" -eq 0 ] && exit 0
     [ "$rescue_status" -eq 3 ] || exit "$rescue_status"
+fi
+# A deletion has no revision to inspect. Return before constructing any local
+# auditor or consulting a remote tip; HEAD belongs to the checked-out branch
+# and may be unrelated to the ref stream Git supplied.
+if [ -n "$push_stream" ]; then
+    live_push=0
+    while read -r _local_ref local_sha _remote_ref _remote_sha; do
+        [ "$local_sha" != "0000000000000000000000000000000000000000" ] && live_push=1
+    done <<<"$push_stream"
+    if [ "$live_push" -eq 0 ]; then
+        echo "pre-push: deletion refs have no revision to gate" >&2
+        exit 0
+    fi
 fi
 binary=""
 # The auditor is built from origin's default branch, never from the
@@ -339,7 +374,7 @@ gate_base_for() {
             return 0
         fi
     fi
-    base="$(git -C "$atlas_root" merge-base origin/main "$tip" 2>/dev/null || true)"
+    base="$(git -C "$atlas_root" merge-base "$trusted_rescue_ref" "$tip" 2>/dev/null || true)"
     printf '%s' "$base"
 }
 
@@ -378,15 +413,30 @@ done
 # advance as its raise (CFDrs/scattered_containers 0 -> 24 on a branch whose
 # baseline predated the class) and could not push.
 debt_gate() {
-    local tip="$1" changed python_bin member output base member_revision
+    local tip="$1" changed raw_changed python_bin member output base member_revision
     local checker_rev checker_dir ref status default_revision
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
     # there would skip the gate on the pushes it most needs to see.
     base="$gate_base"
     [ -z "$base" ] && return 0
-    changed="$(git -C "$atlas_root" diff --name-only "$base".."$tip" -- repos/ 2>/dev/null | awk -F/ 'NF > 1 { print $2 }' | sort -u)"
-    [ -z "$changed" ] && return 0
+    if ! raw_changed="$(MSYS_NO_PATHCONV=1 git -C "$atlas_root" diff --name-only \
+            "$base".."$tip" -- ':(top,literal)repos/' 2>&1)"; then
+        echo "pre-push: BLOCKED -- could not compare pushed tip ${tip:0:12}" >&2
+        echo "with debt-gate base ${base}; moved member pins are unknown." >&2
+        echo "$raw_changed" >&2
+        return 1
+    fi
+    [ -z "$raw_changed" ] && return 0
+    if ! changed="$(printf '%s\n' "$raw_changed" \
+            | awk -F/ 'NF > 1 && !seen[$2]++ { print $2 }')"; then
+        echo "pre-push: BLOCKED -- could not parse moved member pins." >&2
+        return 1
+    fi
+    if [ -z "$changed" ]; then
+        echo "pre-push: BLOCKED -- debt diff returned unrecognized repos/ paths." >&2
+        return 1
+    fi
 
     python_bin="${PYTHON:-}"
     if [ -z "$python_bin" ]; then
@@ -450,8 +500,7 @@ debt_gate() {
             echo "pre-push: BLOCKED -- advancing ${member} raises a debt class." >&2
             echo "$output" >&2
             echo >&2
-            echo "pre-push: fix it in ${member} and advance the pin to the fix, or" >&2
-            echo "push with --no-verify if the raise is deliberate and recorded." >&2
+            echo "pre-push: fix it in ${member} and advance the pin to the fix." >&2
             status=1
             break
         fi
@@ -490,30 +539,28 @@ budget_gate() {
 
 # Credentials in the lines the push adds (scripts/atlas-secret-scan.py): a
 # secret that reaches a remote is published, so the scan runs before the push
-# rather than in CI. The scanner comes from the pushed revision, as the budget
-# checker does.
+# rather than in CI. The scanner and allowlist come from the fetched default;
+# the pushed revision supplies only the lines being scanned.
 secret_gate() {
-    local tip="$1" base python_bin candidate
+    local tip="$1" base
     base="$gate_base"
-    python_bin="${PYTHON:-}"
-    if [ -z "$python_bin" ]; then
-        for candidate in python3 python; do
-            command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1 && { python_bin="$candidate"; break; }
-        done
-    fi
-    if [ -z "$python_bin" ]; then
-        echo "pre-push: BLOCKED -- no python interpreter; the pushed range was not scanned for credentials." >&2
+    if ! git -C "$atlas_root" cat-file -e \
+        "$trusted_rescue_ref:scripts/git-hooks/rescue-push" 2>/dev/null; then
+        echo "pre-push: BLOCKED -- the trusted credential scanner runner is unavailable." >&2
         return 1
     fi
-    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas-secret-scan.py" 2>/dev/null; then
-        return 0
-    fi
-    local args=()
-    [ -n "$base" ] && args=(--base "$base")
-    git -C "$atlas_root" show "$tip:scripts/atlas-secret-scan.py" \
-        | "$python_bin" - check --root "$atlas_root" --rev "$tip" "${args[@]}" \
-        || { echo "pre-push: BLOCKED -- the push adds a credential; remove it from every commit and rotate it if it ever reached a remote." >&2; return 1; }
-    return 0
+    local scan_status=0
+    git -C "$atlas_root" show \
+        "$trusted_rescue_ref:scripts/git-hooks/rescue-push" \
+        | bash -s -- --scan "$atlas_root" "$atlas_root" \
+            "$trusted_rescue_ref" "$trusted_rescue_ref" "$tip" "$base" \
+        || scan_status=$?
+    case "$scan_status" in
+        0) return 0 ;;
+        1) echo "pre-push: BLOCKED -- the push adds a credential; remove it from every commit and rotate it if it ever reached a remote." >&2 ;;
+        *) echo "pre-push: BLOCKED -- the secret scan could not run (exit $scan_status), so the pushed range was not scanned; the reason is the secret-scan line above." >&2 ;;
+    esac
+    return 1
 }
 
 # No committed tool may write another repository's refs into the shared

@@ -39,7 +39,17 @@ Modes:
                 over the committed baseline; decreases print as tightening
                 candidates for a baseline update in the same change. With
                 --json, emit an object containing the scan results,
-                regressions, and tightenings without human-readable lines.
+                regressions, tightenings, the classes held out of the
+                comparison (`not_gated`), and the stores that were missing or
+                shallow (`incomplete_stores`), without human-readable lines.
+
+A class whose count depends on which object stores the scan has is the one
+exception to the ratchet: `unresolved_references` resolves cited hashes
+against the history of the root and every registered member, so wherever one
+of them is missing or shallow -- a member's own pull-request checkout above
+all -- `check` reports its count on a `NOT GATED` line instead of comparing
+it. The umbrella `atlas-conformance` job holds every member's full history
+and gates it.
 
 Run from anywhere: paths are anchored to this file's parent repository.
 The default scan requires a clean checkout whose provider gitlinks match the
@@ -78,7 +88,7 @@ from atlas_git_process import (
     extract_archive,
 )
 from atlas_stack import (
-    ROOT, WORKTREE_BOUND, canonical_lane, is_git_ignored, registered_member_names,
+    ROOT, WORKTREE_BOUND, canonical_lane, registered_member_names,
     staleness_note,
 )
 from atlas_scattered_containers_classify import VEC_VEC
@@ -333,7 +343,7 @@ CLASSES = [
     "default_branch_cancel_in_progress", "substrate_contract_violations",
     "balance_domain_edges", "bare_git_dependency",
     "cache_retention_policy_missing", "crlf_stored_blobs",
-    "member_gate_versions",
+    "member_gate_versions", "member_lockfile_copies",
     "pm_lines_over_budget", "oversized_tracked_images",
     "unresolved_references", "second_output_root",
     "board_items_outside_status_set", "board_items_without_anchor",
@@ -825,6 +835,93 @@ def _count_index_crlf(output: str) -> int:
     )
 
 
+# Paths per `ls-files --eol` call: keeps the argument list well below the
+# 32,767-character Windows command-line limit at any realistic path length.
+EOL_PATHSPEC_BATCH = 200
+
+
+def _nul_paths(raw: bytes) -> list[str]:
+    text = raw.decode("utf-8", errors="surrogateescape")
+    return [path for path in text.split("\0") if path]
+
+
+def _git_listing(
+    repo: Path,
+    args: tuple[str, ...],
+    env: dict[str, str] | None,
+    *,
+    stdin: bytes | None = None,
+    no_match_ok: bool = False,
+) -> bytes:
+    result = execute_git(
+        repo, args, stdin=stdin, env=env, timeout=GIT_TIMEOUT_SECONDS
+    )
+    # `git grep` exits 1 when nothing matches; any other nonzero is a failure.
+    if result.returncode and not (no_match_ok and result.returncode == 1):
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"git {args[0]} failed in {repo}")
+    return result.stdout
+
+
+def _count_index_crlf_blobs(
+    repo: Path, env: dict[str, str] | None = None
+) -> int:
+    """`i/crlf` plus `i/mixed` entries of the index `env` selects.
+
+    `ls-files --eol` over a whole index inflates every blob, so a member
+    holding large binaries outran the Git deadline (kwavers: 58 s against
+    60 s). Both verdicts need a CRLF in a blob git's content check calls
+    text, and that check rejects any NUL byte, so the exact `ls-files` query
+    runs only on blobs that can pass both:
+    - those holding a CR that `grep -I` reads as text;
+    - CR-bearing blobs `grep -I` skipped for a `diff` attribute rather than
+      a NUL, since attributes do not enter the index verdict.
+    Both commands read attributes from the empty tree (`--attr-source`):
+    in-tree `binary` attributes would otherwise send every such blob to
+    `ls-files`, NUL or not (ritk: 2,925 blobs, 33 s), while the files that
+    still apply (`info/attributes`, global) give both the same answer.
+    """
+    empty_tree = _git_listing(
+        repo, ("hash-object", "-t", "tree", "--stdin"), env, stdin=b""
+    ).decode("ascii").strip()
+    source = f"--attr-source={empty_tree}"
+    carriage_return = chr(13)
+    grep = (
+        source, "grep", "--cached", "-z", "-l", "-F", "-e", carriage_return
+    )
+    every = set(_nul_paths(_git_listing(repo, grep, env, no_match_ok=True)))
+    text = set(_nul_paths(
+        _git_listing(repo, (*grep, "-I"), env, no_match_ok=True)
+    ))
+    skipped = sorted(every - text)
+    attributed: set[str] = set()
+    if skipped:
+        fields = _nul_paths(_git_listing(
+            repo,
+            (source, "check-attr", "-z", "--stdin", "diff"),
+            env,
+            stdin=b"".join(
+                path.encode("utf-8", errors="surrogateescape") + b"\0"
+                for path in skipped
+            ),
+        ))
+        # `-z` output is (path, attribute, value) triples.
+        for path, value in zip(fields[::3], fields[2::3]):
+            if value not in ("unspecified", "set"):
+                attributed.add(path)
+    candidates = sorted(text | attributed)
+    count = 0
+    for start in range(0, len(candidates), EOL_PATHSPEC_BATCH):
+        listing = _git_listing(
+            repo,
+            ("--literal-pathspecs", "ls-files", "--eol", "--",
+             *candidates[start:start + EOL_PATHSPEC_BATCH]),
+            env,
+        )
+        count += _count_index_crlf(listing.decode("utf-8", errors="replace"))
+    return count
+
+
 def _crlf_blobs_at_revision(repo: Path, revision: str) -> int:
     """Count stored-CRLF blobs in `revision`'s tree via a temporary index.
 
@@ -846,22 +943,12 @@ def _crlf_blobs_at_revision(repo: Path, revision: str) -> int:
         if read.returncode:
             detail = read.stderr.decode("utf-8", errors="replace").strip()
             raise RuntimeError(detail or f"cannot read tree {revision}")
-        listed = execute_git(
-            repo,
-            ("ls-files", "--eol"),
-            env=env,
-            timeout=GIT_TIMEOUT_SECONDS,
-        )
-        if listed.returncode:
-            detail = listed.stderr.decode("utf-8", errors="replace").strip()
-            raise RuntimeError(detail or "cannot list index EOL state")
-        output = listed.stdout.decode("utf-8", errors="replace")
+        return _count_index_crlf_blobs(repo, env)
     finally:
         try:
             os.unlink(index_path)
         except OSError:
             pass
-    return _count_index_crlf(output)
 
 
 def count_crlf_stored_blobs(
@@ -899,15 +986,9 @@ def count_crlf_stored_blobs(
                 return 0
             detail = probe.stderr.decode("utf-8", errors="replace").strip()
             raise RuntimeError(detail or f"cannot resolve Git directory for {repo}")
-        listed = execute_git(
-            repo, ("ls-files", "--eol"), timeout=GIT_TIMEOUT_SECONDS
-        )
+        return _count_index_crlf_blobs(repo)
     except GitProcessError as exc:
         raise RuntimeError(f"cannot measure CRLF state in {repo}") from exc
-    if listed.returncode:
-        detail = listed.stderr.decode("utf-8", errors="replace").strip()
-        raise RuntimeError(detail or f"cannot list index EOL state in {repo}")
-    return _count_index_crlf(listed.stdout.decode("utf-8", errors="replace"))
 
 
 def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path]:
@@ -981,6 +1062,30 @@ def _resolved_cache() -> dict[Path, Path]:
     return cache
 
 
+def _lexical_path(path: Path) -> Path:
+    """Return an absolute normalized path without querying the filesystem."""
+    return Path(os.path.abspath(os.fspath(path)))
+
+
+def _snapshot_paths() -> dict[Path, Path] | None:
+    """Return the current immutable snapshot's lexical-to-canonical map."""
+    return getattr(_scan_local, "snapshot_paths", None)
+
+
+def _snapshot_file_exists(path: Path) -> bool:
+    """Return whether `path` is a file in the current immutable snapshot."""
+    files = getattr(_scan_local, "snapshot_files", None)
+    return path.is_file() if files is None else _lexical_path(path) in files
+
+
+def _snapshot_child_mods(parent: Path):
+    """Return immediate child `mod.rs` files without a snapshot glob."""
+    children = getattr(_scan_local, "snapshot_child_mods", None)
+    if children is None:
+        return parent.glob("*/mod.rs")
+    return children.get(_lexical_path(parent), ())
+
+
 def _resolved(path: Path) -> Path:
     """`path.resolve()`, once per scan worker.
 
@@ -993,6 +1098,10 @@ def _resolved(path: Path) -> Path:
     of a 28 s scan, none of which can differ within a scan because the tree is
     not mutated while it is read.
     """
+    snapshot_paths = _snapshot_paths()
+    if snapshot_paths is not None:
+        lexical = _lexical_path(path)
+        return snapshot_paths.get(lexical, lexical)
     cache = _resolved_cache()
     got = cache.get(path)
     if got is None:
@@ -1061,6 +1170,9 @@ def _clear_scan_caches() -> None:
     _cfg_test_decl_cache().clear()
     _resolved_cache().clear()
     _stripped_text_cache().clear()
+    _scan_local.snapshot_paths = None
+    _scan_local.snapshot_files = None
+    _scan_local.snapshot_child_mods = None
 
 
 def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
@@ -1085,7 +1197,7 @@ def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
                 stems.add(match.group("stem"))
                 attr = PATH_ATTR.search(match.group("attrs").rstrip())
                 if attr:
-                    paths.add((cand.parent / attr.group(1)).resolve())
+                    paths.add(_resolved(cand.parent / attr.group(1)))
             cached = (frozenset(stems), frozenset(paths))
         else:
             cached = (frozenset(), frozenset())
@@ -1106,6 +1218,10 @@ def _cached_text(path: Path) -> str | None:
     so a shared canonical-path cache turns cold scans' repeated disk I/O and
     transient allocations into one read per file.
     """
+    snapshot_paths = _snapshot_paths()
+    lexical = _lexical_path(path)
+    if snapshot_paths is not None and lexical not in snapshot_paths:
+        return None
     key = _resolved(path)
     cache = _file_text_cache()
     if key not in cache:
@@ -1114,6 +1230,103 @@ def _cached_text(path: Path) -> str | None:
         except OSError:
             cache[key] = None
     return cache[key]
+
+
+def _snapshot_source_census(
+    repo: Path,
+) -> tuple[list[Path], list[Path], list[Path]]:
+    """Inventory an immutable snapshot and cache every Rust source once.
+
+    A materialized revision cannot change during its scan and contains only
+    tracked files. One traversal can therefore supply both source and manifest
+    inventories, seed canonical paths without a filesystem resolution per
+    entry, and read each canonical Rust source once. The detector inventory
+    retains its cache/output pruning. A separate orphan inventory descends
+    every directory below `src/`, matching `src.rglob("*.rs")` exactly even
+    for a valid module whose directory begins with `target`. Symlinks retain
+    `Path.resolve` semantics at their boundary; ordinary descendants derive
+    their canonical path from the already-canonical parent.
+    """
+    root = _lexical_path(repo)
+    root_canonical = repo.resolve()
+    paths: dict[Path, Path] = {root: root_canonical}
+    manifests: list[Path] = []
+    sources: list[Path] = []
+    orphan_sources: list[Path] = []
+    canonical_sources: dict[Path, Path] = {}
+    files: set[Path] = set()
+    stack: list[tuple[Path, Path, bool, bool]] = [
+        (repo, root_canonical, True, repo.name == "src")
+    ]
+    text_cache = _file_text_cache()
+    ignored = git_ignored_paths(repo)
+
+    while stack:
+        directory, canonical_directory, detector_visible, under_src = stack.pop()
+        for entry in _iterdir_or_empty(directory):
+            lexical = _lexical_path(entry)
+            canonical = (
+                entry.resolve()
+                if entry.is_symlink()
+                else canonical_directory / entry.name
+            )
+            paths[lexical] = canonical
+            paths[_lexical_path(canonical_directory / entry.name)] = canonical
+            paths[_lexical_path(canonical)] = canonical
+            name = entry.name
+            if canonical in ignored:
+                continue
+            if entry.is_dir():
+                child_under_src = under_src or name == "src"
+                child_visible = detector_visible and not (
+                    name in PRUNE_DIRS or name.startswith("target")
+                )
+                if not child_visible and not child_under_src:
+                    continue
+                stack.append(
+                    (entry, canonical, child_visible, child_under_src)
+                )
+            else:
+                if entry.is_file():
+                    files.update(
+                        (lexical, _lexical_path(canonical_directory / name))
+                    )
+                    files.add(_lexical_path(canonical))
+                if detector_visible and name == "Cargo.toml":
+                    manifests.append(entry)
+                elif name.endswith(".rs"):
+                    if detector_visible:
+                        sources.append(entry)
+                    if under_src:
+                        orphan_sources.append(entry)
+                    if detector_visible or under_src:
+                        canonical_sources.setdefault(canonical, entry)
+
+    child_mods: dict[Path, list[Path]] = {}
+    for source in canonical_sources.values():
+        if source.name != "mod.rs":
+            continue
+        parent = source.parent.parent
+        canonical_parent = paths.get(_lexical_path(parent), _lexical_path(parent))
+        for key in {_lexical_path(parent), _lexical_path(canonical_parent)}:
+            child_mods.setdefault(key, []).append(source)
+
+    def read_source(item: tuple[Path, Path]) -> tuple[Path, str | None]:
+        canonical, source = item
+        try:
+            text = source.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = None
+        return canonical, text
+
+    with ThreadPoolExecutor(max_workers=MAX_SCAN_WORKERS) as pool:
+        for canonical, text in pool.map(read_source, canonical_sources.items()):
+            text_cache[canonical] = text
+
+    _scan_local.snapshot_paths = paths
+    _scan_local.snapshot_files = files
+    _scan_local.snapshot_child_mods = child_mods
+    return manifests, sources, orphan_sources
 
 
 def _literal_end(text: str, start: int) -> int:
@@ -1279,7 +1492,7 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
     rustc, clippy and the test runner never built.
     """
     root = _resolved(root)
-    if root in seen or not root.is_file():
+    if root in seen or not _snapshot_file_exists(root):
         return
     seen.add(root)
     code = _stripped(_cached_text(root))
@@ -1288,12 +1501,12 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
     for m in MOD_DECL.finditer(code):
         attr = PATH_ATTR.search(code[:m.start()].rstrip())
         for cand in _child_candidates(root, m.group(1), attr.group(1) if attr else None):
-            if cand.is_file():
+            if _snapshot_file_exists(cand):
                 _walk_mods(cand, seen)
                 break
     crate_root = next(
         (parent for parent in (root.parent, *root.parents)
-         if (parent / "Cargo.toml").is_file()),
+         if _snapshot_file_exists(parent / "Cargo.toml")),
         root.parent,
     )
     for match in INCLUDE_PATH.finditer(code):
@@ -1301,7 +1514,7 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
         included = match.group("concat") or relative
         owner = crate_root if match.group("concat") else root.parent
         candidate = owner / included.lstrip("/\\")
-        if candidate.is_file():
+        if _snapshot_file_exists(candidate):
             _walk_mods(candidate, seen)
 
 
@@ -1333,7 +1546,11 @@ def count_nonzero_nextest_retries(text: str) -> int:
     return offenders
 
 
-def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int:
+def count_orphan_modules(
+    repo: Path,
+    manifests: list[Path] | None = None,
+    source_paths: list[Path] | None = None,
+) -> int:
     """`.rs` files under a crate `src/` that no source edge reaches.
 
     Cargo compiles only what the module or include graph names, so an undeclared
@@ -1344,9 +1561,9 @@ def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int
     Cargo builds: `src/lib.rs`, `src/main.rs`, `src/bin/*.rs`, and
     `src/bin/<name>/main.rs`.
 
-    `manifests` is the per-repository inventory collected by [scan_repo].
-    Reusing it avoids a second full directory traversal when the caller has
-    already collected the manifest set.
+    `manifests` and `source_paths` are the per-repository inventory collected
+    by [scan_repo]. Reusing them avoids another directory traversal when the
+    caller already holds the immutable snapshot census.
     """
     sources: set[Path] = set()
     roots: list[Path] = []
@@ -1356,7 +1573,14 @@ def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int
         src = manifest.parent / "src"
         if not src.is_dir():
             continue
-        sources.update(_resolved(p) for p in src.rglob("*.rs"))
+        if source_paths is None:
+            sources.update(_resolved(p) for p in src.rglob("*.rs"))
+        else:
+            sources.update(
+                _resolved(path)
+                for path in source_paths
+                if path.is_relative_to(src)
+            )
         roots.extend(src / stem for stem in ("lib.rs", "main.rs")
                      if (src / stem).is_file())
         bins = src / "bin"
@@ -1403,12 +1627,12 @@ def declared_cfg_test(entry: Path, _depth: int = 0) -> bool:
         stems_to_check.append(parent.name)
     candidates = [parent / "mod.rs", parent / "lib.rs", parent / "main.rs",
                   parent.with_suffix(".rs")]
-    candidates.extend(parent.glob("*/mod.rs"))
+    candidates.extend(_snapshot_child_mods(parent))
     if entry.name in ("mod.rs", "lib.rs"):
         grandparent = parent.parent
         candidates.extend([grandparent / "mod.rs", grandparent / "lib.rs",
                            grandparent / "main.rs", grandparent / f"{parent.name}.rs"])
-        candidates.extend(grandparent.glob("*/mod.rs"))
+        candidates.extend(_snapshot_child_mods(grandparent))
     for cand in candidates:
         if cand == entry:
             continue
@@ -1423,7 +1647,7 @@ def declared_cfg_test(entry: Path, _depth: int = 0) -> bool:
     # line of it changing. Ask the declaring file the same question.
     if entry.name != "mod.rs" and _depth < _MAX_MODULE_DEPTH:
         owner = parent / "mod.rs"
-        if owner.is_file() and owner != entry:
+        if _snapshot_file_exists(owner) and owner != entry:
             return declared_cfg_test(owner, _depth + 1)
     return False
 
@@ -1500,6 +1724,7 @@ def git_ignored_paths(repo: Path) -> frozenset[Path]:
                 "--ignored",
                 "--exclude-standard",
                 "--directory",
+                "-z",
             ),
             timeout=GIT_TIMEOUT_SECONDS,
         )
@@ -1509,11 +1734,17 @@ def git_ignored_paths(repo: Path) -> frozenset[Path]:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(detail or f"cannot list ignored paths in {repo}")
     paths = set()
-    for line in result.stdout.decode("utf-8", errors="replace").splitlines():
-        entry = line.strip().rstrip("/")
+    for raw_entry in result.stdout.split(b"\0"):
+        entry = os.fsdecode(raw_entry).removesuffix("/")
         if entry:
             paths.add((repo / entry).resolve())
     return frozenset(paths)
+
+
+def is_under_ignored_path(path: Path, ignored: frozenset[Path]) -> bool:
+    """Return whether `path` or one of its ancestors is ignored."""
+    resolved = _resolved(path)
+    return resolved in ignored or any(parent in ignored for parent in resolved.parents)
 
 
 def rust_files(repo: Path):
@@ -1934,10 +2165,27 @@ def scan_repo(
     _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
     has_cargo = (repo / "Cargo.toml").is_file()
-    manifests = list(cargo_manifests(repo))
+    if revision is None:
+        manifests = list(cargo_manifests(repo))
+        source_paths = None
+        orphan_source_paths = None
+    else:
+        manifests, source_paths, orphan_source_paths = _snapshot_source_census(repo)
     executable_dirs = executable_source_dirs(repo, manifests)
 
-    for path, testish in rust_files(repo):
+    sources = (
+        rust_files(repo)
+        if source_paths is None
+        else (
+            (
+                path,
+                any(_is_testish_path_part(part) for part in path.parent.parts)
+                or declared_cfg_test(path),
+            )
+            for path in source_paths
+        )
+    )
+    for path, testish in sources:
         text = _cached_text(path)
         if text is None:
             continue
@@ -2031,6 +2279,13 @@ def scan_repo(
     )
     c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
+    # A member carries no `scripts/lockfile.py` (board item
+    # ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE): the stack's copy is the one
+    # checker, and a member's is a second source of it. The class counts that
+    # path, the one the hooks ran, so a copy moved elsewhere reads 0. Read from
+    # `repo`, the recorded revision's content, so a checkout behind or ahead of
+    # its gitlink does not change what the gitlink counts as.
+    c["member_lockfile_copies"] = int((repo / "scripts" / "lockfile.py").is_file())
     c["crlf_stored_blobs"] = count_crlf_stored_blobs(
         repo, live_repo=live_repo, revision=revision
     )
@@ -2051,7 +2306,9 @@ def scan_repo(
         policy = config_root / "scripts" / "data" / "atlas-cache-retention.toml"
         if not routed or not policy.is_file():
             c["cache_retention_policy_missing"] = 1
-    c["orphan_modules"] = count_orphan_modules(repo, manifests)
+    c["orphan_modules"] = count_orphan_modules(
+        repo, manifests, orphan_source_paths
+    )
     if has_cargo:
         nx = repo / ".config" / "nextest.toml"
         nx_text = nx.read_text(errors="replace") if nx.is_file() else ""
@@ -2368,15 +2625,6 @@ def scan_stack(
                     else:
                         gate_hashes.add("<absent>")
                 meta["member_gate_versions"] = len(gate_hashes)
-        if stack_root == ROOT:
-            for repo in sorted(member_root.iterdir()):
-                if (
-                    repo.is_dir()
-                    and not repo.name.startswith(".")
-                    and repo.name not in members
-                    and not is_git_ignored(repo)
-                ):
-                    meta["member_namespace_pollution"] += 1
     # The meta row measures the revision, as every member row does: a clean
     # checkout at that commit is its own snapshot and anything else is
     # archived (`materialize_member`). Reading the live tree let a checkout
@@ -2390,6 +2638,19 @@ def scan_stack(
                 "rev-parse", f"{root_revision}^{{commit}}", cwd=stack_root
             ).strip()
             content, _ = materialize_member(stack_root, expected, Path(scratch))
+        namespace_root = content / "repos"
+        namespace_ignored = (
+            frozenset() if root_revision is not None else git_ignored_paths(stack_root)
+        )
+        if namespace_root.is_dir():
+            for repo in sorted(namespace_root.iterdir()):
+                if (
+                    repo.is_dir()
+                    and not repo.name.startswith(".")
+                    and repo.name not in members
+                    and not is_under_ignored_path(repo, namespace_ignored)
+                ):
+                    meta["member_namespace_pollution"] += 1
         meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(
             content, live_repo=stack_root
         )
@@ -2487,6 +2748,52 @@ HOST_OBSERVED_CLASSES = (
 )
 
 
+# Classes whose value depends on which object stores a scan has, not on the
+# scanned tree alone. `unresolved_references` resolves cited hashes against the
+# root and every registered member (`board_lint.incomplete_stores`); a scan
+# missing any of them, a member's own pull-request checkout above all, counts
+# every citation into the missing history as unresolved. Reported there, never
+# ratcheted: the umbrella `atlas-conformance` job holds full history for every
+# member and gates it.
+STORE_DEPENDENT_CLASSES = ("unresolved_references",)
+
+
+def split_store_dependent(
+    results: dict[str, dict[str, int]], incomplete: list[str]
+) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]]]:
+    """Split `results` into the gated counts and the store-dependent ones.
+
+    With every stack store present (`incomplete` empty) nothing is split off.
+    """
+    if not incomplete:
+        return results, {}
+    gated: dict[str, dict[str, int]] = {}
+    ungated: dict[str, dict[str, int]] = {}
+    for repo, counts in results.items():
+        gated[repo] = {c: v for c, v in counts.items() if c not in STORE_DEPENDENT_CLASSES}
+        held = {c: v for c, v in counts.items() if c in STORE_DEPENDENT_CLASSES}
+        if held:
+            ungated[repo] = held
+    return gated, ungated
+
+
+def not_gated_line(
+    ungated: dict[str, dict[str, int]], incomplete: list[str]
+) -> str:
+    """The one line naming each class held out of the ratchet and why."""
+    measured = ", ".join(
+        f"{repo}/{cls}={value}"
+        for repo, counts in sorted(ungated.items())
+        for cls, value in sorted(counts.items())
+    )
+    return (
+        f"NOT GATED {', '.join(STORE_DEPENDENT_CLASSES)}: needs every stack "
+        "member's history; gated by the umbrella atlas-conformance job "
+        f"(missing or shallow stores: {', '.join(incomplete)}); measured "
+        f"against the stores present: {measured}"
+    )
+
+
 def ratchet_delta(
     baseline: dict[str, dict[str, int]],
     results: dict[str, dict[str, int]],
@@ -2582,7 +2889,10 @@ def main() -> int:
              "This is how a member gates itself: its own checkout is the "
              "content, and atlas's committed baseline row for --repo is what "
              "the counts are judged against, so a raise fails the member's "
-             "own pull request instead of the stack's next pin advance",
+             "own pull request instead of the stack's next pin advance. "
+             "unresolved_references needs every stack member's history, which "
+             "a member checkout lacks: wherever a registered member or the "
+             "root is missing or shallow it is reported, not gated",
     )
     parser.add_argument(
         "--member-revision",
@@ -2754,9 +3064,11 @@ def main() -> int:
         return 1
     else:
         base = json.loads(BASELINE.read_text())
-    _, _, tightenings = ratchet_delta(base, results)
+    incomplete = board_lint.incomplete_stores(ROOT)
+    gated, ungated = split_store_dependent(results, incomplete)
+    _, _, tightenings = ratchet_delta(base, gated)
     bound = base
-    regressions, host, _ = ratchet_delta(bound, results)
+    regressions, host, _ = ratchet_delta(bound, gated)
     if args.member_path is not None:
         host_state_intent = (
             HostStateIntent.REVISION_JUDGEMENT
@@ -2775,8 +3087,12 @@ def main() -> int:
             "regressions": regressions,
             "host_regressions": host,
             "tightenings": tightenings,
+            "not_gated": ungated,
+            "incomplete_stores": incomplete,
         }, indent=1, sort_keys=True))
         return 1 if failed else 0
+    if ungated:
+        print(not_gated_line(ungated, incomplete))
     for t in tightenings:
         print(f"tightened (update baseline): {t}")
     # A `--worktree` scan measures whatever is checked out, and members of

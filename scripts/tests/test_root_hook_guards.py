@@ -27,7 +27,9 @@ def install_hook(repo: Path) -> None:
     (repo / "scripts").mkdir()
     for name in (
         "atlas-stale-side-guard.py", "atlas_stale_side_git.py",
-        "atlas_stale_side_basis.py", "atlas_git_process.py", "stale-side-waivers.json",
+        "atlas_stale_side_basis.py", "atlas_git_process.py", "process_tree.py",
+        "windows_process.py",
+        "stale-side-waivers.json",
         "atlas-provider-integration-audit.py", "atlas_stack.py", "check_mdbook_links.py",
     ):
         shutil.copyfile(ROOT / "scripts" / name, repo / "scripts" / name)
@@ -574,6 +576,19 @@ class RootHookGuardTests(unittest.TestCase):
             git_dir = repo / ".git"
             self.assertEqual(list(git_dir.glob("atlas-debt-checker.*")), [],
                              "the extracted checker outlives the run")
+
+    def test_debt_gate_refuses_an_invalid_comparison_range(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo, environment, _, tip = self._debt_gate_stack(temporary)
+            invalid_base = "not-a-revision"
+
+            result, log = self._run_debt_gate(
+                repo, environment, invalid_base, tip, 0,
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertEqual(log, "", "the checker ran after the diff failed")
+            self.assertIn("could not compare pushed tip", result.stderr)
+            self.assertIn(invalid_base, result.stderr)
 
     def test_debt_gate_skips_a_pin_the_default_branch_records(self) -> None:
         # A branch merging main in carries main's own pin advance; main's

@@ -3,11 +3,14 @@
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import importlib.util
 import io
 import json
 import os
+import queue
+import re
 import shutil
 import subprocess
 import sys
@@ -20,6 +23,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from readonly_tree import clear_readonly_tree
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas_build_identity.py"
@@ -43,7 +47,7 @@ from atlas_build_lease import (
     BuildIdentityError,
     LeaseHeldError,
     OwnerLease,
-    acquire_waiting,
+    acquire_claim,
     package_target_lease_path,
     peek_owner,
 )
@@ -78,20 +82,26 @@ def init_repo(root: Path, source: str) -> None:
     )
     (root / "src").mkdir()
     (root / "src/lib.rs").write_text(source, encoding="utf-8")
-    git(root, "init", "-q")
-    disable_maintenance(root)
-    git(root, "config", "user.name", "Atlas test")
-    git(root, "config", "user.email", "atlas-test@example.invalid")
+    init_git(root)
     git(root, "add", ".")
     git(root, "commit", "-q", "-m", "source")
 
 
-def disable_maintenance(root: Path) -> None:
-    """No detached `gc --auto` or maintenance may write into `.git` while the
+def init_git(root: Path, name: str = "Atlas test", email: str = "atlas-test@example.invalid") -> None:
+    """`git init` with the fixture's committer and no background maintenance.
+
+    No detached `gc --auto` or maintenance may write into `.git` while the
     fixture's temporary directory is removed (a Linux runner failed teardown
-    with `Directory not empty: .git`)."""
-    git(root, "config", "gc.auto", "0")
-    git(root, "config", "maintenance.auto", "false")
+    with `Directory not empty: .git`). The settings are appended to
+    `.git/config` rather than set by one `git config` process each: process
+    creation dominates this suite's runtime on Windows.
+    """
+    git(root, "init", "-q")
+    with (root / ".git" / "config").open("a", encoding="utf-8", newline="\n") as config:
+        config.write(
+            f"[user]\n\tname = {name}\n\temail = {email}\n"
+            "[gc]\n\tauto = 0\n[maintenance]\n\tauto = false\n"
+        )
 
 
 def gate_export(source: Path, export: Path) -> str:
@@ -102,8 +112,7 @@ def gate_export(source: Path, export: Path) -> str:
     """
     revision = git(source, "rev-parse", "HEAD")
     export.mkdir(parents=True)
-    git(export, "init", "-q")
-    disable_maintenance(export)
+    init_git(export)
     objects = git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") + "/objects"
     (export / ".git" / "objects" / "info" / "alternates").write_bytes(objects.encode() + b"\n")
     subprocess.run(
@@ -114,8 +123,44 @@ def gate_export(source: Path, export: Path) -> str:
     return revision
 
 
+def index_stat_data(root: Path) -> dict[str, tuple[int, int]]:
+    """Each index entry's recorded modification time (whole seconds) and size."""
+    entries: dict[str, tuple[int, int]] = {}
+    path = None
+    mtime = None
+    for line in git(root, "ls-files", "--debug").splitlines():
+        field, _, value = line.strip().partition(":")
+        if not line.startswith((" ", "\t")):
+            path = line
+        elif field == "mtime":
+            mtime = int(value.strip().split(":")[0])
+        elif field == "size":
+            assert path is not None and mtime is not None
+            entries[path] = (mtime, int(value.split()[0]))
+    return entries
+
+
 def write_script(path: Path, body: str) -> None:
     path.write_text(body, encoding="utf-8")
+
+
+class RecordedClock:
+    """The `time` module, remembering what each `monotonic_ns` read returned.
+
+    Patched over `identity.time`, whose only use is the single read that
+    fixes a run's lease deadline: the first value recorded is the instant the
+    deadline is measured from.
+    """
+
+    def __init__(self) -> None:
+        self.reads: list[int] = []
+
+    def monotonic_ns(self) -> int:
+        self.reads.append(time.monotonic_ns())
+        return self.reads[-1]
+
+    def __getattr__(self, name: str):
+        return getattr(time, name)
 
 
 # Holds until argv[6] exists, or for argv[5] seconds without one. A hold
@@ -169,17 +214,37 @@ def hold_lease(
     return holder
 
 
+def acquire_lease(lease: OwnerLease, wait_seconds: float) -> OwnerLease:
+    """Take one lease as a claim of its own; the caller releases it with `__exit__`."""
+    acquire_claim((lease,), wait_seconds)
+    return lease
+
+
 MODE_HOLDER = (
-    "import sys, time\n"
+    "import sys, threading, time\n"
     "from pathlib import Path\n"
     "sys.path.insert(0, sys.argv[1])\n"
-    "from atlas_build_lease import OwnerLease, acquire_waiting\n"
+    "import atlas_build_lease as module\n"
+    "from atlas_build_lease import OwnerLease\n"
+    "orphaned = threading.Event()\n"
+    "if sys.argv[8]:\n"
+    "    threading.Thread(target=lambda: (sys.stdin.read(), orphaned.set()), daemon=True).start()\n"
     "for _ in range(int(sys.argv[6])):\n"
     "    lease = OwnerLease(Path(sys.argv[2]), {'root': sys.argv[5], 'revision': 'holder-revision',"
     " 'package': 'dep'}, 600, mode=sys.argv[3])\n"
-    "    acquire_waiting(lease, 120)\n"
+    "    if hasattr(module, 'acquire_claim'):\n"
+    "        module.acquire_claim([lease], 120)\n"
+    "    else:\n"
+    "        module.acquire_waiting(lease, 120)\n"
+    "    if sys.argv[7]:\n"
+    "        with open(sys.argv[7], 'ab') as rounds:\n"
+    "            rounds.write(b'.')\n"
     "    print('held', flush=True)\n"
-    "    time.sleep(float(sys.argv[4]))\n"
+    "    if sys.argv[8]:\n"
+    "        while not Path(sys.argv[8]).exists() and not orphaned.is_set():\n"
+    "            time.sleep(0.01)\n"
+    "    else:\n"
+    "        time.sleep(float(sys.argv[4]))\n"
     "    lease.__exit__(None, None, None)\n"
 )
 
@@ -214,11 +279,17 @@ def start_holder(
     name: str = "holder-root",
     repeat: int = 1,
     wait_until_held: bool = True,
+    rounds: Path | None = None,
+    stop: Path | None = None,
 ) -> subprocess.Popen:
     """Hold `lock` in `mode` from a separate process, `repeat` times back to back.
 
     Each round waits its turn, holds for `hold_seconds`, releases, and asks
-    again at once: the pattern of a push hook re-running its steps.
+    again at once: the pattern of a push hook re-running its steps. When
+    `rounds` names a file, each round appends one byte to it as it takes the
+    lease, so the file's size counts the rounds taken. When `stop` names a
+    file, each round holds until that file exists or the test process ends,
+    with no clock, and `hold_seconds` is not used.
     """
     holder = subprocess.Popen(
         [
@@ -231,13 +302,18 @@ def start_holder(
             str(hold_seconds),
             name,
             str(repeat),
+            str(rounds or ""),
+            str(stop or ""),
         ],
+        stdin=subprocess.PIPE if stop else None,
         stdout=subprocess.PIPE,
         text=True,
     )
     test.addCleanup(holder.wait, 60)
     test.addCleanup(holder.kill)
     test.addCleanup(holder.stdout.close)
+    if stop:
+        test.addCleanup(holder.stdin.close)
     if wait_until_held:
         test.assertEqual(holder.stdout.readline().strip(), "held")
     return holder
@@ -373,46 +449,76 @@ class LeaseModeTestCase(unittest.TestCase):
         faults = [int(worker.communicate(timeout=60)[0].strip()) for worker in workers]
         self.assertEqual(faults, [0] * 6)
 
-    def waited(self, lock: Path, mode: str) -> float:
-        started = time.monotonic()
-        lease = acquire_waiting(OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60, mode=mode), 60)
-        elapsed = time.monotonic() - started
+    def take_and_release(self, lock: Path, mode: str) -> None:
+        """Wait for `lock` in `mode`, then release it: a refusal past the wait bound raises."""
+        acquire_lease(
+            OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60, mode=mode), 60
+        ).__exit__(None, None, None)
+
+    def rounds_taken_while_queued(self, lock: Path, mode: str, *counts: Path) -> int:
+        """The rounds the holders counted in `counts` take between this request's
+        place in line and its grant.
+
+        A request is served after every request that arrived before it, so
+        of a holder that releases and asks again only the round already
+        running when this request queued can come first. A round counted just
+        after the request queued, having taken the lease before it, is that
+        same round: at most one round per holder is taken while queued,
+        whatever the host's speed.
+        """
+
+        def taken() -> int:
+            return sum(path.stat().st_size for path in counts)
+
+        lease = OwnerLease(lock, {"root": "waiter", "revision": "r"}, 60, mode=mode)
+        self.addCleanup(lease.dequeue)
+        lease.reserve()
+        queued = taken()
+        acquire_claim((lease,), 60)
+        granted = taken()
         lease.__exit__(None, None, None)
-        return elapsed
+        return granted - queued
 
     def test_a_repeating_exclusive_holder_does_not_starve_a_waiter(self) -> None:
         # Twelve back-to-back 1 s holds: without arrival order the holder asks
-        # again the instant it releases and the polling waiter never gets in.
+        # again the instant it releases and the polling waiter never gets in,
+        # so it sees the holder take round after round.
         for mode in (EXCLUSIVE, SHARED):
             with self.subTest(waiter=mode):
                 lock = self.lock(f"repeat-{mode}")
-                holder = start_holder(self, lock, EXCLUSIVE, 1, repeat=12)
+                rounds = self.base / f"repeat-{mode}.rounds"
+                holder = start_holder(self, lock, EXCLUSIVE, 1, repeat=12, rounds=rounds)
                 # A waiting reader also holds back the writer's next round.
-                self.assertLess(self.waited(lock, mode), 6)
+                self.assertLessEqual(self.rounds_taken_while_queued(lock, mode, rounds), 1)
                 holder.kill()
                 holder.wait(60)
 
     def test_a_stream_of_shared_readers_does_not_starve_a_writer(self) -> None:
         # Two readers overlap, so the lease is never free of a shared holder.
         lock = self.lock("stream")
-        start_holder(self, lock, SHARED, 1, name="reader-a", repeat=12)
-        time.sleep(0.5)
-        start_holder(self, lock, SHARED, 1, name="reader-b", repeat=12)
-        self.assertLess(self.waited(lock, EXCLUSIVE), 6)
+        counts = [self.base / "stream-a.rounds", self.base / "stream-b.rounds"]
+        # The second reader starts while the first holds, which keeps their
+        # rounds overlapping; each is then running a round when the writer
+        # queues, and neither starts another before the writer is served.
+        start_holder(self, lock, SHARED, 1, name="reader-a", repeat=12, rounds=counts[0])
+        start_holder(self, lock, SHARED, 1, name="reader-b", repeat=12, rounds=counts[1])
+        self.assertLessEqual(self.rounds_taken_while_queued(lock, EXCLUSIVE, *counts), 2)
 
     def test_a_crashed_holder_or_waiter_gives_up_its_place(self) -> None:
         lock = self.lock("crash")
-        holder = start_holder(self, lock, SHARED, 60)
-        waiter = start_holder(self, lock, EXCLUSIVE, 60, name="waiter", wait_until_held=False)
+        holder = start_holder(self, lock, SHARED, 0, stop=self.base / "release-crash")
+        # The waiter reports once it is queued behind the holder: both
+        # tickets are live, so neither is collected before the kills.
+        waiter = start_script(self, QUEUED_WAITER, str(lock), ready="queued")
         queue = lock.with_name(f"{lock.stem}.queue")
-        deadline = time.monotonic() + 30
-        while len(list(queue.glob("*.ticket"))) < 2:
-            self.assertLess(time.monotonic(), deadline, "the waiter never queued")
-            time.sleep(0.05)
+        self.assertEqual(len(list(queue.glob("*.ticket"))), 2)
         for process in (waiter, holder):
             process.kill()
             process.wait(60)
-        self.assertLess(self.waited(lock, SHARED), 2)
+        # Both processes have exited, so their tickets are dead and the very
+        # first request collects them and is granted: nothing waits on a
+        # place whose requester has crashed.
+        self.assertEqual(request(lock, SHARED), "granted")
         self.assertEqual(list(queue.glob("*.ticket")), [])
 
     def test_dead_tickets_of_every_mode_are_collected(self) -> None:
@@ -425,8 +531,9 @@ class LeaseModeTestCase(unittest.TestCase):
             arrival = now + (index - 10) * 1_000_000_000
             (queue / f"{arrival:020d}-{mode}-1-dead{index}.ticket").write_bytes(b" {}")
         # A shared request, which only waits on exclusive tickets, still
-        # collects the dead shared ones, including those after its own.
-        self.assertLess(self.waited(lock, SHARED), 2)
+        # collects the dead shared ones, including those after its own. No
+        # process holds anything, so the first attempt is granted.
+        self.assertEqual(request(lock, SHARED), "granted")
         self.assertEqual(list(queue.glob("*.ticket")), [])
 
     @unittest.skipIf(os.name == "nt", "Windows cannot delete a file its requester holds open")
@@ -484,28 +591,41 @@ class LeaseModeTestCase(unittest.TestCase):
             "handle = open(sys.argv[2], 'rb')\n"
             "assert lease._try_lock(handle, 'shared')\n"
             "print('held', flush=True)\n"
-            "time.sleep(0.3)\n"
+            "sys.stdin.read()\n"
         )
+        ticket_locks = []
 
         def contended(handle, mode=EXCLUSIVE):
-            if not probes and str(handle.name).endswith(".ticket") and mode == EXCLUSIVE:
+            if str(handle.name).endswith(".ticket") and mode == EXCLUSIVE:
+                ticket_locks.append(handle.name)
+            if len(ticket_locks) == 1 and not probes:
                 process = subprocess.Popen(
                     [sys.executable, "-c", probe, str(SCRIPT.parent), str(handle.name)],
+                    stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     text=True,
                 )
                 self.addCleanup(process.wait, 60)
                 self.addCleanup(process.kill)
                 self.addCleanup(process.stdout.close)
+                self.addCleanup(process.stdin.close)
                 self.assertEqual(process.stdout.readline().strip(), "held")
                 probes.append(process)
+                # The probe holds the ticket until it is told to let go, so
+                # the requester's lock is refused however long the host takes.
+                locked = real_try_lock(handle, mode)
+                process.stdin.close()
+                self.assertFalse(locked)
+                return locked
             return real_try_lock(handle, mode)
 
         with patch.object(queue_module, "_try_lock", side_effect=contended):
-            self.assertLess(self.waited(lock, EXCLUSIVE), 5)
+            self.take_and_release(lock, EXCLUSIVE)
         self.assertEqual(len(probes), 1)
+        # The refused lock is retried under a new name, which is then locked.
+        self.assertGreaterEqual(len(ticket_locks), 2)
         probes[0].wait(60)
-        self.waited(lock, SHARED)
+        self.take_and_release(lock, SHARED)
         self.assertEqual(list(lock.with_name(f"{lock.stem}.queue").glob("*.ticket")), [])
 
     def test_a_ticket_survives_peers_probing_it_as_it_is_created(self) -> None:
@@ -519,10 +639,9 @@ class LeaseModeTestCase(unittest.TestCase):
             "from pathlib import Path\n"
             "sys.path.insert(0, sys.argv[1])\n"
             "import atlas_build_lease as lease\n"
-            "queue = Path(sys.argv[2])\n"
+            "queue, stop = Path(sys.argv[2]), Path(sys.argv[3])\n"
             "print('probing', flush=True)\n"
-            "end = time.monotonic() + 4\n"
-            "while time.monotonic() < end:\n"
+            "while not stop.exists():\n"
             "    for path in queue.glob('*.ticket'):\n"
             "        try:\n"
             "            handle = path.open('rb')\n"
@@ -535,10 +654,12 @@ class LeaseModeTestCase(unittest.TestCase):
             "        finally:\n"
             "            handle.close()\n"
         )
+        stop = self.base / "stop-probing"
+        self.addCleanup(stop.write_text, "stop", encoding="utf-8")
         probers = []
         for _ in range(3):
             process = subprocess.Popen(
-                [sys.executable, "-c", prober, str(SCRIPT.parent), str(queue)],
+                [sys.executable, "-c", prober, str(SCRIPT.parent), str(queue), str(stop)],
                 stdout=subprocess.PIPE,
                 text=True,
             )
@@ -547,16 +668,15 @@ class LeaseModeTestCase(unittest.TestCase):
             self.addCleanup(process.stdout.close)
             self.assertEqual(process.stdout.readline().strip(), "probing")
             probers.append(process)
-        end = time.monotonic() + 3
-        taken = 0
-        while time.monotonic() < end:
-            self.assertLess(self.waited(lock, EXCLUSIVE), 2)
-            taken += 1
-        self.assertGreater(taken, 10)
+        # The probers run until told to stop, so every request is made
+        # under probing, however long the host takes to make them.
+        for _ in range(30):
+            self.take_and_release(lock, EXCLUSIVE)
+        stop.write_text("stop", encoding="utf-8")
         for process in probers:
             process.wait(60)
         # A release a probe held open stays behind, dead, for the next request.
-        self.waited(lock, SHARED)
+        self.take_and_release(lock, SHARED)
         self.assertEqual(list(queue.glob("*.ticket")), [])
 
     @unittest.skipUnless(os.name == "nt", "only Windows refuses to delete an open file")
@@ -609,7 +729,10 @@ class LeaseModeTestCase(unittest.TestCase):
 
 
 # A shared reader of `dep` that builds new variants of it beside the ones
-# a record names, writing each in slow chunks so a hash can catch it half done.
+# a record names, writing each in slow chunks so a hash can catch it half done,
+# until the file argv[4] names exists or its standard input closes, which
+# happens when the test process ends however it ends. It prints `writing`
+# once its first variant is under way.
 VARIANT_WRITER = (
     "import sys, time\n"
     "from pathlib import Path\n"
@@ -619,14 +742,19 @@ VARIANT_WRITER = (
     "lease.__enter__()\n"
     "print('held', flush=True)\n"
     "deps = Path(sys.argv[3])\n"
-    "end = time.monotonic() + float(sys.argv[4])\n"
+    "stop = Path(sys.argv[4])\n"
+    "import threading\n"
+    "orphaned = threading.Event()\n"
+    "threading.Thread(target=lambda: (sys.stdin.read(), orphaned.set()), daemon=True).start()\n"
     "variant = 0\n"
-    "while time.monotonic() < end:\n"
+    "while not stop.exists() and not orphaned.is_set():\n"
     "    variant += 1\n"
     "    with (deps / f'libdep-variant{variant}.rlib').open('wb') as stream:\n"
     "        for _ in range(20):\n"
     "            stream.write(b'x' * 65536)\n"
     "            stream.flush()\n"
+    "            if variant == 1 and _ == 0:\n"
+    "                print('writing', flush=True)\n"
     "            time.sleep(0.005)\n"
     "lease.__exit__(None, None, None)\n"
 )
@@ -651,18 +779,91 @@ REBUILDING_READER = (
 )
 
 
-def start_script(test: unittest.TestCase, script: str, *arguments: str) -> subprocess.Popen:
+# A wait for a step takes this many times the step's start-up, measured once
+# per test process the first time a script starts. The factor covers the host
+# slowing after that measurement: an interpreter that imports the lease module
+# took 0.104 s on a quiet 24-CPU host and 0.711 s with 30 busy loops beside
+# it, a ratio of about 6.8, and 15 is more than twice that. It is a measured
+# constant that ends a hang, not an assertion bound derived from a property,
+# and a larger factor would cost nothing but a slower failure.
+HOST_SLOWDOWN_MARGIN = 15
+
+
+@functools.cache
+def child_startup_seconds() -> float:
+    """Seconds a fresh interpreter takes to import the lease module, measured once.
+
+    That is the work a helper script does before it first prints (the
+    imports, then taking a lease). The measure is taken per test process, the
+    first time a script is started, and reused for the rest of the process.
+    """
+    started = time.monotonic()
+    subprocess.run(
+        [sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import atlas_build_lease",
+         str(SCRIPT.parent)],
+        check=True,
+        timeout=120,
+    )
+    return time.monotonic() - started
+
+
+def next_line_within(test: unittest.TestCase, process: subprocess.Popen, seconds: float) -> str:
+    """The next line `process` prints, or a test failure once `seconds` pass.
+
+    Nothing else ends a wait for a line a process that keeps running never
+    prints: the test is the one waiting. The line is read on a thread so the
+    wait has a deadline. At it the process is killed and reaped, which also
+    ends the thread's read and lets the test's cleanups close the pipe, and
+    then the test fails.
+    """
+    line: queue.Queue[str] = queue.Queue()
+    reader = threading.Thread(target=lambda: line.put(process.stdout.readline()), daemon=True)
+    reader.start()
+    try:
+        return line.get(timeout=seconds).strip()
+    except queue.Empty:
+        process.kill()
+        process.wait(60)
+        reader.join(60)
+        test.fail(f"the process printed no line within {seconds:.1f} s")
+
+
+def start_script(
+    test: unittest.TestCase, script: str, *arguments: str, ready: str = "held"
+) -> subprocess.Popen:
+    """Start `script` and wait, under a deadline, for the line `ready` it prints."""
+    # Standard input stays open for the script's life, so a script can tell
+    # the test process ended by reading it to end of file.
     process = subprocess.Popen(
         [sys.executable, "-c", script, str(SCRIPT.parent), *arguments],
+        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         text=True,
     )
     test.addCleanup(process.wait, 60)
     test.addCleanup(process.kill)
     test.addCleanup(process.stdout.close)
-    test.assertEqual(process.stdout.readline().strip(), "held")
+    test.addCleanup(process.stdin.close)
+    test.assertEqual(
+        next_line_within(test, process, HOST_SLOWDOWN_MARGIN * child_startup_seconds()), ready
+    )
     return process
 
+
+# A request that queues behind a holder of the lease and waits there, its
+# ticket live until the process is killed. It prints `queued` once queued.
+QUEUED_WAITER = (
+    "import sys\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "from atlas_build_lease import LeaseHeldError, OwnerLease\n"
+    "lease = OwnerLease(Path(sys.argv[2]), {'root': 'waiter', 'revision': 'r'}, 60)\n"
+    "try:\n"
+    "    lease.attempt()\n"
+    "except LeaseHeldError:\n"
+    "    print('queued', flush=True)\n"
+    "    sys.stdin.read()\n"
+)
 
 # A shared reader of `dep` whose build, once the run's own command signals,
 # rewrites a recorded dependency file in place: it opens the file with no
@@ -853,18 +1054,33 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(record["source"]["revision"], revision)
         self.assertEqual(record["source"]["root"], second_export.resolve().as_posix())
 
-    def test_a_fresh_gate_export_is_identified_without_rehashing_it(self) -> None:
-        """The export's index carries stat data, so `git diff HEAD` compares
-        stats: a read-tree index without it re-hashed kwavers for 348 s."""
+    def test_a_fresh_gate_exports_index_records_each_files_stat_data(self) -> None:
+        """The export's index carries each file's size and modification time,
+        and the export is identified clean at its revision.
+
+        `git status` can skip re-hashing an entry only when its recorded
+        size and modification time match the file's, and a read-tree index
+        with no stat data re-hashed kwavers for 348 s. That match is a
+        necessary condition, not a sufficient one: all 19 of this fixture's
+        entries carry the whole second its index was written in, which Git
+        treats as racily clean and re-reads whatever they record. The test
+        checks the condition, not the speed.
+        """
         init_repo(self.root, "fn main() {}\n")
         bulk = self.root / "data"
         bulk.mkdir()
-        for index in range(2000):
+        for index in range(16):
             (bulk / f"part-{index:04}.txt").write_text(f"{index}\n" * 64, encoding="utf-8")
         git(self.root, "add", "data")
         git(self.root, "commit", "-qm", "bulk")
         export = self.base / "export" / "member"
         revision = gate_export(self.root, export)
+        entries = index_stat_data(export)
+        self.assertEqual(len(entries), 19)
+        for path, (mtime_seconds, size) in entries.items():
+            status = (export / path).stat()
+            self.assertEqual(size, status.st_size, path)
+            self.assertEqual(mtime_seconds, status.st_mtime_ns // 1_000_000_000, path)
         calls: list[tuple[str, ...]] = []
         real_git = build_source._git
 
@@ -873,13 +1089,14 @@ class BuildIdentityTestCase(unittest.TestCase):
             return real_git(root, *arguments)
 
         with patch.object(build_source, "_git", side_effect=recording_git):
-            started = time.monotonic()
             found = build_source.source_identity(export)
-            elapsed = time.monotonic() - started
-        self.assertIn("diff", [arguments[0] for arguments in calls])
+        self.assertEqual(
+            [arguments[1] if arguments[0] == "--no-optional-locks" else arguments[0]
+             for arguments in calls],
+            ["status"],
+        )
         self.assertEqual(found.revision, revision)
         self.assertFalse(found.dirty)
-        self.assertLess(elapsed, 30.0)
 
     def test_an_edited_export_is_dirty_whatever_its_index_holds(self) -> None:
         """An index read from `HEAD` and never stat'ed proves nothing about
@@ -890,7 +1107,20 @@ class BuildIdentityTestCase(unittest.TestCase):
         git(export, "read-tree", "HEAD")
         (export / "src/lib.rs").write_text("fn main() { edited(); }\n", encoding="utf-8")
         (export / "Cargo.lock").unlink()
-        found = build_source.source_identity(export)
+        calls: list[tuple[str, ...]] = []
+        real_git = build_source._git
+
+        def recording_git(root: Path, *arguments: str) -> bytes:
+            calls.append(arguments)
+            return real_git(root, *arguments)
+
+        with patch.object(build_source, "_git", side_effect=recording_git):
+            found = build_source.source_identity(export)
+        self.assertEqual(
+            [arguments[1] if arguments[0] == "--no-optional-locks" else arguments[0]
+             for arguments in calls],
+            ["status", "diff"],
+        )
         self.assertEqual(found.revision, revision)
         self.assertTrue(found.dirty)
 
@@ -1035,6 +1265,23 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertFalse(self.clean_log.exists())
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "changed elsewhere")
 
+    def test_a_wait_for_a_line_that_never_comes_ends_at_its_deadline(self) -> None:
+        silent = subprocess.Popen(
+            [sys.executable, "-c", "import sys; sys.stdin.read()"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        self.addCleanup(silent.wait, 60)
+        self.addCleanup(silent.kill)
+        self.addCleanup(silent.stdout.close)
+        self.addCleanup(silent.stdin.close)
+        with self.assertRaises(AssertionError) as caught:
+            next_line_within(self, silent, 0.5)
+        self.assertIn("no line within 0.5 s", str(caught.exception))
+        # The silent process was killed and reaped, not left running.
+        self.assertIsNotNone(silent.poll())
+
     def test_a_reader_writing_new_variants_does_not_tear_another_readers_check(self) -> None:
         # Cargo can write new variants of a dependency under a shared lease.
         # A reader compares only the files its record names, so a variant
@@ -1045,14 +1292,27 @@ class BuildIdentityTestCase(unittest.TestCase):
         deps = self.artifact.parent
         (deps / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
         self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
-        start_script(self, VARIANT_WRITER, str(self.dep_lock()), str(deps), "6")
+        stop = self.base / "stop-variants"
+        writer = start_script(self, VARIANT_WRITER, str(self.dep_lock()), str(deps), str(stop))
+        self.addCleanup(stop.write_text, "stop", encoding="utf-8")
+        # The rounds start only once a variant is being written. That takes
+        # one 64 KiB write, which measured 1.5 ms against a start-up (the
+        # interpreter, the imports, the lease) of 0.13 to 0.7 s across idle
+        # and loaded hosts, so the wait the margin gives it is a deadline no
+        # healthy writer nears.
+        self.assertEqual(
+            next_line_within(self, writer, HOST_SLOWDOWN_MARGIN * child_startup_seconds()),
+            "writing",
+        )
         self.clean_log.unlink(missing_ok=True)
-        end = time.monotonic() + 4
-        rounds = 0
-        while time.monotonic() < end:
+        for _ in range(3):
             self.assertEqual(self.dependency_build("first", wait=2, discover=True).status, "reused")
-            rounds += 1
-        self.assertGreater(rounds, 2)
+        # The writer was writing before the first round and stops only when
+        # told to, so it wrote through every round.
+        self.assertIsNone(writer.poll())
+        stop.write_text("stop", encoding="utf-8")
+        self.assertEqual(writer.wait(60), 0)
+        self.assertTrue(any(deps.glob("libdep-variant*.rlib")))
         self.assertFalse(self.clean_log.exists())
 
     @unittest.skipUnless(os.name == "nt", "only Windows refuses reads during a rewrite")
@@ -1085,7 +1345,9 @@ class BuildIdentityTestCase(unittest.TestCase):
         init_repo(self.root, "fn main() {}\n")
         (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
         self.assertEqual(self.dependency_build("first", discover=True).status, "rebuilt")
-        reads = iter(range(1_000_000))
+        # Twice the reads a one-second budget allows: a reader that ignored
+        # its deadline exhausts them and fails at once instead of hanging.
+        reads = iter(range(2 * (2 + round(1.0 / artifacts._SETTLE_INTERVAL))))
         settle = artifacts.settled_digest
 
         def unsettled(path, deadline_ns):
@@ -1094,11 +1356,52 @@ class BuildIdentityTestCase(unittest.TestCase):
             with patch.object(artifacts, "_file_digest", side_effect=lambda _: f"read-{next(reads)}"):
                 return settle(path, deadline_ns)
 
-        with patch.object(identity, "settled_digest", side_effect=unsettled):
+        with patch.object(artifacts, "settled_digest", side_effect=unsettled):
             result = self.dependency_build("first", wait=3, discover=True)
         files = json.loads(result.record_path.read_text(encoding="utf-8"))["artifact"]["files"]
         self.assertEqual(files["debug/deps/libdep-0ecdeded.rlib"], artifacts.UNVERIFIED)
-        self.assertGreater(next(reads), 2)
+        # Two reads are made whatever the budget left; how many more depends
+        # on the time the run has left, which the next test pins.
+        self.assertGreaterEqual(next(reads), 2)
+
+    def test_a_file_that_never_reads_the_same_twice_is_read_until_its_budget_ends(self) -> None:
+        # Under a clock that moves only when the reader sleeps, a file that
+        # never agrees is read once, confirmed at once, then re-read after
+        # each `_SETTLE_INTERVAL` sleep until the one-second budget is spent:
+        # 2 + 1.0 / 0.02 reads.
+        # `reads` is rebound per case; the digest lambda reads it at call time.
+        target = self.base / "unsettled.rlib"
+        target.write_bytes(b"artifact")
+        clock = [0]
+
+        class Clock:
+            @staticmethod
+            def monotonic_ns() -> int:
+                return clock[0]
+
+            @staticmethod
+            def sleep(seconds: float) -> None:
+                clock[0] += round(seconds * 1_000_000_000)
+
+        for deadline_ns, expected_reads in (
+            (1_000_000_000, 2 + round(1.0 / artifacts._SETTLE_INTERVAL)),
+            # A budget already spent still gets its two reads.
+            (-1, 2),
+        ):
+            with self.subTest(deadline_ns=deadline_ns):
+                clock[0] = 0
+                # Twice the most this case can read, so a reader that ignored
+                # its deadline exhausts them and fails at once.
+                reads = iter(range(2 * (2 + round(1.0 / artifacts._SETTLE_INTERVAL))))
+                with (
+                    patch.object(artifacts, "time", Clock),
+                    patch.object(
+                        artifacts, "_file_digest", side_effect=lambda _: f"read-{next(reads)}"
+                    ),
+                ):
+                    digest = artifacts.settled_digest(target, deadline_ns)
+                self.assertEqual(digest, artifacts.UNVERIFIED)
+                self.assertEqual(next(reads), expected_reads)
 
     def test_an_unverified_file_cleans_only_its_package(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -1639,12 +1942,12 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.dependency_build("first", discover=True)
         (self.root / "src" / "lib.rs").write_text("fn main() { changed(); }\n", encoding="utf-8")
         related_packages_seen: list[tuple[str, ...]] = []
-        real_discover = artifacts.discover_artifacts
+        real_discover = identity.artifact_identities
         run_checked = identity._run_checked
 
         def spy_discover(*args: object, **kwargs: object):
-            related = args[6] if len(args) > 6 else kwargs.get("related_packages", ())
-            related_packages_seen.append(tuple(related))
+            requests = args[2] if len(args) > 2 else kwargs["packages"]
+            related_packages_seen.extend(tuple(related) for related in requests.values())
             return real_discover(*args, **kwargs)
 
         def skip_real_clean(command, cwd, environment):
@@ -1657,7 +1960,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             run_checked(command, cwd, environment)
 
         with (
-            patch.object(identity, "discover_artifacts", side_effect=spy_discover),
+            patch.object(identity, "artifact_identities", side_effect=spy_discover),
             patch.object(identity, "_run_checked", side_effect=skip_real_clean),
         ):
             result = self.dependency_build("second", discover=True, clean=False)
@@ -1676,9 +1979,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         dep_repo = self.base / "dep-repo"
         dep_repo.mkdir()
         (dep_repo / "file.txt").write_text("a\n", encoding="utf-8")
-        git(dep_repo, "init", "-q")
-        git(dep_repo, "config", "user.name", "t")
-        git(dep_repo, "config", "user.email", "t@e.invalid")
+        init_git(dep_repo, "t", "t@e.invalid")
         git(dep_repo, "add", ".")
         git(dep_repo, "commit", "-q", "-m", "dep a")
         dep_revision_a = git(dep_repo, "rev-parse", "HEAD")
@@ -1758,18 +2059,111 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertFalse(self.clean_log.exists())
 
     def test_the_wait_bound_covers_every_lease_of_a_run(self) -> None:
-        # `demo` frees after 2 s and `dep` never: with a 3 s bound per lease
-        # the run would wait 5 s, but the bound is for the run.
+        # Both leases are held when the run asks for them. `demo` is released
+        # once the run has been refused it, so the claim is still blocked at
+        # `dep`, which stays held for the whole run. The run fixes one
+        # deadline when it starts waiting, and its one claim waits against
+        # it: a bound per lease would start a fresh 3 s at `dep`.
         init_repo(self.root, "fn main() {}\n")
-        start_holder(self, self.dep_lock("demo"), EXCLUSIVE, 2)
-        start_holder(self, self.dep_lock("dep"), EXCLUSIVE, 60)
-        started = time.monotonic()
-        with self.assertRaises(identity.IdentityError) as caught:
-            self.dependency_build("first", wait=3)
-        elapsed = time.monotonic() - started
+        demo_lock, dep_lock = self.dep_lock("demo"), self.dep_lock("dep")
+        release_dep = self.base / "release-dep"
+        release_demo = self.base / "release-demo"
+        demo_holder = start_holder(self, demo_lock, EXCLUSIVE, 0, stop=release_demo)
+        dep_holder = start_holder(self, dep_lock, EXCLUSIVE, 0, stop=release_dep)
+        requested: list[int | None] = []
+        refusals: dict[Path, int] = {demo_lock: 0, dep_lock: 0}
+        real_acquire = identity.acquire_claim
+        real_blocker = lease_module._blocker
+
+        clock = RecordedClock()
+
+        def recording_acquire(leases, wait_seconds, deadline_ns=None, *args, **kwargs):
+            requested.append(deadline_ns)
+            # The run fixes its deadline once, when it starts: exactly the
+            # 3 s bound after its one clock read. A deadline of any other
+            # length fails whatever the host's speed, and it fails here,
+            # before the run waits it out against the held `dep`.
+            self.assertEqual(len(clock.reads), 1)
+            self.assertEqual(deadline_ns, clock.reads[0] + 3_000_000_000)
+            return real_acquire(leases, wait_seconds, deadline_ns, *args, **kwargs)
+
+        def counting_blocker(lease):
+            found = real_blocker(lease)
+            if found is not None:
+                refusals[lease.path] += 1
+                if lease.path == demo_lock and demo_holder.poll() is None:
+                    # Releasing the holder frees its OS lock and its place:
+                    # the claim is next blocked at `dep` alone, with no timer
+                    # to release `demo`.
+                    release_demo.write_text("release", encoding="utf-8")
+                    self.assertEqual(demo_holder.wait(60), 0)
+            return found
+
+        with (
+            patch.object(identity, "acquire_claim", side_effect=recording_acquire),
+            patch.object(identity, "time", clock),
+            patch.object(lease_module, "_blocker", side_effect=counting_blocker),
+        ):
+            with self.assertRaises(identity.IdentityError) as caught:
+                self.dependency_build("first", wait=3)
+        refused_ns = time.monotonic_ns()
         self.assertIn("after waiting 3 s", str(caught.exception))
-        self.assertGreaterEqual(elapsed, 2.9)
-        self.assertLess(elapsed, 4.2)
+        # One claim, one deadline, and the run gave up only once it had passed.
+        self.assertEqual(len(requested), 1)
+        self.assertIsNotNone(requested[0])
+        self.assertGreaterEqual(refused_ns, requested[0])
+        # Each lease was held when asked for: the claim was refused at `demo`
+        # before it was released, and at `dep` until the deadline.
+        self.assertGreaterEqual(refusals[demo_lock], 1)
+        self.assertGreaterEqual(refusals[dep_lock], 1)
+        # `dep` was held with no clock: it lets go when told, not when a
+        # timer runs out.
+        self.assertIsNone(dep_holder.poll())
+        release_dep.write_text("release", encoding="utf-8")
+        self.assertEqual(dep_holder.wait(60), 0)
+
+    def test_a_held_lease_is_refused_at_its_deadline(self) -> None:
+        # Under a clock that moves only when the waiter sleeps, a claim whose
+        # lease stays held is refused exactly at the deadline: each sleep is
+        # cut to the time left, so no wait runs past it.
+        clock = [0]
+
+        class Clock:
+            @staticmethod
+            def monotonic_ns() -> int:
+                return clock[0]
+
+            @staticmethod
+            def sleep(seconds: float) -> None:
+                clock[0] += round(seconds * 1_000_000_000)
+
+        # Sleeps of 0.1, 0.2, 0.4, 0.8 s, then the 1.5 s left: five waits
+        # between six attempts, the last refused. A wait that never reached
+        # its deadline would sleep for no time and ask again for ever, so the
+        # claim allows twice those attempts and fails the test past them.
+        analytic_attempts = 6
+        attempts = [0]
+        lease = OwnerLease(self.base / "held.lock", {"root": "waiter", "revision": "r"}, 60)
+
+        def refuse(leases):
+            attempts[0] += 1
+            if attempts[0] > 2 * analytic_attempts:
+                raise AssertionError(
+                    f"the wait asked {attempts[0]} times without reaching its deadline"
+                )
+            return leases[0], LeaseHeldError("held", {"root": "holder", "revision": "r"})
+
+        deadline_ns = 3_000_000_000
+        with (
+            patch.object(lease_module, "time", Clock),
+            patch.object(lease_module, "_try_claim", side_effect=refuse),
+            redirect_stderr(io.StringIO()),
+            self.assertRaises(lease_module.BuildIdentityError) as caught,
+        ):
+            acquire_claim((lease,), 3, deadline_ns)
+        self.assertEqual(clock[0], deadline_ns)
+        self.assertIn("after waiting 3 s", str(caught.exception))
+        self.assertEqual(attempts[0], analytic_attempts)
 
     def test_an_expired_owner_is_recovered(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -1917,6 +2311,295 @@ class BuildIdentityTestCase(unittest.TestCase):
         after = build_source.source_identity(self.root)
         self.assertTrue(after.dirty)
         self.assertNotEqual(before.tree_digest, after.tree_digest)
+
+    def test_tracked_bytes_are_identical_before_and_after_staging(self) -> None:
+        init_repo(self.root, "fn one() {}\n")
+        clean = build_source.source_identity(self.root)
+        source = self.root / "src/lib.rs"
+        source.write_text("fn two() {}\n", encoding="utf-8")
+        unstaged = build_source.source_identity(self.root)
+        git(self.root, "add", "src/lib.rs")
+        staged = build_source.source_identity(self.root)
+        self.assertTrue(unstaged.dirty)
+        self.assertEqual(staged, unstaged)
+        self.assertNotEqual(staged.tree_digest, clean.tree_digest)
+
+    def test_the_nearest_git_marker_owns_a_nested_repository(self) -> None:
+        init_repo(self.root, "fn outer() {}\n")
+        nested = self.root / "nested"
+        init_repo(nested, "fn nested() {}\n")
+        self.assertEqual(
+            build_source.repository_top(nested / "src"),
+            nested.resolve(),
+        )
+        self.assertEqual(
+            build_source.repository_top(self.root / "src"),
+            self.root.resolve(),
+        )
+
+    def test_untracked_and_ignored_files_are_listed_as_ls_files_lists_them(self) -> None:
+        # The digest frames each untracked and ignored file in this order, so
+        # one `git status` must list exactly what the two `ls-files --others`
+        # listings it replaced list, in the same order, or every dirty tree's
+        # identity changes.
+        init_repo(self.root, "fn main() {}\n")
+        # Rename detection on whatever the host configures, so the staged
+        # rename below is reported as one.
+        git(self.root, "config", "status.renames", "true")
+        (self.root / ".gitignore").write_text("*.log\nbuild/\n/top-only\n!keep.log\n", encoding="utf-8")
+        (self.root / "src" / ".gitignore").write_text("local.tmp\n", encoding="utf-8")
+        # A staged rename reports its original path as a field of its own,
+        # which `! orig.rs` would make read as an ignored file.
+        (self.root / "! orig.rs").write_text("renamed whole\n", encoding="utf-8")
+        git(self.root, "add", ".gitignore", "src/.gitignore", "! orig.rs")
+        git(self.root, "commit", "-q", "-m", "ignore rules")
+        git(self.root, "mv", "src/lib.rs", "src/moved.rs")
+        git(self.root, "mv", "! orig.rs", "renamed.rs")
+        (self.root / "Cargo.toml").write_text("[package]\nname = \"edited\"\n", encoding="utf-8")
+        for name in (
+            "new file.txt", "Zeta", "alpha", "ä-unicode.rs", "a.log", "keep.log", "top-only",
+            "src/top-only", "src/local.tmp", "src/new.rs", "src/a-b", "src/a/b", "src/a.b",
+            "build/out.o", "build/deep/x.o", "untracked/one.rs", "untracked/two.log",
+            "untracked/build/y.o",
+        ):
+            path = self.root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(name, encoding="utf-8")
+        (self.root / "nested").mkdir()
+        git(self.root / "nested", "init", "-q")
+        (self.root / "nested" / "inner.rs").write_text("inner", encoding="utf-8")
+        listed = tuple(
+            (marker, [path for path in build_source._git(self.root, *arguments).split(b"\0") if path])
+            for marker, arguments in (
+                (b"untracked", ("ls-files", "--others", "--exclude-standard", "-z")),
+                (b"ignored", ("ls-files", "--others", "--ignored", "--exclude-standard", "-z")),
+            )
+        )
+        self.assertIn(b"nested/", listed[0][1])
+        self.assertIn(b"untracked/build/y.o", listed[1][1])
+        self.assertNotIn(b"orig.rs", listed[1][1])
+        revision, tracked_dirty, status_entries = build_source._repository_status(
+            self.root.resolve()
+        )
+        self.assertEqual(revision, git(self.root, "rev-parse", "HEAD"))
+        self.assertTrue(tracked_dirty)
+        self.assertEqual(status_entries, listed)
+
+    def test_a_top_level_path_holding_a_newline_is_read_whole(self) -> None:
+        # POSIX permits whitespace in a work-tree name. Marker discovery uses
+        # Path components directly, so no command output can split that name.
+        for name, leaf in {
+            "newline": "line\nbreak",
+            "trailing newline": "line\n",
+            "trailing space": "trail ",
+            "plain": "plain",
+        }.items():
+            with self.subTest(name):
+                top = self.base / leaf
+                nested = top / "member" / "src"
+                marker = top / ".git"
+
+                def marker_stat(path: Path):
+                    if path == marker:
+                        return None
+                    raise FileNotFoundError(path)
+
+                with (
+                    patch.object(build_source, "_canonical", return_value=nested),
+                    patch.object(Path, "lstat", autospec=True, side_effect=marker_stat),
+                ):
+                    self.assertEqual(build_source.repository_top(self.base), top)
+        without_marker = self.base / "not-a-repository"
+        with (
+            patch.object(build_source, "_canonical", return_value=without_marker),
+            patch.object(Path, "lstat", autospec=True, side_effect=FileNotFoundError),
+            self.assertRaises(build_source.BuildIdentityError),
+        ):
+            build_source.repository_top(self.base)
+        for name, printed in {
+            "no revision": b"# branch.head main\0",
+            "unborn revision": b"# branch.oid (initial)\0# branch.head main\0",
+            "spaced revision": b"# branch.oid bad revision\0# branch.head main\0",
+            "abbreviated revision": b"# branch.oid deadbeef\0# branch.head main\0",
+            "short sha1": b"# branch.oid " + b"a" * 39 + b"\0# branch.head main\0",
+            "long sha256": b"# branch.oid " + b"a" * 65 + b"\0# branch.head main\0",
+            "two revisions": b"# branch.oid one\0# branch.oid two\0",
+        }.items():
+            with self.subTest(name), patch.object(build_source, "_git", return_value=printed):
+                with self.assertRaises(build_source.BuildIdentityError):
+                    build_source._repository_status(self.base)
+        sha256 = b"a" * 64
+        with patch.object(
+            build_source,
+            "_git",
+            return_value=b"# branch.oid " + sha256 + b"\0# branch.head main\0",
+        ):
+            revision, tracked_dirty, entries = build_source._repository_status(self.base)
+        self.assertEqual(revision, sha256.decode())
+        self.assertFalse(tracked_dirty)
+        self.assertEqual(entries, ((b"untracked", []), (b"ignored", [])))
+
+    def test_each_repository_is_identified_once_per_dependency_pass(self) -> None:
+        # Every path package of one repository has that repository's
+        # identity, so a pass computes it once, however many packages, and
+        # however many of the selection's snapshots, share it.
+        init_repo(self.root, "fn main() {}\n")
+        (self.root / "member" / "src").mkdir(parents=True)
+        (self.root / "untracked.rs").write_text("dirty\n", encoding="utf-8")
+        sibling = self.base / "sibling"
+        init_repo(sibling, "pub fn sibling() {}\n")
+        identified: list[Path] = []
+        real_source_identity = build_inputs.source_identity
+
+        def counting_source_identity(top, *arguments):
+            identified.append(top)
+            return real_source_identity(top, *arguments)
+
+        def snapshot(metadata, manifest, package, identify_source, content_digest):
+            return {
+                "identities": [
+                    identify_source(path)
+                    for path in (self.root, self.root / "member", self.root / "src", sibling)
+                ]
+            }
+
+        with (
+            patch.object(build_inputs, "source_identity", side_effect=counting_source_identity),
+            patch.object(build_inputs, "dependency_snapshot", side_effect=snapshot),
+            patch.object(build_inputs, "_cargo_metadata", return_value={}),
+        ):
+            data = build_inputs._dependency_data(
+                self.root / "Cargo.toml", ("demo", "other"), self.target, self.root, (), False
+            )
+        self.assertEqual(identified, [self.root.resolve(), sibling.resolve()])
+        self.assertEqual(sorted(data), ["demo", "other"])
+        self.assertEqual(data["demo"]["identities"], data["other"]["identities"])
+        root_identity, member_identity, source_identity, sibling_identity = data["demo"]["identities"]
+        expected_root = build_records._content(
+            build_source.source_identity(self.root, (self.target,)).as_dict()
+        )
+        self.assertTrue(expected_root["dirty"])
+        self.assertEqual(root_identity, expected_root)
+        self.assertEqual(member_identity, expected_root)
+        self.assertEqual(source_identity, expected_root)
+        self.assertEqual(
+            sibling_identity,
+            build_records._content(build_source.source_identity(sibling, (self.target,)).as_dict()),
+        )
+        self.assertNotEqual(sibling_identity, expected_root)
+
+    def test_each_package_source_is_fingerprinted_once_per_dependency_pass(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        member = self.root / "member"
+        member.mkdir()
+        (member / "Cargo.toml").write_text(
+            "[package]\nname = \"other\"\nversion = \"0.1.0\"\n", encoding="utf-8"
+        )
+        git(self.root, "add", "member/Cargo.toml")
+        git(self.root, "commit", "-q", "-m", "add member")
+        registry_root = self.base / "registry-dependency"
+        git_root = self.base / "git-dependency"
+        for root, name, source in (
+            (registry_root, "registry-dep", "pub fn value() -> u8 { 1 }\n"),
+            (git_root, "git-dep", "pub fn value() -> u8 { 3 }\n"),
+        ):
+            (root / "src").mkdir(parents=True)
+            (root / "Cargo.toml").write_text(
+                f"[package]\nname = \"{name}\"\nversion = \"0.1.0\"\n",
+                encoding="utf-8",
+            )
+            (root / "src" / "lib.rs").write_text(source, encoding="utf-8")
+        metadata = {
+            "workspace_root": str(self.root),
+            "packages": [
+                {
+                    "id": "root demo",
+                    "name": "demo",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str(self.root / "Cargo.toml"),
+                },
+                {
+                    "id": "root other",
+                    "name": "other",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": str(member / "Cargo.toml"),
+                },
+                {
+                    "id": "registry dep",
+                    "name": "registry-dep",
+                    "version": "0.1.0",
+                    "source": "registry+https://example.invalid/index",
+                    "manifest_path": str(registry_root / "Cargo.toml"),
+                },
+                {
+                    "id": "git dep",
+                    "name": "git-dep",
+                    "version": "0.1.0",
+                    "source": "git+https://example.invalid/repository#01234567",
+                    "manifest_path": str(git_root / "Cargo.toml"),
+                },
+            ],
+            "workspace_members": ["root demo", "root other"],
+            "resolve": {
+                "nodes": [
+                    {
+                        "id": root,
+                        "deps": [
+                            {"pkg": "registry dep", "dep_kinds": []},
+                            {"pkg": "git dep", "dep_kinds": []},
+                        ],
+                    }
+                    for root in ("root demo", "root other")
+                ]
+                + [
+                    {"id": "registry dep", "deps": []},
+                    {"id": "git dep", "deps": []},
+                ]
+            },
+        }
+        fingerprinted: list[Path] = []
+
+        def counting_digest(path: Path, _cache_dir: Path) -> str:
+            fingerprinted.append(path.resolve())
+            return package_source.package_source_digest(path)
+
+        def external_digests(snapshot: dict[str, object]) -> dict[str, str]:
+            return {
+                str(package["name"]): str(package["content_digest"])
+                for package in snapshot["packages"]
+                if package["kind"] != "path"
+            }
+
+        with (
+            patch.object(build_inputs, "_cargo_metadata", return_value=metadata),
+            patch.object(
+                build_inputs, "cached_package_source_digest", side_effect=counting_digest
+            ),
+        ):
+            first = build_inputs._dependency_data(
+                self.root / "Cargo.toml", ("demo", "other"), self.target, self.root, (), False
+            )
+            first_calls = list(fingerprinted)
+            fingerprinted.clear()
+            (registry_root / "src" / "lib.rs").write_text(
+                "pub fn value() -> u8 { 2 }\n", encoding="utf-8"
+            )
+            second = build_inputs._dependency_data(
+                self.root / "Cargo.toml", ("demo", "other"), self.target, self.root, (), False
+            )
+        expected_roots = [git_root.resolve(), registry_root.resolve()]
+        self.assertEqual(first_calls, expected_roots)
+        self.assertEqual(fingerprinted, expected_roots)
+        first_digests = external_digests(first["demo"])
+        self.assertEqual(first_digests, external_digests(first["other"]))
+        second_digests = external_digests(second["demo"])
+        self.assertEqual(second_digests, external_digests(second["other"]))
+        self.assertNotEqual(first_digests["registry-dep"], second_digests["registry-dep"])
+        self.assertEqual(first_digests["git-dep"], second_digests["git-dep"])
+        self.assertNotEqual(first["demo"]["digest"], second["demo"]["digest"])
+        self.assertNotEqual(first["other"]["digest"], second["other"]["digest"])
 
     def test_ignored_source_files_are_hashed_and_can_be_explicitly_excluded(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -2355,6 +3038,57 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertEqual(set(paths), {artifact.resolve(), output.resolve()})
 
+    def test_batch_artifact_identity_preserves_each_overlapping_closure(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprints = self.target / "debug" / ".fingerprint"
+        deps.mkdir(parents=True, exist_ok=True)
+        owners = {
+            "a": frozenset({"a"}),
+            "b": frozenset({"b"}),
+            "shared": frozenset({"shared"}),
+        }
+        for name in ("a", "b", "shared"):
+            (deps / f"lib{name}-111.rlib").write_bytes(name.encode())
+            directory = fingerprints / f"{name}-111"
+            directory.mkdir(parents=True)
+            (directory / "output").write_bytes(f"fingerprint-{name}".encode())
+
+        separate = {
+            package: artifacts.artifact_identity(
+                self.root,
+                self.target,
+                package,
+                "debug",
+                (),
+                related_packages=("shared",),
+                owners=owners,
+            )
+            for package in ("a", "b")
+        }
+        batch = artifacts.artifact_identities(
+            self.root,
+            self.target,
+            {"a": ("shared",), "b": ("shared",)},
+            "debug",
+            owners=owners,
+        )
+
+        self.assertEqual(
+            artifacts.artifact_identities(
+                self.root,
+                self.target,
+                {},
+                "debug",
+                owners=owners,
+            ),
+            {},
+        )
+        self.assertEqual(batch, separate)
+        self.assertIn("debug/deps/libshared-111.rlib", batch["a"]["files"])
+        self.assertNotIn("debug/deps/libb-111.rlib", batch["a"]["files"])
+        self.assertNotIn("debug/deps/liba-111.rlib", batch["b"]["files"])
+
     def test_dependency_snapshot_tracks_reachable_path_sources(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         dependency_root = self.base / "dependency"
@@ -2549,13 +3283,9 @@ class BuildIdentityTestCase(unittest.TestCase):
             if len(command) < 2 or command[1] != "clean":
                 artifact.write_text("built", encoding="utf-8")
 
-        artifact_value = {"files": {"debug/deps/libdemo-123.rlib": "digest"}, "digest": "artifact"}
         with (
             patch.object(build_inputs, "toolchain_identity", return_value="rustc-test"),
             patch.object(build_inputs, "dependency_snapshot", return_value=snapshot),
-            patch.object(identity, "artifact_identity", return_value=artifact_value),
-            patch.object(identity, "recorded_artifact_identity", return_value=artifact_value),
-            patch.object(build_records, "recorded_artifact_identity", return_value=artifact_value),
             patch.object(identity, "_run_checked", side_effect=run_command),
         ):
             first = identity.run_build(
@@ -2565,6 +3295,13 @@ class BuildIdentityTestCase(unittest.TestCase):
                 self.target,
                 [sys.executable, "-c", "pass"],
             )[0]
+            relative = "debug/deps/libdemo-123.rlib"
+            files = {relative: artifacts._file_digest(artifact)}
+            first_record = json.loads(first.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(first_record["artifact"]["files"], files)
+            self.assertEqual(
+                first_record["artifact"]["digest"], artifacts.artifact_digest(files)
+            )
             second = identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
@@ -2589,7 +3326,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         # is gracefully stale, never a hard failure for the field it cannot
         # have.
         record = self.base / "old-record.json"
-        for version in (1, 2, 3):
+        for version in (1, 2, 3, 4, 5):
             record.write_text(json.dumps({"version": version}), encoding="utf-8")
             self.assertIsNone(build_records.read_record(record))
 
@@ -2668,10 +3405,13 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_an_ignored_path_outside_the_source_tree_is_rejected(self) -> None:
         init_repo(self.root, "fn main() {}\n")
-        with self.assertRaises(identity.IdentityError):
-            build_source.source_identity(
-                self.root, ignored_paths=(self.base / "elsewhere.lock",)
-            )
+        for state in ("clean", "tracked dirty"):
+            with self.subTest(state), self.assertRaises(identity.IdentityError):
+                if state == "tracked dirty":
+                    (self.root / "src/lib.rs").write_text("fn changed() {}\n", encoding="utf-8")
+                build_source.source_identity(
+                    self.root, ignored_paths=(self.base / "elsewhere.lock",)
+                )
 
     def test_commands_run_in_the_requested_directory(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -2704,21 +3444,6 @@ class BuildIdentityTestCase(unittest.TestCase):
                 command_cwd=elsewhere,
             )[0]
         self.assertEqual(Path(marker.read_text(encoding="utf-8")).resolve(), elsewhere.resolve())
-
-
-def _clear_readonly_tree(path: Path) -> None:
-    """Remove a tree whose entries may be read-only (the gate's exports).
-
-    `shutil.rmtree(onexc=)` is 3.12+ and the hosted runners hold 3.11, so the
-    entries are made writable first and removed with the version-agnostic
-    plain form.
-    """
-    if not path.exists():
-        return
-    for root, dirs, files in os.walk(path):
-        for name in (root, *(os.path.join(root, entry) for entry in dirs + files)):
-            os.chmod(name, 0o700)
-    shutil.rmtree(path)
 
 
 # Run as the build command: records how each named lease answers a request
@@ -2777,7 +3502,7 @@ class LeaseDowngradeTestCase(unittest.TestCase):
         self.lock.parent.mkdir(parents=True)
 
     def hold(self) -> OwnerLease:
-        holder = acquire_waiting(
+        holder = acquire_lease(
             OwnerLease(self.lock, {"root": "holder", "revision": "r"}, 60, mode=EXCLUSIVE), 60
         )
         self.addCleanup(holder.__exit__, None, None, None)
@@ -2844,7 +3569,7 @@ class LeaseDowngradeTestCase(unittest.TestCase):
                 holder.downgrade()
         self.assertEqual((holder.held, holder.handle), (False, None))
         holder.__exit__(None, None, None)
-        taker = acquire_waiting(
+        taker = acquire_lease(
             OwnerLease(self.lock, {"root": "next", "revision": "r"}, 60, mode=EXCLUSIVE), 0
         )
         self.addCleanup(taker.__exit__, None, None, None)
@@ -2876,7 +3601,7 @@ class LeaseDowngradeTestCase(unittest.TestCase):
         self.assertTrue(writer.held)
 
     def test_a_shared_lease_is_left_as_it_is(self) -> None:
-        reader = acquire_waiting(
+        reader = acquire_lease(
             OwnerLease(self.lock, {"root": "reader", "revision": "r"}, 60, mode=SHARED), 60
         )
         self.addCleanup(reader.__exit__, None, None, None)
@@ -3157,9 +3882,7 @@ class RepeatedExportPushTestCase(unittest.TestCase):
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
         )
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
@@ -3185,7 +3908,7 @@ class RepeatedExportPushTestCase(unittest.TestCase):
             for push in range(pushes):
                 export = self.base / ("export" if stable_path else f"export-{push}")
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -3260,9 +3983,7 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
         }.items():
             (self.d / relative).parent.mkdir(parents=True, exist_ok=True)
             (self.d / relative).write_text(text, encoding="utf-8")
-        git(self.d, "init", "-q")
-        git(self.d, "config", "user.name", "Atlas test")
-        git(self.d, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.d)
         subprocess.run(
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.d, env=self.environment, check=True, capture_output=True, timeout=120,
@@ -3287,9 +4008,7 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
             ["cargo", "generate-lockfile"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
         )
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
@@ -3312,7 +4031,7 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
                         os.environ["CARGO_BUILD_RUSTFLAGS"] = "-Cdebug-assertions=off"
                 export = self.stack / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 results.append(
                     identity.run_build(
@@ -3365,9 +4084,7 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
         }.items():
             (self.drepo / relative).parent.mkdir(parents=True, exist_ok=True)
             (self.drepo / relative).write_text(text, encoding="utf-8")
-        git(self.drepo, "init", "-q")
-        git(self.drepo, "config", "user.name", "Atlas test")
-        git(self.drepo, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.drepo)
         subprocess.run(
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.drepo, env=self.environment, check=True, capture_output=True, timeout=120,
@@ -3390,9 +4107,7 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
         )
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
@@ -3436,7 +4151,7 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
                     git(self.drepo, "commit", "-qam", "change d only")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 result = identity.run_build(
@@ -3514,9 +4229,7 @@ class CrossRepositoryPathDependencyTestCase(unittest.TestCase):
         }.items():
             (erepo / relative).parent.mkdir(parents=True, exist_ok=True)
             (erepo / relative).write_text(text, encoding="utf-8")
-        git(erepo, "init", "-q")
-        git(erepo, "config", "user.name", "Atlas test")
-        git(erepo, "config", "user.email", "atlas-test@example.invalid")
+        init_git(erepo)
         git(erepo, "add", ".")
         git(erepo, "commit", "-q", "-m", "e")
 
@@ -3629,9 +4342,7 @@ class SharedCommandKeyThreeStepTestCase(unittest.TestCase):
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
         )
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
@@ -3755,12 +4466,18 @@ class MultiPackageRunTestCase(unittest.TestCase):
         )
 
     def push(
-        self, gate: Path, command: list[str] | None = None, packages: tuple[str, ...] = ("a", "c")
+        self,
+        gate: Path,
+        command: list[str] | None = None,
+        packages: tuple[str, ...] = ("a", "c"),
+        record: tuple[str, ...] = (),
     ):
-        """One clippy step over `packages` from a fresh export of the source."""
+        """One clippy step building `packages` and recording `record` (default:
+        all of them), in the gate's export, cloned from the source when new."""
         export = gate / "nested" / "ws"
         export.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["git", "clone", "-q", str(self.source), str(export)], check=True)
+        if not export.exists():
+            subprocess.run(["git", "clone", "-q", str(self.source), str(export)], check=True)
         manifest = str(export / "Cargo.toml")
         self.log.unlink(missing_ok=True)
         with (
@@ -3770,13 +4487,14 @@ class MultiPackageRunTestCase(unittest.TestCase):
             return identity.run_build(
                 export,
                 export / "Cargo.toml",
-                packages,
+                record or packages,
                 self.base / "target",
                 command
                 or ["cargo", "clippy", "-q", "--manifest-path", manifest, "--locked", "--offline",
                     *(argument for package in packages for argument in ("-p", package))],
                 command_cwd=export,
                 command_key="atlas-pre-push",
+                selection=packages,
             )
 
     def invocations(self) -> list[list[str]]:
@@ -3798,13 +4516,78 @@ class MultiPackageRunTestCase(unittest.TestCase):
         self.assertEqual([cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"], [])
 
     def test_a_matched_package_is_not_cleaned_beside_a_stale_one(self) -> None:
-        self.push(self.base / "gate1", packages=("a",))
+        first = self.push(self.base / "gate1")
+        # The same step and commit with `c`'s record gone: `a` still matches.
+        first[1].record_path.unlink()
         second = self.push(self.base / "gate2")
         self.assertEqual([result.status for result in second], ["reused", "rebuilt"])
         self.assertEqual([result.cleaned for result in second], [False, True])
         cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
         # `c` alone: never `a`, nor `b`, which only `a`'s matched record names.
         self.assertEqual(cleans, [["c"]])
+
+    def test_a_stand_in_for_any_named_package_is_rebuilt(self) -> None:
+        """A record is matched against its own package's artifacts, whichever
+        package that is: with `c`'s recorded rmeta and rlib files holding other
+        bytes, `c` is rebuilt, and `a`, whose files are intact, is reused and
+        never cleaned. Matching only the first package's artifacts, and taking
+        the others' record as it stands, leaves `c` reused."""
+        self.push(self.base / "gate1")
+        deps = self.base / "target" / "debug" / "deps"
+        replaced = [
+            path
+            for path in sorted(deps.iterdir())
+            if re.fullmatch(r"libc-[0-9a-f]+[.](rmeta|rlib)", path.name)
+        ]
+        self.assertTrue(replaced, sorted(path.name for path in deps.iterdir()))
+        for path in replaced:
+            path.write_bytes(b"a stand-in for " + path.name.encode())
+        second = self.push(self.base / "gate2")
+        self.assertEqual([result.status for result in second], ["reused", "rebuilt"])
+        cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
+        self.assertEqual(cleans, [["c"]])
+
+    def test_a_matched_package_another_rule_cleaned_reports_rebuilt(self) -> None:
+        first = self.push(self.base / "gate1", packages=("a", "b"))
+        # `a`'s record gone: its rule cleans its closure, `b` with it, though
+        # `b`'s own record still matches.
+        first[0].record_path.unlink()
+        second = self.push(self.base / "gate2", packages=("a", "b"))
+        cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
+        self.assertEqual(cleans, [["a", "b"]])
+        self.assertEqual(
+            [(result.status, result.cleaned) for result in second],
+            [("rebuilt", True), ("rebuilt", True)],
+        )
+
+    def test_check_finds_a_batched_record_under_its_selection(self) -> None:
+        self.push(self.base / "gate1")
+        export = self.base / "gate1" / "nested" / "ws"
+        manifest = str(export / "Cargo.toml")
+
+        def checked(selection: tuple[str, ...]) -> tuple[int, str]:
+            with (
+                patch.dict(os.environ, self.environment, clear=True),
+                patch.object(identity, "_cargo_command", return_value=(sys.executable, str(self.wrapper))),
+            ):
+                code, value = check.check_record(
+                    export, "c", self.base / "target", manifest=export / "Cargo.toml",
+                    command=["cargo", "clippy", "-q", "--manifest-path", manifest, "--locked", "--offline",
+                             "-p", "a", "-p", "c"],
+                    command_cwd=export, command_key="atlas-pre-push", selection=selection,
+                )
+            return code, str(value["status"])
+
+        self.assertEqual(checked(("c", "a")), (0, "match"))
+        # `c` alone is another selection, whose record no run wrote.
+        self.assertEqual(checked(()), (2, "missing"))
+
+    def test_a_record_of_another_selection_never_matches(self) -> None:
+        self.push(self.base / "gate1", packages=("a",))
+        second = self.push(self.base / "gate2")
+        # `a` was recorded under `-p a`; `-p a -p c` may build other variants
+        # of its dependencies, so its record is not this step's.
+        self.assertEqual([result.status for result in second], ["rebuilt", "rebuilt"])
 
     def test_a_commit_cleans_the_union_of_the_per_package_rules_once(self) -> None:
         self.push(self.base / "gate1")
@@ -3820,11 +4603,298 @@ class MultiPackageRunTestCase(unittest.TestCase):
         self.assertEqual([result.status for result in second], ["reused", "rebuilt"])
         cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
         self.assertEqual(cleans, [["c"]])
+    def test_every_package_is_leased_and_each_member_held_exclusive(self) -> None:
+        self.push(self.base / "gate1")
+        target = self.base / "target"
+        lock = {name: str(package_target_lease_path(name, target)) for name in ("a", "b", "c")}
+        answers = self.base / "answers.json"
+        probe = self.base / "probe.py"
+        write_script(
+            probe,
+            LEASE_PROBE + "import subprocess\n"
+            "raise SystemExit(subprocess.run(sys.argv[4:]).returncode)\n",
+        )
+        requests = [
+            ["a", lock["a"], SHARED], ["c", lock["c"], SHARED],
+            ["b", lock["b"], SHARED], ["b", lock["b"], EXCLUSIVE],
+        ]
+        manifest = str(self.base / "gate2" / "nested" / "ws" / "Cargo.toml")
+        second = self.push(
+            self.base / "gate2",
+            [sys.executable, str(probe), str(SCRIPT.parent), str(answers), json.dumps(requests),
+             "cargo", "clippy", "-q", "--manifest-path", manifest, "--locked", "--offline",
+             "-p", "a", "-p", "c"],
+        )
+        self.assertEqual([result.status for result in second], ["reused", "reused"])
+        # Both members are written by the command: exclusive. `b`, which only
+        # `a`'s closure names, is read: shared, so a peer may read it too.
+        self.assertEqual(
+            json.loads(answers.read_text(encoding="utf-8")),
+            {"a:shared": "refused", "c:shared": "refused",
+             "b:shared": "granted", "b:exclusive": "refused"},
+        )
+
+    def test_each_record_names_its_own_package_artifacts(self) -> None:
+        """`c` named first: every later package's record lists its own files,
+        both when the push builds (exclusive) and when it reuses (shared)."""
+
+        def packages_named(result) -> set[str]:
+            return {
+                match.group(1)
+                for path in result.artifact_files
+                for part in path.parts
+                if (match := re.match(r"^(?:lib)?([abc])-[0-9a-f]+", part))
+            }
+
+        for gate, status in (("gate1", "rebuilt"), ("gate2", "reused")):
+            with self.subTest(gate=gate):
+                c, a = self.push(self.base / gate, packages=("c", "a"))
+                self.assertEqual([c.status, a.status], [status, status])
+                self.assertEqual(packages_named(c), {"c"})
+                self.assertEqual(packages_named(a), {"a", "b"})
+
+    def test_cargo_metadata_reads_do_not_grow_with_the_package_count(self) -> None:
+        """One owners read and one snapshot read per pass, whatever the
+        package count: a record loop that read the metadata for each
+        package (5 reads for two packages, 7 for four) fails this."""
+        real = subprocess.run
+
+        def reads(gate: str, packages: tuple[str, ...]) -> int:
+            count = 0
+
+            def counting(args, *rest, **options):
+                nonlocal count
+                if isinstance(args, (list, tuple)) and "metadata" in map(str, args):
+                    count += 1
+                return real(args, *rest, **options)
+
+            with patch.object(subprocess, "run", counting):
+                self.push(self.base / gate, packages=packages)
+            return count
+
+        for phase, (one, three) in {
+            "building": (("one1", ("a",)), ("three1", ("a", "b", "c"))),
+            "reusing": (("one2", ("a",)), ("three2", ("a", "b", "c"))),
+        }.items():
+            with self.subTest(phase=phase):
+                self.assertEqual(reads(*one), reads(*three))
+
+    def test_steps_of_one_selection_share_their_records(self) -> None:
+        """A push's steps build one package set, whatever each records: `c`
+        writes no artifact in the middle step, as a package with no test
+        target writes none for tests. The middle step reuses the record the
+        first wrote and the last reuses both, so the push cleans once when
+        its commit moved and never when it did not (steps naming `-p a -p c`,
+        then `-p a`, then `-p a -p c` cleaned on each of the three)."""
+        steps = [("a", "c"), ("a",), ("a", "c")]
+
+        def push(gate: str) -> list[list[str]]:
+            cleans: list[list[str]] = []
+            for record in steps:
+                self.push(self.base / gate, packages=("a", "c"), record=record)
+                cleans.extend(
+                    cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"
+                )
+            return cleans
+
+        self.assertEqual(push("gate1"), [["a", "b", "c"]])
+        self.assertEqual(push("gate2"), [])
+        (self.source / "c" / "src" / "lib.rs").write_text(
+            "//! c\n/// c\npub fn c() -> u32 { 4 }\n", encoding="utf-8"
+        )
+        git(self.source, "commit", "-q", "-am", "edit c")
+        self.assertEqual(push("gate3"), [["a", "b", "c"]])
+        self.assertEqual(push("gate4"), [])
+
+    def test_a_package_outside_the_selection_is_refused(self) -> None:
+        with self.assertRaisesRegex(identity.IdentityError, "not all in the selection"):
+            identity.run_build(
+                self.source,
+                self.source / "Cargo.toml",
+                ("a", "c"),
+                self.base / "target",
+                ["cargo", "clippy"],
+                selection=("a",),
+            )
+
+    def test_every_phase_of_a_run_claims_all_its_scopes_under_one_arrival(self) -> None:
+        claims: list[tuple[list[str], int | None, str | None]] = []
+        phases: list[int] = []
+        real = identity.acquire_claim
+
+        def recording(leases, wait, deadline, arrival, run, phase):
+            claims.append(([str(lease.owner["package"]) for lease in leases], arrival, run))
+            phases.append(phase)
+            return real(leases, wait, deadline, arrival, run, phase)
+
+        with patch.object(identity, "acquire_claim", side_effect=recording):
+            self.push(self.base / "gate1", packages=("c", "a"))
+        # A first push has no record: one claim to read it, one to clean and
+        # build. Each takes every scope, whatever order the packages were
+        # named in, and the second keeps the first's place, `(arrival, run)`,
+        # in every queue.
+        self.assertGreaterEqual(len(claims), 2)
+        self.assertTrue(all(names == ["a", "b", "c"] for names, _, _ in claims))
+        self.assertEqual(len({arrival for _, arrival, _ in claims}), 1)
+        self.assertEqual(len({run for _, _, run in claims}), 1)
+        self.assertIsNotNone(claims[0][1])
+        self.assertIsNotNone(claims[0][2])
+        # The claims are numbered in the order the run takes them, however
+        # many the run makes (a clean that widens makes a third).
+        self.assertEqual(phases, list(range(1, len(claims) + 1)))
+
+    def test_a_dependency_change_in_any_package_refuses_the_record(self) -> None:
+        marker = self.base / "built"
+        real = identity._dependency_data
+
+        def moving(*args, **kwargs):
+            snapshots = real(*args, **kwargs)
+            if marker.exists():
+                # After the command: the last package's closure moved.
+                snapshots = {**snapshots, "c": {**snapshots["c"], "digest": "moved"}}
+            return snapshots
+
+        with patch.object(identity, "_dependency_data", side_effect=moving):
+            with self.assertRaisesRegex(identity.IdentityError, "dependency graph changed"):
+                self.push(
+                    self.base / "gate1",
+                    [sys.executable, "-c", f"open({str(marker)!r}, 'w').close()"],
+                )
+        self.assertEqual(self.records(), [])
+
+    def test_git_stamps_are_written_for_every_package(self) -> None:
+        stamped: list[tuple[str, bool]] = []
+        real = identity._write_git_stamps
+
+        def recording(dependencies, directory, names, building):
+            stamped.append((str(dependencies["root"]), building))
+            return real(dependencies, directory, names, building)
+
+        with patch.object(identity, "_write_git_stamps", side_effect=recording):
+            self.push(self.base / "gate1")
+        a, c = "workspace:a#a@0.1.0", "workspace:c#c@0.1.0"
+        self.assertEqual(sorted(stamped), [(a, False), (a, True), (c, False), (c, True)])
 
     def test_a_failing_command_writes_no_record(self) -> None:
         with self.assertRaisesRegex(identity.IdentityError, "exit code 3"):
             self.push(self.base / "gate1", [sys.executable, "-c", "raise SystemExit(3)"])
         self.assertEqual(self.records(), [])
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class SelectionVariantTestCase(unittest.TestCase):
+    """`a` uses `d` without features and `b` with `extra`, which changes
+    `d::value()`. Built together, Cargo unifies `d` to its `extra` variant;
+    built alone, `a` links `d`'s plain variant, under another file name. A
+    record written by a `-p a -p b` step names only the unified variant, so it
+    must not stand in for a later `-p a` step: a peer's plain `cargo build -p
+    a` of other `d` source in between would be linked unseen.
+    """
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-selection-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.environment = {
+            key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
+        }
+        self.source = self.base / "src_repo"
+        self.write_workspace(self.source, value="1")
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        git(self.source, "init", "-q")
+        git(self.source, "config", "user.name", "Atlas test")
+        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "source")
+        # One export reused in place, as the hook reuses its checkout path.
+        self.export = self.base / "gate" / "nested" / "ws"
+        self.export.parent.mkdir(parents=True)
+        subprocess.run(["git", "clone", "-q", str(self.source), str(self.export)], check=True)
+        self.target = self.base / "target"
+
+    @staticmethod
+    def write_workspace(root: Path, value: str) -> None:
+        for relative, text in {
+            "Cargo.toml": '[workspace]\nmembers = ["a", "b", "d"]\nresolver = "2"\n',
+            "a/Cargo.toml": (
+                '[package]\nname = "a"\nversion = "0.1.0"\nedition = "2021"\n'
+                '[dependencies]\nd = { path = "../d" }\n'
+            ),
+            "a/src/main.rs": 'fn main() { println!("{}", d::value()); }\n',
+            "b/Cargo.toml": (
+                '[package]\nname = "b"\nversion = "0.1.0"\nedition = "2021"\n'
+                '[dependencies]\nd = { path = "../d", features = ["extra"] }\n'
+            ),
+            "b/src/lib.rs": "pub fn b() -> u32 { d::value() }\n",
+            "d/Cargo.toml": (
+                '[package]\nname = "d"\nversion = "0.1.0"\nedition = "2021"\n'
+                "[features]\nextra = []\n"
+            ),
+            "d/src/lib.rs": (
+                f"pub fn value() -> u32 {{ if cfg!(feature = \"extra\") {{ 100 + {value} }} else {{ {value} }} }}\n"
+            ),
+        }.items():
+            (root / relative).parent.mkdir(parents=True, exist_ok=True)
+            (root / relative).write_text(text, encoding="utf-8")
+
+    def gate(self, packages: tuple[str, ...]) -> list[list[str] | None]:
+        """One build step over `packages`; the packages each `cargo clean` named."""
+        log = self.base / "cargo.log"
+        log.unlink(missing_ok=True)
+        wrapper = self.base / "cargo_log.py"
+        wrapper.write_text(
+            "import json, subprocess, sys\n"
+            f"with open({str(log)!r}, 'a', encoding='utf-8') as stream:\n"
+            "    stream.write(json.dumps(['cargo', *sys.argv[1:]]) + '\\n')\n"
+            "raise SystemExit(subprocess.run(['cargo', *sys.argv[1:]]).returncode)\n",
+            encoding="utf-8",
+        )
+        manifest = str(self.export / "Cargo.toml")
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            patch.object(identity, "_cargo_command", return_value=(sys.executable, str(wrapper))),
+        ):
+            identity.run_build(
+                self.export, self.export / "Cargo.toml", packages, self.target,
+                ["cargo", "build", "-q", "--manifest-path", manifest, "--offline",
+                 *(argument for package in packages for argument in ("-p", package))],
+                command_cwd=self.export, command_key="atlas-pre-push",
+            )
+        return [
+            cleaned_names(argv)
+            for argv in map(json.loads, log.read_text(encoding="utf-8").splitlines())
+            if argv[1] == "clean"
+        ]
+
+    def run_a(self) -> str:
+        binary = self.target / "debug" / ("a.exe" if os.name == "nt" else "a")
+        return subprocess.run([str(binary)], capture_output=True, text=True, check=True).stdout.strip()
+
+    def test_a_record_of_one_selection_does_not_stand_in_for_another(self) -> None:
+        self.gate(("a", "b"))
+        # The unified variant: `a` built beside `b` links `d` with `extra`.
+        self.assertEqual(self.run_a(), "101")
+        peer = self.base / "peer"
+        subprocess.run(["git", "clone", "-q", str(self.source), str(peer)], check=True)
+        self.write_workspace(peer, value="2")
+        built = subprocess.run(
+            ["cargo", "build", "-q", "--offline", "--manifest-path", str(peer / "Cargo.toml"), "-p", "a"],
+            cwd=peer, env={**self.environment, "CARGO_TARGET_DIR": str(self.target)},
+            capture_output=True, text=True, timeout=300,
+        )
+        self.assertEqual(built.returncode, 0, built.stderr)
+        self.assertEqual(self.run_a(), "2")
+        cleans = self.gate(("a",))
+        # No record names `-p a`'s variant of `d`, so the closure is cleaned
+        # and rebuilt from this checkout's source.
+        self.assertEqual(cleans, [["a", "d"]])
+        self.assertEqual(self.run_a(), "1")
+        # The `-p a` record now exists: the same step again cleans nothing.
+        self.assertEqual(self.gate(("a",)), [])
 
 
 @pytest.mark.slow
@@ -3849,9 +4919,7 @@ class PathDependencyFeatureChangeTestCase(unittest.TestCase):
             for relative, text in files.items():
                 (root / relative).parent.mkdir(parents=True, exist_ok=True)
                 (root / relative).write_text(text, encoding="utf-8")
-            git(root, "init", "-q")
-            git(root, "config", "user.name", "Atlas test")
-            git(root, "config", "user.email", "atlas-test@example.invalid")
+            init_git(root)
             subprocess.run(
                 ["cargo", "generate-lockfile", "--offline"],
                 cwd=root, env=self.environment, check=True, capture_output=True, timeout=120,
@@ -3910,7 +4978,7 @@ class PathDependencyFeatureChangeTestCase(unittest.TestCase):
                     git(self.source, "commit", "-qam", "enable x/f")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -3952,9 +5020,7 @@ class DependencyAdditionTestCase(unittest.TestCase):
             for relative, text in files.items():
                 (root / relative).parent.mkdir(parents=True, exist_ok=True)
                 (root / relative).write_text(text, encoding="utf-8")
-            git(root, "init", "-q")
-            git(root, "config", "user.name", "Atlas test")
-            git(root, "config", "user.email", "atlas-test@example.invalid")
+            init_git(root)
             self.lock(root)
             git(root, "add", ".")
             git(root, "commit", "-q", "-m", "init")
@@ -4021,7 +5087,7 @@ class DependencyAdditionTestCase(unittest.TestCase):
                         git(self.source, "commit", "-qam", f"relock before push {push}")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -4072,9 +5138,7 @@ class GitDependencyTestCase(unittest.TestCase):
             }.items():
                 (root / relative).parent.mkdir(parents=True, exist_ok=True)
                 (root / relative).write_text(text, encoding="utf-8")
-            git(root, "init", "-q")
-            git(root, "config", "user.name", "Atlas test")
-            git(root, "config", "user.email", "atlas-test@example.invalid")
+            init_git(root)
             self.cargo(root, "generate-lockfile", "--offline")
             git(root, "add", ".")
             git(root, "commit", "-q", "-m", name)
@@ -4085,9 +5149,7 @@ class GitDependencyTestCase(unittest.TestCase):
             (self.source / relative).parent.mkdir(parents=True, exist_ok=True)
             (self.source / relative).write_text(text, encoding="utf-8")
         self.cargo(self.source, "generate-lockfile")
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
         self.second = self.base / "second"
@@ -4098,9 +5160,7 @@ class GitDependencyTestCase(unittest.TestCase):
             (self.second / relative).parent.mkdir(parents=True, exist_ok=True)
             (self.second / relative).write_text(text, encoding="utf-8")
         self.cargo(self.second, "generate-lockfile")
-        git(self.second, "init", "-q")
-        git(self.second, "config", "user.name", "Atlas test")
-        git(self.second, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.second)
         git(self.second, "add", ".")
         git(self.second, "commit", "-q", "-m", "second")
 
@@ -4156,7 +5216,7 @@ class GitDependencyTestCase(unittest.TestCase):
                     before[push]()
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 root, package = (self.second, "q") if push in second else (self.source, "p")
                 shutil.copytree(root, export, copy_function=shutil.copy)
                 cleaned.append([])
@@ -4382,9 +5442,7 @@ class GitManifestEditTestCase(unittest.TestCase):
                 ["cargo", "generate-lockfile"],
                 cwd=root, env=self.environment, check=True, capture_output=True, timeout=120,
             )
-        git(root, "init", "-q")
-        git(root, "config", "user.name", "Atlas test")
-        git(root, "config", "user.email", "atlas-test@example.invalid")
+        init_git(root)
         git(root, "add", ".")
         git(root, "commit", "-q", "-m", "init")
 
@@ -4473,9 +5531,7 @@ class RootProfileChangeTestCase(unittest.TestCase):
         }.items():
             (self.d / relative).parent.mkdir(parents=True, exist_ok=True)
             (self.d / relative).write_text(text, encoding="utf-8")
-        git(self.d, "init", "-q")
-        git(self.d, "config", "user.name", "Atlas test")
-        git(self.d, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.d)
         subprocess.run(
             ["cargo", "generate-lockfile", "--offline"],
             cwd=self.d, env=self.environment, check=True, capture_output=True, timeout=120,
@@ -4501,9 +5557,7 @@ class RootProfileChangeTestCase(unittest.TestCase):
             ["cargo", "generate-lockfile"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
         )
-        git(self.source, "init", "-q")
-        git(self.source, "config", "user.name", "Atlas test")
-        git(self.source, "config", "user.email", "atlas-test@example.invalid")
+        init_git(self.source)
         git(self.source, "add", ".")
         git(self.source, "commit", "-q", "-m", "source")
 
@@ -4526,7 +5580,7 @@ class RootProfileChangeTestCase(unittest.TestCase):
                     git(self.source, "commit", "-qam", "profile opt-level 1")
                 export = self.base / f"export-{push}"
                 if export.exists():
-                    _clear_readonly_tree(export)
+                    clear_readonly_tree(export)
                 shutil.copytree(self.source, export, copy_function=shutil.copy)
                 cleaned.append([])
                 identity.run_build(
@@ -4620,17 +5674,49 @@ class CommandLineTestCase(unittest.TestCase):
             redirect_stdout(stdout),
         ):
             code = self.cli.main([
-                "run", "--root", str(self.root), "--package", "demo", "--package", "other",
+                "run", "--root", str(self.root), "--package", "demo", "--package", "demo",
+                "--package", "other",
                 "--target-dir", str(self.target), "--manifest", str(self.root / "Cargo.toml"),
                 "--", sys.executable, str(self.build),
             ])
         self.assertEqual(code, 0)
-        self.assertEqual(run_build.call_args.args[2], ("demo", "other"))
+        # `run_build` returns one result for the repeated `demo`.
+        self.assertEqual(run_build.call_args.args[2], ("demo", "demo", "other"))
         lines = [json.loads(line) for line in stdout.getvalue().splitlines()]
         self.assertEqual(
             [(line["package"], line["status"], line["cleaned"]) for line in lines],
             [("demo", "reused", False), ("other", "rebuilt", True)],
         )
+
+    def test_run_passes_the_selection_through(self) -> None:
+        results = (identity.BuildResult("reused", self.target / "demo.json", False, ()),)
+        with (
+            patch.object(self.cli, "run_build", return_value=results) as run_build,
+            redirect_stdout(io.StringIO()),
+        ):
+            code = self.cli.main([
+                "run", "--root", str(self.root), "--package", "demo",
+                "--selection", "demo", "--selection", "other",
+                "--target-dir", str(self.target), "--manifest", str(self.root / "Cargo.toml"),
+                "--", sys.executable, str(self.build),
+            ])
+        self.assertEqual(code, 0)
+        self.assertEqual(run_build.call_args.args[2], ("demo",))
+        self.assertEqual(run_build.call_args.kwargs["selection"], ["demo", "other"])
+
+    def test_check_passes_the_selection_through(self) -> None:
+        stdout = io.StringIO()
+        with (
+            patch.object(self.cli, "check_record", return_value=(0, {"status": "match"})) as check_record,
+            redirect_stdout(stdout),
+        ):
+            code = self.cli.main([
+                "check", "--root", str(self.root), "--package", "demo",
+                "--selection", "demo", "--selection", "other",
+                "--target-dir", str(self.target), "--manifest", str(self.root / "Cargo.toml"),
+            ])
+        self.assertEqual((code, json.loads(stdout.getvalue())), (0, {"status": "match"}))
+        self.assertEqual(check_record.call_args.args[-1], ["demo", "other"])
 
     def pre_push_released(self, lease_seconds: int, held_on: float) -> tuple[int, str]:
         """Run the pre-push entry point against a holder that releases only after
@@ -4670,16 +5756,35 @@ class CommandLineTestCase(unittest.TestCase):
 
     def test_the_pre_push_wait_ends_at_the_wait_bound(self) -> None:
         lock = package_target_lease_path("demo", build_source._canonical(self.target))
-        hold_lease(self, lock, self.target, 600, 60)
-        started = time.monotonic()
+        holder = hold_lease(self, lock, self.target, 600, 600)
+        requested: list[int | None] = []
+        real_acquire = identity.acquire_claim
+        clock = RecordedClock()
+
+        def recording_acquire(leases, wait_seconds, deadline_ns=None, *args, **kwargs):
+            requested.append(deadline_ns)
+            # The run fixes its deadline once, when it starts: exactly the
+            # 2 s bound after its one clock read. A deadline of any other
+            # length fails whatever the host's speed, and it fails here,
+            # before the run waits it out against the holder.
+            self.assertEqual(len(clock.reads), 1)
+            self.assertEqual(deadline_ns, clock.reads[0] + 2_000_000_000)
+            return real_acquire(leases, wait_seconds, deadline_ns, *args, **kwargs)
+
         stderr = io.StringIO()
-        with redirect_stderr(stderr):
+        with (
+            redirect_stderr(stderr),
+            patch.object(identity, "acquire_claim", side_effect=recording_acquire),
+            patch.object(identity, "time", clock),
+        ):
             code = self.pre_push("--lease-wait-seconds", "2")
-        elapsed = time.monotonic() - started
+        refused_ns = time.monotonic_ns()
         self.assertEqual(code, 1)
-        self.assertGreaterEqual(elapsed, 2)
-        # The holder's 600 s lease and 60 s hold both outlast the bound.
-        self.assertLess(elapsed, 30)
+        # The refusal came only after that deadline.
+        self.assertGreaterEqual(refused_ns, requested[0])
+        # The run gave up at its bound with the holder still holding: it did
+        # not wait the holder out, however long the host took to give up.
+        self.assertIsNone(holder.poll())
         self.assertIn(
             "still held by holder-root at holder-revision after waiting 2 s (--lease-wait-seconds)",
             stderr.getvalue(),

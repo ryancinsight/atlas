@@ -12,24 +12,24 @@ root `.cargo/config.toml`) rewrites working-tree locks on every local build: it
 drops the `source` line of every patched package and appends `[[patch.unused]]`
 tables. That rewrite is derived state, never an edit -- `restore` puts it back.
 
-Modes:
+The rule itself, and every mode that judges a lock against it -- the sweep
+over committed locks, the staged check of the pre-commit hook, and regeneration
+outside the overlay -- live in `lockfile.py`, the stack's one lockfile checker.
+This script keeps what acts on the stack as a whole:
 
-    check       fail when any *committed* lock is in the overlay-stripped form
-    status      same measurement, reported for committed and working copies
-    staged      same rule against one member's staged locks (pre-commit hook)
+    status      the same measurement, reported for committed and working copies
     restore     revert working-tree locks whose only diff from HEAD is the
                 overlay rewrite (refuses on any other difference)
-    regenerate  rebuild a member's lock in standalone form, by invoking cargo
-                from a directory outside the Atlas tree so the overlay is not
-                discovered
+    sync-hooks, publish-hooks
+                deploy the owned hooks into the members
     install-hooks
                 per-clone bootstrap: point member `core.hooksPath` at
                 scripts/git-hooks so every member runs the owned pre-commit
                 and pre-push hooks, whatever branch its tree has checked out
 
-`check` is the CI gate. It is deliberately narrow: it flags only a package that
-is *present in the lock* yet locked without a source despite being declared as
-a git dependency. A member with no git dependencies has nothing to flag, and a
+The rule is deliberately narrow: it flags only a package that is *present in
+the lock* yet locked without a source despite being declared as a git
+dependency. A member with no git dependencies has nothing to flag, and a
 `[workspace.dependencies]` entry no crate actually uses is legitimately absent
 from the lock -- neither is a violation, and a naive `git+` line count would
 misreport both.
@@ -43,257 +43,101 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 from pathlib import Path
+from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from atlas_git_process import GitProcessError, execute as execute_git  # noqa: E402
+import lockfile  # noqa: E402
+from atlas_git_process import (  # noqa: E402
+    GitProcessError,
+    GitProcessResult,
+    clean_process_env,
+    execute as execute_git,
+    execute_process,
+)
+from atlas_board_items import ITEM_ID as BOARD_ITEM_HEADING  # noqa: E402
 from atlas_stack import ROOT, registered_member_names  # noqa: E402
 
 REPOS = ROOT / "repos"
 # Each member's in-tree copy of scripts/git-hooks, written by `sync-hooks`.
 MEMBER_HOOK_COPY = ".githooks"
-SKIP_DIRS = {"target", ".git", "node_modules"}
-PATCH_UNUSED = "[[patch.unused]]"
 FIRST_PARTY_HOST = "github.com/ryancinsight/"
 
 
 def run(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
-    proc = subprocess.run(
-        args, cwd=None if cwd is None else str(cwd), capture_output=True, encoding="utf-8", errors="replace"
-    )
-    return proc.returncode, proc.stdout, proc.stderr
+    """Run a command with a deadline that ends its whole process tree.
 
-
-def tracked_locks(repo: Path) -> list[str]:
-    code, out, _ = run("git", "-C", str(repo), "ls-files", "*Cargo.lock")
-    if code != 0:
-        return []
-    return sorted(line.strip() for line in out.splitlines() if line.strip())
-
-
-def _dep_tables(data: dict):
-    for key in ("dependencies", "dev-dependencies", "build-dependencies"):
-        if isinstance(data.get(key), dict):
-            yield data[key]
-    workspace = data.get("workspace", {})
-    if isinstance(workspace.get("dependencies"), dict):
-        yield workspace["dependencies"]
-    for target in (data.get("target") or {}).values():
-        if isinstance(target, dict):
-            for key in ("dependencies", "dev-dependencies", "build-dependencies"):
-                if isinstance(target.get(key), dict):
-                    yield target[key]
-
-
-def workspace_facts(
-    ws_root: Path, nested: list[Path], repo: Path
-) -> tuple[set[str], set[str], bool]:
-    """Return (locally defined packages, packages declared as git deps, fixture).
-
-    `nested` lists sibling workspace roots that own their own lock; manifests
-    beneath them belong to that lock, not this one.
-
-    `fixture` marks a workspace that depends on sibling repositories by relative
-    path (`../../../hephaestus/...`). Such a workspace exists only inside a full
-    Atlas checkout -- it can never resolve standalone, so the standalone-form
-    rule does not apply to its lock. This is the one exemption (ADR-0021) and it
-    is reported rather than skipped silently.
+    The `staged` pre-commit mode must read the index git named, so
+    `GIT_INDEX_FILE` stays in the environment (`execute_process` keeps it when
+    the caller passes it); every other repository variable is scrubbed. A
+    deadline or a launch failure raises `RuntimeError`.
     """
-    local: set[str] = set()
-    git_deps: set[str] = set()
-    fixture = False
-    for manifest in ws_root.glob("**/Cargo.toml"):
-        if {part.lower() for part in manifest.parts} & SKIP_DIRS:
-            continue
-        if any(other in manifest.parents for other in nested):
-            continue
-        try:
-            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, OSError):
-            continue
-        package = data.get("package")
-        if isinstance(package, dict) and isinstance(package.get("name"), str):
-            local.add(package["name"])
-        for table in _dep_tables(data):
-            for name, spec in table.items():
-                if not isinstance(spec, dict):
-                    continue
-                if isinstance(spec.get("git"), str):
-                    git_deps.add(spec.get("package", name))
-                elif isinstance(spec.get("path"), str):
-                    target = (manifest.parent / spec["path"]).resolve()
-                    root = repo.resolve()
-                    if target != root and root not in target.parents:
-                        fixture = True
-    return local, git_deps, fixture
-
-
-def violations(lock_text: str, local: set[str], git_deps: set[str]) -> list[str]:
-    """Overlay-stripping violations in one lock's text.
-
-    Two independent signatures, both produced only by resolving under a
-    `[patch]` overlay and neither reachable from a clean standalone resolve:
-
-    1. a `[[patch.unused]]` table, and
-    2. a package declared as a git dependency, present in the lock, resolved
-       with no `source` -- i.e. locked as a local path package although no
-       manifest in the workspace defines it.
-    """
-    found: list[str] = []
     try:
-        data = tomllib.loads(lock_text)
-    except tomllib.TOMLDecodeError as exc:
-        return [f"unparseable lock: {exc}"]
-
-    unused = lock_text.count(PATCH_UNUSED)
-    if unused:
-        found.append(f"{unused} [[patch.unused]] table(s): overlay residue")
-
-    sources: dict[str, list[str | None]] = {}
-    for package in data.get("package", []):
-        sources.setdefault(package.get("name"), []).append(package.get("source"))
-
-    for name in sorted(git_deps - local):
-        entries = sources.get(name)
-        if entries is None:
-            continue  # declared but unused (e.g. an idle [workspace.dependencies] row)
-        if not any(source and source.startswith("git+") for source in entries):
-            found.append(f"`{name}` locked without a git source (stripped)")
-    return found
+        result = execute_process(
+            args, cwd=cwd, env=dict(os.environ), timeout=GIT_DEADLINE_SECONDS
+        )
+    except GitProcessError as error:
+        raise RuntimeError(str(error)) from error
+    return (
+        result.returncode,
+        result.stdout.decode("utf-8", errors="replace"),
+        result.stderr.decode("utf-8", errors="replace"),
+    )
 
 
-def _units_under(label: str, repo: Path) -> list[tuple[str, Path, str, set[str], set[str], bool]]:
-    """Every tracked lock in one git repository, with the facts to judge it."""
-    locks = tracked_locks(repo)
-    roots = [(repo / lock).parent for lock in locks]
-    units = []
-    for lock in locks:
-        ws_root = (repo / lock).parent
-        nested = [r for r in roots if r != ws_root and ws_root in r.parents]
-        local, git_deps, fixture = workspace_facts(ws_root, nested, repo)
-        units.append((label, repo, lock, local, git_deps, fixture))
-    return units
+class LockUnit(NamedTuple):
+    """One tracked lock at HEAD, with the facts that judge it."""
+
+    label: str
+    repository: Path
+    lock: str
+    facts: lockfile.WorkspaceFacts
+    committed: str
 
 
-def lock_units() -> list[tuple[str, Path, str, set[str], set[str], bool]]:
-    """(label, repository, lock path relative to it, local, git deps, fixture).
+def lock_units() -> list[LockUnit]:
+    """Every tracked lock at HEAD of the registered members and the superproject.
 
-    Covers the registered members and the superproject itself. The
-    superproject matters because its own tool workspaces live under the stack
-    root, so a cargo run inside one walks up into the development overlay
+    The superproject matters because its own tool workspaces live under the
+    stack root, so a cargo run inside one walks up into the development overlay
     exactly as a member's does and its lock is rewritten the same way -- while
     being tracked here rather than in a submodule, which is how two tool locks
-    reached `main` carrying sixty-one `[[patch.unused]]` tables each before
-    this looked at them.
+    reached `main` carrying sixty-one `[[patch.unused]]` tables each.
     """
+    repositories = [(member, REPOS / member) for member in sorted(registered_member_names())]
     units = []
-    for member in sorted(registered_member_names()):
-        repo = REPOS / member
-        if not repo.is_dir():
+    for label, repository in [*repositories, ("atlas", ROOT)]:
+        if not repository.is_dir():
             continue
-        units.extend(_units_under(member, repo))
-    units.extend(_units_under("atlas", ROOT))
+        try:
+            texts = lockfile.tracked_texts(repository, staged=False)
+        except lockfile.GitUnavailable as error:
+            print(f"warning: {label}: locks not read: {error}", file=sys.stderr)
+            continue
+        for lock, facts in lockfile.workspace_units(texts).items():
+            units.append(LockUnit(label, repository, lock, facts, texts[lock]))
     return units
-
-
-def committed_text(repo: Path, lock: str) -> str | None:
-    code, out, _ = run("git", "-C", str(repo), "show", f"HEAD:{lock}")
-    return out if code == 0 else None
-
-
-def cmd_check(_args) -> int:
-    failures = 0
-    checked = 0
-    for member, repo, lock, local, git_deps, fixture in lock_units():
-        text = committed_text(repo, lock)
-        if text is None:
-            print(f"::warning::{member}/{lock}: not readable at HEAD; skipped")
-            continue
-        if fixture:
-            print(f"exempt (in-tree fixture, not standalone-consumable): {member}/{lock}")
-            continue
-        checked += 1
-        for problem in violations(text, local, git_deps):
-            failures += 1
-            print(f"LOCK FORM VIOLATION: {member}/{lock}: {problem}")
-    if failures:
-        print(
-            f"\n{failures} violation(s) across {checked} committed lock(s).\n"
-            "A committed lock must resolve standalone: every git dependency it\n"
-            "resolves carries its `source = \"git+...\"` line and no\n"
-            "[[patch.unused]] residue (ADR-0021).\n"
-            "Repair without touching the shared overlay:\n"
-            "  python scripts/atlas-lock-form.py regenerate <member>\n"
-            "Never `git add` a lock dirtied by a local build; restore it first:\n"
-            "  python scripts/atlas-lock-form.py restore"
-        )
-        return 1
-    print(f"lock form clean: {checked} committed lock(s) resolve standalone")
-    return 0
-
-
-def cmd_staged(args) -> int:
-    """Gate one member's *staged* locks -- the member-side pre-commit hook.
-
-    `check` guards integration; this guards the commit that would create the
-    violation in the first place, which is where the churn actually escapes:
-    a `git add` of a lock a local build has just rewritten.
-    """
-    repo = Path(args.repo or ".").resolve()
-    code, out, _ = run("git", "-C", str(repo), "diff", "--cached", "--name-only")
-    staged = {line.strip() for line in out.splitlines() if line.strip().endswith("Cargo.lock")}
-    if code != 0 or not staged:
-        return 0
-    units = {
-        lock: (local, deps, fixture)
-        for _member, unit_repo, lock, local, deps, fixture in lock_units()
-        if unit_repo.resolve() == repo
-    }
-    failures = 0
-    for lock in sorted(staged):
-        if lock not in units:
-            continue
-        local, deps, fixture = units[lock]
-        if fixture:
-            continue
-        blob_code, blob, _ = run("git", "-C", str(repo), "show", f":{lock}")
-        if blob_code != 0:
-            continue
-        for problem in violations(blob, local, deps):
-            failures += 1
-            print(f"LOCK FORM VIOLATION (staged): {lock}: {problem}")
-    if failures:
-        print(
-            "\nThis lock was rewritten by the stack [patch] overlay, not edited.\n"
-            "Unstage it and restore the committed form:\n"
-            "  git restore --staged Cargo.lock\n"
-            "  python <atlas>/scripts/atlas-lock-form.py restore\n"
-            "To change the lock deliberately, regenerate it outside the overlay:\n"
-            "  python <atlas>/scripts/atlas-lock-form.py regenerate <member>"
-        )
-        return 1
-    return 0
 
 
 def cmd_status(_args) -> int:
     print(f"{'member/lock':<44} {'HEAD':<10} {'worktree':<10}")
-    for member, repo, lock, local, git_deps, fixture in lock_units():
-        head = committed_text(repo, lock)
-        path = repo / lock
+    for unit in lock_units():
+        path = unit.repository / unit.lock
         work = path.read_text(encoding="utf-8") if path.exists() else None
 
-        def verdict(text: str | None, fixture=fixture, local=local, git_deps=git_deps) -> str:
+        def verdict(text: str | None, facts=unit.facts) -> str:
             if text is None:
                 return "missing"
-            if fixture:
+            if facts.fixture:
                 return "exempt"
-            problems = violations(text, local, git_deps)
-            if problems:
+            if lockfile.violations(text, facts.local, facts.git_dependencies):
                 return "STRIPPED"
-            return "ok" if git_deps - local else "no-git-deps"
+            return "ok" if facts.git_dependencies - facts.local else "no-git-deps"
 
-        print(f"{member + '/' + lock:<44} {verdict(head):<10} {verdict(work):<10}")
+        label = f"{unit.label}/{unit.lock}"
+        print(f"{label:<44} {verdict(unit.committed):<10} {verdict(work):<10}")
     return 0
 
 
@@ -319,7 +163,7 @@ def _strip_only(head_text: str, work_text: str) -> bool:
     repair towards the committed form, not churn away from it; reverting it
     would throw the fix away. Churn only ever adds residue.
     """
-    if work_text.count(PATCH_UNUSED) < head_text.count(PATCH_UNUSED):
+    if work_text.count(lockfile.PATCH_UNUSED) < head_text.count(lockfile.PATCH_UNUSED):
         return False
     try:
         head = tomllib.loads(head_text)
@@ -361,15 +205,15 @@ def _strip_only(head_text: str, work_text: str) -> bool:
 
 def cmd_restore(_args) -> int:
     restored, kept = [], []
-    for member, repo, lock, local, git_deps, fixture in lock_units():
+    for unit in lock_units():
+        member, repo, lock, head = unit.label, unit.repository, unit.lock, unit.committed
         path = repo / lock
-        head = committed_text(repo, lock)
-        if head is None or not path.exists() or fixture:
+        if not path.exists() or unit.facts.fixture:
             continue
         work = path.read_text(encoding="utf-8")
         if work == head:
             continue
-        if violations(head, local, git_deps):
+        if lockfile.violations(head, unit.facts.local, unit.facts.git_dependencies):
             kept.append(f"{member}/{lock} (committed lock itself violates; "
                         "the working copy may be the repair -- left alone)")
             continue
@@ -386,63 +230,6 @@ def cmd_restore(_args) -> int:
         print(f"kept: {line}")
     print(f"\n{len(restored)} restored, {len(kept)} left for review")
     return 0
-
-
-def _cargo_outside(manifest: Path, *extra: str) -> subprocess.CompletedProcess:
-    """Resolve `manifest` with the stack overlay out of scope.
-
-    Cargo discovers `.cargo/config.toml` upward from the *current directory*,
-    not from the manifest path. Running from a scratch directory outside the
-    Atlas tree is therefore what makes this resolve against git rather than the
-    local working trees -- and it does so without toggling the shared overlay
-    out from under concurrent peers.
-    """
-    with tempfile.TemporaryDirectory(prefix="atlas-lock-") as scratch:
-        env = dict(os.environ)
-        # Leaving the overlay's scope also leaves `[build] target-dir` behind,
-        # so cargo would default to a per-member `target/` -- the cache fork
-        # the shared root exists to prevent. Name the canonical shared path
-        # explicitly: this is the value the config would have supplied, not an
-        # override of it.
-        env["CARGO_TARGET_DIR"] = str(ROOT / "target")
-        return subprocess.run(
-            [
-                "cargo", "metadata", "--format-version", "1",
-                "--manifest-path", str(manifest), *extra,
-            ],
-            cwd=scratch,
-            capture_output=True,
-            encoding="utf-8", errors="replace",
-            env=env,
-        )
-
-
-def cmd_regenerate(args) -> int:
-    """Repair locks into standalone form, then prove they resolve `--locked`.
-
-    `cargo metadata` re-resolves only what the lock cannot supply, so a
-    stripped source is restored without gratuitously advancing every unrelated
-    pin -- which `cargo generate-lockfile` would do.
-    """
-    members = args.members or sorted(registered_member_names())
-    failed = 0
-    for member in members:
-        manifest = REPOS / member / "Cargo.toml"
-        if not manifest.is_file():
-            print(f"{member}: no root Cargo.toml; skipped")
-            continue
-        repair = _cargo_outside(manifest)
-        if repair.returncode != 0:
-            failed += 1
-            print(f"{member}: repair FAILED\n{repair.stderr.rstrip()}")
-            continue
-        verify = _cargo_outside(manifest, "--locked")
-        if verify.returncode != 0:
-            failed += 1
-            print(f"{member}: --locked verification FAILED\n{verify.stderr.rstrip()}")
-            continue
-        print(f"{member}: repaired and verified (`cargo metadata --locked` ok)")
-    return 1 if failed else 0
 
 
 def cmd_sync_hooks(args) -> int:
@@ -537,6 +324,39 @@ def member_scope(requested: list[str]) -> tuple[str, ...] | None:
     return tuple(sorted(members))
 
 
+def git_result(
+    repo: Path,
+    *args: str,
+    stdin: bytes | None = None,
+    index: Path | None = None,
+) -> GitProcessResult:
+    """Run bounded git in `repo` with the inherited repository selection removed.
+
+    None of the variables `git rev-parse --local-env-vars` lists (`GIT_DIR`,
+    `GIT_COMMON_DIR`, `GIT_INDEX_FILE`, ...) in the caller's environment
+    redirects the command away from `repo`; only `index` names an index. A
+    launch failure or a deadline raises; a non-zero exit is the caller's to
+    read.
+
+    `index` points git at a private index file, so a commit can be built from a
+    member's fetched default without reading or touching its working tree or
+    its real index -- which may belong to a peer mid-edit.
+    """
+    env = clean_process_env()
+    if index is not None:
+        env["GIT_INDEX_FILE"] = str(index)
+    try:
+        return execute_git(
+            repo,
+            tuple(args),
+            stdin=stdin,
+            env=env,
+            timeout=GIT_DEADLINE_SECONDS,
+        )
+    except GitProcessError as error:
+        raise RuntimeError(str(error)) from error
+
+
 def git_bytes(
     repo: Path,
     *args: str,
@@ -549,19 +369,7 @@ def git_bytes(
     member's fetched default without reading or touching its working tree or
     its real index -- which may belong to a peer mid-edit.
     """
-    env = dict(os.environ)
-    if index is not None:
-        env["GIT_INDEX_FILE"] = str(index)
-    try:
-        result = execute_git(
-            repo,
-            tuple(args),
-            stdin=stdin,
-            env=env,
-            timeout=GIT_DEADLINE_SECONDS,
-        )
-    except GitProcessError as error:
-        raise RuntimeError(str(error)) from error
+    result = git_result(repo, *args, stdin=stdin, index=index)
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(f"git {' '.join(args)} in {repo.name}: {detail}")
@@ -622,14 +430,35 @@ def committed_hooks(atlas: Path, ref: str) -> list[tuple[str, bytes]]:
     return hooks
 
 
+def retired_member_paths(requested: list[str] | None) -> list[str] | None:
+    """The member-relative files a publication deletes, or None when one is unsafe.
+
+    A retired file is one the owned hooks no longer read, so a member's copy is
+    a second source (`scripts/lockfile.py`). Only plain relative paths are
+    accepted: the deletion is applied to every member's default branch.
+    """
+    paths = list(requested or [])
+    for path in paths:
+        parts = path.split("/")
+        if path == "" or path.startswith("/") or "\\" in path or ".." in parts or "" in parts:
+            print(f"invalid retired path {path!r}: not a plain relative path", file=sys.stderr)
+            return None
+    return paths
+
+
 def hook_commit(
-    repo: Path, base: str, hooks: list[tuple[str, bytes]], message: str
+    repo: Path,
+    base: str,
+    hooks: list[tuple[str, bytes]],
+    message: str,
+    retired: tuple[str, ...] = (),
 ) -> str | None:
     """A commit on `base` whose `.githooks/` carries `hooks`, or None if current.
 
     `hooks` are (file name, bytes) pairs, so line endings are exactly the
     owned copy's whatever any checkout's `core.autocrlf` says, and the mode is
-    executable so the hook runs on a Unix clone.
+    executable so the hook runs on a Unix clone. Each `retired` path is
+    removed from the commit's tree when `base` carries it.
     """
     with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as scratch:
         index = Path(scratch) / "index"
@@ -640,6 +469,8 @@ def hook_commit(
                 repo, "update-index", "--add", "--cacheinfo",
                 f"{HOOK_MODE},{blob},.githooks/{name}", index=index,
             )
+        for path in retired:
+            git_in(repo, "update-index", "--force-remove", "--", path, index=index)
         tree = git_in(repo, "write-tree", index=index)
     if tree == git_in(repo, "rev-parse", f"{base}^{{tree}}"):
         return None
@@ -647,9 +478,13 @@ def hook_commit(
 
 
 def push_hook_branch(
-    repo: Path, commit: str, branch: str, pre_push_hook: bytes
+    repo: Path,
+    commit: str,
+    branch: str,
+    pre_push_hook: bytes,
+    prepared_tools: str | None = None,
 ) -> None:
-    """Update the publication branch under a freshly observed explicit lease."""
+    """Update the publication branch under a lease using its source tools."""
     ref = f"refs/heads/{branch}"
     listing = git_bytes(repo, "ls-remote", "--heads", "origin", ref)
     if listing == b"":
@@ -674,6 +509,36 @@ def push_hook_branch(
             )
         if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", expected) is None:
             raise RuntimeError(f"git ls-remote returned a malformed object ID for {ref}")
+        try:
+            git_in(repo, "cat-file", "-e", f"{expected}^{{commit}}")
+        except RuntimeError:
+            git_in(repo, "fetch", "-q", "origin", ref)
+            try:
+                git_in(repo, "cat-file", "-e", f"{expected}^{{commit}}")
+            except RuntimeError as error:
+                raise RuntimeError(
+                    f"could not fetch the observed {ref} head {expected}"
+                ) from error
+        candidate_contains_head = True
+        try:
+            git_in(repo, "merge-base", "--is-ancestor", expected, commit)
+        except RuntimeError:
+            candidate_contains_head = False
+        default_contains_head = False
+        if not candidate_contains_head:
+            default = git_in(
+                repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"
+            )
+            try:
+                git_in(repo, "merge-base", "--is-ancestor", expected, default)
+                default_contains_head = True
+            except RuntimeError:
+                pass
+        if not candidate_contains_head and not default_contains_head:
+            raise RuntimeError(
+                f"{ref} at {expected} is not an ancestor of candidate {commit}; "
+                "refusing to overwrite unique remote work"
+            )
     # A member checkout may hold an older or dirty .githooks copy. Select the
     # committed source hook for this push only; Git still invokes it normally
     # with the pushed ref range on stdin.
@@ -681,10 +546,12 @@ def push_hook_branch(
         hook_path = Path(temporary) / "pre-push"
         hook_path.write_bytes(pre_push_hook)
         hook_path.chmod(0o755)
+        command_config = ["-c", f"core.hooksPath={temporary}"]
+        if prepared_tools is not None:
+            command_config.extend(("-c", f"atlas.preparedTools={prepared_tools}"))
         git_in(
             repo,
-            "-c",
-            f"core.hooksPath={temporary}",
+            *command_config,
             "push",
             "-q",
             f"--force-with-lease={ref}:{expected}",
@@ -699,9 +566,11 @@ def pull_request_for(
     base: str,
     subject: str,
     message: str,
+    *,
+    draft: bool = False,
 ) -> tuple[str, bool]:
     """Return the branch's open pull request, creating it when absent."""
-    url = hosting_in(
+    pull_request = hosting_in(
         repo,
         "pr",
         "list",
@@ -712,33 +581,72 @@ def pull_request_for(
         "--state",
         "open",
         "--json",
-        "url",
+        "url,isDraft",
         "--jq",
-        ".[0].url",
+        ".[0] | select(. != null) | [.url, .isDraft] | @tsv",
     )
-    if url and url != "null":
+    if pull_request:
+        try:
+            url, draft_text = pull_request.rsplit("\t", 1)
+        except ValueError as error:
+            raise RuntimeError(
+                f"unexpected pull request state for {branch}: {pull_request!r}"
+            ) from error
+        if not url or draft_text not in {"true", "false"}:
+            raise RuntimeError(
+                f"unexpected pull request state for {branch}: {pull_request!r}"
+            )
+        if draft and draft_text == "false":
+            raise RuntimeError(
+                f"existing pull request {url} is ready; refusing --draft"
+            )
         return url, False
-    return (
-        hosting_in(
-            repo,
-            "pr",
-            "create",
-            "--head",
-            branch,
-            "--base",
-            base,
-            "--title",
-            subject,
-            "--body",
-            message,
-        ),
-        True,
-    )
+    create = [
+        "pr",
+        "create",
+        "--head",
+        branch,
+        "--base",
+        base,
+        "--title",
+        subject,
+        "--body",
+        message,
+    ]
+    if draft:
+        create.append("--draft")
+    return hosting_in(repo, *create), True
+
+
+def valid_board_item(item: str | None) -> bool:
+    """Whether `item` is absent or follows the shared board-ID grammar."""
+    return item is None or BOARD_ITEM_HEADING.fullmatch(f"## {item}") is not None
 
 
 def enqueue_pull_request(repo: Path, url: str) -> None:
     """Enable merge-on-green for a pull request, surfacing refusal as failure."""
     hosting_in(repo, "pr", "merge", url, "--merge", "--auto")
+
+
+def hook_publish_message(source: str, retired: list[str], item: str | None) -> str:
+    """Build the commit and pull-request message for one hook publication."""
+    if not valid_board_item(item):
+        raise ValueError(f"invalid board item ID: {item!r}")
+    subject = "ci: Sync the stack-owned git hooks"
+    message = (
+        f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
+        "source every member's `.githooks/` copies; a copy that differs is the\n"
+        "gate-version drift the conformance scan counts.\n"
+    )
+    if retired:
+        message += (
+            "\nRemoves "
+            + ", ".join(f"`{path}`" for path in retired)
+            + ", which the hooks no longer read.\n"
+        )
+    if item is not None:
+        message += f"\nItem: {item}\n"
+    return message
 
 
 def cmd_publish_hooks(args) -> int:
@@ -752,10 +660,20 @@ def cmd_publish_hooks(args) -> int:
     registered ones only: iterating the `repos/` directory would include
     anything else checked out there, a private consumer among them.
 
+    `--retire PATH` also deletes a repository-relative file the owned hooks no
+    longer read, in the same commit and pull request.
+
     Without `--push` it reports what it would publish.
     """
+    item = getattr(args, "item", None)
+    if not valid_board_item(item):
+        print("invalid item: expected a board item ID", file=sys.stderr)
+        return 2
     members = member_scope(args.members)
     if members is None:
+        return 2
+    retired = retired_member_paths(getattr(args, "retire", None))
+    if retired is None:
         return 2
     requested_source = args.source_ref
     if requested_source == "":
@@ -798,11 +716,7 @@ def cmd_publish_hooks(args) -> int:
         return 2
     source = git_in(ROOT, "rev-parse", "--short", source_commit)
     subject = "ci: Sync the stack-owned git hooks"
-    message = (
-        f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
-        "source every member's `.githooks/` copies; a copy that differs is the\n"
-        "gate-version drift the conformance scan counts.\n"
-    )
+    message = hook_publish_message(source, retired, item)
     failures = 0
     for member in members:
         repo = REPOS / member
@@ -811,7 +725,13 @@ def cmd_publish_hooks(args) -> int:
         try:
             git_in(repo, "fetch", "-q", "origin")
             default = git_in(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
-            commit = hook_commit(repo, git_in(repo, "rev-parse", default), hooks, message)
+            commit = hook_commit(
+                repo,
+                git_in(repo, "rev-parse", default),
+                hooks,
+                message,
+                retired=tuple(retired),
+            )
             if commit is None:
                 print(f"current: {member}")
                 continue
@@ -819,62 +739,354 @@ def cmd_publish_hooks(args) -> int:
                 print(f"would publish: {member} onto {default}")
                 continue
             branch = PUBLISH_BRANCH
-            push_hook_branch(repo, commit, branch, pre_push_hook)
+            push_hook_branch(repo, commit, branch, pre_push_hook, source_commit)
+            draft = bool(getattr(args, "draft", False))
             url, created = pull_request_for(
                 repo,
                 branch,
                 default.removeprefix("origin/"),
                 subject,
                 message,
+                draft=draft,
             )
-            enqueue_pull_request(repo, url)
             action = "published" if created else "reused"
-            print(f"{action}: {member} {url} enqueued")
+            if draft:
+                print(f"{action}: {member} {url} draft")
+            else:
+                enqueue_pull_request(repo, url)
+                print(f"{action}: {member} {url} enqueued")
         except RuntimeError as error:
             failures += 1
             print(f"FAILED: {error}")
     return 1 if failures else 0
 
 
+# The hooks ref a shim resolves: the Atlas default branch as last fetched.
+HOOK_SOURCE_REF = "refs/remotes/origin/main"
+
+# The client-side hook names in githooks(5), without the `p4-*` and
+# `fsmonitor-watchman` integrations no member uses. An owned file under
+# another name (`rescue-push`, which the pre-push hook reads from the stack
+# ref itself) gets no shim.
+GIT_HOOK_NAMES = frozenset({
+    "applypatch-msg", "pre-applypatch", "post-applypatch", "pre-commit",
+    "pre-merge-commit", "prepare-commit-msg", "commit-msg", "post-commit",
+    "pre-rebase", "post-checkout", "post-merge", "pre-push", "pre-auto-gc",
+    "post-rewrite", "reference-transaction", "sendemail-validate",
+    "post-index-change",
+})
+
+# A shim runs the owned hook as committed at `HOOK_SOURCE_REF`, never a
+# working-tree copy or the checked-out branch. It resolves the blob at every
+# invocation, so a fetch of the Atlas repository moves every member to a
+# newer copy of each installed hook; a hook name new to `HOOK_SOURCE_REF`
+# needs `install-hooks` again, and one it dropped refuses until
+# `install-hooks` removes its shim. The blob is cached by id: a cached file
+# is re-hashed before it runs and a fresh copy before it is renamed into
+# place, so a corrupt or altered cache, or a blob object whose content does
+# not match its id, refuses instead of running. A writer that fails removes
+# its partial file; one killed mid-write leaves `<blob>.XXXXXX`, which is
+# never run. The cache keeps one file per hook revision.
+# Trust: `HOOK_SOURCE_REF` and the commit and tree objects that resolve the
+# path are trusted as Git stores them -- Git does not hash a tree it reads,
+# and whoever can rewrite them can move the ref too -- but replace refs are
+# ignored (`--no-replace-objects`), since `git replace` would redirect the
+# lookup without touching either. The environment git runs the hook with is
+# trusted as the owned hook itself trusts it: an exported function or a
+# `BASH_ENV` file redirects the hook's own `cargo` and `git` as surely as
+# the shim's `exec`.
+# The lookups name Atlas with `--git-dir`, which outranks any `GIT_DIR` in
+# the hook's environment (`git -C <atlas>` would not), and drop the
+# variables that would still redirect them to another object store; the
+# hook itself runs with the environment git gave it.
+HOOK_SHIM = """#!/usr/bin/env bash
+# Written by `scripts/atlas-lock-form.py install-hooks`; rerun it instead of
+# editing. Runs the owned `{name}` hook as committed at the Atlas
+# `{ref}`, never the Atlas checkout's copy, which holds whatever branch a
+# peer left checked out.
+# The caller's options, restored for the hook: with SHELLOPTS exported they
+# reach it exactly as in a direct run. Read from SHELLOPTS, not `$(set +o)`,
+# whose subshell drops errexit. The shim's variables carry a reserved prefix
+# and are unset before the exec, so a caller's own `cache` or `commit`, or an
+# inherited allexport that would export the shim's assignments, never reaches
+# the hook altered. A caller's xtrace is off inside the shim, so the shim's
+# own commands never reach the hook's stderr, and back on for the exec.
+{{ __atlas_shim_options=":$SHELLOPTS:"; set +x; }} 2>/dev/null
+set -euo pipefail
+__atlas_shim_git={git_dir}
+__atlas_shim_lookup() {{
+  env -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES \\
+    -u GIT_REPLACE_REF_BASE git --no-replace-objects --git-dir="$__atlas_shim_git" "$@"
+}}
+# `show-ref --verify` takes only the full ref name: `rev-parse` would fall
+# back to a branch named `{ref}` when the ref itself is gone.
+if ! __atlas_shim_commit="$(__atlas_shim_lookup show-ref --verify --hash '{ref}' 2>/dev/null)" ||
+   ! __atlas_shim_blob="$(__atlas_shim_lookup rev-parse --verify --quiet "$__atlas_shim_commit:scripts/git-hooks/{name}")"; then
+  echo "atlas hooks: {ref} in $__atlas_shim_git has no scripts/git-hooks/{name}; fetch the Atlas repository, then run scripts/atlas-lock-form.py install-hooks there" >&2
+  exit 1
+fi
+__atlas_shim_cache="$__atlas_shim_git/atlas-hooks/blobs/$__atlas_shim_blob"
+if [ ! -f "$__atlas_shim_cache" ] || [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_cache")" != "$__atlas_shim_blob" ]; then
+  mkdir -p "${{__atlas_shim_cache%/*}}"
+  __atlas_shim_partial="$(mktemp "$__atlas_shim_cache.XXXXXX")"
+  # `cat-file` does not check an object against its id, so the copy is
+  # hashed before it can run: an altered blob object refuses instead of
+  # running. `--no-filters` on every hash: `core.autocrlf` would otherwise
+  # give a CRLF copy the id of its LF blob.
+  if ! {{ __atlas_shim_lookup cat-file blob "$__atlas_shim_blob" >| "$__atlas_shim_partial" &&
+         [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_partial")" = "$__atlas_shim_blob" ] &&
+         chmod +x "$__atlas_shim_partial" && mv -f "$__atlas_shim_partial" "$__atlas_shim_cache"; }}; then
+    rm -f "$__atlas_shim_partial"
+    exit 1
+  fi
+fi
+set +euo pipefail
+set -- "$__atlas_shim_cache" "$@"
+unset -f __atlas_shim_lookup
+unset __atlas_shim_git __atlas_shim_commit __atlas_shim_blob __atlas_shim_cache __atlas_shim_partial
+case $__atlas_shim_options in *:errexit:*) set -e ;; esac
+case $__atlas_shim_options in *:nounset:*) set -u ;; esac
+case $__atlas_shim_options in *:pipefail:*) set -o pipefail ;; esac
+case $__atlas_shim_options in
+  *:xtrace:*) unset __atlas_shim_options; set -x ;;
+  *) unset __atlas_shim_options ;;
+esac
+exec "$@"
+"""
+
+
+# A shim replaced while bash has it open: Windows refuses the rename with a
+# denial (WinError 5) until every reader closes it. One hook start reads it in
+# milliseconds; overlapping runs can keep it open past the bound, and the
+# install then fails rather than leave a member half-installed.
+SHIM_REPLACE_ATTEMPTS = 50
+SHIM_REPLACE_BACKOFF_SECONDS = 0.1
+
+SHIM_REPLACE_ATTEMPTS = 50
+SHIM_REPLACE_BACKOFF_SECONDS = 0.1
+
+
+def _replace_shim(shim: Path, content: bytes) -> None:
+    """Install `content` at `shim` by rename, never by truncating in place.
+
+    Git executes the shim file itself, so a shim rewritten in place is
+    briefly empty, and a hook started in that window exits 0 without running
+    the owned hook: a refusing gate passes. Unchanged bytes are left alone.
+    """
+    # Windows has no execute bit; Git for Windows runs a hook by its shebang.
+    if (
+        shim.is_file()
+        and shim.read_bytes() == content
+        and (os.name == "nt" or shim.stat().st_mode & 0o100)
+    ):
+        return
+    temporary = shim.with_name(f".{shim.name}.{os.getpid()}.partial")
+    temporary.write_bytes(content)
+    temporary.chmod(0o755)
+    for attempt in range(SHIM_REPLACE_ATTEMPTS):
+        try:
+            os.replace(temporary, shim)
+            return
+        except PermissionError:
+            if attempt + 1 == SHIM_REPLACE_ATTEMPTS:
+                temporary.unlink(missing_ok=True)
+                raise
+            time.sleep(SHIM_REPLACE_BACKOFF_SECONDS)
+
+
+def _shell_word(text: str) -> str:
+    """`text` as one single-quoted bash word, whatever characters it holds."""
+    return "'" + text.replace("'", "'\\''") + "'"
+
+
+def hook_source_commit(atlas: Path) -> str | None:
+    """The commit `HOOK_SOURCE_REF` names in `atlas`, matched by full name only."""
+    try:
+        commit = git_in(atlas, "show-ref", "--verify", "--hash", HOOK_SOURCE_REF)
+    except RuntimeError:
+        return None
+    return commit or None
+
+
+def common_git_dir(repo: Path) -> Path:
+    """The git directory `repo` shares with its linked working trees."""
+    return Path(git_in(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+
+
+def write_hook_shims(atlas: Path) -> Path:
+    """The shim directory for `atlas`'s owned hooks, written in its git directory.
+
+    The common git directory, so a linked Atlas tree and the main one share
+    one set, and no checkout, branch switch or `git clean` of any Atlas tree
+    touches it. Each shim's bytes are written exactly (LF), whatever
+    `core.autocrlf` says.
+    """
+    commit = hook_source_commit(atlas)
+    if commit is None:
+        raise RuntimeError(f"{atlas} has no {HOOK_SOURCE_REF}; fetch it first")
+    git_dir = common_git_dir(atlas)
+    shims = git_dir / "atlas-hooks"
+    shims.mkdir(parents=True, exist_ok=True)
+    # Read as the shim reads it: replace refs ignored.
+    listing = git_in(
+        atlas, "--no-replace-objects", "ls-tree", "--name-only", f"{commit}:scripts/git-hooks"
+    )
+    names = set(listing.splitlines()) & GIT_HOOK_NAMES
+    # A hook `HOOK_SOURCE_REF` no longer carries loses its shim, which would
+    # otherwise refuse every invocation.
+    for stale in sorted(GIT_HOOK_NAMES - names):
+        if (shims / stale).is_file():
+            (shims / stale).unlink()
+            print(
+                f"install-hooks: removed the {stale} shim; "
+                f"{HOOK_SOURCE_REF} has no scripts/git-hooks/{stale}"
+            )
+    for name in sorted(names):
+        _replace_shim(
+            shims / name,
+            HOOK_SHIM.format(
+                name=name, ref=HOOK_SOURCE_REF, git_dir=_shell_word(git_dir.as_posix())
+            ).encode(),
+        )
+    return shims
+
+
+def _comparable_hooks_path(value: str) -> str:
+    """One spelling per `core.hooksPath` location, for equality tests.
+
+    An absolute path is resolved and folded as the platform folds file names:
+    a trailing separator, backslashes, and drive-letter or directory case
+    name the same directory on Windows. A relative value is a name resolved
+    against each work tree (`.githooks`), so only its separators are unified.
+    """
+    if os.path.isabs(value):
+        return os.path.normcase(os.path.realpath(value))
+    return value.replace("\\", "/").rstrip("/")
+
+
+def _same_directory(first: str | Path, second: str | Path) -> bool:
+    """Whether two existing paths name one directory."""
+    try:
+        return os.path.samefile(first, second)
+    except OSError:
+        return False
+
+
 def cmd_install_hooks(_args) -> int:
-    """Point every member's `core.hooksPath` at the committed guard.
+    """Point every member's `core.hooksPath` at the owned-hook shims.
 
     Local git config, so it is a per-clone bootstrap rather than committed
     state -- the same shape as the meta-repo's own
     `git config core.hooksPath .githooks`.
 
-    A member pointing at `.githooks` is retargeted: that directory is the
-    copy `sync-hooks` deploys from this same source for standalone clones,
-    but as a relative hooks path it runs whatever copy the checked-out branch
-    carries, so a tree left on an old branch runs an old gate (CFDrs sat 80
-    commits behind on 2026-09-28 and its pre-push failed on the Windows Store
-    `python3` stub). Any other value is reported and left alone: silently
-    retargeting someone else's hooks would disable them.
+    Two earlier values are retargeted, because each ran a working-tree copy.
+    `.githooks` is the copy `sync-hooks` deploys for standalone clones, and a
+    tree left on an old branch ran an old gate (CFDrs sat 80 commits behind
+    on 2026-09-28 and its pre-push failed on the Windows Store `python3`
+    stub). `scripts/git-hooks` in the Atlas tree ran whatever branch that
+    shared checkout held: on 2026-10-01 a peer branch's pre-push refused the
+    metis fuzz push on a standalone workspace that `origin/main`'s hook gates.
+    Any other value is reported and left alone, and the install exits 1:
+    silently retargeting someone else's hooks would disable them, and a member
+    left on its own hooks does not run the owned gate.
+
+    Every git call is bounded and ignores an inherited `GIT_DIR`, so a member's
+    configuration is written in that member. A directory under `repos/` that
+    is not a repository of its own is refused: git would resolve it to the
+    Atlas repository, or the directory is a linked working tree of it or
+    carries a `.git` file naming its git directory, and the write would
+    retarget the umbrella's hooks.
     """
-    hooks = (Path(__file__).resolve().parent / "git-hooks").as_posix()
-    installed, skipped = 0, 0
+    try:
+        hooks = write_hook_shims(ROOT).as_posix()
+    except (RuntimeError, OSError) as err:
+        print(f"install-hooks: shims not all written, members left unchanged: {err}")
+        return 1
+    # The stack's tree and, when this copy runs from elsewhere (an export),
+    # the tree it runs from.
+    working_tree_copies = {
+        (ROOT / "scripts" / "git-hooks").as_posix(),
+        (Path(__file__).resolve().parent / "git-hooks").as_posix(),
+    }
+    owned = {_comparable_hooks_path(path) for path in (hooks, *working_tree_copies)}
+    owned.add(MEMBER_HOOK_COPY)
+    atlas_common = Path(hooks).parent
+    installed, failed = 0, 0
+    left_alone: list[str] = []
     for member in sorted(registered_member_names()):
         repo = REPOS / member
         if not repo.is_dir():
             continue
-        code, existing, _ = run(
-            "git", "-C", str(repo), "config", "--local", "--get", "core.hooksPath"
-        )
-        current = existing.strip()
-        if code == 0 and current and current not in (hooks, MEMBER_HOOK_COPY):
-            print(f"{member}: core.hooksPath already set to {current}; left alone")
-            skipped += 1
+        try:
+            top = git_in(repo, "rev-parse", "--show-toplevel")
+            common = common_git_dir(repo)
+            if not _same_directory(top, repo) or _same_directory(common, atlas_common):
+                print(
+                    f"{member}: {repo} is not a repository of its own "
+                    f"(git resolves it to {top}, git directory {common}); refused"
+                )
+                failed += 1
+                continue
+            read = git_result(repo, "config", "--local", "--get", "core.hooksPath")
+            # Exit 1 is "no such key"; any other failure is not an unset value.
+            if read.returncode not in (0, 1):
+                detail = read.stderr.decode("utf-8", errors="replace").strip()
+                print(f"{member}: FAILED to read core.hooksPath: {detail}")
+                failed += 1
+                continue
+            current = read.stdout.decode("utf-8", errors="replace").strip()
+            if current and _comparable_hooks_path(current) not in owned:
+                print(f"{member}: core.hooksPath already set to {current}; left alone")
+                left_alone.append(member)
+                continue
+            write = git_result(repo, "config", "--local", "core.hooksPath", hooks)
+        except RuntimeError as err:
+            print(f"{member}: FAILED to install: {err}")
+            failed += 1
             continue
-        code, _, err = run(
-            "git", "-C", str(repo), "config", "--local", "core.hooksPath", hooks
-        )
-        if code != 0:
-            print(f"{member}: FAILED to set core.hooksPath: {err.strip()}")
-            skipped += 1
+        if write.returncode != 0:
+            detail = write.stderr.decode("utf-8", errors="replace").strip()
+            print(f"{member}: FAILED to set core.hooksPath: {detail}")
+            failed += 1
             continue
         installed += 1
-    print(f"lock-form pre-commit guard installed in {installed} member(s), {skipped} skipped")
-    return 0
+    # The Atlas root gates its own pushes with the same shims. Its
+    # `core.hooksPath=.githooks` runs the checked-out tip's hook: the
+    # trampoline prelude corrects only a copy that still contains the
+    # prelude, so a tip that replaces `.githooks/pre-push` edits the gate
+    # that judges it (ATLAS-ROOT-HOOK-TIP-CONTROLLED). The shim runs the
+    # origin/main blob, which no pushed tip can alter.
+    try:
+        read = git_result(ROOT, "config", "--local", "--get", "core.hooksPath")
+        if read.returncode not in (0, 1):
+            detail = read.stderr.decode("utf-8", errors="replace").strip()
+            print(f"atlas: FAILED to read core.hooksPath: {detail}")
+            failed += 1
+        else:
+            current = read.stdout.decode("utf-8", errors="replace").strip()
+            if current and _comparable_hooks_path(current) not in owned:
+                print(f"atlas: core.hooksPath already set to {current}; left alone")
+                left_alone.append("atlas")
+            else:
+                write = git_result(ROOT, "config", "--local", "core.hooksPath", hooks)
+                if write.returncode != 0:
+                    detail = write.stderr.decode("utf-8", errors="replace").strip()
+                    print(f"atlas: FAILED to set core.hooksPath: {detail}")
+                    failed += 1
+                else:
+                    print("atlas: core.hooksPath -> owned-hook shims")
+    except RuntimeError as err:
+        print(f"atlas: FAILED to install: {err}")
+        failed += 1
+
+    print(
+        f"owned hook shims installed in {installed} member(s), "
+        f"{len(left_alone)} left alone, {failed} failed"
+    )
+    if left_alone:
+        print(f"install-hooks: left on their own core.hooksPath: {', '.join(left_alone)}")
+    # A member left on other hooks does not run the owned gate.
+    return 1 if failed or left_alone else 0
 
 
 def main() -> int:
@@ -891,20 +1103,30 @@ def main() -> int:
     publish.add_argument("--push", action="store_true", help="push and open the pull requests")
     publish.add_argument("--hook", help="publish only this owned hook")
     publish.add_argument(
+        "--retire",
+        action="append",
+        metavar="PATH",
+        help="also delete this repository-relative file in the same commit "
+        "(repeatable); for a file the owned hooks no longer read",
+    )
+    publish.add_argument(
         "--source-ref",
         metavar="REF",
         help="locally available committed Atlas ref; defaults to origin/HEAD",
     )
+    publish.add_argument(
+        "--item",
+        metavar="ID",
+        help="append an Item trailer to each generated member commit",
+    )
+    publish.add_argument(
+        "--draft",
+        action="store_true",
+        help="create draft pull requests without enabling merge-on-green",
+    )
     publish.set_defaults(func=cmd_publish_hooks)
-    sub.add_parser("check").set_defaults(func=cmd_check)
     sub.add_parser("status").set_defaults(func=cmd_status)
     sub.add_parser("restore").set_defaults(func=cmd_restore)
-    staged = sub.add_parser("staged")
-    staged.add_argument("--repo", default=None)
-    staged.set_defaults(func=cmd_staged)
-    regen = sub.add_parser("regenerate")
-    regen.add_argument("members", nargs="*")
-    regen.set_defaults(func=cmd_regenerate)
     sub.add_parser("install-hooks").set_defaults(func=cmd_install_hooks)
     args = parser.parse_args()
     return args.func(args)

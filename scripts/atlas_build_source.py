@@ -102,8 +102,8 @@ def _ignored_source_path(path: Path, top: Path) -> bool:
     )
 
 
-def _diff_bytes(top: Path, ignored: Sequence[Path]) -> bytes:
-    arguments = ["diff", "--binary", "HEAD", "--", "."]
+def _ignored_pathspecs(top: Path, ignored: Sequence[Path]) -> tuple[str, ...]:
+    pathspecs: list[str] = []
     for path in ignored:
         try:
             relative = path.relative_to(top).as_posix()
@@ -111,8 +111,110 @@ def _diff_bytes(top: Path, ignored: Sequence[Path]) -> bytes:
             raise BuildIdentityError(
                 f"ignored source path is outside the repository: {path}"
             ) from error
-        arguments.append(f":(exclude){relative}")
+        pathspecs.append(f":(exclude){relative}")
+    return tuple(pathspecs)
+
+
+def _diff_bytes(top: Path, ignored_pathspecs: Sequence[str]) -> bytes:
+    arguments = ["diff", "--binary", "HEAD", "--", "."]
+    arguments.extend(ignored_pathspecs)
     return _git(top, *arguments)
+
+
+def repository_top(root: Path) -> Path:
+    """Return the work-tree root holding `root` without starting Git.
+
+    Every ordinary work tree, linked work tree, and submodule has a `.git`
+    directory or gitfile at its root. Walking to the nearest marker preserves
+    nested repositories while avoiding a separate `rev-parse` process before
+    the status snapshot.
+    """
+    root = _canonical(root, strict=True)
+    directory = root
+    while True:
+        marker = directory / ".git"
+        try:
+            marker.lstat()
+        except FileNotFoundError:
+            pass
+        except OSError as error:
+            raise BuildIdentityError(f"cannot inspect Git marker {marker}: {error}") from error
+        else:
+            return directory
+        parent = directory.parent
+        if parent == directory:
+            raise BuildIdentityError(f"cannot find a Git work tree containing {root}")
+        directory = parent
+
+
+def _repository_status(
+    top: Path,
+) -> tuple[str, bool, tuple[tuple[bytes, list[bytes]], ...]]:
+    """Return HEAD, tracked dirt, and untracked inputs from one Git snapshot.
+
+    The untracked and ignored groups retain Git's path order. The tracked flag
+    covers staged, unstaged, and conflicted entries; callers obtain the exact
+    binary diff only when the flag is set.
+
+    One `git status` walks the tree once for both groups, where
+    `ls-files --others` and `ls-files --others --ignored` walked it twice
+    in two processes. Each group is the list those commands print, sorted
+    as Git sorts it (byte order), so the source digest is unchanged.
+    Submodules are not entered: only `?` and `!` entries are read.
+
+    `status` validates settings `ls-files` never reads: the `status.*`
+    keys it knows, `color.status` and its slots, and `column.ui` and
+    `column.status`. A malformed one fails the identity loudly with Git's
+    message, which names the key (and, for some keys, the file); it never
+    yields a wrong identity. `git commit` refuses the same values, but
+    `commit-tree`, `merge` and `am` do not, so such a key can reach a push.
+    """
+    output = _git(
+        top,
+        "--no-optional-locks",
+        "status",
+        "--porcelain=v2",
+        "--branch",
+        "-z",
+        "--untracked-files=all",
+        "--ignored=traditional",
+        "--ignore-submodules=all",
+        "--no-renames",
+    )
+    revision: bytes | None = None
+    tracked_dirty = False
+    untracked: list[bytes] = []
+    ignored: list[bytes] = []
+    # Under `--no-renames` every entry is one field: none carries an original path.
+    for field in output.split(b"\0"):
+        if field.startswith(b"# branch.oid "):
+            if revision is not None:
+                raise BuildIdentityError(f"git status printed HEAD more than once in {top}")
+            revision = field.removeprefix(b"# branch.oid ")
+        elif field.startswith(b"# "):
+            continue
+        elif field.startswith((b"1 ", b"2 ", b"u ")):
+            tracked_dirty = True
+        elif field.startswith(b"? "):
+            untracked.append(field[2:])
+        elif field.startswith(b"! "):
+            ignored.append(field[2:])
+        elif field:
+            raise BuildIdentityError(f"git status printed an unknown record in {top}: {field!r}")
+    hexadecimal = b"0123456789abcdef"
+    if (
+        revision is None
+        or not revision
+        or revision == b"(initial)"
+        or len(revision) not in {40, 64}
+        or any(byte not in hexadecimal for byte in revision)
+    ):
+        raise BuildIdentityError(f"git status did not print a committed HEAD in {top}: {revision!r}")
+    return (
+        os.fsdecode(revision),
+        tracked_dirty,
+        ((b"untracked", sorted(untracked)), (b"ignored", sorted(ignored))),
+    )
 
 
 def source_identity(
@@ -120,20 +222,15 @@ def source_identity(
     excluded_roots: Sequence[Path] = (),
     ignored_paths: Sequence[Path] = (),
 ) -> SourceIdentity:
-    root = _canonical(root, strict=True)
-    top = Path(os.fsdecode(_git(root, "rev-parse", "--show-toplevel").strip())).resolve()
-    revision = os.fsdecode(_git(top, "rev-parse", "HEAD").strip())
+    top = repository_top(root)
+    revision, tracked_dirty, status_entries = _repository_status(top)
     excluded = tuple(_canonical(path) for path in excluded_roots)
     ignored = tuple(_canonical(path) for path in ignored_paths)
-    diff = _diff_bytes(top, ignored)
+    ignored_pathspecs = _ignored_pathspecs(top, ignored)
+    diff = _diff_bytes(top, ignored_pathspecs) if tracked_dirty else b""
     untracked_entries: list[tuple[bytes, bytes, Path]] = []
-    for marker, arguments in (
-        (b"untracked", ("ls-files", "--others", "--exclude-standard", "-z")),
-        (b"ignored", ("ls-files", "--others", "--ignored", "--exclude-standard", "-z")),
-    ):
-        for raw_path in _git(top, *arguments).split(b"\0"):
-            if not raw_path:
-                continue
+    for marker, raw_paths in status_entries:
+        for raw_path in raw_paths:
             path = (top / Path(os.fsdecode(raw_path))).resolve()
             if any(_is_within(path, excluded_root) for excluded_root in excluded):
                 continue

@@ -1,0 +1,54 @@
+name: Crates pending publication
+description: Plan, publish, or tag workspace crates whose manifest version is not on crates.io
+
+inputs:
+  command:
+    description: plan, publish, or tag
+    required: true
+  packages:
+    description: Comma-separated package set (publish and tag)
+    required: false
+    default: ""
+  owner:
+    description: crates.io login that must own a crate before it is published (plan)
+    required: false
+    default: ryancinsight
+  tag-prefix:
+    description: Release-tag prefix preceding <package>-v<version> (tag)
+    required: false
+    default: crate-
+  publish-outcome:
+    description: Outcome of the publish step; after success every planned version must reach the index (tag)
+    required: false
+    default: ""
+
+outputs:
+  packages:
+    description: Comma-separated pending set (plan)
+    value: ${{ steps.run.outputs.packages }}
+  count:
+    description: Size of the pending set (plan)
+    value: ${{ steps.run.outputs.count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run crates-pending ${{ inputs.command }}
+      id: run
+      shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
+        PACKAGES: ${{ inputs.packages }}
+        OWNER: ${{ inputs.owner }}
+        TAG_PREFIX: ${{ inputs.tag-prefix }}
+        PUBLISH_OUTCOME: ${{ inputs.publish-outcome }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        script="$GITHUB_ACTION_PATH/crates_pending.py"
+        case "$COMMAND" in
+          plan) python3 "$script" plan --owner "$OWNER" ;;
+          publish) python3 "$script" publish "$PACKAGES" ;;
+          tag) python3 "$script" tag "$PACKAGES" --prefix "$TAG_PREFIX" --sha "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY" --publish-outcome "$PUBLISH_OUTCOME" ;;
+          *) echo "unknown command: $COMMAND" >&2; exit 2 ;;
+        esac

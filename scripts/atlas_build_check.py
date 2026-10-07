@@ -1,5 +1,3 @@
-"""Whether a build's identity record matches its source, without building."""
-
 from __future__ import annotations
 
 from contextlib import ExitStack
@@ -28,7 +26,10 @@ def check_record(
     command_cwd: Path | None = None,
     command_key: str | None = None,
     ignore_paths: Sequence[Path] = (),
+    selection: Sequence[str] = (),
 ) -> tuple[int, dict[str, object]]:
+    """`package`'s record for a run whose command built `selection` (default:
+    `package` alone); a batched run keys each record on its whole selection."""
     target_dir = _canonical(target_dir)
     artifact_paths = validate_artifact_paths(target_dir, artifact_paths)
     if manifest is None and not artifact_paths:
@@ -54,6 +55,7 @@ def check_record(
         ignore_paths,
         str(dependencies["digest"]),
         execution_root,
+        selection,
     )
     record_file = record_path(spec)
     with ExitStack() as probes:

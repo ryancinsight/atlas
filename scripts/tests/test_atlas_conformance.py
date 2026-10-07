@@ -476,6 +476,48 @@ class AtlasConformanceTestCase(unittest.TestCase):
             self.assertEqual(counts["crate_level_allows"], 1)
             self.assertEqual(counts["allow_sites"], 1)
 
+    def test_a_member_lockfile_copy_is_counted(self) -> None:
+        """A member copy of the stack's lockfile checker is a second source."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 0)
+            _write(root, "scripts/lockfile.py", "print('check')\n")
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 1)
+
+    def test_the_recorded_content_decides_whether_a_copy_exists(self) -> None:
+        """A checkout behind or ahead of its gitlink carries a different set of
+        files; the count follows the recorded snapshot, never the checkout."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            snapshot = Path(temp) / "snapshot"
+            live = Path(temp) / "live"
+            for root in (snapshot, live):
+                _write(root, "Cargo.toml", "[workspace]\n")
+            _write(snapshot, "scripts/lockfile.py", "print('recorded')\n")
+            counts = conformance.scan_repo(snapshot, live_repo=live)
+            self.assertEqual(counts["member_lockfile_copies"], 1)
+            _write(live, "scripts/lockfile.py", "print('live')\n")
+            (snapshot / "scripts" / "lockfile.py").unlink()
+            counts = conformance.scan_repo(snapshot, live_repo=live)
+            self.assertEqual(counts["member_lockfile_copies"], 0)
+
+    def test_member_lockfile_copies_may_only_decrease(self) -> None:
+        self.assertIn("member_lockfile_copies", conformance.CLASSES)
+        self.assertEqual(
+            conformance.baseline_raises(
+                {"alpha": {"member_lockfile_copies": 0}},
+                {"alpha": {"member_lockfile_copies": 1}},
+            ),
+            [("alpha", "member_lockfile_copies", 0, 1)],
+        )
+        self.assertEqual(
+            conformance.baseline_raises(
+                {"alpha": {"member_lockfile_copies": 1}},
+                {"alpha": {"member_lockfile_copies": 0}},
+            ),
+            [],
+        )
+
     def test_benches_are_executable_for_print_scan(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
@@ -944,6 +986,93 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(conformance._cfg_test_decl_cache(), {})
         self.assertEqual(conformance._resolved_cache(), {})
         self.assertEqual(conformance._stripped_text_cache(), {})
+
+    def test_snapshot_census_matches_all_counts_and_reads_sources_once(self) -> None:
+        """The snapshot census preserves every detector on difficult inputs."""
+        with tempfile.TemporaryDirectory(prefix="atlas-census-") as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            _write(root, ".gitignore", "/generated/\n")
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "pub mod target;\npub mod alias;\npub mod malformed;\n",
+            )
+            source = 'pub fn emit() { println!("visible"); }\n'
+            _write(root, "src/target.rs", source)
+            _write(root, "src/alias.rs", source)
+            malformed = root / "src" / "malformed.rs"
+            malformed.write_bytes(b"pub fn malformed( { // \xff\n")
+            _write(
+                root,
+                "src/target_generated/orphan.rs",
+                "pub fn orphan() {}\n",
+            )
+            _write(root, "src/broken.rs", "unreachable symlink target\n")
+            _write(root, "src/special.rs", "unreadable non-file entry\n")
+            _write(
+                root,
+                "generated/nested/ignored.rs",
+                'pub fn ignored() { println!("ignored"); }\n',
+            )
+
+            alias = root / "src" / "alias.rs"
+            target = root / "src" / "target.rs"
+            broken = root / "src" / "broken.rs"
+            missing = root / "src" / "missing.rs"
+            special = root / "src" / "special.rs"
+            real_is_symlink = Path.is_symlink
+            real_is_file = Path.is_file
+            real_resolve = Path.resolve
+            real_read_text = Path.read_text
+            source_reads: list[Path] = []
+
+            def fixture_is_symlink(path: Path) -> bool:
+                return path in (alias, broken) or real_is_symlink(path)
+
+            def fixture_is_file(path: Path) -> bool:
+                if path in (broken, missing, special):
+                    return False
+                return real_is_file(path)
+
+            def fixture_resolve(path: Path, *args, **kwargs) -> Path:
+                if path == alias:
+                    return real_resolve(target, *args, **kwargs)
+                if path == broken:
+                    return missing
+                return real_resolve(path, *args, **kwargs)
+
+            def counted_read_text(path: Path, *args, **kwargs) -> str:
+                if path.suffix == ".rs":
+                    source_reads.append(path)
+                if path in (broken, special):
+                    raise OSError("fixture entry is not readable as a file")
+                return real_read_text(path, *args, **kwargs)
+
+            with (
+                patch.object(Path, "is_symlink", fixture_is_symlink),
+                patch.object(Path, "is_file", fixture_is_file),
+                patch.object(Path, "resolve", fixture_resolve),
+                patch.object(Path, "read_text", counted_read_text),
+            ):
+                reference = conformance.scan_repo(root)
+                source_reads.clear()
+                snapshot = conformance.scan_repo(root, revision="fixture")
+
+        self.assertEqual(snapshot, reference)
+        self.assertEqual(
+            len(source_reads),
+            6,
+            f"unexpected Rust reads: {source_reads!r}",
+        )
+        self.assertNotIn(
+            Path(temp) / "generated" / "nested" / "ignored.rs",
+            source_reads,
+        )
+        self.assertEqual(snapshot["print_dbg"], 2)
+        self.assertEqual(snapshot["orphan_modules"], 3)
+        self.assertIsNone(conformance._snapshot_paths())
 
     def test_the_comment_strip_cache_agrees_with_a_fresh_strip(self) -> None:
         # The cache exists to serve the module walk and the production-class
@@ -1658,6 +1787,98 @@ class AtlasConformanceTestCase(unittest.TestCase):
             self.assertEqual(live["gitattributes_missing"], 1)
             self.assertEqual(live["board_items_outside_status_set"], 1)
 
+    def test_recorded_revision_namespace_pollution_uses_revision_tree(self) -> None:
+        """A live unregistered checkout cannot contaminate a revision scan."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *ident, *arguments],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                ).stdout.strip()
+
+            git("init", "-q", "-b", "main")
+            _write(root, ".gitmodules", "")
+            git("add", ".gitmodules")
+            git("commit", "-q", "-m", "candidate")
+            candidate = git("rev-parse", "HEAD")
+
+            _write(root, "repos/coeus-push/README.md", "peer checkout\n")
+            candidate_with_live_directory = conformance.scan_stack(
+                root, candidate
+            )["<meta>"]["member_namespace_pollution"]
+            live_untracked = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+            git("add", "repos/coeus-push/README.md")
+            git("commit", "-q", "-m", "track unregistered directory")
+            tracked_revision = git("rev-parse", "HEAD")
+            candidate_after_commit = conformance.scan_stack(root, candidate)[
+                "<meta>"
+            ]["member_namespace_pollution"]
+            tracked = conformance.scan_stack(root, tracked_revision)["<meta>"][
+                "member_namespace_pollution"
+            ]
+            live_tracked = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertEqual(candidate_with_live_directory, 0)
+        self.assertEqual(live_untracked, 1)
+        self.assertEqual(candidate_after_commit, 0)
+        self.assertEqual(tracked, 1)
+        self.assertEqual(live_tracked, 1)
+
+    def test_live_namespace_pollution_prunes_ignored_ancestors(self) -> None:
+        """An ignored namespace ancestor excludes every checkout below it."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            subprocess.run(
+                ["git", "init", "-q", "-b", "main"],
+                cwd=root,
+                check=True,
+                timeout=10,
+            )
+            _write(root, ".gitmodules", "")
+            _write(root, ".gitignore", "/repos/\n")
+            _write(root, "repos/private/README.md", "peer checkout\n")
+
+            ignored = conformance.git_ignored_paths(root)
+            pollution = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertIn((root / "repos").resolve(), ignored)
+        self.assertEqual(pollution, 0)
+
+    def test_live_namespace_pollution_decodes_non_ascii_ignored_paths(self) -> None:
+        """NUL-delimited Git output preserves non-ASCII ignored paths."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            subprocess.run(
+                ["git", "init", "-q", "-b", "main"],
+                cwd=root,
+                check=True,
+                timeout=10,
+            )
+            _write(root, ".gitmodules", "")
+            _write(root, ".gitignore", "/repos/café/\n")
+            _write(root, "repos/café/README.md", "peer checkout\n")
+
+            ignored = conformance.git_ignored_paths(root)
+            pollution = conformance.scan_stack(root)["<meta>"][
+                "member_namespace_pollution"
+            ]
+
+        self.assertIn((root / "repos" / "café").resolve(), ignored)
+        self.assertEqual(pollution, 0)
+
     def test_generate_refuses_to_raise_a_count(self) -> None:
         """`generate` must not launder a regression into the baseline.
 
@@ -2236,7 +2457,9 @@ class BareGitDependencyTestCase(unittest.TestCase):
 class CrlfStoredBlobsTestCase(unittest.TestCase):
     """The detector reads the index, so its fixture is a real commit."""
 
-    def _repo(self, attributes: str | None) -> Path:
+    def _repo(
+        self, attributes: str | None, extra: dict[str, bytes] | None = None
+    ) -> Path:
         root = Path(tempfile.mkdtemp(prefix="crlf-detector-"))
         self.addCleanup(shutil.rmtree, root, ignore_errors=True)
         # Identity travels with the command, not the machine: CI runners
@@ -2250,6 +2473,8 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
         # before the policy, exactly what the board item measured.
         (root / "keep.txt").write_bytes(b"lf blob\nsecond line\n")
         (root / "legacy.txt").write_bytes(b"crlf blob\r\nsecond line\r\n")
+        for name, content in (extra or {}).items():
+            (root / name).write_bytes(content)
         # Raw-byte semantics: the host default (`core.autocrlf=true` on
         # Windows) would normalize at checkin and make the defect unfixturable.
         subprocess.run(
@@ -2284,6 +2509,106 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
 
     def test_the_class_is_registered_for_the_ratchet(self):
         self.assertIn("crlf_stored_blobs", conformance.CLASSES)
+
+    def _eol_listing_count(self, repo: Path) -> int:
+        listing = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "--eol"],
+            check=True, capture_output=True, text=True,
+        ).stdout
+        return conformance._count_index_crlf(listing)
+
+    def test_a_mixed_blob_is_counted(self):
+        repo = self._repo(
+            "* text=auto eol=lf\n", {"mixed.txt": b"one\r\ntwo\nthree\n"}
+        )
+        self.assertEqual(self.count(repo), 2)
+
+    def test_a_blob_holding_a_nul_is_binary_and_not_counted(self):
+        repo = self._repo(
+            "* text=auto eol=lf\n", {"image.bin": b"head\r\n\x00tail\r\n"}
+        )
+        self.assertEqual(self.count(repo), 1)
+
+    def test_a_lone_carriage_return_is_binary_and_not_counted(self):
+        repo = self._repo("* text=auto eol=lf\n", {"lone.txt": b"a\rb\r\n"})
+        self.assertEqual(self.count(repo), 1)
+
+    def test_an_in_tree_binary_attribute_does_not_hide_a_crlf_blob(self):
+        # `binary` makes `grep -I` skip the blob, but the index verdict reads
+        # content only, so `ls-files --eol` reports `i/crlf`.
+        repo = self._repo(
+            "* text=auto eol=lf\n*.dat binary\n", {"table.dat": b"r\r\nr\r\n"}
+        )
+        self.assertEqual(self.count(repo), 2)
+        self.assertEqual(self._eol_listing_count(repo), 2)
+
+    def test_a_nul_blob_with_a_binary_attribute_skips_the_full_read(self):
+        # The exact query inflates whole blobs; a blob the NUL check already
+        # rules out must not reach it, whatever the in-tree attributes say.
+        repo = self._repo(
+            "* text=auto eol=lf\n*.dat binary\n",
+            {"scan.dat": b"\x00" * 128 + b"\r\n"},
+        )
+        listed: list[str] = []
+        real = conformance.execute_git
+
+        def recording(repo_path, args, **kwargs):
+            if "ls-files" in args:
+                listed.extend(args)
+            return real(repo_path, args, **kwargs)
+
+        with patch.object(conformance, "execute_git", recording):
+            self.assertEqual(self.count(repo), 1)
+        self.assertIn("legacy.txt", listed)
+        self.assertNotIn("scan.dat", listed)
+
+    def test_an_info_attribute_does_not_hide_a_crlf_blob(self):
+        repo = self._repo("* text=auto eol=lf\n", {"table.dat": b"r\r\nr\r\n"})
+        (repo / ".git" / "info").mkdir(exist_ok=True)
+        (repo / ".git" / "info" / "attributes").write_text("*.dat -diff\n")
+        self.assertEqual(self.count(repo), 2)
+        self.assertEqual(self._eol_listing_count(repo), 2)
+
+    def test_a_path_with_glob_characters_is_counted_once(self):
+        # As a glob, `a[b].txt` also names `ab.txt`; with one path per
+        # `ls-files` call, a glob reading would count `ab.txt` twice.
+        repo = self._repo(
+            "* text=auto eol=lf\n",
+            {"a[b].txt": b"x\r\ny\r\n", "ab.txt": b"x\r\ny\r\n"},
+        )
+        with patch.object(conformance, "EOL_PATHSPEC_BATCH", 1):
+            self.assertEqual(self.count(repo), 3)
+        self.assertEqual(self._eol_listing_count(repo), 3)
+
+    def test_the_count_matches_a_full_eol_listing(self):
+        repo = self._repo(
+            "* text=auto eol=lf\n*.dat binary\n",
+            {
+                "mixed.txt": b"one\r\ntwo\n",
+                "lone.txt": b"one\rtwo\n",
+                "image.bin": b"\x00\r\n",
+                "table.dat": b"row\r\n",
+            },
+        )
+        self.assertEqual(self.count(repo), 3)
+        self.assertEqual(self._eol_listing_count(repo), 3)
+
+    def test_a_revision_is_counted_from_its_tree_not_the_index(self):
+        repo = self._repo("* text=auto eol=lf\n")
+        commit = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "-C", str(repo), "add", "--renormalize", "."], check=True
+        )
+        self.assertEqual(self.count(repo), 0)
+        self.assertEqual(
+            conformance.count_crlf_stored_blobs(
+                repo, live_repo=repo, revision=commit
+            ),
+            1,
+        )
 
 
 class ExistenceOnlyAssertionTests(unittest.TestCase):
@@ -2839,6 +3164,160 @@ class CitationResolutionTests(unittest.TestCase):
         regressions, host, tightenings = conformance.ratchet_delta(baseline, results)
         self.assertEqual(regressions, [f"member/{self.CLS}: 0 -> 1"])
         self.assertEqual((host, tightenings), ([], []))
+
+
+class StoreDependentCitationTests(unittest.TestCase):
+    """`unresolved_references` needs every stack member's history. Where the
+    scan has it the class is gated; where it does not -- a member's own
+    pull-request checkout -- it is reported with its measured count, never
+    ratcheted, because fetching more of the one history the scan has cannot
+    supply the other members'."""
+
+    GIT_ENV = CitationResolutionTests.GIT_ENV
+    CLS = "unresolved_references"
+    GITMODULES = (
+        '[submodule "member"]\n\tpath = repos/member\n\turl = https://example.invalid/m.git\n'
+        '[submodule "other"]\n\tpath = repos/other\n\turl = https://example.invalid/o.git\n'
+    )
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="atlas-store-dependent-")
+        self.temp = Path(self._tmp.name)
+        conformance.board_lint._REACHABLE_INDEX.clear()
+
+    def tearDown(self) -> None:
+        conformance.board_lint._REACHABLE_INDEX.clear()
+        self._tmp.cleanup()
+
+    _git = CitationResolutionTests._git
+
+    def _repo(self, path: Path, board: str = "- fixture\n") -> str:
+        """A repository of one commit holding `board`; returns that commit."""
+        path.mkdir(parents=True)
+        self._git(path, "init", "-q", "-b", "main")
+        _write(path, "backlog.md", board)
+        self._git(path, "add", "backlog.md")
+        self._git(path, "commit", "-q", "-m", "board")
+        return self._git(path, "rev-parse", "HEAD")
+
+    def _stack(self, member_board: str) -> tuple[Path, Path, str]:
+        """A whole stack: root, `repos/member` and `repos/other`, full history.
+
+        Returns the root, the member checkout, and a commit that only
+        `repos/other` holds.
+        """
+        root = self.temp / "stack"
+        other_commit = self._repo(root / "repos" / "other")
+        member = root / "repos" / "member"
+        self._repo(member, member_board.format(other=other_commit[:9]))
+        self._repo_root(root)
+        return root, member, other_commit
+
+    def _repo_root(self, root: Path) -> None:
+        root.mkdir(parents=True, exist_ok=True)
+        self._git(root, "init", "-q", "-b", "main")
+        _write(root, ".gitmodules", self.GITMODULES)
+        self._git(root, "add", ".gitmodules")
+        self._git(root, "commit", "-q", "-m", "root")
+        self._git(root, "commit", "-q", "--allow-empty", "-m", "root again")
+
+    def _shallow_root(self, whole: Path) -> Path:
+        """The root as a member's pull-request job sees atlas: depth 1, no members."""
+        shallow = self.temp / "_atlas"
+        self._git(self.temp, "clone", "-q", "--depth", "1", whole.as_uri(), str(shallow))
+        return shallow
+
+    def _check(self, root: Path, member: Path, baseline: int) -> tuple[int, str]:
+        def measure(repo: Path, **_: object) -> dict[str, int]:
+            return {self.CLS: conformance.board_lint.count_unresolved(
+                repo, conformance._object_stores()
+            )}
+
+        baseline_path = self.temp / "baseline.json"
+        baseline_path.write_text(
+            json.dumps({"demo": {self.CLS: baseline}}), encoding="utf-8"
+        )
+        output = io.StringIO()
+        with (
+            patch.object(conformance, "ROOT", root),
+            patch.object(conformance, "_STORES", None),
+            patch.object(conformance, "BASELINE", baseline_path),
+            patch.object(conformance, "scan_repo", side_effect=measure),
+            patch.object(
+                sys, "argv",
+                [str(SCRIPT), "check", "--repo", "demo", "--member-path", str(member)],
+            ),
+            redirect_stdout(output),
+        ):
+            code = conformance.main()
+        return code, output.getvalue()
+
+    def test_a_member_checkout_reports_a_cross_member_citation_without_gating_it(self) -> None:
+        whole, member, _ = self._stack("- landed in {other}\n")
+        code, out = self._check(self._shallow_root(whole), member, baseline=0)
+        self.assertEqual(code, 0, out)
+        self.assertIn("NOT GATED unresolved_references:", out)
+        self.assertIn(
+            "needs every stack member's history; gated by the umbrella "
+            "atlas-conformance job",
+            out,
+        )
+        self.assertIn("demo/unresolved_references=1", out)
+        self.assertNotIn("RATCHET VIOLATION", out)
+        self.assertEqual(out.count("NOT GATED"), 1)
+
+    def test_a_whole_stack_still_gates_a_fabricated_hash(self) -> None:
+        whole, member, _ = self._stack("- landed in deadbeef1\n")
+        code, out = self._check(whole, member, baseline=0)
+        self.assertEqual(code, 1, out)
+        self.assertIn("RATCHET VIOLATION: demo/unresolved_references: 0 -> 1", out)
+        self.assertNotIn("NOT GATED", out)
+
+    def test_a_whole_stack_resolves_the_cross_member_citation(self) -> None:
+        whole, member, _ = self._stack("- landed in {other}\n")
+        code, out = self._check(whole, member, baseline=0)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("NOT GATED", out)
+
+    def test_the_json_names_what_was_held_out(self) -> None:
+        whole = self.temp / "stack"
+        self._repo_root(whole)
+        member = self.temp / "member"
+        member.mkdir()
+        shallow = self._shallow_root(whole)
+        measured = {self.CLS: 1}
+        baseline_path = self.temp / "baseline.json"
+        baseline_path.write_text(json.dumps({"demo": {self.CLS: 0}}), encoding="utf-8")
+        output = io.StringIO()
+        with (
+            patch.object(conformance, "ROOT", shallow),
+            patch.object(conformance, "BASELINE", baseline_path),
+            patch.object(conformance, "scan_repo", return_value=measured),
+            patch.object(
+                sys, "argv",
+                [str(SCRIPT), "check", "--json", "--repo", "demo",
+                 "--member-path", str(member)],
+            ),
+            redirect_stdout(output),
+        ):
+            code = conformance.main()
+        payload = json.loads(output.getvalue())
+        self.assertEqual(code, 0)
+        self.assertEqual(payload["regressions"], [])
+        self.assertEqual(payload["not_gated"], {"demo": measured})
+        self.assertEqual(
+            payload["incomplete_stores"],
+            ["_atlas", "repos/member", "repos/other"],
+        )
+
+    def test_only_the_store_dependent_class_is_held_out(self) -> None:
+        gated, held = conformance.split_store_dependent(
+            {"demo": {self.CLS: 5, "markers": 3}}, ["_atlas"]
+        )
+        self.assertEqual(gated, {"demo": {"markers": 3}})
+        self.assertEqual(held, {"demo": {self.CLS: 5}})
+        whole = {"demo": {self.CLS: 5, "markers": 3}}
+        self.assertEqual(conformance.split_store_dependent(whole, []), (whole, {}))
 
 
 class SecondOutputRootTestCase(unittest.TestCase):

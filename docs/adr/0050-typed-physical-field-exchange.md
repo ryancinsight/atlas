@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-08-21
 - Class: `[major] [arch]`
-- Refs: `backlog.md#atlas-harmonia-field-exchange-050-2026-08-21` (the mandating item)
+- Refs: ryancinsight/harmonia#9 (the delivering pull request; the mandating board item is retired)
 
 ## Context
 

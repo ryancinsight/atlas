@@ -11,6 +11,7 @@ from typing import Callable, Sequence
 
 from atlas_build_artifacts import UNVERIFIED, recorded_artifact_identity
 from atlas_build_lease import BuildIdentityError
+from atlas_build_lock import retry_sharing_violation
 from atlas_build_source import SourceIdentity, _sha256_bytes
 
 VERSION = 7
@@ -26,6 +27,11 @@ class BuildSpec:
     toolchain: str
     target_dir: str
     command_key: str
+    # The packages the command builds, comma-joined in name order. Cargo
+    # unifies features across one invocation's packages, so a shared
+    # dependency's variant (its file name) depends on the whole set: a
+    # record names the variants of the set that built it, never another's.
+    selection: str
     environment_digest: str
     cargo_config_digest: str
     dependency_digest: str
@@ -40,6 +46,7 @@ class BuildSpec:
             "toolchain": self.toolchain,
             "target_dir": self.target_dir,
             "command_key": self.command_key,
+            "selection": self.selection,
             "environment_digest": self.environment_digest,
             "cargo_config_digest": self.cargo_config_digest,
             "dependency_digest": self.dependency_digest,
@@ -181,11 +188,21 @@ def _recorded_artifact(
         return None
 
 
+def read_record_text(path: Path) -> str:
+    """The text of a record or stamp, waiting out a peer's replace of it.
+
+    A replace in flight makes Windows refuse the read; the refusal ends with
+    the replace, so it is retried (`retry_sharing_violation`) rather than
+    reported as a damaged record.
+    """
+    return retry_sharing_violation(lambda: path.read_text(encoding="utf-8"), path)
+
+
 def read_record(path: Path) -> dict[str, object] | None:
     if not path.exists():
         return None
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(read_record_text(path))
     except (OSError, json.JSONDecodeError) as error:
         raise BuildIdentityError(f"malformed source identity record {path}: {error}") from error
     version = value.get("version") if isinstance(value, dict) else None
@@ -229,6 +246,7 @@ def read_record(path: Path) -> dict[str, object] | None:
             "toolchain",
             "target_dir",
             "command_key",
+            "selection",
             "environment_digest",
             "cargo_config_digest",
             "dependency_digest",
@@ -258,8 +276,8 @@ def _write_atomic(path: Path, value: dict[str, object]) -> None:
     payload = json.dumps(value, sort_keys=True, indent=2) + "\n"
     try:
         temporary.write_text(payload, encoding="utf-8", newline="\n")
-        os.replace(temporary, path)
-    except OSError as error:
+        retry_sharing_violation(lambda: os.replace(temporary, path), path)
+    except (OSError, BuildIdentityError) as error:
         try:
             temporary.unlink(missing_ok=True)
         except OSError as cleanup_error:
