@@ -65,7 +65,12 @@ def build_coherence_auditor() -> Path:
     """
     environment = dict(os.environ, CARGO_TARGET_DIR=str(shared_target_directory()))
     if "RUSTUP_TOOLCHAIN" not in environment:
-        pin = tomllib.loads((ROOT / "rust-toolchain.toml").read_text(encoding="utf-8"))
+        # The tool's own pin carries a bare version channel, unlike the root
+        # pin whose full host triple (ATLAS-TOOLCHAIN-TRIPLE-083) keeps local
+        # cache buckets coherent but cannot resolve on another platform's CI.
+        pin = tomllib.loads(
+            (ROOT / "tools" / "gitlink-coherence" / "rust-toolchain.toml").read_text(encoding="utf-8")
+        )
         environment["RUSTUP_TOOLCHAIN"] = pin["toolchain"]["channel"]
     with tempfile.TemporaryDirectory() as neutral:
         config = config_without_overlay(Path(neutral) / "stack-config.toml")
