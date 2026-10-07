@@ -1485,7 +1485,7 @@ class DefaultBranchTestCase(unittest.TestCase):
             _write(fixture.bin / "metadata.json", json.dumps(metadata))
             _write(
                 fixture.stack / "scripts" / "atlas-build-identity.py",
-                _PASSTHROUGH_IDENTITY,
+                PASSTHROUGH_IDENTITY,
             )
             _publish_stack_scripts(fixture.stack)
             subprocess.run(
@@ -2542,7 +2542,7 @@ class DebtRatchetTestCase(unittest.TestCase):
         if identity:
             # A registered member's package steps run through the stack's
             # identity checker; this one runs the step it is handed.
-            _write(stack / "scripts" / "atlas-build-identity.py", _PASSTHROUGH_IDENTITY)
+            _write(stack / "scripts" / "atlas-build-identity.py", PASSTHROUGH_IDENTITY)
         log = stack / "conformance-args.log"
         # The stack's committed checker: it logs the stack it was told to
         # measure, then its arguments, one per line.
@@ -2624,7 +2624,7 @@ class DebtRatchetTestCase(unittest.TestCase):
             metadata["target_directory"] = str(stack / "target")
             _write(fixture.bin / "metadata.json", json.dumps(metadata))
             log = stack / "conformance-args.log"
-            _write(stack / "scripts" / "atlas-build-identity.py", _PASSTHROUGH_IDENTITY)
+            _write(stack / "scripts" / "atlas-build-identity.py", PASSTHROUGH_IDENTITY)
             _write(
                 stack / "scripts" / "atlas-conformance.py",
                 "#!/usr/bin/env python3\n"
@@ -2813,7 +2813,7 @@ class PushedRevisionGateTestCase(unittest.TestCase):
         _write(fixture.bin / "metadata.json", json.dumps(metadata))
         _write(
             fixture.stack / "scripts" / "atlas-build-identity.py",
-            _PASSTHROUGH_IDENTITY,
+            PASSTHROUGH_IDENTITY,
         )
         _publish_stack_scripts(fixture.stack)
         root = fixture.root
@@ -2933,7 +2933,7 @@ class PushShapeTestCase(unittest.TestCase):
             _write(fixture.bin / "metadata.json", json.dumps(metadata))
             _write(
                 fixture.stack / "scripts" / "atlas-build-identity.py",
-                _PASSTHROUGH_IDENTITY,
+                PASSTHROUGH_IDENTITY,
             )
             _publish_stack_scripts(fixture.stack)
             root = fixture.root
