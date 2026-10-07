@@ -64,7 +64,7 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
-          python -m pytest -v -p xdist.plugin -m "not slow" -n auto --maxprocesses=8 --max-worker-restart=0
+          python -m pytest -v -p xdist.plugin -m "not slow" -n auto --maxprocesses=8 --max-worker-restart=0 --dist=worksteal
 
   pytest-slow:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
