@@ -26,6 +26,8 @@ import tomllib
 import unittest
 import weakref
 
+from identity_fixture import PASSTHROUGH_IDENTITY
+
 SCRIPT = (
     pathlib.Path(__file__).resolve().parents[1] / "git-hooks" / "pre-push"
 )
@@ -383,6 +385,7 @@ class GateFixture:
                     "packages": packages,
                     "workspace_members": [package["id"] for package in packages],
                     "workspace_root": "@ROOT@",
+                    "target_directory": str(self.stack / "target"),
                     "resolve": {
                         "nodes": [
                             {
@@ -560,7 +563,6 @@ def _register_stack(stack: pathlib.Path) -> None:
 # step carries one. This stand-in reports a clean range.
 _CLEAN_RANGE_SCANNER = "import sys\nsys.exit(0)\n"
 
-
 def _seed_scanner(stack: pathlib.Path) -> None:
     """Give the stack a credential scanner unless the test wrote its own."""
     scanner = stack / "scripts" / "atlas-secret-scan.py"
@@ -568,9 +570,16 @@ def _seed_scanner(stack: pathlib.Path) -> None:
         _write(scanner, _CLEAN_RANGE_SCANNER, executable=True)
 
 
+def _seed_identity(stack: pathlib.Path) -> None:
+    """Give valid stack fixtures the command-running identity checker."""
+    identity = stack / "scripts" / "atlas-build-identity.py"
+    if not identity.exists():
+        _write(identity, PASSTHROUGH_IDENTITY, executable=True)
+
+
 def _stacked_fixture(temp: str, **options: object) -> "GateFixture":
     """A member at `<temp>/repos/member` of a stack that carries the scanner
-    and the lockfile checker."""
+    and lockfile checkers plus the command-running identity checker."""
     return GateFixture.in_stack(pathlib.Path(temp), **options)
 
 
@@ -584,6 +593,7 @@ def _publish_stack_scripts(
     when the stack checkout sits on a branch that predates them.
     """
     _seed_scanner(stack)
+    _seed_identity(stack)
     if not (stack / ".git").exists():
         _git_init_repo(stack)
     _register_stack(stack)
@@ -609,17 +619,6 @@ def _recording_tool(log: pathlib.Path, exit_code: int) -> str:
         "    stream.write(' '.join([__file__, *sys.argv[1:]]) + '\\n')\n"
         f"sys.exit({exit_code})\n"
     )
-
-
-# A stack identity checker that runs the step it is handed, where it is told.
-_PASSTHROUGH_IDENTITY = (
-    "import os, subprocess, sys\n"
-    "argv = sys.argv[1:]\n"
-    "cwd = argv[argv.index('--command-cwd') + 1]\n"
-    "command = [os.environ.get('CARGO', 'cargo') if value == 'cargo' else value\n"
-    "           for value in argv[argv.index('--') + 1:]]\n"
-    "raise SystemExit(subprocess.run(command, cwd=cwd).returncode)\n"
-)
 
 
 def _recording_passthrough_identity(log: pathlib.Path) -> str:
@@ -1025,7 +1024,7 @@ class PackageMapperTestCase(unittest.TestCase):
             calls = (fixture.root / "calls.log").read_text(encoding="utf-8")
             self.assertIn("-p solo", calls)
             self.assertTrue(
-                any(line.startswith("doc --no-deps ") and line.endswith(" -p solo --locked")
+                any(line.startswith("doc --no-deps ") and line.endswith(" --locked -p solo")
                     for line in calls.splitlines()),
                 calls,
             )
@@ -1085,7 +1084,7 @@ class PackageMapperTestCase(unittest.TestCase):
 
 
 class BlameClassifierTestCase(unittest.TestCase):
-    """Failures inside the repo block; environment failures do not."""
+    """Failures inside the repo block; identity keeps environment failures unverified."""
 
     inside_log = (
         "error: something broke\n"
@@ -1168,8 +1167,9 @@ class BlameClassifierTestCase(unittest.TestCase):
             code, stderr = self._gate(
                 _stacked_fixture(temp), self.outside_log
             )
-            self.assertEqual(code, 0)
+            self.assertEqual(code, 1)
             self.assertIn("dependency graph is broken", stderr)
+            self.assertIn("source identity did not verify", stderr)
 
     def test_locked_metadata_failure_reports_the_overlay_environment(self) -> None:
         log = (
@@ -1178,8 +1178,9 @@ class BlameClassifierTestCase(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             code, stderr = self._gate(_stacked_fixture(temp), log)
-        self.assertEqual(code, 0, stderr)
+        self.assertEqual(code, 1, stderr)
         self.assertIn("dependency graph is broken", stderr)
+        self.assertIn("source identity did not verify", stderr)
 
     def test_windows_drive_path_outside_repo_reports_environment(self) -> None:
         """cygpath spells a converted path with an upper-case drive letter
@@ -1197,8 +1198,9 @@ class BlameClassifierTestCase(unittest.TestCase):
                 "error: could not compile `foreign-crate`\n"
             )
             code, stderr = self._gate(_stacked_fixture(temp), log)
-            self.assertEqual(code, 0, stderr)
+            self.assertEqual(code, 1, stderr)
             self.assertIn("dependency graph is broken", stderr)
+            self.assertIn("source identity did not verify", stderr)
 
 
 class MissingToolchainTestCase(unittest.TestCase):
@@ -2408,25 +2410,50 @@ class LaneGateTestCase(unittest.TestCase):
             )
         self.assertIn("rustdoc skipped for bar", err)
 
-    def test_a_reproduce_line_is_a_runnable_command(self) -> None:
-        """The reproduce line names the revision, not the deleted export.
-
-        The export is removed when the hook exits, so a manifest path into it
-        is a command that cannot run; and the package flags stay separate
-        arguments (`--no-deps--manifest-path` once glued them together).
-        """
-        _, fixture, lane = self._lane(overlay=True)
+    def test_identity_rustdoc_failure_uses_the_pushed_export(self) -> None:
+        """The identity checker receives the pushed export and exact Cargo argv."""
+        stack, fixture, lane = self._lane(overlay=True)
+        identity_log = stack / "identity-invocations.log"
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            _recording_identity_invocation(identity_log),
+        )
         fixture.set_cargo_behavior("fail-doc")
         env = {"CARGO_FAIL_LOG": self.inside_log.format(root="@ROOT@")}
         code, err = self._run_in_lane(fixture, lane, extra_env=env)
         self.assertEqual(code, 1, err)
-        self.assertIn(f"From a checkout of {_git(lane, 'rev-parse', 'HEAD')}", err)
-        reproduce = [
-            line.strip() for line in err.splitlines() if "cargo doc" in line
+        self.assertIn("rustdoc fails for foo", err)
+
+        records = [
+            json.loads(line)
+            for line in identity_log.read_text(encoding="utf-8").splitlines()
         ]
-        self.assertTrue(reproduce, err)
-        for line in reproduce:
-            self.assertTrue(line.endswith("cargo doc --no-deps -p foo --locked"), line)
+        self.assertEqual(len(records), 1, records)
+        record = records[0]
+        argv = record["argv"]
+        pushed = _git(lane, "rev-parse", "HEAD")
+        self.assertEqual(record["root_head"], pushed)
+        exported = pathlib.Path(argv[argv.index("--root") + 1]).resolve()
+        command_cwd = pathlib.Path(argv[argv.index("--command-cwd") + 1]).resolve()
+        self.assertEqual(exported, command_cwd)
+        self.assertNotIn(
+            os.path.normcase(str(stack.resolve())),
+            os.path.normcase(str(exported)),
+        )
+        self.assertEqual(argv[argv.index("--command-key") + 1], "atlas-pre-push")
+
+        stages = [
+            line.split()
+            for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            if line.split()[0] in {"clippy", "nextest", "doc"}
+        ]
+        self.assertEqual([stage[0] for stage in stages], ["clippy", "nextest", "doc"])
+        manifest = argv[argv.index("--manifest") + 1]
+        self.assertEqual(pathlib.Path(manifest).resolve(), exported / "Cargo.toml")
+        self.assertEqual(
+            stages[-1],
+            ["doc", "--no-deps", "--manifest-path", manifest, "--locked", "-p", "foo"],
+        )
 
     def test_a_lockfile_package_collision_is_the_environment(self) -> None:
         _, fixture, lane = self._lane(overlay=False)
