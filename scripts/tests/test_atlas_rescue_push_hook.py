@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from identity_fixture import PASSTHROUGH_IDENTITY
 from readonly_tree import clear_readonly_tree
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -59,6 +60,9 @@ class RescuePushHookTests(unittest.TestCase):
         (stack / "scripts").mkdir(parents=True)
         root.mkdir(parents=True)
         shutil.copyfile(SCANNER, stack / "scripts" / "atlas-secret-scan.py")
+        write_file(
+            stack / "scripts" / "atlas-build-identity.py", PASSTHROUGH_IDENTITY
+        )
         (stack / "scripts" / "git-hooks").mkdir(parents=True, exist_ok=True)
         shutil.copyfile(HELPER, stack / "scripts" / "git-hooks" / "rescue-push")
         # The member hook recognises a stack by the members it registers.
