@@ -140,8 +140,8 @@ package-cache invalidation and snapshot deduplication; path/Git cleaning, stamps
 shared/exclusive claims, fairness, all-or-none acquisition, downgrade, interoperability, deadlines, and dead owners. Real-Cargo
 cases cover repeated exports, multi-package commands, and failures. Integrated hook tests cover pushed-revision export,
 committed locks, manifest and live-owner changes, prepared-tool selection, and refusal paths. Configured identity, pre-push,
-conformance, architecture, and pin-drift suites remain executable gates; final combined, normal-push, hosted, and independent
-evidence remains pending.
+conformance, architecture, and pin-drift suites remain executable gates. Atlas pin readiness additionally requires the exact
+combined candidate's normal push, hosted checks, and independent acceptance; the driver PR records their results.
 
 ## References
 - `scripts/atlas_build_records.py`; `scripts/atlas_build_inputs.py`
