@@ -223,16 +223,35 @@ class GateFixture:
                 '[package]\nname = "foo"\nversion = "0.1.0"\nedition = "2021"\n',
             )
             _write(root / "crates" / "foo" / "src" / "lib.rs", "pub fn f() {}\n")
-        else:
+        elif layout == "single":
             _write(
                 root / "Cargo.toml",
                 '[package]\nname = "solo"\nversion = "0.1.0"\nedition = "2021"\n',
             )
             _write(root / "src" / "lib.rs", "pub fn f() {}\n")
+        elif layout == "meta":
+            for directory in (
+                "checkout-path-dependencies",
+                "criterion-regression",
+                "gitlink-coherence",
+                "version-guard",
+            ):
+                workspace = root / "tools" / directory
+                _write(
+                    workspace / "Cargo.toml",
+                    f'[package]\nname = "{directory}"\nversion = "0.1.0"\nedition = "2024"\n',
+                )
+                _write(workspace / "Cargo.lock", "# lock\n")
+                _write(workspace / "src" / "lib.rs", "pub fn f() {}\n")
+        else:
+            raise ValueError(f"unknown gate fixture layout {layout}")
         self.set_workspace_packages(
-            ["unrelated-member", "foo"] if layout == "crates" else ["solo"]
+            ["unrelated-member", "foo"]
+            if layout == "crates"
+            else (["solo"] if layout == "single" else ["tool"])
         )
-        _write(root / "Cargo.lock", "# lock\n")
+        if layout != "meta":
+            _write(root / "Cargo.lock", "# lock\n")
         # The member carries no lockfile checker: the hook runs the stack's
         # (`install_stack_lockfile`).
         self.set_cargo_behavior("pass")
@@ -363,9 +382,9 @@ class GateFixture:
         packages = []
         for name in names:
             manifest = (
-                "@ROOT@/Cargo.toml"
-                if self.layout == "single"
-                else f"@ROOT@/crates/{name}/Cargo.toml"
+                f"@ROOT@/crates/{name}/Cargo.toml"
+                if self.layout == "crates"
+                else "@ROOT@/Cargo.toml"
             )
             package = {
                 "id": f"fixture:{name}",
@@ -476,7 +495,10 @@ class GateFixture:
         elif mode.startswith("fail-clippy"):
             body = (
                 'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
-                'if [ "$1" = "clippy" ]; then\n'
+                'if [ "$1" = "clippy" ]'
+                + (' && [[ "$here" = */version-guard ]]'
+                   if mode == "fail-clippy-version-guard" else '')
+                + '; then\n'
                 '  printf "%s\\n" "${CARGO_FAIL_LOG//@ROOT@/$here}" >&2\n'
                 "  exit 1\n"
                 "fi\nexit 0\n"
@@ -1081,6 +1103,180 @@ class PackageMapperTestCase(unittest.TestCase):
 
             self.assertEqual(code, 0, stderr)
             self.assertIn("gating solo", stderr)
+
+
+class MetaRootCargoGateTestCase(unittest.TestCase):
+    """The Atlas root owns independent Cargo workspaces below ``tools/``."""
+
+    workspaces = (
+        "checkout-path-dependencies",
+        "criterion-regression",
+        "gitlink-coherence",
+        "version-guard",
+    )
+
+    def _fixture(self, temp: str) -> tuple[GateFixture, pathlib.Path, pathlib.Path]:
+        stack = pathlib.Path(temp)
+        fixture = GateFixture(stack, layout="meta")
+        fixture.stack = stack
+        metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+        metadata["target_directory"] = str(stack / "target")
+        _write(fixture.bin / "metadata.json", json.dumps(metadata))
+        content_log = stack / "content-gates.log"
+        identity_log = stack / "identity-gates.log"
+        _write(stack / "scripts" / "lockfile.py", _STACK_LOCKFILE_STUB, executable=True)
+        _write(
+            stack / "scripts" / "atlas-artifact-budget.py",
+            _recording_tool(content_log, 0),
+            executable=True,
+        )
+        _write(
+            stack / "scripts" / "atlas-secret-scan.py",
+            _recording_tool(content_log, 0),
+            executable=True,
+        )
+        _write(
+            stack / "scripts" / "atlas-conformance.py",
+            _recording_tool(content_log, 0),
+            executable=True,
+        )
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            _recording_identity_invocation(identity_log),
+            executable=True,
+        )
+        _write(stack / "scripts" / "atlas_stack.py", "ROOT = None  # honours ATLAS_STACK_ROOT\n")
+        _publish_stack_scripts(stack)
+        subprocess.run(
+            ["git", "-C", str(stack), *_IDENT, "checkout", "-q", "-b", "feat"],
+            check=True,
+        )
+        return fixture, content_log, identity_log
+
+    @staticmethod
+    def _commit(fixture: GateFixture, *paths: str) -> None:
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "add", "--", *paths], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "change"],
+            check=True,
+        )
+
+    def test_content_only_root_change_runs_content_gates_without_cargo(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, content_log, identity_log = self._fixture(temp)
+            _write(fixture.root / "README.md", "# changed\n")
+            self._commit(fixture, "README.md")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("native gate not applicable", stderr)
+            self.assertEqual(len(content_log.read_text(encoding="utf-8").splitlines()), 3)
+            self.assertFalse(identity_log.exists())
+            self.assertFalse(fixture.calls.exists())
+
+    def test_nested_workspace_uses_its_manifest_cwd_and_complete_sequence(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            source = fixture.root / "tools" / "version-guard" / "src" / "lib.rs"
+            source.write_text("pub fn f() {}\n// changed\n", encoding="utf-8")
+            self._commit(fixture, "tools/version-guard/src/lib.rs")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating tool", stderr)
+            invocation = json.loads(identity_log.read_text(encoding="utf-8").splitlines()[0])
+            argv = invocation["argv"]
+            manifest = pathlib.Path(argv[argv.index("--manifest") + 1])
+            command_cwd = pathlib.Path(argv[argv.index("--command-cwd") + 1])
+            self.assertEqual(manifest.parent, command_cwd)
+            self.assertEqual(manifest.parent.name, "version-guard")
+            self.assertEqual(invocation["root_head"], _git(fixture.root, "rev-parse", "feat"))
+            calls = fixture.calls.read_text(encoding="utf-8").splitlines()
+            self.assertTrue(any(line.startswith("clippy ") for line in calls), calls)
+            self.assertTrue(any(line.startswith("nextest run ") for line in calls), calls)
+            self.assertTrue(any(line.startswith("doc ") for line in calls), calls)
+
+    def test_root_build_inputs_gate_all_four_workspaces(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            _write(fixture.root / ".cargo" / "config.toml", "[build]\nincremental = false\n")
+            self._commit(fixture, ".cargo/config.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            invocations = [json.loads(line) for line in identity_log.read_text(encoding="utf-8").splitlines()]
+            manifests = {
+                pathlib.Path(item["argv"][item["argv"].index("--manifest") + 1]).parent.name
+                for item in invocations
+            }
+            self.assertEqual(manifests, set(self.workspaces))
+
+    def test_two_workspaces_run_before_a_later_stage_failure_propagates(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            fixture.set_cargo_behavior("fail-clippy-version-guard")
+            for workspace in ("checkout-path-dependencies", "version-guard"):
+                source = fixture.root / "tools" / workspace / "src" / "lib.rs"
+                source.write_text(f"pub fn f() {{}}\n// {workspace}\n", encoding="utf-8")
+            self._commit(
+                fixture,
+                "tools/checkout-path-dependencies/src/lib.rs",
+                "tools/version-guard/src/lib.rs",
+            )
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(),
+                {"CARGO_FAIL_LOG": "error: failed\n  --> @ROOT@/src/lib.rs:1:1"},
+            )
+
+            self.assertEqual(code, 1)
+            self.assertIn("clippy fails for tool", stderr)
+            invocations = [json.loads(line) for line in identity_log.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(invocations), 2)
+            self.assertEqual(
+                [
+                    pathlib.Path(item["argv"][item["argv"].index("--manifest") + 1]).parent.name
+                    for item in invocations
+                ],
+                ["checkout-path-dependencies", "version-guard"],
+            )
+
+    def test_removed_selected_manifest_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            manifest = fixture.root / "tools" / "version-guard" / "Cargo.toml"
+            manifest.unlink()
+            self._commit(fixture, "tools/version-guard/Cargo.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 1)
+            self.assertIn("selected Cargo workspace manifest tools/version-guard/Cargo.toml is missing", stderr)
+            self.assertFalse(identity_log.exists())
+
+    def test_malformed_selected_manifest_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            manifest = fixture.root / "tools" / "version-guard" / "Cargo.toml"
+            manifest.write_text("[package\n", encoding="utf-8")
+            self._commit(fixture, "tools/version-guard/Cargo.toml")
+            fixture.set_cargo_behavior("missing")
+            fixture.cargo_launcher.unlink()
+            cargo = shutil.which("cargo")
+            self.assertIsNotNone(cargo)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), {"CARGO": str(cargo)}
+            )
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("cargo metadata could not establish testable packages", stderr)
+            self.assertFalse(identity_log.exists())
 
 
 class BlameClassifierTestCase(unittest.TestCase):
@@ -2619,7 +2815,8 @@ class DebtRatchetTestCase(unittest.TestCase):
     def test_stack_root_push_uses_meta_ratchet_identity(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             stack = pathlib.Path(temp)
-            fixture = GateFixture(stack)
+            fixture = GateFixture(stack, layout="meta")
+            fixture.set_workspace_packages(["foo"])
             metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
             metadata["target_directory"] = str(stack / "target")
             _write(fixture.bin / "metadata.json", json.dumps(metadata))
@@ -2650,7 +2847,7 @@ class DebtRatchetTestCase(unittest.TestCase):
                 ["git", "-C", str(stack), *_IDENT, "checkout", "-q", "-b", "feat"],
                 check=True,
             )
-            (stack / "crates" / "foo" / "src" / "lib.rs").write_text(
+            (stack / "tools" / "version-guard" / "src" / "lib.rs").write_text(
                 "pub fn f() {}\n// pushed\n"
             )
             subprocess.run(
