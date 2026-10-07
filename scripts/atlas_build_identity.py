@@ -201,6 +201,8 @@ def run_build(
             clean_packages[package],
         )
     }
+    # Read once, and only when a record lists a unit's dep-info or an input.
+    layout = functools.cache(lambda: package_layout(manifest, execution_root, target_dir))
     # One bound for acquiring every lease, across both phases, and the run's
     # place in every queue, fixed by the same clock read: `(arrival, run)`.
     arrival_ns = time.monotonic_ns()
@@ -272,7 +274,7 @@ def run_build(
                 manifest,
                 execution_root,
                 state.inputs,
-                workspace_owners(),
+                workspace_owners() if not artifact_paths else None,
             )
         )
 
@@ -490,7 +492,7 @@ def run_build(
                         manifest,
                         execution_root,
                         tuple(sorted(recorded_packages[package])),
-                        workspace_owners(),
+                        None,
                     )
                     if artifact_paths
                     else discovered[package]
@@ -503,6 +505,12 @@ def run_build(
                     "build": spec.as_dict(),
                     "dependencies": dependencies,
                     "artifact": artifact,
+                    # Declared paths are not a closure: the repository decides.
+                    "inputs": {}
+                    if artifact_paths
+                    else record_inputs(
+                        target_dir, artifact["files"], recorded_packages[package], layout
+                    ),
                 },
             )
             # Cleaned by its own rule or by another package's in this run.
