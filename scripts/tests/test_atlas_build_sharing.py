@@ -62,6 +62,7 @@ def minimal_record() -> dict[str, object]:
             )
         },
         "artifact": {"files": {"debug/deps/libdep.rlib": "h"}, "digest": "d"},
+        "inputs": {},
         "dependencies": {
             "root": "r",
             "digest": "d",

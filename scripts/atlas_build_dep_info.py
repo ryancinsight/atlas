@@ -80,7 +80,12 @@ def _sysroot() -> Path | None:
     try:
         result = subprocess.run(
             [os.environ.get("RUSTC", "rustc"), "--print", "sysroot"],
-            check=False, capture_output=True, timeout=60, text=True,
+            check=False,
+            capture_output=True,
+            timeout=60,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
     except (OSError, subprocess.SubprocessError):
         return None

@@ -156,10 +156,15 @@ def _dependency_data(
         package_source_cache = target_dir / ".atlas" / "source-identity" / "package-source"
         package_digests: dict[Path, str] = {}
         try:
+            # A metadata package whose directory this export does not
+            # materialize is identified by nothing; a closure that names it
+            # still refuses at `identify_source`.
             directories = [
-                Path(str(value["manifest_path"])).parent
+                parent
                 for value in metadata["packages"]
                 if isinstance(value, dict) and value.get("source") is None
+                for parent in (Path(str(value["manifest_path"])).parent,)
+                if parent.is_dir()
             ]
         except (KeyError, TypeError) as error:
             raise BuildIdentityError(f"malformed cargo metadata for {manifest}") from error
