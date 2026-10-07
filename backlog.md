@@ -120,4 +120,5 @@
 <a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — blocked
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
+<a id="ritk-shared-tree-stale-basis-213"></a>- [RITK-SHARED-TREE-STALE-BASIS-213](backlog/ritk-shared-tree-stale-basis-213.md) — ritk's shared tree is checked out 58 commits behind origin [patch] — todo
 <a id="ATLAS-HOOK-DIRECT-PATH-RETIRE"></a>- [ATLAS-HOOK-DIRECT-PATH-RETIRE](backlog/atlas-hook-direct-path-retire.md) — Retire direct hook build branches [patch] — todo

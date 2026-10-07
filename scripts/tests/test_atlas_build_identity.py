@@ -2439,54 +2439,66 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertFalse(tracked_dirty)
         self.assertEqual(entries, ((b"untracked", []), (b"ignored", [])))
 
-    def test_each_repository_is_identified_once_per_dependency_pass(self) -> None:
-        # Every path package of one repository has that repository's
-        # identity, so a pass computes it once, however many packages, and
-        # however many of the selection's snapshots, share it.
+    def test_every_path_package_is_identified_once_per_dependency_pass(self) -> None:
+        # A path package is identified by its own directory's files, never its
+        # repository, so one `package_identities` call per pass identifies
+        # every path package of the metadata: a package several closures
+        # share is read once, and a nested package's files never fall to the
+        # package around it.
         init_repo(self.root, "fn main() {}\n")
-        (self.root / "member" / "src").mkdir(parents=True)
+        member = self.root / "member"
+        (member / "src").mkdir(parents=True)
+        (member / "Cargo.toml").write_text(
+            "[package]\nname = \"member\"\nversion = \"0.1.0\"\n", encoding="utf-8"
+        )
+        (member / "src" / "lib.rs").write_text("pub fn member() {}\n", encoding="utf-8")
+        git(self.root, "add", "member")
+        git(self.root, "commit", "-q", "-m", "add member")
         (self.root / "untracked.rs").write_text("dirty\n", encoding="utf-8")
         sibling = self.base / "sibling"
         init_repo(sibling, "pub fn sibling() {}\n")
-        identified: list[Path] = []
-        real_source_identity = build_inputs.source_identity
+        identified: list[tuple[Path, ...]] = []
+        real_package_identities = build_inputs.package_identities
 
-        def counting_source_identity(top, *arguments):
-            identified.append(top)
-            return real_source_identity(top, *arguments)
+        def counting_package_identities(directories, *arguments):
+            identified.append(tuple(directories))
+            return real_package_identities(directories, *arguments)
 
         def snapshot(metadata, manifest, package, identify_source, content_digest):
             return {
                 "identities": [
                     identify_source(path)
-                    for path in (self.root, self.root / "member", self.root / "src", sibling)
+                    for path in (self.root, member, sibling)
+                ]
+            }
+
+        def fake_metadata(manifest, metadata_cwd, no_deps=False):
+            return {
+                "packages": [
+                    {"manifest_path": str(self.root / "Cargo.toml"), "source": None},
+                    {"manifest_path": str(member / "Cargo.toml"), "source": None},
+                    {"manifest_path": str(sibling / "Cargo.toml"), "source": None},
                 ]
             }
 
         with (
-            patch.object(build_inputs, "source_identity", side_effect=counting_source_identity),
+            patch.object(
+                build_inputs, "package_identities", side_effect=counting_package_identities
+            ),
             patch.object(build_inputs, "dependency_snapshot", side_effect=snapshot),
-            patch.object(build_inputs, "_cargo_metadata", return_value={}),
+            patch.object(build_inputs, "_cargo_metadata", side_effect=fake_metadata),
         ):
             data = build_inputs._dependency_data(
                 self.root / "Cargo.toml", ("demo", "other"), self.target, self.root, (), False
             )
-        self.assertEqual(identified, [self.root.resolve(), sibling.resolve()])
+        self.assertEqual(len(identified), 1, identified)
         self.assertEqual(sorted(data), ["demo", "other"])
         self.assertEqual(data["demo"]["identities"], data["other"]["identities"])
-        root_identity, member_identity, source_identity, sibling_identity = data["demo"]["identities"]
-        expected_root = build_records._content(
-            build_source.source_identity(self.root, (self.target,)).as_dict()
-        )
-        self.assertTrue(expected_root["dirty"])
-        self.assertEqual(root_identity, expected_root)
-        self.assertEqual(member_identity, expected_root)
-        self.assertEqual(source_identity, expected_root)
-        self.assertEqual(
-            sibling_identity,
-            build_records._content(build_source.source_identity(sibling, (self.target,)).as_dict()),
-        )
-        self.assertNotEqual(sibling_identity, expected_root)
+        root_identity, member_identity, sibling_identity = data["demo"]["identities"]
+        # Each is its own directory's files: a commit to one moves no other.
+        self.assertNotEqual(root_identity, member_identity)
+        self.assertNotEqual(root_identity, sibling_identity)
+        self.assertNotEqual(member_identity, sibling_identity)
 
     def test_each_package_source_is_fingerprinted_once_per_dependency_pass(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -4596,13 +4608,13 @@ class MultiPackageRunTestCase(unittest.TestCase):
         )
         git(self.source, "commit", "-q", "-am", "edit c")
         second = self.push(self.base / "gate2")
-        self.assertEqual([result.status for result in second], ["rebuilt", "rebuilt"])
-        # A path package's identity is its repository's, so the commit moves
-        # `a`'s and `b`'s records too: one run per package (68a1c4364)
-        # cleaned `-p a -p b`, then `-p c`. The batch names that union once.
+        # A path package is identified by its own directory's files, so the
+        # commit moves `c`'s record alone: `a`'s matches and `c`'s rule
+        # cleans `c`. When identity was the repository's, the commit moved
+        # every record and the batch cleaned `-p a -p b -p c`.
+        self.assertEqual([result.status for result in second], ["reused", "rebuilt"])
         cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
-        self.assertEqual(cleans, [["a", "b", "c"]])
-
+        self.assertEqual(cleans, [["c"]])
     def test_every_package_is_leased_and_each_member_held_exclusive(self) -> None:
         self.push(self.base / "gate1")
         target = self.base / "target"
@@ -4703,7 +4715,9 @@ class MultiPackageRunTestCase(unittest.TestCase):
             "//! c\n/// c\npub fn c() -> u32 { 4 }\n", encoding="utf-8"
         )
         git(self.source, "commit", "-q", "-am", "edit c")
-        self.assertEqual(push("gate3"), [["a", "b", "c"]])
+        # By its own files: the commit moves `c`'s record alone, and the
+        # shared steps name one selection, so the push cleans `c` once.
+        self.assertEqual(push("gate3"), [["c"]])
         self.assertEqual(push("gate4"), [])
 
     def test_a_package_outside_the_selection_is_refused(self) -> None:

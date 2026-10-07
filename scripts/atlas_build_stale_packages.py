@@ -3,11 +3,27 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 from atlas_build_artifacts import changed_packages
-from atlas_build_records import BuildSpec, _content
+from atlas_build_records import BuildSpec, _content, _identified_by_files
 from atlas_build_stamps import BuildDirectory, _stale_git
+
+
+@dataclass
+class PackageState:
+    """One package's record as read under a run's leases, the clean rule's input.
+
+    `current` is the record's artifact files and `inputs` its
+    out-of-directory inputs, each hashed again under the leases.
+    """
+
+    existing: dict[str, object] | None
+    matched: bool
+    current: dict[str, object] | None
+    stale_git: set[str]
+    inputs: dict[str, object]
 
 
 def _dimensions(build: object) -> object:
@@ -51,6 +67,7 @@ def _stale_packages(
     dependencies: dict[str, object],
     manifest: Path,
     execution_root: Path,
+    inputs: dict[str, object],
     owners: dict[str, frozenset[str]] | None = None,
 ) -> tuple[str, ...]:
     """The packages a mismatched record must clean before its command runs.
@@ -66,10 +83,15 @@ def _stale_packages(
     metadata` unifies features across `cfg` tables and dependency kinds, so
     which variants a shape change renamed cannot be read from it: a shape
     or dimension change cleans every path package. Otherwise only content
-    moved, and the run cleans each path package whose source identity
-    moved, its own package when its source moved, and the owners of changed
-    recorded files, or every path package when a changed file cannot be
-    attributed to exactly one. A Git package is cleaned when its stamp is
+    moved, and the run cleans each path package whose identity -- its own
+    directory's files -- moved, each one an input of which moved or is
+    unverified (`inputs`, the record's out-of-directory inputs hashed again
+    now), and the owners of changed recorded files, or every path package
+    when a changed file cannot be attributed to exactly one. A commit to
+    one member therefore moves no other member's record. The repository's
+    identity cleans the run's own package only where the snapshot cannot
+    identify it (`_identified_by_files`). A Git package is cleaned when
+    its stamp is
     stale (`_stale_git`). Registry packages are never cleaned. Cleaning the
     whole non-registry closure on any snapshot difference held a
     two-dependency addition's 35 packages exclusive through its command; 34
@@ -98,7 +120,13 @@ def _stale_packages(
             and recorded.get(record.get("id")) != record
         ):
             stale.add(str(record.get("name")))
-    if _content(existing.get("source")) != _content(spec.source.as_dict()):
+    recorded_inputs = existing.get("inputs")
+    for package, files in (recorded_inputs if isinstance(recorded_inputs, dict) else {}).items():
+        if inputs.get(package) != files:
+            stale.add(package)
+    if not _identified_by_files(dependencies) and _content(existing.get("source")) != _content(
+        spec.source.as_dict()
+    ):
         stale.add(spec.package)
     changed = changed_packages(
         existing["artifact"]["files"],
@@ -112,8 +140,9 @@ def _stale_packages(
     return tuple(sorted(stale))
 
 
-# The record fields that carry source content: a path package's repository
-# identity and a Git or registry checkout's digest. Neither renames a variant.
+# The record fields that carry source content: a path package's own files
+# (`package_identities`) and a Git or registry checkout's digest. Neither
+# renames a variant.
 _CONTENT_FIELDS = ("identity", "content_digest")
 
 

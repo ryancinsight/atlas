@@ -8,15 +8,15 @@ from pathlib import Path
 from typing import Sequence
 
 from atlas_build_lease import BuildIdentityError
+from atlas_build_package_identity import package_identities
 from atlas_build_package_source import cached_package_source_digest
-from atlas_build_records import BuildSpec, _content
+from atlas_build_records import BuildSpec
 from atlas_build_snapshot import _cargo_metadata, dependency_snapshot
 from atlas_build_source import (
     _canonical,
     _sha256_bytes,
     cargo_config_digest,
     environment_digest,
-    repository_top,
     source_identity,
     toolchain_identity,
 )
@@ -135,8 +135,11 @@ def _dependency_data(
 ) -> dict[str, dict[str, object]]:
     """Each package's dependency snapshot, by package name.
 
-    One `cargo metadata`, path-repository identity, and external package
-    digest serve the whole set: a package several closures share is read once.
+    One `cargo metadata`, one `package_identities`, and one external
+    package digest serve the whole set: a package several closures share is
+    read once. Every path package in the metadata is identified, not only
+    the closures', so a nested package's files never fall to the package
+    around it.
     """
     if has_explicit_artifacts:
         snapshots: dict[str, dict[str, object]] = {
@@ -150,18 +153,28 @@ def _dependency_data(
         }
     else:
         metadata = _cargo_metadata(manifest, metadata_cwd, no_deps=False)
-        # Keyed by work tree: every path package of one repository has that
-        # repository's identity, so it is computed once per pass.
-        source_cache: dict[Path, dict[str, object]] = {}
         package_source_cache = target_dir / ".atlas" / "source-identity" / "package-source"
         package_digests: dict[Path, str] = {}
+        try:
+            # A metadata package whose directory this export does not
+            # materialize is identified by nothing; a closure that names it
+            # still refuses at `identify_source`.
+            directories = [
+                parent
+                for value in metadata["packages"]
+                if isinstance(value, dict) and value.get("source") is None
+                for parent in (Path(str(value["manifest_path"])).parent,)
+                if parent.is_dir()
+            ]
+        except (KeyError, TypeError) as error:
+            raise BuildIdentityError(f"malformed cargo metadata for {manifest}") from error
+        identities = package_identities(directories, (target_dir,), ignore_paths)
 
         def identify_source(path: Path) -> dict[str, object]:
-            top = repository_top(path)
-            if top not in source_cache:
-                identified = source_identity(top, (target_dir,), ignore_paths)
-                source_cache[top] = _content(identified.as_dict())
-            return source_cache[top]
+            try:
+                return identities[_canonical(path)]
+            except KeyError as error:
+                raise BuildIdentityError(f"no path package is identified at {path}") from error
 
         def digest_package_source(path: Path) -> str:
             canonical = _canonical(path, strict=True)
