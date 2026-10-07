@@ -1163,6 +1163,71 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             check=True,
         )
 
+    def _point_branch_at_unique_tree(
+        self, fixture: GateFixture, with_parent: bool
+    ) -> pathlib.Path:
+        _write(fixture.root / "changed.txt", "changed\n")
+        self._commit(fixture, "changed.txt")
+        tree = _git(fixture.root, "rev-parse", "HEAD^{tree}")
+        if not with_parent:
+            result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(fixture.root),
+                    *_IDENT,
+                    "commit-tree",
+                    tree,
+                    "-F",
+                    "-",
+                ],
+                input=b"orphan\n",
+                check=True,
+                capture_output=True,
+            )
+            revision = result.stdout.decode("ascii").strip()
+            subprocess.run(
+                ["git", "-C", str(fixture.root), "update-ref", "refs/heads/feat", revision],
+                check=True,
+            )
+        object_path = fixture.root / ".git" / "objects" / tree[:2] / tree[2:]
+        self.assertTrue(object_path.is_file())
+        return object_path
+
+    def test_changed_path_discovery_failures_block_before_native_gates(self) -> None:
+        for label, with_parent in (("range-diff", True), ("whole-revision", False)):
+            with self.subTest(discovery=label), tempfile.TemporaryDirectory(
+                prefix="atlas-meta-gate-"
+            ) as temp:
+                fixture, content_log, identity_log = self._fixture(temp)
+                _write(
+                    fixture.stack / "scripts" / "atlas-conformance.py",
+                    "import atexit, os, pathlib, stat\n"
+                    "def remove_object():\n"
+                    "    path = pathlib.Path(os.environ['REMOVE_OBJECT'])\n"
+                    "    path.chmod(path.stat().st_mode | stat.S_IWRITE)\n"
+                    "    path.unlink()\n"
+                    "atexit.register(remove_object)\n"
+                    + _recording_tool(content_log, 0),
+                    executable=True,
+                )
+                _publish_stack_scripts(fixture.stack)
+                object_path = self._point_branch_at_unique_tree(fixture, with_parent)
+
+                code, stderr = fixture.run_hook(
+                    fixture.push_line_new_branch(),
+                    {"REMOVE_OBJECT": str(object_path)},
+                )
+
+                self.assertEqual(code, 1, stderr)
+                self.assertIn("BLOCKED -- could not discover", stderr)
+                self.assertNotIn("native gate not applicable", stderr)
+                self.assertEqual(
+                    len(content_log.read_text(encoding="utf-8").splitlines()), 3
+                )
+                self.assertFalse(identity_log.exists())
+                self.assertFalse(fixture.calls.exists())
+
     def test_content_only_root_change_runs_content_gates_without_cargo(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
             fixture, content_log, identity_log = self._fixture(temp)

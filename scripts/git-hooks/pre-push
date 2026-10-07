@@ -1019,10 +1019,16 @@ else
 fi
 
 if [ -n "$gate_base" ]; then
-  gate_changed="$(git diff --name-only "$gate_base" "$gate_sha" 2>/dev/null || true)"
+  if ! gate_changed="$(git diff --name-only "$gate_base" "$gate_sha")"; then
+    echo "pre-push: BLOCKED -- could not discover changed paths between $gate_base and $gate_sha." >&2
+    exit 1
+  fi
 else
   # No history shared with the default branch: every file is new.
-  gate_changed="$(git ls-tree -r --name-only "$gate_sha")"
+  if ! gate_changed="$(git ls-tree -r --name-only "$gate_sha")"; then
+    echo "pre-push: BLOCKED -- could not discover paths from $gate_sha." >&2
+    exit 1
+  fi
 fi
 
 if [ -z "$python_bin" ]; then
