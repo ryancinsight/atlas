@@ -3463,6 +3463,126 @@ def _live_msys_pid(test: unittest.TestCase) -> str:
 class ExportSourceTestCase(unittest.TestCase):
     """The export is written through the member, reused, and never too long."""
 
+    @staticmethod
+    def _export_function() -> str:
+        source = SCRIPT.read_text(encoding="utf-8")
+        start = source.index("export_revision() (")
+        end = source.index("\n)\n\n# Exports a killed push", start) + 2
+        return source[start:end]
+
+    def _run_export(
+        self,
+        source: pathlib.Path,
+        outer: pathlib.Path,
+        revision: str,
+        destination: pathlib.Path,
+        declaration: str,
+    ) -> subprocess.CompletedProcess:
+        before = destination.parent / f"{destination.name}-{declaration}-before"
+        after = destination.parent / f"{destination.name}-{declaration}-after"
+        script = self._export_function() + r'''
+repo_git_dir="$1"
+repo_store="$2"
+revision="$3"
+destination="$4"
+declaration="$5"
+before="$6"
+after="$7"
+outer_git_dir="$8"
+outer_work_tree="$9"
+outer_index="${10}"
+outer_prefix="${11}"
+outer_common_dir="${12}"
+case "$declaration" in
+  absent)
+    unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR
+    ;;
+  unexported)
+    GIT_DIR="$outer_git_dir"
+    GIT_WORK_TREE="$outer_work_tree"
+    GIT_INDEX_FILE="$outer_index"
+    GIT_PREFIX="$outer_prefix"
+    GIT_COMMON_DIR="$outer_common_dir"
+    ;;
+  exported)
+    export GIT_DIR="$outer_git_dir"
+    export GIT_WORK_TREE="$outer_work_tree"
+    export GIT_INDEX_FILE="$outer_index"
+    export GIT_PREFIX="$outer_prefix"
+    export GIT_COMMON_DIR="$outer_common_dir"
+    ;;
+  *) exit 97 ;;
+esac
+{ declare -p GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR 2>/dev/null || true; } > "$before"
+export_revision "$revision" "$destination"
+status=$?
+{ declare -p GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR 2>/dev/null || true; } > "$after"
+exit "$status"
+'''
+        return subprocess.run(
+            [
+                "bash", "-c", script, "export-boundary",
+                _git(source, "rev-parse", "--absolute-git-dir"),
+                _git(source, "rev-parse", "--path-format=absolute", "--git-common-dir"),
+                revision,
+                str(destination),
+                declaration,
+                str(before),
+                str(after),
+                _git(outer, "rev-parse", "--absolute-git-dir"),
+                str(outer),
+                str(outer / ".git" / "index"),
+                "outer-prefix/",
+                _git(outer, "rev-parse", "--path-format=absolute", "--git-common-dir"),
+            ],
+            capture_output=True,
+        )
+
+    @staticmethod
+    def _export_block(start_marker: str, end_marker: str) -> str:
+        source = SCRIPT.read_text(encoding="utf-8")
+        start = source.index(start_marker)
+        end = source.index(end_marker, start)
+        return source[start:end]
+
+    def _run_gate_export(
+        self,
+        source: pathlib.Path,
+        revision: str,
+        destination: pathlib.Path,
+        trace: pathlib.Path,
+    ) -> subprocess.CompletedProcess:
+        block = self._export_block(
+            'if ! export_revision "$gate_sha" "$gate_export"; then',
+            "\n\nrun_cargo_workspace_gate()",
+        )
+        script = self._export_function() + "\n" + block
+        environment = dict(os.environ)
+        environment["GIT_TRACE2_EVENT"] = str(trace)
+        return subprocess.run(
+            [
+                "bash", "-c",
+                'repo_git_dir="$1"; repo_store="$2"; gate_sha="$3"; '
+                'gate_export="$4"; shift 4; ' + script,
+                "gate-export",
+                _git(source, "rev-parse", "--absolute-git-dir"),
+                _git(source, "rev-parse", "--path-format=absolute", "--git-common-dir"),
+                revision,
+                str(destination),
+            ],
+            env=environment,
+            capture_output=True,
+        )
+
+    def assert_read_tree_count(self, trace: pathlib.Path, expected: int) -> None:
+        events = [json.loads(line) for line in trace.read_text(encoding="utf-8").splitlines()]
+        commands = [
+            event["argv"]
+            for event in events
+            if event.get("event") == "start" and "read-tree" in event.get("argv", [])
+        ]
+        self.assertEqual(len(commands), expected, commands)
+
     def test_a_partial_clone_exports_blobs_it_never_fetched(self) -> None:
         """13 of 28 members are `blob:none` clones; the export fetches on demand."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -3558,84 +3678,200 @@ class ExportSourceTestCase(unittest.TestCase):
             self.assertEqual(runs[0], runs[1], "the export moved or rewrote an unchanged file")
 
     def test_an_export_isolated_from_the_source_repository(self) -> None:
-        """The export may not inherit the repository Git gives the hook."""
+        """An export reads its source while preserving the caller's Git state."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = _stacked_fixture(temp)
-            root = fixture.root
-            stub = fixture.bin / "cargo"
-            stub.write_text(
-                stub.read_text(encoding="utf-8").replace(
-                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n',
-                    'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
-                    'if [ "$1" = clippy ]; then\n'
-                    '  printf "%s\\t%s\\t%s\\t%s\\t%s\\n" "$GIT_DIR" "$GIT_WORK_TREE" '
-                    '"$GIT_INDEX_FILE" "${GIT_PREFIX+x}:$GIT_PREFIX" "$GIT_COMMON_DIR" '
-                    '> "$FIXTURE_ROOT/export-env.log"\n'
-                    "fi\n",
-                    1,
-                ),
-                encoding="utf-8",
-            )
-            _git(root, "switch", "-q", "-c", "feat")
-            source = root / "crates" / "foo" / "src" / "lib.rs"
-            source.write_text("pub fn exported() {}\n", encoding="utf-8")
-            pushed = _commit_all(root, "feat")
-            source_head = _git(root, "rev-parse", "HEAD")
-            source_index = _git(root, "write-tree")
-            source_config = _git(root, "config", "--local", "--list")
-            git_dir = str(root / ".git")
-            git_index = str(root / ".git" / "index")
-            inherited = {
-                "GIT_DIR": git_dir,
-                "GIT_WORK_TREE": str(root),
-                "GIT_INDEX_FILE": git_index,
-                "GIT_PREFIX": "",
-                "GIT_COMMON_DIR": git_dir,
+            base = pathlib.Path(temp)
+            outer = base / "outer"
+            source = base / "source"
+            for repository, value in ((outer, "outer-content"), (source, "source-content")):
+                _git_init_repo(repository)
+                _write(repository / "value.txt", value)
+                _git(repository, "add", "value.txt")
+                _git(repository, "commit", "-m", "seed")
+            source_head = _git(source, "rev-parse", "HEAD")
+            source_tree = _git(source, "write-tree")
+            repository_states = {
+                repository: (
+                    _git(repository, "rev-parse", "HEAD"),
+                    _git(repository, "write-tree"),
+                    _git(repository, "status", "--porcelain=v1"),
+                    _git(repository, "config", "--local", "--list"),
+                )
+                for repository in (outer, source)
             }
 
-            code, stderr = fixture.run_hook(
-                fixture.push_line_new_branch("feat"), inherited
+            for declaration in ("absent", "unexported", "exported"):
+                with self.subTest(declaration=declaration):
+                    destination = base / f"export-{declaration}"
+                    result = self._run_export(
+                        source, outer, source_head, destination, declaration
+                    )
+                    self.assertEqual(
+                        result.returncode,
+                        0,
+                        result.stderr.decode("utf-8", errors="replace"),
+                    )
+                    before = base / f"export-{declaration}-{declaration}-before"
+                    after = base / f"export-{declaration}-{declaration}-after"
+                    self.assertEqual(before.read_bytes(), after.read_bytes())
+                    self.assertEqual(_git(destination, "rev-parse", "HEAD"), source_head)
+                    self.assertEqual(_git(destination, "write-tree"), source_tree)
+                    self.assertEqual(
+                        (destination / "value.txt").read_bytes(), b"source-content"
+                    )
+                    self.assertTrue((destination / ".git" / "index").is_file())
+                    self.assertEqual(
+                        (destination / ".git" / "objects" / "info" / "alternates")
+                        .read_text(encoding="utf-8").strip(),
+                        f"{_git(source, 'rev-parse', '--path-format=absolute', '--git-common-dir')}/objects",
+                    )
+                    for key, value in (
+                        ("core.longpaths", "true"),
+                        ("gc.auto", "0"),
+                        ("maintenance.auto", "false"),
+                    ):
+                        self.assertEqual(_git(destination, "config", "--get", key), value)
+
+            for repository, state in repository_states.items():
+                self.assertEqual(
+                    (
+                        _git(repository, "rev-parse", "HEAD"),
+                        _git(repository, "write-tree"),
+                        _git(repository, "status", "--porcelain=v1"),
+                        _git(repository, "config", "--local", "--list"),
+                    ),
+                    state,
+                )
+
+    def test_a_missing_object_preserves_the_last_complete_export(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            base = pathlib.Path(temp)
+            outer = base / "outer"
+            source = base / "source"
+            for repository in (outer, source):
+                _git_init_repo(repository)
+                _write(repository / "value.txt", f"{repository.name}\n")
+                _git(repository, "add", "value.txt")
+                _git(repository, "commit", "-m", "seed")
+            destination = base / "export"
+            source_head = _git(source, "rev-parse", "HEAD")
+            valid = self._run_export(source, outer, source_head, destination, "exported")
+            self.assertEqual(valid.returncode, 0, valid.stderr.decode(errors="replace"))
+            previous_head = _git(destination, "rev-parse", "HEAD")
+            previous_tree = _git(destination, "write-tree")
+            sentinel = destination / "untracked.txt"
+            sentinel.write_bytes(b"retain until a complete replacement\n")
+            _write(source / "value.txt", "candidate-content")
+            _git(source, "add", "value.txt")
+            _git(source, "commit", "-m", "candidate")
+            missing = _git(source, "rev-parse", "HEAD")
+            missing_blob = _git(source, "rev-parse", "HEAD:value.txt")
+            loose_blob = source / ".git" / "objects" / missing_blob[:2] / missing_blob[2:]
+            self.assertTrue(loose_blob.is_file())
+            loose_blob.chmod(stat.S_IWRITE)
+            loose_blob.unlink()
+            self.assertNotEqual(
+                subprocess.run(
+                    ["git", "-C", str(source), "cat-file", "-e", "HEAD:value.txt"],
+                    capture_output=True,
+                ).returncode,
+                0,
             )
 
-            self.assertEqual(code, 0, stderr)
-            exports = [
-                path for path in fixture.tmp.glob("pg-??????????") if path.is_dir()
-            ]
-            self.assertEqual(len(exports), 1, exports)
-            exported = exports[0] / root.name
-            self.assertEqual(_git(exported, "rev-parse", "HEAD"), pushed)
-            self.assertEqual(_git(exported, "write-tree"), source_index)
-            self.assertEqual((exported / source.relative_to(root)).read_bytes(), source.read_bytes())
+            failed = self._run_export(source, outer, missing, destination, "unexported")
+
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertEqual(_git(destination, "rev-parse", "HEAD"), previous_head)
+            self.assertEqual(_git(destination, "write-tree"), previous_tree)
+            self.assertEqual(sentinel.read_bytes(), b"retain until a complete replacement\n")
+
+    def test_the_gate_rebuilds_one_incomplete_export_then_blocks(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            base = pathlib.Path(temp)
+            source = base / "source"
+            _git_init_repo(source)
+            _write(source / "value.txt", "source-content")
+            _git(source, "add", "value.txt")
+            _git(source, "commit", "-m", "seed")
+            revision = _git(source, "rev-parse", "HEAD")
+            destination = base / "export"
+            valid = self._run_export(source, source, revision, destination, "absent")
+            self.assertEqual(valid.returncode, 0, valid.stderr.decode(errors="replace"))
+            (destination / ".git" / "index").unlink()
+            (destination / ".git" / "index").mkdir()
+            sentinel = destination / "untracked.txt"
+            sentinel.write_bytes(b"discard an incomplete export\n")
+            retry_trace = base / "retry-trace.json"
+
+            retried = self._run_gate_export(
+                source, revision, destination, retry_trace
+            )
+
             self.assertEqual(
-                (exported / ".git" / "objects" / "info" / "alternates")
-                .read_text(encoding="utf-8")
-                .strip(),
-                f"{_git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir')}/objects",
+                retried.returncode, 0, retried.stderr.decode("utf-8", errors="replace")
             )
-            for key, value in (
-                ("core.longpaths", "true"),
-                ("gc.auto", "0"),
-                ("maintenance.auto", "false"),
-            ):
-                self.assertEqual(_git(exported, "config", "--get", key), value)
-            self.assertEqual(_git(root, "rev-parse", "HEAD"), source_head)
-            self.assertEqual(_git(root, "write-tree"), source_index)
-            self.assertEqual(_git(root, "config", "--local", "--list"), source_config)
-            self.assertEqual(
-                (root / "export-env.log").read_text(encoding="utf-8").strip(),
-                f"{git_dir}\t{root}\t{git_index}\tx:\t{git_dir}",
-            )
-            untracked = exported / "untracked"
-            untracked.write_text("remove me\n", encoding="utf-8")
+            self.assert_read_tree_count(retry_trace, 2)
+            self.assertEqual(_git(destination, "rev-parse", "HEAD"), revision)
+            self.assertFalse(sentinel.exists())
+            self.assertTrue((destination / ".git" / "index").is_file())
 
-            repeated, repeated_stderr = fixture.run_hook(
-                fixture.push_line_new_branch("feat"), inherited
+            blocked_trace = base / "blocked-trace.json"
+            blocked = self._run_gate_export(
+                source, "1" * 40, destination, blocked_trace
             )
 
-            self.assertEqual(repeated, 0, repeated_stderr)
-            self.assertFalse(untracked.exists())
-            self.assertEqual(_git(root, "rev-parse", "HEAD"), source_head)
-            self.assertEqual(_git(root, "write-tree"), source_index)
+            stderr = blocked.stderr.decode("utf-8", errors="replace")
+            self.assertEqual(blocked.returncode, 1, stderr)
+            self.assert_read_tree_count(blocked_trace, 2)
+            self.assertIn("could not export", stderr)
+            self.assertIn("for the local gate", stderr)
+            self.assertFalse((destination / "value.txt").exists())
+
+    def test_the_lock_export_blocks_on_a_missing_real_object(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            base = pathlib.Path(temp)
+            source = base / "source"
+            _git_init_repo(source)
+            _write(source / "Cargo.lock", "candidate-lock-content")
+            _git(source, "add", "Cargo.lock")
+            _git(source, "commit", "-m", "candidate")
+            revision = _git(source, "rev-parse", "HEAD")
+            blob = _git(source, "rev-parse", "HEAD:Cargo.lock")
+            loose_blob = source / ".git" / "objects" / blob[:2] / blob[2:]
+            self.assertTrue(loose_blob.is_file())
+            loose_blob.chmod(stat.S_IWRITE)
+            loose_blob.unlink()
+            self.assertEqual(_git(source, "rev-parse", "--verify", "HEAD^{commit}"), revision)
+            self.assertNotEqual(
+                subprocess.run(
+                    ["git", "-C", str(source), "cat-file", "-e", "HEAD:Cargo.lock"],
+                    capture_output=True,
+                ).returncode,
+                0,
+            )
+            block = self._export_block(
+                'if ! export_revision "$(git rev-parse --verify "$lock_rev^{commit}")" "$lock_export"; then',
+                '\nfi\nif [ -n "$unmatched_stack" ]',
+            ) + "\nfi"
+            script = self._export_function() + "\n" + block
+            result = subprocess.run(
+                [
+                    "bash", "-c",
+                    'repo_git_dir="$1"; repo_store="$2"; lock_rev="$3"; '
+                    'lock_export="$4"; shift 4; ' + script,
+                    "lock-export",
+                    _git(source, "rev-parse", "--absolute-git-dir"),
+                    _git(source, "rev-parse", "--path-format=absolute", "--git-common-dir"),
+                    revision,
+                    str(base / "lock-export"),
+                ],
+                capture_output=True,
+            )
+
+            stderr = result.stderr.decode("utf-8", errors="replace")
+            self.assertEqual(result.returncode, 1, stderr)
+            self.assertIn("could not export", stderr)
+            self.assertIn("for the lockfile check", stderr)
 
     def test_a_held_export_is_not_shared(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
