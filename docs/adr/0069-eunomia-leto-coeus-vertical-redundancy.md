@@ -274,24 +274,114 @@ this.
   survives elsewhere only via double-rounding absorption (3M+ adversarial
   samples, zero other divergence). `Complex::sqrt_val` keeps its correct
   principal-root formula deliberately (see next bullet).
-- FINDING (eunomia-side, not fixed here): `NumericElement::sqrt for
-  Complex<T>` (`repos/eunomia/crates/eunomia/src/impls/primitives/
-  numeric.rs`) computes its rectangular form over `|z|^2` where the
-  principal root needs `|z|` (e.g. `sqrt(3+4i)` yields `u≈3.74` instead of
-  `2`), while eunomia's own inherent `Complex::sqrt` (polar form,
-  `types/complex/float.rs`) is correct. The inherent method shadows the
-  trait method for direct calls, so only generic `T: NumericElement` code
-  observes the defect. Owned by the eunomia repo: reconcile or delete the
-  trait impl against the inherent oracle; coeus must not delegate
-  `Complex::sqrt_val` until then.
+- FINDING (eunomia-side, FIXED 2026-10-06, pushed as `95519d9` on
+  `fix/complex-sqrt-principal`):
+  `NumericElement::sqrt for Complex<T>` computed its rectangular form over
+  `|z|^2` where the principal root needs `|z|`; now over `|z|`, matching
+  the inherent polar oracle. Regression: `tests/complex_provider_contract.rs`.
+- 2026-10-06, S3b core landed in coeus `202f6549` (branch
+  `fix/coeus-einsum-panic`, pushed, pre-push gate passed; 125 files,
+  +461/−586, BREAKING): `Scalar::{zero, one, to_f64, sqrt_val, abs_val}`,
+  `Int::{count_ones, abs}`, `Float::{abs, is_nan, is_finite}` deleted;
+  ~600 call sites migrated to `eunomia::NumericElement` SSOT paths
+  (convention: `use eunomia::NumericElement` in-core,
+  `coeus_core::NumericElement` facade elsewhere — the same item). No
+  delegation shims: direct SSOT correction per the consumer-collapse
+  decision. Verified: workspace check green, clippy zero lints (one
+  pre-existing `coeus-fft` warning), fmt clean, nextest 1466 passed / 1
+  pre-existing environmental failure (reproduced pristine) / 8 skipped,
+  doctests 163/163.
+- 2026-10-06, verification #1 measured GREEN post-S3b: the
+  `eunomia::NumericElement` / `leto_ops::Scalar` / `coeus_core::Scalar`
+  `fn` name sets pairwise-intersect at zero. `coeus_core::Scalar` keeps
+  exactly `{has_zero_bit_pattern, from_f64, total_add, total_mul,
+  scale_slice}` — all provider-unowned.
+- FINDING (eunomia-side, FIXED 2026-10-06, pushed as `107cbab`):
+  `FloatElement::powi`'s exp-by-squaring default negated the exponent
+  (`n = -n`), which panics on `i32::MIN` in debug and wraps to `MIN`
+  (silently returning `ONE`) in release; only generic `T: FloatElement`
+  code observes it (inherent `powi` shadows for direct calls). Fixed via
+  `n.unsigned_abs()` (`u32` holds 2^31 exactly); behavior identical for
+  all other exponents. Regression: exact MIN/MAX assertions in the
+  `float_element.rs` contract (all four types; observed the authentic
+  4-way overflow panic pre-fix). Unblocks S3b-Float deletion of coeus
+  `Float::powi`.
+- 2026-10-06, S3b-Float remainder scoped (NOT deleted; coeus tree under
+  live peer edit): `Float` keeps 21 same-name transcendental
+  redeclarations over `FloatElement` + `NAN`/`INFINITY` (S1-ruled for
+  deletion) + the `sqrt` ambiguity against `NumericElement::sqrt`
+  (forces `<T as Float>::sqrt` qualification at generic sites — observed
+  in the live peer migration); `FloatOps` keeps 24 `_op` methods; the
+  60+-variant `CpuUnaryOp` stays as the dispatch tag. Deletion entry
+  criteria: (a) a libm-crate-vs-system-libm differential gate — eunomia
+  routes f32 transcendentals via the `libm` crate while coeus natives
+  route via std inherent, so deletion can move results ~1 ulp;
+  (b) the `round` routing rule — `Float::round` is ties-away (std) while
+  the `CpuUnaryOp::Round` arm is ties-even (torch/`roundTiesToEven`,
+  routed via `f64::round_ties_even`); eunomia provides both
+  (`round`/`round_ties_even`), so each consumer maps to the right one;
+  (c) `powi(i32::MIN)` fixed provider-side (done). Non-finding:
+  `RealField`/`ComplexField` are a legitimate nalgebra-compat algebra
+  seam (blanket impls, identities via `NumericElement`) — no action.
+- 2026-10-06, S2 audited: exactly one direct `hermes_simd` call remains
+  in coeus non-test code — the `scale_slice` native override
+  (`native.rs:27`, `hermes_simd::scale`); all other slice kernels route
+  via leto's `SimdStrategy`/`SimdOperations`. `SimdOperations` has no
+  `scale`, so completion is provider adoption first (leto adds `scale`
+  to `SimdOperations`/`Scalar`), then coeus deletes its override and
+  declaration (which becomes a redeclaration). Pending cold-tree
+  micro-slice: drop the redundant `eunomia::FloatElement` from
+  `coeus_core::Float`'s supertraits (`RealScalar` implies it).
+- 2026-10-06, S4 audited (the "per-op delegation unverified" gap is now
+  measured): 0/4 `coeus-ops/sparse` ops route via `coeus-leto`
+  dispatch — `spmv`/`spmm`/`spmm_backward_values`/`spmm_backward_dense`
+  are own-kernel `backend.parallel_for` loops with zero references to
+  `coeus_leto`/`leto_ops`; the tested `spmv_into`/`spmm_into` dispatch
+  has zero production callers. Wiring blockers: (a) the dispatch copies
+  3 vecs per call (`CsrMatrix::from_parts` takes owned `Vec`s only) —
+  leto needs a borrowed CSR view first or wiring regresses memory
+  against today's zero-copy ptr loops; (b) the forward ops are
+  `B: Backend`-generic, so S4 needs a CPU-vs-device branch design;
+  the backward ops stay in coeus (autodiff-owned).
+- 2026-10-06, S2 provider adoption landed in leto `4525575` (branch
+  `fix/leto-scale-adoption`, pushed, gate passed; plus fmt `175d7a3`):
+  `leto_ops::Scalar` gains the `scale_slice` default (lane-independent
+  scalar loop, same body coeus carries), `SimdOperations` gains the
+  strategy route over `hermes_simd::scale` for f32/f64/F16/Bf16, and the
+  `impl_scalar_simd!` types take the strategy-first path with scalar
+  fallback; ints/complex inherit the default via their plain impls. Test
+  pins bitwise SIMD==scalar on all four float types (259 elements, past
+  any scalar tail) plus the i32 default route, the taken-not-declined
+  strategy route, and empty input. Verified: nextest 725/725, clippy
+  zero lints, fmt clean. Consumer collapse (delete coeus's `scale_slice`
+  declaration + native override + last direct `hermes_simd` call) waits
+  for a cold coeus tree — peers are actively migrating adjacent call
+  sites on the same branch.
+- 2026-10-06, S5 consumer audit complete (verification #6 satisfied):
+  every non-coeus dependent of `leto-ops` was searched (direct,
+  braced-import, and `application::` path forms; apollo/ares/athena/ritk
+  zero; `coeus-push` verified a coeus mirror and excluded). `loss` /
+  cross-entropy → hephaestus-host CPU reference + hephaestus-conformance
+  oracle: STAY. `attention` → hephaestus-host seam + hephaestus-wgpu
+  test oracle: STAY. `optimization` / LBFGS → kwavers production FWI
+  and elastography inversions (+ `kwavers-math` re-export): STAY.
+  `nonlinear` / Anderson → CFDrs re-export only, zero fleet callers;
+  the CFDrs "helios" doc claim is stale (zero `Anderson` refs in
+  helios; zero direct refs in kwavers): STAY-wach (generic numerical
+  math, not ML-specific — flag the uncalled status, correct the doc
+  claim). `loss` / ctc → coeus-only (coeus maps `CtcError` from leto
+  kernels): MOVE candidate to coeus. `stateful_update` (Adam/SGD/…)
+  → zero callers anywhere including coeus (coeus-optim owns its own):
+  MOVE-or-DELETE candidate — the leto README already assigns
+  optimizers to coeus. Next: per-module move-or-redefine executions
+  plus README boundary corrections for the stayers.
 
 ## Verification
 
 1. `coeus_core::Scalar` declares no method also declared on
    `leto_ops::Scalar` or `eunomia::NumericElement` (mechanical check:
-   intersect the three `fn` name sets; expect empty). S3a status 2026-10-06:
-   the 9 slice kernels intersect at zero; the 6 identity methods remain and
-   are S3b.
+   intersect the three `fn` name sets; expect empty). S3b status 2026-10-06:
+   GREEN — pairwise intersection is empty (see implementation log).
 2. Each transcendental function has exactly one implementation per type; the
    `Float`/`FloatOps`/`CpuUnaryOp` name sets no longer pairwise intersect on
    function identity.
