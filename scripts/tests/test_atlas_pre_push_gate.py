@@ -1331,7 +1331,7 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             manifest.write_text("[package\n", encoding="utf-8")
             self._commit(fixture, "tools/version-guard/Cargo.toml")
             fixture.set_cargo_behavior("missing")
-            fixture.cargo_launcher.unlink()
+            fixture.cargo_launcher.unlink(missing_ok=True)
             cargo = shutil.which("cargo")
             self.assertIsNotNone(cargo)
 

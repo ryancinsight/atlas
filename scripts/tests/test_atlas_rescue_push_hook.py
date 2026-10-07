@@ -13,7 +13,11 @@ from readonly_tree import clear_readonly_tree
 ROOT = Path(__file__).resolve().parents[2]
 HOOK = ROOT / ".githooks" / "pre-push"
 HELPER = ROOT / "scripts" / "git-hooks" / "rescue-push"
-SCANNER = ROOT / "scripts" / "atlas-secret-scan.py"
+SCANNER_RUNTIME = (
+    "atlas-secret-scan.py",
+    "process_tree.py",
+    "windows_process.py",
+)
 MEMBER_HOOK = ROOT / "scripts" / "git-hooks" / "pre-push"
 ZERO = "0" * 40
 
@@ -27,6 +31,12 @@ def write_file(path, content):
     path.write_text(content, encoding="utf-8")
     path.chmod(path.stat().st_mode | 0o755)
 
+
+def copy_scanner_runtime(destination):
+    for name in SCANNER_RUNTIME:
+        shutil.copyfile(ROOT / "scripts" / name, destination / name)
+
+
 class RescuePushHookTests(unittest.TestCase):
     def fixture(self):
         temporary = tempfile.TemporaryDirectory(prefix="atlas-rescue-hook-")
@@ -34,7 +44,7 @@ class RescuePushHookTests(unittest.TestCase):
         (root / ".githooks").mkdir()
         (root / "scripts" / "git-hooks").mkdir(parents=True)
         shutil.copyfile(HOOK, root / ".githooks" / "pre-push")
-        shutil.copyfile(SCANNER, root / "scripts" / "atlas-secret-scan.py")
+        copy_scanner_runtime(root / "scripts")
         shutil.copyfile(HELPER, root / "scripts" / "git-hooks" / "rescue-push")
         target = root / "target" / "release"
         target.mkdir(parents=True)
@@ -59,7 +69,7 @@ class RescuePushHookTests(unittest.TestCase):
         root = stack / "repos" / "member"
         (stack / "scripts").mkdir(parents=True)
         root.mkdir(parents=True)
-        shutil.copyfile(SCANNER, stack / "scripts" / "atlas-secret-scan.py")
+        copy_scanner_runtime(stack / "scripts")
         write_file(
             stack / "scripts" / "atlas-build-identity.py", PASSTHROUGH_IDENTITY
         )
@@ -707,7 +717,7 @@ class RescuePushHookTests(unittest.TestCase):
         def environment(root):
             hostile = root / "hostile-modules"
             write_file(
-                hostile / "argparse.py",
+                hostile / "process_tree.py",
                 "import sys\nprint('secret-scan: no credential in the hostile module')\nsys.exit(0)\n",
             )
             return {"PYTHONPATH": str(hostile)}
@@ -770,6 +780,26 @@ class RescuePushHookTests(unittest.TestCase):
                     result = self.run_helper_with(root, scanner_ref, allowlist_ref, update, environment)
                     self.assertEqual(result.returncode, 1, result.stdout)
                     self.assertIn(message, result.stderr)
+                    self.assertNotIn("secret-scan:", result.stdout)
+
+    def test_helper_blocks_when_a_scanner_dependency_is_unavailable(self):
+        for dependency in SCANNER_RUNTIME[1:]:
+            with self.subTest(dependency=dependency):
+                temporary, root = self.fixture()
+                with temporary:
+                    git(root, "rm", "-q", f"scripts/{dependency}")
+                    git(root, "commit", "-qm", f"remove {dependency}")
+                    tip = git(root, "rev-parse", "HEAD")
+                    line = f"HEAD {tip} refs/heads/rescue/work {ZERO}"
+                    result = self.run_helper_with(
+                        root, tip, "origin/main", line,
+                        dict(os.environ, PYTHON=sys.executable),
+                    )
+                    self.assertEqual(result.returncode, 1, result.stdout)
+                    self.assertIn(
+                        f"trusted credential scanner dependency is unavailable: scripts/{dependency}",
+                        result.stderr,
+                    )
                     self.assertNotIn("secret-scan:", result.stdout)
 
     def test_helper_blocks_without_a_working_interpreter(self):

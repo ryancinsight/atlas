@@ -36,9 +36,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import os
 import re
-import signal
 import subprocess
 import sys
 import tempfile
@@ -46,6 +46,30 @@ from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import IO
+
+
+def _load_sibling(module: str):
+    """Load an exact adjacent runtime dependency under its import name."""
+    path = Path(__file__).resolve().with_name(f"{module}.py")
+    spec = importlib.util.spec_from_file_location(module, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {path}")
+    loaded = importlib.util.module_from_spec(spec)
+    previous = sys.modules.get(module)
+    sys.modules[module] = loaded
+    try:
+        spec.loader.exec_module(loaded)
+    except BaseException:
+        if previous is None:
+            sys.modules.pop(module, None)
+        else:
+            sys.modules[module] = previous
+        raise
+    return loaded
+
+
+_load_sibling("windows_process")
+process_tree = _load_sibling("process_tree")
 
 ALLOWLIST = ".secret-scan-allowlist"
 
@@ -348,37 +372,9 @@ def _missing(root: Path, objects: Iterable[str]) -> list[str]:
     return list(missing)
 
 
-def _start(command: list[str], **options: object) -> subprocess.Popen[bytes]:
-    """Start `command` as the root of a process tree `_kill_tree` can end."""
-    if os.name != "nt":
-        options["start_new_session"] = True
-    return subprocess.Popen(command, **options)  # type: ignore[call-overload]
-
-
-def _kill_tree(proc: subprocess.Popen[bytes]) -> None:
-    """End `proc` and every process it started."""
-    if os.name == "nt":
-        subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)],
-                       capture_output=True, check=False)
-    else:
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-    proc.kill()
-
-
 def _run_bounded(command: list[str], feed: bytes, timeout: float) -> int:
-    """Run `command` fed `feed`; return its exit status, ending its whole tree at `timeout`."""
-    proc = _start(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
-                  stderr=subprocess.DEVNULL)
-    try:
-        proc.communicate(feed, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        _kill_tree(proc)
-        proc.communicate()
-        raise
-    return proc.returncode
+    """Run `command` with bounded ownership of every descendant."""
+    return process_tree.run(command, input=feed, timeout=timeout).returncode
 
 
 def _promisor_remotes(root: Path) -> list[str]:
