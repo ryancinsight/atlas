@@ -16,6 +16,11 @@
       "member": "leto",
       "reason": "ATLAS-LETO-SPARSE-TEST-SPLIT-001: the default tip raises `oversized_files` 7 -> 8 (crates/leto-ops/tests/ops/sparse.rs crossed 500 lines at 02852b6, now 599), which the conformance ratchet rejects",
       "reopen": "ryancinsight/leto#338 merges and the tip measures 7 again, so the pin advances and this entry is deleted"
+    },
+    {
+      "member": "hephaestus",
+      "reason": "ATLAS-HEPHAESTUS-MANIFEST-DEBT-001: the master tip ae24d07c raises `manifest_implementation` 14 -> 16 and `type_suffixed_fns` 7 -> 8, which the conformance ratchet rejects (measured by the pre-push hook, baseline a6e3ef22)",
+      "reopen": "a hephaestus cleanup PR lands both classes back at 14/7, so the pin advances past 7f27fd4a and this entry is deleted"
     }
   ]
 }

@@ -31,6 +31,7 @@
 <a id="atlas-dmri-io-001"></a>- [ATLAS-DMRI-IO-001](backlog/atlas-dmri-io-001.md) — Rank-generic acquisition-series I/O [minor] — todo
 <a id="atlas-downstream-coordination-001"></a>- [ATLAS-DOWNSTREAM-COORDINATION-001](backlog/atlas-downstream-coordination-001.md) — Coordinate with an external consumer owner [chore] — blocked
 <a id="atlas-hephaestus-host-seam-coverage"></a>- [ATLAS-HEPHAESTUS-HOST-SEAM-COVERAGE](backlog/atlas-hephaestus-host-seam-coverage.md) — `hephaestus-host` implements every seam the conformance suite is generic over [arch][major] — todo
+<a id="atlas-hephaestus-manifest-debt-001"></a>- [ATLAS-HEPHAESTUS-MANIFEST-DEBT-001](backlog/atlas-hephaestus-manifest-debt-001.md) — Clear the manifest-impl and type-suffixed-fn debt at the master tip [patch] — todo
 <a id="atlas-hermes-consumer-entry-2026-08-25"></a>- [ATLAS-HERMES-CONSUMER-ENTRY-2026-08-25](backlog/atlas-hermes-consumer-entry-2026-08-25.md) — Restore Hermes as the stack's lane-kernel owner [arch] — todo
 <a id="hook-fleet-duplication"></a>- [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog/hook-fleet-duplication.md) — Stack-owned git hooks [patch] — todo
 <a id="atlas-hook-stack-root-ssot"></a>- [ATLAS-HOOK-STACK-ROOT-SSOT](backlog/atlas-hook-stack-root-ssot.md) — One stack-root resolver for both root hooks [patch] — todo
