@@ -254,3 +254,19 @@ branch can republish another writer's hook — on 2026-09-25 this landed a
 no-op hook over a UTF-16 copy on 24 members. Re-open trigger: the comparison
 reads `origin/HEAD` in the member, as `sync-hooks --check` already
 contracts.
+
+## Finding 2026-10-08: `gh pr` subcommands without an explicit number act on the shared checkout's peer PR
+
+`gh pr merge`/`view`/`ready`/`checks` with no `<number>` resolves to the
+current branch's PR, and in shared trees the checkout routinely sits on a
+peer's branch — so a bare invocation reads, readies, or auto-merges the
+*peer's* PR. Observed twice in one session (2026-10-08): the peer PRs
+atlas#512 and athena#99 were merged by commands aimed at freshly created
+branches whose PRs the same shell had just failed to select. Both were
+ready and green so landing matched their authors' intent, but the
+invocation's target is what was hit-or-miss, and a draft or red peer PR
+would not have been safe to touch. Root cause: the CLI's current-branch
+default combined with checkout tenancy. Catching check: any agent-side
+wrapper (or review grep) rejects `gh pr (merge|view|ready|checks)`
+invocations lacking an explicit `<number>` when more than one open PR
+exists. Re-open trigger: that wrapper lands in the stack tooling.
