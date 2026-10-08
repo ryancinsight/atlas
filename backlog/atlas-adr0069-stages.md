@@ -10,3 +10,4 @@ outcome: one scalar element surface (eunomia), one slice-kernel surface (leto-op
 - PARITY-7 CLOSED 2026-10-08 (bessel j0/j1 both sides): J0Op/J1Op (leto main 645f49e, hephaestus master f6d9748).
 - PARITY-8 CLOSED 2026-10-08 (bessel k0 both sides): K0Op A&S 9.8.5/9.8.6 + NaN guard (leto main f347abf, hephaestus master 07ca9f8); host/CUDA/WGPU hardware-green.
 - parity record resynced 2026-10-08 onto atlas main: condensed per-item file; merge SHAs above are the audit trail.
+- PARITY-9 CLOSED 2026-10-08 (leto unary math markers): 22 UnaryOps mirroring hephaestus UnaryExprs (method-routed trig/inverse/hyperbolic/exp-log/rounding + custom ExpNeg/Sign per ADR 0061); hephaestus side pre-existed (leto main 8a4e314); 464/464 ops suite.
