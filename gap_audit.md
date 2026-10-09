@@ -270,3 +270,17 @@ default combined with checkout tenancy. Catching check: any agent-side
 wrapper (or review grep) rejects `gh pr (merge|view|ready|checks)`
 invocations lacking an explicit `<number>` when more than one open PR
 exists. Re-open trigger: that wrapper lands in the stack tooling.
+
+## Finding 2026-10-09: provider moves leave their exports below the crate root
+
+Twice in one day a moved capability reached the owner's submodule
+re-export list but not the crate-root `pub use` every sibling item
+travels (leto#343: `solve_csr_via_dense_lu`; athena#103: the four saddle
+preconditioners) — both first surfaced as consumer E0432s at the next
+integration, not in the provider's own gates, because the provider's
+tests import within the crate. Root cause: the moves edit the module
+manifest but treat the root export list as untouched surface. Catching
+check: for each moved pub item, the provider's PR checklist asserts the
+crate-root `pub use` gained the name — mechanically, a one-line script
+comparing the module's exports against the root list. Re-open trigger:
+that check lands in the stack tooling.
