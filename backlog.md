@@ -119,5 +119,12 @@
 <a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — blocked
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
-<a id="ritk-shared-tree-stale-basis-213"></a>- [RITK-SHARED-TREE-STALE-BASIS-213](backlog/ritk-shared-tree-stale-basis-213.md) — ritk's shared tree is checked out 58 commits behind origin [patch] — todo
 <a id="ATLAS-HOOK-DIRECT-PATH-RETIRE"></a>- [ATLAS-HOOK-DIRECT-PATH-RETIRE](backlog/atlas-hook-direct-path-retire.md) — Retire direct hook build branches [patch] — todo
+<a id="atlas-hook-gate-convergence-20261010"></a>- [ATLAS-HOOK-GATE-CONVERGENCE-20261010](backlog/atlas-hook-gate-convergence-20261010.md) — Converge the hook-gate rollout, then sweep gitlinks [arch] — todo
+<a id="atlas-member-wip-20261010-apollo"></a>- [ATLAS-MEMBER-WIP-20261010-APOLLO](backlog/atlas-member-wip-20261010-apollo.md) — Triage apollo's uncommitted checkout work [patch] — todo
+<a id="atlas-member-wip-20261010-athena"></a>- [ATLAS-MEMBER-WIP-20261010-ATHENA](backlog/atlas-member-wip-20261010-athena.md) — Triage athena's uncommitted checkout work [patch] — todo
+<a id="atlas-member-wip-20261010-coeus"></a>- [ATLAS-MEMBER-WIP-20261010-COEUS](backlog/atlas-member-wip-20261010-coeus.md) — Triage coeus's uncommitted checkout work [patch] — todo
+<a id="atlas-member-wip-20261010-hephaestus"></a>- [ATLAS-MEMBER-WIP-20261010-HEPHAESTUS](backlog/atlas-member-wip-20261010-hephaestus.md) — Triage hephaestus's uncommitted checkout work [patch] — todo
+<a id="atlas-member-wip-20261010-leto"></a>- [ATLAS-MEMBER-WIP-20261010-LETO](backlog/atlas-member-wip-20261010-leto.md) — Triage leto's uncommitted checkout work [patch] — todo
+<a id="atlas-member-wip-20261010-metis"></a>- [ATLAS-MEMBER-WIP-20261010-METIS](backlog/atlas-member-wip-20261010-metis.md) — Triage metis's uncommitted checkout work [patch] — todo
+<a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — in
