@@ -10,7 +10,8 @@ freshness exactly like the stack overlay.
 
 Two modes:
 
-    generate  rewrite every index from the ADR files on disk
+    generate  rewrite every index from the ADR files on disk, including new
+              files so an ADR and its index can enter one atomic commit
     check     regenerate in memory and diff against disk; nonzero exit on
               drift, a missing index, or an ADR that is absent from HEAD
 
@@ -170,11 +171,13 @@ def strict_anomalies(path: Path, number: str) -> list[str]:
     return []
 
 
-def build_index(directory: Path, strict: bool = False) -> tuple[str, list[str]]:
+def build_index(
+    directory: Path, strict: bool = False, *, require_tracked: bool = True,
+) -> tuple[str, list[str]]:
     rows: list[str] = []
     anomalies: list[str] = []
     seen: dict[str, str] = {}
-    tracked = tracked_markdown(directory)
+    tracked = tracked_markdown(directory) if require_tracked else None
     files = sorted(
         f for f in directory.glob("*.md") if f.name.lower() not in NON_ADR_MARKDOWN
     )
@@ -227,7 +230,11 @@ def check_indexes(directories: list[Path], mode: str, strict: bool = False) -> i
     """Generate or check indexes and return a gate status for ``mode``."""
     problems = 0
     for directory in directories:
-        content, anomalies = build_index(directory, strict=strict)
+        # Generation prepares the complete local change for review/commit.
+        # Verification still rejects every ADR absent from the committed tree.
+        content, anomalies = build_index(
+            directory, strict=strict, require_tracked=(mode == "check"),
+        )
         try:
             rel = directory.relative_to(ATLAS_ROOT)
         except ValueError:

@@ -93,6 +93,35 @@ class AdrIndexTestCase(unittest.TestCase):
 
         self.assertEqual(result, 1)
 
+    def test_generation_includes_new_adrs_and_check_requires_their_commit(self) -> None:
+        """Generate a reviewable index, then enforce the fresh-clone contract."""
+        with tempfile.TemporaryDirectory(prefix="atlas-adr-index-") as temp:
+            directory = Path(temp)
+            tracked = directory / "0001-tracked.md"
+            tracked.write_text("# ADR 0001: Tracked\n\nStatus: Accepted\n", encoding="utf-8")
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+            for argv in (
+                ["init", "-q"],
+                ["add", tracked.name],
+                [*ident, "commit", "-q", "-m", "initial ADR"],
+            ):
+                subprocess.run(["git", "-C", str(directory), *argv], check=True, timeout=10)
+            pending = directory / "0002-pending.md"
+            pending.write_text("# ADR 0002: Pending\n\nStatus: Proposed\n", encoding="utf-8")
+
+            self.assertEqual(adr_index.check_indexes([directory], "generate"), 0)
+            content = (directory / "README.md").read_text(encoding="utf-8")
+            self.assertIn("| [0001](0001-tracked.md) | Tracked | Accepted |", content)
+            self.assertIn("| [0002](0002-pending.md) | Pending | Proposed |", content)
+            self.assertEqual(adr_index.check_indexes([directory], "check"), 1)
+
+            for argv in (
+                ["add", pending.name, "README.md"],
+                [*ident, "commit", "-q", "-m", "new ADR and its generated index"],
+            ):
+                subprocess.run(["git", "-C", str(directory), *argv], check=True, timeout=10)
+            self.assertEqual(adr_index.check_indexes([directory], "check"), 0)
+
     def test_a_non_git_directory_falls_back_to_the_on_disk_view(self) -> None:
         """Outside a repository — an unpacked tarball — every ADR would
         otherwise report as untracked, which is noise rather than a finding.

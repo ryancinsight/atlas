@@ -248,16 +248,6 @@ melinoe = { path = "repos/melinoe" }
 [patch."https://github.com/ryancinsight/melinoe.git"]
 melinoe = { path = "repos/melinoe" }
 
-[patch."https://github.com/ryancinsight/metis"]
-metis-platform = { path = "repos/metis/crates/metis-platform" }
-metis-ui-lang = { path = "repos/metis/crates/metis-ui-lang" }
-metis-web = { path = "repos/metis/crates/metis-web" }
-
-[patch."https://github.com/ryancinsight/metis.git"]
-metis-platform = { path = "repos/metis/crates/metis-platform" }
-metis-ui-lang = { path = "repos/metis/crates/metis-ui-lang" }
-metis-web = { path = "repos/metis/crates/metis-web" }
-
 [patch."https://github.com/ryancinsight/Mnemosyne"]
 mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
 mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
@@ -283,6 +273,7 @@ moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
 moirai-transport = { path = "repos/moirai/moirai-transport" }
+moirai-webview = { path = "repos/moirai/moirai-webview" }
 
 [patch."https://github.com/ryancinsight/Moirai.git"]
 moirai-async = { path = "repos/moirai/moirai-async" }
@@ -295,32 +286,13 @@ moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
 moirai-transport = { path = "repos/moirai/moirai-transport" }
+moirai-webview = { path = "repos/moirai/moirai-webview" }
 
 [patch."https://github.com/ryancinsight/proteus"]
 proteus-mat = { path = "repos/proteus" }
 
 [patch."https://github.com/ryancinsight/proteus.git"]
 proteus-mat = { path = "repos/proteus" }
-
-[patch."https://github.com/ryancinsight/ritk"]
-ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
-ritk-core = { path = "repos/ritk/crates/ritk-core" }
-ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
-ritk-image = { path = "repos/ritk/crates/ritk-image" }
-ritk-io = { path = "repos/ritk/crates/ritk-io" }
-ritk-registration = { path = "repos/ritk/crates/ritk-registration" }
-ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
-ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
-
-[patch."https://github.com/ryancinsight/ritk.git"]
-ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
-ritk-core = { path = "repos/ritk/crates/ritk-core" }
-ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
-ritk-image = { path = "repos/ritk/crates/ritk-image" }
-ritk-io = { path = "repos/ritk/crates/ritk-io" }
-ritk-registration = { path = "repos/ritk/crates/ritk-registration" }
-ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
-ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
 
 [patch."https://github.com/ryancinsight/themis"]
 themis-topology = { path = "repos/themis" }

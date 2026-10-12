@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- [patch] Correct the local Metis macOS shell icon: bundle the declared artwork,
+  preserve native bundle identity in development, and validate decoded image
+  representations before replacing an owned application output.
+- [minor] Add the local Metis Apple setup path: native Rust host selection,
+  graph-scoped locked builds, shared browser/macOS/iPhone/iPad frontend assets,
+  and bundle ownership verification. Metis 0.2.0 and the Moirai provider changes
+  remain unreleased; native interaction and physical-device signing remain open.
+- [patch] ADR index generation includes new working files so the ADR and index
+  can enter one commit. Verification retains the committed-tree requirement;
+  a real Git regression covers generation, rejection and committed acceptance.
+
 - Compact Atlas's own PM boards under the 1,000-line budget: `checklist.md`
   2,312 → 853 and `gap_audit.md` 10,274 → 772, keeping all 113 open
   checkboxes and all 15 open-marked findings. `backlog.md` 1,896 → 1,100 keeps
