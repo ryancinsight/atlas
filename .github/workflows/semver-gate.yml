@@ -84,12 +84,28 @@
 # still blocks the release: that is a verdict, or a current tree that does
 # not compile, and neither is this case.
 #
+# Unbumped published source (why one pull-request job blocks): a change to
+# a crate's source under a version crates.io already carries never reaches
+# consumers. The push-mode planner sees nothing pending, and dependents later
+# fail `cargo publish` verification against the stale registry copy
+# (ATLAS-PUB-011). The `bump-guard` job runs Atlas's
+# `scripts/atlas-bump-guard.py` over the crates the pull request touches,
+# diffed from the merge base. It fails, naming each crate with "bump
+# required", when a touched crate's source, manifest, or dependency
+# requirements differ from the `.crate` published at its manifest version.
+# Drift in crates the pull request does not touch never fails it, so a
+# member's pre-existing drift is released by its own bump PR, not charged to
+# unrelated work. This is not the semver verdict above: it asks whether
+# anything changed under a published version, not how much.
+#
 # Inputs:
 #   package         - crate name(s), comma-separated (required)
 #   manifest-path   - path to Cargo.toml (default "Cargo.toml")
 #   rust-toolchain  - toolchain for semver-checks (default "stable")
 #   baseline-source - release baseline: "registry" (default; the latest
 #                     published version) or "tag" (the previous release tag)
+#   atlas-ref       - Atlas revision whose scripts the bump guard runs
+#                     (default: Atlas's default branch)
 
 name: SemVer gate (shared)
 
@@ -123,6 +139,11 @@ on:
           yeslogic-fontconfig-sys through its plotting stack) fails here
           exactly as `cargo doc` would, with the C library's name in the
           error rather than anything about semver.
+        required: false
+        type: string
+        default: ""
+      atlas-ref:
+        description: Atlas revision whose scripts/atlas-bump-guard.py the bump guard runs; empty means Atlas's default branch
         required: false
         type: string
         default: ""
@@ -237,6 +258,43 @@ jobs:
               echo "This job stays green on purpose: on a pull request the gate is informational, and members accumulate accepted breaking changes under CHANGELOG \`[Unreleased]\`. Record the break there. The blocking comparison runs at release."
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  bump-guard:
+    name: Version bump guard
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          ref: ${{ inputs.atlas-ref }}
+          path: _atlas
+          persist-credentials: false
+      - name: Fail a published crate changed without a version bump
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          status=0
+          python3 _atlas/scripts/atlas-bump-guard.py --repo . --base "$BASE" --head "$HEAD"             >"$RUNNER_TEMP/bump-guard.out" 2>"$RUNNER_TEMP/bump-guard.err" || status=$?
+          cat "$RUNNER_TEMP/bump-guard.out"
+          cat "$RUNNER_TEMP/bump-guard.err" >&2
+          {
+            echo "### Version bump guard"
+            echo ""
+            cat "$RUNNER_TEMP/bump-guard.out"
+            if [ -s "$RUNNER_TEMP/bump-guard.err" ]; then
+              echo ""
+              sed 's/^/    /' "$RUNNER_TEMP/bump-guard.err"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
 
   semver-release:
     name: SemVer (release gate)
