@@ -9,7 +9,7 @@
 - [x] [patch] Package and decode the macOS icon; preserve invalid-input outputs. Fix native Fetch status through Moirai PR 608; actual Greet clicks return exact normal, Unicode and empty-name Rust results.
 - [ ] [patch] Merge Atlas PR 530 after canonical hook rollout (PR 450), RITK's three Metis requirement advances, 14 consumer lock updates and 24 stale member pins; current integration gates fail.
 - [x] [minor] Resolve standalone workspace/fuzz locks with one provider identity; preserve unrelated main-lock revisions and repair the original fuzz baseline.
-- [x] [minor] Merge Metis PR 491; commit and push Atlas's two default-branch pointers separately. Real reload/failure preservation and ADR checks pass; target versions remain unreleased.
+- [x] [patch] Merge Metis PRs 491/492 and Moirai PR 608 through protected checks; commit Atlas's default-branch pointers separately. Real reload/failure preservation, native Greet and ADR checks pass.
 - [ ] [patch] Observe remaining Safari/mobile input, Dock branding, geometry, rotation and suspension; macOS Greet is verified after unlock, while the Simulator UI client is absent.
 - [ ] [minor] Obtain owner-selected physical-device signing/provisioning and availability; Android/plugin capability work remains in Metis's backlog.
 - artifacts: [manual](../repos/metis/docs/manual/apple.md), [ADR 0069](../docs/adr/0069-portable-host-toolchain.md), [gap audit](../gap_audit.md); this backlog owns execution state.

@@ -322,3 +322,5 @@ the merged provider. Eight provider tests, 678 Metis tests, 42 documentation
 tests and 60 consumer Python checks pass. Native macOS clicks verify the Rust
 results; all three frozen Apple bundles build. CoreSimulator installs/launches
 the corrected app, but its GUI client is absent from the installed Xcode tree.
+Metis PR 492 merges after Windows, Apple and the complete fuzz campaign pass;
+Atlas records both merged defaults in a separate pointer-only commit.
