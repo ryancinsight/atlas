@@ -295,7 +295,9 @@ reload, failed-compile preservation and child cleanup pass. Computer-use reports
 interaction and Safari evidence remain open. The physical iPhone is unavailable
 and no valid signing identity exists. The iPad simulator reports duplicate Apple
 accessibility classes; interactive validation remains required. Moirai sources
-reach its default branch through PRs 606/607. Metis standalone workspace and
+reach its default branch through PRs 606/607. Metis reaches its default branch
+through PR 491 after Windows, Apple and full fuzz gates pass. Atlas's pointer
+commit advances both defaults. Metis standalone workspace and
 fuzz locks resolve the exact provider revision; path locks remain derived development
 artifacts. The full overlay audit still reports RITK's three Metis 0.1 requirements
 and older compatible Moirai pins in other consumers; the generated overlay leaves
