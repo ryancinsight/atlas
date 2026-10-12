@@ -351,3 +351,9 @@ The root merges current main without conflicts; its conformance still reports
 `member_gate_versions: 1 -> 2`. The refreshed overlay check reports 18
 lagging requirements and 14 consumer repositories with lock drift. Root PR
 530 retains its existing integration blockers. Execution state lives in [ATLAS-METIS-RUST-BROWSER](backlog/metis-rust-browser-host.md).
+
+Metis PR [493](https://github.com/ryancinsight/metis/pull/493) merges at
+`aa04a4a9fdbc3d2a6f502ade18e2cf1c58c5de73` after the complete Windows, Apple
+and parser campaign pass. Provider/source and artifact checks are green.
+Browser runtime jobs are schedule/manual-only and skipped in this PR; local
+in-app observations remain distinct from a new cross-engine run.
