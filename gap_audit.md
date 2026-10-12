@@ -310,7 +310,7 @@ no merge conflicts; both component pointers match their published defaults.
 Its Python suites and CodeQL checks pass. The integration checks fail on the
 newer component hook versus the pinned fleet (`member_gate_versions: 1 -> 2`),
 RITK's three Metis 0.1 requirements, 14 consumer lock drifts and 24 other stale
-member pins. The hook's canonical source remains in draft Atlas PR 450.
+member pins. At that verification point, the hook's canonical source remains in draft Atlas PR 450; it later merges on 2026-10-12 at `b94ee304`.
 These results prevent the Atlas default-branch merge; the Apple component
 delivery does not establish whole-stack coherence.
 
@@ -363,5 +363,28 @@ Atlas pointer-only commit `791d4789e5a7` records Metis
 `26f5fe6596c2e4190736ca8655b61b1d315d2d44`, Moirai
 `ddde64ef33a2fcd73773e22466fd60c52239f205` and Gaia
 `a81f558e4ab1e1ed19b8f1fc6c4c33670a59f9d9` from their published defaults.
-The completed Rust browser root item is retired; Root PR 530's hook rollout,
+The completed Rust browser root item is retired; Root PR 530's
 requirement/lock drift and remaining Apple/native evidence stay open.
+
+## Merge reconciliation — 2026-10-12
+
+Atlas merge `d852ab5b` incorporates fetched main `b94ee304` without conflicts,
+including merged hook PR 450. All 13 component PRs attached to this task are
+merged. The merged publishing, shared stack and Metis launcher checks pass
+116 tests within the 60-second bound; the index has no unmerged entries or
+added conflict markers. Current-head integration CI remains a separate gate.
+The combined backlog reaches 1006 lines against its unchanged 1000-line limit;
+duplicate Metis delivery rows and superseded lease findings leave the active
+board, retaining its open acceptance criteria and the history below.
+
+Identity-lease history retained from the active board: on 2026-09-30 eight
+serial pushes fail the 900-second wait (helios, ritk, hephaestus, kwavers,
+metis, CFDrs and Atlas #408 four times); hephaestus and both ritk pushes fail
+again on 2026-10-01. A ritk gate holds hephaestus-rocm at ritk's revision.
+The initial hypothesis attributes the wait to cross-source artifact records
+and proposes source-keyed leases; the 2026-10-02 evidence refutes shared
+records, confirms cross-member cleaning and establishes that Cargo 1.97.0
+does not distinguish path checkouts in artifact names. The old acceptance
+serializes all same-repository pushes and requires isolated before/after
+timings; the active corrected acceptance instead excludes duplicate refs,
+records each claim's wait/hold and counts the 36-to-3 identity-step reduction.
