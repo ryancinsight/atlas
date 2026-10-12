@@ -128,3 +128,7 @@
 <a id="atlas-member-wip-20261010-leto"></a>- [ATLAS-MEMBER-WIP-20261010-LETO](backlog/atlas-member-wip-20261010-leto.md) — Triage leto's uncommitted checkout work [patch] — todo
 <a id="atlas-member-wip-20261010-metis"></a>- [ATLAS-MEMBER-WIP-20261010-METIS](backlog/atlas-member-wip-20261010-metis.md) — Triage metis's uncommitted checkout work [patch] — todo
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — in
+<a id="atlas-bessel-core-001"></a>- [ATLAS-BESSEL-CORE-001](backlog/atlas-bessel-core-001.md) — One generic Bessel core on `RealField`; delete the inline host polynomials [tightening][minor] — todo
+<a id="atlas-hephaestus-oversize-001"></a>- [ATLAS-HEPHAESTUS-OVERSIZE-001](backlog/atlas-hephaestus-oversize-001.md) — Burn the +12 oversized_files regression on hephaestus master (48 vs baseline 36) [tightening][minor] — todo
+<a id="atlas-leto-oversize-002"></a>- [ATLAS-LETO-OVERSIZE-002](backlog/atlas-leto-oversize-002.md) — Split the three untracked >500-line leto files (csr.rs, fixed/matrix.rs, convolution.rs) [tightening][minor] — todo
+<a id="atlas-monomorphization-review-20261012"></a>- [ATLAS-MONOMORPHIZATION-REVIEW-20261012](backlog/atlas-monomorphization-review-20261012.md) — Stack redundancy review: adjudicated families + open twins [patch] — todo
