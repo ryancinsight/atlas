@@ -1,7 +1,7 @@
 <a id="atlas-metis-apple-setup"></a>
 ## ATLAS-METIS-APPLE-SETUP — Native and browser Apple setup [minor] — todo
 
-- status: todo; priority: verification; target: Metis 0.2.1, Moirai 0.7.1 and moirai-webview 0.1.1; phase: Closure; outcome: one Rust frontend runs in browsers and installed Apple apps.
+- status: todo; priority: verification; target: Metis 0.3.0, Moirai 0.8.2 and moirai-webview 0.1.1; phase: Closure; outcome: one Rust frontend runs in browsers and installed Apple apps.
 - [x] [patch] Clone all 28 components; resolve the native Rust 1.97.0 host and matching WASM loader.
 - [x] [minor] Derive graph-scoped configuration; compile and package browser/macOS/iOS/device/simulator assets with SDK, signature and final inventory checks.
 - [x] [patch] Deliver Darwin process cleanup and closed-peer forwarding fixes through Moirai PRs 606/607; native iPhone/iPad resource delivery passes.
@@ -12,4 +12,5 @@
 - [x] [patch] Merge Metis PRs 491/492 and Moirai PR 608 through protected checks; commit Atlas's default-branch pointers separately. Real reload/failure preservation, native Greet and ADR checks pass.
 - [ ] [patch] Observe remaining Safari/mobile input, Dock branding, geometry, rotation and suspension; macOS Greet is verified after unlock, while the Simulator UI client is absent.
 - [ ] [minor] Obtain owner-selected physical-device signing/provisioning and availability; Android/plugin capability work remains in Metis's backlog.
+- current Rust increment: [ATLAS-METIS-RUST-BROWSER](metis-rust-browser-host.md) records the Rust migration and its exact acceptance evidence.
 - artifacts: [manual](../repos/metis/docs/manual/apple.md), [ADR 0069](../docs/adr/0069-portable-host-toolchain.md), [gap audit](../gap_audit.md); this backlog owns execution state.

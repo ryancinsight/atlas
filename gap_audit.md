@@ -324,3 +324,29 @@ results; all three frozen Apple bundles build. CoreSimulator installs/launches
 the corrected app, but its GUI client is absent from the installed Xcode tree.
 Metis PR 492 merges after Windows, Apple and the complete fuzz campaign pass;
 Atlas records both merged defaults in a separate pointer-only commit.
+
+## Metis Rust browser increment — 2026-10-12
+
+The workbench and HTTP page move policy, protocol and lifecycle behavior into
+Rust. The authored application JavaScript count is 505→9; generated bindings
+remain. Moirai PRs 611/612/613 deliver bounded Fetch, real stream dictionaries,
+reply-listener ordering and bodyless response semantics through protected
+checks. Gaia PR 169 admits the shared provider graph. Canonical Metis locks
+pin Moirai `6c7f39dff127f1accfc02ede4a5d59cb34ec9cc5` and Gaia
+`2279ae294ff76bc925a18c65a152bfe64f6e13f0` without unrelated source movement.
+
+Local consumer checks pass: 686 Rust tests, 395 Python tool checks, native/WASM
+diagnostics, 784 API comparisons against the actual committed baseline,
+22 production wheel tests (four platform-specific skips), all three Apple
+bundles and native macOS Greet. Live HTTP acceptance covers complete byte
+values, bounds, 304 representation metadata, redirect refusal, deadlines and
+peer-observed cancellation, plus reset and listener teardown. API comparison
+uses compiler-produced locked rustdoc records because the automatic checker's
+fresh baseline resolution cannot satisfy historical provider requirements.
+
+The Tauri native inventory has 124 admitted pairs: 46 bounded implementations
+with remaining acceptance and 78 open pairs. This does not establish full
+framework parity, mobile permissions, signed updates or matched performance.
+The root merges current main without conflicts; its conformance still reports
+`member_gate_versions: 1 -> 2`. Root PR 530 retains its existing integration
+blockers. Execution state lives in [ATLAS-METIS-RUST-BROWSER](backlog/metis-rust-browser-host.md).
