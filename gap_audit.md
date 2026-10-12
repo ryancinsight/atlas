@@ -284,3 +284,20 @@ check: for each moved pub item, the provider's PR checklist asserts the
 crate-root `pub use` gained the name — mechanically, a one-line script
 comparing the module's exports against the root list. Re-open trigger:
 that check lands in the stack tooling.
+
+## Metis Apple setup — 2026-10-11
+
+Native host toolchain and local Metis build isolation are implemented; the same
+browser assets package in macOS/iOS apps. Browser computed values and process
+cleanup are verified; native macOS/simulator signing/plist and iPhone/iPad
+simulator install/launch and packaged WASM delivery pass. Real-source native
+reload, failed-compile preservation and child cleanup pass. Computer-use reports a locked Mac, so native
+interaction and Safari evidence remain open. The physical iPhone is unavailable
+and no valid signing identity exists. The iPad simulator reports duplicate Apple
+accessibility classes; interactive validation remains required. Moirai sources
+reach its default branch through PRs 606/607. Metis standalone workspace and
+fuzz locks resolve the exact provider revision; path locks remain derived development
+artifacts. The full overlay audit still reports RITK's three Metis 0.1 requirements
+and older compatible Moirai pins in other consumers; the generated overlay leaves
+incompatible edges on Git. Metis verification covers its scoped graph. Track the remaining
+work in [ATLAS-METIS-APPLE-SETUP](backlog/metis-apple-setup.md).
