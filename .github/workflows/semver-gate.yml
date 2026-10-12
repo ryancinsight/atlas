@@ -84,15 +84,18 @@
 # still blocks the release: that is a verdict, or a current tree that does
 # not compile, and neither is this case.
 #
-# Unbumped published source (why one pull-request job blocks): a change to
-# a crate's source under a version crates.io already carries never reaches
-# consumers. The push-mode planner sees nothing pending, and dependents later
-# fail `cargo publish` verification against the stale registry copy
-# (ATLAS-PUB-011). The `bump-guard` job runs Atlas's
-# `scripts/atlas-bump-guard.py` over the crates the pull request touches,
-# diffed from the merge base. It fails, naming each crate with "bump
-# required", when a touched crate's source, manifest, or dependency
-# requirements differ from the `.crate` published at its manifest version.
+# Unbumped published source (why one pull-request job fails rather than
+# informs): a change to a crate's source under a version crates.io already
+# carries never reaches consumers. The push-mode planner sees nothing
+# pending, and dependents later fail `cargo publish` verification against
+# the stale registry copy (ATLAS-PUB-011). The `bump-guard` job runs Atlas's
+# `scripts/atlas-bump-guard.py` over the crates in `package` that the pull
+# request touches, diffed from the merge base, so a member calling this
+# workflow once per crate queries each crate once. It fails, naming each
+# crate with "bump required", when a touched crate's source, manifest, or
+# dependency requirements differ from the `.crate` published at its manifest
+# version. A failing job blocks a merge only where the member requires it:
+# the caller job, or an aggregate that `needs:` it, must be a required check.
 # Drift in crates the pull request does not touch never fails it, so a
 # member's pre-existing drift is released by its own bump PR, not charged to
 # unrelated work. This is not the semver verdict above: it asks whether
@@ -279,10 +282,13 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          PACKAGE: ${{ inputs.package }}
         run: |
           set -euo pipefail
           status=0
-          python3 _atlas/scripts/atlas-bump-guard.py --repo . --base "$BASE" --head "$HEAD"             >"$RUNNER_TEMP/bump-guard.out" 2>"$RUNNER_TEMP/bump-guard.err" || status=$?
+          python3 _atlas/scripts/atlas-bump-guard.py --repo . --base "$BASE" --head "$HEAD" \
+            --package "$PACKAGE" >"$RUNNER_TEMP/bump-guard.out" 2>"$RUNNER_TEMP/bump-guard.err" \
+            || status=$?
           cat "$RUNNER_TEMP/bump-guard.out"
           cat "$RUNNER_TEMP/bump-guard.err" >&2
           {

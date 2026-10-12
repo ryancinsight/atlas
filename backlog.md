@@ -86,7 +86,7 @@
 <a id="atlas-pub-010"></a>- [ATLAS-PUB-010](backlog/atlas-pub-010.md) — Convert member crate callers to version-change publishing [patch] — todo
 <a id="atlas-pub-011"></a>- [ATLAS-PUB-011](backlog/atlas-pub-011.md) — Release the source that outran its published versions [patch] — todo
 <a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
-<a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the bump guard [patch] — todo
+<a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the bump guard and require it [patch] — todo
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
 <a id="atlas-publish-001-book-mdbook-test-001"></a>- [ATLAS-PUBLISH-001-BOOK-MDBOOK-TEST-001](backlog/atlas-publish-001-book-mdbook-test-001.md) — Cross-book `mdbook test` gate alignment [patch] — blocked
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked

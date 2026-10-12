@@ -30,6 +30,7 @@ ROOT_MANIFEST = ('[workspace]\nresolver = "2"\nmembers = ["crates/*"]\n'
                  '[workspace.dependencies]\nserde = "{serde}"\n')
 ALPHA_MANIFEST = ('[package]\nname = "alpha"\nversion = "{version}"\nedition = "2021"\n'
                   '[dependencies]\nserde = {{ workspace = true }}\n')
+GAMMA_MANIFEST = '[package]\nname = "gamma"\nversion = "0.1.0"\nedition = "2021"\n'
 BETA_MANIFEST = '[package]\nname = "beta"\nversion = "0.2.0"\nedition = "2021"\n'
 ALPHA_SOURCE = "pub fn one() -> u32 { 1 }\n"
 BETA_SOURCE = "pub fn two() -> u32 { 2 }\n"
@@ -87,12 +88,13 @@ class BumpGuardTestCase(unittest.TestCase):
         git(self.repo, "commit", "--quiet", "-m", "c")
         return git(self.repo, "rev-parse", "HEAD")
 
-    def run_guard(self, registry: Registry, base: str | None = None) -> tuple[int, str, str]:
+    def run_guard(self, registry: Registry, base: str | None = None,
+                  *extra: str) -> tuple[int, str, str]:
         head = git(self.repo, "rev-parse", "HEAD")
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             status = guard.main(["--repo", str(self.repo), "--base", base or self.base,
-                                 "--head", head], registry)
+                                 "--head", head, *extra], registry)
         return status, out.getvalue(), err.getvalue()
 
     @staticmethod
@@ -176,6 +178,64 @@ class BumpGuardTestCase(unittest.TestCase):
         self.assertEqual(out, "- `alpha` 0.1.0: published-drifted\n")
         self.assertEqual(err, "alpha 0.1.0: bump required; crates.io already carries 0.1.0 "
                               "and the source differs from it (changed Cargo.toml, src/lib.rs)\n")
+
+    def test_a_requirement_the_base_moved_after_the_fork_does_not_select_the_crate(self) -> None:
+        # alpha's source has drifted from crates.io since before the fork. After the fork
+        # the base moves the workspace's serde requirement, which reaches alpha; the pull
+        # request touches neither. Read from the base instead of the merge base, alpha's
+        # requirements would differ and its old drift would fail an unrelated PR.
+        git(self.repo, "switch", "--quiet", "main")
+        moved = self.commit({"Cargo.toml": ROOT_MANIFEST.format(serde="1.1")})
+        git(self.repo, "switch", "--quiet", "pr")
+        self.commit({"README.md": "docs\n"})
+        registry = self.registry(published_alpha(source="pub fn one() -> u32 { 0 }\n"))
+        status, out, err = self.run_guard(registry, moved)
+        self.assertEqual((status, err), (0, ""))
+        self.assertEqual(out, "No publishable crate's source, manifest, or dependency "
+                              "requirements changed.\n")
+        self.assertEqual(registry.asked, [])
+
+    def test_a_manifest_only_change_at_an_indexed_version_fails(self) -> None:
+        # A new feature table changes no source file and no dependency requirement.
+        self.commit({"crates/alpha/Cargo.toml":
+                     ALPHA_MANIFEST.format(version="0.1.0") + "[features]\nextra = []\n"})
+        status, out, err = self.run_guard(self.registry())
+        self.assertEqual(status, 1)
+        self.assertEqual(out, "- `alpha` 0.1.0: published-drifted\n")
+        self.assertEqual(err, "alpha 0.1.0: bump required; crates.io already carries 0.1.0 "
+                              "and the source differs from it (changed Cargo.toml)\n")
+
+    def test_a_crate_that_joins_the_workspace_unchanged_is_measured(self) -> None:
+        # gamma's files exist at the merge base, outside the workspace; the pull request
+        # adds it to `members` without touching gamma's own paths.
+        self.base = self.commit({
+            "Cargo.toml": ROOT_MANIFEST.format(serde="1.0").replace(
+                '["crates/*"]', '["crates/alpha", "crates/beta"]'),
+            "crates/gamma/Cargo.toml": GAMMA_MANIFEST,
+            "crates/gamma/src/lib.rs": "pub fn three() -> u32 { 3 }\n"})
+        self.commit({"Cargo.toml": ROOT_MANIFEST.format(serde="1.0")})
+        status, out, err = self.run_guard(self.registry())
+        self.assertEqual((status, out, err), (0, "- `gamma` 0.1.0: never-published\n", ""))
+
+    def test_the_package_input_limits_the_crates_checked(self) -> None:
+        # Both crates change at their indexed versions; a call for beta alone measures
+        # and fails beta, and never asks about alpha.
+        self.commit({"crates/alpha/src/lib.rs": "pub fn one() -> u32 { 11 }\n",
+                     "crates/beta/src/lib.rs": "pub fn two() -> u32 { 222 }\n"})
+        registry = self.registry()
+        status, out, err = self.run_guard(registry, None, "--package", " beta ,")
+        self.assertEqual(status, 1)
+        self.assertEqual(out, "- `beta` 0.2.0: published-drifted\n")
+        self.assertTrue(err.startswith("beta 0.2.0: bump required;"), err)
+        self.assertFalse([url for url in registry.asked if "alpha" in url])
+
+    def test_an_unexpected_error_exits_two_never_one(self) -> None:
+        self.commit({"crates/alpha/src/lib.rs": "pub fn one() -> u32 { 11 }\n"})
+        with mock.patch.object(guard.drift, "measure_crate", side_effect=KeyError("x")):
+            status, out, err = self.run_guard(self.registry())
+        self.assertEqual((status, out), (2, ""))
+        self.assertIn("measurement failed unexpectedly", err)
+        self.assertIn("KeyError", err)
 
     def test_a_registry_failure_is_a_measurement_failure_not_a_pass(self) -> None:
         self.commit({"crates/alpha/src/lib.rs": "pub fn one() -> u32 { 11 }\n"})
