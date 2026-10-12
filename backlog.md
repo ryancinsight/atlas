@@ -1,5 +1,4 @@
-<a id="atlas-metis-rust-browser"></a>- [ATLAS-METIS-RUST-BROWSER](backlog/metis-rust-browser-host.md) — Rust browser presentation [minor] — todo
-<a id="atlas-metis-apple-setup"></a>- [ATLAS-METIS-APPLE-SETUP](backlog/metis-apple-setup.md) — Native and browser Apple setup [minor] — todo
+<a id="atlas-metis-apple-setup"></a>- [ATLAS-METIS-APPLE-SETUP](backlog/metis-apple-setup.md) — Apple host evidence and stack integration [minor] — todo
 <a id="atlas-root-conformance-materialize-crash"></a>- [ATLAS-ROOT-CONFORMANCE-MATERIALIZE-CRASH](backlog/atlas-root-conformance-materialize-crash.md) — The checker crashes materializing the root repo on Windows [correctness] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-alloc-count-per-thread"></a>- [ATLAS-ALLOC-COUNT-PER-THREAD](backlog/atlas-alloc-count-per-thread.md) — Count test allocations on the measuring thread only [patch] — todo

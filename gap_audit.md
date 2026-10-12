@@ -350,10 +350,18 @@ framework parity, mobile permissions, signed updates or matched performance.
 The root merges current main without conflicts; its conformance still reports
 `member_gate_versions: 1 -> 2`. The refreshed overlay check reports 18
 lagging requirements and 14 consumer repositories with lock drift. Root PR
-530 retains its existing integration blockers. Execution state lives in [ATLAS-METIS-RUST-BROWSER](backlog/metis-rust-browser-host.md).
+530 retains its existing integration blockers. Remaining integration state lives in [ATLAS-METIS-APPLE-SETUP](backlog/metis-apple-setup.md).
 
 Metis PR [493](https://github.com/ryancinsight/metis/pull/493) merges at
 `aa04a4a9fdbc3d2a6f502ade18e2cf1c58c5de73` after the complete Windows, Apple
 and parser campaign pass. Provider/source and artifact checks are green.
 Browser runtime jobs are schedule/manual-only and skipped in this PR; local
 in-app observations remain distinct from a new cross-engine run.
+
+Delivery records merge through Metis PR 494, Moirai PR 614 and Gaia PR 170.
+Atlas pointer-only commit `791d4789e5a7` records Metis
+`26f5fe6596c2e4190736ca8655b61b1d315d2d44`, Moirai
+`ddde64ef33a2fcd73773e22466fd60c52239f205` and Gaia
+`a81f558e4ab1e1ed19b8f1fc6c4c33670a59f9d9` from their published defaults.
+The completed Rust browser root item is retired; Root PR 530's hook rollout,
+requirement/lock drift and remaining Apple/native evidence stay open.
