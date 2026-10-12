@@ -21,9 +21,7 @@
 <a id="atlas-ci-runner-saturation-2026-08-25"></a>- [ATLAS-CI-RUNNER-SATURATION-2026-08-25](backlog/atlas-ci-runner-saturation-2026-08-25.md) — Hosted-runner queue depth delays every merge gate [patch] — blocked
 <a id="atlas-code-index-001"></a>- [ATLAS-CODE-INDEX-001](backlog/atlas-code-index-001.md) — Search-ladder infrastructure for context economy [patch] — todo
 <a id="atlas-coeus-nlls-004"></a>- [ATLAS-COEUS-NLLS-004](backlog/atlas-coeus-nlls-004.md) — original specification — todo
-<a id="atlas-conformance-submodule-status-2026-08-19"></a>- [ATLAS-CONFORMANCE-SUBMODULE-STATUS-2026-08-19](backlog/atlas-conformance-submodule-status-2026-08-19.md) — classify provider dirt after root status [patch] — todo
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) — 502 blanket suppressions the ratchet never counted [major] — todo
-<a id="crlf-stored-blobs"></a>- [ATLAS-CRLF-STORED-BLOBS-2026-09-08](backlog/crlf-stored-blobs.md) — Committed blobs contradict the declared line-ending policy [patch] — todo
 <a id="atlas-cross-member-sweep-108"></a>- [ATLAS-CROSS-MEMBER-SWEEP-108](backlog/atlas-cross-member-sweep-108.md) — cross-member staleness and dirt sweep [patch] (2026-08-23) — todo
 <a id="atlas-default-branch-reds-2026-09-02"></a>- [ATLAS-DEFAULT-BRANCH-REDS-2026-09-02](backlog/atlas-default-branch-reds-2026-09-02.md) — Member default-branch workflows red with no collector [patch] — todo
 <a id="atlas-dmri-correct-009"></a>- [ATLAS-DMRI-CORRECT-009](backlog/atlas-dmri-correct-009.md) — Motion, eddy-current, and susceptibility correction [minor] — todo
@@ -65,7 +63,6 @@
 <a id="atlas-moirai-accelerator-route-2026-08-21"></a>- [ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21](backlog/atlas-moirai-accelerator-route-2026-08-21.md) — Execute accelerator routes [major] [arch] — todo
 <a id="atlas-moirai-seqcst-002"></a>- [ATLAS-MOIRAI-SEQCST-002](backlog/atlas-moirai-seqcst-002.md) — Weakest-ordering audit for Moirai atomics [patch] — todo
 <a id="atlas-multiphysics-adoption-100"></a>- [ATLAS-MULTIPHYSICS-ADOPTION-100](backlog/atlas-multiphysics-adoption-100.md) — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — todo
-<a id="next-steps"></a>- [ATLAS-NEXT-STEPS-2026-09-03](backlog/next-steps.md) — Sequenced plan toward the suite [arch] — todo
 <a id="atlas-nightly-probe-consolidation"></a>- [ATLAS-NIGHTLY-PROBE-CONSOLIDATION](backlog/atlas-nightly-probe-consolidation.md) — One nightly-rustc probe for the stack [patch] — todo
 <a id="atlas-overlay-004"></a>- [ATLAS-OVERLAY-004](backlog/atlas-overlay-004.md) — Worktree sprawl breaks stack dependency resolution [patch] — blocked
 <a id="atlas-overlay-005"></a>- [ATLAS-OVERLAY-005](backlog/atlas-overlay-005.md) — Clear first-party rev pins across the stack [patch] — todo
@@ -124,13 +121,5 @@
 <a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
 <a id="atlas-python-wheels-floor"></a>- [ATLAS-PYTHON-WHEELS-FLOOR](backlog/atlas-python-wheels-floor.md) — Shared wheel workflow admits a Python floor its test step cannot install [verification] — todo
 <a id="atlas-bessel-core-001"></a>- [ATLAS-BESSEL-CORE-001](backlog/atlas-bessel-core-001.md) — One generic Bessel core on `RealField`; delete the inline host polynomials [tightening][minor] — todo
-<a id="atlas-hephaestus-oversize-001"></a>- [ATLAS-HEPHAESTUS-OVERSIZE-001](backlog/atlas-hephaestus-oversize-001.md) — Burn the +12 oversized_files regression on hephaestus master (48 vs baseline 36) [tightening][minor] — todo
 <a id="atlas-hook-gate-convergence-20261010"></a>- [ATLAS-HOOK-GATE-CONVERGENCE-20261010](backlog/atlas-hook-gate-convergence-20261010.md) — Converge the hook-gate rollout, then sweep gitlinks [arch] — todo
-<a id="atlas-leto-oversize-002"></a>- [ATLAS-LETO-OVERSIZE-002](backlog/atlas-leto-oversize-002.md) — Split the three untracked >500-line leto files (csr.rs, fixed/matrix.rs, convolution.rs) [tightening][minor] — todo
-<a id="atlas-member-wip-20261010-apollo"></a>- [ATLAS-MEMBER-WIP-20261010-APOLLO](backlog/atlas-member-wip-20261010-apollo.md) — Triage apollo's uncommitted checkout work [patch] — todo
-<a id="atlas-member-wip-20261010-athena"></a>- [ATLAS-MEMBER-WIP-20261010-ATHENA](backlog/atlas-member-wip-20261010-athena.md) — Triage athena's uncommitted checkout work [patch] — todo
-<a id="atlas-member-wip-20261010-coeus"></a>- [ATLAS-MEMBER-WIP-20261010-COEUS](backlog/atlas-member-wip-20261010-coeus.md) — Triage coeus's uncommitted checkout work [patch] — todo
-<a id="atlas-member-wip-20261010-hephaestus"></a>- [ATLAS-MEMBER-WIP-20261010-HEPHAESTUS](backlog/atlas-member-wip-20261010-hephaestus.md) — Triage hephaestus's uncommitted checkout work [patch] — todo
-<a id="atlas-member-wip-20261010-leto"></a>- [ATLAS-MEMBER-WIP-20261010-LETO](backlog/atlas-member-wip-20261010-leto.md) — Triage leto's uncommitted checkout work [patch] — todo
-<a id="atlas-member-wip-20261010-metis"></a>- [ATLAS-MEMBER-WIP-20261010-METIS](backlog/atlas-member-wip-20261010-metis.md) — Triage metis's uncommitted checkout work [patch] — todo
 <a id="atlas-monomorphization-review-20261012"></a>- [ATLAS-MONOMORPHIZATION-REVIEW-20261012](backlog/atlas-monomorphization-review-20261012.md) — Stack redundancy review: adjudicated families + open twins [patch] — todo
