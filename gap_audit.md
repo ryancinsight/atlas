@@ -291,8 +291,9 @@ Native host toolchain and local Metis build isolation are implemented; the same
 browser assets package in macOS/iOS apps. Browser computed values and process
 cleanup are verified; native macOS/simulator signing/plist and iPhone/iPad
 simulator install/launch and packaged WASM delivery pass. Real-source native
-reload, failed-compile preservation and child cleanup pass. Computer-use reports a locked Mac, so native
-interaction and Safari evidence remain open. The physical iPhone is unavailable
+reload, failed-compile preservation and child cleanup pass. After Mac unlock,
+native Greet clicks return exact Rust results for normal, Unicode and empty
+names; remaining native lifecycle and Safari evidence stay open. The physical iPhone is unavailable
 and no valid signing identity exists. The iPad simulator reports duplicate Apple
 accessibility classes; interactive validation remains required. Moirai sources
 reach its default branch through PRs 606/607. Metis reaches its default branch
@@ -312,3 +313,12 @@ RITK's three Metis 0.1 requirements, 14 consumer lock drifts and 24 other stale
 member pins. The hook's canonical source remains in draft Atlas PR 450.
 These results prevent the Atlas default-branch merge; the Apple component
 delivery does not establish whole-stack coherence.
+
+The native Greet failure is reproduced on 2026-10-12: packaged WASM loads with
+Fetch status zero, so wasm-bindgen rejects before binding the submit handler.
+Merged Moirai PR 608 supplies moirai-webview 0.1.1's shared status-200/MIME/length
+response contract; Metis 0.2.1 requires that version and resolves both locks to
+the merged provider. Eight provider tests, 678 Metis tests, 42 documentation
+tests and 60 consumer Python checks pass. Native macOS clicks verify the Rust
+results; all three frozen Apple bundles build. CoreSimulator installs/launches
+the corrected app, but its GUI client is absent from the installed Xcode tree.

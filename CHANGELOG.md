@@ -2,13 +2,18 @@
 
 ## Unreleased
 
+- [patch] Correct native Metis Greet startup with moirai-webview 0.1.1's Apple
+  Fetch status and MIME/length headers. Metis 0.2.1 excludes the defective
+  provider; native macOS normal, Unicode and empty-name clicks return the
+  exact Rust results.
+
 - [patch] Correct the local Metis macOS shell icon: bundle the declared artwork,
   preserve native bundle identity in development, and validate decoded image
   representations before replacing an owned application output.
 - [minor] Add the local Metis Apple setup path: native Rust host selection,
   graph-scoped locked builds, shared browser/macOS/iPhone/iPad frontend assets,
-  and bundle ownership verification. Metis 0.2.0 and the Moirai provider changes
-  remain unreleased; native interaction and physical-device signing remain open.
+  and bundle ownership verification. Metis targets 0.2.1; remaining native
+  lifecycle evidence and physical-device signing stay open.
 - [patch] ADR index generation includes new working files so the ADR and index
   can enter one commit. Verification retains the committed-tree requirement;
   a real Git regression covers generation, rejection and committed acceptance.
