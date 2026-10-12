@@ -348,5 +348,6 @@ The Tauri native inventory has 124 admitted pairs: 46 bounded implementations
 with remaining acceptance and 78 open pairs. This does not establish full
 framework parity, mobile permissions, signed updates or matched performance.
 The root merges current main without conflicts; its conformance still reports
-`member_gate_versions: 1 -> 2`. Root PR 530 retains its existing integration
-blockers. Execution state lives in [ATLAS-METIS-RUST-BROWSER](backlog/metis-rust-browser-host.md).
+`member_gate_versions: 1 -> 2`. The refreshed overlay check reports 18
+lagging requirements and 14 consumer repositories with lock drift. Root PR
+530 retains its existing integration blockers. Execution state lives in [ATLAS-METIS-RUST-BROWSER](backlog/metis-rust-browser-host.md).
