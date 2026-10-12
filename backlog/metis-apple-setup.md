@@ -7,9 +7,9 @@
 - [x] [patch] Deliver Darwin process cleanup and closed-peer forwarding fixes through Moirai PRs 606/607; native iPhone/iPad resource delivery passes.
 - [x] [patch] Verify 678 standalone Metis tests, 125 provider tests, 99 Python checks and documentation; Windows, Apple and complete fuzz merge gates pass.
 - [x] [patch] Package the vector-derived macOS icon in installed and supervised development bundles; verify native decoding, exact pixels and unchanged outputs on invalid inputs.
-- [x] [patch] Verify real-source reload, compiler/icon-error preservation, exact restoration and terminal-child cleanup; ADR generation retains committed-tree checks.
+- [ ] [patch] Merge Atlas PR 530 after canonical hook rollout (PR 450), RITK's three Metis requirement advances, 14 consumer lock updates and 24 stale member pins; current integration gates fail.
 - [x] [minor] Resolve standalone workspace/fuzz locks with one provider identity; preserve unrelated main-lock revisions and repair the original fuzz baseline.
-- [x] [minor] Deliver Metis PR 491 and advance Atlas pointers from merged default branches in a separate commit; target versions remain unreleased.
+- [x] [minor] Merge Metis PR 491; commit and push Atlas's two default-branch pointers separately. Real reload/failure preservation and ADR checks pass; target versions remain unreleased.
 - [ ] [patch] Observe native/Safari input, Dock branding, geometry, rotation and suspension after Mac unlock.
 - [ ] [minor] Obtain owner-selected physical-device signing/provisioning and availability; Android/plugin capability work remains in Metis's backlog.
 - artifacts: [manual](../repos/metis/docs/manual/apple.md), [ADR 0069](../docs/adr/0069-portable-host-toolchain.md), [gap audit](../gap_audit.md); this backlog owns execution state.

@@ -303,3 +303,12 @@ artifacts. The full overlay audit still reports RITK's three Metis 0.1 requireme
 and older compatible Moirai pins in other consumers; the generated overlay leaves
 incompatible edges on Git. Metis verification covers its scoped graph. Track the remaining
 work in [ATLAS-METIS-APPLE-SETUP](backlog/metis-apple-setup.md).
+
+Atlas [PR 530](https://github.com/ryancinsight/atlas/pull/530) is pushed and has
+no merge conflicts; both component pointers match their published defaults.
+Its Python suites and CodeQL checks pass. The integration checks fail on the
+newer component hook versus the pinned fleet (`member_gate_versions: 1 -> 2`),
+RITK's three Metis 0.1 requirements, 14 consumer lock drifts and 24 other stale
+member pins. The hook's canonical source remains in draft Atlas PR 450.
+These results prevent the Atlas default-branch merge; the Apple component
+delivery does not establish whole-stack coherence.
