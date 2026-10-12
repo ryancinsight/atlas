@@ -225,8 +225,8 @@ class LibraryTargetSelectionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-        cls.steps = {job: next(s for s in spec["steps"] if s.get("id") == "checkable")
-                     for job, spec in workflow["jobs"].items()}
+        cls.steps = {job: next(s for s in workflow["jobs"][job]["steps"] if s.get("id") == "checkable")
+                     for job in ("semver-pr", "semver-release")}
 
     def run_step(self, job: str, package: str, metadata: str = FIXTURE_METADATA):
         with tempfile.TemporaryDirectory() as tmp:
