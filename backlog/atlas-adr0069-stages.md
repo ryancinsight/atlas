@@ -1,5 +1,5 @@
 <a id="atlas-adr0069-stages"></a>
-## ATLAS-ADR0069-STAGES — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — in progress
+## ATLAS-ADR0069-STAGES — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
 outcome: one scalar element surface (eunomia), one slice-kernel surface (leto-ops), one sparse vocabulary (leto), one validation site per op (ADR 0069).
 - PARITY-1 CLOSED 2026-10-08 (leto topk): parity matrix audited; leto-ops topk_axis (leto main 0539736).
 - PARITY-2 CLOSED 2026-10-08 (leto cross/triangular): cross_into + triangular module (leto main a748936).
