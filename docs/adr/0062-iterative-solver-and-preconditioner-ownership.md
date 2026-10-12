@@ -9,6 +9,17 @@
   not Phase 3 — the chain's tiers construct `AlgebraicMultigrid`, so the
   multigrid family relocates first; Phase 3's deferral trigger now covers only
   future coarse-grid work on unstructured meshes.
+- **Revision 2026-10-12:** Phase 2's constructions are complete and verified —
+  MINRES (athena#110: the diag(1, −1) oracle where CG fails, f32+f64), FGMRES
+  (athena#111: a measured correction — the existing Gmres already stores Z and
+  forms Z·y, Saad's flexible variant; the missing oracle and contract delivered),
+  Chebyshev (athena#112: the analytic damping bound 1/T_k(μ) pinned exactly on
+  the high-frequency residual, overflow-safe τ recurrence), and two-level
+  deflated CG (athena#116: finite termination in n−k steps with an exact
+  invariant basis, where plain CG stalls on the small eigenvalues). All four
+  oracle gates at f32 and f64, per the ADR 0056 promotion path. ADR 0062's
+  phases are delivered; the board item ATLAS-ATHENA-KRYLOV-GAPS closes with
+  them.
 - Date: 2026-09-10
 - **Sequencing condition on Phase 1:** accepted as doctrine now, but the Phase 1
   source relocations touch `repos/CFDrs` and `repos/kwavers`, and both sit on the
