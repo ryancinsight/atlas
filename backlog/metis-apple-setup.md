@@ -1,8 +1,7 @@
 <a id="atlas-metis-apple-setup"></a>
 ## ATLAS-METIS-APPLE-SETUP — Native and browser Apple setup [minor] — todo
 
-- status: todo; priority: verification; target: Metis 0.2.0, Moirai 0.7.1 and moirai-webview 0.1.0; phase: Closure.
-- outcome: one real Rust frontend runs in browsers and installed macOS/iPhone/iPad apps.
+- status: todo; priority: verification; target: Metis 0.2.0, Moirai 0.7.1 and moirai-webview 0.1.0; phase: Closure; outcome: one Rust frontend runs in browsers and installed Apple apps.
 - [x] [patch] Clone all 28 components; resolve the native Rust 1.97.0 host and matching WASM loader.
 - [x] [minor] Derive graph-scoped configuration; compile and package browser/macOS/iOS/device/simulator assets with SDK, signature and final inventory checks.
 - [x] [patch] Deliver Darwin process cleanup and closed-peer forwarding fixes through Moirai PRs 606/607; native iPhone/iPad resource delivery passes.
