@@ -2,6 +2,24 @@
 
 - Status: **Accepted** — 2026-09-10 (proposed and accepted same day; acceptance
   directed by the architect on "proceed with the next phase").
+- **Revision 2026-10-11:** Phase 1's relocations are complete and verified
+  (athena#98–#109, CFDrs#527–#537, leto#340–#343, kwavers#941; the chain
+  landed as athena#109 with the consumer re-point CFDrs#537). One sequencing
+  correction from the 2026-10-09 audit: the AMG preconditioner moved in Phase 1,
+  not Phase 3 — the chain's tiers construct `AlgebraicMultigrid`, so the
+  multigrid family relocates first; Phase 3's deferral trigger now covers only
+  future coarse-grid work on unstructured meshes.
+- **Revision 2026-10-12:** Phase 2's constructions are complete and verified —
+  MINRES (athena#110: the diag(1, −1) oracle where CG fails, f32+f64), FGMRES
+  (athena#111: a measured correction — the existing Gmres already stores Z and
+  forms Z·y, Saad's flexible variant; the missing oracle and contract delivered),
+  Chebyshev (athena#112: the analytic damping bound 1/T_k(μ) pinned exactly on
+  the high-frequency residual, overflow-safe τ recurrence), and two-level
+  deflated CG (athena#116: finite termination in n−k steps with an exact
+  invariant basis, where plain CG stalls on the small eigenvalues). All four
+  oracle gates at f32 and f64, per the ADR 0056 promotion path. ADR 0062's
+  phases are delivered; the board item ATLAS-ATHENA-KRYLOV-GAPS closes with
+  them.
 - Date: 2026-09-10
 - **Sequencing condition on Phase 1:** accepted as doctrine now, but the Phase 1
   source relocations touch `repos/CFDrs` and `repos/kwavers`, and both sit on the
@@ -16,7 +34,9 @@
   [ADR 0055](0055-continuum-domain-decomposition.md) (R6, geometry owns
   interpolation), [ADR 0056](0056-new-construction-promotion-path.md) (the
   oracle rule for Phase 2)
-- Board: [ATLAS-SOLVER-OWNERSHIP-CONSOLIDATION](../../backlog.md#atlas-solver-ownership-consolidation)
+- Board: [ATLAS-ATHENA-KRYLOV-GAPS](../../backlog.md#atlas-athena-krylov-gaps)
+  (Phase 2; Phase 1 delivered under the closed
+  ATLAS-SOLVER-OWNERSHIP-CONSOLIDATION)
 
 ## Context
 

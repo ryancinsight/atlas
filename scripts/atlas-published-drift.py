@@ -73,7 +73,6 @@ import argparse
 import gzip
 import hashlib
 import http.client
-import importlib.util
 import io
 import json
 import random
@@ -88,7 +87,7 @@ import zlib
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
@@ -107,21 +106,7 @@ from atlas_git_process import (  # noqa: E402
     execute_process,
     extract_archive,
 )
-from atlas_stack import ROOT  # noqa: E402
-
-
-def load_sibling(name: str, path: Path):
-    """Import a first-party script whose file name is not a Python identifier."""
-    loaded = sys.modules.get(name)
-    if loaded is not None:
-        return loaded
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"cannot load {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
+from atlas_stack import ROOT, load_sibling  # noqa: E402
 
 
 # The registry index reader and the publishable-set rule are the push-mode planner's:
@@ -426,28 +411,58 @@ class MemberReading:
     packages: list[dict]
 
 
-def measure_member(name: str, repo: Path, branch: str, revision: str,
-                   fetch: Fetch, owner: str = DEFAULT_OWNER) -> MemberReading:
-    """Measure every publishable crate of `repo` at commit `revision`."""
+@dataclass(frozen=True)
+class Package:
+    """One publishable package of an exported revision."""
+
+    name: str
+    version: str
+    directory: PurePosixPath
+    dependencies: tuple[dict, ...]
+
+    @property
+    def manifest(self) -> str:
+        return (self.directory / "Cargo.toml").as_posix()
+
+
+def export_revision(label: str, repo: Path, revision: str, root: Path) -> dict:
+    """Export commit `revision` of `repo` under `root`; its `cargo metadata --no-deps`.
+
+    The export is `git archive`, never the working tree. A revision without a root
+    `Cargo.toml` has no packages to read and fails the measurement.
+    """
     try:
         tree = git_archive(repo, revision, timeout=GIT_TIMEOUT_SECONDS)
     except GitProcessError as error:
-        raise MeasurementError(f"{name}: cannot archive {revision}: {error}") from error
+        raise MeasurementError(f"{label}: cannot archive {revision}: {error}") from error
+    extract_archive(tree, root)
+    manifest = root / "Cargo.toml"
+    if not manifest.is_file():
+        raise MeasurementError(f"{label}: no root Cargo.toml at {revision}")
+    return run_cargo_metadata(manifest)
+
+
+def publishable_packages(metadata: dict, root: Path) -> list[Package]:
+    """The publishable packages of an export at `root`, by name."""
+    packages = []
+    for package in sorted(filter(crates_pending.publishable, metadata["packages"]),
+                          key=lambda p: p["name"]):
+        directory = Path(package["manifest_path"]).resolve().parent.relative_to(root)
+        packages.append(Package(package["name"], package["version"],
+                                PurePosixPath(directory.as_posix()),
+                                tuple(package["dependencies"])))
+    return packages
+
+
+def measure_member(name: str, repo: Path, branch: str, revision: str,
+                   fetch: Fetch, owner: str = DEFAULT_OWNER) -> MemberReading:
+    """Measure every publishable crate of `repo` at commit `revision`."""
     with tempfile.TemporaryDirectory(prefix=f"atlas-published-drift-{name}-") as scratch:
         root = Path(scratch).resolve()
-        extract_archive(tree, root)
-        manifest = root / "Cargo.toml"
-        if not manifest.is_file():
-            raise MeasurementError(f"{name}: no root Cargo.toml at {revision}")
-        metadata = run_cargo_metadata(manifest)
-        crates = []
-        for package in sorted(filter(crates_pending.publishable, metadata["packages"]),
-                              key=lambda p: p["name"]):
-            package_manifest = Path(package["manifest_path"]).resolve()
-            relative = package_manifest.relative_to(root)
-            crates.append(measure_crate(package["name"], package["version"],
-                                        relative.as_posix(), package_manifest.parent,
-                                        package["dependencies"], fetch, owner))
+        metadata = export_revision(name, repo, revision, root)
+        crates = [measure_crate(p.name, p.version, p.manifest, root / p.directory,
+                                p.dependencies, fetch, owner)
+                  for p in publishable_packages(metadata, root)]
         packages = [
             {"name": p["name"], "dependencies": p["dependencies"]} for p in metadata["packages"]
         ]

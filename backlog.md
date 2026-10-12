@@ -85,6 +85,7 @@
 <a id="atlas-pub-010"></a>- [ATLAS-PUB-010](backlog/atlas-pub-010.md) — Convert member crate callers to version-change publishing [patch] — todo
 <a id="atlas-pub-011"></a>- [ATLAS-PUB-011](backlog/atlas-pub-011.md) — Release the source that outran its published versions [patch] — todo
 <a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
+<a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the bump guard and require it [patch] — todo
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
 <a id="atlas-publish-001-book-mdbook-test-001"></a>- [ATLAS-PUBLISH-001-BOOK-MDBOOK-TEST-001](backlog/atlas-publish-001-book-mdbook-test-001.md) — Cross-book `mdbook test` gate alignment [patch] — blocked
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked
@@ -97,7 +98,6 @@
 <a id="atlas-shared-tree-stale-basis-2026-09-17"></a>- [ATLAS-SHARED-TREE-STALE-BASIS-2026-09-17](backlog/atlas-shared-tree-stale-basis-2026-09-17.md) — Reconcile the checkout and finish its stale-index guard [patch] — todo
 <a id="sibling-named-crates"></a>- [ATLAS-SIBLING-NAMED-CRATES-2026-09-04](backlog/sibling-named-crates.md) — Nine crates are named after a sibling member, not a concern [arch] [major] — todo
 <a id="slop-burndown"></a>- [ATLAS-SLOP-BURNDOWN-2026-09-06](backlog/slop-burndown.md) — Measured debt burn-down against the conformance ratchet [patch] — todo
-<a id="atlas-solver-ownership-consolidation"></a>- [ATLAS-SOLVER-OWNERSHIP-CONSOLIDATION](backlog/atlas-solver-ownership-consolidation.md) — Complete ADR 0033: the Krylov forks and the only multigrid in the stack live in CFDrs [arch][major] — todo
 <a id="atlas-stack-leto-churn-017"></a>- [ATLAS-STACK-LETO-CHURN-017](backlog/atlas-stack-leto-churn-017.md) — Upstream working-tree churn blocks consumer verification — todo
 <a id="atlas-stale-checkout-findings-223"></a>- [ATLAS-STALE-CHECKOUT-FINDINGS-223](backlog/atlas-stale-checkout-findings-223.md) — Gates measure the checkout, and 8 of 25 members are behind [patch] — todo
 <a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
@@ -120,15 +120,17 @@
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="ATLAS-HOOK-DIRECT-PATH-RETIRE"></a>- [ATLAS-HOOK-DIRECT-PATH-RETIRE](backlog/atlas-hook-direct-path-retire.md) — Retire direct hook build branches [patch] — todo
+<a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
+<a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
+<a id="atlas-python-wheels-floor"></a>- [ATLAS-PYTHON-WHEELS-FLOOR](backlog/atlas-python-wheels-floor.md) — Shared wheel workflow admits a Python floor its test step cannot install [verification] — todo
+<a id="atlas-bessel-core-001"></a>- [ATLAS-BESSEL-CORE-001](backlog/atlas-bessel-core-001.md) — One generic Bessel core on `RealField`; delete the inline host polynomials [tightening][minor] — todo
+<a id="atlas-hephaestus-oversize-001"></a>- [ATLAS-HEPHAESTUS-OVERSIZE-001](backlog/atlas-hephaestus-oversize-001.md) — Burn the +12 oversized_files regression on hephaestus master (48 vs baseline 36) [tightening][minor] — todo
 <a id="atlas-hook-gate-convergence-20261010"></a>- [ATLAS-HOOK-GATE-CONVERGENCE-20261010](backlog/atlas-hook-gate-convergence-20261010.md) — Converge the hook-gate rollout, then sweep gitlinks [arch] — todo
+<a id="atlas-leto-oversize-002"></a>- [ATLAS-LETO-OVERSIZE-002](backlog/atlas-leto-oversize-002.md) — Split the three untracked >500-line leto files (csr.rs, fixed/matrix.rs, convolution.rs) [tightening][minor] — todo
 <a id="atlas-member-wip-20261010-apollo"></a>- [ATLAS-MEMBER-WIP-20261010-APOLLO](backlog/atlas-member-wip-20261010-apollo.md) — Triage apollo's uncommitted checkout work [patch] — todo
 <a id="atlas-member-wip-20261010-athena"></a>- [ATLAS-MEMBER-WIP-20261010-ATHENA](backlog/atlas-member-wip-20261010-athena.md) — Triage athena's uncommitted checkout work [patch] — todo
 <a id="atlas-member-wip-20261010-coeus"></a>- [ATLAS-MEMBER-WIP-20261010-COEUS](backlog/atlas-member-wip-20261010-coeus.md) — Triage coeus's uncommitted checkout work [patch] — todo
 <a id="atlas-member-wip-20261010-hephaestus"></a>- [ATLAS-MEMBER-WIP-20261010-HEPHAESTUS](backlog/atlas-member-wip-20261010-hephaestus.md) — Triage hephaestus's uncommitted checkout work [patch] — todo
 <a id="atlas-member-wip-20261010-leto"></a>- [ATLAS-MEMBER-WIP-20261010-LETO](backlog/atlas-member-wip-20261010-leto.md) — Triage leto's uncommitted checkout work [patch] — todo
 <a id="atlas-member-wip-20261010-metis"></a>- [ATLAS-MEMBER-WIP-20261010-METIS](backlog/atlas-member-wip-20261010-metis.md) — Triage metis's uncommitted checkout work [patch] — todo
-<a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — in
-<a id="atlas-bessel-core-001"></a>- [ATLAS-BESSEL-CORE-001](backlog/atlas-bessel-core-001.md) — One generic Bessel core on `RealField`; delete the inline host polynomials [tightening][minor] — todo
-<a id="atlas-hephaestus-oversize-001"></a>- [ATLAS-HEPHAESTUS-OVERSIZE-001](backlog/atlas-hephaestus-oversize-001.md) — Burn the +12 oversized_files regression on hephaestus master (48 vs baseline 36) [tightening][minor] — todo
-<a id="atlas-leto-oversize-002"></a>- [ATLAS-LETO-OVERSIZE-002](backlog/atlas-leto-oversize-002.md) — Split the three untracked >500-line leto files (csr.rs, fixed/matrix.rs, convolution.rs) [tightening][minor] — todo
 <a id="atlas-monomorphization-review-20261012"></a>- [ATLAS-MONOMORPHIZATION-REVIEW-20261012](backlog/atlas-monomorphization-review-20261012.md) — Stack redundancy review: adjudicated families + open twins [patch] — todo

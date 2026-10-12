@@ -12,9 +12,11 @@ count without naming (AGENTS.md architecture_scoping: "Private consumers",
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 from atlas_git_process import GitProcessError, execute as execute_git
@@ -28,6 +30,20 @@ ROOT = Path(
     os.environ.get("ATLAS_STACK_ROOT") or Path(__file__).resolve().parent.parent
 ).resolve()
 TOOL_ROOT = ROOT / "tools"
+
+
+def load_sibling(name: str, path: Path):
+    """Import a first-party script whose file name is not a Python identifier, once."""
+    loaded = sys.modules.get(name)
+    if loaded is not None:
+        return loaded
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def run_tool(
