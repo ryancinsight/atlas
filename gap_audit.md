@@ -496,4 +496,4 @@ Windows, Apple, compatibility and fuzz gates pass. It replaces PR 499's broken
 historical fuzz baseline through the unchanged normal gate. Its 713 Rust/424
 script tests, native/Windows/WASM checks and three Apple bundles pass; the
 merged tree equals the verified branch. Rust decimal strings preserve full
-audit identifiers; the 213-line controller migration stays open.
+audit identifiers. [Metis PR 504](https://github.com/ryancinsight/metis/pull/504) replaces the 213-line controllers with Rust; 754 Rust/439 script tests and strict Windows source checks pass. Installed Rust-page Windows acceptance remains pending protected CI.
