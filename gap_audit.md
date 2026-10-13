@@ -424,3 +424,11 @@ configuration regressions fail before the change and pass after it, with all
 64 selected integration checks passing. Real launcher bundling then preserves
 both lock files, verifies the signature and all seven copied resource hashes.
 ADR 0069 records the source invariant and rejects restore-after-build masking.
+
+Moirai PR 615 and Metis PRs 495/496 are merged through their protected checks.
+The final fetched Metis default is `0abff1687ee178d99691f7d8e4720f1d90731809`;
+the Moirai default is `10a828f7e0a8cace10dd30e88e47ce2e64aec6e0`. Atlas
+records these defaults in pointer-only commits. Root CI at `a642f2ca` reports
+60 lagging requirements, 18 consumer lock drifts, 23 drifted/off-default members
+and `<meta>/member_gate_versions: 1 -> 2`; these fleet failures keep PR 530 open
+despite a conflict-free merge state. No baseline or waiver changes are added.
