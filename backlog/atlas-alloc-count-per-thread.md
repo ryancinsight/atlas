@@ -4,4 +4,4 @@
 - Landed 2026-10-12: the wrapper in mnemosyne (`counting::CountingAllocator`, open-window gated in [Mnemosyne #235](https://github.com/ryancinsight/Mnemosyne/pull/235); base wrapper #234). Already on `measure`: athena-leto, harmonia, horae, hyperion, proteus, coeus-ops.
 - Remaining: asclepius `crates/asclepius/tests/allocation_instrument.rs` + manifest `stats_alloc` -> `CountingAllocator<System>`+`measure` (critic-approved); locate and migrate kwavers-alloc-probe's hand-rolled counter (not found in the 2026-10-12 pass).
 - Oracle: second-thread allocations inside the window read zero for the measuring thread; existing exact budgets hold unchanged.
-- priority: verification; needs: none; scope: asclepius test+manifest, kwavers-alloc-probe. Next: the asclepius switch, then kwavers probe, then delete this item. basis: mnemosyne main `8f6ea38`, 2026-10-12.
+- priority: verification; needs: none; scope: asclepius test+manifest, kwavers-alloc-probe. Next: the asclepius switch, then kwavers probe, then delete this item. basis: mnemosyne main after [Mnemosyne #235](https://github.com/ryancinsight/Mnemosyne/pull/235), 2026-10-12.
