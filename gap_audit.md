@@ -467,10 +467,10 @@ macOS/simulator metadata carries the exact two-link policy. Physical device
 execution/signing and the remaining Tauri/native services stay open. No
 authored application JavaScript is added; Windows's 213 existing lines remain.
 
-The fetched Atlas default `5fc9b30d` reconciles in an isolated checkout,
-resolving its Metis gitlink conflict to the fetched default while preserving
-active component edits. Combined board content follows in a separate commit
-under the unchanged merge-purity rules; integration CI remains its own gate.
+The fetched Atlas defaults reconcile while preserving active component edits.
+The Metis gitlink conflict resolves to its fetched default. The later PR 539
+audit merges with an identical content tree, retaining both audit records.
+Board content and pointers remain separate; integration CI remains its own gate.
 
 The current Atlas ruleset requires workflow validity and the debt ratchet;
 overlay/version coherence and default-pin drift are advisory checks. The
@@ -491,7 +491,9 @@ fixes the inclusive capture-byte law and production PNG dependency in 0.8.3.
 All active CI passes, including four installed WebView2 preview scenarios and
 both unchanged 100-host inputs; 1,278 local tests pass with nine existing
 ignored probes. [Metis PR 502](https://github.com/ryancinsight/metis/pull/502)
-replaces PR 499's broken historical fuzz baseline through the unchanged normal
-gate. Its local 713 Rust/424 script tests, native/Windows/WASM checks and three
-Apple bundles pass; protected consumer CI remains pending. Rust decimal strings
-preserve full audit identifiers; the 213-line controller migration stays open.
+merges 0.4.1 at `1ef9409b567458c50a547ba3c9257d8ca35b3cf5` after all active
+Windows, Apple, compatibility and fuzz gates pass. It replaces PR 499's broken
+historical fuzz baseline through the unchanged normal gate. Its 713 Rust/424
+script tests, native/Windows/WASM checks and three Apple bundles pass; the
+merged tree equals the verified branch. Rust decimal strings preserve full
+audit identifiers; the 213-line controller migration stays open.
