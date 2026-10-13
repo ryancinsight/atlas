@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- [patch] Consume Metis 0.3.1 and moirai-webview 0.1.2's Rust-owned native
+  application, Edit and Window menus. Focused Quit/Close terminate the packaged
+  macOS Greet app; Minimize, Zoom and Full Screen use AppKit. Record the 213
+  JavaScript lines still embedded in Windows pages as a separate Rust migration.
+
 - [patch] Correct native Metis Greet startup with moirai-webview 0.1.1's Apple
   Fetch status and MIME/length headers. Metis 0.2.1 excludes the defective
   provider; native macOS normal, Unicode and empty-name clicks return the

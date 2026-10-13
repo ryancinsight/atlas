@@ -114,7 +114,7 @@
 <a id="atlas-worktree-clones-001"></a>- [ATLAS-WORKTREE-CLONES-001](backlog/atlas-worktree-clones-001.md) — Reconcile standalone clones under `worktrees/` [patch] — todo
 <a id="atlas-worktree-takeover-107"></a>- [ATLAS-WORKTREE-TAKEOVER-107](backlog/atlas-worktree-takeover-107.md) — stale-lane sweep across the stack [patch] — todo
 <a id="kwavers-ci-pipeline-001"></a>- [KWAVERS-CI-PIPELINE-001](backlog/kwavers-ci-pipeline-001.md) — Consolidate kwavers CI to one verification pipeline [ci] [patch] — todo
-<a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — blocked
+<a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — todo
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="ATLAS-HOOK-DIRECT-PATH-RETIRE"></a>- [ATLAS-HOOK-DIRECT-PATH-RETIRE](backlog/atlas-hook-direct-path-retire.md) — Retire direct hook build branches [patch] — todo

@@ -1,7 +1,6 @@
 <a id="atlas-metis-apple-setup"></a>
 ## ATLAS-METIS-APPLE-SETUP — Apple host evidence and stack integration [minor] — todo
-
-- status: todo; priority: verification; target: Metis 0.3.0, Moirai 0.8.2 and moirai-webview 0.1.1; phase: Closure; outcome: one Rust frontend runs in browsers and installed Apple apps. Artifacts: [manual](../repos/metis/docs/manual/apple.md), [ADR 0069](../docs/adr/0069-portable-host-toolchain.md), [delivery audit](../gap_audit.md#metis-rust-browser-increment--2026-10-12).
+- status: todo; priority: verification; target: Metis 0.3.1, Moirai 0.8.2 and moirai-webview 0.1.2; phase: Closure; outcome: one Rust frontend runs in browsers and installed Apple apps. Artifacts: [manual](../repos/metis/docs/manual/apple.md), [ADR 0069](../docs/adr/0069-portable-host-toolchain.md), [native command audit](../gap_audit.md#native-greet-commands--2026-10-12).
 - [ ] [patch] Merge Atlas PR 530 after requirement/lock reconciliation and remaining stale member pins; the last checks report 18 lagging requirements, 14 consumer lock drifts and 24 stale pins. Canonical hook PR 450 merges at `b94ee304`; current-head CI must re-evaluate the integration gates.
-- [ ] [patch] Observe remaining Safari/mobile input, Dock branding, geometry, rotation and suspension; macOS Greet is verified after unlock, while the Simulator UI client is absent.
+- [ ] [patch] Observe remaining Safari/mobile input, Dock branding, unobscured title-bar glyphs, rotation and suspension; macOS Greet, focused Quit/Close and native window state pass. Three Apple bundles build from Git sources; the Simulator UI client is absent. The Windows pages' 213 embedded JavaScript lines remain in Metis's Rust migration backlog.
 - [ ] [minor] Obtain owner-selected physical-device signing/provisioning and availability; Android/plugin capability work remains in Metis's backlog.

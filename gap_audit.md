@@ -388,3 +388,30 @@ does not distinguish path checkouts in artifact names. The old acceptance
 serializes all same-repository pushes and requires isolated before/after
 timings; the active corrected acceptance instead excludes duplicate refs,
 records each claim's wait/hold and counts the 36-to-3 identity-step reduction.
+
+## Native Greet commands — 2026-10-12
+
+[Moirai PR 615](https://github.com/ryancinsight/Moirai/pull/615) delivers
+moirai-webview 0.1.2 with Rust-owned AppKit application, Edit and Window menus.
+[Metis PR 495](https://github.com/ryancinsight/metis/pull/495) consumes that
+provider in Metis 0.3.1. The installed macOS bundle returns exact Unicode and
+empty-name greetings; focused ⌘Q and ⌘W each terminate its process. Native
+notifications record minimize/restore, Zoom 800×632→1728×1034→800×632 and
+full-screen transitions. The recording badge obscures standard button glyphs;
+unobscured visual evidence remains open. All three Apple bundles build under
+the canonical Git lock; physical-device signing remains unavailable.
+
+Local acceptance passes 701 Rust tests without skips, 395 script tests,
+native/WASM Clippy and both iOS target checks. Both dependency locks retain
+their bytes across the locked test and bundle runs. No JavaScript is added.
+The nine-line loader count excludes 213 existing JavaScript lines embedded
+in Windows form/probe assets; METIS-WEBVIEW-RUST-001 owns their Rust migration.
+General native window APIs, mobile permissions and the Tauri inventory's
+remaining admitted pairs stay open.
+
+Fetched Atlas main `714bdd16` merges without conflicts. Its four-line board
+overflow is removed by consolidating duplicate Metis process-tree scope and
+dependency prose and the Apple item's separator; all open acceptance remains.
+PR 396 is merged, so its still-undelivered Metis consumer item becomes todo.
+Root PR 530's requirement, lock, pin and conformance failures remain separate
+from conflict resolution; current-head CI must re-evaluate them.

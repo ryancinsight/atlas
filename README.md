@@ -30,6 +30,8 @@ The [Apple application manual](repos/metis/docs/manual/apple.md) records the
 prerequisites, tested targets, development-lock contract and physical-device
 signing boundary. The runner derives its configuration from the existing Atlas
 overlay, preserves the shared cache and retains locked compilation.
+The macOS app supplies native Quit (⌘Q) and Window commands for Close (⌘W),
+Minimize (⌘M), Zoom and Full Screen (⌃⌘F), including with a focused form field.
 
 ## Substrate composition
 
