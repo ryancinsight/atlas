@@ -193,7 +193,14 @@ def repository_runs(slug: str, branch: str, repo: Path | None = None) -> list[di
             continue
         path = workflow.get("path")
         if repo is not None and path:
-            if only_trigger_is_workflow_call(git(repo, "show", f"origin/{branch}:{path}") or ""):
+            try:
+                text = git(repo, "show", f"origin/{branch}:{path}") or ""
+            except RuntimeError:
+                # The API-listed path is not in this checkout's origin ref
+                # (renamed workflow, or a ref the fetch has not reached yet):
+                # fall through to the run lookup instead of crashing the sweep.
+                text = ""
+            if only_trigger_is_workflow_call(text):
                 continue
         run = latest_completed_run(slug, branch, workflow["id"])
         if run is not None:
