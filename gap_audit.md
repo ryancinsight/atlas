@@ -482,6 +482,12 @@ changes Windows capture files and leaves moirai-webview unchanged. Its first
 verification fails solely because the request is draft; the subsequent
 [ready-state run](https://github.com/ryancinsight/Moirai/actions/runs/38418696786)
 passes all active gates before merge. The previous failed-result classification
-is corrected. Review identifies a separate inclusive capture-byte defect and
-production PNG dependency omission; their owning provider patch and the Metis
-standalone dependency reconciliation remain pending verification.
+is corrected. [Moirai PR 617](https://github.com/ryancinsight/Moirai/pull/617)
+fixes the inclusive capture-byte law and production PNG dependency in 0.8.3.
+All active CI passes, including four installed WebView2 preview scenarios and
+both unchanged 100-host inputs; 1,278 local tests pass with nine existing
+ignored probes. [Metis PR 502](https://github.com/ryancinsight/metis/pull/502)
+replaces PR 499's broken historical fuzz baseline through the unchanged normal
+gate. Its local 713 Rust/424 script tests, native/Windows/WASM checks and three
+Apple bundles pass; protected consumer CI remains pending. Rust decimal strings
+preserve full audit identifiers; the 213-line controller migration stays open.
