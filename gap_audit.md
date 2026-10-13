@@ -432,10 +432,13 @@ ADR 0069 records the source invariant and rejects restore-after-build masking.
 Moirai PR 615 and Metis PRs 495/496 are merged through their protected checks.
 The final fetched Metis default is `0abff1687ee178d99691f7d8e4720f1d90731809`;
 the Moirai default is `10a828f7e0a8cace10dd30e88e47ce2e64aec6e0`. Atlas
-records these defaults in pointer-only commits. Root CI at `a642f2ca` reports
-60 lagging requirements, 18 consumer lock drifts, 23 drifted/off-default members
-and `<meta>/member_gate_versions: 1 -> 2`; these fleet failures keep PR 530 open
-despite a conflict-free merge state. No baseline or waiver changes are added.
+records these defaults in pointer-only commits. The historical [overlay
+run](https://github.com/ryancinsight/atlas/actions/runs/38343758270) reports
+60 lagging requirements and 18 consumer lock drifts; the [conformance
+run](https://github.com/ryancinsight/atlas/actions/runs/38343758462) reports
+23 drifted/off-default members and `<meta>/member_gate_versions: 1 -> 2`.
+Those results precede the default-branch reconciliation below. No baseline
+or waiver changes are added.
 
 
 ## Native logo navigation — 2026-10-13
@@ -444,14 +447,15 @@ Moirai PR 616 merges moirai-webview 0.2.0 at
 `81656cc6465edff88e1f4158b3be00721aef3118`. The starter's target-blank
 logos have no popup handler before this change. A Rust WKUIDelegate now
 opens only exact HTTPS destinations declared in signed bundle metadata and
-returns no remote WebView. Metis 0.4.0 declares both destinations. The real
+returns no remote WebView. Metis PR 501 merges 0.4.0 at
+`731b00d924eddccfdf50b9e17e699ba786f6c113` and declares both destinations. The real
 installed macOS logo opens the exact repository URL in Safari and retains
 the Unicode Rust greeting. Unlisted, existing-frame and subframe requests
 and two executed onload popup attempts yield zero handoffs; the permitted
 control yields one. LinkActivated does not prove trusted-event provenance.
 
-Twenty provider tests, 707 consumer Rust tests and native/WASM warning-denying
-checks pass. Ten consumer library surfaces and the provider pass all 196
+Twenty provider tests, 707 consumer Rust tests, 424 script tests without skips
+and native/WASM warning-denying checks pass. Ten consumer library surfaces and the provider pass all 196
 applicable compatibility checks each; four consumer comparisons use actual
 locked compiler rustdoc JSON because fresh Consus resolution has drifted.
 All three Apple bundles build without modifying either canonical lock; signed
@@ -463,3 +467,17 @@ The fetched Atlas default `5fc9b30d` reconciles in an isolated checkout,
 resolving its Metis gitlink conflict to the fetched default while preserving
 active component edits. Combined board content follows in a separate commit
 under the unchanged merge-purity rules; integration CI remains its own gate.
+
+The current Atlas ruleset requires workflow validity and the debt ratchet;
+overlay/version coherence and default-pin drift are advisory checks. The
+fetched default closes the old hook-version divergence. A full-history scan
+against all 29 canonical stores identifies two raw citations to an unmerged
+root branch as the entire remaining reference increase (58 to 60). The audit
+now cites the actual hosted runs above, restoring 58 without changing the
+resolver, baseline or waivers. Current-head CI remains authoritative.
+
+Atlas records the verified Moirai revision above and the merged Metis default
+in a gitlink-only commit. The later [Moirai PR 505](https://github.com/ryancinsight/Moirai/pull/505)
+changes Windows capture files, leaves moirai-webview unchanged and reports a
+failed verification result. Its newer default remains a separate integration
+gap; it does not replace the verified provider identity in this delivery.
