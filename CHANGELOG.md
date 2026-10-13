@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- [patch] Keep the Metis launcher on canonical Git dependency sources. Remove
+  path-patch reconciliation and lock metadata resolution, preserving root build
+  settings, the shared cache and live Metis frontend sources.
+
 - [patch] Consume Metis 0.3.1 and moirai-webview 0.1.2's Rust-owned native
   application, Edit and Window menus. Focused Quit/Close terminate the packaged
   macOS Greet app; Minimize, Zoom and Full Screen use AppKit. Record the 213

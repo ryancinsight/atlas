@@ -15,21 +15,20 @@ spec.loader.exec_module(runner)
 class MetisConfigurationTests(unittest.TestCase):
     def test_preserves_profile_values_and_shared_cache(self):
         original = tomllib.loads((runner.ROOT / ".cargo/config.toml").read_text())
-        actual = tomllib.loads(runner.selected_configuration())
+        actual = tomllib.loads(runner.cargo_configuration())
         self.assertEqual(actual["profile"], original["profile"])
         self.assertEqual(Path(actual["build"]["target-dir"]), runner.ROOT / "target")
-        for source, packages in actual["patch"].items():
-            for name, value in packages.items():
-                expected = dict(original["patch"][source][name])
-                expected["path"] = str(runner.ROOT / expected["path"])
-                self.assertEqual(value, expected)
-                self.assertTrue((Path(value["path"]) / "Cargo.toml").is_file())
+        self.assertNotIn("patch", actual)
+        expected = {key: value for key, value in original.items() if key != "patch"}
+        expected["build"] = {**expected["build"], "target-dir": str(runner.ROOT / "target")}
+        self.assertEqual(actual, expected)
 
-    def test_provider_closure_excludes_unrelated_overlay_records(self):
-        actual = tomllib.loads(runner.selected_configuration())
-        names = {name for packages in actual["patch"].values() for name in packages}
-        self.assertTrue({"moirai-webview", "moirai-pal", "moirai-transport", "moirai-core"} <= names)
-        self.assertTrue({"ritk-dicom", "coeus-nn", "athena-core"}.isdisjoint(names))
+    def test_configuration_keeps_canonical_dependency_sources(self):
+        actual = tomllib.loads(runner.cargo_configuration())
+        self.assertNotIn("patch", actual)
+        lock = tomllib.loads(runner.WORKSPACE.with_name("Cargo.lock").read_text())
+        moirai = next(package for package in lock["package"] if package["name"] == "moirai-webview")
+        self.assertTrue(moirai["source"].startswith("git+https://github.com/ryancinsight/Moirai.git#"))
         self.assertEqual(tomllib.loads(runner.render(actual)), actual)
 
     def test_absolute_manifest_and_output_are_passed_to_metis(self):

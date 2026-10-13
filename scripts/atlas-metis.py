@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-"""Run Metis with a graph-scoped Atlas development overlay.
+"""Run Metis against its canonical Git lock outside Atlas's path overlay.
 
-The root overlay contains unrelated packages. Cargo 1.97 rewrites their
-unused patch records, preventing locked frontend builds. This runner selects
-only packages in Metis's resolved graph and its declared direct dependencies.
-It preserves the root build profiles and shared target directory. Cargo first
-reconciles this development lock; every compilation then uses --locked.
-The generated configuration lives outside Atlas and is removed on exit.
+Path patches change dependency identities and cannot satisfy the canonical
+lock. This runner preserves non-patch Cargo configuration, root build profiles
+and the shared target directory. Metadata and every compilation use --locked;
+provider revisions come from the lock, while Metis sources remain editable.
+The temporary configuration lives outside Atlas and is removed on exit.
 
 Usage: python3 scripts/atlas-metis.py [--manifest PATH] serve|dev|build|apple ...
 Relative output paths refer to the caller's working directory. The default
-manifest is the real metis-starter application. Working-tree locks are Atlas
-path-overlay artifacts; release locks require published provider revisions.
+manifest is the real metis-starter application. Builds leave canonical locks
+unchanged and require published provider revisions.
 """
 
 from __future__ import annotations
@@ -24,33 +23,19 @@ import subprocess
 import tempfile
 import tomllib
 
-import lockfile
-
 ROOT = Path(__file__).resolve().parent.parent
 WORKSPACE = ROOT / "repos/metis/Cargo.toml"
 STARTER = ROOT / "repos/metis/crates/metis-starter/metis.json"
 
 
-def selected_configuration() -> str:
-    """Derive the scoped configuration from authoritative manifests and lock."""
-    config = tomllib.loads((ROOT / ".cargo/config.toml").read_text())
-    graph = tomllib.loads(WORKSPACE.with_name("Cargo.lock").read_text())
-    names = {package["name"] for package in graph["package"]}
-    for manifest in WORKSPACE.parent.rglob("Cargo.toml"):
-        if set(manifest.relative_to(WORKSPACE.parent).parts) & {"target", "output", ".git"}:
-            continue
-        data = tomllib.loads(manifest.read_text())
-        for dependencies in lockfile.dependency_tables(data):
-            for name, spec in dependencies.items():
-                if isinstance(spec, dict) and "git" in spec:
-                    names.add(spec.get("package", name))
-    config["build"]["target-dir"] = str(ROOT / config["build"]["target-dir"])
-    config["patch"] = {
-        source: {name: {**value, "path": str(ROOT / value["path"])}
-                 for name, value in packages.items() if name in names}
-        for source, packages in config["patch"].items()
-        if any(name in names for name in packages)
+def cargo_configuration() -> str:
+    """Preserve build settings without replacing canonical dependency sources."""
+    config = {
+        key: value for key, value in tomllib.loads(
+            (ROOT / ".cargo/config.toml").read_text()
+        ).items() if key != "patch"
     }
+    config["build"]["target-dir"] = str(ROOT / config["build"]["target-dir"])
     return render(config)
 
 
@@ -93,7 +78,7 @@ def main() -> int:
     options = parser.parse_args()
     caller = Path.cwd()
     arguments = command_arguments(options.arguments, options.manifest.resolve(strict=True), caller)
-    configuration = selected_configuration()
+    configuration = cargo_configuration()
     toolchain = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())["toolchain"]["channel"]
     env = {**os.environ, "RUSTUP_TOOLCHAIN": toolchain}
     if "CARGO_TARGET_DIR" in env:
@@ -102,7 +87,7 @@ def main() -> int:
         context = Path(directory)
         (context / ".cargo").mkdir()
         (context / ".cargo/config.toml").write_text(configuration)
-        subprocess.run(["cargo", "metadata", "--format-version=1", "--manifest-path", str(WORKSPACE)],
+        subprocess.run(["cargo", "metadata", "--locked", "--format-version=1", "--manifest-path", str(WORKSPACE)],
                        cwd=context, env=env, stdout=subprocess.DEVNULL, check=True, timeout=120)
         subprocess.run(["cargo", "build", "--locked", "--manifest-path", str(WORKSPACE), "-p", "metis-cli"],
                        cwd=context, env=env, check=True, timeout=900)

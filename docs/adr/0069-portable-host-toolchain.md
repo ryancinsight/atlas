@@ -34,18 +34,27 @@ resolve Rust 1.97.0 on aarch64-apple-darwin. Member builds must use the same
 compiler version. Apple target builds select their target explicitly. Build,
 runtime, and device evidence are recorded in the Apple setup checklist.
 
-## Metis development build isolation
+## Metis locked source isolation
 
-Metis's compiler commands retain `--locked`. Atlas's broad root overlay adds
-unused patch records that Cargo 1.97 rewrites between commands; `atlas-metis.py`
-derives an isolated overlay from the resolved package closure and Metis's direct
-git dependencies. The root configuration remains authoritative for profiles,
-provider paths and the shared target directory. A neutral temporary working
-directory excludes unrelated inherited patches; it is removed on exit. Cargo
-reconciles the development lock before the first locked compile. A stale actual
-dependency still fails a subsequent locked compiler invocation.
+The runner's invariant is `Cargo.lock_after = Cargo.lock_before` for every
+successful build. Dependency sources come from the committed Git lock; current
+Metis workspace/frontend edits remain local. All metadata and compilation
+commands use `--locked`. A stale dependency fails before source substitution.
 
-This is local development orchestration. Provider delivery and standalone lock
-regeneration remain required before a release; no path-overlay lock is a release
-artifact. The existing stack build-identity metadata backlog item remains open
-because this increment does not alter the identity runner's source policy.
+The former graph-scoped overlay violates that invariant: its unlocked metadata
+step removes Git source identities from the canonical lock. A scoped path
+overlay still changes source identity. Restoring the lock after the build would
+mask the mutation and race other commands; a snapshot would break live frontend
+watching and the CLI's native-host workspace path. Neither is selected.
+
+`atlas-metis.py` runs from a neutral temporary directory with the root's build
+profiles, shared target directory and other non-patch configuration. It omits
+dependency patch tables and removes its temporary configuration on exit.
+Provider changes enter through the published Git revisions and canonical lock.
+No source workspace is copied, and native CLI workspace paths stay live.
+
+Verification compares both locks before/after real Atlas Apple bundling,
+validates the package signature and exact resource bytes from that build, and
+checks input-sensitive Greet and native exit behavior. Configuration tests
+preserve every non-patch field and the shared cache. The stack build-identity
+metadata backlog remains independently open.

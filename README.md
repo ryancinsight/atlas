@@ -28,8 +28,9 @@ python3 scripts/atlas-metis.py apple run --target ios-simulator --device 6E61403
 The simulator must already be booted; its identity is machine-specific.
 The [Apple application manual](repos/metis/docs/manual/apple.md) records the
 prerequisites, tested targets, development-lock contract and physical-device
-signing boundary. The runner derives its configuration from the existing Atlas
-overlay, preserves the shared cache and retains locked compilation.
+signing boundary. The runner preserves Atlas's build settings and shared cache,
+resolves providers through Metis's canonical Git lock and retains locked
+metadata and compilation. It leaves both canonical locks unchanged.
 The macOS app supplies native Quit (⌘Q) and Window commands for Close (⌘W),
 Minimize (⌘M), Zoom and Full Screen (⌃⌘F), including with a focused form field.
 

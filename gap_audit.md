@@ -415,3 +415,12 @@ dependency prose and the Apple item's separator; all open acceptance remains.
 PR 396 is merged, so its still-undelivered Metis consumer item becomes todo.
 Root PR 530's requirement, lock, pin and conformance failures remain separate
 from conflict resolution; current-head CI must re-evaluate them.
+
+The real Atlas launcher exposes the canonical lock mutation: unlocked metadata
+under its graph-scoped path overlay removes 40 Git source records. The corrected
+runner omits dependency patches and locks metadata and compilation; providers
+come from the canonical lock while frontend source paths stay live. The two
+configuration regressions fail before the change and pass after it, with all
+64 selected integration checks passing. Real launcher bundling then preserves
+both lock files, verifies the signature and all seven copied resource hashes.
+ADR 0069 records the source invariant and rejects restore-after-build masking.
