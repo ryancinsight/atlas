@@ -478,6 +478,10 @@ resolver, baseline or waivers. Current-head CI remains authoritative.
 
 Atlas records the verified Moirai revision above and the merged Metis default
 in a gitlink-only commit. The later [Moirai PR 505](https://github.com/ryancinsight/Moirai/pull/505)
-changes Windows capture files, leaves moirai-webview unchanged and reports a
-failed verification result. Its newer default remains a separate integration
-gap; it does not replace the verified provider identity in this delivery.
+changes Windows capture files and leaves moirai-webview unchanged. Its first
+verification fails solely because the request is draft; the subsequent
+[ready-state run](https://github.com/ryancinsight/Moirai/actions/runs/38418696786)
+passes all active gates before merge. The previous failed-result classification
+is corrected. Review identifies a separate inclusive capture-byte defect and
+production PNG dependency omission; their owning provider patch and the Metis
+standalone dependency reconciliation remain pending verification.
