@@ -284,3 +284,30 @@ check: for each moved pub item, the provider's PR checklist asserts the
 crate-root `pub use` gained the name — mechanically, a one-line script
 comparing the module's exports against the root list. Re-open trigger:
 that check lands in the stack tooling.
+
+<a id="precision-profile-tier-conflation"></a>
+## Finding 2026-10-12: `CpuStorage::PROFILE` is one const on a storage type read by two tiers whose arithmetic disagrees
+
+Risk: the CPU typed plans widen `f32`/`F16` storage into the owner `f64`/`Complex64` arithmetic, while the accelerator typed paths dispatch the same storage through `Complex32` device buffers and compute natively. A single `PROFILE` const on `CpuStorage` therefore describes one tier truthfully and the other falsely, and a caller of the lied-about tier is rejected. Measured on the apollo worktree base: `apollo-nufft` `type1_typed_storage_matches_represented_input` panicked with `InvalidPlan { message: "precision profile does not match typed NUFFT-WGPU storage" }` whenever a GPU adapter was present, and passed only because the test early-returns without one — a host without an adapter cannot observe this class of failure, so the CPU test gate is blind to it by construction. Only `NufftComplexStorage` was conflated; `apollo-{radon,sht,sft,stft}` and `apollo-fft`'s transform backend already bound on `GpuStorage` and were correct throughout. Evidence: apollo PR #650, whose `refactor(apollo)` commit splits the consts; on current `origin/main` #630 has reverted the widening rebase so `[F16; 2]::PROFILE` is `MIXED_PRECISION_F16_F32` again, which leaves the defect latent rather than fixed — the conflation returns the moment anyone re-adopts a widening descriptor.
+
+Root cause: a profile is a property of a *path*, not of a storage type, and the trait stored it on the type. Two independent callers then read one value and disagree about what it means.
+
+Catching check: the reference port on apollo local branch `refactor/nufft-device-profile` (unpushed, named rather than hashed) adds a `DEVICE_PROFILE` const to the storage trait plus three host-runnable value-semantic tests that pin both tiers' profile values; its push is blocked by the conformance ratchet `apollo/manifest_implementation` rising because the additions return to the flattened module root. The check that must land is therefore structural: the accelerator tier names its own profile, and a test with no device asserts each type's profile on both tiers.
+
+Re-open trigger: any change to `CpuStorage::PROFILE`, or a re-adoption of widening descriptors, which this finding cites as the reproduction path. Twin consolidation delivered under apollo #652 and consus #171 (both merged); the monomorphization review item is closed.
+
+<a id="whole-file-writer-utf8-mangling"></a>
+## Finding 2026-10-12: whole-file writers mangle non-ASCII into cp1252 double-encoding on Windows hosts
+
+Risk: an agent's whole-file write that resolves the file as cp1252 instead of UTF-8 rewrites every non-ASCII byte pair as its Windows-1252 interpretation re-encoded in UTF-8, silently corrupting Rustdoc and test prose while leaving the file valid UTF-8, so no gate notices. Measured 2026-10-12 in the apollo worktree: five files carried `π`->`Ï€`, `Σ`->`Î£`, `è`->`Ã¨`, `∀`->`Ãž` and friends across module docs, proptest contracts and published references (`apollo-nufft/.../transform/dimension_1d.rs`, `.../dimension_1d/proptest_suite.rs`, `apollo-sft/.../transform/sparse.rs`, `sparse/plan.rs`, `sparse/tests.rs`). The corruption is recoverable only by re-encoding the runs back through cp1252, which is exactly what repaired it; the same class had already reached apollo's CHANGELOG.md, where it remains. This session's own first PowerShell heredoc reproduced the failure live, so it is not hypothetical.
+
+Root cause: the writer, not the file. Every mechanism that rewrites a whole file from a shell heredoc, a `Set-Content`/`Out-File` without an explicit UTF-8 encoding, or an editor defaulting to the system code page can do this on a Windows host.
+
+Catching check: a conformance scan over tracked text files rejecting any run of two or more characters in U+0080..U+00FF whose cp1252 re-encoding is valid UTF-8, plus a byte-level check that a file the agent rewrote is unchanged outside its intended edit. Both are cheap and deterministic; neither exists.
+
+Re-open trigger: the scan lands in the stack tooling, or a second occurrence is observed. Pre-existing instance already recorded: apollo `CHANGELOG.md` at `main`.
+
+<a id="apollo-scratch-rescue-weakening"></a>
+## Finding 2026-10-13: apollo rescue ref preserves a defect-masking test weakening
+
+Risk: `refs/rescue/apollo-scratch-order-isolation` (apollo checkout only, unpushed) preserves a hunk that renames the scratch-hook registry test and weakens its release-count assertion from an exact `assert_eq!` to `>= 1`; applying it would mask the thread-local hook leak instead of fixing it. Re-open trigger: the ref still exists; delete the ref and this finding together once its isolation hunk is confirmed landed on apollo main or obsolete against it.

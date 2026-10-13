@@ -122,5 +122,5 @@
 <a id="atlas-python-wheels-floor"></a>- [ATLAS-PYTHON-WHEELS-FLOOR](backlog/atlas-python-wheels-floor.md) — Shared wheel workflow admits a Python floor its test step cannot install [verification] — todo
 <a id="atlas-bessel-core-001"></a>- [ATLAS-BESSEL-CORE-001](backlog/atlas-bessel-core-001.md) — One generic Bessel core on `RealField`; delete the inline host polynomials [tightening][minor] — todo
 <a id="atlas-hook-gate-convergence-20261010"></a>- [ATLAS-HOOK-GATE-CONVERGENCE-20261010](backlog/atlas-hook-gate-convergence-20261010.md) — Converge the hook-gate rollout, then sweep gitlinks [arch] — todo
-<a id="atlas-monomorphization-review-20261012"></a>- [ATLAS-MONOMORPHIZATION-REVIEW-20261012](backlog/atlas-monomorphization-review-20261012.md) — Stack redundancy review: adjudicated families + open twins [patch] — todo
+
 <a id="atlas-kwavers-k0-coefficient-001"></a>- [ATLAS-KWAVERS-K0-COEFFICIENT-001](backlog/atlas-kwavers-k0-coefficient-001.md) — `kwavers` bessel_k0 carries a transposed I0 coefficient [correctness][patch] — todo
