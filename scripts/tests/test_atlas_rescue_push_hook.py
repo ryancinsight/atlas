@@ -21,6 +21,16 @@ SCANNER_RUNTIME = (
 MEMBER_HOOK = ROOT / "scripts" / "git-hooks" / "pre-push"
 ZERO = "0" * 40
 
+# The member hook refuses a push when the stack's scripts carry no cast gate:
+# a gate that cannot judge never passes a push. This one records no sites and
+# passes; the pushes under test change no package source, so no push reaches
+# it to be judged.
+_CAST_GATE_STUB = """import pathlib, sys
+argv = sys.argv[1:]
+if argv and argv[0] == 'clippy':
+    pathlib.Path(argv[argv.index('--sites') + 1]).write_text('[]')
+raise SystemExit(0)
+"""
 
 def git(repo, *args):
     return subprocess.run(["git", "-C", str(repo), "-c", "user.name=test", "-c", "user.email=test@example.invalid", *args], check=True, capture_output=True, text=True).stdout.strip()
@@ -73,6 +83,7 @@ class RescuePushHookTests(unittest.TestCase):
         write_file(
             stack / "scripts" / "atlas-build-identity.py", PASSTHROUGH_IDENTITY
         )
+        write_file(stack / "scripts" / "atlas_cast_gate.py", _CAST_GATE_STUB)
         (stack / "scripts" / "git-hooks").mkdir(parents=True, exist_ok=True)
         shutil.copyfile(HELPER, stack / "scripts" / "git-hooks" / "rescue-push")
         # The member hook recognises a stack by the members it registers.
