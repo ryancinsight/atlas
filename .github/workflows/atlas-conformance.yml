@@ -191,6 +191,17 @@ jobs:
         shell: bash
         run: python3 scripts/atlas-book-gate-audit.py --check
 
+      - name: Setup locked API comparison toolchain
+        uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613
+        with:
+          toolchain: 1.97.0
+          components: clippy, rustfmt
+
+      - name: Install API comparison tool
+        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
+        with:
+          tool: cargo-semver-checks@0.49.0
+
       - name: Script regression tests
         shell: bash
         # The whole suite under its own runner (pytest.ini, requirements-test.txt);

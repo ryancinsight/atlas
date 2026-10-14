@@ -124,3 +124,4 @@
 <a id="atlas-hook-gate-convergence-20261010"></a>- [ATLAS-HOOK-GATE-CONVERGENCE-20261010](backlog/atlas-hook-gate-convergence-20261010.md) — Converge the hook-gate rollout, then sweep gitlinks [arch] — todo
 <a id="atlas-monomorphization-review-20261012"></a>- [ATLAS-MONOMORPHIZATION-REVIEW-20261012](backlog/atlas-monomorphization-review-20261012.md) — Stack redundancy review: adjudicated families + open twins [patch] — todo
 <a id="atlas-standalone-crates-build"></a>- [ATLAS-STANDALONE-CRATES-BUILD](backlog/atlas-standalone-crates-build.md) — Make the five unbuildable standalone crates compile [patch] — todo
+<a id="atlas-semver-locked-sources"></a>- [ATLAS-SEMVER-LOCKED-SOURCES](backlog/atlas-semver-locked-sources.md) — adopt strict locked SemVer [patch] — todo

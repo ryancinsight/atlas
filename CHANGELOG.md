@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a strict opt-in locked-source SemVer PR contract. It compares the exact
+  committed APIs without resolving compatible Git providers past their locked
+  versions, and fails on extraction or uncovered API changes (ADR 0069).
+
 - Compact Atlas's own PM boards under the 1,000-line budget: `checklist.md`
   2,312 → 853 and `gap_audit.md` 10,274 → 772, keeping all 113 open
   checkboxes and all 15 open-marked findings. `backlog.md` 1,896 → 1,100 keeps
