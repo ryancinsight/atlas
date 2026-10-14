@@ -292,3 +292,12 @@ that check lands in the stack tooling.
 ## Finding 2026-10-13: leto-ops cast row 590 vs measured 715 blocks every leto-ops push
 
 Risk: the cast-gate baseline row (590, basis 6d0eca392) is 125 sites behind current main (715, measured via atlas_cast_gate.py --present-only at origin/main): the growth arrived through rescue/secret-scan-only pushes and scripts-scoped landings whose changed-path scoping never selected leto-ops. The first leto-ops-touching push after them (the Bessel branch, leto#351) is blocked; every subsequent one will be. Rows only fall, so the 125 sites convert: the concentration is tests/ops/backward_error.rs (55) and tests/ops/migration_fixtures.rs (40), then matrix/generic_kernel (37), reduction/axis (33), reduction/topk (25). Owner: none. Re-open: the conversion lands and leto#351 pushes green.
+## Finding 2026-10-14: SemVer extraction can fail before producing a verdict
+
+Apollo's compatible locked Moirai 0.8.2 graph cannot be freshly resolved after
+the provider advances to 0.9.0. The informational PR job absorbs that failure.
+ADR 0069 adds an opt-in blocking comparison of exact committed locked APIs;
+real provider-advance and unbumped public-removal regressions cover both outcomes.
+Existing callers remain on the latest-resolution contract until explicitly
+adopted. Re-open: a locked comparison reports success without a complete verdict.
+

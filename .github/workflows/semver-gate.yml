@@ -150,6 +150,11 @@ on:
         required: false
         type: string
         default: ""
+      dependency-contract:
+        description: PR dependency graph contract; latest or committed locked sources
+        required: false
+        type: string
+        default: latest
       release-gate:
         description: Run the blocking release comparison — set by the caller's release workflow, whose event is not itself a tag push
         required: false
@@ -160,9 +165,24 @@ permissions:
   contents: read
 
 jobs:
+  dependency-contract:
+    name: Validate dependency contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - env:
+          CONTRACT: ${{ inputs.dependency-contract }}
+        run: |
+          case "$CONTRACT" in
+            latest|locked) ;;
+            *) echo "unknown dependency contract: $CONTRACT" >&2; exit 1 ;;
+          esac
+
   semver-pr:
     name: SemVer (informational)
-    if: github.event_name == 'pull_request'
+    needs: dependency-contract
+    if: github.event_name == 'pull_request' && inputs.dependency-contract == 'latest'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -260,6 +280,60 @@ jobs:
               echo ""
               echo "This job stays green on purpose: on a pull request the gate is informational, and members accumulate accepted breaking changes under CHANGELOG \`[Unreleased]\`. Record the break there. The blocking comparison runs at release."
             } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  semver-locked:
+    name: SemVer (locked source contract)
+    needs: dependency-contract
+    if: github.event_name == 'pull_request' && inputs.dependency-contract == 'locked'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the reviewed helper revision
+        env:
+          ATLAS_REF: ${{ inputs.atlas-ref }}
+        run: test -n "$ATLAS_REF"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ryancinsight/atlas
+          ref: ${{ inputs.atlas-ref }}
+          path: _atlas
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613
+        with:
+          toolchain: ${{ inputs.rust-toolchain }}
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
+        with:
+          tool: cargo-semver-checks@0.49.0
+      - name: Install build-script system packages
+        if: inputs.apt-packages != ''
+        env:
+          APT_PACKAGES: ${{ inputs.apt-packages }}
+        run: |
+          sudo apt-get update
+          read -r -a packages <<< "$APT_PACKAGES"
+          sudo apt-get install -y --no-install-recommends "${packages[@]}"
+      - name: Compare the exact locked API graphs
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          MANIFEST: ${{ inputs.manifest-path }}
+          PACKAGE: ${{ inputs.package }}
+          TOOLCHAIN: ${{ inputs.rust-toolchain }}
+        run: |
+          python3 _atlas/scripts/atlas_semver_locked.py \
+            --repo . --base "$BASE" --head "$HEAD" \
+            --manifest-path "$MANIFEST" --package "$PACKAGE" \
+            --toolchain "$TOOLCHAIN" --report "$RUNNER_TEMP/semver-locked.json"
+      - name: Record comparison completion
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/semver-locked.json" ]; then
+            cat "$RUNNER_TEMP/semver-locked.json" >> "$GITHUB_STEP_SUMMARY"
           fi
 
   bump-guard:
