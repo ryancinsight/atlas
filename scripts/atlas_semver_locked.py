@@ -26,7 +26,7 @@ import tempfile
 def run(argv: list[str], cwd: Path, env: dict[str, str], *, capture: bool = False):
     """Run an actual tool with bounded execution and preserve its diagnostics."""
     return subprocess.run(
-        argv, cwd=cwd, env=env, check=True, text=True,
+        argv, cwd=cwd, env=env, check=True, text=True, encoding="utf-8", errors="replace",
         stdout=subprocess.PIPE if capture else None,
         timeout=1800,
     )

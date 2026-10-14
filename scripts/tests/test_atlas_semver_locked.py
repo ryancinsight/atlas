@@ -77,7 +77,7 @@ class CargoGitContract(unittest.TestCase):
 
     @classmethod
     def command(cls, argv, cwd, check=True):
-        return subprocess.run(argv, cwd=cwd, env=cls.env, text=True,
+        return subprocess.run(argv, cwd=cwd, env=cls.env, text=True, encoding="utf-8", errors="replace",
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               check=check, timeout=180)
 
