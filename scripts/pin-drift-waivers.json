@@ -14,13 +14,13 @@
   "waivers": [
     {
       "member": "leto",
-      "reason": "ATLAS-LETO-SPARSE-TEST-SPLIT-001: the default tip raises `oversized_files` 7 -> 8 (crates/leto-ops/tests/ops/sparse.rs crossed 500 lines at 02852b6, now 599), which the conformance ratchet rejects",
-      "reopen": "ryancinsight/leto#338 merges and the tip measures 7 again, so the pin advances and this entry is deleted"
+      "reason": "ATLAS-METIS-APPLE-SETUP: the fetched default cbba7c0e8ff34fb3571442a64679ce866e54973f closes the former sparse-file regression (oversized_files 7 -> 0), but raises manifest_implementation 19 -> 21. Its Moirai 0.8.2 requirement also excludes approved 0.9.0; the standalone adoption candidate reaches Hermes importing removed eunomia::CastFrom. The recorded pin stays unchanged.",
+      "reopen": "Leto default passes the unchanged conformance baseline and its approved-provider adoption passes standalone compilation/value tests after the Hermes conversion migration; advance the gitlink and delete this waiver."
     },
     {
       "member": "hephaestus",
-      "reason": "ATLAS-HEPHAESTUS-MANIFEST-DEBT-001: the master tip ae24d07c raises `manifest_implementation` 14 -> 16 and `type_suffixed_fns` 7 -> 8, which the conformance ratchet rejects (measured by the pre-push hook, baseline a6e3ef22)",
-      "reopen": "a hephaestus cleanup PR lands both classes back at 14/7, so the pin advances past 7f27fd4a and this entry is deleted"
+      "reason": "ATLAS-METIS-APPLE-SETUP: fetched master 19a20c9294ba24a7ce22b39da7216c11ad0eb698 fixes the former manifest/type regressions (14/0), but raises allow_sites 8 -> 12, junk_drawer_modules 0 -> 1, board_items_outside_status_set 17 -> 21, board_items_without_anchor 15 -> 16 and board_checklist_files 0 -> 1. The standalone Moirai adoption candidate also reaches Hermes importing removed eunomia::CastFrom. The recorded pin stays unchanged.",
+      "reopen": "Hephaestus default passes every unchanged conformance baseline class and the Leto/Moirai consumer closure passes standalone compilation/value tests; advance the gitlink and delete this waiver."
     }
   ]
 }

@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+- [patch] Reconcile Atlas #530 against fetched first-party defaults: publish four verified upstream corrections, advance 13 conformance-clean default gitlinks, regenerate the overlay and retain explicit provider/conformance holds. Fleet coherence remains open; unmerged QUIC revisions stay excluded.
+
+- [patch] Keep the Metis launcher on canonical Git dependency sources. Remove
+  path-patch reconciliation and lock metadata resolution, preserving root build
+  settings, the shared cache and live Metis frontend sources.
+
+- [patch] Consume Metis 0.3.1 and moirai-webview 0.1.2's Rust-owned native
+  application, Edit and Window menus. Focused Quit/Close terminate the packaged
+  macOS Greet app; Minimize, Zoom and Full Screen use AppKit. Record the 213
+  JavaScript lines still embedded in Windows pages as a separate Rust migration.
+
+- [patch] Correct native Metis Greet startup with moirai-webview 0.1.1's Apple
+  Fetch status and MIME/length headers. Metis 0.2.1 excludes the defective
+  provider; native macOS normal, Unicode and empty-name clicks return the
+  exact Rust results.
+
+- [patch] Correct the local Metis macOS shell icon: bundle the declared artwork,
+  preserve native bundle identity in development, and validate decoded image
+  representations before replacing an owned application output.
+- [minor] Add the local Metis Apple setup path: native Rust host selection,
+  graph-scoped locked builds, shared browser/macOS/iPhone/iPad frontend assets,
+  and bundle ownership verification. Metis targets 0.2.1; remaining native
+  lifecycle evidence and physical-device signing stay open.
+- [patch] ADR index generation includes new working files so the ADR and index
+  can enter one commit. Verification retains the committed-tree requirement;
+  a real Git regression covers generation, rejection and committed acceptance.
+
 - Compact Atlas's own PM boards under the 1,000-line budget: `checklist.md`
   2,312 → 853 and `gap_audit.md` 10,274 → 772, keeping all 113 open
   checkboxes and all 15 open-marked findings. `backlog.md` 1,896 → 1,100 keeps

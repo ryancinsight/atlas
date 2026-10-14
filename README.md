@@ -14,6 +14,26 @@ deposition, bioheat, damage, and planning stages behind that stage are shared
 below the integrators is Rust; Python exists only as a thin PyO3 binding surface
 over a Rust core.
 
+## Run Metis on Apple devices and in a browser
+
+The local Metis starter supports browser output and installed Apple bundles.
+From this Atlas root:
+
+```sh
+python3 scripts/atlas-metis.py serve
+python3 scripts/atlas-metis.py apple run --target macos
+python3 scripts/atlas-metis.py apple run --target ios-simulator --device 6E61403F-F72F-4C07-9A43-B8F8E036E6B1
+```
+
+The simulator must already be booted; its identity is machine-specific.
+The [Apple application manual](repos/metis/docs/manual/apple.md) records the
+prerequisites, tested targets, development-lock contract and physical-device
+signing boundary. The runner preserves Atlas's build settings and shared cache,
+resolves providers through Metis's canonical Git lock and retains locked
+metadata and compilation. It leaves both canonical locks unchanged.
+The macOS app supplies native Quit (⌘Q) and Window commands for Close (⌘W),
+Minimize (⌘M), Zoom and Full Screen (⌃⌘F), including with a focused form field.
+
 ## Substrate composition
 
 The stack is built from first-party substrate crates rather than the usual
@@ -1041,7 +1061,11 @@ possibly stale local `origin/main` or `origin/master` ref.
 ### Build cache and debug budget
 
 Atlas routes package and child-repository worktree builds through
-`D:/atlas/target` via the root [Cargo configuration](.cargo/config.toml). Do
+`<atlas>/target` via the root [Cargo configuration](.cargo/config.toml)
+(`D:/atlas/target` on the original Windows checkout). The root and member
+toolchain files pin Rust 1.97.0 on the native host; cross compilation selects
+the program target through Cargo's `--target`. See
+[ADR 0069](docs/adr/0069-portable-host-toolchain.md). Do
 not create a repo-local `target`, `target_isolated`, or command-specific target
 directory: those forks recompile the same provider graph, consume disk, and
 invalidate incremental reuse. Build Atlas-meta tools from the primary Atlas
