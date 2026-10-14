@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [patch] Reconcile Atlas #530 against fetched first-party defaults: publish four verified upstream corrections, advance 13 conformance-clean default gitlinks, regenerate the overlay and retain explicit provider/conformance holds. Fleet coherence remains open; unmerged QUIC revisions stay excluded.
+
 - [patch] Keep the Metis launcher on canonical Git dependency sources. Remove
   path-patch reconciliation and lock metadata resolution, preserving root build
   settings, the shared cache and live Metis frontend sources.
