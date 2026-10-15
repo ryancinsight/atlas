@@ -1,5 +1,5 @@
-<a id="atlas-root-conformance-materialize-crash"></a>- [ATLAS-ROOT-CONFORMANCE-MATERIALIZE-CRASH](backlog/atlas-root-conformance-materialize-crash.md) — The checker crashes materializing the root repo on Windows [correctness] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
+<a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
 <a id="atlas-alloc-count-per-thread"></a>- [ATLAS-ALLOC-COUNT-PER-THREAD](backlog/atlas-alloc-count-per-thread.md) — Count test allocations on the measuring thread only [patch] — todo
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — todo
@@ -8,6 +8,7 @@
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) — Create and register `ares` (solid momentum balance) [arch][minor] — blocked
 <a id="atlas-bench-budget-001"></a>- [ATLAS-BENCH-BUDGET-001](backlog/atlas-bench-budget-001.md) — Wall-clock budgets for benches and examples [patch] — todo
+<a id="atlas-bessel-core-001"></a>- [ATLAS-BESSEL-CORE-001](backlog/atlas-bessel-core-001.md) — One generic Bessel core on `RealField`; delete the inline host polynomials [tightening][minor] — todo
 <a id="atlas-book-caller-pins-2026-08-20"></a>- [ATLAS-BOOK-CALLER-PINS-2026-08-20](backlog/atlas-book-caller-pins-2026-08-20.md) — Repin provider mdBook callers [patch] — todo
 <a id="atlas-book-figure-closure-2026-08-21"></a>- [ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21](backlog/atlas-book-figure-closure-2026-08-21.md) — Restore generated validation figures [patch] — todo
 <a id="atlas-bounded-runner"></a>- [ATLAS-BOUNDED-RUNNER](backlog/atlas-bounded-runner.md) — Launch every agent process through one bounded runner [patch] — todo
@@ -31,7 +32,9 @@
 <a id="atlas-hephaestus-host-seam-coverage"></a>- [ATLAS-HEPHAESTUS-HOST-SEAM-COVERAGE](backlog/atlas-hephaestus-host-seam-coverage.md) — `hephaestus-host` implements every seam the conformance suite is generic over [arch][major] — todo
 <a id="atlas-hephaestus-manifest-debt-001"></a>- [ATLAS-HEPHAESTUS-MANIFEST-DEBT-001](backlog/atlas-hephaestus-manifest-debt-001.md) — Clear the manifest-impl and type-suffixed-fn debt at the master tip [patch] — todo
 <a id="atlas-hermes-consumer-entry-2026-08-25"></a>- [ATLAS-HERMES-CONSUMER-ENTRY-2026-08-25](backlog/atlas-hermes-consumer-entry-2026-08-25.md) — Restore Hermes as the stack's lane-kernel owner [arch] — todo
+<a id="ATLAS-HOOK-DIRECT-PATH-RETIRE"></a>- [ATLAS-HOOK-DIRECT-PATH-RETIRE](backlog/atlas-hook-direct-path-retire.md) — Retire direct hook build branches [patch] — todo
 <a id="hook-fleet-duplication"></a>- [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog/hook-fleet-duplication.md) — Stack-owned git hooks [patch] — todo
+<a id="atlas-hook-gate-convergence-20261010"></a>- [ATLAS-HOOK-GATE-CONVERGENCE-20261010](backlog/atlas-hook-gate-convergence-20261010.md) — Converge the hook-gate rollout, then sweep gitlinks [arch] — todo
 <a id="atlas-hook-stack-root-ssot"></a>- [ATLAS-HOOK-STACK-ROOT-SSOT](backlog/atlas-hook-stack-root-ssot.md) — One stack-root resolver for both root hooks [patch] — todo
 <a id="atlas-horae-consumer-audit-2026-08-19"></a>- [ATLAS-HORAE-CONSUMER-AUDIT-2026-08-19](backlog/atlas-horae-consumer-audit-2026-08-19.md) — boundary finding [patch] — blocked
 <a id="atlas-hygiene-baseline-001"></a>- [ATLAS-HYGIENE-BASELINE-001](backlog/atlas-hygiene-baseline-001.md) — Eleven-class conformance baseline and namespace hygiene [patch] — todo
@@ -83,12 +86,15 @@
 <a id="atlas-pub-011"></a>- [ATLAS-PUB-011](backlog/atlas-pub-011.md) — Release the source that outran its published versions [patch] — todo
 <a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
 <a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the bump guard and require it [patch] — todo
+<a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
 <a id="atlas-publish-001-book-mdbook-test-001"></a>- [ATLAS-PUBLISH-001-BOOK-MDBOOK-TEST-001](backlog/atlas-publish-001-book-mdbook-test-001.md) — Cross-book `mdbook test` gate alignment [patch] — blocked
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked
 <a id="atlas-published-git-dep-rot-001"></a>- [ATLAS-PUBLISHED-GIT-DEP-ROT-001](backlog/atlas-published-git-dep-rot-001.md) — Published members carry floating git deps that rot every fresh resolution [arch] — todo
 <a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — todo
+<a id="atlas-python-wheels-floor"></a>- [ATLAS-PYTHON-WHEELS-FLOOR](backlog/atlas-python-wheels-floor.md) — Shared wheel workflow admits a Python floor its test step cannot install [verification] — todo
 <a id="atlas-ritk-fssurf-013"></a>- [ATLAS-RITK-FSSURF-013](backlog/atlas-ritk-fssurf-013.md) — FreeSurfer surface formats and label table [minor] — todo
+<a id="atlas-root-conformance-materialize-crash"></a>- [ATLAS-ROOT-CONFORMANCE-MATERIALIZE-CRASH](backlog/atlas-root-conformance-materialize-crash.md) — The checker crashes materializing the root repo on Windows [correctness] — todo
 <a id="atlas-runner-capacity-001"></a>- [ATLAS-RUNNER-CAPACITY-001](backlog/atlas-runner-capacity-001.md) — Size runner slots to fleet width [infra] [patch] — todo
 <a id="atlas-runner-starvation-2026-09-02"></a>- [ATLAS-RUNNER-STARVATION-2026-09-02](backlog/atlas-runner-starvation-2026-09-02.md) — Hosted runner queue starves every verification run [infra] — todo
 <a id="atlas-secret-scan-allowlist-source"></a>- [ATLAS-SECRET-SCAN-ALLOWLIST-SOURCE](backlog/atlas-secret-scan-allowlist-source.md) — Read the secret allowlist from a trusted revision [patch] — todo
@@ -97,6 +103,7 @@
 <a id="slop-burndown"></a>- [ATLAS-SLOP-BURNDOWN-2026-09-06](backlog/slop-burndown.md) — Measured debt burn-down against the conformance ratchet [patch] — todo
 <a id="atlas-stack-leto-churn-017"></a>- [ATLAS-STACK-LETO-CHURN-017](backlog/atlas-stack-leto-churn-017.md) — Upstream working-tree churn blocks consumer verification — todo
 <a id="atlas-stale-checkout-findings-223"></a>- [ATLAS-STALE-CHECKOUT-FINDINGS-223](backlog/atlas-stale-checkout-findings-223.md) — Gates measure the checkout, and 8 of 25 members are behind [patch] — todo
+<a id="atlas-standalone-crates-build"></a>- [ATLAS-STANDALONE-CRATES-BUILD](backlog/atlas-standalone-crates-build.md) — Make the five unbuildable standalone crates compile [patch] — todo
 <a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
 <a id="substrate-contract-measured"></a>- [ATLAS-SUBSTRATE-CONTRACT-MEASURED-2026-09-03](backlog/substrate-contract-measured.md) — The contract is already satisfied; the guard is preventive [patch] — todo
 <a id="atlas-target-001"></a>- [ATLAS-TARGET-001](backlog/atlas-target-001.md) — One build cache, one debug budget [patch] — todo
@@ -116,11 +123,3 @@
 <a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — blocked
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
-<a id="ATLAS-HOOK-DIRECT-PATH-RETIRE"></a>- [ATLAS-HOOK-DIRECT-PATH-RETIRE](backlog/atlas-hook-direct-path-retire.md) — Retire direct hook build branches [patch] — todo
-<a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
-<a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
-<a id="atlas-python-wheels-floor"></a>- [ATLAS-PYTHON-WHEELS-FLOOR](backlog/atlas-python-wheels-floor.md) — Shared wheel workflow admits a Python floor its test step cannot install [verification] — todo
-<a id="atlas-bessel-core-001"></a>- [ATLAS-BESSEL-CORE-001](backlog/atlas-bessel-core-001.md) — One generic Bessel core on `RealField`; delete the inline host polynomials [tightening][minor] — todo
-<a id="atlas-hook-gate-convergence-20261010"></a>- [ATLAS-HOOK-GATE-CONVERGENCE-20261010](backlog/atlas-hook-gate-convergence-20261010.md) — Converge the hook-gate rollout, then sweep gitlinks [arch] — todo
-<a id="atlas-standalone-crates-build"></a>- [ATLAS-STANDALONE-CRATES-BUILD](backlog/atlas-standalone-crates-build.md) — Make the five unbuildable standalone crates compile [patch] — todo
-<a id="atlas-kwavers-k0-coefficient-001"></a>- [ATLAS-KWAVERS-K0-COEFFICIENT-001](backlog/atlas-kwavers-k0-coefficient-001.md) — `kwavers` bessel_k0 carries a transposed I0 coefficient [correctness][patch] — todo
