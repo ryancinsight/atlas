@@ -254,6 +254,23 @@ continues to hold deployment. Static workflow contracts pin these boundaries,
 the build dependency, action digests, output path and permissions. Hosted
 publication remains a separate release-authorized acceptance step.
 
+Verification instruments for this additive, unreleased workflow interface:
+
+- `python3 -m unittest discover -s scripts/tests -p '*workflow*.py'` covers the
+  shared gate and existing publication/wheel contracts (56 cases).
+- `python3 -m unittest discover -s scripts/tests -p 'test_atlas_book_gate_audit.py'`
+  covers the executable-book inventory contract (17 cases).
+- `actionlint .github/workflows/book-pages.yml` checks workflow syntax.
+- Differential YAML inspection must find only the optional input and two
+  guards relative to the Atlas base; existing-consumer defaults stay equivalent.
+- GitHub's `@actions/expressions` 0.3.61 evaluates predicates read from the
+  actual shared and Aequitas workflows: five events × three refs × three
+  input states produce 45 authorization and 45 compatibility scenarios.
+
+The schema and artifact-budget gates also apply to workflow planning records.
+Atlas keeps tactical acceptance in the backlog item block; its root checklist
+is retired. New item fields must not increase any board debt class or budget.
+
 ### 6. `mdbook test` is adopted per book, not flipped globally
 
 Book code samples must be tested so chapters cannot rot. Nineteen callers now

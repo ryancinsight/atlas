@@ -9,8 +9,16 @@ the shared non-PR gate. Owner: `codex/book-publication-authorization`.
 The candidate adds a caller gate with a compatibility-preserving true default;
 Aequitas adopts explicit manual publication. Static tests reproduce the missing
 gate on Atlas `799880c2`; local contracts, workflow regressions, syntax and 90
-expression scenarios pass. Drafts Atlas #541 and Aequitas #138 await hosted
-checks, review and authorized integration.
+expression scenarios pass. Aequitas hosted run `38751731220` passes its static
+contract and book build, retains the Pages artifact and skips deployment;
+its native/Python/dependency/supply-chain CI also passes. Atlas lint passes.
+The initial Atlas review head exposes planning-schema/budget regressions;
+the correction keeps the root checklist retired and uses a conforming item.
+Local schema/budget counts now equal the base; no gate or baseline changes.
+The hosted script step passes 2,016 cases, with 31 skipped and 419 subtests.
+Hosted acceptance for the corrected head and authorized integration remain.
+GitHub's separate security reviewer fails because its configured model is
+unavailable (job `116478282451`); security settings remain unchanged.
 Other consumers retain their existing behavior and pins. Track:
 [ATLAS-BOOK-PUBLICATION-AUTHORIZATION](backlog/atlas-book-publication-authorization.md).
 
