@@ -16,3 +16,5 @@
   deployment nor package publication. No gitlink or other caller advances.
 - Remaining acceptance: hosted review/checks and separately authorized
   integration; actual Pages publication requires release authorization.
+- Draft reviews: [Atlas #541](https://github.com/ryancinsight/atlas/pull/541),
+  [Aequitas #138](https://github.com/ryancinsight/aequitas/pull/138).

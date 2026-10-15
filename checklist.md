@@ -15,7 +15,9 @@ Sprint phase: Closure — ATLAS-BOOK-PUBLICATION-AUTHORIZATION; review pending
   cases (zero skips), 17 book-audit cases and actionlint 1.7.12 on the shared
   workflow. YAML differential verification finds only the three authorization
   additions: input declaration, Pages configuration guard and deployment guard.
-- [ ] [minor] Review the exact diff and publish independent draft review changes.
+- [x] [minor] Review the exact diff and open independent drafts:
+  [Atlas #541](https://github.com/ryancinsight/atlas/pull/541) and
+  [Aequitas #138](https://github.com/ryancinsight/aequitas/pull/138).
 - [ ] [minor] Complete hosted checks and separately authorized integration.
 
 Release boundary: this checklist grants no merge, package-publication or
@@ -28,3 +30,8 @@ Executed locally at the candidate based on `799880c2`:
 Test subprocesses have a 60-second bound. Shellcheck/pyflakes are unavailable;
 no shared shell or Python step changes. The full Atlas script suite and live
 book/deployment jobs are outside this local workflow-only verification.
+
+The actual Aequitas/shared predicates also pass 90 event/ref/input scenarios
+through GitHub's `@actions/expressions` 0.3.61: 45 Aequitas authorization cases
+and 45 legacy/opt-out compatibility cases. The Aequitas caller pins the
+implementation commit `89f24d96c340ac0989145d058beececaac43a3ad`.

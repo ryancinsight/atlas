@@ -8,7 +8,9 @@ Risk: a source/dependency-only main push deploys Pages for callers that rely on
 the shared non-PR gate. Owner: `codex/book-publication-authorization`.
 The candidate adds a caller gate with a compatibility-preserving true default;
 Aequitas adopts explicit manual publication. Static tests reproduce the missing
-gate on Atlas `799880c2`; hosted checks, review and authorized integration remain.
+gate on Atlas `799880c2`; local contracts, workflow regressions, syntax and 90
+expression scenarios pass. Drafts Atlas #541 and Aequitas #138 await hosted
+checks, review and authorized integration.
 Other consumers retain their existing behavior and pins. Track:
 [ATLAS-BOOK-PUBLICATION-AUTHORIZATION](backlog/atlas-book-publication-authorization.md).
 
