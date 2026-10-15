@@ -39,6 +39,11 @@ not available on every runner. A missing member remains a hard validation
 failure, and the verification path still creates no release or registry
 upload.
 
+Revision 2026-10-15: book validation and publication have separate caller
+authorization. The optional boolean `deploy` input preserves existing callers
+with a `true` default; Aequitas adopts an explicit manual publication path.
+This is an additive workflow interface change `[minor]`, not a package release.
+
 ## Context
 
 Three publication concerns exist across the stack: crates to crates.io, wheels to
@@ -205,6 +210,49 @@ All 25 book-bearing members join the Atlas cross-book dead-link and build gate
 The remaining board work is to make the five non-executable callers pass
 `mdbook-test` with their pinned toolchains; Leto requires a separate book
 authoring and caller-integration item.
+
+#### Caller-authorized Pages publication
+
+Dependency and source changes can invalidate book samples without authorizing
+documentation publication. The shared `build` job therefore remains
+unconditional: it compiles the book, tests samples when `mdbook-test` is set,
+checks the output index, and uploads the same pinned Pages artifact. A false
+`deploy` input skips Pages configuration and the deployment job, so validation
+does not require a configured Pages site. Uploading an artifact does not
+publish it.
+
+Let `B` mean successful completion of `build`, `A` the boolean `deploy` input,
+and `P` a pull-request event. The deployment predicate is `B ∧ A ∧ ¬P`:
+`needs: build` retains GitHub's implicit success condition. The input defaults
+to `true`, reducing the predicate to its previous `B ∧ ¬P` for every existing
+caller that omits it. No other caller is repinned by this correction.
+
+Aequitas supplies `A = M ∧ R ∧ U`, where `M` is `workflow_dispatch`, `R` is
+`refs/heads/main`, and `U` is the typed `publish` checkbox, default `false`.
+The authorized operator selects publication only within the applicable release
+scope. The existing `github-pages` environment, protections, permissions,
+OIDC deployment action, artifact flow and per-ref concurrency still apply.
+
+| Aequitas event | Book build, samples, artifact | Pages deployment after success |
+| --- | --- | --- |
+| Pull request affecting source, dependencies or book | Yes | No |
+| Ordinary push to main affecting those paths | Yes | No |
+| Manual run on main, `publish` omitted or false | Yes | No |
+| Manual run on another branch or tag, `publish: true` | Yes | No |
+| Manual run on main, `publish: true` | Yes | Yes, subject to existing environment protection |
+
+Rejected alternatives: changing the shared default to `false` changes unrelated
+consumers; removing dependency paths loses sample validation; duplicating the
+build for publication risks testing a different artifact; treating all manual
+runs as authorization conflates validation and publication. A boolean caller
+input preserves one pipeline and makes adoption explicit.
+
+Failure modes: a caller that never opts out retains automatic publication;
+an Aequitas caller pinned before this interface rejects the new input;
+failed/cancelled validation prevents publication; an unapproved environment
+continues to hold deployment. Static workflow contracts pin these boundaries,
+the build dependency, action digests, output path and permissions. Hosted
+publication remains a separate release-authorized acceptance step.
 
 ### 6. `mdbook test` is adopted per book, not flipped globally
 

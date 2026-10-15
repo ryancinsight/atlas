@@ -26,6 +26,15 @@ on:
           root. Read this from the book's build-dir setting rather than guessing.
         required: true
         type: string
+      deploy:
+        description: >-
+          Authorize Pages configuration and deployment after a successful book
+          build. Defaults to true to preserve existing callers. Callers that
+          separate validation from publication must pass their explicit
+          publication authorization; pull requests never deploy.
+        required: false
+        default: true
+        type: boolean
       mdbook-version:
         description: Exact mdBook release used to build the book
         required: false
@@ -115,6 +124,7 @@ jobs:
           persist-credentials: false
 
       - name: Configure Pages
+        if: inputs.deploy
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 
       - name: Install mdBook
@@ -282,7 +292,7 @@ jobs:
           path: ${{ inputs.output-path }}
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: inputs.deploy && github.event_name != 'pull_request'
     needs: build
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest

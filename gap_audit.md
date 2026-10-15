@@ -2,6 +2,16 @@
 
 <!-- Compacted 2026-09-26 under the 1,000-line board budget: a risk entry holds risk/evidence/re-open-trigger/owner in ~5 lines; closed findings and delivery narrative are gone -- the record of a closed finding is the commit or PR that closed it. Recover removed narrative with `git log -p -- gap_audit.md`. -->
 
+## Finding 2026-10-15: book validation implicitly authorizes Pages publication
+
+Risk: a source/dependency-only main push deploys Pages for callers that rely on
+the shared non-PR gate. Owner: `codex/book-publication-authorization`.
+The candidate adds a caller gate with a compatibility-preserving true default;
+Aequitas adopts explicit manual publication. Static tests reproduce the missing
+gate on Atlas `799880c2`; hosted checks, review and authorized integration remain.
+Other consumers retain their existing behavior and pins. Track:
+[ATLAS-BOOK-PUBLICATION-AUTHORIZATION](backlog/atlas-book-publication-authorization.md).
+
 ## Finding 2026-10-05: path-package identity follows repository revision
 
 Risk: an unrelated commit can invalidate unchanged path-package records and trigger shared-target cleaning. Evidence: `atlas_build_inputs.py` assigns every path package one repository identity, and a clean tree's identity includes that repository's commit revision; observed contention is consistent with this static mechanism, but no benchmark attributes its runtime share. A replacement fingerprint must retain workspace/config, external, build-script, and Git-derived inputs rather than hashing `src/` alone. Owner: none. Re-open: a measured build-input redesign item is claimed.

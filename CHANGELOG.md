@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- [minor] Add an optional boolean `deploy` input to the shared book workflow.
+  Its `true` default preserves existing callers; `false` retains book tests,
+  compilation and the Pages artifact while skipping Pages configuration and
+  publication. Deployment still requires a successful build and excludes
+  pull requests. No package version or other consumer pin changes.
+
 - Compact Atlas's own PM boards under the 1,000-line budget: `checklist.md`
   2,312 → 853 and `gap_audit.md` 10,274 → 772, keeping all 113 open
   checkboxes and all 15 open-marked findings. `backlog.md` 1,896 → 1,100 keeps
