@@ -512,6 +512,16 @@ class GateFixture:
             'here="$(pwd -W 2>/dev/null || pwd)"\n'
             'if [ "$1" = "metadata" ]; then\n'
             '  echo "$@" >> "$FIXTURE_ROOT/metadata-calls.log"\n'
+            '  case "$*" in */base-*)\n'
+            '    if [ -f "$FIXTURE_ROOT/bin/metadata-base.json" ]; then\n'
+            '      cat "$FIXTURE_ROOT/bin/metadata-base.json"; exit 0\n'
+            "    fi ;;\n"
+            "  esac\n"
+            '  case "$*" in *fuzz/Cargo.toml*)\n'
+            '    if [ -f "$FIXTURE_ROOT/bin/metadata-fuzz.json" ]; then\n'
+            '      cat "$FIXTURE_ROOT/bin/metadata-fuzz.json"; exit 0\n'
+            "    fi ;;\n"
+            "  esac\n"
             '  sed "s|@ROOT@|$here|g" "$FIXTURE_ROOT/bin/metadata.json"\n'
             "  exit 0\n"
             "fi\n"
@@ -585,6 +595,37 @@ def _register_stack(stack: pathlib.Path) -> None:
 # step carries one. This stand-in reports a clean range.
 _CLEAN_RANGE_SCANNER = "import sys\nsys.exit(0)\n"
 
+# A registered member's clippy step runs through the stack's cast gate; this
+# one records no sites and runs the clippy command it would build.
+_PASSTHROUGH_CAST_GATE = (
+    "import os, pathlib, subprocess, sys\n"
+    "argv = sys.argv[1:]\n"
+    "if argv[0] != 'clippy':\n"
+    "    raise SystemExit(0)\n"
+    "pathlib.Path(argv[argv.index('--sites') + 1]).write_text('[]')\n"
+    "if '--packages-out' in argv:\n"
+    "    pathlib.Path(argv[argv.index('--packages-out') + 1]).write_text('')\n"
+    "export = argv[argv.index('--export') + 1]\n"
+    "manifest = argv[argv.index('--manifest') + 1] if '--manifest' in argv else 'Cargo.toml'\n"
+    "selection = [v for i, a in enumerate(argv) if a == '-p' for v in ('-p', argv[i + 1])]\n"
+    "command = [os.environ.get('CARGO', 'cargo'), 'clippy', '--manifest-path',\n"
+    "           os.path.join(export, manifest), *selection, '--all-targets', '--locked']\n"
+    "raise SystemExit(subprocess.run(command).returncode)\n"
+)
+
+
+def _seed_cast_gate(stack: pathlib.Path) -> None:
+    """Give the stack a cast gate unless the test wrote its own.
+
+    The hook refuses a member whose stack scripts lack the gate -- a gate
+    that cannot judge never passes a push -- so every stack that reaches
+    the cast step carries one.
+    """
+    gate = stack / "scripts" / "atlas_cast_gate.py"
+    if not gate.exists():
+        _write(gate, _PASSTHROUGH_CAST_GATE)
+
+
 def _seed_scanner(stack: pathlib.Path) -> None:
     """Give the stack a credential scanner unless the test wrote its own."""
     scanner = stack / "scripts" / "atlas-secret-scan.py"
@@ -606,16 +647,23 @@ def _stacked_fixture(temp: str, **options: object) -> "GateFixture":
 
 
 def _publish_stack_scripts(
-    stack: pathlib.Path, remove_from_checkout: tuple = ()
+    stack: pathlib.Path, remove_from_checkout: tuple = (), omit: tuple = ()
 ) -> None:
     """Commit the stack checkout's `scripts/` and make that commit the stack's
     fetched default, which is where the hook runs stack tools from.
 
-    Names in `remove_from_checkout` then leave the working tree, as they do
-    when the stack checkout sits on a branch that predates them.
+    Names in `omit` never enter the commit, as on a default cut before the
+    tool existed; names in `remove_from_checkout` then leave the working
+    tree, as they do when the stack checkout sits on a branch that predates
+    them.
     """
     _seed_scanner(stack)
     _seed_identity(stack)
+    _seed_cast_gate(stack)
+    for name in omit:
+        tool = stack / "scripts" / name
+        if tool.exists():
+            tool.unlink()
     if not (stack / ".git").exists():
         _git_init_repo(stack)
     _register_stack(stack)
@@ -940,6 +988,10 @@ class PackageMapperTestCase(unittest.TestCase):
             f'[package]\nname = "{package_name}"\nversion = "0.0.0"\n'
             '[workspace]\n',
         )
+        _write(fixture.bin / "metadata-fuzz.json", json.dumps({
+            "packages": [{"id": "id-fz", "name": package_name}],
+            "workspace_root": str(fixture.root / "fuzz"),
+        }))
         for argv in (
             ["add", "fuzz"],
             ["commit", "-q", "-m", "fuzz workspace"],
@@ -981,8 +1033,17 @@ class PackageMapperTestCase(unittest.TestCase):
                 metadata = (fixture.root / "metadata-calls.log").read_text(encoding="utf-8")
                 self.assertRegex(metadata, r"metadata --locked --no-deps .*fuzz/Cargo.toml")
                 self.assertRegex(calls, r"fmt --manifest-path .*fuzz/Cargo\.toml -- --check")
-                self.assertNotIn("-p consus-fuzz", calls)
-                self.assertNotIn("clippy", calls)
+                # The push gates the fuzz crate's casts through the
+                # stack's cast gate and builds nothing else: no workspace
+                # step, no tests -- CI builds the crate itself.
+                clippy_lines = [
+                    line for line in calls.splitlines() if line.startswith("clippy ")
+                ]
+                self.assertTrue(clippy_lines, calls)
+                for line in clippy_lines:
+                    self.assertIn("fuzz/Cargo.toml", line.replace(chr(92), "/"))
+                self.assertIn(f"-p {package_name}", calls)
+                self.assertNotIn("nextest", calls)
 
     def test_standalone_crate_format_failure_refuses_the_push(self) -> None:
         _, code, stderr = self._push_standalone_crate_change(
@@ -2441,8 +2502,12 @@ class LaneGateTestCase(unittest.TestCase):
         self.assertEqual(len(commands), 1, commands)
         self.assertEqual(commands[0][0:2], ["bash", "-c"], commands[0])
         manifests = [pathlib.Path(value) for value in commands[0] if value.endswith("Cargo.toml")]
-        self.assertEqual(len(manifests), 1, commands[0])
+        # The sequence names the exported manifest absolutely and the form
+        # the cast gate takes relative to the export root beside it.
+        self.assertEqual(len(manifests), 2, commands[0])
+        self.assertEqual(manifests[1], pathlib.Path("Cargo.toml"), commands[0])
         exported = manifests[0]
+        self.assertTrue(exported.is_absolute(), commands[0])
         self.assertEqual((exported.parent.name, exported.name), ("foo-lane", "Cargo.toml"))
         self.assertNotIn(
             os.path.normcase(str(stack.resolve())),
@@ -2451,7 +2516,10 @@ class LaneGateTestCase(unittest.TestCase):
         cargo_calls = fixture.calls.read_text(encoding="utf-8").splitlines()
         stages = [line for line in cargo_calls if line.split()[0] in {"clippy", "nextest", "doc"}]
         self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
-        self.assertIn("--all-targets --locked -p foo", stages[0])
+        # The clippy stage runs through the cast gate, which builds the
+        # selection beside the flags the stage always carried.
+        self.assertIn("--all-targets --locked", stages[0])
+        self.assertIn("-p foo", stages[0])
         self.assertIn("--locked --no-tests=pass -p foo", stages[1])
         self.assertIn("--no-deps", stages[2])
         self.assertTrue(all("--manifest-path" in line for line in stages), stages)
@@ -2821,6 +2889,7 @@ class DebtRatchetTestCase(unittest.TestCase):
             "ROOT = None  # honours ATLAS_STACK_ROOT\n" if revision_scans else "ROOT = None\n",
         )
         _seed_scanner(stack)
+        _seed_cast_gate(stack)
         _git_init_repo(stack)
         _register_stack(stack)
         subprocess.run(
@@ -2897,6 +2966,7 @@ class DebtRatchetTestCase(unittest.TestCase):
             )
             _write(stack / "scripts" / "atlas_stack.py", "ROOT = None  # honours ATLAS_STACK_ROOT\n")
             _seed_scanner(stack)
+            _seed_cast_gate(stack)
             _register_stack(stack)
             subprocess.run(
                 ["git", "-C", str(stack), *_IDENT, "add", ".gitmodules", "scripts"],
@@ -4056,6 +4126,12 @@ class SourceIdentityGateTestCase(unittest.TestCase):
             command = first[first.index("--") + 1:]
             self.assertEqual(command[0:2], ["bash", "-c"], command)
             self.assertIn('"$cargo_command" clippy --manifest-path', command[2])
+            # The clippy stage routes through the stack's cast gate, whose
+            # path the sequence's argument list carries.
+            self.assertIn('"$cast_python" "$cast_gate" clippy --export', command[2])
+            self.assertTrue(
+                any(str(value).endswith("atlas_cast_gate.py") for value in command), command
+            )
             self.assertEqual(command[-2:], ["-p", "foo"])
             self.assertEqual(first[0], "run")
             self.assertEqual(first[first.index("--package") + 1], "foo")
@@ -4168,6 +4244,7 @@ class StackToolBaselineTestCase(unittest.TestCase):
             command = argv[argv.index("--") + 1:]
             self.assertEqual(command[0:2], ["bash", "-c"], command)
             self.assertIn('"$cargo_command" clippy --manifest-path', command[2])
+            self.assertIn('"$cast_python" "$cast_gate" clippy --export', command[2])
             stages = [
                 line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
                 if line.split()[0] in {"clippy", "nextest", "doc"}
@@ -4198,3 +4275,482 @@ class StackToolBaselineTestCase(unittest.TestCase):
             ran_from = scan_log.read_text(encoding="utf-8").split()[0]
             self.assertTrue(self._extracted(stack, ran_from), ran_from)
             assert_gated_on_the_export(self, code, stderr, fixture)
+
+
+COMPILE_ERROR = ("error[E0433]: failed to resolve: use of undeclared crate or module `gone`\n"
+                 "error: could not compile `foo` (lib) due to 1 previous error")
+
+
+def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
+                    base_exit: int | None = None, base_says: str | None = None,
+                    triggers: str = "a/src/x.rs -> foo/src/x.rs", triggers_exit: int = 0) -> str:
+    """A stack cast gate that logs each call but `base-triggers`; `clippy`
+    records no sites.
+
+    `base-triggers` prints `triggers` and exits `triggers_exit`. A base run
+    (`--present-only`) exits `base_exit`, by default `clippy_exit`, printing
+    `base_says` when it fails (by default the gate's own error).
+    """
+    base_exit = clippy_exit if base_exit is None else base_exit
+    gate_error = "cast gate: could not run: no cargo metadata"
+    base_says = gate_error if base_says is None else base_says
+    return (
+        "#!/usr/bin/env python3\n"
+        "import pathlib, sys\n"
+        "argv = sys.argv[1:]\n"
+        "if argv[0] == 'base-triggers':\n"
+        f"    print({triggers!r}, end='')\n"
+        f"    sys.exit({triggers_exit})\n"
+        f"with pathlib.Path({str(log)!r}).open('a', encoding='utf-8') as stream:\n"
+        "    stream.write(' '.join(argv) + '\\n')\n"
+        "if argv[0] == 'clippy':\n"
+        "    pathlib.Path(argv[argv.index('--sites') + 1]).write_text('[]')\n"
+        "    base = '--present-only' in argv\n"
+        f"    status = {base_exit} if base else {clippy_exit}\n"
+        "    if status:\n"
+        f"        print({base_says!r} if base else {gate_error!r}, file=sys.stderr)\n"
+        "    sys.exit(status)\n"
+        f"sys.exit({check_exit})\n"
+    )
+
+
+class CastGateTestCase(unittest.TestCase):
+    """The clippy step reports bare `as` casts, and the stack's gate judges them.
+
+    The lint tables allow the cast family while existing casts burn down, so
+    no build step fails on a new cast; the stack's cast gate runs the clippy
+    step itself, under the identity checker, and `check` then refuses casts
+    the push adds or a count above its baseline row.
+    """
+
+    def _member(self, temp: str, check_exit: int, clippy_exit: int = 0,
+                base_exit: int | None = None, base_says: str | None = None,
+                **stub: object) -> tuple:
+        stack, fixture = SourceIdentityGateTestCase._member_at_pushed_tip(self, temp)
+        identity_log = stack / "identity-args.log"
+        _write(
+            stack / "scripts" / "atlas-build-identity.py",
+            _recording_identity_invocation(identity_log),
+        )
+        cast_log = stack / "cast-args.log"
+        _write(stack / "scripts" / "atlas_cast_gate.py",
+               _cast_gate_stub(cast_log, check_exit, clippy_exit, base_exit, base_says, **stub))
+        # The stack carries the lockfile checker too: a push that adds a
+        # manifest reaches the lockfile section before the cast gate.
+        fixture.install_stack_lockfile()
+        return fixture, identity_log, cast_log
+
+    def test_the_clippy_step_runs_through_the_cast_gate(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, identity_log, cast_log = self._member(temp, 0)
+            fixture.tmp.mkdir(parents=True, exist_ok=True)
+            stale = fixture.tmp / "pg-casts.left"
+            stale.write_text("[]")
+            two_days_ago = time.time() - 2 * 86400
+            os.utime(stale, (two_days_ago, two_days_ago))
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            # This run's sites file is removed on exit and an older one swept.
+            self.assertEqual(sorted(fixture.tmp.glob("pg-casts.*")), [])
+            invocations = [
+                json.loads(line)
+                for line in identity_log.read_text(encoding="utf-8").splitlines()
+            ]
+
+            def invocation_argv(key: str) -> list:
+                return [
+                    item["argv"] for item in invocations
+                    if item["argv"][item["argv"].index("--command-key") + 1] == key
+                ]
+
+            # The base's clippy is the leased command itself; the tip's runs
+            # inside the identity sequence's embedded script, under its key.
+            base_steps = invocation_argv("atlas-pre-push-casts-base")
+            tip_steps = invocation_argv("atlas-pre-push")
+            self.assertEqual(len(base_steps), 1, base_steps)
+            self.assertEqual(len(tip_steps), 1, tip_steps)
+            base_step, tip_step = base_steps[0], tip_steps[0]
+            # The base builds first, in its own export, under its own key.
+            self.assertEqual(base_step[base_step.index("--command-key") + 1],
+                             "atlas-pre-push-casts-base")
+            self.assertEqual(tip_step[tip_step.index("--command-key") + 1], "atlas-pre-push")
+            base_root = base_step[base_step.index("--root") + 1]
+            tip_root = tip_step[tip_step.index("--root") + 1]
+            self.assertNotEqual(base_root, tip_root)
+            self.assertEqual(base_step[base_step.index("--export") + 1], base_root)
+            self.assertEqual(base_step[base_step.index("--manifest") + 1], f"{base_root}/Cargo.toml")
+            self.assertIn("--present-only", base_step)
+            # The tip's clippy runs inside the sequence, through the gate.
+            tip_command = tip_step[tip_step.index("--") + 1:]
+            self.assertEqual(tip_command[0:2], ["bash", "-c"])
+            self.assertIn('"$cast_python" "$cast_gate" clippy --export', tip_command[2])
+            self.assertTrue(
+                any(str(value).endswith("atlas_cast_gate.py") for value in tip_command),
+                tip_command,
+            )
+            calls = [line.split() for line in cast_log.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([call[0] for call in calls], ["clippy", "clippy", "check"])
+            base, clippy, check = calls
+            self.assertEqual(clippy[clippy.index("-p") + 1], "foo")
+            self.assertEqual(base[base.index("-p") + 1], "foo")
+            self.assertEqual(
+                check[check.index("--base-sites") + 1], base[base.index("--sites") + 1]
+            )
+            self.assertEqual(check[check.index("--base-package") + 1], "foo")
+            self.assertEqual(check[check.index("--member") + 1], "member")
+            self.assertEqual(check[check.index("--package") + 1], "foo")
+            self.assertEqual(
+                check[check.index("--tip") + 1], _git(fixture.root, "rev-parse", "feat")
+            )
+            self.assertEqual(
+                check[check.index("--sites") + 1], clippy[clippy.index("--sites") + 1]
+            )
+
+    def test_check_judges_the_pushed_range(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, cast_log = self._member(temp, 0)
+            tip = _git(fixture.root, "rev-parse", "feat")
+            parent = _git(fixture.root, "rev-parse", "feat~1")
+
+            code, stderr = fixture.run_hook(f"refs/heads/feat {tip} refs/heads/feat {parent}\n")
+
+            self.assertEqual(code, 0, stderr)
+            check = [line.split() for line in cast_log.read_text(encoding="utf-8").splitlines()
+                     if line.startswith("check ")][0]
+            self.assertEqual(check[check.index("--base") + 1], parent)
+            self.assertEqual(check[check.index("--tip") + 1], tip)
+
+    def test_a_cast_finding_refuses_the_push(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, _ = self._member(temp, 1)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("a bare `as` cast", stderr)
+
+    def test_a_cast_gate_that_cannot_run_refuses_the_push(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, _ = self._member(temp, 2)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("the cast gate could not run (exit 2)", stderr)
+
+    def test_a_member_without_the_cast_gate_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, _ = self._member(temp, 0)
+            # A default cut before the gate existed carries none, and the
+            # publish must not seed one back.
+            _publish_stack_scripts(pathlib.Path(temp), omit=("atlas_cast_gate.py",))
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("the stack's cast gate is missing", stderr)
+
+    def _push_fuzz_change(self, temp: str, clippy_exit: int = 0, whole: bool = False,
+                          crates: tuple = ("fuzz",), base_exit: int | None = None,
+                          base_says: str | None = None) -> tuple:
+        """Push one commit on `feat` that changes a standalone fuzz crate: that
+        commit alone, or (`whole`) the branch from the default, which also
+        changes the workspace package `foo`."""
+        fixture, identity_log, cast_log = self._member(temp, 0, clippy_exit, base_exit, base_says)
+        _write(fixture.bin / "metadata-fuzz.json", json.dumps({
+            "packages": [{"id": "id-fz", "name": "member-fuzz"}],
+            "workspace_root": str(fixture.root / "fuzz"),
+        }))
+        parent = _git(fixture.root, "rev-parse", "feat")
+        _git(fixture.root, "checkout", "-q", "feat")
+        for crate in crates:
+            _write(
+                fixture.root / crate / "Cargo.toml",
+                '[package]\nname = "member-fuzz"\nversion = "0.0.0"\n[workspace]\n',
+            )
+            _write(fixture.root / crate / "src" / "main.rs", "fn main() {}\n")
+        for argv in (["add", *crates], ["commit", "-q", "-m", "fuzz target"]):
+            subprocess.run(["git", "-C", str(fixture.root), *_IDENT, *argv], check=True)
+        tip = _git(fixture.root, "rev-parse", "feat")
+        line = (fixture.push_line_new_branch("feat") if whole
+                else f"refs/heads/feat {tip} refs/heads/feat {parent}\n")
+        code, stderr = fixture.run_hook(line)
+        self.identity_log = identity_log
+        return code, stderr, cast_log
+
+    def test_a_standalone_crate_is_cast_gated(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            code, stderr, cast_log = self._push_fuzz_change(temp)
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("no workspace package owns the changed files", stderr)
+            calls = [line.split() for line in cast_log.read_text(encoding="utf-8").splitlines()]
+            # The base has no fuzz crate: it counts zero without a build.
+            self.assertEqual([call[0] for call in calls], ["clippy", "check"])
+            clippy, check = calls
+            self.assertEqual(clippy[clippy.index("--manifest") + 1], "fuzz/Cargo.toml")
+            self.assertEqual(clippy[clippy.index("-p") + 1], "member-fuzz")
+            self.assertEqual(check[check.index("--package") + 1], "member-fuzz")
+            self.assertEqual(
+                check[check.index("--sites") + 1], clippy[clippy.index("--sites") + 1]
+            )
+            self.assertIn("--base-sites", check)
+            steps = [
+                item["argv"]
+                for item in (json.loads(line) for line in
+                             self.identity_log.read_text(encoding="utf-8").splitlines())
+                if item["argv"][item["argv"].index("--command-key") + 1]
+                == "atlas-pre-push-casts-standalone"
+            ]
+            self.assertEqual(len(steps), 1, steps)
+            self.assertTrue(steps[0][steps[0].index("--manifest") + 1].endswith("/fuzz/Cargo.toml"))
+            self.assertEqual(steps[0][steps[0].index("--package") + 1], "member-fuzz")
+            # Absent at the base, the crate counts zero there.
+            self.assertEqual(check[check.index("--base-package") + 1], "member-fuzz")
+
+    def test_each_standalone_crate_reaches_the_check(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            code, stderr, cast_log = self._push_fuzz_change(temp, crates=("fuzz", "more/fuzz"))
+
+            self.assertEqual(code, 0, stderr)
+            check = [line.split() for line in cast_log.read_text(encoding="utf-8").splitlines()
+                     if line.startswith("check ")][0]
+            packages = [check[i + 1] for i, a in enumerate(check) if a == "--package"]
+            sites = [check[i + 1] for i, a in enumerate(check) if a == "--sites"]
+            self.assertEqual(packages, ["member-fuzz", "member-fuzz"])
+            self.assertEqual(len(set(sites)), 2, sites)
+
+    def test_one_check_judges_both_routes(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            code, stderr, cast_log = self._push_fuzz_change(temp, whole=True)
+
+            self.assertEqual(code, 0, stderr)
+            checks = [line.split() for line in cast_log.read_text(encoding="utf-8").splitlines()
+                      if line.startswith("check ")]
+            self.assertEqual(len(checks), 1, checks)
+            check = checks[0]
+            packages = [check[i + 1] for i, a in enumerate(check) if a == "--package"]
+            sites = [check[i + 1] for i, a in enumerate(check) if a == "--sites"]
+            bases = [check[i + 1] for i, a in enumerate(check) if a == "--base-sites"]
+            self.assertEqual(sorted(packages), ["foo", "member-fuzz"])
+            self.assertEqual(len(set(sites)), 2, sites)
+            self.assertEqual(len(set(bases)), 2, bases)
+
+    def test_an_unbuildable_standalone_crate_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            code, stderr, cast_log = self._push_fuzz_change(temp, clippy_exit=101)
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("the cast gate cannot judge it", stderr)
+            self.assertIn("cast gate: could not run", stderr)
+            calls = cast_log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual([call.split()[0] for call in calls], ["clippy"])
+
+    def test_a_cast_gate_clippy_failure_names_its_cause(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, cast_log = self._member(temp, 0, clippy_exit=2)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("cast gate: could not run: no cargo metadata", stderr)
+            calls = cast_log.read_text(encoding="utf-8").splitlines()
+            # The base runs first; the gate's own failure there refuses.
+            self.assertEqual([call.split()[0] for call in calls], ["clippy"])
+            self.assertIn("for a reason other than a compile error", stderr)
+
+    def test_a_base_that_does_not_compile_leaves_the_rows_to_judge(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, cast_log = self._member(temp, 0, base_exit=101, base_says=COMPILE_ERROR)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("Cargo.toml does not compile at the pushed base", stderr)
+            self.assertIn("held to their rows alone", stderr)
+            check = [line.split() for line in cast_log.read_text(encoding="utf-8").splitlines()
+                     if line.startswith("check ")][0]
+            self.assertNotIn("--base-sites", check)
+            self.assertNotIn("--base-package", check)
+
+    def test_a_base_failure_other_than_a_compile_error_refuses(self) -> None:
+        cases = {
+            "gate error": "cast gate: could not run: no cargo metadata",
+            "gate error beside a compile error": COMPILE_ERROR + "\ncast gate: could not run: x",
+            "killed compiler": COMPILE_ERROR + "\nprocess didn't exit successfully: rustc (signal: 9, SIGKILL)",
+            "out of memory": "memory allocation of 4096 bytes failed\n" + COMPILE_ERROR,
+            "crashed compiler": COMPILE_ERROR + "\n(exit code: 0xc0000005, STATUS_ACCESS_VIOLATION)",
+            "rustc errors without cargo's summary": "error[E0433]: failed to resolve",
+            "a dependency outside the base's packages":
+                "error[E0433]: failed to resolve\nerror: could not compile `regdep` (lib) due to 1 previous error",
+            "a dependency failing beside a local error":
+                "error[E0433]: failed to resolve\n  --> src/lib.rs:1:1\n"
+                "error: could not compile `regdep` (lib) due to 1 previous error",
+            "a compiler killed on Windows": COMPILE_ERROR + "\n\nCaused by:\n  process didn't "
+                                           "exit successfully: `rustc --crate-name foo` (exit code: 1)",
+            "a silent compiler": "error: could not compile `foo` (lib)\n\nCaused by:\n  process "
+                                 "didn't exit successfully: `rustc --crate-name foo` (exit code: 101)",
+            "an internal compiler error": "thread 'rustc' panicked at compiler/rustc_middle/src/x.rs:1:1\n"
+                                          "error: the compiler unexpectedly stopped\n" + COMPILE_ERROR,
+            "an internal compiler error by name": "error: internal compiler error: unexpected\n"
+                                                  + COMPILE_ERROR,
+            "cargo's summary without a diagnostic count": "error[E0433]: failed to resolve\n"
+                                                          "error: could not compile `foo` (lib)",
+        }
+        for code in ("E0460", "E0461", "E0462", "E0463", "E0464", "E0514", "E0519", "E0786"):
+            cases[f"crate metadata {code}"] = f"error[{code}]: crate `a`\n" + COMPILE_ERROR
+        for name, says in cases.items():
+            with self.subTest(name), tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+                fixture, _, cast_log = self._member(temp, 0, base_exit=101, base_says=says)
+
+                code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+                self.assertEqual(code, 1, stderr)
+                # Refused by the cast gate or, for a failure outside the
+                # export, by the broken-graph report; never left to the rows.
+                self.assertNotIn("held to their rows alone", stderr)
+                self.assertTrue("for a reason other than a compile error" in stderr
+                                or "the local dependency graph is broken" in stderr, stderr)
+                calls = cast_log.read_text(encoding="utf-8").splitlines()
+                self.assertEqual([call.split()[0] for call in calls], ["clippy"])
+
+    def test_a_base_failing_on_a_denied_lint_leaves_the_rows_to_judge(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            lint = ("error: missing documentation for a function\n"
+                    "error: could not compile `foo` (lib) due to 1 previous error")
+            fixture, _, cast_log = self._member(temp, 0, base_exit=101, base_says=lint)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("held to their rows alone", stderr)
+
+    def test_a_base_with_a_broken_dependency_graph_refuses(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            collision = ("error: package collision in the lockfile: packages a v0.1.0 and "
+                         "a v0.1.0 are different\n" + COMPILE_ERROR)
+            fixture, _, cast_log = self._member(temp, 0, base_exit=101, base_says=collision)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("the local dependency graph is broken", stderr)
+            self.assertNotIn("held to their rows alone", stderr)
+            calls = cast_log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual([call.split()[0] for call in calls], ["clippy"])
+
+    def test_a_package_the_base_lacks_counts_zero_without_a_build(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, cast_log = self._member(temp, 0)
+            _write(fixture.bin / "metadata-base.json", json.dumps({
+                "packages": [{"id": "id-other", "name": "other"}],
+                "workspace_root": "@ROOT@",
+            }))
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            calls = [line.split() for line in cast_log.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([call[0] for call in calls], ["clippy", "check"])
+            check = calls[1]
+            self.assertEqual(check[check.index("--base-package") + 1], "foo")
+            self.assertIn("--base-sites", check)
+
+    def test_a_range_without_triggers_builds_no_base(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, identity_log, cast_log = self._member(temp, 0, triggers="")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("compared with the pushed base", stderr)
+            calls = [line.split() for line in cast_log.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([call[0] for call in calls], ["clippy", "check"])
+            self.assertNotIn("--present-only", calls[0])
+            self.assertNotIn("--base-package", calls[1])
+            self.assertNotIn("--base-sites", calls[1])
+            keys = [
+                item["argv"][item["argv"].index("--command-key") + 1]
+                for item in (json.loads(line) for line in
+                             identity_log.read_text(encoding="utf-8").splitlines())
+            ]
+            self.assertEqual(keys, ["atlas-pre-push"])
+
+    def test_a_trigger_names_itself_on_the_push(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, _ = self._member(temp, 0, triggers="foo/Cargo.toml changed\nb -> c")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("compared with the pushed base (foo/Cargo.toml changed)", stderr)
+
+    def test_a_range_the_gate_cannot_read_refuses(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, cast_log = self._member(temp, 0, triggers="", triggers_exit=2)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("the cast gate could not read the pushed range", stderr)
+            self.assertFalse(cast_log.exists() and cast_log.read_text(encoding="utf-8").strip())
+
+    def test_the_base_builds_only_the_packages_it_has(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, identity_log, cast_log = self._member(temp, 0)
+            metadata = json.loads((fixture.bin / "metadata.json").read_text(encoding="utf-8"))
+            _write(fixture.bin / "metadata-base.json", json.dumps(metadata))
+            bar = {"id": "fixture:bar", "name": "bar",
+                   "manifest_path": "@ROOT@/crates/bar/Cargo.toml"}
+            metadata["packages"].append(bar)
+            metadata["workspace_members"].append(bar["id"])
+            _write(fixture.bin / "metadata.json", json.dumps(metadata))
+            _git(fixture.root, "checkout", "-q", "feat")
+            _write(fixture.root / "crates" / "bar" / "Cargo.toml",
+                   '[package]\nname = "bar"\nversion = "0.0.0"\n')
+            _write(fixture.root / "crates" / "bar" / "src" / "lib.rs", "pub fn b() {}\n")
+            for argv in (["add", "crates/bar"], ["commit", "-q", "-m", "bar"]):
+                subprocess.run(["git", "-C", str(fixture.root), *_IDENT, *argv], check=True)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 0, stderr)
+            base_step = next(
+                item["argv"]
+                for item in (json.loads(line) for line in
+                             identity_log.read_text(encoding="utf-8").splitlines())
+                if "atlas-pre-push-casts-base" in item["argv"]
+            )
+            selected = [base_step[i + 1] for i, a in enumerate(base_step) if a in ("--selection", "-p")]
+            self.assertEqual(selected, ["foo", "foo"])
+            check = [line.split() for line in cast_log.read_text(encoding="utf-8").splitlines()
+                     if line.startswith("check ")][0]
+            compared = sorted(check[i + 1] for i, a in enumerate(check) if a == "--base-package")
+            # `bar` is absent at the base and is held to zero there.
+            self.assertEqual(compared, ["bar", "foo"])
+
+    def test_a_base_whose_metadata_fails_refuses(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, cast_log = self._member(temp, 0)
+            _write(fixture.bin / "metadata-base.json", "not json")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("cargo metadata fails for Cargo.toml at the pushed base", stderr)
+            self.assertFalse(cast_log.exists() and cast_log.read_text(encoding="utf-8").strip())
+
+    def test_a_failed_base_leaves_only_its_own_packages_to_their_rows(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            code, stderr, cast_log = self._push_fuzz_change(
+                temp, whole=True, base_exit=101, base_says=COMPILE_ERROR)
+
+            self.assertEqual(code, 0, stderr)
+            check = [line.split() for line in cast_log.read_text(encoding="utf-8").splitlines()
+                     if line.startswith("check ")][0]
+            compared = [check[i + 1] for i, a in enumerate(check) if a == "--base-package"]
+            # The workspace base did not compile; the fuzz crate, absent at
+            # the base, is still held to zero there.
+            self.assertEqual(compared, ["member-fuzz"])
