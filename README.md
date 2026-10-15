@@ -1216,6 +1216,14 @@ the package's own Actions run through
 dumps: migration guides belong to the package `CHANGELOG.md` and execution state
 belongs to the boards, never to a chapter.
 
+The reusable book workflow accepts a boolean `deploy` input. It defaults to
+`true` for existing callers. Passing `false` keeps book compilation, enabled
+sample tests and the Pages artifact upload, while skipping Pages configuration
+and deployment. Aequitas adopts manual publication on `main` with an explicit
+`publish` checkbox; ordinary source and dependency changes continue to validate
+the book. Publication still uses the existing `github-pages` environment and
+OIDC permissions. See [ADR 0035](docs/adr/0035-shared-publication-pipelines.md#caller-authorized-pages-publication).
+
 At this revision all 26 registered members carry a book and a Pages
 caller:
 `aequitas`, `apollo`, `asclepius`, `athena`, `CFDrs`, `coeus`, `consus`,
