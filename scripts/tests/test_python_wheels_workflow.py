@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -220,6 +222,94 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
         for forbidden in ("PYPI_TOKEN", "TWINE_PASSWORD", "SSH_PRIVATE_KEY", "private_key"):
             self.assertNotIn(forbidden, self.source)
         self.assertEqual(self.source.count("Checkout Atlas wheel validator"), 1)
+
+
+class PythonWheelAttestationContextTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        self.steps = self.workflow["jobs"]["release-assets"]["steps"]
+
+    def classify(self, event, actor, head_repository, verification=True):
+        step = next((s for s in self.steps if s.get("id") == "attestation-context"), None)
+        self.assertIsNotNone(step, "verification needs a credential-free attestation guard")
+        self.assertEqual(step["env"]["VERIFICATION"], "${{ inputs.verification }}")
+        self.assertEqual(
+            step["env"]["PR_HEAD_REPOSITORY"],
+            "${{ github.event.pull_request.head.repo.full_name || '' }}",
+        )
+        env = os.environ.copy()
+        for key in ("GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_URL",
+                    "ACTIONS_ID_TOKEN_REQUEST_TOKEN"):
+            env.pop(key, None)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            env.update(
+                GITHUB_OUTPUT=str(output), GITHUB_EVENT_NAME=event,
+                GITHUB_ACTOR=actor, GITHUB_TRIGGERING_ACTOR="maintainer",
+                GITHUB_REPOSITORY="owner/provider", PR_HEAD_REPOSITORY=head_repository,
+                VERIFICATION=str(verification).lower(),
+            )
+            result = subprocess.run(
+                ["bash", "--noprofile", "--norc", "-e", "-o", "pipefail"],
+                input=step["run"], text=True, capture_output=True, env=env, timeout=10,
+            )
+            enabled = output.read_text().strip() if output.exists() else ""
+        return result, enabled
+
+    def test_verification_attestation_requires_a_trusted_context(self):
+        cases = (
+            ("pull_request", "contributor", "owner/provider", True),
+            ("pull_request", "contributor", "fork/provider", False),
+            ("pull_request", "contributor", "", False),
+            ("pull_request", "dependabot[bot]", "owner/provider", False),
+            ("pull_request", "dependabot[bot]", "fork/provider", False),
+            ("pull_request_target", "contributor", "fork/provider", False),
+            ("push", "dependabot[bot]", "owner/provider", False),
+            ("workflow_dispatch", "maintainer", "", True),
+            ("release", "maintainer", "", True),
+        )
+        for event, actor, repository, expected in cases:
+            with self.subTest(event=event, actor=actor, repository=repository):
+                result, enabled = self.classify(event, actor, repository)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(enabled, f"enabled={str(expected).lower()}")
+
+    def test_release_requires_attestation_and_rejects_untrusted_contexts(self):
+        result, enabled = self.classify("release", "maintainer", "", verification=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(enabled, "enabled=true")
+        for actor, repository in (("contributor", "fork/provider"),
+                                  ("dependabot[bot]", "owner/provider")):
+            with self.subTest(actor=actor):
+                result, enabled = self.classify("pull_request", actor, repository, False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(enabled, "enabled=false")
+                self.assertIn("Release artifacts require a trusted attestation context", result.stderr)
+
+    def test_validation_is_not_conditional_on_attestation_privileges(self):
+        names = [s.get("name") for s in self.steps]
+        guard = next((i for i, s in enumerate(self.steps)
+                      if s.get("id") == "attestation-context"), None)
+        self.assertIsNotNone(guard)
+        for name in ("Build source distribution", "Download wheels",
+                     "Validate release identity and wheel set",
+                     "Upload consolidated release distributions"):
+            step = next(s for s in self.steps if s.get("name") == name)
+            self.assertLess(names.index(name), guard)
+            self.assertNotIn("if", step)
+        for name in ("build-abi3", "build-cpython", "build-free-threaded", "build-abi3t"):
+            self.assertNotIn("attestation-context", str(self.workflow["jobs"][name]))
+
+    def test_attestation_uses_the_guard_without_broadening_permissions(self):
+        step = next(s for s in self.steps if s.get("name") == "Attest validated artifacts")
+        self.assertEqual(step.get("if"), "${{ steps.attestation-context.outputs.enabled == 'true' }}")
+        self.assertNotIn("continue-on-error", step)
+        self.assertEqual(step["with"]["subject-path"], "dist/*")
+        self.assertEqual(self.workflow["permissions"], {"contents": "read"})
+        self.assertEqual(self.workflow["jobs"]["release-assets"]["permissions"], {
+            "artifact-metadata": "write", "attestations": "write",
+            "contents": "write", "id-token": "write",
+        })
 
 
 if __name__ == "__main__":
