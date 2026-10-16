@@ -39,6 +39,14 @@ on:
         required: false
         default: ryancinsight
         type: string
+      cohort-json:
+        description: >-
+          Exact package/version JSON object. Omit to retain legacy workspace
+          selection; pass '{}' to install without arming a release. Only the
+          named manifest versions can be planned, published, or tagged.
+        required: false
+        default: ""
+        type: string
       apt-packages:
         description: >-
           System packages the crates' build scripts need, space separated.
@@ -94,6 +102,7 @@ jobs:
         with:
           command: plan
           owner: ${{ inputs.owner }}
+          cohort-json: ${{ inputs.cohort-json }}
 
   semver:
     needs: plan
@@ -144,6 +153,7 @@ jobs:
         with:
           command: publish
           packages: ${{ needs.plan.outputs.packages }}
+          cohort-json: ${{ inputs.cohort-json }}
 
       # Runs after a partial publish failure too: a version that reached the
       # index is current to the next plan, which no longer selects it. A run
@@ -156,5 +166,6 @@ jobs:
         with:
           command: tag
           packages: ${{ needs.plan.outputs.packages }}
+          cohort-json: ${{ inputs.cohort-json }}
           tag-prefix: ${{ inputs.tag-prefix }}
           publish-outcome: ${{ steps.publish.outcome }}
