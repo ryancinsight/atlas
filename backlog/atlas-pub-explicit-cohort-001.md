@@ -1,5 +1,5 @@
 # ATLAS-PUB-EXPLICIT-COHORT-001 — Exact release cohorts [minor]
-- status: implemented; integration pending independent final-head review and owner reconciliation.
+- status: implemented and independently reviewed; draft integration pending owner reconciliation and required checks.
 - priority: P1; RITK PR836 preflight selects 29 owned pending versions, including unrelated package-verifiable ritk-wgpu-compat0.2.1.
 - correction: optional exact package/version JSON cohort through plan, publish and tag; explicit `{}` is unarmed and omitted input retains legacy selection.
 - rejection: malformed/duplicate/null maps, unknown/private names, version drift and unexpected planned names fail closed; held selections never fall back to unrelated packages.
