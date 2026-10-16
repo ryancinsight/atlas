@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- [patch] Close `ATLAS-PYTHON-WHEEL-ATTESTATION-CONTEXT` after
+  [#542](https://github.com/ryancinsight/atlas/pull/542) merges as `03f818ce`.
+  Workflow lint, conformance, fast/slow scripts and default CodeQL pass;
+  four regressions fail before repair, then all 16 workflow tests and 12
+  credential-free contexts pass. Independent re-review finds no blocking code
+  finding. [Leto #365](https://github.com/ryancinsight/leto/pull/365) selects the
+  immutable recipe and merges as `747d0bbb`; its reviewed head passes all 40
+  checks and 30 wheel rows. Remove only this completed active backlog item.
+  The additional non-required managed scan cannot start its configured model;
+  the owner explicitly accepts it as nonblocking. No security setting changes.
+
 - [patch] Keep shared wheel build/value/source validation available to fork
   and Dependabot pull requests without attempting privileged attestation.
   Trusted release attestation is retained; untrusted release mode fails closed.
