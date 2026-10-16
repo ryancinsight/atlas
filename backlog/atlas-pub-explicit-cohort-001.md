@@ -1,0 +1,11 @@
+# ATLAS-PUB-EXPLICIT-COHORT-001 — Exact release cohorts [minor]
+- status: implemented and independently reviewed; integration pending full implementation tests and required checks.
+- priority: P1; RITK PR836 preflight selects 29 owned pending versions, including unrelated package-verifiable ritk-wgpu-compat0.2.1.
+- correction: optional exact package/version JSON cohort through plan, publish and tag; explicit `{}` is unarmed and omitted input retains legacy selection.
+- rejection: malformed/duplicate/null maps, unknown/private names, version drift and unexpected planned names fail closed; held selections never fall back to unrelated packages.
+- invariants: preserve package verification, SemVer, ownership, first-upload rules, environment/token scopes, retries and time limits.
+- evidence: current-main red regressions; 117 tests and 61 subtests pass without skips, including CLI, shell, workflow and pinned-source guards; independent source review has no substantive findings.
+- installation: shared workflow is workflow_call-only; adopt a reviewed pin with explicit `{}` before arming a coherent graph, and inspect older in-flight publishers. No member workflow is changed or dispatched here.
+- ownership: Atlas #540 is an independent open SemVer proposal, not a dependency; the later merger must reconcile its four overlapping source-pin lines. Preserve its branch; #503 is a preservation rescue.
+- RITK: keep PR836 unmerged; carry its finite-inverse code/tests into the provider plan's spatial0.5.0 boundary, without publishing the older0.4.1 graph.
+- remaining: RITK adoption waits for a validated empty-cohort path and the latest coherent graph, provider factory/version decisions and raster first-upload authentication; see ADR0068 for the release-cohort contract.

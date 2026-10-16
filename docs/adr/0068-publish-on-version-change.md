@@ -35,6 +35,25 @@ A version bump that merges to the default branch triggers its own publication.
    - `publish` runs in the `crates-io` environment under `id-token: write` and `contents: write`. Its tag step runs even after a partial publish failure, because a version that reached the index is no longer pending at the next plan. A run that fails before every release exists, including after that index poll, recovers by re-running its failed jobs: the plan's outputs persist, `publish` re-filters to nothing, and `tag` creates the missing releases.
 
    Releases created with `GITHUB_TOKEN` start no workflow run, so the release-event path never publishes the same version a second time.
+
+   A caller may bound this policy with `cohort-json`, a JSON object mapping
+   package names to exact manifest versions. Omission retains the existing
+   workspace policy. An explicit `{}` selects nothing without Cargo or registry
+   access; it is the installation state before a coherent release is approved.
+   JSON null, duplicate keys, unknown/nonpublishable names and mismatched
+   versions fail. Planning queries and verifies only named packages; a held
+   package cannot cause fallback to an unrelated ready version. Publish and tag
+   revalidate the entire planned set as a unique subset of the same cohort
+   before registry/upload/release operations. Verification, SemVer, ownership,
+   first-upload boundaries, token/environment scopes and time limits remain.
+
+   Installation is separate from arming a release. Atlas's workflow is callable
+   only: merging its implementation does not invoke a member's pinned caller.
+   A member adoption must pin the reviewed implementation and explicitly pass
+   `cohort-json: '{}'` on its installation commit, including scheduled runs.
+   Arming names the final coherent package versions in a later reviewed change.
+   Inspect any already-running publisher before adoption; changing the new
+   commit's workflow does not retroactively constrain an older in-flight run.
 3. **Member callers.** Each member's `rust-release.yml` adds `push` (default branch) and a daily `schedule` to its triggers, and calls `crates-publish-pending.yml` from a job of its own. That job alone grants `contents: write`. The release-event and `workflow_dispatch` jobs keep calling `crates-publish.yml` unchanged, so the manual route and the dry-run route keep their permissions. Trusted publishers are keyed by the caller's filename, and on 2026-09-30 every sampled registration, ritk's included, named `rust-release.yml`. Adopting the new path therefore needs no registry change.
 4. **SemVer gate fix.** The release gate asks crates.io once per listed name, spaced one second apart (the crawler policy). It checks the subset that is already published, gives a notice for each first publication, and fails on any other status. The new workflow pins the commit that carries this fix.
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- [minor] Add opt-in exact package/version cohorts to pending publication.
+  Explicit `{}` leaves installation unarmed; planning, publish and tagging
+  cannot expand into unrelated pending versions. Existing verification,
+  SemVer and trusted-publishing requirements remain unchanged.
+
 - [patch] Close `ATLAS-PYTHON-WHEEL-ATTESTATION-CONTEXT` after
   [#542](https://github.com/ryancinsight/atlas/pull/542) merges as `03f818ce`.
   Workflow lint, conformance, fast/slow scripts and default CodeQL pass;
