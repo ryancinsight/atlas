@@ -7,8 +7,8 @@
 Risk: an unrelated main merge can release an existing pending cohort. Evidence:
 RITK's exact pinned selector returns 29 owned versions; an unrelated member
 passes package verification. Check: explicit cohort identity/subset regressions
-and empty-installation execution in ATLAS-PUB-EXPLICIT-COHORT-001. Owner: this
-draft; integration awaits shared-source-pin reconciliation and coherent callers.
+and empty-installation execution in ATLAS-PUB-EXPLICIT-COHORT-001. Owner: PR544;
+Atlas acceptance awaits full gates; RITK adoption separately needs a coherent graph.
 
 ## Finding 2026-10-05: path-package identity follows repository revision
 
