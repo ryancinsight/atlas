@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- [patch] Keep shared wheel build/value/source validation available to fork
+  and Dependabot pull requests without attempting privileged attestation.
+  Trusted release attestation is retained; untrusted release mode fails closed.
+  Token permissions, platform matrices, tests and time limits are unchanged.
+
 - Compact Atlas's own PM boards under the 1,000-line budget: `checklist.md`
   2,312 → 853 and `gap_audit.md` 10,274 → 772, keeping all 113 open
   checkboxes and all 15 open-marked findings. `backlog.md` 1,896 → 1,100 keeps
