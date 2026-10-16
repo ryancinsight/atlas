@@ -13,6 +13,10 @@ inputs:
     description: crates.io login that must own a crate before it is published (plan)
     required: false
     default: ryancinsight
+  cohort-json:
+    description: Exact package/version JSON object; omit for legacy selection, use {} to select nothing
+    required: false
+    default: ""
   tag-prefix:
     description: Release-tag prefix preceding <package>-v<version> (tag)
     required: false
@@ -40,15 +44,20 @@ runs:
         COMMAND: ${{ inputs.command }}
         PACKAGES: ${{ inputs.packages }}
         OWNER: ${{ inputs.owner }}
+        COHORT_JSON: ${{ inputs.cohort-json }}
         TAG_PREFIX: ${{ inputs.tag-prefix }}
         PUBLISH_OUTCOME: ${{ inputs.publish-outcome }}
         GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         script="$GITHUB_ACTION_PATH/crates_pending.py"
+        set --
+        if [[ -n "${COHORT_JSON:-}" ]]; then
+          set -- --cohort-json "$COHORT_JSON"
+        fi
         case "$COMMAND" in
-          plan) python3 "$script" plan --owner "$OWNER" ;;
-          publish) python3 "$script" publish "$PACKAGES" ;;
-          tag) python3 "$script" tag "$PACKAGES" --prefix "$TAG_PREFIX" --sha "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY" --publish-outcome "$PUBLISH_OUTCOME" ;;
+          plan) python3 "$script" plan --owner "$OWNER" "$@" ;;
+          publish) python3 "$script" publish "$PACKAGES" "$@" ;;
+          tag) python3 "$script" tag "$PACKAGES" --prefix "$TAG_PREFIX" --sha "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY" --publish-outcome "$PUBLISH_OUTCOME" "$@" ;;
           *) echo "unknown command: $COMMAND" >&2; exit 2 ;;
         esac
