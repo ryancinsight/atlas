@@ -18,10 +18,6 @@ Risk: clippy reports only casts it compiles: default features and the host targe
 
 Risk: a change that compiles only with default features passes pre-push and fails CI. Evidence: ryancinsight/eunomia#143 (its pushed head before the no-std test fix) passed the owned pre-push gate; CI's `cargo check --all-targets --no-default-features` failed (`to_string` with no `std` in a test). The hook runs clippy and nextest with the default or CI-lint feature set only. Check that would catch it: the hook runs each member's committed feature-matrix list, as `cargo check` on the changed packages. Owner: none. Re-open: the next hook change, or the next CI-only feature failure.
 
-## Finding 2026-09-28: staged revert of dependency-digest memoization in the shared main tree
-
-Risk: `D:/atlas` (main, at `7b14277be`) carries staged, uncommitted changes that delete `scripts/atlas_build_package_source.py` and its tests and revert `6538f5b09`; a pathspec-free commit from that tree would clobber landed work. Evidence: `git status --porcelain -- scripts` shows `D  scripts/atlas_build_package_source.py`; index written 16:22 local, no lease line. Owner: none found. Re-open: the next orientation of the main tree; triage per fix-forward (the staged hunks are reverts, not landed work).
-
 ## Finding 2026-09-24: Dioxus joins the GUI comparator set
 
 Metis [ADR 0003](repos/metis/docs/adr/0003-framework-conformance.md) now pins
@@ -217,15 +213,6 @@ matrix red across architecture/validation/security/coverage/CUDA/wheel), and
 Helios PR #64 (draft; Rust/Python/book green, benchmark in progress). No
 Atlas gitlink advances from any of these until their own hosted gates are
 terminal green. Re-open trigger: each PR's own hosted result.
-
-## Finding 2026-09-04: apollo main red — triple-versioned mnemosyne (resolved)
-
-**Resolved 2026-09-04:** apollo `ci` green on `8ce18e57` via Eunomia source
-unification (#324). **Residual watchpoint:** apollo still carries the
-temporary co-evolution pin `mnemosyne rev = "af7a23a"`, whose own comment
-orders its removal after Mnemosyne PR #128 — if that PR has merged and the
-pin remains, the quarantine has outlived its trigger. Verify against
-mnemosyne's merge log before re-firing the sweep.
 
 ## Finding 2026-09-24: member pre-push reads the secret scanner from the live stack tree
 
