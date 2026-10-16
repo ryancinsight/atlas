@@ -283,7 +283,7 @@ Risk: the CPU typed plans widen `f32`/`F16` storage into the owner `f64`/`Comple
 
 Root cause: a profile is a property of a *path*, not of a storage type, and the trait stored it on the type. Two independent callers then read one value and disagree about what it means.
 
-Catching check: the reference port on apollo local branch `refactor/nufft-device-profile` (unpushed, named rather than hashed) adds a `DEVICE_PROFILE` const to the storage trait plus three host-runnable value-semantic tests that pin both tiers' profile values; its push is blocked by the conformance ratchet `apollo/manifest_implementation` rising because the additions return to the flattened module root. The check that must land is therefore structural: the accelerator tier names its own profile, and a test with no device asserts each type's profile on both tiers.
+Catching check: the reference port on apollo rescue branch `rescue/apollo-nufft-device-profile` (preserved as PR apollo#677) adds a `DEVICE_PROFILE` const to the storage trait plus three host-runnable value-semantic tests that pin both tiers' profile values; its push is blocked by the conformance ratchet `apollo/manifest_implementation` rising because the additions return to the flattened module root. The check that must land is therefore structural: the accelerator tier names its own profile, and a test with no device asserts each type's profile on both tiers.
 
 Re-open trigger: any change to `CpuStorage::PROFILE`, or a re-adoption of widening descriptors, which this finding cites as the reproduction path. Twin consolidation delivered under apollo #652 and consus #171 (both merged); the monomorphization review item is closed.
 
