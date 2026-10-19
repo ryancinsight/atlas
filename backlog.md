@@ -22,6 +22,8 @@
 <a id="atlas-ci-runner-saturation-2026-08-25"></a>- [ATLAS-CI-RUNNER-SATURATION-2026-08-25](backlog/atlas-ci-runner-saturation-2026-08-25.md) — Hosted-runner queue depth delays every merge gate [patch] — blocked
 <a id="atlas-code-index-001"></a>- [ATLAS-CODE-INDEX-001](backlog/atlas-code-index-001.md) — Search-ladder infrastructure for context economy [patch] — todo
 <a id="atlas-coeus-nlls-004"></a>- [ATLAS-COEUS-NLLS-004](backlog/atlas-coeus-nlls-004.md) — original specification — todo
+<a id="atlas-coeus-cpu-consumer-migration"></a>- [ATLAS-COEUS-CPU-CONSUMER-MIGRATION](backlog/atlas-coeus-cpu-consumer-migration.md) — Migrate out-of-repo coeus-leto consumers to coeus-cpu [major] — todo
+<a id="atlas-coeus-cpu-overlay"></a>- [ATLAS-COEUS-CPU-OVERLAY](backlog/atlas-coeus-cpu-overlay.md) — Commit the stack overlay's coeus-cpu row [patch] — todo
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) — 502 blanket suppressions the ratchet never counted [major] — todo
 <a id="atlas-cross-member-sweep-108"></a>- [ATLAS-CROSS-MEMBER-SWEEP-108](backlog/atlas-cross-member-sweep-108.md) — cross-member staleness and dirt sweep [patch] (2026-08-23) — todo
 <a id="atlas-default-branch-reds-2026-09-02"></a>- [ATLAS-DEFAULT-BRANCH-REDS-2026-09-02](backlog/atlas-default-branch-reds-2026-09-02.md) — Member default-branch workflows red with no collector [patch] — todo
@@ -56,7 +58,6 @@
 <a id="atlas-kwavers-swe3d-baseline-regression-2026-08-26"></a>- [ATLAS-KWAVERS-SWE3D-BASELINE-REGRESSION-2026-08-26](backlog/atlas-kwavers-swe3d-baseline-regression-2026-08-26.md) — integration oracle regression on main [major] — todo
 <a id="atlas-lane-audit-001"></a>- [ATLAS-LANE-AUDIT-001](backlog/atlas-lane-audit-001.md) — Lane-root sweep results and residuals [patch] — todo
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — todo
-<a id="atlas-lockfile-check-test-gaps"></a>- [ATLAS-LOCKFILE-CHECK-TEST-GAPS](backlog/atlas-lockfile-check-test-gaps.md) — Pin three behaviours of `--check` and `--regenerate` no test fails on [patch] — todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Delete the member lockfile.py copies the hooks no longer run [patch] — todo
 <a id="atlas-lockfile-copy-count-content"></a>- [ATLAS-LOCKFILE-COPY-COUNT-CONTENT](backlog/atlas-lockfile-copy-count-content.md) — Count member lockfile checkers by content, not by path [patch] — todo
 <a id="atlas-lockfile-runner-deadline"></a>- [ATLAS-LOCKFILE-RUNNER-DEADLINE](backlog/atlas-lockfile-runner-deadline.md) — Bound the overlay-escaping cargo runner and delete its twin [patch] — todo
