@@ -59,7 +59,6 @@
 <a id="atlas-lane-audit-001"></a>- [ATLAS-LANE-AUDIT-001](backlog/atlas-lane-audit-001.md) — Lane-root sweep results and residuals [patch] — todo
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Delete the member lockfile.py copies the hooks no longer run [patch] — todo
-<a id="atlas-lockfile-copy-count-content"></a>- [ATLAS-LOCKFILE-COPY-COUNT-CONTENT](backlog/atlas-lockfile-copy-count-content.md) — Count member lockfile checkers by content, not by path [patch] — todo
 <a id="atlas-lockfile-runner-deadline"></a>- [ATLAS-LOCKFILE-RUNNER-DEADLINE](backlog/atlas-lockfile-runner-deadline.md) — Bound the overlay-escaping cargo runner and delete its twin [patch] — todo
 <a id="atlas-lockfile-workspace-assignment"></a>- [ATLAS-LOCKFILE-WORKSPACE-ASSIGNMENT](backlog/atlas-lockfile-workspace-assignment.md) — Judge a manifest against the lock of its cargo workspace [patch] — todo
 <a id="mnemosyne-pin-campaign-stranded"></a>- [ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06](backlog/mnemosyne-pin-campaign-stranded.md) — A provider-pin campaign stalled undelivered in five members [patch] — todo
