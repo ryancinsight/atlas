@@ -53,6 +53,7 @@ the hooks export it alone, which is why it stays one file.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import os
 import re
 import signal
@@ -573,8 +574,155 @@ def escapes_repository(manifest: PurePosixPath, path: str) -> bool:
     return resolved == ".." or resolved.startswith("../")
 
 
+def directory_pattern_matches(pattern: PurePosixPath, directory: PurePosixPath) -> bool:
+    """Whether `directory` matches one of cargo's member or exclude globs.
+
+    Cargo confines `*` and `?` to one path component and lets `**` span them;
+    `PurePosixPath.match` lets `*` cross separators, so the components are
+    walked here instead.
+    """
+    wanted = pattern.parts
+    actual = directory.parts
+
+    def walk(pattern_index: int, directory_index: int) -> bool:
+        if pattern_index == len(wanted):
+            return directory_index == len(actual)
+        component = wanted[pattern_index]
+        if component == "**":
+            return any(
+                walk(pattern_index + 1, index)
+                for index in range(directory_index, len(actual) + 1)
+            )
+        if directory_index == len(actual):
+            return False
+        return (
+            fnmatch.fnmatchcase(actual[directory_index], component)
+            and walk(pattern_index + 1, directory_index + 1)
+        )
+
+    return walk(0, 0)
+
+
+def workspace_relative(workspace: PurePosixPath, path: str) -> PurePosixPath:
+    """A member or exclude entry, resolved against the workspace root."""
+    joined = posixpath.normpath(posixpath.join(workspace.as_posix(), path.replace("\\", "/")))
+    return PurePosixPath(joined)
+
+
+def workspace_selection(
+    manifests: Mapping[str, str],
+    parsed: Mapping[str, Mapping[str, object] | None],
+    workspace: PurePosixPath,
+    nested: Sequence[PurePosixPath],
+) -> set[str] | None:
+    """The manifests cargo resolves in the workspace's lock, or None when it declares none.
+
+    Cargo, not directory containment, decides membership: `members` names the
+    packages (globs included), `exclude` removes paths from that set, path
+    dependencies under the root join it, and a manifest declaring its own
+    `[workspace]` is a separate unit whether or not it has a lock. Grouping by
+    containing directory instead missed a member outside the lock's directory,
+    let an excluded crate shadow a stripped source by name, and let a lockless
+    nested workspace exempt the root lock through a path leaving the repository.
+
+    `None` means the root declares no `[workspace]` table; the caller then keeps
+    the directory-based reading, which is all a single-package manifest has.
+    """
+    root = (workspace / "Cargo.toml").as_posix()
+    root_data = parsed.get(root)
+    table = root_data.get("workspace") if isinstance(root_data, dict) else None
+    if not isinstance(table, dict):
+        return None
+
+    def entries(key: str) -> list[PurePosixPath]:
+        listed = table.get(key)
+        if not isinstance(listed, list):
+            return []
+        return [
+            workspace_relative(workspace, entry)
+            for entry in listed
+            if isinstance(entry, str)
+        ]
+
+    members = entries("members")
+    excluded = entries("exclude")
+    # Only workspaces *beneath* this one are boundaries. An ancestor's
+    # `[workspace]` does not own this lock: this one declares its own, and may
+    # itself be a `[workspace]` root under an umbrella that only lists other
+    # members.
+    boundaries = {
+        PurePosixPath(name).parent
+        for name, data in parsed.items()
+        if isinstance(data, dict)
+        and isinstance(data.get("workspace"), dict)
+        and workspace in PurePosixPath(name).parent.parents
+    }
+    boundaries.update(boundary for boundary in nested if workspace in boundary.parents)
+
+    def ignored(directory: PurePosixPath) -> bool:
+        return bool({part.lower() for part in directory.parts} & IGNORED_DIRECTORIES)
+
+    def inside_boundary(directory: PurePosixPath) -> bool:
+        return any(
+            boundary == directory or boundary in directory.parents
+            for boundary in boundaries
+        )
+
+    def excluded_manifest(name: str) -> bool:
+        directory = PurePosixPath(name).parent
+        ancestors = [
+            PurePosixPath(*directory.parts[:index])
+            for index in range(len(directory.parts), 0, -1)
+        ]
+        return any(
+            directory_pattern_matches(pattern, ancestor)
+            for pattern in excluded
+            for ancestor in ancestors
+        )
+
+    selected = {root}
+    for name in manifests:
+        directory = PurePosixPath(name).parent
+        if inside_boundary(directory) or ignored(directory):
+            continue
+        if any(directory_pattern_matches(pattern, directory) for pattern in members):
+            selected.add(name)
+
+    # Cargo joins every path dependency under the root to the workspace; one
+    # outside it is a separate package even when a member reaches it.
+    changed = True
+    while changed:
+        changed = False
+        for name in sorted(selected):
+            data = parsed.get(name)
+            if not isinstance(data, dict):
+                continue
+            for table_of_dependencies in dependency_tables(data):
+                for spec in table_of_dependencies.values():
+                    if not isinstance(spec, dict) or not isinstance(spec.get("path"), str):
+                        continue
+                    target = workspace_relative(PurePosixPath(name).parent, spec["path"])
+                    target_manifest = (target / "Cargo.toml").as_posix()
+                    if target_manifest in selected or target_manifest not in manifests:
+                        continue
+                    if inside_boundary(target) or ignored(target):
+                        continue
+                    selected.add(target_manifest)
+                    changed = True
+
+    return {
+        name
+        for name in selected
+        if not inside_boundary(PurePosixPath(name).parent)
+        and not ignored(PurePosixPath(name).parent)
+        and not excluded_manifest(name)
+    }
+
+
 def workspace_facts(
-    manifests: Mapping[str, str], workspace: PurePosixPath, nested: Sequence[PurePosixPath]
+    manifests: Mapping[str, str],
+    workspace: PurePosixPath,
+    nested: Sequence[PurePosixPath],
 ) -> WorkspaceFacts:
     """The packages a workspace defines and the git dependencies it declares.
 
@@ -582,31 +730,45 @@ def workspace_facts(
     workspace roots beneath this one that own their own lock; their manifests
     belong to that lock, not this one.
 
+    Membership comes from the workspace's own declarations when it has any
+    ([`workspace_selection`]); a manifest without a `[workspace]` table keeps
+    the directory reading, which is the only membership a lone package has.
+
     `fixture` marks a workspace depending on a sibling repository by relative
     path (`../../../hephaestus/...`). It exists only inside a full Atlas
     checkout and cannot resolve standalone, so the standalone rule does not
     apply to its lock (ADR-0044's one exemption).
     """
+    parsed: dict[str, Mapping[str, object] | None] = {}
+    for name, text in manifests.items():
+        try:
+            parsed[name] = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
+            parsed[name] = None
+
+    selected = workspace_selection(manifests, parsed, workspace, nested)
+    if selected is None:
+        selected = {
+            name
+            for name in manifests
+            if workspace in PurePosixPath(name).parents
+            and not ({part.lower() for part in PurePosixPath(name).parts} & IGNORED_DIRECTORIES)
+            and not any(other in PurePosixPath(name).parents for other in nested)
+        }
+
     local: set[str] = set()
     git_dependencies: set[str] = set()
     unreadable: list[str] = []
     fixture = False
-    for name, text in sorted(manifests.items()):
-        manifest = PurePosixPath(name)
-        if workspace not in manifest.parents:
-            continue
-        if {part.lower() for part in manifest.parts} & IGNORED_DIRECTORIES:
-            continue
-        if any(other in manifest.parents for other in nested):
-            continue
-        try:
-            data = tomllib.loads(text)
-        except tomllib.TOMLDecodeError:
+    for name in sorted(selected):
+        data = parsed.get(name)
+        if data is None:
             unreadable.append(name)
             continue
         package = data.get("package")
         if isinstance(package, dict) and isinstance(package.get("name"), str):
             local.add(package["name"])
+        manifest = PurePosixPath(name)
         for table in dependency_tables(data):
             for dependency, spec in table.items():
                 if not isinstance(spec, dict):

@@ -59,7 +59,6 @@
 <a id="atlas-lane-audit-001"></a>- [ATLAS-LANE-AUDIT-001](backlog/atlas-lane-audit-001.md) — Lane-root sweep results and residuals [patch] — todo
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Delete the member lockfile.py copies the hooks no longer run [patch] — todo
-<a id="atlas-lockfile-workspace-assignment"></a>- [ATLAS-LOCKFILE-WORKSPACE-ASSIGNMENT](backlog/atlas-lockfile-workspace-assignment.md) — Judge a manifest against the lock of its cargo workspace [patch] — todo
 <a id="mnemosyne-pin-campaign-stranded"></a>- [ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06](backlog/mnemosyne-pin-campaign-stranded.md) — A provider-pin campaign stalled undelivered in five members [patch] — todo
 <a id="atlas-modality-003"></a>- [ATLAS-MODALITY-003](backlog/atlas-modality-003.md) — Optical-transport and RF/EM promotion watchpoint [arch] — blocked
 <a id="atlas-moirai-accelerator-route-2026-08-21"></a>- [ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21](backlog/atlas-moirai-accelerator-route-2026-08-21.md) — Execute accelerator routes [major] [arch] — todo
