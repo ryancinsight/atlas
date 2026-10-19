@@ -55,6 +55,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import signal
 import subprocess
 import posixpath
 import sys
@@ -102,6 +103,106 @@ DEPENDENCY_KINDS = ("dependencies", "dev-dependencies", "build-dependencies")
 IGNORED_DIRECTORIES = frozenset({"target", ".git", "node_modules"})
 GIT_DEADLINE_SECONDS = 60
 
+# One cargo invocation is bounded: `cargo metadata --locked` and the consumer
+# sweep's `cargo update` both fetch first-party git sources, and a fetch that
+# hangs must fail the push rather than stall it. The `lockfile-guard` workflow
+# bounds the same run at five minutes from the outside; this is the deadline
+# the runner itself owns, so it also holds where no workflow wraps it.
+CARGO_DEADLINE_SECONDS = 600
+# A killed tree is already dead; this bounds only the wait to reap the launcher
+# and collect the output it wrote before the deadline.
+PROCESS_TREE_CLEANUP_SECONDS = 10.0
+# What the runner launches. A test replaces this with a stand-in so the
+# deadline and the tree kill are exercised without cargo.
+CARGO_COMMAND: tuple[str, ...] = ("cargo",)
+
+
+class CargoDeadlineExceeded(subprocess.TimeoutExpired):
+    """cargo outlived its deadline; its process tree has been killed.
+
+    A typed timeout rather than a return code, because the two failures cargo
+    produces here mean different things: a nonzero exit is a resolution that
+    ran and refused, while an expired deadline is a run that never finished.
+    Reporting the second as the first would blame the lock for a hung fetch.
+    """
+
+
+def _kill_process_tree(process: subprocess.Popen[str]) -> None:
+    """Kill `process` and every descendant it started.
+
+    The tree is the point: `cargo metadata` starts a rustc and git fetches, and
+    killing only the launcher leaves them holding the network and the lock.
+    POSIX starts the launcher in its own session, so one `killpg` retires the
+    group. Windows has no equivalent without a job object, and this file is
+    exported alone to the hooks, so it uses `taskkill /T` instead.
+    """
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/T", "/F", "/PID", str(process.pid)],
+                capture_output=True,
+                check=False,
+                timeout=PROCESS_TREE_CLEANUP_SECONDS,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+            return
+        except ProcessLookupError:
+            return
+        except OSError:
+            pass
+    if process.poll() is None:
+        process.kill()
+
+
+def run_bounded(
+    command: Sequence[str], *, cwd: Path, env: Mapping[str, str], deadline: float
+) -> subprocess.CompletedProcess[str]:
+    """Run `command`, killing its whole process tree if it outlives `deadline`.
+
+    `subprocess.run(timeout=...)` kills the launcher only, so the runner owns
+    the launch: a timeout is followed by [`_kill_process_tree`] and only then by
+    a collected result. A timeout raises [`CargoDeadlineExceeded`] carrying the
+    output the command managed to write before it was stopped.
+    """
+    process = subprocess.Popen(
+        tuple(command),
+        cwd=cwd,
+        env=dict(env),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        # `text=True` alone decodes with the locale codepage. Cargo emits UTF-8,
+        # so on a Windows console (cp1252) subprocess's reader thread dies on
+        # the first byte it cannot map and the captured stream is lost. The
+        # verdict survives -- it comes from `returncode` -- but the message
+        # explaining a failure does not, which is the one moment it is needed.
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        # The POSIX tree is the process group: the launcher must lead its own
+        # session for `killpg` to reach a descendant cargo did not reap.
+        start_new_session=os.name != "nt",
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=deadline)
+    except subprocess.TimeoutExpired:
+        _kill_process_tree(process)
+        try:
+            stdout, stderr = process.communicate(timeout=PROCESS_TREE_CLEANUP_SECONDS)
+        except subprocess.TimeoutExpired:
+            stdout, stderr = "", ""
+        note = (
+            f"cargo did not finish within {deadline:g}s; "
+            "its process tree was killed."
+        )
+        raise CargoDeadlineExceeded(
+            tuple(command), deadline, output=stdout, stderr=(stderr + "\n" + note).strip()
+        ) from None
+    return subprocess.CompletedProcess(tuple(command), process.returncode, stdout, stderr)
+
 
 def shared_target_dir(manifest: Path) -> Path | None:
     """The `target-dir` a stack config above `manifest` declares, if any.
@@ -134,7 +235,10 @@ def shared_target_dir(manifest: Path) -> Path | None:
 
 
 def run_outside_the_overlay(
-    arguments: list[str], manifest: Path | None = None
+    arguments: list[str],
+    manifest: Path | None = None,
+    *,
+    deadline: float = CARGO_DEADLINE_SECONDS,
 ) -> subprocess.CompletedProcess[str]:
     """Run cargo with a working directory outside the stack root.
 
@@ -155,6 +259,10 @@ def run_outside_the_overlay(
     `target_forks` class the conformance ratchet counts. An inherited
     `CARGO_TARGET_DIR` wins, so CI -- where there is no stack config and each
     job is isolated anyway -- is unaffected.
+
+    The run is bounded by `deadline` ([`run_bounded`]): a first-party fetch
+    that never returns raises [`CargoDeadlineExceeded`] after its whole process
+    tree is killed, so a stalled push fails instead of holding the hook open.
     """
     if manifest is None:
         manifest = MANIFEST
@@ -174,20 +282,11 @@ def run_outside_the_overlay(
         *arguments[separator:],
     ]
     with tempfile.TemporaryDirectory() as neutral_directory:
-        return subprocess.run(
-            ["cargo", *cargo_arguments],
-            cwd=neutral_directory,
+        return run_bounded(
+            [*CARGO_COMMAND, *cargo_arguments],
+            cwd=Path(neutral_directory),
             env=environment,
-            capture_output=True,
-            # `text=True` alone decodes with the locale codepage. Cargo emits
-            # UTF-8, so on a Windows console (cp1252) subprocess's reader thread
-            # dies on the first byte it cannot map and the captured stream is
-            # lost. The verdict survives -- it comes from `returncode` -- but the
-            # message explaining a failure does not, which is the one moment it
-            # is needed.
-            encoding="utf-8",
-            errors="replace",
-            check=False,
+            deadline=deadline,
         )
 
 
@@ -227,9 +326,22 @@ def check() -> int:
         )
         return 1
 
-    completed = run_outside_the_overlay(
-        ["metadata", "--locked", "--format-version", "1", "--all-features"]
-    )
+    try:
+        completed = run_outside_the_overlay(
+            ["metadata", "--locked", "--format-version", "1", "--all-features"]
+        )
+    except CargoDeadlineExceeded as error:
+        print(
+            f"error: cargo metadata --locked did not finish within "
+            f"{error.timeout:g}s, so its process tree was killed.\n"
+            "\n"
+            "The lock form is intact; this is a resolution that never finished\n"
+            "(usually a stalled first-party fetch), not a flattened lock.\n"
+            "\n"
+            f"cargo said:\n{(error.stderr or '').strip()}",
+            file=sys.stderr,
+        )
+        return 1
     if completed.returncode != 0:
         print(
             "error: the committed Cargo.lock does not resolve under --locked "
@@ -739,7 +851,15 @@ def regenerate() -> int:
     a repair must not do (ADR-0044); advancing a pin is `cargo update`, run
     deliberately.
     """
-    completed = run_outside_the_overlay(["metadata", "--format-version", "1"])
+    try:
+        completed = run_outside_the_overlay(["metadata", "--format-version", "1"])
+    except CargoDeadlineExceeded as error:
+        print(
+            f"error: regeneration did not finish within {error.timeout:g}s; its "
+            f"process tree was killed.\n{(error.stderr or '').strip()}",
+            file=sys.stderr,
+        )
+        return 1
     if completed.returncode != 0:
         print(f"error: regeneration failed:\n{completed.stderr.strip()}", file=sys.stderr)
         return 1

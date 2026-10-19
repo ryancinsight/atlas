@@ -61,7 +61,7 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
         self.original = (
-            lockfile.subprocess.run,
+            lockfile.run_bounded,
             lockfile.REPOSITORY,
             lockfile.LOCKFILE,
             lockfile.SCRIPT_CHECKOUT,
@@ -79,11 +79,11 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
                 command, 0 if self.resolves else 101, "{}", "" if self.resolves else "stale"
             )
 
-        lockfile.subprocess.run = fake_run
+        lockfile.run_bounded = fake_run
 
     def _restore(self) -> None:
         (
-            lockfile.subprocess.run,
+            lockfile.run_bounded,
             lockfile.REPOSITORY,
             lockfile.LOCKFILE,
             lockfile.SCRIPT_CHECKOUT,
