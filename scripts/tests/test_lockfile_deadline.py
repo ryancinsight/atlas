@@ -16,7 +16,6 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
-import subprocess
 import sys
 import tempfile
 import time
