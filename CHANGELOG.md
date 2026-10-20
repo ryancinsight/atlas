@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Read `cargo metadata` once per unchanged workspace in the build-identity
+  gate. The answer is a pure function of the workspace's manifests and its
+  lockfile, but the gate asked for it sixty-two times over four manifests
+  per test — the dependency snapshot, the package layout and the artifact
+  owners each wanted one — and every ask cost a cargo process. The read is
+  now keyed by the manifest and cargo's directory and validated by the
+  content of every file that decides the answer, so a changed dependency
+  graph is still read and the identity still sees it. One traced test: 309
+  subprocesses and 56.11 s of child time before, 251 and 39.50 s after,
+  with `cargo metadata` down from 62 calls to 4. A new test file pins the
+  contract. Recorded under ATLAS-IDENTITY-SUITE-RUNTIME.
+
 - [minor] Add opt-in exact package/version cohorts to pending publication.
   Explicit `{}` leaves installation unarmed; planning, publish and tagging
   cannot expand into unrelated pending versions. Existing verification,
