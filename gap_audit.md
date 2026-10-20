@@ -230,7 +230,7 @@ terminal green. Re-open trigger: each PR's own hosted result.
 tree, not the one its debt ratchet extracts from the fetched default; a tree
 on a branch older than the scanner lets member pushes skip the scan (CFDrs
 #459, kwavers #850, Moirai #471 all did on 2026-09-24). Re-open trigger: the
-hook extracts the scanner from `$stack_baseline `, as `sync-hooks --check`
+hook extracts the scanner from `$stack_baseline`, as `sync-hooks --check`
 already does.
 
 ## Finding 2026-09-25: cfd-math `ParallelAssembly::from_elements` is dead public surface
