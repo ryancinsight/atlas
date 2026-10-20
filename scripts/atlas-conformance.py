@@ -1234,6 +1234,7 @@ def _cached_text(path: Path) -> str | None:
 
 def _snapshot_source_census(
     repo: Path,
+    member: str | None = None,
 ) -> tuple[list[Path], list[Path], list[Path]]:
     """Inventory an immutable snapshot and cache every Rust source once.
 
@@ -1255,8 +1256,12 @@ def _snapshot_source_census(
     orphan_sources: list[Path] = []
     canonical_sources: dict[Path, Path] = {}
     files: set[Path] = set()
+    # The seed is the scanned root's own name, and a snapshot's directory
+    # carries a disambiguator when one checkout is materialized twice into
+    # one scratch, so the member's name decides it whenever it is known.
+    root_name = member if member is not None else repo.name
     stack: list[tuple[Path, Path, bool, bool]] = [
-        (repo, root_canonical, True, repo.name == "src")
+        (repo, root_canonical, True, root_name == "src")
     ]
     text_cache = _file_text_cache()
     ignored = git_ignored_paths(repo)
@@ -2228,7 +2233,7 @@ def scan_repo(
         source_paths = None
         orphan_source_paths = None
     else:
-        manifests, source_paths, orphan_source_paths = _snapshot_source_census(repo)
+        manifests, source_paths, orphan_source_paths = _snapshot_source_census(repo, member)
     executable_dirs = executable_source_dirs(repo, manifests)
 
     sources = (
@@ -2488,6 +2493,15 @@ def link_snapshot(checkout: Path, revision: str, scratch: Path) -> Path:
         if mode != "160000":
             tracked.append((mode, path))
     content = scratch / checkout.name
+    # One directory per materialization. The same checkout can be
+    # materialized twice into one scratch -- a root push materializes the
+    # pushed content and the baseline config root, and both name the
+    # checkout's directory -- and one shared directory would either raise
+    # `FileExistsError` (Windows) or merge two revisions into one tree.
+    disambiguator = 0
+    while content.exists():
+        disambiguator += 1
+        content = scratch / f"{checkout.name}-{disambiguator}"
     content.mkdir(parents=True)
     fd, index_path = tempfile.mkstemp(prefix="atlas-snapshot-index-")
     os.close(fd)
@@ -2534,7 +2548,11 @@ def scan_member(
             stack_root, root_revision, Path(scratch)
         )
         return scan_repo(
-            content, live_repo=live, revision=expected, config_root=config_root
+            content,
+            live_repo=live,
+            revision=expected,
+            member=name,
+            config_root=config_root,
         )
 
 
@@ -2662,6 +2680,12 @@ def scan_stack(
                             live_repo=target[1],
                             member_for_package=member_for_package,
                             revision=target[2],
+                            # The snapshot's directory carries a
+                            # disambiguator when one checkout is
+                            # materialized twice into one scratch, so the
+                            # member's identity is named here rather than
+                            # read back from the path.
+                            member=target[1].name,
                             config_root=stack_content,
                         ),
                         targets,
@@ -2711,7 +2735,7 @@ def scan_stack(
                 ):
                     meta["member_namespace_pollution"] += 1
         meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(
-            content, live_repo=stack_root
+            content, live_repo=stack_root, member="<meta>"
         )
         meta["gitattributes_missing"] = lf_policy_missing(content)
         meta["crlf_stored_blobs"] = count_crlf_stored_blobs(

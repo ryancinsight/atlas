@@ -2384,6 +2384,29 @@ class MaterializedMemberTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "not in the provider's object store"):
                 conformance.materialize_member(provider, "0" * 40, Path(temp) / "scratch")
 
+    def test_one_checkout_materialized_twice_keeps_two_snapshots(self) -> None:
+        """A root push materializes the pushed content and the baseline
+        config root into one scratch, and both name the checkout's
+        directory: the two must not share a tree, and the second must not
+        raise `FileExistsError` where the directory already exists."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            provider, first, second = self._provider(Path(temp))
+            scratch = Path(temp) / "scratch"
+            pushed = conformance.link_snapshot(provider, second, scratch)
+            baseline = conformance.link_snapshot(provider, first, scratch)
+
+            self.assertNotEqual(pushed, baseline, "the two snapshots must differ")
+            self.assertEqual(
+                (pushed / "src/lib.rs").read_text(encoding="utf-8"),
+                'pub fn alpha() { println!("debt"); }\n',
+                "the pushed snapshot keeps the pushed revision",
+            )
+            self.assertEqual(
+                (baseline / "src/lib.rs").read_text(encoding="utf-8"),
+                "pub fn alpha() {}\n",
+                "the baseline snapshot keeps its own revision",
+            )
+
 # Manifest fixtures for SubstrateContractTests.
 RUNTIME_RAYON = "[dependencies]\nrayon = \"1.8\""
 TARGET_NALGEBRA = "[target.'cfg(unix)'.dependencies]\nnalgebra = \"0.33\""

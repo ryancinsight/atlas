@@ -28,6 +28,18 @@
   not vacuous, since with one cleanup reverted it fails and names the
   leaked trees. Recorded under ATLAS-TEST-TEMPDIR-LEAKS.
 
+- Fix the conformance gate's crash on a root push: `link_snapshot` took a
+  fixed directory per checkout, so materializing one checkout twice into one
+  scratch — the pushed content and the baseline config root — collided with
+  `FileExistsError [WinError 183]` on `<scratch>/atlas` and aborted the
+  member scan, which the ratchet then read as a phantom raise. The snapshot
+  now takes a free directory, and the member's identity travels with the
+  scan rather than being read back from the snapshot path, which is what the
+  sanctioned-root allowance was doing. Reproduced on this Windows host
+  (`check --repo apollo --member-path D:/atlas --member-revision HEAD`):
+  the error before the fix, a completed scan with unchanged fleet counts
+  after it. Recorded under ATLAS-ROOT-CONFORMANCE-MATERIALIZE-CRASH.
+
 - [minor] Add opt-in exact package/version cohorts to pending publication.
   Explicit `{}` leaves installation unarmed; planning, publish and tagging
   cannot expand into unrelated pending versions. Existing verification,
