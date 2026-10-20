@@ -50,6 +50,47 @@ def run(args, cwd):
                           timeout=60, env={**os.environ, "CARGO_NET_OFFLINE": "true"}).stdout.strip()
 
 
+HISTORY = {"b553c42da72dcdeb2bb2644c60759dc465fb329a": (".github/workflows/crates-publish.yml",),
+           "8df6f30d7fb6d65d6ac639c5323ddac1c1897d75": (".github/actions/crate-release-identity/action.yml",
+                                                       ".github/actions/crate-release-identity/release_identity.py")}
+
+
+def history_store(root, store):
+    """Fetch only immutable comparison commits; never deepen the checkout itself."""
+    run(["git", "init", "--quiet", "--bare", str(store)], root)
+    for sha in HISTORY:
+        local = subprocess.run(["git", "cat-file", "-e", sha + "^{commit}"], cwd=root,
+                               capture_output=True, timeout=5).returncode == 0
+        source = str(root) if local else run(["git", "remote", "get-url", "origin"], root)
+        run(["git", "fetch", "--quiet", "--no-tags", "--no-recurse-submodules", "--depth=1", source, sha], store)
+    return store
+
+
+@pytest.fixture(scope="module")
+def history(tmp_path_factory):
+    return history_store(ROOT, tmp_path_factory.mktemp("release-history"))
+
+
+def test_history_fixture_fetches_exact_git_bytes_without_mutating_shallow_checkout(history, tmp_path):
+    root = tmp_path / "checkout"
+    run(["git", "clone", "--quiet", "--no-local", "--depth=1", str(ROOT), str(root)], tmp_path)
+    run(["git", "remote", "set-url", "origin", str(history)], root)
+    assert run(["git", "rev-parse", "--is-shallow-repository"], root) == "true"
+    assert all(subprocess.run(["git", "cat-file", "-e", sha], cwd=root, capture_output=True,
+                              timeout=5).returncode != 0 for sha in HISTORY)
+    before = (run(["git", "count-objects", "-v"], root), run(["git", "for-each-ref"], root),
+              run(["git", "rev-parse", "HEAD"], root))
+    fetched = history_store(root, tmp_path / "history")
+    assert before == (run(["git", "count-objects", "-v"], root), run(["git", "for-each-ref"], root),
+                      run(["git", "rev-parse", "HEAD"], root))
+    assert run(["git", "rev-parse", "--is-shallow-repository"], root) == "true"
+    for sha, paths in HISTORY.items():
+        for path in paths:
+            args = ["git", "show", f"{sha}:{path}"]
+            assert (subprocess.run(args, cwd=fetched, capture_output=True, check=True, timeout=5).stdout
+                    == subprocess.run(args, cwd=history, capture_output=True, check=True, timeout=5).stdout)
+
+
 def commit(root):
     run(["git", "add", "."], root)
     run(["git", "-c", "user.name=Identity fixture", "-c", "user.email=fixture@example.invalid",
@@ -386,8 +427,8 @@ def test_workflow_rejects_missing_or_unknown_decision(decision, code):
     assert (actual.stderr == b"") is (code == 0)
 
 
-def test_workflow_preserves_validation_interface_permissions_and_upload_command():
-    base = yaml.safe_load(run(["git", "show", "b553c42da72dcdeb2bb2644c60759dc465fb329a:.github/workflows/crates-publish.yml"], ROOT))
+def test_workflow_preserves_validation_interface_permissions_and_upload_command(history):
+    base = yaml.safe_load(run(["git", "show", "b553c42da72dcdeb2bb2644c60759dc465fb329a:.github/workflows/crates-publish.yml"], history))
     current = yaml.safe_load(WORKFLOW.read_text())
     assert {k: v for k, v in current.items() if k != "jobs"} == {k: v for k, v in base.items() if k != "jobs"}
     assert current["jobs"]["validate"] == base["jobs"]["validate"]
@@ -401,17 +442,18 @@ def test_workflow_preserves_validation_interface_permissions_and_upload_command(
     assert new["if"] == "github.event_name == 'release'"
 
 
-def test_workflow_uses_exact_helper_commit_and_correct_action_output():
+def test_workflow_uses_exact_helper_commit_and_correct_action_output(history):
     steps = yaml.safe_load(WORKFLOW.read_text())["jobs"]["publish"]["steps"]
     guard = next(step for step in steps if step.get("id") == "identity")
     match = re.fullmatch(r"ryancinsight/atlas/\.github/actions/crate-release-identity@([0-9a-f]{40})", guard["uses"])
     assert match is not None
+    assert match.group(1) == "8df6f30d7fb6d65d6ac639c5323ddac1c1897d75"
     assert guard["with"] == {"package": "${{ needs.validate.outputs.package }}",
                             "version": "${{ needs.validate.outputs.version }}",
                             "expected-commit": "${{ github.sha }}"}
     for name in ("action.yml", "release_identity.py"):
         path = ".github/actions/crate-release-identity/" + name
-        actual = subprocess.run(["git", "show", f"{match.group(1)}:{path}"], cwd=ROOT,
+        actual = subprocess.run(["git", "show", f"{match.group(1)}:{path}"], cwd=history,
                                 capture_output=True, check=True, timeout=5).stdout
         assert actual == (ROOT / path).read_bytes()
     action = yaml.safe_load((ROOT / ".github/actions/crate-release-identity/action.yml").read_text())
