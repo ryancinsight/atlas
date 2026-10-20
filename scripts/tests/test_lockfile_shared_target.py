@@ -82,7 +82,7 @@ class SharedTargetDirTestCase(unittest.TestCase):
         completed = subprocess.CompletedProcess(["cargo"], 0, stdout="", stderr="")
         with (
             patch.dict(os.environ, {}, clear=True),
-            patch.object(lockfile.subprocess, "run", return_value=completed) as cargo_run,
+            patch.object(lockfile, "run_bounded", return_value=completed) as cargo_run,
         ):
             result = lockfile.run_outside_the_overlay(
                 ["clippy", "--locked", "-p", "m", "--all-targets", "--", "-D", "warnings"],

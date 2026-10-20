@@ -375,7 +375,13 @@ def commit_lock(member: Path, base: str, lock: bytes, message: str, scratch: Pat
 
 
 def cargo(tree: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
-    return lockfile.run_outside_the_overlay(list(arguments), manifest=tree / "Cargo.toml")
+    try:
+        return lockfile.run_outside_the_overlay(list(arguments), manifest=tree / "Cargo.toml")
+    except lockfile.CargoDeadlineExceeded as error:
+        # The sweep reports a row per failure from `returncode`/`stderr`; a
+        # deadline is a failed row like any other, with the runner's note as
+        # the detail.
+        return subprocess.CompletedProcess(error.cmd, 124, "", str(error))
 
 
 def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | None:

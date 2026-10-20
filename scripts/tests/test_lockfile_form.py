@@ -274,6 +274,77 @@ class WorkspaceScopeTestCase(unittest.TestCase):
             problems, ["Cargo.lock: Cargo.toml does not parse, so the lock cannot be judged"]
         )
 
+    def test_a_member_outside_the_lock_directory_belongs_to_the_workspace(self) -> None:
+        """Membership is the `members` list, not containment by the lock's directory.
+
+        `tools/Cargo.lock` is resolved by `tools/Cargo.toml`, whose member lives
+        beside it. Reading only manifests under `tools/` missed the member's git
+        dependency entirely, so a stripped source passed.
+        """
+        manifests = {
+            "tools/Cargo.toml": '[workspace]\nmembers = ["../shared"]\n',
+            "shared/Cargo.toml": '[package]\nname = "shared"\nversion = "0.1.0"\n\n'
+            '[dependencies]\n'
+            'eunomia = { git = "https://github.com/ryancinsight/eunomia" }\n',
+            "tools/Cargo.lock": STRIPPED,
+        }
+        problems, exempt = lockfile.judge_locks(manifests)
+        self.assertIn(
+            "tools/Cargo.lock: `eunomia` locked without a git source (stripped)", problems
+        )
+        self.assertEqual(exempt, [])
+
+    def test_an_excluded_crate_does_not_shadow_a_stripped_source(self) -> None:
+        """`exclude` wins over `members`: the excluded crate's package name is not
+        a local package of the workspace, so it cannot explain a sourceless entry.
+        """
+        manifests = {
+            "Cargo.toml": '[workspace]\nmembers = ["member", "shadow"]\nexclude = ["shadow"]\n',
+            "member/Cargo.toml": '[package]\nname = "member"\nversion = "0.1.0"\n\n'
+            '[dependencies]\n'
+            'eunomia = { git = "https://github.com/ryancinsight/eunomia" }\n',
+            "shadow/Cargo.toml": '[package]\nname = "eunomia"\nversion = "0.1.0"\n',
+            "Cargo.lock": STRIPPED,
+        }
+        problems, exempt = lockfile.judge_locks(manifests)
+        self.assertIn(
+            "Cargo.lock: `eunomia` locked without a git source (stripped)", problems
+        )
+        self.assertEqual(exempt, [])
+
+    def test_a_lockless_nested_workspace_does_not_exempt_the_root_lock(self) -> None:
+        """A nested `[workspace]` is a separate unit even without its own lock, so
+        its path outside the repository cannot turn the root lock into a fixture.
+        """
+        manifests = {
+            "Cargo.toml": '[workspace]\n\n[package]\nname = "member"\nversion = "0.1.0"\n\n'
+            '[dependencies]\n'
+            'eunomia = { git = "https://github.com/ryancinsight/eunomia" }\n',
+            "nested/Cargo.toml": '[workspace]\n\n[package]\nname = "nested"\nversion = "0.1.0"\n\n'
+            '[dependencies]\n'
+            'sibling = { path = "../../outside" }\n',
+            "Cargo.lock": STRIPPED,
+        }
+        problems, exempt = lockfile.judge_locks(manifests)
+        self.assertIn(
+            "Cargo.lock: `eunomia` locked without a git source (stripped)", problems
+        )
+        self.assertEqual(exempt, [])
+
+    def test_a_members_glob_selects_the_packages_it_names(self) -> None:
+        manifests = {
+            "Cargo.toml": '[workspace]\nmembers = ["crates/*"]\n',
+            "crates/member/Cargo.toml": '[package]\nname = "member"\nversion = "0.1.0"\n\n'
+            '[dependencies]\n'
+            'eunomia = { git = "https://github.com/ryancinsight/eunomia" }\n',
+            "other/Cargo.toml": '[package]\nname = "eunomia"\nversion = "0.1.0"\n',
+            "Cargo.lock": STRIPPED,
+        }
+        problems, _ = lockfile.judge_locks(manifests)
+        self.assertIn(
+            "Cargo.lock: `eunomia` locked without a git source (stripped)", problems
+        )
+
 
 def git(repository: Path, *arguments: str) -> None:
     subprocess.run(
