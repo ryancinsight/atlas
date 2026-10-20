@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- [patch] Verify complete crate archive and exact clean VCS identity before a
+  GitHub Release retry can skip both authentication and upload. Consistent
+  exact-version absence retains the existing publish path; ambiguous registry
+  results fail closed. Private candidate; independent review/public acceptance
+  remain pending. Existing validation, SemVer policy and credentials are unchanged.
+
 - [patch] Close `ATLAS-PYTHON-WHEEL-ATTESTATION-CONTEXT` after
   [#542](https://github.com/ryancinsight/atlas/pull/542) merges as `03f818ce`.
   Workflow lint, conformance, fast/slow scripts and default CodeQL pass;

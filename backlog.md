@@ -97,6 +97,7 @@
 <a id="atlas-root-conformance-materialize-crash"></a>- [ATLAS-ROOT-CONFORMANCE-MATERIALIZE-CRASH](backlog/atlas-root-conformance-materialize-crash.md) — The checker crashes materializing the root repo on Windows [correctness] — todo
 <a id="atlas-runner-capacity-001"></a>- [ATLAS-RUNNER-CAPACITY-001](backlog/atlas-runner-capacity-001.md) — Size runner slots to fleet width [infra] [patch] — todo
 <a id="atlas-runner-starvation-2026-09-02"></a>- [ATLAS-RUNNER-STARVATION-2026-09-02](backlog/atlas-runner-starvation-2026-09-02.md) — Hosted runner queue starves every verification run [infra] — todo
+<a id="atlas-release-publish-identity"></a>- [ATLAS-RELEASE-PUBLISH-IDENTITY](backlog/atlas-release-publish-identity.md) — Verify duplicate release publication [patch] — private review
 <a id="atlas-secret-scan-allowlist-source"></a>- [ATLAS-SECRET-SCAN-ALLOWLIST-SOURCE](backlog/atlas-secret-scan-allowlist-source.md) — Read the secret allowlist from a trusted revision [patch] — todo
 <a id="atlas-shared-tree-stale-basis-2026-09-17"></a>- [ATLAS-SHARED-TREE-STALE-BASIS-2026-09-17](backlog/atlas-shared-tree-stale-basis-2026-09-17.md) — Reconcile the checkout and finish its stale-index guard [patch] — todo
 <a id="sibling-named-crates"></a>- [ATLAS-SIBLING-NAMED-CRATES-2026-09-04](backlog/sibling-named-crates.md) — Nine crates are named after a sibling member, not a concern [arch] [major] — todo

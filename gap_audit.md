@@ -2,6 +2,16 @@
 
 <!-- Compacted 2026-09-26 under the 1,000-line board budget: a risk entry holds risk/evidence/re-open-trigger/owner in ~5 lines; closed findings and delivery narrative are gone -- the record of a closed finding is the commit or PR that closed it. Recover removed narrative with `git log -p -- gap_audit.md`. -->
 
+## Finding 2026-10-20: duplicate Release publication needs full artifact identity [patch]
+
+The shared Release publisher requests OIDC and uploads after validation even
+when another lane already published the version. A private pinned helper now
+requires exact clean HEAD/path, verified committed package source, complete
+archive bytes and consistent API/index/download checks before skipping both.
+Unknown or inconsistent results fail closed. Independent review and exact-head
+acceptance remain open; pending publisher/SemVer owner files are untouched.
+See [bounded design](docs/pr/crate-release-identity.md); no public action occurs.
+
 ## Finding 2026-10-05: path-package identity follows repository revision
 
 Risk: an unrelated commit can invalidate unchanged path-package records and trigger shared-target cleaning. Evidence: `atlas_build_inputs.py` assigns every path package one repository identity, and a clean tree's identity includes that repository's commit revision; observed contention is consistent with this static mechanism, but no benchmark attributes its runtime share. A replacement fingerprint must retain workspace/config, external, build-script, and Git-derived inputs rather than hashing `src/` alone. Owner: none. Re-open: a measured build-input redesign item is claimed.
@@ -220,7 +230,7 @@ terminal green. Re-open trigger: each PR's own hosted result.
 tree, not the one its debt ratchet extracts from the fetched default; a tree
 on a branch older than the scanner lets member pushes skip the scan (CFDrs
 #459, kwavers #850, Moirai #471 all did on 2026-09-24). Re-open trigger: the
-hook extracts the scanner from `$stack_baseline`, as `sync-hooks --check`
+hook extracts the scanner from `$stack_baseline `, as `sync-hooks --check`
 already does.
 
 ## Finding 2026-09-25: cfd-math `ParallelAssembly::from_elements` is dead public surface
