@@ -51,15 +51,20 @@ Regeneration can fail closed for packages whose source depends on uncommitted
 or externally generated content, and nonreproducible historical archives do
 not qualify for a skip even if their source trees appear equal.
 
-The new leaf uses real Git/Cargo workspace packages, computed archive checksums,
+The test leaves use real Git/Cargo workspace packages, computed archive checksums,
 registry transport boundaries and raw stdlib HTTPResponse framing. It covers absence,
 identity, byte/VCS differences, different commits with equal source trees,
 registry failures and unknown workflow decisions. The baseline wiring test
 fails on unconditional authentication; helper imports are not the red proof.
 Independent exact-head review and real saved/public registry artifact checks
 remain acceptance requirements; raw private receipts accompany the candidate.
-No push, PR, merge, tag, workflow dispatch, registry authentication/upload,
-credential, permission, legal or security setting change is performed here.
+PR #547 carries the implementation; final-head hosted acceptance remains open.
+Immutable comparison commits are fetched from origin without object filtering
+into a separate bare store. A local commit probe cannot prove a blobless
+checkout can serve its promised blobs. Real shallow and full-depth blobless
+fixtures verify exact comparison bytes and unchanged checkout objects/refs/config.
+The Git history leaf is `scripts/tests/test_crates_release_identity_history.py`;
+the publication-decision leaf imports its shared Git fixtures.
 
 ## Owning repository and private acceptance checklist
 
@@ -72,7 +77,7 @@ pin; no Horae checkout, provider store or pending-publisher lane changes here.
 - [x] Preserve current validation, caller SemVer policy, permission scopes and upload command.
 - [x] Reproduce unconditional authentication and exercise complete archive/source and HTTP boundaries.
 - [ ] Finish final-head local checks, independent review and saved/public artifact compatibility.
-- [ ] Obtain separate authorization for any later public action or caller-pin adoption.
+- [ ] Complete separate final-head caller, publication and deployment gates before adoption.
 
 The default sandbox denies loopback listeners. The earlier scoped approved
 local TCP run passes55 cases before later task steering. Final proofs retain

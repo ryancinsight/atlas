@@ -5,8 +5,9 @@
 - [patch] Verify complete crate archive and exact clean VCS identity before a
   GitHub Release retry can skip both authentication and upload. Consistent
   exact-version absence retains the existing publish path; ambiguous registry
-  results fail closed. Private candidate; independent review/public acceptance
-  remain pending. Existing validation, SemVer policy and credentials are unchanged.
+  results fail closed. PR #547 remains gated; immutable comparison fixtures use
+  a separate unfiltered origin store for shallow and blobless checkouts.
+  Existing validation, SemVer policy and credentials are unchanged.
 
 - [minor] Add opt-in exact package/version cohorts to pending publication.
   Explicit `{}` leaves installation unarmed; planning, publish and tagging
