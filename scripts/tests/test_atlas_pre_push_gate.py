@@ -26,6 +26,7 @@ import tomllib
 import unittest
 import weakref
 
+from readonly_tree import clear_readonly_tree
 from identity_fixture import PASSTHROUGH_IDENTITY
 
 SCRIPT = (
@@ -187,6 +188,18 @@ _LOCK_READING_CHECKER = (
 )
 
 
+def _remove_tree(path: str) -> None:
+    """Remove a temporary tree, read-only entries included.
+
+    `clear_readonly_tree` makes the entries writable first, so the refusal
+    that `shutil.rmtree(..., ignore_errors=True)` swallowed does not leave
+    the tree behind (ATLAS-TEST-TEMPDIR-LEAKS). A tree a live process still
+    holds cannot be removed at all: the exception the finalizer reports is
+    the only signal that it is still there.
+    """
+    clear_readonly_tree(pathlib.Path(path))
+
+
 class GateFixture:
     """A member-like git repo with a stub toolchain; `in_stack` adds the
     stack's lockfile checker."""
@@ -206,7 +219,14 @@ class GateFixture:
         # sits outside the fixture, as the host's does outside a stack: an
         # export under the stack would read the stack's own cargo config.
         self.tmp: pathlib.Path = pathlib.Path(tempfile.mkdtemp(prefix="gate-tmp-")).resolve()
-        weakref.finalize(self, shutil.rmtree, str(self.tmp), True)
+        # The removal makes the entries writable first: the hook's export
+        # holds read-only Git objects, and `shutil.rmtree(..., True)` --
+        # ignore_errors -- swallowed the refusal to delete them, so the tree
+        # stayed under the host's temporary directory
+        # (ATLAS-TEST-TEMPDIR-LEAKS). A tree a live process still holds
+        # cannot be removed at all, and the finalizer reports that rather
+        # than leaving it silently.
+        weakref.finalize(self, _remove_tree, str(self.tmp))
         self.lockfile_calls: pathlib.Path = root / "lockfile-calls.log"
         self.stack: pathlib.Path = root.parent.parent
         self.layout = layout

@@ -14,6 +14,20 @@
   with `cargo metadata` down from 62 calls to 4. A new test file pins the
   contract. Recorded under ATLAS-IDENTITY-SUITE-RUNTIME.
 
+- Stop the Atlas Python fixtures from leaking directories under the OS temp
+  directory: every `mkdtemp` fixture in `scripts/tests/` now removes its tree
+  through the shared read-only-safe helper instead of
+  `shutil.rmtree(ignore_errors=True)` — which swallowed the refusal to
+  delete a fixture's read-only Git objects — or no cleanup at all. That
+  covers the CRLF detector's repository fixture, the safety census's
+  repository fixture, the build-claim and queue-order fixtures, the
+  shared-target fixture whose cleanup was a no-op, and the lockfile
+  checker's symlink fixture. A new oracle,
+  `scripts/tests/test_atlas_tempdir_leaks.py`, runs those fixture suites and
+  asserts the owned prefixes' directory set is unchanged afterward; it is
+  not vacuous, since with one cleanup reverted it fails and names the
+  leaked trees. Recorded under ATLAS-TEST-TEMPDIR-LEAKS.
+
 - [minor] Add opt-in exact package/version cohorts to pending publication.
   Explicit `{}` leaves installation unarmed; planning, publish and tagging
   cannot expand into unrelated pending versions. Existing verification,

@@ -15,6 +15,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+from readonly_tree import clear_readonly_tree
+
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas-conformance.py"
 SPEC = importlib.util.spec_from_file_location("atlas_conformance", SCRIPT)
@@ -2507,7 +2509,10 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
         self, attributes: str | None, extra: dict[str, bytes] | None = None
     ) -> Path:
         root = Path(tempfile.mkdtemp(prefix="crlf-detector-"))
-        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        # The fixture's own objects are read-only, and `ignore_errors=True`
+        # swallowed the refusal to delete them: the tree stayed under the OS
+        # temp directory (ATLAS-TEST-TEMPDIR-LEAKS).
+        self.addCleanup(clear_readonly_tree, root)
         # Identity travels with the command, not the machine: CI runners
         # carry no global git identity, so a bare `commit` fails there
         # while passing on any developer box.
