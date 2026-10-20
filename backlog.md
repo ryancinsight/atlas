@@ -87,7 +87,7 @@
 <a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
 <a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the bump guard and require it [patch] — todo
 <a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
-<a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
+<a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo; release retry identity [private review](docs/pr/crate-release-identity.md)
 <a id="atlas-publish-001-book-mdbook-test-001"></a>- [ATLAS-PUBLISH-001-BOOK-MDBOOK-TEST-001](backlog/atlas-publish-001-book-mdbook-test-001.md) — Cross-book `mdbook test` gate alignment [patch] — blocked
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked
 <a id="atlas-published-git-dep-rot-001"></a>- [ATLAS-PUBLISHED-GIT-DEP-ROT-001](backlog/atlas-published-git-dep-rot-001.md) — Published members carry floating git deps that rot every fresh resolution [arch] — todo
@@ -97,7 +97,6 @@
 <a id="atlas-root-conformance-materialize-crash"></a>- [ATLAS-ROOT-CONFORMANCE-MATERIALIZE-CRASH](backlog/atlas-root-conformance-materialize-crash.md) — The checker crashes materializing the root repo on Windows [correctness] — todo
 <a id="atlas-runner-capacity-001"></a>- [ATLAS-RUNNER-CAPACITY-001](backlog/atlas-runner-capacity-001.md) — Size runner slots to fleet width [infra] [patch] — todo
 <a id="atlas-runner-starvation-2026-09-02"></a>- [ATLAS-RUNNER-STARVATION-2026-09-02](backlog/atlas-runner-starvation-2026-09-02.md) — Hosted runner queue starves every verification run [infra] — todo
-<a id="atlas-release-publish-identity"></a>- [ATLAS-RELEASE-PUBLISH-IDENTITY](backlog/atlas-release-publish-identity.md) — Verify duplicate release publication [patch] — private review
 <a id="atlas-secret-scan-allowlist-source"></a>- [ATLAS-SECRET-SCAN-ALLOWLIST-SOURCE](backlog/atlas-secret-scan-allowlist-source.md) — Read the secret allowlist from a trusted revision [patch] — todo
 <a id="atlas-shared-tree-stale-basis-2026-09-17"></a>- [ATLAS-SHARED-TREE-STALE-BASIS-2026-09-17](backlog/atlas-shared-tree-stale-basis-2026-09-17.md) — Reconcile the checkout and finish its stale-index guard [patch] — todo
 <a id="sibling-named-crates"></a>- [ATLAS-SIBLING-NAMED-CRATES-2026-09-04](backlog/sibling-named-crates.md) — Nine crates are named after a sibling member, not a concern [arch] [major] — todo

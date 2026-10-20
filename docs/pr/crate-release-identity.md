@@ -52,7 +52,7 @@ or externally generated content, and nonreproducible historical archives do
 not qualify for a skip even if their source trees appear equal.
 
 The new leaf uses real Git/Cargo workspace packages, computed archive checksums,
-local HTTP boundaries and raw stdlib HTTPResponse framing. It covers absence,
+registry transport boundaries and raw stdlib HTTPResponse framing. It covers absence,
 identity, byte/VCS differences, different commits with equal source trees,
 registry failures and unknown workflow decisions. The baseline wiring test
 fails on unconditional authentication; helper imports are not the red proof.
@@ -60,3 +60,23 @@ Independent exact-head review and real saved/public registry artifact checks
 remain acceptance requirements; raw private receipts accompany the candidate.
 No push, PR, merge, tag, workflow dispatch, registry authentication/upload,
 credential, permission, legal or security setting change is performed here.
+
+## Owning repository and private acceptance checklist
+
+Atlas owns this reusable workflow and composite action. Horae only selects an
+immutable Atlas recipe; its source correction cannot fix shared publisher
+control flow. This candidate changes only that Atlas publisher, its new action,
+test leaf and records. Future caller adoption needs its own reviewed immutable
+pin; no Horae checkout, provider store or pending-publisher lane changes here.
+
+- [x] Preserve current validation, caller SemVer policy, permission scopes and upload command.
+- [x] Reproduce unconditional authentication and exercise complete archive/source and HTTP boundaries.
+- [ ] Finish final-head local checks, independent review and saved/public artifact compatibility.
+- [ ] Obtain separate authorization for any later public action or caller-pin adoption.
+
+The default sandbox denies loopback listeners. The earlier scoped approved
+local TCP run passes55 cases before later task steering. Final proofs retain
+all decision assertions and feed raw wire bytes through the real stdlib HTTP
+parser at the transport boundary, with no listener or permission expansion.
+Full-stack baseline fixture/store failures are separate from guard correctness;
+the private receipt identifies executed, baseline-failing and blocked checks.
