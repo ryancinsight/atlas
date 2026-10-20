@@ -6,4 +6,4 @@
 - priority: tightening
 - needs: none
 - scope: atlas `.cargo/config.toml` only.
-- **Blocked 2026-10-19:** the rename cannot land alone. At the recorded coeus gitlink (3ea49578, pre-rename) a `coeus-cpu` row dangles, so the overlay freshness gate fails; advancing the coeus gitlink in the same commit trips pin drift in every member still locked at 0.10. Re-open after ATLAS-VERSION-COHERENCE-SWEEP advances the full cohort and its locks.
+- **Re-opened 2026-10-20:** the recorded blocker is gone. The coeus pin advanced to `e8b429ffd8` (post-rename) in [atlas#550](https://github.com/ryancinsight/atlas/pull/550), so a `coeus-cpu` row no longer dangles. The dead `coeus-leto` mapping is what fails every cargo command beneath the stack root, and [atlas#551](https://github.com/ryancinsight/atlas/pull/551) regenerates the overlay so the dead row is gone. The generator still drops the rows whose local tree cannot satisfy a lagging consumer's requirement, so the `coeus-cpu` row this item's oracle asks for waits on ATLAS-VERSION-COHERENCE-SWEEP advancing the consumers and their locks.
