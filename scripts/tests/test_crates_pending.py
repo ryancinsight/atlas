@@ -786,7 +786,7 @@ class ActionScriptTests(unittest.TestCase):
             env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ["PATH"], STUB_DIR=tmp,
                        STUB_EXIT=str(exit_code), COMMAND=command, GITHUB_ACTION_PATH="/action",
                        GITHUB_SHA="sha-value", GITHUB_REPOSITORY="owner/repo",
-                       PACKAGES=inputs.get("packages", ""), OWNER=inputs.get("owner", ""),
+                       PACKAGES=inputs.get("packages", ""), OWNER=inputs.get("owner", ""), COHORT_JSON=inputs.get("cohort_json", ""),
                        TAG_PREFIX=inputs.get("tag_prefix", ""), PUBLISH_OUTCOME=inputs.get("publish_outcome", ""))
             proc = subprocess.run(["bash", script], env=env, capture_output=True, text=True)
             argv_file = os.path.join(tmp, "argv")
@@ -818,7 +818,7 @@ class ActionScriptTests(unittest.TestCase):
         self.assertEqual(strip(action["inputs"]), {
             "command": {"required": True},
             "packages": {"required": False, "default": ""},
-            "owner": {"required": False, "default": "ryancinsight"},
+            "owner": {"required": False, "default": "ryancinsight"}, "cohort-json": {"required": False, "default": ""},
             "tag-prefix": {"required": False, "default": "crate-"},
             "publish-outcome": {"required": False, "default": ""}})
         self.assertEqual(strip(action["outputs"]), {
@@ -831,7 +831,7 @@ class ActionScriptTests(unittest.TestCase):
     def test_the_step_maps_its_environment_from_the_inputs(self) -> None:
         self.assertEqual(self.step["env"], {
             "COMMAND": "${{ inputs.command }}", "PACKAGES": "${{ inputs.packages }}",
-            "OWNER": "${{ inputs.owner }}", "TAG_PREFIX": "${{ inputs.tag-prefix }}",
+            "OWNER": "${{ inputs.owner }}", "COHORT_JSON": "${{ inputs.cohort-json }}", "TAG_PREFIX": "${{ inputs.tag-prefix }}",
             "PUBLISH_OUTCOME": "${{ inputs.publish-outcome }}", "GH_TOKEN": "${{ github.token }}"})
 
 

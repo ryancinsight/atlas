@@ -12,6 +12,14 @@ Unknown or inconsistent results fail closed. Independent review and exact-head
 acceptance remain open; pending publisher/SemVer owner files are untouched.
 See [bounded design](docs/pr/crate-release-identity.md); no public action occurs.
 
+## Finding 2026-10-16: pending publication has no package scope
+
+Risk: an unrelated main merge can release an existing pending cohort. Evidence:
+RITK's exact pinned selector returns 29 owned versions; an unrelated member
+passes package verification. Check: explicit cohort identity/subset regressions
+and empty-installation execution in ATLAS-PUB-EXPLICIT-COHORT-001. Owner: PR544;
+Atlas acceptance awaits full gates; RITK adoption separately needs a coherent graph.
+
 ## Finding 2026-10-05: path-package identity follows repository revision
 
 Risk: an unrelated commit can invalidate unchanged path-package records and trigger shared-target cleaning. Evidence: `atlas_build_inputs.py` assigns every path package one repository identity, and a clean tree's identity includes that repository's commit revision; observed contention is consistent with this static mechanism, but no benchmark attributes its runtime share. A replacement fingerprint must retain workspace/config, external, build-script, and Git-derived inputs rather than hashing `src/` alone. Owner: none. Re-open: a measured build-input redesign item is claimed.

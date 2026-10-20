@@ -142,6 +142,28 @@ class RegenerateAdvancesNoPinTests(unittest.TestCase):
         self.assertTrue(locked["moving"].endswith("#" + self.pinned), locked["moving"])
         self.assertFalse(locked["moving"].endswith("#" + self.tip), "the pin advanced")
 
+    def test_regenerate_refuses_a_nested_lock_it_cannot_repair(self) -> None:
+        """Repairing the root lock must not report success while a nested lock
+        remains flattened (K14)."""
+        nested = self.consumer / "nested"
+        (nested / "src").mkdir(parents=True)
+        (nested / "src" / "lib.rs").write_text("", encoding="utf-8", newline="\n")
+        (nested / "Cargo.toml").write_text(
+            '[package]\nname = "nested"\nversion = "0.1.0"\nedition = "2021"\n\n'
+            "[dependencies]\n"
+            f'stable = {{ git = "{self.stable.as_uri()}" }}\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        (nested / "Cargo.lock").write_text(
+            '[[package]]\nname = "stable"\nversion = "0.1.0"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        completed = self.run_script("--regenerate")
+        self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+        self.assertIn("nested/Cargo.lock: `stable` locked without a git source", completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

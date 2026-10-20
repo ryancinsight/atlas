@@ -97,6 +97,44 @@ def publishable(package: dict) -> bool:
     return registries is None or "crates-io" in registries
 
 
+def parse_cohort(text: str) -> dict[str, str]:
+    """An explicit, flat package/version map; JSON null never means all packages."""
+    def unique(pairs):
+        result = {}
+        for name, version in pairs:
+            if name in result:
+                raise ValueError(f"duplicate cohort package: {name}")
+            result[name] = version
+        return result
+
+    try:
+        cohort = json.loads(text, object_pairs_hook=unique)
+    except ValueError as error:
+        raise SystemExit(f"invalid release cohort: {error}") from error
+    if not isinstance(cohort, dict) or any(
+        not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", name)
+        or not isinstance(version, str) or not version
+        for name, version in cohort.items()
+    ):
+        raise SystemExit("release cohort must map Cargo package names to nonempty version strings")
+    return cohort
+
+
+def cohort_packages(packages: list[dict], cohort: dict[str, str] | None,
+                    names: list[str] | None = None) -> list[dict]:
+    """Validate the whole selection before any registry, upload, or release operation."""
+    if cohort is None:
+        return packages
+    by_name = {package["name"]: package for package in packages}
+    for name, version in cohort.items():
+        package = by_name.get(name)
+        if package is None or not publishable(package) or package["version"] != version:
+            raise SystemExit(f"release cohort does not match publishable manifest identity: {name}@{version}")
+    if names is not None and (len(names) != len(set(names)) or any(name not in cohort for name in names)):
+        raise SystemExit("planned packages must be a unique subset of the explicit release cohort")
+    return [package for package in packages if package["name"] in cohort]
+
+
 @dataclass
 class Plan:
     pending: list[str] = field(default_factory=list)
@@ -236,9 +274,13 @@ def write_outputs(values: dict[str, str]) -> None:
 
 
 def command_plan(owner: str, fetch: Fetch = http_get, runner: Run = run,
-                 sleep: Callable[[float], None] = time.sleep) -> dict[str, str]:
+                 sleep: Callable[[float], None] = time.sleep, *,
+                 cohort: dict[str, str] | None = None) -> dict[str, str]:
+    if cohort == {}:
+        return {"count": "0"}
     workspace = metadata(runner)
-    plan = select(workspace, owner, fetch, sleep)
+    selected = cohort_packages(workspace["packages"], cohort)
+    plan = select({"packages": selected}, owner, fetch, sleep)
     for notice in plan.notices:
         print(f"::notice::{notice}")
     for warning in plan.warnings:
@@ -256,8 +298,11 @@ def command_plan(owner: str, fetch: Fetch = http_get, runner: Run = run,
     return {"packages": ",".join(ready), "count": str(len(ready))}
 
 
-def command_publish(names: list[str], fetch: Fetch = http_get, runner: Run = run) -> None:
-    versions = {p["name"]: p["version"] for p in metadata(runner)["packages"]}
+def command_publish(names: list[str], fetch: Fetch = http_get, runner: Run = run, *,
+                    cohort: dict[str, str] | None = None) -> None:
+    packages = metadata(runner)["packages"]
+    cohort_packages(packages, cohort, names)
+    versions = {p["name"]: p["version"] for p in packages}
     remaining = still_pending(names, versions, fetch)
     if not remaining:
         print("::notice::every planned version is already on crates.io")
@@ -293,8 +338,11 @@ def indexed_after_publish(names: list[str], versions: dict[str, str], published:
 
 def command_tag(names: list[str], prefix: str, sha: str, repo: str, published: bool,
                 fetch: Fetch = http_get, runner: Run = run,
-                sleep: Callable[[float], None] = time.sleep) -> None:
-    versions = {p["name"]: p["version"] for p in metadata(runner)["packages"]}
+                sleep: Callable[[float], None] = time.sleep, *,
+                cohort: dict[str, str] | None = None) -> None:
+    packages = metadata(runner)["packages"]
+    cohort_packages(packages, cohort, names)
+    versions = {p["name"]: p["version"] for p in packages}
     for name in indexed_after_publish(names, versions, published, fetch, sleep):
         version = versions[name]
         tag = f"{prefix}{name}-v{version}"
@@ -326,14 +374,17 @@ def main(argv: list[str] | None = None) -> int:
     tag.add_argument("--repo", required=True)
     tag.add_argument("--publish-outcome", required=True,
                      help="outcome of the publish step: success means every version must be indexed")
+    for command in (plan, publish, tag):
+        command.add_argument("--cohort-json", help="Exact package/version JSON object; {} publishes nothing")
     args = parser.parse_args(argv)
+    scope = {} if args.cohort_json is None else {"cohort": parse_cohort(args.cohort_json)}
     if args.command == "plan":
-        write_outputs(command_plan(args.owner))
+        write_outputs(command_plan(args.owner, **scope))
     elif args.command == "publish":
-        command_publish(args.packages.split(","))
+        command_publish(args.packages.split(","), **scope)
     else:
         command_tag(args.packages.split(","), args.prefix, args.sha, args.repo,
-                    args.publish_outcome == "success")
+                    args.publish_outcome == "success", **scope)
     return 0
 
 

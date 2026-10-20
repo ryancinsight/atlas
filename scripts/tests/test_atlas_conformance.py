@@ -30,6 +30,20 @@ def _write(root: Path, rel: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+LOCKFILE_CHECKER = (
+    "def check_staged() -> int:\n"
+    "    return 0\n\n"
+    "USAGE = '--check-staged'\n"
+)
+LEGACY_LOCKFILE_CHECKER = (
+    "def check() -> int:\n"
+    "    return 0\n\n"
+    "def regenerate() -> int:\n"
+    "    return 0\n\n"
+    "LOCKFILE = 'Cargo.lock'\n"
+)
+
+
 class AtlasConformanceTestCase(unittest.TestCase):
     def test_untracked_git_timeout_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -482,8 +496,40 @@ class AtlasConformanceTestCase(unittest.TestCase):
             root = Path(temp)
             _write(root, "Cargo.toml", "[workspace]\n")
             self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 0)
-            _write(root, "scripts/lockfile.py", "print('check')\n")
+            _write(root, "scripts/lockfile.py", LOCKFILE_CHECKER)
             self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 1)
+
+    def test_a_checker_moved_to_another_directory_is_counted(self) -> None:
+        """Moving the copy must not lower the ratchet; only deleting it can."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "tools/checks/lock_check.py", LOCKFILE_CHECKER)
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 1)
+
+    def test_a_renamed_checker_is_counted(self) -> None:
+        """The file name is not the identity; the checker's content is."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "scripts/check_lockfiles.py", LOCKFILE_CHECKER)
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 1)
+
+    def test_a_checker_without_the_staged_entry_point_is_counted(self) -> None:
+        """Iris's older copy has only the check/regenerate pair; it is still a
+        copy, and the baseline's 28th row must not read 0."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "scripts/lockfile.py", LEGACY_LOCKFILE_CHECKER)
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 1)
+
+    def test_a_file_quoting_the_flag_without_implementing_it_is_not_counted(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "scripts/tests/test_lockfile.py", "USAGE = '--check-staged'\n")
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 0)
 
     def test_the_recorded_content_decides_whether_a_copy_exists(self) -> None:
         """A checkout behind or ahead of its gitlink carries a different set of
@@ -493,10 +539,10 @@ class AtlasConformanceTestCase(unittest.TestCase):
             live = Path(temp) / "live"
             for root in (snapshot, live):
                 _write(root, "Cargo.toml", "[workspace]\n")
-            _write(snapshot, "scripts/lockfile.py", "print('recorded')\n")
+            _write(snapshot, "scripts/lockfile.py", LOCKFILE_CHECKER)
             counts = conformance.scan_repo(snapshot, live_repo=live)
             self.assertEqual(counts["member_lockfile_copies"], 1)
-            _write(live, "scripts/lockfile.py", "print('live')\n")
+            _write(live, "scripts/lockfile.py", LOCKFILE_CHECKER)
             (snapshot / "scripts" / "lockfile.py").unlink()
             counts = conformance.scan_repo(snapshot, live_repo=live)
             self.assertEqual(counts["member_lockfile_copies"], 0)

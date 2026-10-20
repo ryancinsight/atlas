@@ -26,17 +26,17 @@ SPEC.loader.exec_module(lockfile)
 class ManifestPathTests(unittest.TestCase):
     def setUp(self) -> None:
         self.argv: list[list[str]] = []
-        self.original_run = lockfile.subprocess.run
+        self.original_run = lockfile.run_bounded
         self.original_manifest = lockfile.MANIFEST
 
         def fake_run(command, **_kwargs):
             self.argv.append(list(command))
             return subprocess.CompletedProcess(command, 0, "", "")
 
-        lockfile.subprocess.run = fake_run
+        lockfile.run_bounded = fake_run
 
     def tearDown(self) -> None:
-        lockfile.subprocess.run = self.original_run
+        lockfile.run_bounded = self.original_run
         lockfile.MANIFEST = self.original_manifest
 
     def _manifest_argument(self) -> str:

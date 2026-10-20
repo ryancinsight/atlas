@@ -103,10 +103,10 @@ from atlas_git_process import (  # noqa: E402
     GitProcessError,
     archive as git_archive,
     execute as execute_git,
-    execute_process,
     extract_archive,
 )
 from atlas_stack import ROOT, load_sibling  # noqa: E402
+from lockfile import CargoDeadlineExceeded, run_outside_the_overlay  # noqa: E402
 
 
 # The registry index reader and the publishable-set rule are the push-mode planner's:
@@ -130,7 +130,6 @@ TRANSPORT_BACKOFF_SECONDS = 2.0
 CRATE_URL = "https://static.crates.io/crates/{name}/{name}-{version}.crate"
 HTTP_TIMEOUT_SECONDS = 120.0
 GIT_TIMEOUT_SECONDS = 300
-CARGO_TIMEOUT_SECONDS = 600
 DEFAULT_JOBS = 4
 # Private ref a missing default tip is fetched into: never a remote-tracking ref
 # (ATLAS-ORIGIN-REF-CLOBBER-2026-09-21, scripts/atlas-refspec-guard.py).
@@ -382,26 +381,6 @@ def measure_crate(name: str, version: str, manifest: str, package_dir: Path,
                         latest, drift)
 
 
-def run_cargo_metadata(manifest: Path) -> dict:
-    """`cargo metadata --no-deps` from a directory outside every stack and member config.
-
-    Cargo resolves `.cargo/config.toml` and `rust-toolchain.toml` from the working
-    directory, never from `--manifest-path`; a neutral directory excludes the stack's
-    overlay and its toolchain pin, neither of which the manifests alone need.
-    """
-    with tempfile.TemporaryDirectory(prefix="atlas-published-drift-cwd-") as neutral:
-        result = execute_process(
-            ("cargo", "metadata", "--no-deps", "--format-version", "1",
-             "--manifest-path", str(manifest)),
-            cwd=Path(neutral),
-            timeout=CARGO_TIMEOUT_SECONDS,
-        )
-    if result.returncode:
-        detail = result.stderr.decode("utf-8", errors="replace").strip()
-        raise MeasurementError(f"cargo metadata failed for {manifest}: {detail}")
-    return json.loads(result.stdout.decode("utf-8"))
-
-
 @dataclass
 class MemberReading:
     name: str
@@ -439,7 +418,20 @@ def export_revision(label: str, repo: Path, revision: str, root: Path) -> dict:
     manifest = root / "Cargo.toml"
     if not manifest.is_file():
         raise MeasurementError(f"{label}: no root Cargo.toml at {revision}")
-    return run_cargo_metadata(manifest)
+    try:
+        result = run_outside_the_overlay(
+            ["metadata", "--no-deps", "--format-version", "1"], manifest=manifest
+        )
+    except CargoDeadlineExceeded as error:
+        raise MeasurementError(
+            f"{label}: cargo metadata did not finish within {error.timeout:g}s: "
+            f"{(error.stderr or '').strip()}"
+        ) from error
+    if result.returncode:
+        raise MeasurementError(
+            f"cargo metadata failed for {manifest}: {result.stderr.strip()}"
+        )
+    return json.loads(result.stdout)
 
 
 def publishable_packages(metadata: dict, root: Path) -> list[Package]:
