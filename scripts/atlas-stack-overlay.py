@@ -30,9 +30,10 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 import tomllib
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lockfile  # noqa: E402
@@ -108,26 +109,188 @@ def repo_manifests() -> list[Path]:
     return sorted(manifests)
 
 
-def load_packages() -> dict[str, tuple[Path, str | None]]:
-    """Map local package name -> (path relative to ATLAS_ROOT, version)."""
+def member_pins() -> dict[str, str]:
+    """The gitlink commit each member is recorded at, keyed by member name.
+
+    Read from the Atlas index rather than from any member's own remote, so
+    the answer is the reproducible revision the stack records and not
+    whatever a developer happens to have fetched.
+    """
+    return _gitlinks("HEAD")
+
+
+def _gitlinks(ref: str) -> dict[str, str]:
+    """The gitlink commits recorded at ``ref``, keyed by member name."""
+    proc = subprocess.run(
+        ["git", "ls-tree", ref, "repos/"],
+        cwd=ATLAS_ROOT,
+        capture_output=True,
+        text=True,
+        errors="replace",
+    )
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        raise SystemExit(f"git ls-tree failed for the recorded gitlinks: {detail}")
+    pins: dict[str, str] = {}
+    for line in proc.stdout.splitlines():
+        meta, _, path = line.partition("\t")
+        fields = meta.split()
+        if len(fields) < 3 or fields[1] != "commit":
+            continue
+        member = PurePosixPath(path).name
+        if member:
+            pins[member] = fields[2]
+    return pins
+
+
+def member_tips() -> dict[str, str]:
+    """The commit each member's fetched default branch points at.
+
+    This is what a gitlink advance would record. Reading the stack at these
+    revisions measures the provider graph the members have actually
+    published, rather than the one the parent repository happens to pin.
+    """
+    tips: dict[str, str] = {}
+    for member in sorted(registered_member_names()):
+        member_root = REPOS / member
+        if not member_root.is_dir():
+            continue
+        rc, ref, _ = _git(member_root, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+        default = PurePosixPath(ref).name if rc == 0 and ref else "main"
+        rc, sha, _ = _git(member_root, "rev-parse", f"origin/{default}")
+        if rc != 0 or not sha:
+            continue
+        tips[member] = sha
+    return tips
+
+
+def _git(repo: Path, *args: str) -> tuple[int, str, str]:
+    proc = subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        errors="replace",
+    )
+    return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
+
+
+def _pinned_manifests(pins: dict[str, str]) -> list[tuple[Path, str]]:
+    """Every member manifest as the recorded gitlink commit holds it.
+
+    The paths come from ``git ls-tree`` and the bytes from
+    ``git cat-file --batch``, with no checkout and no temporary tree, so a
+    generation taken here is the same whichever branch a developer has
+    parked a member on. A failed listing raises rather than yielding an
+    empty set: a member that cannot be read must leave the overlay
+    incomplete and loud, never quietly absent.
+    """
+    manifests: list[tuple[Path, str]] = []
+    for member in sorted(registered_member_names()):
+        member_root = REPOS / member
+        if not member_root.is_dir():
+            continue
+        pin = pins.get(member)
+        if pin is None:
+            raise SystemExit(
+                f"member {member!r} has no recorded gitlink; "
+                "the stack overlay cannot be generated from pins"
+            )
+        listing = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", pin],
+            cwd=member_root,
+            capture_output=True,
+            text=True,
+            errors="replace",
+        )
+        if listing.returncode != 0:
+            detail = (listing.stderr or listing.stdout or "").strip()
+            raise SystemExit(
+                f"git ls-tree failed for member {member!r} at {pin} "
+                f"(exit {listing.returncode}): {detail}"
+            )
+        paths = [
+            name
+            for name in listing.stdout.splitlines()
+            if name.endswith("Cargo.toml") and not _skip(PurePosixPath(name))
+        ]
+        if not paths:
+            continue
+        blobs = subprocess.run(
+            ["git", "cat-file", "--batch"],
+            cwd=member_root,
+            input="".join(f"{pin}:{name}\n" for name in paths).encode(),
+            capture_output=True,
+        )
+        texts = _batch_blobs(blobs.stdout, len(paths))
+        for name, text in zip(paths, texts):
+            rel = Path("repos") / member / PurePosixPath(name).parent
+            manifests.append((rel, text))
+    return sorted(manifests)
+
+
+def _batch_blobs(stream: bytes, count: int) -> list[str]:
+    """Split a ``git cat-file --batch`` stream into ``count`` payloads."""
+    payloads: list[str] = []
+    rest = stream
+    while len(payloads) < count:
+        header, sep, rest = rest.partition(b"\n")
+        if not sep:
+            break
+        fields = header.split()
+        if len(fields) < 3:
+            raise SystemExit(f"git cat-file --batch returned an unreadable header: {header!r}")
+        size = int(fields[2])
+        payloads.append(rest[:size].decode("utf-8", errors="replace"))
+        rest = rest[size + 1 :]
+    if len(payloads) != count:
+        raise SystemExit(
+            f"git cat-file --batch returned {len(payloads)} of {count} requested blobs"
+        )
+    return payloads
+
+
+def read_manifests(pinned: bool, tips: bool = False) -> list[tuple[Path, str]]:
+    """Every member manifest, as ``(path relative to the root, text)``.
+
+    The default reads the working tree; ``pinned`` reads the recorded
+    gitlink commits and ``tips`` the members' fetched default branches.
+    All three feed the same generator, so a generation is reproducible from
+    the recorded stack without a checkout.
+    """
+    if tips:
+        return _pinned_manifests(member_tips())
+    if pinned:
+        return _pinned_manifests(member_pins())
+    manifests: list[tuple[Path, str]] = []
+    for manifest in repo_manifests():
+        try:
+            text = manifest.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        manifests.append((manifest.parent.relative_to(ATLAS_ROOT), text))
+    return sorted(manifests)
+
+
+def load_packages(
+    manifests: list[tuple[Path, str]],
+) -> dict[str, tuple[Path, str | None]]:
     packages: dict[str, tuple[Path, str | None]] = {}
     workspace_versions: dict[Path, str] = {}
 
-    manifests = repo_manifests()
-
-    for manifest in sorted(set(manifests)):
+    for rel, text in manifests:
         try:
-            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, OSError):
+            data = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
             continue
         ws = data.get("workspace", {}).get("package", {})
         if "version" in ws:
-            workspace_versions[manifest.parent] = ws["version"]
+            workspace_versions[rel] = ws["version"]
 
-    for manifest in sorted(set(manifests)):
+    for rel, text in manifests:
         try:
-            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, OSError):
+            data = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
             continue
         pkg = data.get("package")
         if not pkg or "name" not in pkg:
@@ -136,11 +299,10 @@ def load_packages() -> dict[str, tuple[Path, str | None]]:
         if isinstance(version, dict) and version.get("workspace"):
             version = None
             for root, ver in workspace_versions.items():
-                if root == manifest.parent or root in manifest.parents:
+                if root == rel or root in rel.parents:
                     version = ver
         if not isinstance(version, str):
             version = None
-        rel = manifest.parent.relative_to(ATLAS_ROOT)
 
         packages[pkg["name"]] = (rel, version)
     return packages
@@ -150,18 +312,18 @@ def normalize_url(url: str) -> str:
     return url.rstrip("/")
 
 
-def collect_first_party_deps() -> list[tuple[str, str, str | None, Path]]:
+def collect_first_party_deps(
+    manifests: list[tuple[Path, str]],
+) -> list[tuple[str, str, str | None, Path]]:
     """Every first-party git dependency declared anywhere in the stack.
 
     Returns (package name, git url, version requirement or None, manifest).
     """
     found: list[tuple[str, str, str | None, Path]] = []
-    manifests = repo_manifests()
-
-    for manifest in sorted(set(manifests)):
+    for rel, text in manifests:
         try:
-            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, OSError):
+            data = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
             continue
         for table in lockfile.dependency_tables(data):
             for name, spec in table.items():
@@ -171,7 +333,7 @@ def collect_first_party_deps() -> list[tuple[str, str, str | None, Path]]:
                 if not isinstance(url, str) or FIRST_PARTY_HOST not in url:
                     continue
                 pkg = spec.get("package", name)
-                found.append((pkg, normalize_url(url), spec.get("version"), manifest))
+                found.append((pkg, normalize_url(url), spec.get("version"), rel))
     return found
 
 
@@ -183,6 +345,7 @@ def package_repo(path: Path) -> Path:
 
 def local_dependency_lags(
     packages: dict[str, tuple[Path, str | None]],
+    manifests: list[tuple[Path, str]],
 ) -> dict[Path, set[str]]:
     """Find local provider repositories with incompatible workspace edges.
 
@@ -192,19 +355,24 @@ def local_dependency_lags(
     graph. Leave the whole repository on Git until its workspace requirements
     advance together.
     """
+    index = {rel: text for rel, text in manifests}
     lags: dict[Path, set[str]] = {}
     for _package, (relative, _version) in packages.items():
-        manifest = ATLAS_ROOT / relative / "Cargo.toml"
+        own = index.get(relative)
+        if own is None:
+            continue
         try:
-            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, OSError):
+            data = tomllib.loads(own)
+        except tomllib.TOMLDecodeError:
             continue
         workspace_dependencies: dict = {}
-        for parent in (manifest.parent, *manifest.parents):
-            root_manifest = parent / "Cargo.toml"
+        for parent in (relative, *relative.parents):
+            text = index.get(parent)
+            if text is None:
+                continue
             try:
-                root_data = tomllib.loads(root_manifest.read_text(encoding="utf-8"))
-            except (tomllib.TOMLDecodeError, OSError):
+                root_data = tomllib.loads(text)
+            except tomllib.TOMLDecodeError:
                 continue
             workspace = root_data.get("workspace", {})
             if isinstance(workspace, dict) and isinstance(
@@ -242,6 +410,7 @@ def local_dependency_lags(
 
 def build_overlay(
     packages: dict[str, tuple[Path, str | None]],
+    manifests: list[tuple[Path, str]],
 ) -> tuple[str, list[str], list[str]]:
     """Emit the `[patch]` block, grouping local packages under each git URL.
 
@@ -263,10 +432,10 @@ def build_overlay(
     lag: list[str] = []
 
     reqs_by_pkg: dict[str, dict[str, list[str | None]]] = {}
-    for pkg, url, req, _manifest in collect_first_party_deps():
+    for pkg, url, req, _manifest in collect_first_party_deps(manifests):
         reqs_by_pkg.setdefault(pkg, {}).setdefault(url, []).append(req)
 
-    repository_lags = local_dependency_lags(packages)
+    repository_lags = local_dependency_lags(packages, manifests)
     for repo, edges in sorted(repository_lags.items()):
         lag.append(
             f"{repo.as_posix()}: local workspace edges {sorted(edges)!r}; "
@@ -392,7 +561,10 @@ def satisfies(version: str, requirement: str) -> bool:
     return True
 
 
-def check_locks(packages: dict[str, tuple[Path, str | None]]) -> list[str]:
+def check_locks(
+    packages: dict[str, tuple[Path, str | None]],
+    pinned: bool,
+) -> list[str]:
     """Report committed locks that pin a first-party version the local tree no
     longer provides.
 
@@ -401,25 +573,54 @@ def check_locks(packages: dict[str, tuple[Path, str | None]]) -> list[str]:
     provider version; Cargo then refuses the patch with "candidate versions
     found which didn't match", which reads as a resolver mystery rather than
     the pin drift it is.
+
+    In pinned mode the lock is read from the recorded gitlink commit, so the
+    verdict describes the stack as recorded rather than whichever revision a
+    developer has checked out.
     """
     drift: list[str] = []
+    pins = member_pins() if pinned else {}
     for member in sorted(registered_member_names()):
-        lock = REPOS / member / "Cargo.lock"
-        if not lock.is_file():
-            continue
+        rel = Path("repos") / member / "Cargo.lock"
+        if pinned:
+            pin = pins.get(member)
+            if pin is None:
+                continue
+            text = _git_blob(REPOS / member, f"{pin}:Cargo.lock")
+            if text is None:
+                continue
+        else:
+            lock = REPOS / member / "Cargo.lock"
+            if not lock.is_file():
+                continue
+            try:
+                text = lock.read_text(encoding="utf-8")
+            except OSError:
+                continue
         try:
-            data = tomllib.loads(lock.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, OSError):
+            data = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
             continue
-        rel = lock.relative_to(ATLAS_ROOT).as_posix()
         for pkg in data.get("package", []):
             if FIRST_PARTY_HOST not in pkg.get("source", ""):
                 continue
             name, locked = pkg.get("name"), pkg.get("version")
             local = packages.get(name, (None, None))[1]
             if local is not None and locked != local:
-                drift.append(f"{rel}: `{name}` locked {locked}, local tree {local}")
+                drift.append(f"{rel.as_posix()}: `{name}` locked {locked}, local tree {local}")
     return drift
+
+
+def _git_blob(repo: Path, spec: str) -> str | None:
+    """The text of ``<spec>``, or None when the object is absent."""
+    proc = subprocess.run(
+        ["git", "cat-file", "blob", spec],
+        cwd=repo,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.decode("utf-8", errors="replace")
 
 
 def _normalize(text: str) -> str:
@@ -427,7 +628,10 @@ def _normalize(text: str) -> str:
     return chr(10).join(line.rstrip() for line in text.replace(chr(13), "").split(chr(10))).strip()
 
 
-def check_overlay_freshness(packages: dict[str, tuple[Path, str | None]]) -> list[str]:
+def check_overlay_freshness(
+    packages: dict[str, tuple[Path, str | None]],
+    manifests: list[tuple[Path, str]],
+) -> list[str]:
     """Report a committed overlay that no longer matches the repository layout.
 
     Two failures this catches, both of which break every build in the stack
@@ -462,7 +666,7 @@ def check_overlay_freshness(packages: dict[str, tuple[Path, str | None]]) -> lis
     # LF. Compare content, not the endings git already normalizes.
     # `write_overlay` emits HEADER (which opens with BEGIN) followed by the
     # patch block, so the captured region is the header tail plus the block.
-    expected, _missing, _lag = build_overlay(packages)
+    expected, _missing, _lag = build_overlay(packages, manifests)
     expected_body = (HEADER + expected).split(BEGIN, 1)[1]
     if _normalize(committed) != _normalize(expected_body):
         problems.append(
@@ -472,12 +676,16 @@ def check_overlay_freshness(packages: dict[str, tuple[Path, str | None]]) -> lis
     return sorted(set(problems))
 
 
-def check(packages: dict[str, tuple[Path, str | None]]) -> int:
+def check(
+    packages: dict[str, tuple[Path, str | None]],
+    manifests: list[tuple[Path, str]],
+    pinned: bool,
+) -> int:
     lag: list[str] = []
     unresolved: list[str] = []
 
-    for pkg, url, req, manifest in collect_first_party_deps():
-        rel = manifest.relative_to(ATLAS_ROOT).as_posix()
+    for pkg, url, req, manifest in collect_first_party_deps(manifests):
+        rel = manifest.as_posix()
         if pkg not in packages:
             unresolved.append(f"{rel}: `{pkg}` from {url} has no local working tree")
             continue
@@ -495,11 +703,11 @@ def check(packages: dict[str, tuple[Path, str | None]]) -> int:
     for line in sorted(set(lag)):
         print(f"REQUIREMENT LAG: {line}")
 
-    stale = check_overlay_freshness(packages)
+    stale = check_overlay_freshness(packages, manifests)
     for line in stale:
         print(f"OVERLAY: {line}")
 
-    drift = check_locks(packages)
+    drift = check_locks(packages, args.pinned)
     by_repo: dict[str, list[str]] = {}
     for line in sorted(set(drift)):
         by_repo.setdefault(line.split(":", 1)[0], []).append(line.split(": ", 1)[1])
@@ -527,9 +735,25 @@ def check(packages: dict[str, tuple[Path, str | None]]) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("generate", "check", "off", "on"))
+    parser.add_argument(
+        "--pinned",
+        action="store_true",
+        help=(
+            "read member manifests from the gitlink commits HEAD records rather "
+            "than from the working tree, so a generation is reproducible from "
+            "the recorded stack without a checkout"
+        ),
+    )
+    parser.add_argument(
+        "--tips",
+        action="store_true",
+        help=(
+            "read member manifests from each member's fetched default branch, "
+            "which is the graph a gitlink advance would record"
+        ),
+    )
     args = parser.parse_args()
 
-    packages = load_packages()
     if args.mode in ("off", "on"):
         set_enabled(args.mode == "on")
         state = "enabled" if args.mode == "on" else "disabled"
@@ -538,17 +762,24 @@ def main() -> int:
             print("first-party deps now resolve from git; re-enable with `on` "
                   "once the provider-graph refresh is committed")
         return 0
+
+    manifests = read_manifests(args.pinned, args.tips)
+    packages = load_packages(manifests)
+    source = "tips" if args.tips else ("pins" if args.pinned else "working tree")
     if args.mode == "generate":
-        block, missing, lag = build_overlay(packages)
+        block, missing, lag = build_overlay(packages, manifests)
         write_overlay(block)
         count = block.count("[patch.")
-        print(f"wrote {count} patch sections to {CONFIG.relative_to(ATLAS_ROOT)}")
+        print(
+            f"wrote {count} patch sections to {CONFIG.relative_to(ATLAS_ROOT)} "
+            f"(read from {source})"
+        )
         for item in missing:
             print(f"skipped (no local tree): {item}")
         for item in lag:
             print(f"version lag (consumer must advance): {item}")
         return 0
-    return check(packages)
+    return check(packages, manifests, args.pinned)
 
 
 if __name__ == "__main__":

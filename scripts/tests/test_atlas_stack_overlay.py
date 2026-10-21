@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import re
+import subprocess
 import tempfile
 import tomllib
 import unittest
@@ -40,7 +41,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             )
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
-            block, missing, lag = _overlay.build_overlay(packages)
+            block, missing, lag = _overlay.build_overlay(packages, [])
         self.assertEqual(block, "\n")
         self.assertEqual(missing, [])
         self.assertEqual(len(lag), 1)
@@ -59,7 +60,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             )
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
-            block, missing, lag = _overlay.build_overlay(packages)
+            block, missing, lag = _overlay.build_overlay(packages, [])
         self.assertEqual(lag, [])
         self.assertEqual(missing, [])
         self.assertIn('[patch."https://github.com/ryancinsight/ritk"]', block)
@@ -85,7 +86,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             ),
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
-            block, missing, lag = _overlay.build_overlay(packages)
+            block, missing, lag = _overlay.build_overlay(packages, [])
         self.assertIn('ritk-image = { path = "repos/ritk/crates/ritk-image" }', block)
         self.assertEqual(len(lag), 1)
 
@@ -109,7 +110,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             ),
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
-            block, missing, lag = _overlay.build_overlay(packages)
+            block, missing, lag = _overlay.build_overlay(packages, [])
         self.assertEqual(len(lag), 1)
         self.assertIn("ritk-core", block)
         self.assertNotIn("ritk-image", block)
@@ -121,7 +122,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
         dependencies = [("provider", current, "^0.6", Path("repos/current/Cargo.toml")),
                         ("provider", previous, "^0.5", Path("repos/previous/Cargo.toml"))]
         with patch.object(_overlay, "collect_first_party_deps", return_value=dependencies):
-            block, missing, lag = _overlay.build_overlay(packages)
+            block, missing, lag = _overlay.build_overlay(packages, [])
         self.assertIn(f'[patch."{current}"]', block)
         self.assertNotIn(f'[patch."{previous}"]', block)
         self.assertEqual(missing, [])
@@ -139,7 +140,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             )
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
-            block, missing, lag = _overlay.build_overlay(packages)
+            block, missing, lag = _overlay.build_overlay(packages, [])
         self.assertEqual(block, "\n")
         self.assertEqual(len(missing), 1)
         self.assertEqual(lag, [])
@@ -178,10 +179,18 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
                     consumer,
                 )
             ]
+            manifests = [
+                (Path("repos/provider"), provider.read_text(encoding="utf-8")),
+                (Path("repos/consumer"), consumer_root.read_text(encoding="utf-8")),
+                (
+                    Path("repos/consumer/crates/consumer"),
+                    consumer.read_text(encoding="utf-8"),
+                ),
+            ]
             with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
                 _overlay, "collect_first_party_deps", return_value=deps
             ):
-                block, missing, lag = _overlay.build_overlay(packages)
+                block, missing, lag = _overlay.build_overlay(packages, manifests)
 
             self.assertEqual(block, "\n")
             self.assertEqual(missing, [])
@@ -211,7 +220,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
                 _overlay, "collect_first_party_deps", return_value=dependencies
             ):
-                block, missing, lag = _overlay.build_overlay(packages)
+                block, missing, lag = _overlay.build_overlay(packages, [])
             metadata = fixture.resolve(block, toolchain)
             cores = [package for package in metadata["packages"] if package["name"] == "overlay-core"]
             self.assertEqual(missing, [])
@@ -306,7 +315,7 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
             ), patch.object(
                 _overlay, "registered_member_names", return_value={"registered"}
             ):
-                drift = _overlay.check_locks(packages)
+                drift = _overlay.check_locks(packages, False)
 
             self.assertEqual(
                 drift,
@@ -328,7 +337,8 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
             with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
                 _overlay, "REPOS", root / "repos"
             ), patch.object(_overlay, "registered_member_names", return_value={"provider"}):
-                packages = _overlay.load_packages()
+                manifests = _overlay.read_manifests(False)
+                packages = _overlay.load_packages(manifests)
 
             self.assertEqual(packages["provider"], (Path("repos/provider"), "1.2.3"))
 
@@ -351,13 +361,14 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
             with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
                 _overlay, "REPOS", root / "repos"
             ), patch.object(_overlay, "registered_member_names", return_value={"provider", "consumer"}):
-                packages = _overlay.load_packages()
-                dependencies = _overlay.collect_first_party_deps()
+                manifests = _overlay.read_manifests(False)
+                packages = _overlay.load_packages(manifests)
+                dependencies = _overlay.collect_first_party_deps(manifests)
 
             self.assertEqual(packages["provider"], (Path("repos/provider"), "1.0.0"))
             self.assertEqual(len(dependencies), 1)
             self.assertEqual(dependencies[0][0], "provider")
-            self.assertEqual(dependencies[0][3], consumer)
+            self.assertEqual(dependencies[0][3], Path("repos/consumer"))
 
     def test_repo_manifests_excludes_a_lane_inside_a_member_repo(self) -> None:
         """A lane under ``repos/<member>/worktrees`` is the case that broke.
@@ -417,9 +428,131 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
             ), patch.object(
                 _overlay, "registered_member_names", return_value={"provider"}
             ):
-                packages = _overlay.load_packages()
+                manifests = _overlay.read_manifests(False)
+                packages = _overlay.load_packages(manifests)
 
             self.assertEqual(packages["provider"], (Path("repos/provider"), "1.0.0"))
+
+
+class PinnedAndTipsSourceTestCase(unittest.TestCase):
+    """The overlay can be read from the recorded stack, not only the checkout.
+
+    A generation taken from the working tree measures whichever branch a
+    developer has parked a member on, so two developers on the same stack
+    revision can produce two different overlays. The recorded gitlinks are
+    the reproducible answer, and the members' default branches are what a
+    gitlink advance would record.
+    """
+
+    def _member(self, root: Path, name: str, version: str) -> Path:
+        member = root / "repos" / name
+        member.mkdir(parents=True, exist_ok=True)
+        (member / "Cargo.toml").write_text(
+            f'[package]\nname = "{name}"\nversion = "{version}"\n', encoding="utf-8"
+        )
+        return member
+
+    def _commit(self, member: Path, message: str) -> str:
+        for command in (
+            ["git", "init", "--quiet"],
+            ["git", "config", "user.name", "Overlay test"],
+            ["git", "config", "user.email", "overlay@example.invalid"],
+            ["git", "add", "Cargo.toml"],
+            ["git", "commit", "--quiet", "-m", message],
+        ):
+            subprocess.run(command, cwd=member, check=True, capture_output=True)
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=member, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+
+    def test_pinned_reads_the_recorded_gitlink_not_the_checkout(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-pinned-") as root_text:
+            root = Path(root_text)
+            member = self._member(root, "provider", "1.0.0")
+            pinned = self._commit(member, "pinned")
+            # The checkout moves on; the recorded gitlink does not.
+            self._member(root, "provider", "2.0.0")
+            subprocess.run(["git", "add", "Cargo.toml"], cwd=member, check=True,
+                           capture_output=True)
+            subprocess.run(
+                ["git", "commit", "--quiet", "-m", "ahead"], cwd=member, check=True,
+                capture_output=True,
+            )
+
+            class _FakeGitlinks:
+                def __call__(self) -> dict[str, str]:
+                    return {"provider": pinned}
+
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "REPOS", root / "repos"
+            ), patch.object(
+                _overlay, "registered_member_names", return_value={"provider"}
+            ), patch.object(_overlay, "member_pins", _FakeGitlinks()):
+                manifests = _overlay.read_manifests(True)
+                packages = _overlay.load_packages(manifests)
+
+            self.assertEqual(packages["provider"], (Path("repos/provider"), "1.0.0"))
+
+    def test_pinned_failure_is_loud_rather_than_an_empty_member(self) -> None:
+        """A member that cannot be read must not quietly leave the overlay.
+
+        An empty manifest set reads as "this member contributes nothing", so
+        a whole member could leave the overlay behind a green generation. The
+        failure has to name the member and the revision instead.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-pinned-") as root_text:
+            root = Path(root_text)
+            member = root / "repos" / "provider"
+            member.mkdir(parents=True, exist_ok=True)
+            (member / "Cargo.toml").write_text(
+                '[package]\nname = "provider"\nversion = "1.0.0"\n', encoding="utf-8"
+            )
+
+            class _FakeGitlinks:
+                def __call__(self) -> dict[str, str]:
+                    return {"provider": "0" * 40}
+
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "REPOS", root / "repos"
+            ), patch.object(
+                _overlay, "registered_member_names", return_value={"provider"}
+            ), patch.object(_overlay, "member_pins", _FakeGitlinks()):
+                with self.assertRaises(SystemExit) as raised:
+                    _overlay.read_manifests(True)
+
+            self.assertIn("provider", str(raised.exception))
+
+    def test_tips_reads_the_member_default_branch(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-tips-") as root_text:
+            root = Path(root_text)
+            member = self._member(root, "provider", "1.0.0")
+            self._commit(member, "first")
+            self._member(root, "provider", "2.0.0")
+            subprocess.run(["git", "add", "Cargo.toml"], cwd=member, check=True,
+                           capture_output=True)
+            subprocess.run(
+                ["git", "commit", "--quiet", "-m", "second"], cwd=member, check=True,
+                capture_output=True,
+            )
+
+            class _FakeTips:
+                def __call__(self) -> dict[str, str]:
+                    sha = subprocess.run(
+                        ["git", "rev-parse", "HEAD"], cwd=member, check=True,
+                        capture_output=True, text=True,
+                    ).stdout.strip()
+                    return {"provider": sha}
+
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "REPOS", root / "repos"
+            ), patch.object(
+                _overlay, "registered_member_names", return_value={"provider"}
+            ), patch.object(_overlay, "member_tips", _FakeTips()):
+                manifests = _overlay.read_manifests(False, True)
+                packages = _overlay.load_packages(manifests)
+
+            self.assertEqual(packages["provider"], (Path("repos/provider"), "2.0.0"))
 
 
 class OverlayFreshnessTestCase(unittest.TestCase):
@@ -445,7 +578,7 @@ class OverlayFreshnessTestCase(unittest.TestCase):
             with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
                 _overlay, "CONFIG", config
             ), patch.object(_overlay, "build_overlay", return_value=(block, [], [])):
-                problems = _overlay.check_overlay_freshness({})
+                problems = _overlay.check_overlay_freshness({}, [])
 
             self.assertEqual(len(problems), 1, problems)
             self.assertIn("dangling", problems[0])
@@ -465,7 +598,7 @@ class OverlayFreshnessTestCase(unittest.TestCase):
             ), patch.object(
                 _overlay, "build_overlay", return_value=(regenerated, [], [])
             ):
-                problems = _overlay.check_overlay_freshness({})
+                problems = _overlay.check_overlay_freshness({}, [])
 
             self.assertEqual(len(problems), 1, problems)
             self.assertIn("fresh generation", problems[0])
@@ -481,7 +614,7 @@ class OverlayFreshnessTestCase(unittest.TestCase):
             with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
                 _overlay, "CONFIG", config
             ), patch.object(_overlay, "build_overlay", return_value=(block, [], [])):
-                problems = _overlay.check_overlay_freshness({})
+                problems = _overlay.check_overlay_freshness({}, [])
 
             self.assertEqual(problems, [])
 
@@ -501,7 +634,7 @@ class OverlayFreshnessTestCase(unittest.TestCase):
             with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
                 _overlay, "CONFIG", config
             ), patch.object(_overlay, "build_overlay", return_value=(enabled, [], [])):
-                problems = _overlay.check_overlay_freshness({})
+                problems = _overlay.check_overlay_freshness({}, [])
 
             self.assertEqual(problems, [])
 

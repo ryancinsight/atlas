@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Read the stack overlay's member manifests from the recorded stack instead of
+  from whichever branch a developer has parked a member on. The generator
+  gained `--pinned`, which reads each member's manifests from the gitlink
+  commit `HEAD` records, and `--tips`, which reads them from the member's
+  fetched default branch. The first makes a generation reproducible from the
+  recorded stack without a checkout; the second measures the provider graph a
+  gitlink advance would record, which is what told the version-coherence
+  sweep that four members had already advanced past their Atlas pins. A
+  failed `git ls-tree` now raises naming the member and the revision instead
+  of yielding an empty file list, so a member cannot quietly leave the
+  overlay behind a green generation. Three new tests pin the contract: a
+  pinned read that ignores a checkout the gitlink does not name, a tips read
+  that follows the default branch, and the loud failure. Recorded under
+  ATLAS-COESUS-CPU-OVERLAY and ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30.
+
 - Read `cargo metadata` once per unchanged workspace in the build-identity
   gate. The answer is a pure function of the workspace's manifests and its
   lockfile, but the gate asked for it sixty-two times over four manifests
