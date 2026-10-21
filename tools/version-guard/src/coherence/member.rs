@@ -6,12 +6,10 @@ use serde::Serialize;
 
 use crate::error::Error;
 
-use super::manifest::{DependencySpec, ParsedManifest};
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Member {
     pub(crate) path: PathBuf,
-    url: String,
+    pub(super) url: String,
 }
 
 pub(crate) fn registered_members(atlas_root: &Path) -> Result<Vec<Member>, Error> {
@@ -61,60 +59,13 @@ pub(crate) fn registered_members(atlas_root: &Path) -> Result<Vec<Member>, Error
     Ok(members)
 }
 
-pub(crate) fn is_first_party_source(
-    manifest: &ParsedManifest,
-    dependency: &DependencySpec,
-    members: &[Member],
-    _atlas_root: &Path,
-) -> bool {
-    if let Some(path) = dependency.path.as_deref() {
-        let base = if dependency.workspace {
-            members
-                .iter()
-                .find(|member| manifest.path.starts_with(&member.path))
-                .map_or_else(
-                    || manifest.path.parent(),
-                    |member| Some(member.path.as_path()),
-                )
-        } else {
-            manifest.path.parent()
-        };
-        let Some(base) = base else {
-            return false;
-        };
-        let Ok(resolved) = fs::canonicalize(base.join(path)) else {
-            return false;
-        };
-        return members.iter().any(|member| {
-            fs::canonicalize(&member.path).is_ok_and(|member_path| {
-                resolved == member_path || resolved.starts_with(&member_path)
-            })
-        });
-    }
-    if let Some(git) = dependency.git.as_deref() {
-        return git_url_names_member(git, members);
-    }
-    false
-}
-
-/// Whether a `git =` URL names one of the registered members.
-///
-/// The comparison is by URL, so it needs no filesystem: a manifest read from a
-/// git tree classifies the same as one read from a working tree.
-fn git_url_names_member(git: &str, members: &[Member]) -> bool {
-    let normalized = git.trim_end_matches(".git").to_ascii_lowercase();
-    members
-        .iter()
-        .any(|member| !member.url.is_empty() && member.url.to_ascii_lowercase() == normalized)
-}
-
 /// Fold `.` and `..` out of a path without touching the filesystem.
 ///
 /// `Path::canonicalize` is the wrong tool for a manifest read from a git tree:
 /// a crate added since the checkout has no on-disk directory to canonicalize,
 /// and a `..` that escapes the tree must not silently resolve to an unrelated
 /// directory that happens to exist.
-fn normalize_lexically(path: &Path) -> PathBuf {
+pub(super) fn normalize_lexically(path: &Path) -> PathBuf {
     let mut folded: Vec<Component> = Vec::new();
     for component in path.components() {
         match component {
@@ -136,45 +87,9 @@ fn normalize_lexically(path: &Path) -> PathBuf {
 }
 
 /// True when `candidate` resolves under `base` after lexical folding.
+#[cfg(test)]
 pub(crate) fn lexically_under(base: &Path, candidate: &Path) -> bool {
     normalize_lexically(candidate).starts_with(normalize_lexically(base))
-}
-
-/// First-party detection that does not require the dependency to exist on disk.
-///
-/// This is the tree-view counterpart to [`is_first_party_source`]. A path
-/// dependency is judged by lexical containment in a member root rather than by
-/// `canonicalize`, so a manifest read at a remote tip classifies correctly even
-/// when the crate it names is newer than the local checkout.
-pub(crate) fn is_first_party_source_in_tree(
-    manifest: &ParsedManifest,
-    dependency: &DependencySpec,
-    members: &[Member],
-) -> bool {
-    if let Some(path) = dependency.path.as_deref() {
-        let base = if dependency.workspace {
-            members
-                .iter()
-                .find(|member| manifest.path.starts_with(&member.path))
-                .map_or_else(
-                    || manifest.path.parent(),
-                    |member| Some(member.path.as_path()),
-                )
-        } else {
-            manifest.path.parent()
-        };
-        let Some(base) = base else {
-            return false;
-        };
-        let resolved = base.join(path);
-        return members
-            .iter()
-            .any(|member| lexically_under(&member.path, &resolved));
-    }
-    if let Some(git) = dependency.git.as_deref() {
-        return git_url_names_member(git, members);
-    }
-    false
 }
 
 /// List a member's `Cargo.toml` paths as recorded at `commit`.
