@@ -23,10 +23,14 @@
   repository fixture, the build-claim and queue-order fixtures, the
   shared-target fixture whose cleanup was a no-op, and the lockfile
   checker's symlink fixture. A new oracle,
-  `scripts/tests/test_atlas_tempdir_leaks.py`, runs those fixture suites and
-  asserts the owned prefixes' directory set is unchanged afterward; it is
-  not vacuous, since with one cleanup reverted it fails and names the
-  leaked trees. Recorded under ATLAS-TEST-TEMPDIR-LEAKS.
+  `scripts/tests/test_atlas_tempdir_leaks.py`, runs those fixture suites
+  against a private temporary root and asserts that root is empty
+  afterward, so a suite running concurrently on the same host cannot be
+  blamed for a tree it did not create; a second oracle reads the sources
+  and fails on any fixture that removes its tree with `ignore_errors=True`
+  or never removes it. Neither is vacuous: with one cleanup reverted the
+  first fails and names the leaked trees, and the second names the
+  reverted fixture. Recorded under ATLAS-TEST-TEMPDIR-LEAKS.
 
 - Fix the conformance gate's crash on a root push: `link_snapshot` took a
   fixed directory per checkout, so materializing one checkout twice into one

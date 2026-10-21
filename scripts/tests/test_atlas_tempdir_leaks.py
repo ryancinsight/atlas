@@ -35,15 +35,17 @@ TESTS = SCRIPTS / "tests"
 
 # The prefixes the fixtures under test own. The assertion is on the
 # private root as a whole, so this list records which fixtures the oracle
-# runs rather than filtering what it looks at.
+# runs and what its failure message names; it does not filter what the
+# assertion looks at.
 OWNED_PREFIXES = (
     "atlas-claim-",
+    "atlas-gate-",
+    "atlas-lockfile-check-",
     "atlas-queue-",
     "atlas-safety-census-repo-",
     "atlas-shared-target-",
     "crlf-detector-",
     "gate-tmp-",
-    "atlas-lockfile-check-",
 )
 
 # The ways a fixture can give its tree back. `shutil.rmtree` with
@@ -67,24 +69,168 @@ def _removes(function: ast.AST, source: str) -> bool:
     return any(removal in body for removal in REMOVALS)
 
 
+def _names_a_removal(node: ast.AST) -> bool:
+    """Whether this expression names a removal.
+
+    A removal is often handed to another call rather than called:
+    `self.addCleanup(shutil.rmtree, root, ignore_errors=True)` names
+    `shutil.rmtree` as an argument, so a walk that only saw calls would
+    miss the very form it is looking for.
+    """
+    if isinstance(node, ast.Attribute):
+        return node.attr == "rmtree"
+    if isinstance(node, ast.Name):
+        return node.id == "rmtree"
+    return False
+
+
 def _ignores_errors(call: ast.Call) -> bool:
-    """Whether this removal swallows a refusal to delete an entry."""
+    """Whether this removal swallows a refusal to delete an entry.
+
+    Two forms carry the refusal: a direct `rmtree(..., ignore_errors=True)`
+    call, and a removal handed to another call that then passes
+    `ignore_errors=True` -- `addCleanup(shutil.rmtree, root, True)` -- or
+    `True` in the position `rmtree` takes it, as
+    `weakref.finalize(self, shutil.rmtree, path, True)` does.
+    """
     rendered = ast.unparse(call)
     if ast.unparse(call.func).endswith("rmtree") and "ignore_errors" in rendered:
         return True
-    if not ast.unparse(call.func).endswith("finalize"):
-        return False
-    # A finalizer that removes with `shutil.rmtree` and passes `True` as
-    # the third argument is that removal with `ignore_errors=True`.
-    arguments = list(call.args) + [keyword.value for keyword in call.keywords]
-    for index, argument in enumerate(arguments):
-        if ast.unparse(argument) != "shutil.rmtree":
+    positional = list(call.args)
+    for index, argument in enumerate(positional):
+        if not _names_a_removal(argument):
             continue
+        if any(
+            keyword.arg == "ignore_errors"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value is True
+            for keyword in call.keywords
+        ):
+            return True
         return any(
             isinstance(other, ast.Constant) and other.value is True
-            for other in arguments[index + 1 :]
+            for other in positional[index + 1 :]
         )
     return False
+
+
+def _names_the_tree(call: ast.Call, created: set[str]) -> bool:
+    """Whether this removal names one of the fixture's own trees.
+
+    The tree is the argument the removal is handed: the one after the
+    removal itself. A path *inside* a created tree is not that tree --
+    a fixture that clears a cache directory between two runs is not
+    removing its tree -- so a created name followed by a path join does
+    not count.
+    """
+    positional = list(call.args)
+    for index, argument in enumerate(positional):
+        if not _names_a_removal(argument):
+            continue
+        if index + 1 >= len(positional):
+            return False
+        target = ast.unparse(positional[index + 1])
+        for name in created:
+            position = target.find(name)
+            if position < 0:
+                continue
+            if target[position + len(name) :].lstrip().startswith("/"):
+                continue
+            return True
+    return False
+def _scopes(tree: ast.Module) -> list[ast.AST]:
+    """The units a fixture's tree belongs to: each class, and each function
+    that is not inside one.
+
+    A fixture's tree is usually created in `setUp` and removed in a test
+    method, so the unit is the class, not the method.
+    """
+    classes = [
+        node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)
+    ]
+    functions = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    scopes: list[ast.AST] = list(classes)
+    scopes.extend(
+        function
+        for function in functions
+        if not any(function in ast.walk(klass) for klass in classes)
+    )
+    return scopes
+
+
+def _owner_of(scope: ast.AST, node: ast.AST) -> ast.AST | None:
+    """The function inside `scope` that holds `node`."""
+    return next(
+        (
+            function
+            for function in ast.walk(scope)
+            if isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node in ast.walk(function)
+        ),
+        None,
+    )
+def _created_trees(function: ast.AST) -> set[str]:
+    """The names a function binds from `mkdtemp`, and from those.
+
+    A fixture's tree is often bound through an attribute (`self.base = ...`)
+    and the path a removal names is sometimes one step derived from it
+    (`outside = self.root.parent / ...`), so the derivation is followed one
+    level: a name whose value mentions a created tree is itself a name for
+    that tree.
+    """
+    def creates_tree(value: ast.AST) -> bool:
+        """Whether this expression builds a temporary tree."""
+        return any(
+            isinstance(node, ast.Call)
+            and ast.unparse(node.func).rsplit(".", 1)[-1]
+            in ("mkdtemp", "TemporaryDirectory")
+            for node in ast.walk(value)
+        )
+
+    def referenced(value: ast.AST) -> set[str]:
+        """The names an expression reads."""
+        return {
+            ast.unparse(node)
+            for node in ast.walk(value)
+            if isinstance(node, (ast.Name, ast.Attribute))
+        }
+
+    def targets_of(node: ast.AST) -> list[str]:
+        if isinstance(node, ast.Assign):
+            return [ast.unparse(target) for target in node.targets]
+        if isinstance(node, ast.AnnAssign):
+            return [ast.unparse(node.target)]
+        return []
+
+    created: set[str] = set()
+    for node in ast.walk(function):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        if node.value is None or not creates_tree(node.value):
+            continue
+        created.update(targets_of(node))
+    # The derivation is followed to a fixed point: a fixture's tree is
+    # often bound through an attribute (`self.root = Path(self.temp.name)`)
+    # and the path a removal names is derived from that
+    # (`outside = self.root.parent / ...`).
+    known = set(created)
+    while True:
+        derived: set[str] = set()
+        for node in ast.walk(function):
+            if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                continue
+            if node.value is None:
+                continue
+            if not referenced(node.value) & known:
+                continue
+            derived.update(targets_of(node))
+        if derived <= known:
+            return known
+        known |= derived
 
 
 class TempDirectoryOwnershipTests(unittest.TestCase):
@@ -92,10 +238,12 @@ class TempDirectoryOwnershipTests(unittest.TestCase):
 
     def _run(self, cases: list[unittest.TestCase]) -> None:
         suite = unittest.TestSuite(cases)
-        result = unittest.TextTestRunner(stream=io.StringIO()).run(suite)
+        captured = io.StringIO()
+        result = unittest.TextTestRunner(stream=captured).run(suite)
         self.assertTrue(
             result.wasSuccessful(),
-            "the fixture suite must pass for its cleanup to be meaningful",
+            "the fixture suite must pass for its cleanup to be meaningful:\n"
+            + captured.getvalue(),
         )
 
     def test_the_fixture_suites_leave_no_temp_directory_behind(self) -> None:
@@ -144,7 +292,11 @@ class TempDirectoryOwnershipTests(unittest.TestCase):
             self.assertEqual(
                 left,
                 [],
-                "fixtures left temp directories behind: " + repr(left),
+                "fixtures left temp directories behind: "
+                + repr(left)
+                + " (the fixtures own "
+                + ", ".join(OWNED_PREFIXES)
+                + ")",
             )
 
     def test_every_mkdtemp_fixture_removes_its_tree(self) -> None:
@@ -161,41 +313,30 @@ class TempDirectoryOwnershipTests(unittest.TestCase):
         for path in sorted(TESTS.glob("*.py")):
             source = path.read_text(encoding="utf-8")
             tree = ast.parse(source)
-            functions = [
-                node
-                for node in ast.walk(tree)
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            ]
-
-            def owner_of(node: ast.AST) -> ast.AST | None:
-                return next(
-                    (function for function in functions if node in ast.walk(function)),
-                    None,
-                )
-
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Call):
-                    continue
-                name = ast.unparse(node.func)
-                if name.endswith("mkdtemp"):
-                    owner = owner_of(node)
-                    if owner is None or not _removes(owner, source):
-                        unremoved.append(f"{path.name}:{node.lineno}: {name}")
-                    continue
-                if not _ignores_errors(node):
-                    continue
-                # Only a fixture's own tree is at issue: a removal of a
-                # shared cache between two runs is not a leak.
-                owner = owner_of(node)
-                if owner is None:
-                    continue
-                if any(
-                    ast.unparse(inner.func).endswith("mkdtemp")
-                    for inner in _calls(owner)
-                ):
-                    ignoring.append(
-                        f"{path.name}:{node.lineno}: {ast.unparse(node)}"
-                    )
+            for scope in _scopes(tree):
+                created = _created_trees(scope)
+                for node in ast.walk(scope):
+                    if not isinstance(node, ast.Call):
+                        continue
+                    name = ast.unparse(node.func)
+                    if name.endswith("mkdtemp"):
+                        owner = _owner_of(scope, node)
+                        if owner is None or not _removes(owner, source):
+                            unremoved.append(
+                                f"{path.name}:{node.lineno}: {name}"
+                            )
+                        continue
+                    if not _ignores_errors(node):
+                        continue
+                    # Only a fixture's own tree is at issue: a removal of
+                    # a shared cache between two runs is not a leak, and
+                    # that cache is not the tree the fixture created.
+                    if not created:
+                        continue
+                    if _names_the_tree(node, created):
+                        ignoring.append(
+                            f"{path.name}:{node.lineno}: {ast.unparse(node)}"
+                        )
         self.assertEqual(ignoring, [], "fixtures remove their tree with ignore_errors")
         self.assertEqual(unremoved, [], "fixtures that build a tree but never remove it")
 
