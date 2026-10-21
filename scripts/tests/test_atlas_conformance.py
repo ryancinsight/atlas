@@ -15,6 +15,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+from readonly_tree import clear_readonly_tree
+
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas-conformance.py"
 SPEC = importlib.util.spec_from_file_location("atlas_conformance", SCRIPT)
@@ -2382,6 +2384,29 @@ class MaterializedMemberTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "not in the provider's object store"):
                 conformance.materialize_member(provider, "0" * 40, Path(temp) / "scratch")
 
+    def test_one_checkout_materialized_twice_keeps_two_snapshots(self) -> None:
+        """A root push materializes the pushed content and the baseline
+        config root into one scratch, and both name the checkout's
+        directory: the two must not share a tree, and the second must not
+        raise `FileExistsError` where the directory already exists."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            provider, first, second = self._provider(Path(temp))
+            scratch = Path(temp) / "scratch"
+            pushed = conformance.link_snapshot(provider, second, scratch)
+            baseline = conformance.link_snapshot(provider, first, scratch)
+
+            self.assertNotEqual(pushed, baseline, "the two snapshots must differ")
+            self.assertEqual(
+                (pushed / "src/lib.rs").read_text(encoding="utf-8"),
+                'pub fn alpha() { println!("debt"); }\n',
+                "the pushed snapshot keeps the pushed revision",
+            )
+            self.assertEqual(
+                (baseline / "src/lib.rs").read_text(encoding="utf-8"),
+                "pub fn alpha() {}\n",
+                "the baseline snapshot keeps its own revision",
+            )
+
 # Manifest fixtures for SubstrateContractTests.
 RUNTIME_RAYON = "[dependencies]\nrayon = \"1.8\""
 TARGET_NALGEBRA = "[target.'cfg(unix)'.dependencies]\nnalgebra = \"0.33\""
@@ -2507,7 +2532,10 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
         self, attributes: str | None, extra: dict[str, bytes] | None = None
     ) -> Path:
         root = Path(tempfile.mkdtemp(prefix="crlf-detector-"))
-        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        # The fixture's own objects are read-only, and `ignore_errors=True`
+        # swallowed the refusal to delete them: the tree stayed under the OS
+        # temp directory (ATLAS-TEST-TEMPDIR-LEAKS).
+        self.addCleanup(clear_readonly_tree, root)
         # Identity travels with the command, not the machine: CI runners
         # carry no global git identity, so a bare `commit` fails there
         # while passing on any developer box.

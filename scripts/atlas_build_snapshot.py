@@ -10,7 +10,91 @@ from pathlib import Path
 from typing import Callable
 
 from atlas_build_lease import BuildIdentityError
-from atlas_build_source import _canonical, _is_within
+from atlas_build_source import (
+    _canonical,
+    _is_within,
+    cargo_config_digest,
+    environment_digest,
+)
+
+
+# `cargo metadata` is the identity's most expensive input read: a push
+# asks for the same manifest's metadata a dozen times (the dependency
+# snapshot, the package layout, the artifact owners, once per phase), and
+# each call costs a cargo process. The answer is a pure function of the
+# workspace's manifests and its lockfile, the local packages' build
+# scripts, the toolchain selector and the cargo configuration, so one
+# call per unchanged workspace serves them all.
+#
+# The cache is keyed by the manifest, the directory cargo runs in, and
+# digests of the two inputs that are not files in the workspace -- the
+# cargo configuration that shapes that directory's builds
+# (`cargo_config_digest`: every `.cargo/config.toml` and legacy
+# `.cargo/config` from the working directory up, `$CARGO_HOME`, and each
+# file's own `include` directive) and the build environment
+# (`environment_digest`). It is validated by the content of every other
+# file that decides the answer: the manifest itself, the lockfile that
+# pins the resolution, every local package's manifest and its build
+# script (cargo auto-detects `build.rs`, so its presence is part of the
+# graph cargo reports), and the `rust-toolchain.toml` chain cargo reads
+# upward from the working directory. A file that was absent when the
+# answer was read is fingerprinted as absent, so creating it invalidates
+# the entry instead of passing unnoticed.
+#
+# A cache hit therefore means every input cargo read is unchanged, so a
+# fresh read would answer the same way: the entry can report a stale
+# success only if an input changed without being fingerprinted, which is
+# what the input set above is for.
+_METADATA_CACHE: dict[
+    tuple[str, str, bool, str, str], tuple[tuple[tuple[str, str], ...], str]
+] = {}
+
+
+def _metadata_inputs(
+    manifest: Path, value: dict[str, object], execution_root: Path
+) -> tuple[Path, ...]:
+    """The files whose content decides `cargo metadata` for `manifest`.
+
+    `execution_root` is the directory cargo runs in: the toolchain
+    selector is read upward from it, and a file that does not exist yet
+    is listed anyway so that creating it invalidates the entry.
+    """
+    paths: list[Path] = [Path(manifest)]
+    try:
+        workspace_root = Path(str(value["workspace_root"]))
+    except (KeyError, TypeError):
+        workspace_root = Path(manifest).parent
+    paths.append(workspace_root / "Cargo.lock")
+    packages = value.get("packages")
+    if isinstance(packages, list):
+        for entry in packages:
+            if isinstance(entry, dict) and entry.get("source") is None:
+                manifest_path = entry.get("manifest_path")
+                if manifest_path:
+                    package_manifest = Path(str(manifest_path))
+                    paths.append(package_manifest)
+                    paths.append(package_manifest.parent / "build.rs")
+    for directory in (execution_root, *execution_root.parents):
+        paths.append(directory / "rust-toolchain.toml")
+        paths.append(directory / "rust-toolchain")
+    return tuple(dict.fromkeys(paths))
+
+
+def _metadata_fingerprint(paths: tuple[Path, ...]) -> tuple[tuple[str, str], ...]:
+    """A content digest per input file.
+
+    The content, not the timestamp: a filesystem whose timestamps are
+    coarse would let an edit inside one tick read as no edit, and the
+    identity's answer would be a stale graph.
+    """
+    entries: list[tuple[str, str]] = []
+    for path in paths:
+        try:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError:
+            digest = "<absent>"
+        entries.append((str(path), digest))
+    return tuple(entries)
 
 
 def _cargo_metadata(
@@ -19,6 +103,25 @@ def _cargo_metadata(
     *,
     no_deps: bool = True,
 ) -> dict[str, object]:
+    cwd = metadata_cwd or manifest.parent
+    key = (
+        os.path.abspath(manifest),
+        os.path.abspath(cwd),
+        no_deps,
+        cargo_config_digest(cwd),
+        environment_digest(),
+    )
+    cached = _METADATA_CACHE.get(key)
+    if cached is not None:
+        fingerprint, text = cached
+        inputs = tuple(Path(entry) for entry, _ in fingerprint)
+        if _metadata_fingerprint(inputs) == fingerprint:
+            try:
+                value = json.loads(text)
+            except json.JSONDecodeError:
+                value = None
+            if isinstance(value, dict):
+                return value
     cargo = (os.environ["CARGO"],) if os.environ.get("CARGO") else ("cargo",)
     arguments = [
         *cargo,
@@ -34,7 +137,7 @@ def _cargo_metadata(
     try:
         result = subprocess.run(
             arguments,
-            cwd=metadata_cwd or manifest.parent,
+            cwd=cwd,
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -54,6 +157,8 @@ def _cargo_metadata(
         raise BuildIdentityError(f"malformed cargo metadata for {manifest}") from error
     if not isinstance(value, dict):
         raise BuildIdentityError(f"malformed cargo metadata for {manifest}")
+    inputs = _metadata_inputs(manifest, value, cwd)
+    _METADATA_CACHE[key] = (_metadata_fingerprint(inputs), result.stdout)
     return value
 
 
