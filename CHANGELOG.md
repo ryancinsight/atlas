@@ -30,7 +30,11 @@
   and fails on any fixture that removes its tree with `ignore_errors=True`
   or never removes it. Neither is vacuous: with one cleanup reverted the
   first fails and names the leaked trees, and the second names the
-  reverted fixture. Recorded under ATLAS-TEST-TEMPDIR-LEAKS.
+  reverted fixture in every form the six converted fixtures used -- a
+  direct `rmtree(..., ignore_errors=True)` call, the same removal
+  handed to `addCleanup`, a `weakref.finalize` that passes `True` as
+  `rmtree`'s `ignore_errors`, and a fixture with no cleanup at all.
+  Recorded under ATLAS-TEST-TEMPDIR-LEAKS.
 
 - Fix the conformance gate's crash on a root push: `link_snapshot` took a
   fixed directory per checkout, so materializing one checkout twice into one
