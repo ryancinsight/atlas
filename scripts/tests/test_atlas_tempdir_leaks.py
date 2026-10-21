@@ -104,33 +104,79 @@ def _bases(node: ast.AST) -> set[str]:
     return names
 
 
-def _removes(function: ast.AST) -> bool:
-    """Whether the function gives a tree back at all.
+def _removal_helpers(scope: ast.AST) -> set[str]:
+    """The names that perform a removal.
+
+    Besides the two known removals, a local function that calls one --
+    a fixture's own `_remove_tree` helper -- removes the tree too, and a
+    registration such as `weakref.finalize` hands the removal over.
+    """
+    names = set(REMOVAL_NAMES)
+    functions = {
+        node.name: node
+        for node in ast.walk(scope)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    while True:
+        grown = set(names)
+        for name, function in functions.items():
+            if name in names:
+                continue
+            for node in ast.walk(function):
+                if not isinstance(node, ast.Call):
+                    continue
+                if ast.unparse(node.func).rsplit(".", 1)[-1] in names:
+                    grown.add(name)
+                    break
+        if grown == names:
+            return names
+        names = grown
+
+
+def _removes(scope: ast.AST, trees: set[str], helpers: set[str]) -> bool:
+    """Whether the fixture gives one of these trees back.
 
     The removal is often a name handed to `addCleanup` rather than a
-    call, so the function's expressions are what answer this; whether
-    that removal can swallow a refusal is `_ignores_errors`'s question.
+    call, and it may live in another method of the fixture than the one
+    that created the tree -- `setUp` may create and `tearDown` may
+    remove -- so the whole fixture is the scope, and the removal has to
+    name the tree rather than some other path.
     """
-    for node in ast.walk(function):
-        if isinstance(node, ast.Call):
-            if ast.unparse(node.func).rsplit(".", 1)[-1] in (
-                "rmtree",
-                "clear_readonly_tree",
-                "finalize",
-            ):
-                return True
-        elif isinstance(node, ast.Attribute) and node.attr in (
-            "rmtree",
-            "clear_readonly_tree",
-            "finalize",
-        ):
-            return True
-        elif isinstance(node, ast.Name) and node.id in (
-            "rmtree",
-            "clear_readonly_tree",
-        ):
+    for node in ast.walk(scope):
+        if not isinstance(node, ast.Call):
+            continue
+        callee = ast.unparse(node.func).rsplit(".", 1)[-1]
+        arguments = list(node.args) + [k.value for k in node.keywords]
+        offered = [callee] + [
+            ast.unparse(argument)
+            for argument in arguments
+            if isinstance(argument, (ast.Name, ast.Attribute))
+        ]
+        if not any(name in helpers for name in offered):
+            continue
+        if any(_bases(argument) & trees for argument in arguments):
             return True
     return False
+
+
+def _bound_names(scope: ast.AST, node: ast.AST) -> set[str]:
+    """The names the tree this `mkdtemp` call builds are bound to."""
+    names: set[str] = set()
+    for entry in ast.walk(scope):
+        if not isinstance(entry, (ast.Assign, ast.AnnAssign)):
+            continue
+        if entry.value is None or node not in ast.walk(entry.value):
+            continue
+        if isinstance(entry, ast.Assign):
+            names.update(ast.unparse(target) for target in entry.targets)
+        else:
+            names.add(ast.unparse(entry.target))
+    return names
+
+
+# The two ways a fixture gives a tree back. `rmtree` is the one that can
+# swallow a refusal; the shared helper is the one that does not.
+REMOVAL_NAMES = frozenset({"rmtree", "clear_readonly_tree"})
 
 
 def _names_a_removal(node: ast.AST) -> bool:
@@ -141,6 +187,16 @@ def _names_a_removal(node: ast.AST) -> bool:
     `shutil.rmtree` as an argument, so a walk that only saw calls would
     miss the very form it is looking for.
     """
+    if isinstance(node, ast.Attribute):
+        return node.attr in REMOVAL_NAMES
+    if isinstance(node, ast.Name):
+        return node.id in REMOVAL_NAMES
+    return False
+
+
+def _is_rmtree(node: ast.AST) -> bool:
+    """Whether this expression names `rmtree`, the removal that can
+    swallow a refusal."""
     if isinstance(node, ast.Attribute):
         return node.attr == "rmtree"
     if isinstance(node, ast.Name):
@@ -184,7 +240,7 @@ def _ignores_errors(call: ast.Call) -> bool:
     takes it, as `weakref.finalize(self, shutil.rmtree, path, True)`
     does.
     """
-    if _names_a_removal(call.func):
+    if _is_rmtree(call.func):
         if any(
             keyword.arg == "ignore_errors" and _is_true(keyword.value)
             for keyword in call.keywords
@@ -193,7 +249,7 @@ def _ignores_errors(call: ast.Call) -> bool:
         return len(call.args) > 1 and _is_true(call.args[1])
     positional = list(call.args)
     for index, argument in enumerate(positional):
-        if not _names_a_removal(argument):
+        if not _is_rmtree(argument):
             continue
         if any(
             keyword.arg == "ignore_errors" and _is_true(keyword.value)
@@ -294,7 +350,9 @@ def _scopes(tree: ast.Module) -> list[ast.AST]:
         for node in ast.walk(tree)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
     ]
-    scopes: list[ast.AST] = [tree]
+    scopes: list[ast.AST] = [
+        ast.Module(body=list(tree.body), type_ignores=tree.type_ignores)
+    ]
     scopes.extend(classes)
     scopes.extend(
         function
@@ -397,6 +455,7 @@ class TempDirectoryOwnershipTests(unittest.TestCase):
         for path in sorted(TESTS.glob("*.py")):
             source = path.read_text(encoding="utf-8")
             tree = ast.parse(source)
+            helpers = _removal_helpers(tree)
             for scope in _scopes(tree):
                 created = _created_trees(scope)
                 for node in ast.walk(scope):
@@ -404,8 +463,8 @@ class TempDirectoryOwnershipTests(unittest.TestCase):
                         continue
                     name = ast.unparse(node.func)
                     if name.endswith("mkdtemp"):
-                        owner = _owner_of(scope, node)
-                        if owner is None or not _removes(owner):
+                        bound = _bound_names(scope, node)
+                        if not bound or not _removes(scope, bound, helpers):
                             unremoved.append(
                                 f"{path.name}:{node.lineno}: {name}"
                             )
@@ -421,8 +480,16 @@ class TempDirectoryOwnershipTests(unittest.TestCase):
                         ignoring.append(
                             f"{path.name}:{node.lineno}: {ast.unparse(node)}"
                         )
-        self.assertEqual(ignoring, [], "fixtures remove their tree with ignore_errors")
-        self.assertEqual(unremoved, [], "fixtures that build a tree but never remove it")
+        self.assertEqual(
+            list(dict.fromkeys(ignoring)),
+            [],
+            "fixtures remove their tree with ignore_errors",
+        )
+        self.assertEqual(
+            list(dict.fromkeys(unremoved)),
+            [],
+            "fixtures that build a tree but never remove it",
+        )
 
 
 if __name__ == "__main__":

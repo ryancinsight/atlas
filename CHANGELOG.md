@@ -28,7 +28,8 @@
   afterward, so a suite running concurrently on the same host cannot be
   blamed for a tree it did not create; a second oracle reads the sources
   and fails on any fixture that removes its own tree with
-  `ignore_errors=True` or never removes it. Neither is vacuous: with one
+  `ignore_errors=True` or never removes it, in the spellings this
+  repository's fixtures use. Neither is vacuous: with one
   cleanup reverted the first fails and names the leaked trees, and the
   second names the reverted fixture in every form the six converted
   fixtures used -- a direct `rmtree` call carrying `ignore_errors=True` as
