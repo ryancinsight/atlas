@@ -14,8 +14,12 @@ so the assertion cannot attribute another suite's tree to this fixture.
 
 A second oracle reads the sources. The behavioural oracle can only see a
 leak whose tree happens to hold something `shutil.rmtree` refuses to
-delete, so the claim that every fixture removes its tree without
-`ignore_errors=True` is checked on the source instead.
+delete, so the claim that the fixtures remove their own trees without
+`ignore_errors=True` is checked on the source instead. It covers the
+spellings a fixture in this repository uses: the removal called directly
+with `ignore_errors=True` as the keyword or in `rmtree`'s positional
+slot, the same removal handed to `addCleanup`, and a `weakref.finalize`
+that passes `True` as `rmtree`'s `ignore_errors`.
 """
 
 from __future__ import annotations
@@ -58,20 +62,75 @@ OWNED_PREFIXES = (
 # delete a read-only Git object and the tree stays.
 REMOVALS = ("clear_readonly_tree", "shutil.rmtree", "TemporaryDirectory", "finalize")
 
+# The calls that build a path out of another one. A removal of what they
+# return is a path *inside* the tree, not the tree.
+PATH_BUILDERS = frozenset(
+    {
+        "joinpath",
+        "join",
+        "Path",
+        "PurePath",
+        "PosixPath",
+        "PurePosixPath",
+        "WindowsPath",
+    }
+)
+
 
 def _calls(function: ast.AST) -> list[ast.Call]:
     return [node for node in ast.walk(function) if isinstance(node, ast.Call)]
 
 
-def _removes(function: ast.AST, source: str) -> bool:
+def _bases(node: ast.AST) -> set[str]:
+    """The names an expression reads, and the prefixes of its attribute
+    chains.
+
+    `self.root.parent` reads `self.root` as well as itself: a fixture
+    binds its tree through an attribute, so the chain's prefixes are the
+    names the fixture's trees are known by.
+    """
+    names: set[str] = set()
+    for entry in ast.walk(node):
+        if isinstance(entry, ast.Name):
+            names.add(entry.id)
+        elif isinstance(entry, ast.Attribute):
+            value = entry.value
+            if isinstance(value, ast.Name):
+                names.add(value.id)
+            chain = ast.unparse(entry)
+            parts = chain.split(".")
+            for index in range(2, len(parts) + 1):
+                names.add(".".join(parts[:index]))
+    return names
+
+
+def _removes(function: ast.AST) -> bool:
     """Whether the function gives a tree back at all.
 
-    The removal is often a name handed to `addCleanup` rather than a call,
-    so the source of the function is what answers this; whether that
-    removal can swallow a refusal is `_ignores_errors`'s question.
+    The removal is often a name handed to `addCleanup` rather than a
+    call, so the function's expressions are what answer this; whether
+    that removal can swallow a refusal is `_ignores_errors`'s question.
     """
-    body = ast.get_source_segment(source, function) or ""
-    return any(removal in body for removal in REMOVALS)
+    for node in ast.walk(function):
+        if isinstance(node, ast.Call):
+            if ast.unparse(node.func).rsplit(".", 1)[-1] in (
+                "rmtree",
+                "clear_readonly_tree",
+                "finalize",
+            ):
+                return True
+        elif isinstance(node, ast.Attribute) and node.attr in (
+            "rmtree",
+            "clear_readonly_tree",
+            "finalize",
+        ):
+            return True
+        elif isinstance(node, ast.Name) and node.id in (
+            "rmtree",
+            "clear_readonly_tree",
+        ):
+            return True
+    return False
 
 
 def _names_a_removal(node: ast.AST) -> bool:
@@ -96,12 +155,18 @@ def _is_true(node: ast.AST) -> bool:
 def _removal_target(call: ast.Call) -> ast.AST | None:
     """The path the removal acts on.
 
-    A direct `rmtree(path, ...)` call acts on its first argument. A
-    removal handed to another call acts on the argument after it:
-    `addCleanup(shutil.rmtree, path, ...)` acts on `path`.
+    A direct `rmtree(path, ...)` call acts on its first argument, or on
+    the `path` keyword. A removal handed to another call acts on the
+    argument after it: `addCleanup(shutil.rmtree, path, ...)` acts on
+    `path`.
     """
     if _names_a_removal(call.func):
-        return call.args[0] if call.args else None
+        if call.args:
+            return call.args[0]
+        for keyword in call.keywords:
+            if keyword.arg == "path":
+                return keyword.value
+        return None
     positional = list(call.args)
     for index, argument in enumerate(positional):
         if _names_a_removal(argument) and index + 1 < len(positional):
@@ -112,17 +177,20 @@ def _removal_target(call: ast.Call) -> ast.AST | None:
 def _ignores_errors(call: ast.Call) -> bool:
     """Whether this removal swallows a refusal to delete an entry.
 
-    Two forms carry the refusal: a direct `rmtree(..., ignore_errors=True)`
-    call, and a removal handed to another call that then passes
-    `ignore_errors=True` -- `addCleanup(shutil.rmtree, path, True)` -- or
-    `True` in the position `rmtree` takes it, as
-    `weakref.finalize(self, shutil.rmtree, path, True)` does.
+    A direct call carries the refusal as the `ignore_errors` keyword or
+    in `rmtree`'s positional slot after the path. A removal handed to
+    another call carries it the same way on the enclosing call: either
+    the `ignore_errors` keyword, or `True` in the position `rmtree`
+    takes it, as `weakref.finalize(self, shutil.rmtree, path, True)`
+    does.
     """
     if _names_a_removal(call.func):
-        return any(
+        if any(
             keyword.arg == "ignore_errors" and _is_true(keyword.value)
             for keyword in call.keywords
-        )
+        ):
+            return True
+        return len(call.args) > 1 and _is_true(call.args[1])
     positional = list(call.args)
     for index, argument in enumerate(positional):
         if not _names_a_removal(argument):
@@ -155,14 +223,6 @@ def _created_trees(scope: ast.AST) -> set[str]:
             for node in ast.walk(value)
         )
 
-    def referenced(value: ast.AST) -> set[str]:
-        """The names an expression reads."""
-        return {
-            ast.unparse(node)
-            for node in ast.walk(value)
-            if isinstance(node, (ast.Name, ast.Attribute))
-        }
-
     def targets_of(node: ast.AST) -> list[str]:
         if isinstance(node, ast.Assign):
             return [ast.unparse(target) for target in node.targets]
@@ -185,7 +245,7 @@ def _created_trees(scope: ast.AST) -> set[str]:
                 continue
             if node.value is None:
                 continue
-            if not referenced(node.value) & known:
+            if not _bases(node.value) & known:
                 continue
             derived.update(targets_of(node))
         if derived <= known:
@@ -193,29 +253,38 @@ def _created_trees(scope: ast.AST) -> set[str]:
         known |= derived
 
 
-def _names_the_tree(call: ast.Call, created: set[str]) -> bool:
-    """Whether this removal acts on one of the fixture's own trees.
+def _is_inside(target: ast.AST) -> bool:
+    """Whether the path names something inside a tree rather than the tree.
 
-    The path a removal acts on must be the tree itself. A path *inside* a
-    tree is not that tree: a fixture that clears a cache directory between
-    two runs is not removing its tree, and a join onto a created name
-    (`shims / "blobs"`, `root / "cache"`) is such a path.
+    A path join (`shims / "blobs"`) and a path built out of another one
+    (`root.joinpath("cache")`) name something inside; the tree itself is
+    named directly, or converted to another form (`str(self.tmp)`).
     """
+    if isinstance(target, ast.BinOp) and isinstance(target.op, ast.Div):
+        return True
+    if isinstance(target, ast.Call):
+        if ast.unparse(target.func).rsplit(".", 1)[-1] in PATH_BUILDERS:
+            return True
+    return False
+
+
+def _names_the_tree(call: ast.Call, created: set[str]) -> bool:
+    """Whether this removal acts on one of the fixture's own trees."""
     target = _removal_target(call)
     if target is None:
         return False
-    if isinstance(target, ast.BinOp) and isinstance(target.op, ast.Div):
+    if _is_inside(target):
         return False
-    rendered = ast.unparse(target)
-    return any(name in rendered for name in created)
+    return bool(_bases(target) & created)
 
 
 def _scopes(tree: ast.Module) -> list[ast.AST]:
-    """The units a fixture's tree belongs to: each class, and each function
-    that is not inside one.
+    """The units a fixture's tree belongs to: the module, each class, and
+    each function that is not inside one.
 
     A fixture's tree is usually created in `setUp` and removed in a test
-    method, so the unit is the class, not the method.
+    method, so the unit is the class, not the method; a module-level
+    fixture's tree belongs to the module.
     """
     classes = [
         node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)
@@ -225,7 +294,8 @@ def _scopes(tree: ast.Module) -> list[ast.AST]:
         for node in ast.walk(tree)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
     ]
-    scopes: list[ast.AST] = list(classes)
+    scopes: list[ast.AST] = [tree]
+    scopes.extend(classes)
     scopes.extend(
         function
         for function in functions
@@ -335,7 +405,7 @@ class TempDirectoryOwnershipTests(unittest.TestCase):
                     name = ast.unparse(node.func)
                     if name.endswith("mkdtemp"):
                         owner = _owner_of(scope, node)
-                        if owner is None or not _removes(owner, source):
+                        if owner is None or not _removes(owner):
                             unremoved.append(
                                 f"{path.name}:{node.lineno}: {name}"
                             )

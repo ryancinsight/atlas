@@ -27,13 +27,15 @@
   against a private temporary root and asserts that root is empty
   afterward, so a suite running concurrently on the same host cannot be
   blamed for a tree it did not create; a second oracle reads the sources
-  and fails on any fixture that removes its tree with `ignore_errors=True`
-  or never removes it. Neither is vacuous: with one cleanup reverted the
-  first fails and names the leaked trees, and the second names the
-  reverted fixture in every form the six converted fixtures used -- a
-  direct `rmtree(..., ignore_errors=True)` call, the same removal
-  handed to `addCleanup`, a `weakref.finalize` that passes `True` as
-  `rmtree`'s `ignore_errors`, and a fixture with no cleanup at all.
+  and fails on any fixture that removes its own tree with
+  `ignore_errors=True` or never removes it. Neither is vacuous: with one
+  cleanup reverted the first fails and names the leaked trees, and the
+  second names the reverted fixture in every form the six converted
+  fixtures used -- a direct `rmtree` call carrying `ignore_errors=True` as
+  the keyword or in `rmtree`'s positional slot, the same removal handed
+  to `addCleanup`, a `weakref.finalize` that passes `True` as
+  `rmtree`'s `ignore_errors`, and a fixture with no cleanup at all. A
+  removal of a path inside the tree is not a leak and is not flagged.
   Recorded under ATLAS-TEST-TEMPDIR-LEAKS.
 
 - Fix the conformance gate's crash on a root push: `link_snapshot` took a
