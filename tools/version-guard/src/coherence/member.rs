@@ -114,8 +114,9 @@ pub(crate) fn first_party_member(
             members
                 .iter()
                 .find(|member| {
-                    fs::canonicalize(&member.path)
-                        .is_ok_and(|member_path| canonical == member_path || canonical.starts_with(&member_path))
+                    fs::canonicalize(&member.path).is_ok_and(|member_path| {
+                        canonical == member_path || canonical.starts_with(&member_path)
+                    })
                 })
                 .map(member_name)
         } else {
@@ -125,7 +126,10 @@ pub(crate) fn first_party_member(
                 .map(member_name)
         };
     }
-    dependency.git.as_deref().and_then(|git| member_for_git(git, members))
+    dependency
+        .git
+        .as_deref()
+        .and_then(|git| member_for_git(git, members))
 }
 
 /// Fold `.` and `..` out of a path without touching the filesystem.

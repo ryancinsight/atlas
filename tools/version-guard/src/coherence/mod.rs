@@ -299,14 +299,10 @@ pub fn scan_atlas(atlas_root: &Path, view: View) -> Result<CoherenceReport, Erro
             // member identifies the package: two members may declare a
             // package with the same name.
             let target = match view {
-                View::Worktree => {
-                    first_party_member(manifest, &dependency, &members, true)
-                }
+                View::Worktree => first_party_member(manifest, &dependency, &members, true),
                 // The tree view cannot canonicalize a path that is newer than
                 // the checkout, so it confirms membership lexically instead.
-                View::Remotes => {
-                    first_party_member(manifest, &dependency, &members, false)
-                }
+                View::Remotes => first_party_member(manifest, &dependency, &members, false),
             };
             let Some(target) = target else {
                 continue;
@@ -461,10 +457,8 @@ mod tests {
         // alone does not identify a package -- the member does -- so a scan
         // that treated a shared name as one package refused the whole stack
         // over a maintenance binary no consumer depends on.
-        let temp = std::env::temp_dir().join(format!(
-            "atlas-version-shared-name-{}",
-            std::process::id()
-        ));
+        let temp =
+            std::env::temp_dir().join(format!("atlas-version-shared-name-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp);
         for (member, version) in [("alpha", "0.1.0"), ("beta", "0.1.1")] {
             std::fs::create_dir_all(temp.join(format!("repos/{member}/xtask")))
