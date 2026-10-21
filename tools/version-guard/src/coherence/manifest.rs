@@ -87,9 +87,16 @@ pub(crate) fn parse_manifest_content(text: &str, path: &Path, atlas_root: &Path)
     }
 }
 
+/// Index every package the stack declares, by member and name.
+///
+/// Two members may declare a package with the same name -- every member
+/// carries an `xtask`, and their versions drift -- so a name alone does not
+/// identify a package. The member does, and a dependency names its member
+/// through the source it resolves against. Within one member a name still
+/// identifies one package, so two versions of it there is a real defect.
 pub(crate) fn package_index(
     manifests: &[ParsedManifest],
-) -> Result<BTreeMap<String, PackageVersion>, Error> {
+) -> Result<BTreeMap<(String, String), PackageVersion>, Error> {
     let mut roots = BTreeMap::new();
     for manifest in manifests {
         if manifest.is_root {
@@ -107,7 +114,7 @@ pub(crate) fn package_index(
             }
         }
     }
-    let mut index: BTreeMap<String, PackageVersion> = BTreeMap::new();
+    let mut index: BTreeMap<(String, String), PackageVersion> = BTreeMap::new();
     for manifest in manifests {
         let Some(name) = manifest.package_name.as_deref() else {
             continue;
@@ -120,18 +127,19 @@ pub(crate) fn package_index(
             }
         });
         if let Some(version) = version {
-            if let Some(existing) = index.get(name) {
+            let key = (manifest.consumer.clone(), name.to_string());
+            if let Some(existing) = index.get(&key) {
                 if existing.version != version {
                     return Err(Error::Manifest {
                         path: manifest.display_path.clone(),
                         message: format!(
-                            "ambiguous first-party package `{name}` has versions {} and {version}",
-                            existing.version
+                            "member `{}` declares package `{name}` at versions {} and {version}",
+                            manifest.consumer, existing.version
                         ),
                     });
                 }
             } else {
-                index.insert(name.to_string(), PackageVersion { version });
+                index.insert(key, PackageVersion { version });
             }
         }
     }

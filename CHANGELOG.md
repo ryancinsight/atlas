@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Identify a first-party package by its member, not by its name alone, in the
+  version-guard coherence scan. The scan indexed every package in the stack
+  under its bare name, so two members declaring a package with the same name
+  read as one package at two versions -- and every member carries an `xtask`
+  whose version drifts. The scan refused the whole stack on
+  `repos/apollo/xtask/Cargo.toml` before it reported a single real
+  requirement, and the real requirement was invisible behind it. The index is
+  now keyed by member and name, and a dependency resolves through the member
+  its `git =` URL or `path =` names, which is the member that says which
+  package it means. Two versions of one package inside one member still
+  refuse: the member disambiguates a name between members, not within
+  itself. Two new tests pin both rules. The gate now reports the genuine
+  cohort lag -- 1247 first-party requirements over 269 manifests, with
+  Athena's `hephaestus-core = ">=0.22.2, <0.26.0"` range among them, which
+  the old refusal had hidden.
+  Recorded under ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30.
+
 - Read the stack overlay's member manifests from the recorded stack instead of
   from whichever branch a developer has parked a member on. The generator
   gained `--pinned`, which reads each member's manifests from the gitlink

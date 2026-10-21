@@ -36,8 +36,7 @@ use manifest::{
     workspace_dependency_index,
 };
 use member::{
-    UnreadableDir, collect_manifests, is_first_party_source, is_first_party_source_in_tree,
-    registered_members, remote_manifest_paths,
+    UnreadableDir, collect_manifests, first_party_member, registered_members, remote_manifest_paths,
 };
 use requirement::matches_requirement;
 pub use staleness::StaleMember;
@@ -296,20 +295,25 @@ pub fn scan_atlas(atlas_root: &Path, view: View) -> Result<CoherenceReport, Erro
                 .package
                 .clone()
                 .unwrap_or_else(|| dependency.key.clone());
-            let Some(package) = packages.get(&package_name) else {
-                continue;
-            };
-            let first_party = match view {
+            // The dependency names the member it resolves against, and that
+            // member identifies the package: two members may declare a
+            // package with the same name.
+            let target = match view {
                 View::Worktree => {
-                    is_first_party_source(manifest, &dependency, &members, atlas_root)
+                    first_party_member(manifest, &dependency, &members, true)
                 }
                 // The tree view cannot canonicalize a path that is newer than
                 // the checkout, so it confirms membership lexically instead.
-                View::Remotes => is_first_party_source_in_tree(manifest, &dependency, &members),
+                View::Remotes => {
+                    first_party_member(manifest, &dependency, &members, false)
+                }
             };
-            if !first_party {
+            let Some(target) = target else {
                 continue;
-            }
+            };
+            let Some(package) = packages.get(&(target, package_name.clone())) else {
+                continue;
+            };
             let Some(required) = dependency.version.as_deref() else {
                 continue;
             };
@@ -448,6 +452,85 @@ mod tests {
         let report = scan_atlas(&temp, View::Worktree).expect("scan fixture");
         assert_eq!(report.findings.len(), 1);
         assert_eq!(report.findings[0].actual, "0.1.0");
+        let _ = std::fs::remove_dir_all(temp);
+    }
+
+    #[test]
+    fn a_package_name_shared_by_two_members_is_not_ambiguous() {
+        // Every member carries an `xtask`, and their versions drift. The name
+        // alone does not identify a package -- the member does -- so a scan
+        // that treated a shared name as one package refused the whole stack
+        // over a maintenance binary no consumer depends on.
+        let temp = std::env::temp_dir().join(format!(
+            "atlas-version-shared-name-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&temp);
+        for (member, version) in [("alpha", "0.1.0"), ("beta", "0.1.1")] {
+            std::fs::create_dir_all(temp.join(format!("repos/{member}/xtask")))
+                .expect("member directory");
+            std::fs::write(
+                temp.join(format!("repos/{member}/Cargo.toml")),
+                "[workspace]\nmembers = [\"xtask\"]\n",
+            )
+            .expect("member root manifest");
+            std::fs::write(
+                temp.join(format!("repos/{member}/xtask/Cargo.toml")),
+                format!("[package]\nname = \"xtask\"\nversion = \"{version}\"\npublish = false\n"),
+            )
+            .expect("xtask manifest");
+        }
+        std::fs::write(
+            temp.join(".gitmodules"),
+            "[submodule \"repos/alpha\"]\n\tpath = repos/alpha\n[submodule \"repos/beta\"]\n\tpath = repos/beta\n",
+        )
+        .expect("gitmodules");
+
+        let report = scan_atlas(&temp, View::Worktree).expect("scan fixture");
+        assert!(
+            report.findings.is_empty(),
+            "a shared package name is not a coherence defect: {:?}",
+            report.findings
+        );
+        let _ = std::fs::remove_dir_all(temp);
+    }
+
+    #[test]
+    fn two_versions_of_one_package_in_one_member_still_refuse() {
+        // The member does not disambiguate a name inside itself: one member
+        // declaring one package name at two versions is a real defect.
+        let temp = std::env::temp_dir().join(format!(
+            "atlas-version-one-member-two-versions-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&temp);
+        std::fs::create_dir_all(temp.join("repos/alpha")).expect("member directory");
+        std::fs::write(
+            temp.join("repos/alpha/Cargo.toml"),
+            "[workspace]\nmembers = [\"first\", \"second\"]\n",
+        )
+        .expect("member root manifest");
+        for (directory, version) in [("first", "0.1.0"), ("second", "0.1.1")] {
+            std::fs::create_dir_all(temp.join(format!("repos/alpha/{directory}")))
+                .expect("member directory");
+            std::fs::write(
+                temp.join(format!("repos/alpha/{directory}/Cargo.toml")),
+                format!("[package]\nname = \"alpha-core\"\nversion = \"{version}\"\n"),
+            )
+            .expect("package manifest");
+        }
+        std::fs::write(
+            temp.join(".gitmodules"),
+            "[submodule \"repos/alpha\"]\n\tpath = repos/alpha\n",
+        )
+        .expect("gitmodules");
+
+        let error = scan_atlas(&temp, View::Worktree).expect_err("two versions refuse");
+        let message = format!("{error:?}");
+        assert!(
+            message.contains("alpha-core"),
+            "the refusal names the package: {message}"
+        );
         let _ = std::fs::remove_dir_all(temp);
     }
 
