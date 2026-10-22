@@ -114,9 +114,11 @@ aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
 
 [patch."https://github.com/ryancinsight/asclepius"]
 asclepius = { path = "repos/asclepius/crates/asclepius" }
+asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
 
 [patch."https://github.com/ryancinsight/asclepius.git"]
 asclepius = { path = "repos/asclepius/crates/asclepius" }
+asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
 
 [patch."https://github.com/ryancinsight/athena"]
 athena-core = { path = "repos/athena/crates/athena-core" }
@@ -279,18 +281,22 @@ proteus-mat = { path = "repos/proteus" }
 [patch."https://github.com/ryancinsight/ritk"]
 ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
 ritk-core = { path = "repos/ritk/crates/ritk-core" }
+ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
 ritk-image = { path = "repos/ritk/crates/ritk-image" }
 ritk-io = { path = "repos/ritk/crates/ritk-io" }
 ritk-registration = { path = "repos/ritk/crates/ritk-registration" }
 ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
+ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
 
 [patch."https://github.com/ryancinsight/ritk.git"]
 ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
 ritk-core = { path = "repos/ritk/crates/ritk-core" }
+ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
 ritk-image = { path = "repos/ritk/crates/ritk-image" }
 ritk-io = { path = "repos/ritk/crates/ritk-io" }
 ritk-registration = { path = "repos/ritk/crates/ritk-registration" }
 ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
+ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
 
 [patch."https://github.com/ryancinsight/themis"]
 themis-topology = { path = "repos/themis" }
