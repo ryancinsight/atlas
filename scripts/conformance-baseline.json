@@ -587,7 +587,7 @@
     "reexport_shims": 0,
     "root_sprawl": 2,
     "root_sprawl_untracked": 0,
-    "scattered_containers": 24,
+    "scattered_containers": 17,
     "second_output_root": 0,
     "seqcst_production": 0,
     "sleep_synced_tests": 0,

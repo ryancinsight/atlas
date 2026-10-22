@@ -562,6 +562,11 @@ class OverlayFreshnessTestCase(unittest.TestCase):
     neither is visible to the lag and pin-drift checks that `check` ran before.
     """
 
+    @staticmethod
+    def _manifests() -> list[tuple[Path, str]]:
+        """The manifest set a generation over `repos/p` would have read."""
+        return [(Path("repos/p"), '[package]\nname = "p"\nversion = "1.0.0"\n')]
+
     def _config(self, root: Path, block: str) -> Path:
         config = root / "config.toml"
         config.write_text(
@@ -584,6 +589,27 @@ class OverlayFreshnessTestCase(unittest.TestCase):
             self.assertIn("dangling", problems[0])
             self.assertIn("repos/p", problems[0])
 
+    def test_a_path_the_manifest_set_carries_is_not_dangling(self) -> None:
+        """The dangling test reads the manifest set, not the filesystem.
+
+        A pinned or tips read describes the recorded stack, so a path the
+        recorded stack carries is present even when the checkout behind it does
+        not have it. Testing the filesystem there reports a path as missing
+        that the generation is right to emit.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
+            root = Path(root_text)
+            block = '\n[patch."https://example.invalid/p"]\np = { path = "repos/p" }\n'
+            config = self._config(root, block)
+            manifests = [(Path("repos/p"), '[package]\nname = "p"\nversion = "1.0.0"\n')]
+
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "CONFIG", config
+            ), patch.object(_overlay, "build_overlay", return_value=(block, [], [])):
+                problems = _overlay.check_overlay_freshness({}, manifests)
+
+            self.assertEqual(problems, [])
+
     def test_drift_from_a_fresh_generation_is_reported(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
             root = Path(root_text)
@@ -598,7 +624,7 @@ class OverlayFreshnessTestCase(unittest.TestCase):
             ), patch.object(
                 _overlay, "build_overlay", return_value=(regenerated, [], [])
             ):
-                problems = _overlay.check_overlay_freshness({}, [])
+                problems = _overlay.check_overlay_freshness({}, self._manifests())
 
             self.assertEqual(len(problems), 1, problems)
             self.assertIn("fresh generation", problems[0])
@@ -614,7 +640,7 @@ class OverlayFreshnessTestCase(unittest.TestCase):
             with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
                 _overlay, "CONFIG", config
             ), patch.object(_overlay, "build_overlay", return_value=(block, [], [])):
-                problems = _overlay.check_overlay_freshness({}, [])
+                problems = _overlay.check_overlay_freshness({}, self._manifests())
 
             self.assertEqual(problems, [])
 
@@ -634,7 +660,7 @@ class OverlayFreshnessTestCase(unittest.TestCase):
             with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
                 _overlay, "CONFIG", config
             ), patch.object(_overlay, "build_overlay", return_value=(enabled, [], [])):
-                problems = _overlay.check_overlay_freshness({}, [])
+                problems = _overlay.check_overlay_freshness({}, self._manifests())
 
             self.assertEqual(problems, [])
 

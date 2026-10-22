@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Advance the Atlas gitlinks for the three members whose provider-cohort pull
+  requests merged, and regenerate the stack overlay from the recorded stack.
+  Tyche, Harmonia and Prometheus move to their merged revisions -- Consus
+  0.4.0 for Tyche, the 0.10 cohort for the other two. The regenerated
+  overlay drops the dead `coeus-leto` mapping, which failed every cargo
+  command beneath the stack root, and carries `consus-zip` in both Consus
+  sections. The dangling-path check now reads the manifest set the
+  generation read rather than the filesystem: a pinned or tips read
+  describes the recorded stack, so a path the recorded stack carries is
+  present even when the checkout behind it does not have it, and the
+  filesystem test reported `repos/consus/crates/consus-zip` as dangling
+  when it was not.
+  Recorded under ATLAS-COESUS-CPU-OVERLAY and
+  ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30.
+
 - Identify a first-party package by its member, not by its name alone, in the
   version-guard coherence scan. The scan indexed every package in the stack
   under its bare name, so two members declaring a package with the same name

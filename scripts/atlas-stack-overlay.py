@@ -658,8 +658,15 @@ def check_overlay_freshness(
         for line in match.group(1).split("\n")
     )
 
+    # A path is dangling when the manifest set the generator read has no
+    # manifest there. The filesystem is the wrong test for a pinned or tips
+    # read: a checkout behind its pin would report a path the recorded stack
+    # carries as present, and a fresh generation would then differ from the
+    # committed block for a reason that has nothing to do with the block.
+    manifest_dirs = {rel.as_posix() for rel, _text in manifests}
+
     for rel in re.findall(r'path = "([^"]+)"', committed):
-        if not (ATLAS_ROOT / rel / "Cargo.toml").is_file():
+        if Path(rel).as_posix() not in manifest_dirs:
             problems.append(f"dangling overlay path `{rel}` -- no manifest there")
 
     # The config is checked out with platform line endings; the generator emits
