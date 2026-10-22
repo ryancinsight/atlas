@@ -2,18 +2,25 @@
 
 ## Unreleased
 
-- Advance the Atlas gitlinks for the three members whose provider-cohort pull
+- Advance the Atlas gitlinks for the six members whose provider-cohort pull
   requests merged, and regenerate the stack overlay from the recorded stack.
-  Tyche, Harmonia and Prometheus move to their merged revisions -- Consus
-  0.4.0 for Tyche, the 0.10 cohort for the other two. The regenerated
-  overlay drops the dead `coeus-leto` mapping, which failed every cargo
-  command beneath the stack root, and carries `consus-zip` in both Consus
-  sections. The dangling-path check now reads the manifest set the
-  generation read rather than the filesystem: a pinned or tips read
-  describes the recorded stack, so a path the recorded stack carries is
-  present even when the checkout behind it does not have it, and the
-  filesystem test reported `repos/consus/crates/consus-zip` as dangling
-  when it was not.
+  Tyche, RITK, Harmonia, Prometheus, Coeus and Kwavers move to their merged
+  revisions -- Consus 0.4.0 for the first two, the 0.10 cohort for the rest.
+  Only merged members are advanced: a gitlink records a published revision,
+  and an open pull request's head is not one. The pull requests merged by
+  rebase, so the revision recorded is the default branch's tip, and the
+  proof that it carries the change is per file the pull request touched -- a
+  tree-wide comparison also catches whatever else landed on the default
+  branch since, which says nothing about this change.
+- The regenerated overlay drops the dead `coeus-leto` mapping, which failed
+  every cargo command beneath the stack root, and carries `coeus-cpu` in
+  both Coeus sections and `consus-zip` in both Consus sections: 42 patch
+  sections against the 22 the dead mapping left behind. The dangling-path
+  check now reads the manifest set the generation read rather than the
+  filesystem: a pinned or tips read describes the recorded stack, so a path
+  the recorded stack carries is present even when the checkout behind it
+  does not have it, and the filesystem test reported
+  `repos/consus/crates/consus-zip` as dangling when it was not.
   Recorded under ATLAS-COESUS-CPU-OVERLAY and
   ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30.
 
