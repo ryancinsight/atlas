@@ -126,6 +126,7 @@ def _gitlinks(ref: str) -> dict[str, str]:
         cwd=ATLAS_ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         errors="replace",
     )
     if proc.returncode != 0:
@@ -170,6 +171,7 @@ def _git(repo: Path, *args: str) -> tuple[int, str, str]:
         cwd=repo,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         errors="replace",
     )
     return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
@@ -201,6 +203,7 @@ def _pinned_manifests(pins: dict[str, str]) -> list[tuple[Path, str]]:
             cwd=member_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             errors="replace",
         )
         if listing.returncode != 0:
@@ -714,7 +717,7 @@ def check(
     for line in stale:
         print(f"OVERLAY: {line}")
 
-    drift = check_locks(packages, args.pinned)
+    drift = check_locks(packages, pinned)
     by_repo: dict[str, list[str]] = {}
     for line in sorted(set(drift)):
         by_repo.setdefault(line.split(":", 1)[0], []).append(line.split(": ", 1)[1])

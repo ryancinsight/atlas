@@ -13,14 +13,9 @@
   },
   "waivers": [
     {
-      "member": "leto",
-      "reason": "ATLAS-LETO-SPARSE-TEST-SPLIT-001: the default tip raises `oversized_files` 7 -> 8 (crates/leto-ops/tests/ops/sparse.rs crossed 500 lines at 02852b6, now 599), which the conformance ratchet rejects",
-      "reopen": "ryancinsight/leto#338 merges and the tip measures 7 again, so the pin advances and this entry is deleted"
-    },
-    {
-      "member": "hephaestus",
-      "reason": "ATLAS-HEPHAESTUS-MANIFEST-DEBT-001: the master tip ae24d07c raises `manifest_implementation` 14 -> 16 and `type_suffixed_fns` 7 -> 8, which the conformance ratchet rejects (measured by the pre-push hook, baseline a6e3ef22)",
-      "reopen": "a hephaestus cleanup PR lands both classes back at 14/7, so the pin advances past 7f27fd4a and this entry is deleted"
+      "member": "metis",
+      "reason": "METIS-QUIC-PROMOTION-001: the default tip raises `unresolved_references` 0 -> 9 (bare citations of the unmerged Moirai provider commits 52c90639241c4e6fad3be93270b4bfa9831326ad, 8f8fd753fd716d33061434cdfb1a1b08f64d4cfb and ed039a6ed5fcc454a572fd7ab840b4c1919a2c9d in backlog.md, gap_audit.md, CHANGELOG.md and checklist.md) and `board_checklist_files` 0 -> 1 (checklist.md), which the conformance ratchet rejects",
+      "reopen": "a metis PR folds checklist.md into its backlog item and cites the provider commits as commit/PR links (or ryancinsight/Moirai#618 merges so the hashes resolve from a landed ref), the tip measures 0/0 again, so the pin advances and this entry is deleted"
     }
   ]
 }
