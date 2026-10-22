@@ -664,5 +664,28 @@ class OverlayFreshnessTestCase(unittest.TestCase):
 
             self.assertEqual(problems, [])
 
+
+class CheckWiringTestCase(unittest.TestCase):
+    """`check` must pass its own pinned flag to the lock scan.
+
+    The function receives `pinned` as a parameter; referring to the CLI
+    parser's `args` there raises NameError before any drift is reported, so
+    the CI gate failed as a traceback rather than as its measured verdict.
+    """
+
+    def test_check_passes_pinned_to_check_locks(self) -> None:
+        with patch.object(
+            _overlay, "collect_first_party_deps", return_value=[]
+        ), patch.object(
+            _overlay, "check_overlay_freshness", return_value=[]
+        ), patch.object(
+            _overlay, "check_locks", return_value=[]
+        ) as locks:
+            result = _overlay.check({}, [], True)
+
+        self.assertEqual(result, 0)
+        locks.assert_called_once_with({}, True)
+
+
 if __name__ == "__main__":
     unittest.main()
