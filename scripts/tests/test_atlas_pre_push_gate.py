@@ -1254,6 +1254,31 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             check=True,
         )
 
+    def _seed_root_config(
+        self, fixture: GateFixture, content: str, filename: str = "config.toml"
+    ) -> pathlib.Path:
+        path = fixture.root / ".cargo" / filename
+        _write(path, content)
+        self._commit(fixture, path.relative_to(fixture.root).as_posix())
+        _git(
+            fixture.root,
+            "update-ref",
+            "refs/remotes/origin/main",
+            _git(fixture.root, "rev-parse", "HEAD"),
+        )
+        return path
+
+    def _assert_all_workspaces_gated(self, identity_log: pathlib.Path) -> None:
+        invocations = [
+            json.loads(line)
+            for line in identity_log.read_text(encoding="utf-8").splitlines()
+        ]
+        manifests = {
+            pathlib.Path(item["argv"][item["argv"].index("--manifest") + 1]).parent.name
+            for item in invocations
+        }
+        self.assertEqual(manifests, set(self.workspaces))
+
     def _point_branch_at_unique_tree(
         self, fixture: GateFixture, with_parent: bool
     ) -> pathlib.Path:
@@ -1365,12 +1390,191 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             code, stderr = fixture.run_hook(fixture.push_line_new_branch())
 
             self.assertEqual(code, 0, stderr)
-            invocations = [json.loads(line) for line in identity_log.read_text(encoding="utf-8").splitlines()]
-            manifests = {
-                pathlib.Path(item["argv"][item["argv"].index("--manifest") + 1]).parent.name
-                for item in invocations
-            }
-            self.assertEqual(manifests, set(self.workspaces))
+            self._assert_all_workspaces_gated(identity_log)
+
+    def test_patch_only_root_configs_do_not_select_workspaces(self) -> None:
+        for filename in ("config", "config.toml"):
+            with self.subTest(filename=filename), tempfile.TemporaryDirectory(
+                prefix="atlas-meta-gate-"
+            ) as temp:
+                fixture, _, identity_log = self._fixture(temp)
+                path = self._seed_root_config(
+                    fixture,
+                    '[build]\nincremental = false\n[patch.crates-io]\nserde = { git = "https://example.invalid/base" }\n',
+                    filename,
+                )
+                _write(
+                    path,
+                    '[build]\nincremental = false\n[patch.crates-io]\nserde = { git = "https://example.invalid/candidate" }\n',
+                )
+                self._commit(fixture, path.relative_to(fixture.root).as_posix())
+
+                code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+                self.assertEqual(code, 0, stderr)
+                self.assertIn("native gate not applicable", stderr)
+                self.assertFalse(identity_log.exists())
+
+    def test_patch_only_root_config_keeps_changed_workspace_selected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            path = self._seed_root_config(
+                fixture,
+                '[build]\nincremental = false\n[patch.crates-io]\nserde = { git = "https://example.invalid/base" }\n',
+            )
+            _write(
+                path,
+                '[build]\nincremental = false\n[patch.crates-io]\nserde = { git = "https://example.invalid/candidate" }\n',
+            )
+            source = fixture.root / "tools" / "version-guard" / "src" / "lib.rs"
+            source.write_text("pub fn f() {}\n// changed\n", encoding="utf-8")
+            self._commit(
+                fixture,
+                ".cargo/config.toml",
+                "tools/version-guard/src/lib.rs",
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            invocations = [
+                json.loads(line)
+                for line in identity_log.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(len(invocations), 1)
+            argv = invocations[0]["argv"]
+            manifest = pathlib.Path(argv[argv.index("--manifest") + 1])
+            self.assertEqual(manifest.parent.name, "version-guard")
+
+    def test_root_config_nonpatch_types_are_compared_strictly(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            path = self._seed_root_config(fixture, "[build]\nincremental = true\n")
+            _write(path, "[build]\nincremental = 1\n")
+            self._commit(fixture, ".cargo/config.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self._assert_all_workspaces_gated(identity_log)
+
+    def test_root_config_include_retains_global_selection(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            included = fixture.root / "shared-config.toml"
+            _write(included, "[build]\nincremental = false\n")
+            path = fixture.root / ".cargo" / "config.toml"
+            _write(
+                path,
+                'include = ["../shared-config.toml"]\n[patch.crates-io]\nserde = { git = "https://example.invalid/base" }\n',
+            )
+            self._commit(fixture, ".cargo/config.toml", "shared-config.toml")
+            _git(
+                fixture.root,
+                "update-ref",
+                "refs/remotes/origin/main",
+                _git(fixture.root, "rev-parse", "HEAD"),
+            )
+            _write(
+                path,
+                'include = ["../shared-config.toml"]\n[patch.crates-io]\nserde = { git = "https://example.invalid/candidate" }\n',
+            )
+            self._commit(fixture, ".cargo/config.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self._assert_all_workspaces_gated(identity_log)
+
+    def test_root_config_symlink_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            self._seed_root_config(fixture, "[build]\nincremental = false\n")
+            target = fixture.root / "config-target.toml"
+            _write(target, "[build]\nincremental = false\n")
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add", "config-target.toml"],
+                check=True,
+            )
+            blob = subprocess.run(
+                ["git", "-C", str(fixture.root), "hash-object", "-w", "--stdin"],
+                input=b"../config-target.toml",
+                check=True,
+                capture_output=True,
+            ).stdout.decode("ascii").strip()
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(fixture.root),
+                    "update-index",
+                    "--add",
+                    "--cacheinfo",
+                    "120000",
+                    blob,
+                    ".cargo/config.toml",
+                ],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "change"],
+                check=True,
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("could not select the Atlas meta root's Cargo workspace owners", stderr)
+            self.assertFalse(identity_log.exists())
+
+    def test_deleted_root_config_retains_global_selection(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            self._seed_root_config(fixture, "[build]\nincremental = false\n")
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "rm", "-q", ".cargo/config.toml"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "change"],
+                check=True,
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self._assert_all_workspaces_gated(identity_log)
+
+    def test_malformed_root_config_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(temp)
+            path = self._seed_root_config(fixture, "[build]\nincremental = false\n")
+            _write(path, "[build\nincremental = false\n")
+            self._commit(fixture, ".cargo/config.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("could not select the Atlas meta root's Cargo workspace owners", stderr)
+            self.assertFalse(identity_log.exists())
+
+    def test_toolchain_and_nextest_inputs_remain_global(self) -> None:
+        cases = {
+            "rust-toolchain.toml": '[toolchain]\nchannel = "stable"\n',
+            ".config/nextest.toml": "[profile.default]\nretries = 0\n",
+        }
+        for changed, content in cases.items():
+            with self.subTest(path=changed), tempfile.TemporaryDirectory(
+                prefix="atlas-meta-gate-"
+            ) as temp:
+                fixture, _, identity_log = self._fixture(temp)
+                _write(fixture.root / changed, content)
+                self._commit(fixture, changed)
+
+                code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+                self.assertEqual(code, 0, stderr)
+                self._assert_all_workspaces_gated(identity_log)
 
     def test_root_export_cargo_excludes_its_patch_overlay(self) -> None:
         cargo = shutil.which("cargo")
