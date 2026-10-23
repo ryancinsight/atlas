@@ -281,7 +281,8 @@ class GateFixture:
             "#!/usr/bin/env bash\nexit 0\n",
             executable=True,
         )
-        self.cargo_launcher = self.bin / ("cargo.cmd" if os.name == "nt" else "cargo")
+        # Keep the Windows batch bridge outside the source path under test.
+        self.cargo_launcher = self.tmp / "cargo.cmd" if os.name == "nt" else self.bin / "cargo"
         if os.name == "nt":
             _write(
                 self.cargo_launcher,
@@ -1376,7 +1377,7 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
             _write(pathlib.Path(temp) / ".cargo" / "config.toml", '[build]\nrustflags = ["--cfg", "ancestor_flag"]\n')
             _write(pathlib.Path(temp) / "inner" / ".cargo" / "config.toml", '[build]\nrustflags = ["--cfg", "inner_flag"]\n')
-            fixture, _, identity_log = self._fixture(str(pathlib.Path(temp) / "inner" / "stack"))
+            fixture, _, identity_log = self._fixture(str(pathlib.Path(temp) / "inner" / "stack with spaces"))
             config = (
                 '[build]\ntarget-dir = "target"\nrustflags = ["--cfg", "root_flag"]\n'
                 '[env]\nATLAS_OVERLAY_ASSETS = { value = "assets", relative = true }\n'
@@ -1454,7 +1455,7 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             tool = root / "tools" / "demo"
             _write(tool / "Cargo.toml", '[package]\nname = "demo"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n')
             _write(tool / "src/lib.rs", "pub fn answer() -> u32 { 42 }\n")
-            _write(root / ".cargo/config.toml", '[build]\ntarget-dir = "root-target"\n[doc]\nbrowser = "./browser --new"\n[credential-alias]\nlocal = "./credential --get"\n')
+            _write(root / ".cargo/config.toml", '[build]\ntarget-dir = "root-target"\n[doc]\nbrowser = "./browser --new"\n[credential-alias]\nlocal = "./credential --get"\n[registry]\nglobal-credential-providers = ["cargo:token", "local", "./credential --get"]\n')
             _write(tool / ".cargo/config.toml", '[build]\ntarget-dir = "toml-target"\n')
             _write(tool / ".cargo/config", '[build]\ntarget-dir = "legacy-target"\n')
             selector = tool / "rust-toolchain.toml"
@@ -1481,6 +1482,10 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
                 config = next(data for data in parsed if "doc" in data)
                 self.assertEqual(config["doc"]["browser"], [str(root / "browser"), "--new"])
                 self.assertEqual(config["credential-alias"]["local"], [str(root / "credential"), "--get"])
+                providers = config["registry"]["global-credential-providers"]
+                self.assertEqual(providers[:2], ["cargo:token", "local"])
+                self.assertTrue(all(isinstance(provider, str) for provider in providers))
+                self.assertEqual(config["credential-alias"][providers[2]], [str(root / "credential"), "--get"])
                 if filename is None:
                     self.assertEqual((cwd / selector.name).read_bytes(), selector.read_bytes())
                 else:

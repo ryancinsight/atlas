@@ -1170,6 +1170,28 @@ def rebase_program(item, root):
     return [program, *arguments[1:]]
 
 
+def credential_alias_name(aliases, arguments):
+    encoded = json.dumps(
+        arguments, ensure_ascii=False, separators=(',', ':')
+    ).encode()
+    base = 'atlas-config-mirror-' + hashlib.sha256(encoded).hexdigest()
+    name = base
+    collision = 0
+    while name in aliases:
+        if aliases[name] == arguments:
+            return name
+        collision += 1
+        name = f'{base}-{collision}'
+    aliases[name] = arguments
+    return name
+
+
+def rebase_credential_provider(item, root, aliases):
+    if isinstance(item, str) and isinstance(aliases, dict) and item in aliases:
+        return item
+    return rebase_program(item, root)
+
+
 def rebase_field(body, name, root, transform=rebase_path):
     if isinstance(body, dict) and name in body:
         body[name] = transform(body[name], root)
@@ -1220,17 +1242,32 @@ def rebase_config(data, root):
         for name, provider in aliases.items():
             aliases[name] = rebase_program(provider, root)
     registry = data.get('registry')
-    rebase_field(registry, 'credential-provider', root, rebase_program)
+    if isinstance(registry, dict) and 'credential-provider' in registry:
+        registry['credential-provider'] = rebase_credential_provider(
+            registry['credential-provider'], root, aliases
+        )
     if isinstance(registry, dict):
         providers = registry.get('global-credential-providers')
         if isinstance(providers, list):
-            registry['global-credential-providers'] = [
-                rebase_program(provider, root) for provider in providers
-            ]
+            rebased_providers = []
+            for provider in providers:
+                rebased = rebase_credential_provider(provider, root, aliases)
+                if isinstance(provider, str) and isinstance(rebased, list):
+                    if aliases is None:
+                        aliases = {}
+                        data['credential-alias'] = aliases
+                    elif not isinstance(aliases, dict):
+                        raise ValueError('credential-alias must be a table')
+                    rebased = credential_alias_name(aliases, rebased)
+                rebased_providers.append(rebased)
+            registry['global-credential-providers'] = rebased_providers
     registries = data.get('registries')
     if isinstance(registries, dict):
         for registry in registries.values():
-            rebase_field(registry, 'credential-provider', root, rebase_program)
+            if isinstance(registry, dict) and 'credential-provider' in registry:
+                registry['credential-provider'] = rebase_credential_provider(
+                    registry['credential-provider'], root, aliases
+                )
 
     environment = data.get('env')
     if isinstance(environment, dict):
@@ -1415,7 +1452,8 @@ run_cargo_workspace_gate() {
   local workspace_manifest="$1"
   local gate_changed="$2"
   local gate_manifest_path="$gate_export/$workspace_manifest"
-  local gate_workspace_root gate_cargo_cwd gate_layout_root
+  local gate_workspace_root gate_cargo_cwd gate_layout_root gate_package_specs
+  local -a gate_manifest gate_specs
   gate_workspace_root="$(dirname "$gate_manifest_path")"
   if [ ! -f "$gate_manifest_path" ]; then
     echo "pre-push: BLOCKED -- selected Cargo workspace manifest $workspace_manifest is missing from $gate_sha" >&2
@@ -1433,9 +1471,7 @@ run_cargo_workspace_gate() {
       exit 1
     fi
   fi
-  # Leading space: the steps render as `cargo doc --no-deps$gate_specs`, and
-  # without it the flag joins the subcommand ("--no-deps--manifest-path").
-  gate_manifest=" --manifest-path $gate_manifest_path"
+  gate_manifest=(--manifest-path "$gate_manifest_path")
 
   if [ "$stack_member" = "<meta>" ] \
     && printf '%s\n' "$gate_changed" | grep -qE '(^|/)Cargo\.(lock|toml)$'; then
@@ -1455,7 +1491,8 @@ run_cargo_workspace_gate() {
 # Cargo metadata marks each target with `test`; a package none of whose targets
 # has it is skipped by the tests stage only. Its clippy and rustdoc stages stay.
 if ! untestable_packages="$(
-  cd "$gate_cargo_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest |
+  cd "$gate_cargo_cwd" && cargo metadata --no-deps --format-version 1 \
+    "${gate_manifest[@]}" |
     "$python_bin" -c 'import json, sys
 sys.stdout.reconfigure(newline="\n")
 metadata = json.load(sys.stdin)
@@ -1476,7 +1513,8 @@ fi
 # `--no-deps` reads membership without resolving dependencies or changing the
 # lockfile. Each output record is `<repo-relative manifest><tab><package name>`.
 if ! workspace_members="$(
-  cd "$gate_cargo_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest |
+  cd "$gate_cargo_cwd" && cargo metadata --no-deps --format-version 1 \
+    "${gate_manifest[@]}" |
     "$python_bin" -c 'import json, os, sys
 # LF records: text-mode stdout on Windows writes CRLF, and bash keeps the CR
 # in the package name, so a new-member push gated `helios-core<CR>` beside
@@ -1817,10 +1855,12 @@ MESSAGE
 }
 
 gate_package_specs=""
+gate_specs=("${gate_manifest[@]}")
 for package_name in $gate_packages; do
   gate_package_specs="$gate_package_specs -p $package_name"
+  gate_specs+=(-p "$package_name")
 done
-gate_specs="$gate_manifest$gate_package_specs --locked"
+gate_specs+=(--locked)
 gate_reproduce="From a checkout of $gate_sha outside the stack overlay:"
 
 identity_scripts="${prepared_stack_scripts:-$stack_scripts}"
@@ -1834,7 +1874,8 @@ if [ -f "$identity_checker" ]; then
     exit 1
   fi
   if ! identity_target_dir="$(
-    cd "$gate_cargo_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest |
+    cd "$gate_cargo_cwd" && cargo metadata --no-deps --format-version 1 \
+      "${gate_manifest[@]}" |
       "$python_bin" -c 'import json, sys
 value = json.load(sys.stdin).get("target_directory")
 if not isinstance(value, str) or not value:
@@ -1942,7 +1983,7 @@ MESSAGE
 
 pre-push: $step_name fails for$gate_packages, so the source-identity build did not complete.
 MESSAGE
-      grep -m 1 '^error' "$gate_log" >&2 || true
+      tail -n 20 "$gate_log" >&2
       exit 1
       ;;
     environment)
@@ -2199,7 +2240,8 @@ echo "pre-push: gating${gate_packages}" >&2
 
 # Formatting is workspace-wide and near-instant, and its failure is the
 # cheapest one to find here rather than on a runner.
-if ! (cd "$gate_cargo_cwd" && cargo fmt --all $gate_manifest -- --check >/dev/null); then
+if ! (cd "$gate_cargo_cwd" \
+  && cargo fmt --all "${gate_manifest[@]}" -- --check >/dev/null); then
   cat >&2 <<MESSAGE
 
 pre-push: \`cargo fmt --check\` fails on $gate_sha, so the architecture validation would.
@@ -2265,7 +2307,8 @@ if [ "$identity_enabled" -eq 1 ]; then
   # false` one (consus-python) writes none, so an all-undocumented selection
   # skips the stage; cargo's own target list is the authority.
   if ! documented_packages="$(
-    cd "$gate_cargo_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest |
+    cd "$gate_cargo_cwd" && cargo metadata --no-deps --format-version 1 \
+      "${gate_manifest[@]}" |
       "$python_bin" -c 'import json, sys
 sys.stdout.reconfigure(newline="\n")
 documented = {"lib", "rlib", "dylib", "cdylib", "staticlib", "proc-macro", "bin"}
@@ -2312,7 +2355,7 @@ $package_name
     done
   fi
 else
-  case "$(classify_gate_step "$gate_log" cargo clippy $gate_specs --all-targets)" in
+  case "$(classify_gate_step "$gate_log" cargo clippy "${gate_specs[@]}" --all-targets)" in
     ours)
       cat >&2 <<MESSAGE
 
@@ -2335,7 +2378,8 @@ fi
 
 if [ "$identity_enabled" -eq 0 ]; then
   if command -v cargo-nextest >/dev/null 2>&1; then
-    case "$(classify_gate_step "$gate_log" cargo nextest run $gate_specs --no-tests=pass)" in
+    case "$(classify_gate_step "$gate_log" cargo nextest run \
+      "${gate_specs[@]}" --no-tests=pass)" in
       ours)
         cat >&2 <<MESSAGE
 
@@ -2364,7 +2408,8 @@ fi
 # after the merge (a redundant link target from apollo#508 did). The changed
 # packages are documented here the same way.
 if [ "$identity_enabled" -eq 0 ]; then
-  case "$(classify_gate_step "$gate_log" env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps $gate_specs)" in
+  case "$(classify_gate_step "$gate_log" env RUSTDOCFLAGS="-D warnings" \
+    cargo doc --no-deps "${gate_specs[@]}")" in
     ours)
       cat >&2 <<MESSAGE
 
