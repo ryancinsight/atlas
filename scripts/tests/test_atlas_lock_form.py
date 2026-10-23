@@ -270,6 +270,59 @@ class HookCommitTestCase(unittest.TestCase):
                 remote_head,
             )
 
+    def test_hook_push_uses_the_gate_deadline_and_preserves_its_inputs(self) -> None:
+        commit = "c" * 40
+        prepared_tools = "a" * 40
+        branch = "ci/hook-deadline"
+        ref = f"refs/heads/{branch}"
+        source_hook = b"#!/bin/sh\necho source-hook >&2\nexit 1\n"
+        calls = []
+
+        def execute(repo, args, *, stdin, env, timeout):
+            calls.append((repo, args, stdin, env, timeout))
+            if args[0] == "ls-remote":
+                return _lock_form.GitProcessResult(args, 0, b"", b"")
+            hook_directory = Path(args[1].removeprefix("core.hooksPath="))
+            self.assertEqual((hook_directory / "pre-push").read_bytes(), source_hook)
+            return _lock_form.GitProcessResult(
+                args, 1, b"", b"source hook rejected candidate\n"
+            )
+
+        with tempfile.TemporaryDirectory(prefix="atlas-push-deadline-") as temp, \
+                patch.object(_lock_form, "execute_git", side_effect=execute):
+            repo = Path(temp) / "member"
+            repo.mkdir()
+            with self.assertRaisesRegex(RuntimeError, "source hook rejected candidate"):
+                _lock_form.push_hook_branch(
+                    repo,
+                    commit,
+                    branch,
+                    source_hook,
+                    prepared_tools,
+                )
+
+        self.assertEqual([call[4] for call in calls], [
+            _lock_form.GIT_DEADLINE_SECONDS,
+            _lock_form.lockfile.CARGO_DEADLINE_SECONDS,
+        ])
+        self.assertEqual(calls[0][1], (
+            "ls-remote", "--heads", "origin", ref,
+        ))
+        push = calls[1][1]
+        self.assertEqual(push[0], "-c")
+        self.assertTrue(push[1].startswith("core.hooksPath="), push)
+        self.assertEqual(push[2:], (
+            "-c",
+            f"atlas.preparedTools={prepared_tools}",
+            "push",
+            "-q",
+            f"--force-with-lease={ref}:",
+            "origin",
+            f"{commit}:{ref}",
+        ))
+        self.assertTrue(all(call[2] is None for call in calls))
+        self.assertTrue(all("GIT_DIR" not in call[3] for call in calls))
+
     def test_rollout_head_landed_on_default_can_be_superseded(self) -> None:
         with self._rollout_repositories("atlas-publish-landed-") as repositories:
             remote, seed, publisher = repositories
