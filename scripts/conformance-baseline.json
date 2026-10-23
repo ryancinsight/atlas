@@ -990,7 +990,7 @@
     "worktrees_outside_lane_root": 0
   },
   "kwavers": {
-    "allow_sites": 299,
+    "allow_sites": 298,
     "balance_domain_edges": 0,
     "bare_git_dependency": 0,
     "board_checklist_files": 0,
@@ -1027,7 +1027,7 @@
     "reexport_shims": 6,
     "root_sprawl": 0,
     "root_sprawl_untracked": 0,
-    "scattered_containers": 56,
+    "scattered_containers": 55,
     "second_output_root": 0,
     "seqcst_production": 0,
     "sleep_synced_tests": 12,
@@ -1294,7 +1294,7 @@
     "nextest_budget_missing": 0,
     "nextest_retries_nonzero": 0,
     "orphan_modules": 0,
-    "oversized_files": 29,
+    "oversized_files": 28,
     "oversized_tracked_images": 0,
     "pm_lines_over_budget": 0,
     "print_dbg": 0,
