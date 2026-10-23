@@ -226,6 +226,8 @@ def provider_head() -> str | None:
             ["git", "-C", str(PROVIDER), "rev-parse", "origin/main"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=True,
         )
     except (OSError, subprocess.CalledProcessError):
@@ -240,6 +242,8 @@ def commits_behind(revision: str, head: str) -> int | None:
             ["git", "-C", str(PROVIDER), "rev-list", "--count", f"{revision}..{head}"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=True,
         )
     except (OSError, subprocess.CalledProcessError):

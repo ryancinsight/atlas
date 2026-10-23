@@ -206,7 +206,7 @@ class RescuePushHookTests(unittest.TestCase):
             self.assertFalse((root / "auditor.log").exists())
             self.assertNotIn("gitlink auditor", result.stderr)
 
-    def test_rescue_update_uses_normal_gate(self):
+    def test_fast_forward_rescue_update_runs_only_secret_scan(self):
         temporary, root = self.fixture()
         with temporary:
             git(root, "switch", "-qc", "rescue/preserved-work")
@@ -220,8 +220,25 @@ class RescuePushHookTests(unittest.TestCase):
             tip = git(root, "rev-parse", "HEAD")
             result = self.run_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {base}\n")
             self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f"{base[:12]}..{tip[:12]}", result.stdout)
+            self.assertFalse((root / "auditor.log").exists())
+
+    def test_non_fast_forward_rescue_update_uses_normal_gate(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/remote", "main")
+            (root / "remote.txt").write_text("remote\n", encoding="utf-8")
+            git(root, "add", "remote.txt")
+            git(root, "commit", "-qm", "remote rescue work")
+            remote = git(root, "rev-parse", "HEAD")
+            git(root, "switch", "-qc", "rescue/preserved-work", "main")
+            (root / "replacement.txt").write_text("replacement\n", encoding="utf-8")
+            git(root, "add", "replacement.txt")
+            git(root, "commit", "-qm", "replacement rescue work")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {remote}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(f"--revision {tip}", (root / "auditor.log").read_text(encoding="utf-8"))
-            self.assertIn(f"..{tip[:12]}", result.stdout)
 
     def test_rescue_to_main_uses_normal_gate(self):
         temporary, root = self.fixture()
@@ -533,6 +550,28 @@ class RescuePushHookTests(unittest.TestCase):
             self.assertIn(first[:12], result.stdout)
             self.assertNotIn("gitlink auditor", result.stderr)
 
+    def test_fast_forward_rescue_scans_an_added_then_removed_credential(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            base = git(root, "rev-parse", "HEAD")
+            token = "ghp_" + "u" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "temporary credential")
+            added = git(root, "rev-parse", "HEAD")
+            (root / "secret.txt").unlink()
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "remove credential")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(
+                root,
+                f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {base}\n",
+            )
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(added[:12], result.stdout)
+            self.assertFalse((root / "auditor.log").exists())
+
     def commit_stub_scanner(self, root):
         """Replace the pushed tip's scanner with one that reports every push clean."""
         write_file(
@@ -781,6 +820,11 @@ class RescuePushHookTests(unittest.TestCase):
                  "malformed rescue tip"),
                 ("absent tip", "origin/main", "origin/main", f"HEAD {'1' * 40} refs/heads/rescue/work {ZERO}",
                  "rescue tip is unavailable"),
+                ("malformed remote tip", "origin/main", "origin/main",
+                 f"HEAD {tip} refs/heads/rescue/work zzz", "malformed rescue remote tip"),
+                ("absent remote tip", "origin/main", "origin/main",
+                 f"HEAD {tip} refs/heads/rescue/work {'1' * 40}",
+                 "rescue remote tip is unavailable"),
                 ("absent allowlist revision", "origin/main", "refs/remotes/origin/absent", line,
                  "trusted allowlist revision is unavailable"),
                 ("scannerless trusted revision", scannerless, "origin/main", line,
