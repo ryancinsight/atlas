@@ -301,9 +301,15 @@ def load_packages(
         version = pkg.get("version")
         if isinstance(version, dict) and version.get("workspace"):
             version = None
+            best_root = None
+            best_depth = -1
             for root, ver in workspace_versions.items():
                 if root == rel or root in rel.parents:
-                    version = ver
+                    depth = len(root.parts)
+                    if depth > best_depth:
+                        best_depth = depth
+                        best_root = root
+                        version = ver
         if not isinstance(version, str):
             version = None
 
