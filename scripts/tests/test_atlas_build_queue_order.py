@@ -3,11 +3,12 @@
 
 from __future__ import annotations
 
-import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+from readonly_tree import clear_readonly_tree
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import atlas_build_queue as queue_module
@@ -28,7 +29,7 @@ SECOND_RUN = "2" * 32
 class QueueOrderTest(unittest.TestCase):
     def setUp(self) -> None:
         self.base = Path(tempfile.mkdtemp(prefix="atlas-queue-"))
-        self.addCleanup(shutil.rmtree, self.base, ignore_errors=True)
+        self.addCleanup(clear_readonly_tree, self.base)
 
     def lease_path(self, package: str) -> Path:
         return package_target_lease_path(package, self.base / "target")

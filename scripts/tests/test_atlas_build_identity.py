@@ -2665,6 +2665,29 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertNotEqual(first.environment_digest, second.environment_digest)
         self.assertNotEqual(build_records.record_path(first), build_records.record_path(second))
 
+    def test_toolchain_identity_uses_the_cargo_execution_directory(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        execution = self.base / "execution"
+        execution.mkdir()
+        with patch.dict(os.environ):
+            os.environ.pop("RUSTUP_TOOLCHAIN", None)
+            expected = subprocess.run(
+                [os.environ.get("RUSTC", "rustc"), "--version", "--verbose"],
+                cwd=execution, capture_output=True, check=True, text=True, timeout=60,
+            )
+            with patch.object(build_source.subprocess, "run", wraps=subprocess.run) as commands:
+                spec = build_inputs.build_spec(
+                    self.root, "demo", self.target, "debug", "host", "",
+                    execution_root=execution,
+                )
+        toolchain_directories = [
+            call.kwargs["cwd"] for call in commands.call_args_list
+            if call.args[0][-2:] == ["--version", "--verbose"]
+        ]
+        self.assertEqual(toolchain_directories, [execution.resolve()])
+        self.assertEqual(spec.toolchain, " ".join(expected.stdout.split()))
+        self.assertEqual(spec.source.revision, git(self.root, "rev-parse", "HEAD"))
+
     def test_a_relative_config_argument_resolves_against_the_execution_root(self) -> None:
         # Cargo resolves a relative `--config <path>` against its own `cwd`
         # (the execution root `--command-cwd` names), never against this

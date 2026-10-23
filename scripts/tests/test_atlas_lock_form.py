@@ -22,6 +22,7 @@ import os
 import tempfile
 import textwrap
 import unittest
+import uuid
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
@@ -202,7 +203,7 @@ class HookCommitTestCase(unittest.TestCase):
             self.assertEqual(self._git(repo, "status", "--porcelain"), status_before)
             self.assertEqual(self._git(repo, "rev-parse", "--abbrev-ref", "HEAD"), "peer")
 
-    def test_item_is_an_actual_generated_commit_trailer(self) -> None:
+    def test_item_and_agent_are_generated_commit_trailers(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-item-") as temp:
             repo = Path(temp) / "member"
             repo.mkdir()
@@ -213,7 +214,9 @@ class HookCommitTestCase(unittest.TestCase):
             self._git(repo, "add", "seed")
             self._git(repo, "commit", "-q", "-m", "seed")
             item = "ATLAS-MOIRAI-MAIN-DIVERGED-2026-10-05"
-            message = _lock_form.hook_publish_message("a109abb8ac02", [], item)
+            session = str(uuid.uuid4())
+            with patch.dict(os.environ, {"CODEX_THREAD_ID": session}):
+                message = _lock_form.hook_publish_message("a109abb8ac02", [], item)
 
             commit = _lock_form.hook_commit(
                 repo,
@@ -231,7 +234,7 @@ class HookCommitTestCase(unittest.TestCase):
                 text=True,
                 check=True,
             ).stdout.strip()
-            self.assertEqual(parsed, f"Item: {item}")
+            self.assertEqual(parsed, f"Item: {item}\nAgent: codex:{session}")
 
     def test_unique_remote_rollout_head_is_not_overwritten(self) -> None:
         with self._rollout_repositories("atlas-publish-lease-") as repositories:
@@ -1181,6 +1184,7 @@ class HookInstallTestCase(unittest.TestCase):
                 "scripts/atlas-conformance.py": conformance("baseline", baseline_exit),
                 "scripts/atlas_stack.py": b"ATLAS_STACK_ROOT = True\n",
                 "scripts/atlas-build-identity.py": b"raise SystemExit(0)\n",
+                "scripts/atlas_cast_gate.py": b"raise SystemExit(0)\n",
                 "scripts/lockfile.py": b"raise SystemExit(0)\n",
             },
         )
@@ -1191,6 +1195,7 @@ class HookInstallTestCase(unittest.TestCase):
             conformance("candidate", candidate_exit)
         )
         (scripts / "atlas_stack.py").write_bytes(b"ATLAS_STACK_ROOT = True\n")
+        (scripts / "atlas_cast_gate.py").write_bytes(b"raise SystemExit(0)\n")
         if not missing_tool:
             (scripts / "atlas-build-identity.py").write_bytes(
                 b"raise SystemExit(0)\n"

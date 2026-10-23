@@ -104,6 +104,14 @@ strip = "symbols"
 # Regenerate:  python scripts/atlas-stack-overlay.py generate
 # Check lag:   python scripts/atlas-stack-overlay.py check
 
+[patch."https://github.com/ryancinsight/aequitas"]
+aequitas = { path = "repos/aequitas" }
+aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
+
+[patch."https://github.com/ryancinsight/aequitas.git"]
+aequitas = { path = "repos/aequitas" }
+aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
+
 [patch."https://github.com/ryancinsight/asclepius"]
 asclepius = { path = "repos/asclepius/crates/asclepius" }
 asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
@@ -112,17 +120,13 @@ asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
 asclepius = { path = "repos/asclepius/crates/asclepius" }
 asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
 
-[patch."https://github.com/ryancinsight/consus"]
-consus-compression = { path = "repos/consus/crates/consus-compression" }
-consus-core = { path = "repos/consus/crates/consus-core" }
-consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
-consus-io = { path = "repos/consus/crates/consus-io" }
+[patch."https://github.com/ryancinsight/athena"]
+athena-core = { path = "repos/athena/crates/athena-core" }
+athena-leto = { path = "repos/athena/crates/athena-leto" }
 
-[patch."https://github.com/ryancinsight/consus.git"]
-consus-compression = { path = "repos/consus/crates/consus-compression" }
-consus-core = { path = "repos/consus/crates/consus-core" }
-consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
-consus-io = { path = "repos/consus/crates/consus-io" }
+[patch."https://github.com/ryancinsight/athena.git"]
+athena-core = { path = "repos/athena/crates/athena-core" }
+athena-leto = { path = "repos/athena/crates/athena-leto" }
 
 [patch."https://github.com/ryancinsight/eunomia"]
 eunomia = { path = "repos/eunomia/crates/eunomia" }
@@ -142,13 +146,11 @@ harmonia = { path = "repos/harmonia" }
 [patch."https://github.com/ryancinsight/harmonia.git"]
 harmonia = { path = "repos/harmonia" }
 
-[patch."https://github.com/ryancinsight/hephaestus"]
-hephaestus-core = { path = "repos/hephaestus/crates/hephaestus-core" }
-hephaestus-wgpu = { path = "repos/hephaestus/crates/hephaestus-wgpu" }
+[patch."https://github.com/ryancinsight/hermes"]
+hermes-simd = { path = "repos/hermes/crates/hermes-simd" }
 
-[patch."https://github.com/ryancinsight/hephaestus.git"]
-hephaestus-core = { path = "repos/hephaestus/crates/hephaestus-core" }
-hephaestus-wgpu = { path = "repos/hephaestus/crates/hephaestus-wgpu" }
+[patch."https://github.com/ryancinsight/hermes.git"]
+hermes-simd = { path = "repos/hermes/crates/hermes-simd" }
 
 [patch."https://github.com/ryancinsight/horae"]
 horae-time = { path = "repos/horae" }
@@ -173,6 +175,26 @@ melinoe = { path = "repos/melinoe" }
 
 [patch."https://github.com/ryancinsight/melinoe.git"]
 melinoe = { path = "repos/melinoe" }
+
+[patch."https://github.com/ryancinsight/Mnemosyne"]
+mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
+mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
+mnemosyne-heap = { path = "repos/mnemosyne/crates/mnemosyne-heap" }
+mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
+mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
+
+[patch."https://github.com/ryancinsight/Mnemosyne.git"]
+mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
+mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
+mnemosyne-heap = { path = "repos/mnemosyne/crates/mnemosyne-heap" }
+mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
+mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
+
+[patch."https://github.com/ryancinsight/Moirai"]
+moirai-webview = { path = "repos/moirai/moirai-webview" }
+
+[patch."https://github.com/ryancinsight/Moirai.git"]
+moirai-webview = { path = "repos/moirai/moirai-webview" }
 
 [patch."https://github.com/ryancinsight/proteus"]
 proteus-mat = { path = "repos/proteus" }

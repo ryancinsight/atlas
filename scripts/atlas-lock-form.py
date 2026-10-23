@@ -644,8 +644,15 @@ def hook_publish_message(source: str, retired: list[str], item: str | None) -> s
             + ", ".join(f"`{path}`" for path in retired)
             + ", which the hooks no longer read.\n"
         )
+    trailers = []
     if item is not None:
-        message += f"\nItem: {item}\n"
+        trailers.append(f"Item: {item}")
+    for harness, variable in (("codex", "CODEX_THREAD_ID"), ("claude", "CLAUDE_CODE_SESSION_ID")):
+        if session := os.environ.get(variable):
+            trailers.append(f"Agent: {harness}:{session}")
+            break
+    if trailers:
+        message += "\n" + "\n".join(trailers) + "\n"
     return message
 
 

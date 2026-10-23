@@ -9,7 +9,6 @@
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) — Create and register `ares` (solid momentum balance) [arch][minor] — blocked
 <a id="atlas-bench-budget-001"></a>- [ATLAS-BENCH-BUDGET-001](backlog/atlas-bench-budget-001.md) — Wall-clock budgets for benches and examples [patch] — todo
-<a id="atlas-bessel-core-001"></a>- [ATLAS-BESSEL-CORE-001](backlog/atlas-bessel-core-001.md) — One generic Bessel core on `RealField`; delete the inline host polynomials [tightening][minor] — todo
 <a id="atlas-book-caller-pins-2026-08-20"></a>- [ATLAS-BOOK-CALLER-PINS-2026-08-20](backlog/atlas-book-caller-pins-2026-08-20.md) — Repin provider mdBook callers [patch] — todo
 <a id="atlas-book-figure-closure-2026-08-21"></a>- [ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21](backlog/atlas-book-figure-closure-2026-08-21.md) — Restore generated validation figures [patch] — todo
 <a id="atlas-bounded-runner"></a>- [ATLAS-BOUNDED-RUNNER](backlog/atlas-bounded-runner.md) — Launch every agent process through one bounded runner [patch] — todo
@@ -60,6 +59,7 @@
 <a id="atlas-lane-audit-001"></a>- [ATLAS-LANE-AUDIT-001](backlog/atlas-lane-audit-001.md) — Lane-root sweep results and residuals [patch] — todo
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Delete the member lockfile.py copies the hooks no longer run [patch] — todo
+<a id="atlas-leto-cast-row-001"></a>- [ATLAS-LETO-CAST-ROW-001](backlog/atlas-leto-cast-row-001.md) — The leto-ops cast row is below the count at its pin [tightening][patch] — todo
 <a id="mnemosyne-pin-campaign-stranded"></a>- [ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06](backlog/mnemosyne-pin-campaign-stranded.md) — A provider-pin campaign stalled undelivered in five members [patch] — todo
 <a id="atlas-modality-003"></a>- [ATLAS-MODALITY-003](backlog/atlas-modality-003.md) — Optical-transport and RF/EM promotion watchpoint [arch] — blocked
 <a id="atlas-moirai-accelerator-route-2026-08-21"></a>- [ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21](backlog/atlas-moirai-accelerator-route-2026-08-21.md) — Execute accelerator routes [major] [arch] — todo
@@ -86,14 +86,13 @@
 <a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
 <a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the bump guard and require it [patch] — todo
 <a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
-<a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
+<a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo; release retry identity [review](docs/pr/crate-release-identity.md)
 <a id="atlas-publish-001-book-mdbook-test-001"></a>- [ATLAS-PUBLISH-001-BOOK-MDBOOK-TEST-001](backlog/atlas-publish-001-book-mdbook-test-001.md) — Cross-book `mdbook test` gate alignment [patch] — blocked
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked
 <a id="atlas-published-git-dep-rot-001"></a>- [ATLAS-PUBLISHED-GIT-DEP-ROT-001](backlog/atlas-published-git-dep-rot-001.md) — Published members carry floating git deps that rot every fresh resolution [arch] — todo
 <a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — todo
 <a id="atlas-python-wheels-floor"></a>- [ATLAS-PYTHON-WHEELS-FLOOR](backlog/atlas-python-wheels-floor.md) — Shared wheel workflow admits a Python floor its test step cannot install [verification] — todo
 <a id="atlas-ritk-fssurf-013"></a>- [ATLAS-RITK-FSSURF-013](backlog/atlas-ritk-fssurf-013.md) — FreeSurfer surface formats and label table [minor] — todo
-<a id="atlas-root-conformance-materialize-crash"></a>- [ATLAS-ROOT-CONFORMANCE-MATERIALIZE-CRASH](backlog/atlas-root-conformance-materialize-crash.md) — The checker crashes materializing the root repo on Windows [correctness] — todo
 <a id="atlas-runner-capacity-001"></a>- [ATLAS-RUNNER-CAPACITY-001](backlog/atlas-runner-capacity-001.md) — Size runner slots to fleet width [infra] [patch] — todo
 <a id="atlas-runner-starvation-2026-09-02"></a>- [ATLAS-RUNNER-STARVATION-2026-09-02](backlog/atlas-runner-starvation-2026-09-02.md) — Hosted runner queue starves every verification run [infra] — todo
 <a id="atlas-secret-scan-allowlist-source"></a>- [ATLAS-SECRET-SCAN-ALLOWLIST-SOURCE](backlog/atlas-secret-scan-allowlist-source.md) — Read the secret allowlist from a trusted revision [patch] — todo

@@ -139,6 +139,36 @@ def test_a_standalone_manifest_is_linted_in_place(tmp_path):
     assert "--workspace" in command and "-p" not in command
 
 
+def test_cargo_directory_keeps_the_exported_overlay_out_of_resolution(tmp_path, monkeypatch):
+    from atlas_target_dir import shared_target_for
+
+    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    export = tmp_path / "export"
+    execution = tmp_path / "execution"
+    execution.mkdir()
+    (export / "src").mkdir(parents=True)
+    (export / ".cargo").mkdir()
+    (export / "Cargo.toml").write_text(
+        '[package]\nname = "overlay-probe"\nversion = "0.1.0"\nedition = "2024"\n'
+    )
+    (export / "src" / "lib.rs").write_text("pub fn answer() -> usize { 42 }\n")
+    (export / "Cargo.lock").write_text(
+        'version = 4\n[[package]]\nname = "overlay-probe"\nversion = "0.1.0"\n'
+    )
+    config = (
+        '[patch."https://github.com/ryancinsight/coeus"]\n'
+        'coeus-leto = { path = "repos/coeus/crates/coeus-leto" }\n'
+    )
+    (export / ".cargo" / "config.toml").write_text(config)
+
+    space = gate.workspace(export, command_cwd=execution)
+
+    assert set(space.names().values()) == {"overlay-probe"}
+    assert space.root == export
+    assert gate.run_clippy(export, ["overlay-probe"], command_cwd=execution) == (0, set())
+    assert (export / ".cargo" / "config.toml").read_text() == config
+
+
 def test_a_cargo_fuzz_crate_builds_with_the_fuzzing_cfg(monkeypatch):
     fuzz = [{"id": "f", "name": "f", "metadata": {"cargo-fuzz": True}}]
     plain = [{"id": "p", "name": "p", "metadata": None}, {"id": "q", "name": "q"}]

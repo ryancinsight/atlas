@@ -1,0 +1,31 @@
+name: Verify crate release identity
+description: Verify exact clean source and archive identity before requesting publish authentication
+inputs:
+  package:
+    description: Package already validated by the release workflow
+    required: true
+  version:
+    description: Exact already validated release version
+    required: true
+  expected-commit:
+    description: Exact commit named by the release event
+    required: true
+outputs:
+  publish:
+    description: True only for consistent exact-version absence; false for verified identical publication
+    value: ${{ steps.identity.outputs.publish }}
+runs:
+  using: composite
+  steps:
+    - name: Verify package and registry identity
+      id: identity
+      shell: bash
+      env:
+        RELEASE_PACKAGE: ${{ inputs.package }}
+        RELEASE_VERSION: ${{ inputs.version }}
+        RELEASE_COMMIT: ${{ inputs.expected-commit }}
+      run: |
+        set -euo pipefail
+        python3 "$GITHUB_ACTION_PATH/release_identity.py" \
+          --package "$RELEASE_PACKAGE" --version "$RELEASE_VERSION" \
+          --expected-commit "$RELEASE_COMMIT"

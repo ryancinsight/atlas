@@ -2,6 +2,21 @@
 
 <!-- Compacted 2026-09-26 under the 1,000-line board budget: a risk entry holds risk/evidence/re-open-trigger/owner in ~5 lines; closed findings and delivery narrative are gone -- the record of a closed finding is the commit or PR that closed it. Recover removed narrative with `git log -p -- gap_audit.md`. -->
 
+## Finding 2026-10-21: lanes on worktreeConfig members misresolve into the gitdir
+
+Risk: members with `extensions.worktreeConfig=true` (hermes, coeus, leto) resolve a linked lane's shared relative `core.worktree` against the per-worktree gitdir, so `--show-toplevel` becomes `.git/modules/repos/<m>` and checkout writes land in the gitdir while tracked files read deleted (observed 2026-10-21 on three lanes; commits intact). Re-open/check: lane creation writes a per-lane absolute `core.worktree`, asserted by a conformance row over every `worktrees/*` admin dir. Owner: unfiled; pair with ATLAS-IDENTITY-LEASE-STARVATION.
+
+## Finding 2026-10-20: duplicate Release publication needs full artifact identity [patch]
+
+The shared Release publisher requests OIDC and uploads after validation even
+when another lane already published the version. A private pinned helper now
+requires exact clean HEAD/path, verified committed package source, complete
+archive bytes and consistent API/index/download checks before skipping both.
+Unknown or inconsistent results fail closed. Exact-final-head acceptance remains
+open in PR #547; pending publisher/SemVer owner files are untouched. Comparison
+fixtures fetch origin bytes without mutating shallow/blobless checkouts.
+See [bounded design](docs/pr/crate-release-identity.md).
+
 ## Finding 2026-10-16: pending publication has no package scope
 
 Risk: an unrelated main merge can release an existing pending cohort. Evidence:

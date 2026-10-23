@@ -2,6 +2,116 @@
 
 ## Unreleased
 
+- Advance the Atlas gitlinks for the six members whose provider-cohort pull
+  requests merged, and regenerate the stack overlay from the recorded stack.
+  Tyche, RITK, Harmonia, Prometheus, Coeus and Kwavers move to their merged
+  revisions -- Consus 0.4.0 for the first two, the 0.10 cohort for the rest.
+  Only merged members are advanced: a gitlink records a published revision,
+  and an open pull request's head is not one. The pull requests merged by
+  rebase, so the revision recorded is the default branch's tip, and the
+  proof that it carries the change is per file the pull request touched -- a
+  tree-wide comparison also catches whatever else landed on the default
+  branch since, which says nothing about this change.
+- The regenerated overlay drops the dead `coeus-leto` mapping, which failed
+  every cargo command beneath the stack root, and carries `coeus-cpu` in
+  both Coeus sections and `consus-zip` in both Consus sections: 42 patch
+  sections against the 22 the dead mapping left behind. The dangling-path
+  check now reads the manifest set the generation read rather than the
+  filesystem: a pinned or tips read describes the recorded stack, so a path
+  the recorded stack carries is present even when the checkout behind it
+  does not have it, and the filesystem test reported
+  `repos/consus/crates/consus-zip` as dangling when it was not.
+  Recorded under ATLAS-COESUS-CPU-OVERLAY and
+  ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30.
+
+- Identify a first-party package by its member, not by its name alone, in the
+  version-guard coherence scan. The scan indexed every package in the stack
+  under its bare name, so two members declaring a package with the same name
+  read as one package at two versions -- and every member carries an `xtask`
+  whose version drifts. The scan refused the whole stack on
+  `repos/apollo/xtask/Cargo.toml` before it reported a single real
+  requirement, and the real requirement was invisible behind it. The index is
+  now keyed by member and name, and a dependency resolves through the member
+  its `git =` URL or `path =` names, which is the member that says which
+  package it means. Two versions of one package inside one member still
+  refuse: the member disambiguates a name between members, not within
+  itself. Two new tests pin both rules. The gate now reports the genuine
+  cohort lag -- 1247 first-party requirements over 269 manifests, with
+  Athena's `hephaestus-core = ">=0.22.2, <0.26.0"` range among them, which
+  the old refusal had hidden.
+  Recorded under ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30.
+
+- Read the stack overlay's member manifests from the recorded stack instead of
+  from whichever branch a developer has parked a member on. The generator
+  gained `--pinned`, which reads each member's manifests from the gitlink
+  commit `HEAD` records, and `--tips`, which reads them from the member's
+  fetched default branch. The first makes a generation reproducible from the
+  recorded stack without a checkout; the second measures the provider graph a
+  gitlink advance would record, which is what told the version-coherence
+  sweep that four members had already advanced past their Atlas pins. A
+  failed `git ls-tree` now raises naming the member and the revision instead
+  of yielding an empty file list, so a member cannot quietly leave the
+  overlay behind a green generation. Three new tests pin the contract: a
+  pinned read that ignores a checkout the gitlink does not name, a tips read
+  that follows the default branch, and the loud failure. Recorded under
+  ATLAS-COESUS-CPU-OVERLAY and ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30.
+
+- Read `cargo metadata` once per unchanged workspace in the build-identity
+  gate. The answer is a pure function of the workspace's manifests and its
+  lockfile, but the gate asked for it sixty-two times over four manifests
+  per test — the dependency snapshot, the package layout and the artifact
+  owners each wanted one — and every ask cost a cargo process. The read is
+  now keyed by the manifest and cargo's directory and validated by the
+  content of every file that decides the answer, so a changed dependency
+  graph is still read and the identity still sees it. One traced test: 309
+  subprocesses and 56.11 s of child time before, 251 and 39.50 s after,
+  with `cargo metadata` down from 62 calls to 4. A new test file pins the
+  contract. Recorded under ATLAS-IDENTITY-SUITE-RUNTIME.
+
+- Stop the Atlas Python fixtures from leaking directories under the OS temp
+  directory: every `mkdtemp` fixture in `scripts/tests/` now removes its tree
+  through the shared read-only-safe helper instead of
+  `shutil.rmtree(ignore_errors=True)` — which swallowed the refusal to
+  delete a fixture's read-only Git objects — or no cleanup at all. That
+  covers the CRLF detector's repository fixture, the safety census's
+  repository fixture, the build-claim and queue-order fixtures, the
+  shared-target fixture whose cleanup was a no-op, and the lockfile
+  checker's symlink fixture. A new oracle,
+  `scripts/tests/test_atlas_tempdir_leaks.py`, runs those fixture suites
+  against a private temporary root and asserts that root is empty
+  afterward, so a suite running concurrently on the same host cannot be
+  blamed for a tree it did not create; a second oracle reads the sources
+  and fails on any fixture that removes its own tree with
+  `ignore_errors=True` or never removes it, in the spellings this
+  repository's fixtures use. Neither is vacuous: with one
+  cleanup reverted the first fails and names the leaked trees, and the
+  second names the reverted fixture in every form the six converted
+  fixtures used -- a direct `rmtree` call carrying `ignore_errors=True` as
+  the keyword or in `rmtree`'s positional slot, the same removal handed
+  to `addCleanup`, a `weakref.finalize` that passes `True` as
+  `rmtree`'s `ignore_errors`, and a fixture with no cleanup at all. A
+  removal of a path inside the tree is not a leak and is not flagged.
+  Recorded under ATLAS-TEST-TEMPDIR-LEAKS.
+
+- Fix the conformance gate's crash on a root push: `link_snapshot` took a
+  fixed directory per checkout, so materializing one checkout twice into one
+  scratch — the pushed content and the baseline config root — collided with
+  `FileExistsError [WinError 183]` on `<scratch>/atlas` and aborted the
+  member scan, which the ratchet then read as a phantom raise. The snapshot
+  now takes a free directory, and the member's identity travels with the
+  scan rather than being read back from the snapshot path, which is what the
+  sanctioned-root allowance was doing. Reproduced on this Windows host
+  (`check --repo apollo --member-path D:/atlas --member-revision HEAD`):
+  the error before the fix, a completed scan with unchanged fleet counts
+  after it. Recorded under ATLAS-ROOT-CONFORMANCE-MATERIALIZE-CRASH.
+
+- [patch] Verify complete crate archive and exact clean VCS identity before a
+  GitHub Release retry can skip both authentication and upload. Consistent
+  exact-version absence retains the existing publish path; ambiguous registry
+  results fail closed. PR #547 remains gated; immutable comparison fixtures use
+  a separate unfiltered origin store for shallow and blobless checkouts.
+  Existing validation, SemVer policy and credentials are unchanged.
+
 - [minor] Add opt-in exact package/version cohorts to pending publication.
   Explicit `{}` leaves installation unarmed; planning, publish and tagging
   cannot expand into unrelated pending versions. Existing verification,

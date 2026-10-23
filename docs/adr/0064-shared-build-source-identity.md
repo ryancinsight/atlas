@@ -4,6 +4,7 @@
 - Date: 2026-09-24
 - Class: [arch]
 - Revision: October 6, 2026 - Defined meta-root Cargo applicability and tooling authority.
+- Revision: October 23, 2026 - Keep root exports exact while Cargo runs outside their overlay; select the matching cast checker with prepared build tools ([PR #551](https://github.com/ryancinsight/atlas/pull/551)).
 - Driver: [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and
   [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Revision: 2026-10-01 — A path package is identified by its own directory's files, never its repository (ATLAS-IDENTITY-MEMBER-SCOPE). Its record identity is a digest of its `HEAD` entries and of its share of the working tree's changes, each file belonging to the deepest path-package directory containing it, so a commit editing one member moves no other member's record: in a real-Cargo workspace where `a` depends on `b` and `c` is independent, a commit editing `c` cleaned `a b c`, and now cleans `c` alone. The files a package's units read outside its directory, named by Cargo's dep-info and its build scripts' `rerun-if-changed`, are a new record field, `inputs`, hashed again on every run. The repository's revision and tree digest stay in the record for diagnostics, lease ownership and the mid-build guard, and still decide a run of declared artifact paths. Record version is 7, so each member's first push under it finds no current record and cleans its path packages once.
@@ -42,7 +43,7 @@ internal. Concurrent roots need one protocol that prevents a clean or artifact r
 
 ## Decision
 ### Tool source
-Hooks normally extract conformance and build-identity tools from fetched Atlas default. A coordinated provider update may select
+Hooks normally extract conformance, build-identity and cast tools from fetched Atlas default. A coordinated provider update may select
 exactly one immutable Atlas commit for those tools with command-scoped `git -c atlas.preparedTools=<full-sha> push`. The value
 must occur once, be a full 40-character commit ID, resolve in the registered Atlas object store, and contain a complete scripts
 tree. Empty, malformed, unavailable, or incomplete values fail closed, and the hook prints the selected commit. Secret scanning,

@@ -850,6 +850,7 @@ atlas/
 │   ├── atlas-conformance.py         # per-repo debt scan + non-increasing ratchet
 │   ├── atlas-pin-compile.py         # compile the recorded Aequitas/Eunomia seam
 │   ├── atlas-multiphysics-audit.py  # integrator boundary and evidence audit
+│   ├── atlas-aequitas-units.py      # aequitas cohort, typing and unit audit
 │   ├── atlas-stack-overlay.py       # generates the [patch] overlay from cargo metadata
 │   ├── atlas-toolchain-bootstrap.*  # clear Rust overrides; prioritize MSYS2 ucrt64
 │   ├── build-all.ps1 / build-all.sh # run one Cargo command across every recorded package
@@ -1011,6 +1012,27 @@ the bounded run window. These are source/platform-gated follow-ups, not the
 former empty-`RUSTC` `-vV` environment blocker. Cargo-generated lockfile and
 untracked build artifacts in provider worktrees were preserved for owner
 reconciliation; no cleanup/reset was performed by the bootstrap slice.
+
+### Aequitas cohort and unit audit
+
+The dimensioned-quantity seam has its own audit. It reports every member's
+Aequitas requirement and locked revision, how far that revision is behind the
+provider's default branch, the `from_base`/`into_base`/`Quantity` volume per
+member, every unit constructed through `from_unit::<U>`, and every public
+trait getter that returns a bare `f64` directly beneath a doc comment naming
+an SI unit:
+
+```sh
+python scripts/atlas-aequitas-units.py
+python scripts/atlas-aequitas-units.py --format json
+python scripts/atlas-aequitas-units.py --strict
+```
+
+Skew is measured against the provider's default branch rather than against
+the majority revision: most of the stack sitting one commit behind Aequitas
+is a finding, not a consensus. `--strict` turns the findings into a gate; the
+default is a report, because a lagging pin and an untyped getter are debt to
+sequence, not a build failure.
 
 ### Multiphysics contract audit
 

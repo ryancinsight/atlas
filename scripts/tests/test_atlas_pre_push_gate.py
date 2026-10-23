@@ -19,6 +19,7 @@ import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -26,6 +27,7 @@ import tomllib
 import unittest
 import weakref
 
+from readonly_tree import clear_readonly_tree
 from identity_fixture import PASSTHROUGH_IDENTITY
 
 SCRIPT = (
@@ -187,6 +189,18 @@ _LOCK_READING_CHECKER = (
 )
 
 
+def _remove_tree(path: str) -> None:
+    """Remove a temporary tree, read-only entries included.
+
+    `clear_readonly_tree` makes the entries writable first, so the refusal
+    that `shutil.rmtree(..., ignore_errors=True)` swallowed does not leave
+    the tree behind (ATLAS-TEST-TEMPDIR-LEAKS). A tree a live process still
+    holds cannot be removed at all: the exception the finalizer reports is
+    the only signal that it is still there.
+    """
+    clear_readonly_tree(pathlib.Path(path))
+
+
 class GateFixture:
     """A member-like git repo with a stub toolchain; `in_stack` adds the
     stack's lockfile checker."""
@@ -206,7 +220,14 @@ class GateFixture:
         # sits outside the fixture, as the host's does outside a stack: an
         # export under the stack would read the stack's own cargo config.
         self.tmp: pathlib.Path = pathlib.Path(tempfile.mkdtemp(prefix="gate-tmp-")).resolve()
-        weakref.finalize(self, shutil.rmtree, str(self.tmp), True)
+        # The removal makes the entries writable first: the hook's export
+        # holds read-only Git objects, and `shutil.rmtree(..., True)` --
+        # ignore_errors -- swallowed the refusal to delete them, so the tree
+        # stayed under the host's temporary directory
+        # (ATLAS-TEST-TEMPDIR-LEAKS). A tree a live process still holds
+        # cannot be removed at all, and the finalizer reports that rather
+        # than leaving it silently.
+        weakref.finalize(self, _remove_tree, str(self.tmp))
         self.lockfile_calls: pathlib.Path = root / "lockfile-calls.log"
         self.stack: pathlib.Path = root.parent.parent
         self.layout = layout
@@ -510,6 +531,11 @@ class GateFixture:
             "#!/usr/bin/env bash\n"
             f'FIXTURE_ROOT="{self.root}"\n'
             'here="$(pwd -W 2>/dev/null || pwd)"\n'
+            'previous=""\n'
+            'for argument in "$@"; do\n'
+            '  if [ "$previous" = --manifest-path ]; then here="$(cd "$(dirname "$argument")" && { pwd -W 2>/dev/null || pwd; })"; fi\n'
+            '  previous="$argument"\n'
+            'done\n'
             'if [ "$1" = "metadata" ]; then\n'
             '  echo "$@" >> "$FIXTURE_ROOT/metadata-calls.log"\n'
             '  case "$*" in */base-*)\n'
@@ -610,7 +636,8 @@ _PASSTHROUGH_CAST_GATE = (
     "selection = [v for i, a in enumerate(argv) if a == '-p' for v in ('-p', argv[i + 1])]\n"
     "command = [os.environ.get('CARGO', 'cargo'), 'clippy', '--manifest-path',\n"
     "           os.path.join(export, manifest), *selection, '--all-targets', '--locked']\n"
-    "raise SystemExit(subprocess.run(command).returncode)\n"
+    "cwd = argv[argv.index('--command-cwd') + 1] if '--command-cwd' in argv else None\n"
+    "raise SystemExit(subprocess.run(command, cwd=cwd).returncode)\n"
 )
 
 
@@ -715,7 +742,8 @@ def _recording_identity_invocation(log: pathlib.Path) -> str:
         "capture_output=True, check=True, text=True).stdout.strip()\n"
         f"with pathlib.Path({str(log)!r}).open('a', encoding='utf-8') as stream:\n"
         "    stream.write(json.dumps({'path': __file__, 'argv': argv, "
-        "'root_head': head}) + '\\n')\n"
+        "'root_head': head, 'root_config': (pathlib.Path(root) / '.cargo' / 'config.toml').read_text() "
+        "if (pathlib.Path(root) / '.cargo' / 'config.toml').is_file() else None}) + '\\n')\n"
         "command = argv[argv.index('--') + 1:]\n"
         "raise SystemExit(subprocess.run(command, cwd=cwd).returncode)\n"
     )
@@ -1318,7 +1346,7 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             argv = invocation["argv"]
             manifest = pathlib.Path(argv[argv.index("--manifest") + 1])
             command_cwd = pathlib.Path(argv[argv.index("--command-cwd") + 1])
-            self.assertEqual(manifest.parent, command_cwd)
+            self.assertFalse(command_cwd.is_relative_to(manifest.parents[2]))
             self.assertEqual(manifest.parent.name, "version-guard")
             self.assertEqual(invocation["root_head"], _git(fixture.root, "rev-parse", "feat"))
             calls = fixture.calls.read_text(encoding="utf-8").splitlines()
@@ -1341,6 +1369,170 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
                 for item in invocations
             }
             self.assertEqual(manifests, set(self.workspaces))
+
+    def test_root_export_cargo_excludes_its_patch_overlay(self) -> None:
+        cargo = shutil.which("cargo")
+        self.assertIsNotNone(cargo)
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            _write(pathlib.Path(temp) / ".cargo" / "config.toml", '[build]\nrustflags = ["--cfg", "ancestor_flag"]\n')
+            _write(pathlib.Path(temp) / "inner" / ".cargo" / "config.toml", '[build]\nrustflags = ["--cfg", "inner_flag"]\n')
+            fixture, _, identity_log = self._fixture(str(pathlib.Path(temp) / "inner" / "stack"))
+            config = (
+                '[build]\ntarget-dir = "target"\nrustflags = ["--cfg", "root_flag"]\n'
+                '[env]\nATLAS_OVERLAY_ASSETS = { value = "assets", relative = true }\n'
+                '[profile.dev]\ndebug = "line-tables-only"\n'
+                '[patch."https://github.com/ryancinsight/coeus"]\n'
+                'coeus-leto = { path = "repos/coeus/crates/coeus-leto" }\n'
+            )
+            _write(fixture.root / ".cargo" / "config.toml", config)
+            workspaces = (*self.workspaces, "version-guard/child-tool")
+            asset = fixture.root / "assets" / "value.txt"
+            asset.parent.mkdir()
+            asset.write_bytes(b"atlas!")
+            _write(fixture.root / "tools/version-guard/child-tool/Cargo.toml", '[package]\nname = "child-tool"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n')
+            locks = []
+            for workspace in workspaces:
+                lock = f"tools/{workspace}/Cargo.lock"
+                _write(fixture.root / lock, f'version = 4\n[[package]]\nname = "{pathlib.PurePosixPath(workspace).name}"\nversion = "0.1.0"\n')
+                _write(fixture.root / f"tools/{workspace}/src/lib.rs", 'pub const ASSET: &[u8; 6] = include_bytes!(concat!(env!("ATLAS_OVERLAY_ASSETS"), "/value.txt"));\n')
+                locks.append(lock)
+            self._commit(fixture, ".cargo/config.toml", "assets/value.txt", "tools/version-guard/child-tool/Cargo.toml", *locks, *(f"tools/{workspace}/src/lib.rs" for workspace in workspaces))
+            stub = fixture.bin / "cargo"
+            text = stub.read_text(encoding="utf-8")
+            # Real resolution exercises the empty exported gitlink at every stage.
+            probe = (
+                'manifest=""\nprevious=""\n'
+                'for argument in "$@"; do\n'
+                '  if [ "$previous" = --manifest-path ]; then manifest="$argument"; fi\n'
+                '  previous="$argument"\n'
+                'done\n'
+                'if [ -n "$manifest" ]; then\n'
+                f'  "{pathlib.Path(cargo).as_posix()}" metadata --locked --format-version 1 '
+                '--manifest-path "$manifest" > "$FIXTURE_ROOT/resolved.json" || exit $?\n'
+                '  if [ "$1" = clippy ]; then\n'
+                f'    CARGO_TARGET_DIR="{SCRIPT.parents[2].as_posix()}/target" "{pathlib.Path(cargo).as_posix()}" check --locked --manifest-path "$manifest" || exit $?\n'
+                '  fi\n'
+                '  if [ "$1" = metadata ]; then cat "$FIXTURE_ROOT/resolved.json"; exit 0; fi\n'
+                'fi\n'
+            )
+            text = text.replace('if [ "$1" = "metadata" ]; then\n', probe + 'if [ "$1" = "metadata" ]; then\n', 1)
+            _write(stub, text, executable=True)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            invocations = [json.loads(line) for line in identity_log.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(invocations), len(workspaces))
+            self.assertEqual({item["root_config"] for item in invocations}, {config})
+            self.assertEqual({item["root_head"] for item in invocations}, {_git(fixture.root, "rev-parse", "feat")})
+            for item in invocations:
+                argv = item["argv"]
+                root = pathlib.Path(argv[argv.index("--root") + 1])
+                cwd = pathlib.Path(argv[argv.index("--command-cwd") + 1])
+                self.assertFalse(cwd.is_relative_to(root))
+                self.assertEqual(pathlib.Path(argv[argv.index("--target-dir") + 1]).resolve(), (fixture.root / "target").resolve())
+                configs = [parent / ".cargo" / "config.toml" for parent in (cwd, *cwd.parents)]
+                mirrored = [tomllib.loads(path.read_text(encoding="utf-8")) for path in configs if path.is_file()]
+                self.assertEqual(mirrored[0]["profile"]["dev"]["debug"], "line-tables-only")
+                self.assertTrue(all("patch" not in data for data in mirrored))
+                inherited_flags = [data["build"]["rustflags"] for data in mirrored if "rustflags" in data.get("build", {})]
+                self.assertEqual(inherited_flags, [["--cfg", "root_flag"], ["--cfg", "inner_flag"], ["--cfg", "ancestor_flag"]])
+
+    def test_reused_layout_tracks_removed_configs_and_toolchains(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        layout = source[source.index("cargo_layout() {"):source.index("\n# Member exports inherit mirrored parent configs.")]
+        discovery = source[source.index("meta_cargo_command_cwd() {"):source.index("\ncargo_manifest_layout_root() {")]
+        cargo = shutil.which("cargo")
+        self.assertIsNotNone(cargo)
+        channel = subprocess.run(
+            ["rustup", "show", "active-toolchain"], check=True,
+            capture_output=True, text=True, encoding="utf-8",
+        ).stdout.split()[0]
+        with tempfile.TemporaryDirectory(prefix="atlas-cargo-layout-") as temp:
+            root = pathlib.Path(temp) / "export with spaces"
+            mirrored = pathlib.Path(temp) / "mirror"
+            tool = root / "tools" / "demo"
+            _write(tool / "Cargo.toml", '[package]\nname = "demo"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n')
+            _write(tool / "src/lib.rs", "pub fn answer() -> u32 { 42 }\n")
+            _write(root / ".cargo/config.toml", '[build]\ntarget-dir = "root-target"\n[doc]\nbrowser = "./browser --new"\n[credential-alias]\nlocal = "./credential --get"\n')
+            _write(tool / ".cargo/config.toml", '[build]\ntarget-dir = "toml-target"\n')
+            _write(tool / ".cargo/config", '[build]\ntarget-dir = "legacy-target"\n')
+            selector = tool / "rust-toolchain.toml"
+            _write(selector, f'[toolchain]\nchannel = "{channel}"\n')
+            environment = dict(os.environ)
+            environment.pop("CARGO_TARGET_DIR", None)
+            environment.pop("CARGO_BUILD_TARGET_DIR", None)
+            script = layout + discovery + '\npython_bin="$1"\nmeta_cargo_command_cwd "$2" tools/demo/Cargo.toml "$3"\n'
+            probe = pathlib.Path(temp) / "mirror.sh"
+            probe.write_bytes(script.encode("utf-8"))
+            for filename, expected in ((None, tool / "legacy-target"), ("config", tool / "toml-target"), ("config.toml", root / "root-target")):
+                if filename is not None:
+                    (tool / ".cargo" / filename).unlink()
+                    selector.unlink(missing_ok=True)
+                run = subprocess.run(
+                    ["bash", str(probe), sys.executable,
+                     root.as_posix(), mirrored.as_posix()],
+                    check=True, capture_output=True, text=True, encoding="utf-8",
+                    env=environment,
+                )
+                cwd = pathlib.Path(run.stdout.strip())
+                configs = [parent / ".cargo/config.toml" for parent in (cwd, *cwd.parents)]
+                parsed = [tomllib.loads(path.read_text(encoding="utf-8")) for path in configs if path.is_file()]
+                config = next(data for data in parsed if "doc" in data)
+                self.assertEqual(config["doc"]["browser"], [str(root / "browser"), "--new"])
+                self.assertEqual(config["credential-alias"]["local"], [str(root / "credential"), "--get"])
+                if filename is None:
+                    self.assertEqual((cwd / selector.name).read_bytes(), selector.read_bytes())
+                else:
+                    self.assertEqual(list(cwd.glob("rust-toolchain*")), [])
+                metadata = subprocess.run(
+                    [cargo, "metadata", "--no-deps", "--format-version", "1",
+                     "--manifest-path", str(tool / "Cargo.toml")],
+                    cwd=cwd, env=environment, check=True, capture_output=True,
+                    text=True, encoding="utf-8",
+                )
+                self.assertEqual(pathlib.Path(json.loads(metadata.stdout)["target_directory"]).resolve(), expected.resolve())
+
+    def test_cast_base_uses_each_tool_manifest_and_skips_an_added_workspace(self) -> None:
+        for added in (False, True):
+            with self.subTest(added_workspace=added), tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+                fixture, _, identity_log = self._fixture(temp)
+                cast = fixture.stack / "scripts" / "atlas_cast_gate.py"
+                _write(cast, "import sys\nif sys.argv[1] == 'base-triggers':\n    print('Cargo configuration')\n    raise SystemExit(0)\n" + _PASSTHROUGH_CAST_GATE)
+                _publish_stack_scripts(fixture.stack)
+                baseline = _git(fixture.root, "rev-parse", "origin/main")
+                if added:
+                    workspace = "added-tool"
+                    _write(fixture.root / "tools" / workspace / "Cargo.toml", f'[package]\nname = "{workspace}"\nversion = "0.1.0"\nedition = "2024"\n')
+                    _write(fixture.root / "tools" / workspace / "src" / "lib.rs", "pub fn f() {}\n")
+                    _write(fixture.root / "tools" / workspace / "Cargo.lock", "# lock\n")
+                    self._commit(fixture, f"tools/{workspace}/Cargo.toml", f"tools/{workspace}/Cargo.lock", f"tools/{workspace}/src/lib.rs")
+                    expected_base = set()
+                    expected_candidate = {workspace}
+                else:
+                    _write(fixture.root / ".cargo" / "config.toml", "[profile.dev]\ndebug = false\n")
+                    self._commit(fixture, ".cargo/config.toml")
+                    expected_base = set(self.workspaces)
+                    expected_candidate = set(self.workspaces)
+
+                code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+                self.assertEqual(code, 0, stderr)
+                seen_base = set()
+                seen_candidate = set()
+                for line in identity_log.read_text(encoding="utf-8").splitlines():
+                    item = json.loads(line)
+                    argv = item["argv"]
+                    manifest = pathlib.Path(argv[argv.index("--manifest") + 1])
+                    key = argv[argv.index("--command-key") + 1]
+                    if key == "atlas-pre-push-casts-base":
+                        self.assertEqual(item["root_head"], baseline)
+                        seen_base.add(manifest.parent.name)
+                    else:
+                        self.assertEqual(item["root_head"], _git(fixture.root, "rev-parse", "feat"))
+                        seen_candidate.add(manifest.parent.name)
+                self.assertEqual(seen_base, expected_base)
+                self.assertEqual(seen_candidate, expected_candidate)
 
     def test_two_workspaces_run_before_a_later_stage_failure_propagates(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
@@ -4149,13 +4341,21 @@ class SourceIdentityGateTestCase(unittest.TestCase):
                 (stack / "target").resolve(),
             )
 
-    def test_prepared_identity_checker_runs_from_the_selected_commit(self) -> None:
+    def test_prepared_build_checkers_run_from_the_selected_commit(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             stack, fixture = self._member_at_pushed_tip(temp)
             log = stack / "prepared-identity-args.log"
             _write(
                 stack / "scripts" / "atlas-build-identity.py",
                 _recording_identity_invocation(log),
+            )
+            cast_log = stack / "prepared-cast-args.log"
+            _write(
+                stack / "scripts" / "atlas_cast_gate.py",
+                "import json, pathlib, sys\n"
+                f"with pathlib.Path({str(cast_log)!r}).open('a', encoding='utf-8') as stream:\n"
+                "    stream.write(json.dumps({'path': __file__, 'argv': sys.argv[1:]}) + '\\n')\n"
+                + _PASSTHROUGH_CAST_GATE,
             )
             _commit_all(stack, "prepared tools")
             prepared = _git(stack, "rev-parse", "HEAD")
@@ -4177,6 +4377,26 @@ class SourceIdentityGateTestCase(unittest.TestCase):
             ran_from = pathlib.Path(invocation["path"]).resolve()
             self.assertNotIn(stack.resolve(), ran_from.parents)
             self.assertEqual(invocation["argv"][0], "run")
+            casts = [json.loads(line) for line in cast_log.read_text(encoding="utf-8").splitlines()]
+            self.assertIn("clippy", {item["argv"][0] for item in casts})
+            self.assertIn("check", {item["argv"][0] for item in casts})
+            for item in casts:
+                self.assertEqual(pathlib.Path(item["path"]).resolve().parent, ran_from.parent)
+
+    def test_prepared_tools_without_cast_checker_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            stack, fixture = self._member_at_pushed_tip(temp)
+            (stack / "scripts" / "atlas_cast_gate.py").unlink()
+            _commit_all(stack, "incomplete prepared tools")
+            prepared = _git(stack, "rev-parse", "HEAD")
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("feat"),
+                {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "atlas.preparedTools", "GIT_CONFIG_VALUE_0": prepared},
+            )
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("lacks a required prepared tool", stderr)
 
     def test_a_missing_identity_checker_blocks_a_stack_member(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:

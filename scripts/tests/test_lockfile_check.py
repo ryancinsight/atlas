@@ -22,6 +22,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from readonly_tree import clear_readonly_tree
+
 SCRIPT = Path(__file__).resolve().parent.parent / "lockfile.py"
 SPEC = importlib.util.spec_from_file_location("atlas_lockfile_check", SCRIPT)
 lockfile = importlib.util.module_from_spec(SPEC)
@@ -223,7 +225,7 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         self._write("Cargo.toml", NO_DEPENDENCIES)
         self._write("Cargo.lock", SERDE)
         outside = self.root.parent / f"{self.root.name}-outside"
-        self.addCleanup(shutil.rmtree, outside, ignore_errors=True)
+        self.addCleanup(clear_readonly_tree, outside)
         flattened = outside / "flattened"
         flattened.mkdir(parents=True)
         (flattened / "Cargo.toml").write_text(

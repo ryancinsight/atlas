@@ -139,12 +139,14 @@ class Workspace:
 
 
 def workspace(export: pathlib.Path, config: pathlib.Path | None = None,
-              manifest: str = "Cargo.toml") -> Workspace:
+              manifest: str = "Cargo.toml",
+              command_cwd: pathlib.Path | None = None) -> Workspace:
     """The workspace of `manifest` (relative to `export`)."""
     out = subprocess.run(
         [*cargo(config), "metadata", "--no-deps", "--format-version", "1",
          "--manifest-path", str(export / manifest)],
-        cwd=export, capture_output=True, text=True, encoding="utf-8", check=True,
+        cwd=command_cwd or export,
+        capture_output=True, text=True, encoding="utf-8", check=True,
     ).stdout
     record = json.loads(out)
     return Workspace(pathlib.Path(record["workspace_root"]), record["packages"])
@@ -210,16 +212,17 @@ def sites(messages: Iterable[str], export: pathlib.Path,
 
 def run_clippy(export: pathlib.Path, packages: Iterable[str],
                config: pathlib.Path | None = None,
-               manifest: str = "Cargo.toml") -> tuple[int, set[Site]]:
+               manifest: str = "Cargo.toml",
+               command_cwd: pathlib.Path | None = None) -> tuple[int, set[Site]]:
     """Run clippy on `packages` of `export`: its exit status and cast sites.
 
     Each diagnostic's rendered text goes to stderr, so a caller reading the
     output sees what plain clippy prints; cargo's own stderr passes through.
     """
-    space = workspace(export, config, manifest)
+    space = workspace(export, config, manifest, command_cwd)
     names = space.names()
     proc = subprocess.Popen(
-        clippy_command(export, packages, config, manifest), cwd=export,
+        clippy_command(export, packages, config, manifest), cwd=command_cwd or export,
         env=clippy_environment(space.packages),
         stdout=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
     )
@@ -455,15 +458,21 @@ def clippy(args: argparse.Namespace) -> int:
         if not (export / args.manifest).is_file():
             write_sites(sites_file, set())
             return 0
-        present = set(workspace(export, args.cargo_config, args.manifest).names().values())
+        present = set(workspace(
+            export, args.cargo_config, args.manifest, args.command_cwd
+        ).names().values())
         packages = [p for p in packages if p in present]
         if args.package and not packages:
             write_sites(sites_file, set())
             return 0
-    status, found = run_clippy(export, packages, args.cargo_config, args.manifest)
+    status, found = run_clippy(
+        export, packages, args.cargo_config, args.manifest, args.command_cwd
+    )
     write_sites(sites_file, found)
     if args.packages_out:
-        names = sorted(set(workspace(export, args.cargo_config, args.manifest).names().values()))
+        names = sorted(set(workspace(
+            export, args.cargo_config, args.manifest, args.command_cwd
+        ).names().values()))
         # Bytes, so Windows text mode cannot turn the hook's lines into CRLF.
         pathlib.Path(args.packages_out).write_bytes(("\n".join(names) + "\n").encode("utf-8"))
     return status
@@ -547,7 +556,9 @@ def triggers(args: argparse.Namespace) -> int:
 
 def measure(args: argparse.Namespace) -> int:
     baseline = Baseline.load(args.baseline)
-    status, found = run_clippy(pathlib.Path(args.export), [], args.cargo_config, args.manifest)
+    status, found = run_clippy(
+        pathlib.Path(args.export), [], args.cargo_config, args.manifest, args.command_cwd
+    )
     if status != 0:
         raise RuntimeError(f"clippy did not complete (exit {status})")
     tally = counts(found, baseline.sanctioned.get(args.member, frozenset()))
@@ -573,6 +584,8 @@ def main(argv: list[str] | None = None) -> int:
                      help="file the manifest's workspace package names are written to")
     run.add_argument("--present-only", action="store_true",
                      help="skip packages (or a manifest) absent from the export: a range's base")
+    run.add_argument("--command-cwd", type=pathlib.Path,
+                     help="directory Cargo runs from; defaults to the export")
     run.set_defaults(run=clippy)
     gate = commands.add_parser("check", help="gate a pushed revision")
     gate.add_argument("--member", required=True)
@@ -599,6 +612,8 @@ def main(argv: list[str] | None = None) -> int:
     count.add_argument("--export", required=True)
     count.add_argument("--manifest", default="Cargo.toml",
                        help="manifest relative to the export: a standalone crate's, for one")
+    count.add_argument("--command-cwd", type=pathlib.Path,
+                       help="directory Cargo runs from; defaults to the export")
     count.set_defaults(run=measure)
     hold = commands.add_parser("ratchet", help="refuse a pushed range that raises the baseline")
     hold.add_argument("--repo", required=True, help="the atlas repository")
