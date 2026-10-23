@@ -113,7 +113,7 @@ def build_spec(
         profile=profile,
         target=target,
         features=features,
-        toolchain=toolchain_identity(root),
+        toolchain=toolchain_identity(resolved_execution_root),
         target_dir=canonical_target.as_posix(),
         command_key=normalized_key,
         selection=",".join(selected),

@@ -22,6 +22,7 @@ import os
 import tempfile
 import textwrap
 import unittest
+import uuid
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
@@ -202,7 +203,7 @@ class HookCommitTestCase(unittest.TestCase):
             self.assertEqual(self._git(repo, "status", "--porcelain"), status_before)
             self.assertEqual(self._git(repo, "rev-parse", "--abbrev-ref", "HEAD"), "peer")
 
-    def test_item_is_an_actual_generated_commit_trailer(self) -> None:
+    def test_item_and_agent_are_generated_commit_trailers(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-item-") as temp:
             repo = Path(temp) / "member"
             repo.mkdir()
@@ -213,7 +214,9 @@ class HookCommitTestCase(unittest.TestCase):
             self._git(repo, "add", "seed")
             self._git(repo, "commit", "-q", "-m", "seed")
             item = "ATLAS-MOIRAI-MAIN-DIVERGED-2026-10-05"
-            message = _lock_form.hook_publish_message("a109abb8ac02", [], item)
+            session = str(uuid.uuid4())
+            with patch.dict(os.environ, {"CODEX_THREAD_ID": session}):
+                message = _lock_form.hook_publish_message("a109abb8ac02", [], item)
 
             commit = _lock_form.hook_commit(
                 repo,
@@ -231,7 +234,7 @@ class HookCommitTestCase(unittest.TestCase):
                 text=True,
                 check=True,
             ).stdout.strip()
-            self.assertEqual(parsed, f"Item: {item}")
+            self.assertEqual(parsed, f"Item: {item}\nAgent: codex:{session}")
 
     def test_unique_remote_rollout_head_is_not_overwritten(self) -> None:
         with self._rollout_repositories("atlas-publish-lease-") as repositories:
@@ -266,6 +269,59 @@ class HookCommitTestCase(unittest.TestCase):
                 ),
                 remote_head,
             )
+
+    def test_hook_push_uses_the_gate_deadline_and_preserves_its_inputs(self) -> None:
+        commit = "c" * 40
+        prepared_tools = "a" * 40
+        branch = "ci/hook-deadline"
+        ref = f"refs/heads/{branch}"
+        source_hook = b"#!/bin/sh\necho source-hook >&2\nexit 1\n"
+        calls = []
+
+        def execute(repo, args, *, stdin, env, timeout):
+            calls.append((repo, args, stdin, env, timeout))
+            if args[0] == "ls-remote":
+                return _lock_form.GitProcessResult(args, 0, b"", b"")
+            hook_directory = Path(args[1].removeprefix("core.hooksPath="))
+            self.assertEqual((hook_directory / "pre-push").read_bytes(), source_hook)
+            return _lock_form.GitProcessResult(
+                args, 1, b"", b"source hook rejected candidate\n"
+            )
+
+        with tempfile.TemporaryDirectory(prefix="atlas-push-deadline-") as temp, \
+                patch.object(_lock_form, "execute_git", side_effect=execute):
+            repo = Path(temp) / "member"
+            repo.mkdir()
+            with self.assertRaisesRegex(RuntimeError, "source hook rejected candidate"):
+                _lock_form.push_hook_branch(
+                    repo,
+                    commit,
+                    branch,
+                    source_hook,
+                    prepared_tools,
+                )
+
+        self.assertEqual([call[4] for call in calls], [
+            _lock_form.GIT_DEADLINE_SECONDS,
+            _lock_form.lockfile.CARGO_DEADLINE_SECONDS,
+        ])
+        self.assertEqual(calls[0][1], (
+            "ls-remote", "--heads", "origin", ref,
+        ))
+        push = calls[1][1]
+        self.assertEqual(push[0], "-c")
+        self.assertTrue(push[1].startswith("core.hooksPath="), push)
+        self.assertEqual(push[2:], (
+            "-c",
+            f"atlas.preparedTools={prepared_tools}",
+            "push",
+            "-q",
+            f"--force-with-lease={ref}:",
+            "origin",
+            f"{commit}:{ref}",
+        ))
+        self.assertTrue(all(call[2] is None for call in calls))
+        self.assertTrue(all("GIT_DIR" not in call[3] for call in calls))
 
     def test_rollout_head_landed_on_default_can_be_superseded(self) -> None:
         with self._rollout_repositories("atlas-publish-landed-") as repositories:
@@ -1181,6 +1237,7 @@ class HookInstallTestCase(unittest.TestCase):
                 "scripts/atlas-conformance.py": conformance("baseline", baseline_exit),
                 "scripts/atlas_stack.py": b"ATLAS_STACK_ROOT = True\n",
                 "scripts/atlas-build-identity.py": b"raise SystemExit(0)\n",
+                "scripts/atlas_cast_gate.py": b"raise SystemExit(0)\n",
                 "scripts/lockfile.py": b"raise SystemExit(0)\n",
             },
         )
@@ -1191,6 +1248,7 @@ class HookInstallTestCase(unittest.TestCase):
             conformance("candidate", candidate_exit)
         )
         (scripts / "atlas_stack.py").write_bytes(b"ATLAS_STACK_ROOT = True\n")
+        (scripts / "atlas_cast_gate.py").write_bytes(b"raise SystemExit(0)\n")
         if not missing_tool:
             (scripts / "atlas-build-identity.py").write_bytes(
                 b"raise SystemExit(0)\n"
