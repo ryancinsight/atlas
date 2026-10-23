@@ -13,6 +13,7 @@ logs name `@ROOT@`, which it replaces with its own working directory.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import pathlib
 import shutil
@@ -1455,9 +1456,15 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             tool = root / "tools" / "demo"
             _write(tool / "Cargo.toml", '[package]\nname = "demo"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n')
             _write(tool / "src/lib.rs", "pub fn answer() -> u32 { 42 }\n")
-            _write(root / ".cargo/config.toml", '[build]\ntarget-dir = "root-target"\n[doc]\nbrowser = "./browser --new"\n[credential-alias]\nlocal = "./credential --get"\n[registry]\nglobal-credential-providers = ["cargo:token", "local", "./credential --get"]\n')
+            arguments = [str(root / "credential"), "--get"]
+            collision = "atlas-config-mirror-" + hashlib.sha256(json.dumps(arguments, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+            _write(root / ".cargo/aliases.toml", f'[credential-alias]\n"{collision}" = ["included", "--keep"]\n')
+            _write(root / ".cargo/config.toml", 'include = ["aliases.toml"]\n[build]\ntarget-dir = "root-target"\n[doc]\nbrowser = "./browser --new"\n[credential-alias]\nlocal = "./credential --get"\n[registry]\nglobal-credential-providers = ["cargo:token", "local", "./credential --get"]\n')
             _write(tool / ".cargo/config.toml", '[build]\ntarget-dir = "toml-target"\n')
             _write(tool / ".cargo/config", '[build]\ntarget-dir = "legacy-target"\n')
+            for filename in ("config", "config.toml"):
+                path = tool / ".cargo" / filename
+                path.write_text(path.read_text() + f'[credential-alias]\n"{collision}" = ["child", "--keep"]\n')
             selector = tool / "rust-toolchain.toml"
             _write(selector, f'[toolchain]\nchannel = "{channel}"\n')
             environment = dict(os.environ)
@@ -1486,6 +1493,15 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
                 self.assertEqual(providers[:2], ["cargo:token", "local"])
                 self.assertTrue(all(isinstance(provider, str) for provider in providers))
                 self.assertEqual(config["credential-alias"][providers[2]], [str(root / "credential"), "--get"])
+                self.assertNotEqual(providers[2], collision)
+                effective_aliases = {}
+                for data in reversed(parsed):
+                    effective_aliases.update(data.get("credential-alias", {}))
+                    for include in data.get("include", []):
+                        included = tomllib.loads(pathlib.Path(include).read_text(encoding="utf-8"))
+                        for name, value in included.get("credential-alias", {}).items():
+                            effective_aliases.setdefault(name, value)
+                self.assertEqual(effective_aliases[collision], ["included" if filename == "config.toml" else "child", "--keep"])
                 if filename is None:
                     self.assertEqual((cwd / selector.name).read_bytes(), selector.read_bytes())
                 else:

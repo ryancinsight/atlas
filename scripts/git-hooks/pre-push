@@ -1170,25 +1170,48 @@ def rebase_program(item, root):
     return [program, *arguments[1:]]
 
 
-def credential_alias_name(aliases, arguments):
+def credential_alias_environment_key(name):
+    normalized = name.upper().replace('.', '_').replace('-', '_')
+    return 'CARGO_CREDENTIAL_ALIAS_' + normalized
+
+
+def credential_alias_name(
+    aliases, arguments, reserved_aliases, generated_aliases
+):
     encoded = json.dumps(
         arguments, ensure_ascii=False, separators=(',', ':')
     ).encode()
     base = 'atlas-config-mirror-' + hashlib.sha256(encoded).hexdigest()
     name = base
     collision = 0
-    while name in aliases:
-        if aliases[name] == arguments:
+    while True:
+        if (
+            name in reserved_aliases
+            or credential_alias_environment_key(name) in os.environ
+        ):
+            pass
+        elif name in generated_aliases:
+            if generated_aliases[name] == arguments:
+                return name
+        elif name not in aliases:
+            aliases[name] = arguments
+            generated_aliases[name] = arguments
             return name
         collision += 1
         name = f'{base}-{collision}'
-    aliases[name] = arguments
-    return name
 
 
-def rebase_credential_provider(item, root, aliases):
-    if isinstance(item, str) and isinstance(aliases, dict) and item in aliases:
-        return item
+def rebase_credential_provider(
+    item, root, aliases, visible_aliases, generated_aliases
+):
+    if isinstance(item, str):
+        if (
+            (isinstance(aliases, dict) and item in aliases)
+            or item in visible_aliases
+            or item in generated_aliases
+            or credential_alias_environment_key(item) in os.environ
+        ):
+            return item
     return rebase_program(item, root)
 
 
@@ -1197,7 +1220,9 @@ def rebase_field(body, name, root, transform=rebase_path):
         body[name] = transform(body[name], root)
 
 
-def rebase_config(data, root):
+def rebase_config(
+    data, root, reserved_aliases, visible_aliases, generated_aliases
+):
     # https://doc.rust-lang.org/cargo/reference/config.html#config-relative-paths
     # File-defined paths resolve from the parent of the defining directory.
     # Moving a config therefore requires absolute original-relative paths.
@@ -1244,21 +1269,28 @@ def rebase_config(data, root):
     registry = data.get('registry')
     if isinstance(registry, dict) and 'credential-provider' in registry:
         registry['credential-provider'] = rebase_credential_provider(
-            registry['credential-provider'], root, aliases
+            registry['credential-provider'], root, aliases,
+            visible_aliases, generated_aliases
         )
     if isinstance(registry, dict):
         providers = registry.get('global-credential-providers')
         if isinstance(providers, list):
             rebased_providers = []
             for provider in providers:
-                rebased = rebase_credential_provider(provider, root, aliases)
+                rebased = rebase_credential_provider(
+                    provider, root, aliases, visible_aliases,
+                    generated_aliases
+                )
                 if isinstance(provider, str) and isinstance(rebased, list):
                     if aliases is None:
                         aliases = {}
                         data['credential-alias'] = aliases
                     elif not isinstance(aliases, dict):
                         raise ValueError('credential-alias must be a table')
-                    rebased = credential_alias_name(aliases, rebased)
+                    rebased = credential_alias_name(
+                        aliases, rebased, reserved_aliases,
+                        generated_aliases
+                    )
                 rebased_providers.append(rebased)
             registry['global-credential-providers'] = rebased_providers
     registries = data.get('registries')
@@ -1266,8 +1298,12 @@ def rebase_config(data, root):
         for registry in registries.values():
             if isinstance(registry, dict) and 'credential-provider' in registry:
                 registry['credential-provider'] = rebase_credential_provider(
-                    registry['credential-provider'], root, aliases
+                    registry['credential-provider'], root, aliases,
+                    visible_aliases, generated_aliases
                 )
+
+    if isinstance(aliases, dict):
+        visible_aliases.update(aliases)
 
     environment = data.get('env')
     if isinstance(environment, dict):
@@ -1276,7 +1312,7 @@ def rebase_config(data, root):
                 rebase_field(setting, 'value', root)
 
 
-def mirror_include(entry, source, include_root, active, mirrored_targets):
+def resolve_include(entry, source):
     if isinstance(entry, str):
         include_path = entry
         rewritten = None
@@ -1292,6 +1328,45 @@ def mirror_include(entry, source, include_root, active, mirrored_targets):
     if included.suffix != '.toml':
         raise ValueError(f'Cargo include does not end in .toml: {included}')
     optional = isinstance(entry, dict) and entry.get('optional') is True
+    return included, optional, rewritten
+
+
+def reserve_config_aliases(
+    source, active, visited, reserved_aliases
+):
+    source = pathlib.Path(os.path.abspath(source))
+    if source in active:
+        raise ValueError(f'recursive Cargo include: {source}')
+    if source in visited:
+        return
+    active.add(source)
+    with source.open('rb') as stream:
+        data = tomllib.load(stream)
+    aliases = data.get('credential-alias')
+    if isinstance(aliases, dict):
+        reserved_aliases.update(aliases)
+    includes = data.get('include')
+    if includes is not None:
+        if not isinstance(includes, list):
+            raise ValueError(f'invalid include list in {source}')
+        for entry in includes:
+            included, optional, _ = resolve_include(entry, source)
+            if not included.is_file():
+                if not optional:
+                    raise FileNotFoundError(included)
+                continue
+            reserve_config_aliases(
+                included, active, visited, reserved_aliases
+            )
+    active.remove(source)
+    visited.add(source)
+
+
+def mirror_include(
+    entry, source, include_root, active, mirrored_targets,
+    reserved_aliases, visible_aliases, generated_aliases
+):
+    included, optional, rewritten = resolve_include(entry, source)
     if not included.is_file():
         if not optional:
             raise FileNotFoundError(included)
@@ -1301,7 +1376,8 @@ def mirror_include(entry, source, include_root, active, mirrored_targets):
         digest = hashlib.sha256(str(included).encode()).hexdigest()
         mirrored = include_root / f'{digest}.toml'
         included_target = mirror_config(
-            included, mirrored, include_root, active, mirrored_targets
+            included, mirrored, include_root, active, mirrored_targets,
+            reserved_aliases, visible_aliases, generated_aliases
         )
         mirrored_path = str(mirrored)
     if rewritten is None:
@@ -1310,7 +1386,10 @@ def mirror_include(entry, source, include_root, active, mirrored_targets):
     return rewritten, included_target
 
 
-def mirror_config(source, destination, include_root, active, mirrored_targets):
+def mirror_config(
+    source, destination, include_root, active, mirrored_targets,
+    reserved_aliases, visible_aliases, generated_aliases
+):
     source = pathlib.Path(os.path.abspath(source))
     if source in active:
         raise ValueError(f'recursive Cargo include: {source}')
@@ -1328,7 +1407,8 @@ def mirror_config(source, destination, include_root, active, mirrored_targets):
         rewritten_includes = []
         for entry in includes:
             rewritten, included_target = mirror_include(
-                entry, source, include_root, active, mirrored_targets
+                entry, source, include_root, active, mirrored_targets,
+                reserved_aliases, visible_aliases, generated_aliases
             )
             rewritten_includes.append(rewritten)
             if included_target:
@@ -1338,7 +1418,10 @@ def mirror_config(source, destination, include_root, active, mirrored_targets):
     own_target = build.get('target-dir') if isinstance(build, dict) else None
     if isinstance(own_target, str) and own_target:
         configured_target = rebase_path(own_target, source.parent.parent)
-    rebase_config(data, source.parent.parent)
+    rebase_config(
+        data, source.parent.parent, reserved_aliases, visible_aliases,
+        generated_aliases
+    )
     lines = []
     table([], data, lines)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -1352,11 +1435,30 @@ def mirror_config(source, destination, include_root, active, mirrored_targets):
 
 parent = pathlib.Path(sys.argv[1])
 target = ''
-for config in sys.argv[2:]:
-    source = pathlib.Path(config)
+configs = [pathlib.Path(config) for config in sys.argv[2:]]
+cargo_home = pathlib.Path(
+    os.environ.get('CARGO_HOME', pathlib.Path.home() / '.cargo')
+)
+cargo_home_config = cargo_home / 'config'
+if not cargo_home_config.is_file():
+    cargo_home_config = cargo_home / 'config.toml'
+reserved_aliases = set()
+visited = set()
+cargo_home_aliases = set()
+if cargo_home_config.is_file():
+    reserve_config_aliases(
+        cargo_home_config, set(), visited, cargo_home_aliases
+    )
+    reserved_aliases.update(cargo_home_aliases)
+for source in configs:
+    reserve_config_aliases(source, set(), visited, reserved_aliases)
+visible_aliases = set(cargo_home_aliases)
+generated_aliases = {}
+for source in configs:
     mirrored = parent / '.cargo' / 'config.toml'
     configured = mirror_config(
-        source, mirrored, mirrored.parent / 'includes', set(), {}
+        source, mirrored, mirrored.parent / 'includes', set(), {},
+        reserved_aliases, visible_aliases, generated_aliases
     )
     if configured:
         target = configured

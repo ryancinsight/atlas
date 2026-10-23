@@ -141,6 +141,12 @@ identity sequence covers all gated packages and holds leases from clippy through
 Every step uses the committed lock; records require command success and unchanged final source and dependencies. Other build
 entry points reuse the same modules and protocol.
 
+Root exports retain their tracked Cargo configuration unchanged. Cargo runs from a mirrored ancestor chain outside the
+export so development patches cannot enter empty gitlinks. The mirror removes `[patch]` and preserves configuration
+precedence and original relative-path roots. Each independent tool workspace gets its own rebuilt mirror. Candidate and
+base checks select their own manifest, configuration, and toolchain; the identity records the compiler selected at the
+actual command directory.
+
 The shared identity module is the single policy surface. The member pre-push gate builds an export of each pushed revision -- a checkout of it in a repository of its own, written by `read-tree -u --reset` run in the member so a partial clone fetches missing blobs, with `core.longpaths` set, at one short path per checkout that a run claims by lock and the next run updates in place, so links stay links, the index carries stat data, and unchanged files keep the times cargo fingerprinted -- in a temporary directory outside the stack's `[patch]` overlay, never the checkout, which a shared tree holds on a peer's branch or dirty. The export is a repository whose `HEAD` is the pushed commit and whose object store is the member's, so the module records the pushed revision as the source; the gate invokes the module with the export as `--root` once per step for every changed package before accepting clippy, tests, or documentation, all under `--locked` against the committed lock. One stable command key lets those steps share each package's record. The integration composes with the existing conformance push guard in PR #277; it must not duplicate that guard or hand-edit member hook copies. Other build entry points use the same module when they compile packages, rather than implementing a second provenance format.
 
 The module records artifact hashes after the command. It does not treat Cargo fingerprint JSON as a public schema, and it does not claim that a missing `.fingerprint` directory proves source identity.
