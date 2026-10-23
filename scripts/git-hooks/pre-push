@@ -1452,7 +1452,7 @@ if cargo_home_config.is_file():
     reserved_aliases.update(cargo_home_aliases)
 for source in configs:
     reserve_config_aliases(source, set(), visited, reserved_aliases)
-visible_aliases = set(cargo_home_aliases)
+visible_aliases = set(reserved_aliases)
 generated_aliases = {}
 for source in configs:
     mirrored = parent / '.cargo' / 'config.toml'
