@@ -95,7 +95,6 @@ repos/kwavers/crates/kwavers-python/src/analytical_bindings/rtm/imaging.rs:67:29
 repos/kwavers/crates/kwavers-python/src/analytical_bindings/transducer/interpolation.rs:27:15  # kwavers
 repos/kwavers/crates/kwavers-python/src/analytical_bindings/wave/nonlinear.rs:426:15  # kwavers
 repos/kwavers/crates/kwavers-solver/src/forward/elastic/swe/core/solver/point_force_drive.rs:172:24  # kwavers
-repos/kwavers/crates/kwavers-solver/src/forward/pstd/dg/dg_solver/acoustic/tensor/projection.rs:125:58  # kwavers
 repos/kwavers/crates/kwavers-solver/src/forward/viscoacoustic/solver.rs:175:20  # kwavers
 repos/kwavers/crates/kwavers-solver/src/integration/time_integration/time_scale_separation.rs:45:25  # kwavers
 repos/kwavers/crates/kwavers-solver/src/inverse/elastography/elastic_fwi/mod.rs:59:27  # kwavers
