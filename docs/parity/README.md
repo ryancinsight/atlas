@@ -1,6 +1,6 @@
 # Four-framework functional parity program
 
-Program revision: **2026-10-26.10**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
+Program revision: **2026-10-26.11**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
 
 This is the canonical Atlas program for the October 26 instruction to complete
 Coeus and its providers to full NumPy, JAX, PyTorch and TensorFlow functional
@@ -14,6 +14,7 @@ bounded-scope completion claims do not establish this program's completion.
 | [Program manifest](program.json) | Version, frozen reference snapshots, completeness and required gates |
 | [Reference inventories](reference/) and [source closure](reference/closure/README.md) | Extracted public API identities, source versions, hashes and extraction gaps |
 | [Public surface and reusable contracts](reference/public-scope/README.md) | Conserved declarations, source publicness/views, signature links and planned provider routes |
+| [Accepted public-surface evidence](reference/public-evidence/README.md) | Two reviewed source packets, 498 retained questions, signature/selection witnesses and frozen-source/live-owner joins; zero scope exemptions |
 | [Core tensor semantics](core-tensor/README.md) | Source-backed shape/dtype/layout/alias/effect/AD contracts and bounded acceptance packages |
 | [Dtype source policies](dtype-policy/README.md) | Separate frozen JAX graph and NumPy native relations, source/case/supplier/API-owner joins and open evidence gaps |
 | [End-to-end workflows](workflows/README.md) | Source-backed acceptance programs, export profiles, analytical witnesses and unresolved companion obligations |
@@ -87,3 +88,12 @@ The repaired Torch native dtype supplement preserves ten existing ID contracts,
 2,209 ordered pairs each for promotion and cast permission. All 66 framework
 cases and 14 gaps remain unqualified. Actual canonical API associations are
 separate from the proposed Coeus facade and Eunomia policy supplier.
+
+The accepted public-surface evidence slice preserves all 498 unresolved IDs and
+all existing mapping stages. TF's six internal-base proposals, five required
+protocol views, one namespace and 480 unresolved rows remain proposals/evidence.
+The JAX/Torch six-row packet preserves source selection and private-stability
+conflicts; 974 testing-callable source views add no APIs or runtime credit.
+Source certificates bind exact original manifests/reviews; live owner/mapping
+associations are joined independently. No public-scope admission exemptions are
+applied, including the three uncertified NumPy internal proposals.

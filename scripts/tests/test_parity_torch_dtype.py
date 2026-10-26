@@ -50,9 +50,16 @@ class TorchDtypeTests(unittest.TestCase):
             path = root / PREFIX / name;value = read_json(path);mutate(value);write(path, value);self.reindex(root)
             with self.assertRaisesRegex(ParityError, message):self.validate(root)
 
-    def test_program10_conserves_all_IDs_stages_and_source_counts(self):
+    def test_historical_Torch10_conserves_all_IDs_stages_and_source_counts(self):
         result = report(self.bundle);torch = result['torch_native_dtype_designs']
-        self.assertEqual(result['program_version'], '2026-10-26.10')
+        self.assertEqual(self.bundle['program']['files']['torch_native_dtype_policy'], PREFIX + 'index.json')
+        self.assertEqual(self.index['parent_program_version'], '2026-10-26.10')
+        path = ROOT / PREFIX / 'index.json'
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), '78de60deb46f8038f0c21b0885c2852d0d17b02a6e4461751fdfedad25fba8b5')
+        consumed = {p.resolve() for p in self.bundle['extra_inputs']}
+        self.assertIn(path.resolve(), consumed)
+        for row in self.index['artifacts']:
+            self.assertIn((ROOT / row['path']).resolve(), consumed)
         self.assertEqual([result[k] for k in ['reference_declarations', 'mapped_declarations', 'partially_mapped_declarations', 'unmapped_declarations']], [38096, 2, 96, 37998])
         self.assertEqual([torch[k] for k in ['source_receipts', 'source_line_witnesses', 'native_dtype_enums', 'core_promotion_cells', 'native_promotion_pairs', 'native_cast_permission_pairs']], [45, 88, 47, 196, 2209, 2209])
         self.assertEqual(torch['runtime_cases_executed'], 0);self.assertFalse(torch['public_denominator_changed'])

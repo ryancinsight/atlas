@@ -1,0 +1,286 @@
+{
+  "reviewed_revision": "20ae8d85f6c3aa6a6712e4f0b823b5f066bdc008",
+  "status": "recommended_design_tests_not_canonical_execution",
+  "cases": [
+    {
+      "id": "T01",
+      "kind": "positive",
+      "scenario": "Keep raw reference IDs, signature/occurrence views and all original source classifications unchanged.",
+      "expected": "PASS_RETENTION_ONLY",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T02",
+      "kind": "negative",
+      "scenario": "Remove or duplicate a raw disposition, or introduce an unknown reference ID.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T03",
+      "kind": "negative",
+      "scenario": "Mark internal_source_candidate/public_denominator_eligible=false without an accepted row-bound certificate.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T04",
+      "kind": "negative",
+      "scenario": "Use only an underscore/private namespace, implementation absence or unsupported backend as private proof.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T05",
+      "kind": "negative",
+      "scenario": "Use absence from rendered docs or absent export alone as proof of implementation-only scope.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T06",
+      "kind": "negative",
+      "scenario": "Borrow a certificate from another reference release, source commit or source inventory digest.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T07",
+      "kind": "negative",
+      "scenario": "Apply a same-spelling certificate to another kind/source/occurrence or changed signature hash.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T08",
+      "kind": "negative",
+      "scenario": "Apply the internal-structures paragraph to neighboring public PyArray_Dims/PyArrayInterface declarations outside its scope.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T09",
+      "kind": "negative",
+      "scenario": "Forge a statement/excerpt and recompute local index hashes without the accepted source-certificate digest.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T10",
+      "kind": "negative",
+      "scenario": "Discharge a declaration while public documentation/export/golden/consumer-intent conflict is unresolved.",
+      "expected": "KEEP_UNRESOLVED_AND_BLOCK",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T11",
+      "kind": "negative",
+      "scenario": "Drop the nine current documented Elastic extension hooks because their stability or spelling is private.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T12",
+      "kind": "negative",
+      "scenario": "Drop a documented private-stability custom-op/serialization/compile/tooling workflow as implementation detail.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T13",
+      "kind": "negative",
+      "scenario": "Classify a public alias as internal merely because its implementation target is internal.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T14",
+      "kind": "positive",
+      "scenario": "One exact named internal paragraph covers several explicitly enumerated IDs, with independent source acceptance.",
+      "expected": "ACCEPT_SCOPE_FACT_ONLY",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T15",
+      "kind": "negative",
+      "scenario": "Provide an internal certificate with no functionality disposition or unreviewed empty target list.",
+      "expected": "FUNCTIONALITY_BLOCKER_REMAINS",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T16",
+      "kind": "negative",
+      "scenario": "Use an internal-only cycle A->B->A as the complete preservation proof.",
+      "expected": "FAIL_PRESERVATION",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T17",
+      "kind": "negative",
+      "scenario": "Use Atlas/PARITY-VALIDATOR private-audit custody or a family label as the public semantic preservation target.",
+      "expected": "FAIL_PRESERVATION",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T18",
+      "kind": "negative",
+      "scenario": "Link to an unknown target, another exempt-only declaration or a target without required clauses/source evidence.",
+      "expected": "FAIL_PRESERVATION",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T19",
+      "kind": "negative",
+      "scenario": "Retain a public target ID but lose its dtype/device/layout/gradient/effect/error or framework-specific variants.",
+      "expected": "FAIL_REQUIRED_COVERAGE",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T20",
+      "kind": "positive",
+      "scenario": "Several internal helpers support one real required public clause, with all source edges retained.",
+      "expected": "ALLOW_SHARED_TARGET_NO_API_DEDUP",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T21",
+      "kind": "positive",
+      "scenario": "A certificate proves a literal private type is not an API while its public functionality linkage is still incomplete.",
+      "expected": "ACCEPT_CLASSIFICATION_KEEP_FUNCTIONALITY_BLOCKER",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T22",
+      "kind": "negative",
+      "scenario": "Add a runtime/native/performance/release success claim to a classification-only record.",
+      "expected": "FAIL_CREDIT_SCHEMA",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T23",
+      "kind": "negative",
+      "scenario": "Use a stale or self-asserted independent source acceptance covering another certificate/packet.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T24",
+      "kind": "negative",
+      "scenario": "Manually reduce aggregate required counts while ID memberships and certificates remain unchanged.",
+      "expected": "FAIL_DERIVED_COUNT",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T25",
+      "kind": "negative",
+      "scenario": "Declare the public denominator complete while known unadmitted public ufunc methods or other extraction gaps remain.",
+      "expected": "FAIL_CLOSURE",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T26",
+      "kind": "negative",
+      "scenario": "Retain an unresolved row in storage but omit it from all definition blockers.",
+      "expected": "FAIL_MIGRATION_TEST",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T27",
+      "kind": "negative",
+      "scenario": "Set all raw rows private and satisfy only aggregate counts or a global allow-private flag.",
+      "expected": "FAIL_CLOSED",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T28",
+      "kind": "negative",
+      "scenario": "Consume ignored/untracked/outside-root certificate or witness bytes that do not match the candidate Git objects.",
+      "expected": "FAIL_COMMITTED_INPUT",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T29",
+      "kind": "positive",
+      "scenario": "Reformat and reindex normalized admission storage without changing certificate/partition semantics.",
+      "expected": "PASS_STRUCTURAL_ONLY",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T30",
+      "kind": "negative",
+      "scenario": "Delete signature/view/history records during admission normalization or alias storage compaction.",
+      "expected": "FAIL_RETENTION",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T31",
+      "kind": "negative",
+      "scenario": "Update definition_blockers but leave snapshot.semantics_complete/report/inspector/release readers using incompatible sets.",
+      "expected": "FAIL_READER_MIGRATION",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T32",
+      "kind": "positive",
+      "scenario": "All required public/workflow semantics are complete, unresolved membership is empty, internal certificates and preservation are accepted, and extraction is independently closed.",
+      "expected": "DEFINITION_STILL_REQUIRES_EXISTING_FINAL_REVIEW_GATES",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T33",
+      "kind": "negative",
+      "scenario": "Use valid private admission to waive repository exits, ADRs, actual hardware, fresh-consumer, registry or release evidence.",
+      "expected": "FAIL_EXISTING_RELEASE_GATES",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T34",
+      "kind": "negative",
+      "scenario": "Interpret source-only rejection or unavailable hardware as a passed native/differential test or privacy proof.",
+      "expected": "FAIL_CREDIT_SCHEMA",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T35",
+      "kind": "negative",
+      "scenario": "Reuse one API variant exemption to filter an entire mixed multi-reference mapping and its other public coverage classes.",
+      "expected": "FAIL_REQUIRED_COVERAGE",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T36",
+      "kind": "negative",
+      "scenario": "Change a private certificate semantic claim while preserving an earlier independent review ID/hash.",
+      "expected": "FAIL_REVIEW_BINDING",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T37",
+      "kind": "positive",
+      "scenario": "An ordinary source-backed internal correction follows existing full-public-parity/native design principles without a new user permission prompt.",
+      "expected": "PROCEED_NORMAL_SOURCE_CODE_REVIEW",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T38",
+      "kind": "negative",
+      "scenario": "A proven irreconcilable public-behavior/architecture conflict is silently converted into an exclusion.",
+      "expected": "KEEP_EXPLICIT_DECISION_OR_UNRESOLVED_BLOCKER",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T39",
+      "kind": "positive",
+      "scenario": "Old classifications and historical raw 38096/semantic 38094 counts remain inspectable beside corrected derived scope counts.",
+      "expected": "PASS_HISTORY_TRACEABILITY",
+      "runtime_verification_credit": 0
+    },
+    {
+      "id": "T40",
+      "kind": "negative",
+      "scenario": "Treat a source visibility certificate as permission to reproduce or adopt the private third-party runtime architecture.",
+      "expected": "FAIL_ARCHITECTURE_BOUNDARY",
+      "runtime_verification_credit": 0
+    }
+  ]
+}

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Preserve the two independently accepted public-surface source packets in parity
+  program 2026-10-26.11 with lossless selected captures, 498 exact reference joins,
+  typed provenance/owner guards and portable witnesses. All classifications,
+  required functionality, mapping stages and runtime/release credit are unchanged;
+  no public-scope admission exemptions or package version changes. Reconcile the
+  user-approved SAME-PR #551 replacement while retaining historical ownership,
+  unqualified delivery gates and Leto heavy-slot ownership.
+
 - Add repaired Torch native dtype source definitions to parity program
   2026-10-26.10, with lossless finite tables, typed source/owner/status guards
   and input-sensitive complex/gradient analytical controls. All 66 framework

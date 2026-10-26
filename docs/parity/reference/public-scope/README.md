@@ -17,9 +17,12 @@ targets or signatures do not establish semantic equivalence.
 The first capture retains **38,096 raw candidates** and **147 framework contract
 groups**. It identifies 498 unresolved publicness cases, three source-internal
 candidates, and nine documented Elastic extension hooks. All remain retained.
-The 486 TensorFlow private proposals are unresolved: the current policy page
-conflicts with frozen public traversal/golden evidence. Neither a leading
-underscore nor an `__internal__` spelling removes a public workflow. Counts of
+The historical 486 TensorFlow private proposals remain unresolved in this
+canonical ledger. The [accepted source-evidence follow-up](../public-evidence/README.md)
+retains 492 TF source views, including six internal-base identity proposals and
+required protocol/namespace workflows, without applying an admission exemption.
+The current policy page and frozen traversal/golden evidence remain distinct.
+Neither a leading underscore nor an `__internal__` spelling removes a public workflow. Counts of
 raw declarations, distinct public spellings, source aliases, semantic variants,
 capabilities and executed coverage are different quantities.
 

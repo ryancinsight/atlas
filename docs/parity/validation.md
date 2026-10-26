@@ -1,6 +1,6 @@
 # Validation and remaining definition work
 
-Program 2026-10-26.10. Exact candidate identity and current hosted results belong
+Program 2026-10-26.11. Exact candidate identity and current hosted results belong
 in the draft PR; local evidence here describes the authored tree and commands,
 not a final merge/release certification. [Contracts](contracts.md).
 
@@ -378,7 +378,7 @@ complete descriptors, actual ABI/builds, payload conversions, device/AD,
 performance and final-revision release gates stay open. No network/auth,
 provider build/import, push, PR, merge or deployment occurs in this local slice.
 
-The protected [#551 shared-tool handoff](execution.md#protected-shared-tool-prerequisite-observed-october-26) records the exact Aequitas parser mismatch, observed failing draft head and existing integrator/continuation. Owner liveness and delivery stay unverified; source presence is not authorization to adopt prepared tools. Earlier provider holds and historical receipts remain intact.
+The protected [#551 shared-tool handoff](execution.md#protected-shared-tool-prerequisite-observed-october-26) retains the exact Aequitas parser mismatch, last-observed failing draft head and original integrator/continuation as history. The user-approved replacement task `01a17995-4c0b-701d-8625-8650165230c2` now continues SAME #551 with existing work preserved; tooling/reviews/coherence/delivery remain unqualified and no current remote head is asserted; source presence is not authorization to adopt prepared tools. Earlier provider holds and historical receipts remain intact.
 
 
 ## Torch repaired native dtype integration
@@ -483,3 +483,65 @@ boundary; accepted JSON subclasses and every source artifact remain unchanged.
 These are canonical tooling repairs pending the same reviewer's final-head
 assessment. All 66 target cases and 14 source gaps remain unqualified. Pending
 provider qualifications and protected-owner approval receive no execution credit.
+
+## Accepted public-surface evidence increment
+
+The program.11 increment captures only the accepted TF 492 and JAX/Torch six-row source
+packets and their exact independent review receipts. The existing 498 raw IDs,
+publicness classifications, source signatures, required workflow relations and
+unmapped canonical associations remain unchanged. The two original-source
+reviews do not approve this canonical candidate or grant semantic/runtime credit.
+The reviewed admission interface remains nonoperative; no internal-source label
+or proposal subtracts an obligation. Live mapping owners are derived from actual
+canonical mappings, separately from frozen `20ae8d85` source routing facts.
+
+Source-only checks cover exact selected-byte reconstruction, source/path/blob
+receipt lineage, portable spans/AST signatures, no-credit/count/schema guards,
+and real copied/reindexed attacks and formatting controls. Four complete JAX
+configuration spans remain digest-only rather than vendored source. Full source
+analysis replay remains available through the explicit original local packets;
+normal validation is portable and consumes only committed Atlas inputs. Local
+check/test results and exact consumed-input commitment are recorded with the
+local review handoff; independent exact-head review and actual hosted gates
+remain mandatory before any external delivery. No provider or native execution,
+new source acquisition, rendered-route retry, or GitHub action occurs here.
+
+The source-capture checks at `5b0c92a5` pass 17 tests with zero skips: 45 physical-file
+negative mutations are rejected after recomputing the relevant indexes; valid
+JSON/column-dictionary reformatting and a cache-free copied-tree control pass.
+The local producer replay verifies the original 199/265-file manifests and
+reproduces all 48 captured canonical files byte-identically. Before actual-main integration, link checking scans
+18 Markdown files /123 links with no missing files or anchors. The board index
+and the combined 1,000-line backlog budget pass without changing the board count.
+The historical-source regression now asserts immutable JAX.8/NumPy.9 role paths,
+introductions and consumption of every indexed artifact independently of the
+current program version; no source pin or validation obligation is weakened.
+
+Before actual-main integration, local source-evidence commit `5b0c92a5` passes
+**227 lightweight parity tests, zero skips**.
+The previous run's one failure is retained in the local handoff: it was the
+superseded latest-program.9 assertion, corrected by the stronger historical
+introduction/consumed-input checks above. No native or framework computation ran.
+
+The parent-directed integration includes actual merged main `05c8ccc8`, carrying
+Torch program.10 from #577. All 32 incoming Torch capture files remain
+byte-identical to that main revision; JAX.8 and NumPy.9 introductions and source
+bytes remain fixed. Program.11 retains the separate public-evidence capture and
+all 498 unresolved classifications without changing any API stage or denominator.
+The exact final integrated commit, consumed-input proof and final lightweight
+checks are recorded in the local review handoff. External delivery and fresh
+hosted qualification remain parent-owned; no unrelated TF conversion packet is
+admitted by this integration.
+
+The first integrated run at `7f4e2674` executes 266 tests and retains one failed
+latest-program.10 assertion in the incoming Torch harness. Its correction checks
+the immutable Torch.10 index hash, source role, introduction and consumption of
+every indexed artifact; all original ID/stage/source-count assertions remain.
+No captured Torch source bytes or source/runtime status changes. The final
+exact-head run belongs to the review handoff, rather than replacing that failed
+run with passing evidence.
+
+A later trusted parent ownership update admits the user-approved SAME-PR #551
+replacement and retains the original owner/pending-decision record as history.
+It grants no tooling, coherence, delivery or API qualification; Leto retains the
+heavy-build slot. This lane performs no #551 lookup, contact or branch action.
