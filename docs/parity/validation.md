@@ -532,3 +532,11 @@ The exact final integrated commit, consumed-input proof and final lightweight
 checks are recorded in the local review handoff. External delivery and fresh
 hosted qualification remain parent-owned; no unrelated TF conversion packet is
 admitted by this integration.
+
+The first integrated run at `7f4e2674` executes 266 tests and retains one failed
+latest-program.10 assertion in the incoming Torch harness. Its correction checks
+the immutable Torch.10 index hash, source role, introduction and consumption of
+every indexed artifact; all original ID/stage/source-count assertions remain.
+No captured Torch source bytes or source/runtime status changes. The final
+exact-head run belongs to the review handoff, rather than replacing that failed
+run with passing evidence.
