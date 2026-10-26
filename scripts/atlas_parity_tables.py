@@ -17,6 +17,28 @@ def canonical(value):
         raise ParityError("record table: value is not finite JSON") from error
 
 
+def _value_key(value):
+    """Exact canonical-JSON equality without encoding every scalar table cell.
+
+    Tags keep bool, integer, float and string domains separate. Base-class
+    accessors preserve JSON's handling of int/str subclasses without invoking
+    their overridden display methods. Containers/floats retain the existing
+    finite canonical serialization, including signed zero and key ordering.
+    """
+    if value is None:
+        return (type(None),)
+    if type(value) is bool:
+        return (bool, value)
+    if isinstance(value, str):
+        return (str, str.__str__(value))
+    if isinstance(value, int):
+        try:
+            return (int, int.__repr__(value))
+        except ValueError as error:
+            raise ParityError("record table: value is not finite JSON") from error
+    return ('json', canonical(value))
+
+
 def pack(records, metadata=None):
     need(type(records) is list and all(type(row) is dict for row in records),
          "record table: expected object records")
@@ -30,7 +52,7 @@ def pack(records, metadata=None):
             if column not in record:
                 row.append(-1)
                 continue
-            key = canonical(record[column])
+            key = _value_key(record[column])
             if key not in indexes[column]:
                 indexes[column][key] = len(tables[column])
                 tables[column].append(record[column])
@@ -49,7 +71,7 @@ def unpack(document):
          set(columns) == set(tables), "record-table columns missing or duplicated")
     for column, values in tables.items():
         need(type(values) is list, f"{column}: value table must be a list")
-        need(len(values) == len({canonical(value) for value in values}),
+        need(len(values) == len({_value_key(value) for value in values}),
              f"{column}: duplicate table values")
     records = []
     for row in document["rows"]:
