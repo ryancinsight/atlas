@@ -6,8 +6,8 @@ from pathlib import Path
 from atlas_parity_core_math import FIXTURES, negative_fixture_checks, verify_fixtures
 from atlas_parity_core_sources import (validate_numpy_jax, validate_provider_boundaries,
                                        validate_torch_tf)
-from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, finite_number, local_path, need,
-                                 nonempty, read_json, unique)
+from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, finite_number,
+                                 local_path, need, nonempty, read_json, source_entry_at, unique)
 
 NO_CREDIT = {"source_contract_defined": False, "framework_execution_credit": 0,
              "provider_execution_credit": 0, "performance_credit": 0, "release_credit": 0,
@@ -20,15 +20,6 @@ def no_credit(row):
     need(type(row) is dict and set(row) == set(NO_CREDIT) and all(
         type(row[key]) is type(value) and row[key] == value for key, value in NO_CREDIT.items()),
         "core tensor design cannot assert whole API, execution or release qualification")
-
-
-def entry_at(document, path):
-    try:
-        for key in path:
-            document = document[key]
-    except (KeyError, TypeError, IndexError) as error:
-        raise ParityError("core tensor original entry absent") from error
-    return document
 
 
 def validate_core_tensor(root: Path, relative: str, program, capabilities, repositories,
@@ -169,7 +160,8 @@ def validate_core_tensor(root: Path, relative: str, program, capabilities, repos
             need(variant["analytical_tests"] == row["case_ids"], "core canonical mapping case links drift")
         source = row["source_endpoint"]
         need(source["path"] in documents, "core tensor: original source endpoint missing")
-        original = entry_at(documents[source["path"]], source["entry"])
+        original = source_entry_at(documents[source["path"]], source["entry"],
+                                   "core tensor source endpoint")
         endpoint_sources.add((source["path"], tuple(source["entry"])))
         if references[ref]["framework"] in {"numpy", "jax"}:
             source_record, citations = original["identity"]["record"], original["citations"]
@@ -218,7 +210,8 @@ def validate_core_tensor(root: Path, relative: str, program, capabilities, repos
              "core tensor scenario has unsupported runtime evidence")
         source = row["source_case"]
         need(source["path"] in documents and row["original"] ==
-             entry_at(documents[source["path"]], source["entry"]), "core tensor source case changed")
+             source_entry_at(documents[source["path"]], source["entry"],
+                             "core tensor source case"), "core tensor source case changed")
         need(source_ids.get(row["reference_id"]) == row["source_endpoint_id"],
              "core tensor case source endpoint mismatches canonical API")
         original = row["original"]

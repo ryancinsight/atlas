@@ -11,6 +11,7 @@
     "capabilities": "capabilities.json",
     "core_tensor_contracts": "core-tensor/index.json",
     "decisions": "decisions.json",
+    "dtype_policy": "dtype-policy/jax-20261026/index.json",
     "evidence": "evidence.json",
     "mappings": "mappings.json",
     "provider_evidence": "provider-evidence.json",
@@ -25,21 +26,21 @@
   "implementation_blockers": [
     "Hardware and external performance matrices unqualified; unavailable targets remain obligations",
     "Provider audit establishes source facts only; no complete exact-revision provider execution qualification",
-    "Current local native candidate cab5499f awaits same-reviewer exact-head sign-off; parent b50a96cf passed scoped source review. Controlled Linux 108-pair-per-policy and30shared-queue performance, actual Linux/Windows, all-feature/security/ADR and ordered registry acceptance remain open. Notification integrationHTTP403 stays stopped.",
-    "Notification commit d94d5ab6 is pushed; draft PR creation denied HTTP403, no CI/merge/publication; no alternate-route retry permitted",
+    "Current local native candidate cab5499f awaits same-reviewer exact-head sign-off; parent b50a96cf passed scoped source review. Controlled Linux 108-pair-per-policy and30shared-queue performance, actual Linux/Windows, all-feature/security/ADR and ordered registry acceptance remain open. Historical connectorHTTP403 remains recorded; owner-led existingCLI delivery is authorized but unverified here.",
+    "Notification commit d94d5ab6 is pushed; connector draft PR creation was denied HTTP403 and that connector route remains stopped. Existing logged-in gh CLI is now authorized for owner-led delivery; current PR/CI/merge/publication outcome is not verified by this lane.",
     "Apollo original service hold and #696 version/license/registry blockers remain",
-    "CPU gamma candidate locally qualified at owned Eunomia/Leto/Coeus heads; delivery integration403 holds; existing CLI identity is verified and provider feature pushes are reported; full downstream delivery remains pending; registry/fresh consumer, full dtype/AD/device/performance and selected-cohort integration remain open; no path-overlay completion credit"
+    "CPU gamma candidate locally qualified at owned Eunomia/Leto/Coeus heads; original invalidCLI and connector403 receipts remain historical. Existing CLI identity is verified and provider feature pushes are reported; full downstream delivery remains pending verification; registry/fresh consumer, full dtype/AD/device/performance and selected-cohort integration remain open; no path-overlay completion credit"
   ],
   "objective": "Full documented NumPy/JAX/PyTorch/TensorFlow functional equivalence under Atlas first-party native generic provider architecture.",
   "observed_at": "2026-10-26",
   "open_decisions": [],
-  "program_version": "2026-10-26.7",
+  "program_version": "2026-10-26.8",
   "protected_ownership": [
     {
       "owner_task": "01a159ec-7017-7725-a554-194472dc20dc",
       "owner_turn": "01a176ab-537b-71fe-aa02-d59f00de713d",
-      "state": "notification_pushed_pr_creation_denied_no_retry",
-      "target": "Moirai notification coordinator; commit pushed, PR denied, heavy slot released"
+      "state": "notification_pushed_connector_pr_denied_owner_delivery_unverified",
+      "target": "Moirai notification coordinator; pushed commit, historical connector PR denial, current owner-led CLI delivery unverified; no competing executor"
     },
     {
       "owner_task": "01a16141-84fd-7045-a5d6-75c04aafa0ef",
@@ -64,7 +65,7 @@
       "owner_turn": "01a176ac-776a-7757-b4ab-7a881fc390e4",
       "started_utc": "2026-10-26T05:26:00Z",
       "state": "local_candidate_stopped_at_ADR_and_external_gates_no_running_commands",
-      "target": "Native Tokio migration: clean cab5499f qualification candidate; same-reviewer exact-head assessment and ADR0084/external gates pending; no integration403retry"
+      "target": "Native Tokio migration: clean cab5499f qualification candidate; same-reviewer exact-head assessment and ADR0084/external gates pending; connector route held, owner-led existingCLI delivery authorized but unverified here"
     },
     {
       "owner_task": "01a17793-e227-73cf-b347-6c85477ef010",

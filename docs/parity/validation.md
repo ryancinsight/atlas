@@ -1,8 +1,29 @@
 # Validation and remaining definition work
 
-Program 2026-10-26.6. Exact candidate identity and current hosted results belong
+Program 2026-10-26.8. Exact candidate identity and current hosted results belong
 in the draft PR; local evidence here describes the authored tree and commands,
 not a final merge/release certification. [Contracts](contracts.md).
+
+The initial #575 head `20ae8d85` passed its serial conformance suite and slow
+Python job, but two fast-job attempts failed in different native fixtures. The
+second exposed `rustc -vV`: missing manifest in the pinned `1.97.0` toolchain;
+the first helper's captured Cargo stderr was not exposed. Concurrent automatic
+installation is an inference from parallel consumers and incomplete installation,
+not an independently established cause. The fast workflow now prepares the root
+fixture and coherence-auditor toolchain versions and declared components serially
+before xdist starts. It uses the fixtures' existing version normalization; no pin,
+test, job timeout or gate is weakened. Failed attempts remain failed evidence.
+The resulting exact head needs independent review and fresh actual hosted checks;
+serial/slow passes do not replace a failed fast gate.
+
+Independent physical-file/reindex review also exposed Boolean/float source
+offsets that Python compared equal to integers. A shared typed resolver now
+requires string object keys and exact nonnegative integer list offsets, resolves
+against the actual container and rejects scalar traversal. Semantic mappings,
+public-scope contracts, core contracts/cases and JAX clauses use that resolver;
+the old unchecked core helper is removed. Real copied-artifact tests preserve
+consistent index and consuming-mapping hashes so rejection must come from the
+selector contract. Frozen source, API stages and raw CP02 history remain intact.
 
 The original planning/tooling slice is merged through #570 at `2dbfeabc` and
 the bounded source-disposition slice through #571 at `03464d75`. Their exact
@@ -10,7 +31,14 @@ heads receive independent review and actual fast/slow Python, CodeQL and
 conformance passes after readiness. All three post-merge #571 workflows pass;
 the exact merge has no deployment records. Earlier draft-only skip observations
 below are retained history, not passing validations or current merge blockers.
-The public-surface/shared-contract increment requires its own final-head review
+The public-surface/shared-contract increment subsequently merged through
+[Atlas #572](https://github.com/ryancinsight/atlas/pull/572) at `60f32ba8`,
+workflow contracts through [#573](https://github.com/ryancinsight/atlas/pull/573)
+at `de9d428d`, and core tensor contracts through
+[#574](https://github.com/ryancinsight/atlas/pull/574) at `f642337d`.
+Each exact head passed independent review and actual fast/slow Python, CodeQL
+and conformance checks; each merge's post-merge checks passed with no deployment
+records. The current dtype policy increment requires its own exact-head review
 and hosted checks. Full definition and release qualification remain blocked.
 
 ## Recorded candidate surface
@@ -31,12 +59,15 @@ capability count. PyTorch retains 8,944 documentation/label records separately.
 See [the closure slice](reference/closure/README.md) for exact finite dispositions.
 
 Two API contracts, `numpy.ndim` and `numpy.shape`, are independently reviewed
-SOURCE `mapping=specified`. Thirty-six constructor contracts plus `numpy.size`
-remain partial, covering 59 declaration views. Another 38,035 candidate
-identities are unmapped. All 38,094 not-fully-specified identities continue to
-block definition completion. There are zero runtime qualification evidence
-records and no qualified repositories. The 67 family contracts route ownership;
-they do not convert candidate declarations into implemented capabilities.
+SOURCE `mapping=specified`. The historical #572 baseline had 36 constructor
+contracts plus `numpy.size`, covering 59 partial declaration views and leaving
+38,035 candidate identities unmapped. The #574 core increment added 37 partial
+views while reusing both specified contracts. The current report therefore has
+**96 partial and 37,998 unmapped identities**; all **38,094** without complete
+semantic mappings continue to block definition completion. The dtype policy
+slice changes none of these stages. There are zero runtime qualification
+evidence records and no qualified repositories. The 67 family contracts route
+ownership; they do not convert candidate declarations into implemented capabilities.
 
 ## Reproduction
 
@@ -248,3 +279,48 @@ Workflow integration preserves the entire reviewed da03 tree. Core integration
 against main de9d428d also preserves the saved510410f2 tree before this status
 receipt update. Fresh exact-head core review/hosted gates remain mandatory; no
 whole-program qualification follows from the completed planning deliveries.
+
+## Frozen JAX dtype policy increment
+
+The [versioned policy](dtype-policy/README.md) losslessly captures reviewed packet
+`72206a73` and review `364896a2`, preserving nine IDs, all 9,256 finite source-symbol
+pairs, 18 unrun targets, ten wider gaps and eight ordinary CP02 evidence gaps.
+The raw workflow record stays immutable; the derived disposition requests evidence,
+not user scope reduction. Exact source/review pins, graph edges/joins/guards,
+owner/prerequisite/API/case/source links and false-stage-credit rejection are
+inputs to the actual checker/report and committed-input gate. Source-only
+checks grant no API/runtime/backend/performance/release qualification.
+
+Run `PYTHONPATH=scripts python3 -m unittest scripts/tests/test_parity_dtype.py -v`
+for the bounded adversarial suite. Canonical validation uses portable exact span
+bytes and signatures; original interpreter-specific AST-render hashes remain
+immutable captured provenance. The original packet replay is recorded separately
+and imports no numerical framework. No full third-party sources are vendored.
+
+Core prerequisite #574 merges exact head `11406055` as `f642337d` after parent-verified
+fast/slow40339245066, CodeQL40339117660 and conformance40339121408 passes and
+mandatory exact-head review (139 tests, zero skips). The new local dtype candidate
+requires separate final-head review and hosted checks before external delivery.
+
+The authored dtype tree passes 155 parity tests with zero skips, including 16
+new dtype conservation/adversarial methods. The checker/report, 19 added canonical
+local links, board index and artifact budget pass. Expanded backlog remains1,000
+lines and gap audit333; board lint retains advisory historical stale-item,
+commit-reference and live-mention reports. No framework/provider or hardware test
+is credited by these source checks.
+
+Canonical review of saved `ba1faa3` then exposes two gaps the initial155 checks
+did not cover: supplier/API ownership ambiguity (`astype` is canonically
+Coeus/TEN-OPS while Eunomia supplies scalar policy), and a reindexed witness
+header that claims API/runtime credit. Both regressions reproduce before repair.
+The corrected joins distinguish policy suppliers from exact current mapping
+associations (four mapped, five explicitly unmapped). Strict source-only wrapper
+schemas reject unsupported credit, canonical-review approval labels, wrong
+17/44 counts and duplicate CP02 IDs even after real artifact reindexing.
+
+The corrected authored tree passes159 parity tests, zero skips, including20
+dtype methods and copied-program full-loader adversaries with a valid reformat/
+reindex control. Early wrapper validation retains all cases while reducing the
+focused suite from65.7s to17.8s; the full suite completes in47.7s. Main mappings,
+source722/review364, all9,256 graph pairs and raw CP02 history stay unchanged.
+All18 acceptance targets remain unrun; exact-head clearance remains required.

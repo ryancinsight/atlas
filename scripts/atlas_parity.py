@@ -18,9 +18,10 @@ from atlas_parity_references import references
 from atlas_parity_scope import validate_scope
 from atlas_parity_workflows import validate_workflows
 from atlas_parity_core import validate_core_tensor
+from atlas_parity_dtype import prepare_dtype_policy, validate_dtype_policy
 from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
 from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, finite_number, https,
-                                 local_path, need, nonempty, read_json, revision, unique)
+                                 local_path, need, nonempty, read_json, revision, source_entry_at, unique)
 
 FRAMEWORKS = {"numpy", "jax", "pytorch", "tensorflow"}
 DEFAULT = Path(__file__).resolve().parents[1] / "docs" / "parity"
@@ -106,6 +107,7 @@ def load(root: Path = DEFAULT) -> dict:
     decisions = validate_decisions(program, objects["decisions"], repositories)
     need(bool(capabilities) and bool(repositories) and bool(packages), "program cannot have empty owner/DAG sets")
     program_structure(program, capabilities, repositories, packages)
+    dtype_prepared = prepare_dtype_policy(root, program["files"].get("dtype_policy"), program)
     refs, summaries = references(root, program["reference_snapshots"])
     closure, extra_inputs = validate_closure(root, program["files"].get("reference_closure"), program)
     scope, scope_inputs = validate_scope(root, program["files"].get("public_scope"), refs,
@@ -126,12 +128,7 @@ def load(root: Path = DEFAULT) -> dict:
         need(hashlib.sha256(source.read_bytes()).hexdigest() == contract["sha256"],
              f"{row['id']}: semantic source-contract hash drift")
         document = read_json(source)
-        current = document
-        try:
-            for key in contract["entry"]:
-                current = current[key]
-        except (KeyError, IndexError, TypeError) as error:
-            raise ParityError(f"{row['id']}: missing semantic contract entry") from error
+        current = source_entry_at(document, contract["entry"], f"{row['id']}: semantic contract")
         need(bool(current), f"{row['id']}: empty semantic contract")
         validate_source_definition(row, current)
         symbols = set()
@@ -152,6 +149,9 @@ def load(root: Path = DEFAULT) -> dict:
     core_tensor, core_inputs = validate_core_tensor(root, program["files"].get("core_tensor_contracts"),
         program, capabilities, repositories, refs, mappings, assigned, packages)
     extra_inputs.extend(core_inputs)
+    dtype_policy, dtype_inputs = validate_dtype_policy(dtype_prepared, program, capabilities,
+                                                      refs, mappings, assigned)
+    extra_inputs.extend(dtype_inputs)
     for snapshot in program["reference_snapshots"]:
         if snapshot["semantics_complete"]:
             need(all(identity in specified for identity, row in refs.items()
@@ -174,6 +174,7 @@ def load(root: Path = DEFAULT) -> dict:
               "public_scope": scope,
               "workflows": workflows,
               "core_tensor": core_tensor,
+              "dtype_policy": dtype_policy,
               "repository_evidence": repository_evidence, "qualified_repositories": qualified_repositories}
     if program["definition_complete"]:
         need(not definition_blockers(result), "definition_complete contradicts unresolved obligations")
@@ -244,6 +245,7 @@ def report(bundle: dict) -> dict:
             "public_scope": bundle["public_scope"]["summary"],
             "workflow_designs": bundle["workflows"],
             "core_tensor_designs": bundle["core_tensor"],
+            "dtype_policy_designs": bundle["dtype_policy"],
             "definition_blockers": definition_blockers(bundle)}
 
 
