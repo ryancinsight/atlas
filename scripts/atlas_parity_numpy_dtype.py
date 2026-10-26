@@ -1,4 +1,5 @@
 """Bounded NumPy native dtype source overlay, no API/runtime qualification."""
+import hashlib
 
 from atlas_parity_dtype import no_credit
 from atlas_parity_dtype_headers import exact_fields
@@ -6,7 +7,7 @@ from atlas_parity_numpy_dtype_capture import PREFIX, PACKET_SHA, REVIEW_SHA, REV
 from atlas_parity_numpy_dtype_joins import validate_joins
 from atlas_parity_numpy_dtype_relations import validate_relations
 from atlas_parity_numpy_dtype_sources import validate_sources
-from atlas_parity_schema import local_path, need, read_json
+from atlas_parity_schema import local_path, need, read_json, source_entry_at, source_selector
 
 
 def prepare_numpy_dtype(root, relative, program):
@@ -35,19 +36,41 @@ def prepare_numpy_dtype(root, relative, program):
     return root, index, original, documents, paths + [index_path]
 
 
-def validate_correction(document, original, mappings):
+def validate_correction(root, document, original, mappings):
     exact_fields(document, {'schema_version': int, 'raw_mapping_id': str, 'raw_source_contract': dict,
         'correction_entry': list, 'previous_statement': str, 'corrected_scope': str,
         'history_mutated': bool, 'mapping_stage_changed': bool, 'whole_API_credit': bool},
         'NumPy prior wording correction disposition')
     raw = mappings.get('core-numpy-numpy-result-type')
-    need(raw is not None and document['schema_version'] == 1 and
+    need(raw is not None, 'NumPy correction actual mapping absent')
+    for contract in (document['raw_source_contract'], raw['source_contract']):
+        exact_fields(contract, {'entry': list, 'path': str, 'sha256': str},
+                     'NumPy correction actual mapping source contract')
+        source_selector(contract['entry'], 'NumPy correction actual mapping source entry')
+    need(document['raw_source_contract'] == raw['source_contract'],
+         'NumPy correction actual mapping source association drift')
+    contract = raw['source_contract']
+    source_path = local_path(root, contract['path'])
+    need(hashlib.sha256(source_path.read_bytes()).hexdigest() == contract['sha256'],
+         'NumPy correction actual mapping source hash drift')
+    source = read_json(source_path)
+    selected = source_entry_at(source, document['raw_source_contract']['entry'],
+                               'NumPy correction copied actual mapping source entry')
+    actual = source_entry_at(source, contract['entry'], 'NumPy correction actual mapping source entry')
+    need(type(selected) is dict and selected is actual and selected.get('mapping_id') == raw['id'] and
+         selected.get('reference_id') in raw['reference_ids'],
+         'NumPy correction actual mapping source identity drift')
+    correction = source_entry_at(original['gap-disposition.json'], document['correction_entry'],
+                                 'NumPy correction source entry')
+    need(document['schema_version'] == 1 and
          document['raw_mapping_id'] == raw['id'] and document['raw_source_contract'] == raw['source_contract'] and
          document['correction_entry'] == ['corrections', 2] and
-         document['previous_statement'] == original['gap-disposition.json']['corrections'][2]['previous'] and
-         document['corrected_scope'] == original['gap-disposition.json']['corrections'][2]['correct'] and
+         correction is original['gap-disposition.json']['corrections'][2] and
+         document['previous_statement'] == correction['previous'] and
+         document['corrected_scope'] == correction['correct'] and
          document['history_mutated'] is document['mapping_stage_changed'] is document['whole_API_credit'] is False,
          'NumPy annotated correction must preserve history, exact source and mapping stage')
+    return source_path
 
 
 def validate_numpy_dtype(prepared, program, capabilities, references, mappings, assigned):
@@ -64,7 +87,7 @@ def validate_numpy_dtype(prepared, program, capabilities, references, mappings, 
     cells = validate_relations(original['policy-tables.json'], witnesses['citations'])
     ids = validate_joins(get('joins.json'), original['native-contracts.json'], original['acceptance-cases.json'],
                          witnesses, capabilities, references, mappings, assigned)
-    validate_correction(get('correction-disposition.json'), original, mappings)
+    correction_source = validate_correction(root, get('correction-disposition.json'), original, mappings)
     scope = original['scope.json']
     need(scope['source_file_count'] == 78 and scope['c_or_python_function_count'] == 129 and
          scope['citation_count'] == 131 and scope['source_safe_table_cells'] == 576 and
@@ -95,4 +118,4 @@ def validate_numpy_dtype(prepared, program, capabilities, references, mappings, 
             'unresolved_source_prerequisite_labels': ['INTEROP-NATIVE'],
             'public_denominator_changed': False, 'whole_API_closure_credit': 0,
             'framework_execution_credit': 0, 'source_packet_sha256': PACKET_SHA,
-            'source_review_sha256': REVIEW_SHA, 'current_access_actions': 0}, paths
+            'source_review_sha256': REVIEW_SHA, 'current_access_actions': 0}, paths + [correction_source]

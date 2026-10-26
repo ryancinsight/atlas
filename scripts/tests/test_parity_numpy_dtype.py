@@ -42,12 +42,18 @@ class NumpyDtypeIntegrationTests(unittest.TestCase):
                                     b['assigned'] if assigned is None else assigned)[0]
 
     @contextmanager
-    def actual_tree(self, jax=False):
+    def actual_tree(self, jax=False, full=False):
         with tempfile.TemporaryDirectory(prefix='atlas-numpy-dtype-reindex-') as directory:
             root = Path(directory)
+            if full:
+                shutil.copytree(ROOT, root, dirs_exist_ok=True)
+                yield root
+                return
             shutil.copytree(ROOT / PREFIX, root / PREFIX)
             (root / 'reference').mkdir()
             shutil.copyfile(ROOT / 'reference/numpy.json', root / 'reference/numpy.json')
+            (root / 'core-tensor').mkdir()
+            shutil.copyfile(ROOT / 'core-tensor/contracts.json', root / 'core-tensor/contracts.json')
             if jax:
                 shutil.copytree(ROOT / JAX_PREFIX, root / JAX_PREFIX)
             yield root
@@ -218,6 +224,101 @@ class NumpyDtypeIntegrationTests(unittest.TestCase):
 
     def test_reindexed_case_relation_cannot_select_another_valid_case(self):
         self.corrupt('joins.json', lambda d: d['families'][0]['case_ids'].__setitem__(0, 'numpy-dtype:single-huge-int-discovery'), 'exact family')
+
+    def test_every_integer_family_and_case_selector_rejects_its_float_alias(self):
+        for group in ('families', 'cases'):
+            for position in range(len(self.documents[PREFIX + 'joins.json'][group])):
+                with self.subTest(group=group, position=position):
+                    self.corrupt('joins.json', lambda d, g=group, p=position:
+                        d[g][p].update(source_entry=[g, float(p)]), 'source selector')
+
+    def test_reindexed_family_and_case_boolean_aliases_are_not_offsets(self):
+        for group in ('families', 'cases'):
+            for position, value in ((0, False), (1, True), (0, -0.0)):
+                with self.subTest(group=group, position=position, value=value):
+                    self.corrupt('joins.json', lambda d, g=group, p=position, v=value:
+                        d[g][p].update(source_entry=[g, v]), 'source selector')
+
+    def test_reindexed_correction_and_copied_mapping_reject_float_aliases(self):
+        self.corrupt('correction-disposition.json', lambda d:
+            d.update(correction_entry=['corrections', 2.0]), 'source selector')
+        self.corrupt('correction-disposition.json', lambda d:
+            d['raw_source_contract'].update(entry=['contracts', 3.0]), 'source selector')
+
+    def test_reindexed_selectors_resolve_the_correct_source_container_and_identity(self):
+        changes = [
+            lambda d: d['endpoints'][0].update(source_entry=['public_entrypoints', 0]),
+            lambda d: d['endpoints'][0].update(source_entry=d['endpoints'][1]['source_entry']),
+            lambda d: d['families'][0].update(source_entry=['families', 1]),
+            lambda d: d['cases'][0].update(source_entry=['cases', 1]),
+            lambda d: d['families'][0].update(source_entry=['families', -1]),
+            lambda d: d['cases'][0].update(source_entry=['cases', 47])]
+        for change in changes:
+            self.corrupt('joins.json', change, 'source')
+        self.corrupt('source-bindings.json', lambda d:
+            d['functions'][0].update(source_entry=d['functions'][1]['source_entry']), 'function source')
+        self.corrupt('source-bindings.json', lambda d:
+            d['functions'][0].update(source_entry=['functions', 0]), 'source selector')
+
+    def test_reindexed_copied_mapping_source_has_exact_nested_schema(self):
+        self.corrupt('correction-disposition.json', lambda d:
+            d['raw_source_contract'].update(runtime_verified=True), 'unexpected')
+        self.corrupt('correction-disposition.json', lambda d:
+            d['raw_source_contract'].pop('sha256'), 'expected str')
+        self.corrupt('correction-disposition.json', lambda d:
+            d['raw_source_contract'].update(entry=['contracts', 4]), 'actual mapping source association')
+
+    def test_correction_resolves_the_actual_mapping_source_row_and_hash(self):
+        with self.actual_tree() as root:
+            path = root / 'core-tensor/contracts.json'
+            document = read_json(path)
+            document['contracts'][3]['mapping_id'] = 'different-existing-or-invented-mapping'
+            write(path, document)
+            with self.assertRaisesRegex(ParityError, 'actual mapping source'):
+                self.validate(root)
+            # Keep the actual mapping and copied association hashes consistent:
+            # the selected row's identity must still reject independently.
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            mappings = copy.deepcopy(self.bundle['mappings'])
+            mappings['core-numpy-numpy-result-type']['source_contract']['sha256'] = digest
+            correction = root / PREFIX / 'correction-disposition.json'
+            copied = read_json(correction)
+            copied['raw_source_contract']['sha256'] = digest
+            write(correction, copied)
+            self.reindex(root)
+            with self.assertRaisesRegex(ParityError, 'actual mapping source identity'):
+                self.validate(root, mappings=mappings)
+
+    def test_full_loading_rejects_NumPy_selector_aliases_after_real_reindex(self):
+        with self.actual_tree(full=True) as root:
+            joins = root / PREFIX / 'joins.json'
+            correction = root / PREFIX / 'correction-disposition.json'
+            original_joins, original_correction = joins.read_bytes(), correction.read_bytes()
+            write(joins, read_json(joins), indent=3)
+            write(correction, read_json(correction), indent=3)
+            self.reindex(root)
+            self.assertEqual(load(root)['numpy_native_dtype_policy']['unrun_cases'], 47)
+            variants = [('families', 0, False), ('families', 0, 0.0), ('families', 1, True),
+                        ('families', 9, 9.0), ('cases', 0, False), ('cases', 0, 0.0),
+                        ('cases', 1, True), ('cases', 46, 46.0)]
+            for group, position, value in variants:
+                document = json.loads(original_joins)
+                document[group][position]['source_entry'] = [group, value]
+                write(joins, document)
+                correction.write_bytes(original_correction)
+                self.reindex(root)
+                with self.subTest(group=group, position=position, value=value), self.assertRaisesRegex(
+                        ParityError, 'source selector'):
+                    load(root)
+            joins.write_bytes(original_joins)
+            for field in ('correction_entry', 'raw_source_contract'):
+                document = json.loads(original_correction)
+                if field == 'correction_entry':document[field] = ['corrections', 2.0]
+                else:document[field]['entry'] = ['contracts', 3.0]
+                write(correction, document)
+                self.reindex(root)
+                with self.subTest(field=field), self.assertRaisesRegex(ParityError, 'source selector'):
+                    load(root)
 
     def test_unregistered_source_prerequisites_remain_explicit(self):
         rows = self.documents[PREFIX + 'joins.json']['families']

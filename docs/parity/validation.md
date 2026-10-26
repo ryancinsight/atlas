@@ -16,6 +16,15 @@ test, job timeout or gate is weakened. Failed attempts remain failed evidence.
 The resulting exact head needs independent review and fresh actual hosted checks;
 serial/slow passes do not replace a failed fast gate.
 
+Independent physical-file/reindex review also exposed Boolean/float source
+offsets that Python compared equal to integers. A shared typed resolver now
+requires string object keys and exact nonnegative integer list offsets, resolves
+against the actual container and rejects scalar traversal. Semantic mappings,
+public-scope contracts, core contracts/cases and JAX clauses use that resolver;
+the old unchecked core helper is removed. Real copied-artifact tests preserve
+consistent index and consuming-mapping hashes so rejection must come from the
+selector contract. Frozen source, API stages and raw CP02 history remain intact.
+
 The original planning/tooling slice is merged through #570 at `2dbfeabc` and
 the bounded source-disposition slice through #571 at `03464d75`. Their exact
 heads receive independent review and actual fast/slow Python, CodeQL and
@@ -328,16 +337,33 @@ No API denominator or mapping-stage changes occur. The three existing partial
 query mappings remain Eunomia; five supporting IDs remain unmapped. Two source
 families preserve the unregistered INTEROP-NATIVE prerequisite explicitly.
 
-The NumPy integration suite runs 38 tests with zero skips. It rejects corrupted
+The initial NumPy integration suite runs 38 tests with zero skips. It rejects corrupted
 physical artifacts after their index hashes are recomputed, validates exact
 typed credit/count/role/provenance schemas, checks function quote/body hashes and
 registered resolver phases, independently reconstructs source symbolic cells and
 both illustrative matrices, and accepts a valid reformat/reindex control.
-The combined parity suite passes 197 tests, zero skips, in 50.3 seconds. The
+The combined initial parity suite passes 197 tests, zero skips, in 50.3 seconds. The
 canonical capture regenerates 24 artifacts byte-identically. All 108 canonical
 Markdown links pass with zero missing files/anchors; the combined backlog stays
 at 1,000 lines and gap_audit at 333, within unchanged budgets. Changed Python
 files byte-compile and whitespace checks pass.
+
+Independent review of `78d7655d` then exposes nested source offsets that those
+checks did not reject: Boolean/integral-float family/case indices, a float
+correction index, and the copied mapping selector inside that correction.
+The NumPy successor resolves all 196 selectors through exact typed source
+containers and identity/position joins. The copied source contract has an exact
+nested schema and resolves the actual canonical mapping's source hash and row;
+consistent hashes cannot replace the mapping/reference identity check. Early
+component preflight retains every later lossless capture and source check.
+
+The focused NumPy suite now passes 45 methods with zero skips, including all
+57 family/case float aliases, Boolean aliases, both correction selectors and
+full copied-program reindex probes with valid integer/reformat controls. The
+combined parity suite passes 210 tests with zero skips. Source packet `04e6d40c`,
+review `710b8e1d`, JAX data/index, mappings, raw CP02 history and all API stages remain
+unchanged. This local correction requires independent review of its final
+committed head and supplies no framework/provider execution or release credit.
 
 These are source/tooling checks. The accepted research review's 29 tests and
 211-artifact replay remain original-packet evidence; they do not execute the

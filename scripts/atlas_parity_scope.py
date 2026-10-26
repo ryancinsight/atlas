@@ -4,8 +4,8 @@ from collections import Counter
 import hashlib
 from pathlib import Path
 
-from atlas_parity_schema import (ParityError, digest, fields, local_path, need,
-                                 read_json, revision, unique)
+from atlas_parity_schema import (digest, fields, local_path, need, read_json, revision,
+                                 source_entry_at, unique)
 from atlas_parity_tables import canonical, unpack
 from atlas_parity_scope_sources import audit_identity, classify, family_rows, input_parent
 
@@ -155,11 +155,8 @@ def validate_scope(root: Path, relative: str, refs: dict, capabilities: dict,
         current = documents[row["source_artifact"]]
         need(current.get("framework", framework) == framework,
              f"{identity}: raw source framework differs from normalized framework")
-        try:
-            for key in row["source_entry"]:
-                current = current[key]
-        except (KeyError, IndexError, TypeError) as error:
-            raise ParityError(f"{identity}: missing reusable contract source entry") from error
+        current = source_entry_at(current, row["source_entry"],
+                                  f"{identity}: reusable contract source entry")
         need(bool(current), f"{identity}: empty reusable contract")
         need(isinstance(current, dict) and current.get("contract_id", current.get("id")) == identity.split(":", 1)[1],
              f"{identity}: reusable source entry belongs to another contract")
