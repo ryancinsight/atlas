@@ -373,9 +373,17 @@ class NumpyDtypeIntegrationTests(unittest.TestCase):
             self.assertEqual(result['symbolic_safe_cells'], 576)
             self.assertEqual(result['existing_mapped_API_associations'], 3)
 
-    def test_JAX_introduction_and_all_historical_bytes_stay_consumed_by_program9(self):
+    def test_historical_JAX8_NumPy9_introductions_stay_consumed_by_current_program(self):
         b = self.bundle
-        self.assertEqual(b['program']['program_version'], '2026-10-26.9')
+        self.assertEqual(b['program']['files']['dtype_policy'], JAX_PREFIX + 'index.json')
+        self.assertEqual(b['program']['files']['numpy_native_dtype_policy'], PREFIX + 'index.json')
+        self.assertEqual(self.index['parent_program_version'], '2026-10-26.9')
+        consumed = {p.resolve() for p in b['extra_inputs']}
+        for prefix in (JAX_PREFIX, PREFIX):
+            historical = ROOT / prefix / 'index.json'
+            self.assertIn(historical.resolve(), consumed)
+            for row in read_json(historical)['artifacts']:
+                self.assertIn((ROOT / row['path']).resolve(), consumed)
         path = ROOT / JAX_PREFIX / 'index.json'
         self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), '9ba4444ce793edf0d90d106d95b6140e6216f9a1be8adcfe1987a792952e3774')
         self.assertEqual(read_json(path)['parent_program_version'], '2026-10-26.8')

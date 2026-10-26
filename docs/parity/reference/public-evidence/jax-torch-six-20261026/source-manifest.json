@@ -1,0 +1,1348 @@
+{
+  "canonical_anchors": {
+    "boundary": "frozen_source_facts_not_live_canonical_mapping_or_runtime_credit",
+    "inputs": 6,
+    "path": "canonical-anchors.json",
+    "sha256": "c2b11444a25d6381f1a9712f24035baeca3fbe088cf8a0ee5d9fbc612178088b"
+  },
+  "captured_canonical_revision": "20ae8d85f6c3aa6a6712e4f0b823b5f066bdc008",
+  "files": [
+    {
+      "bytes": 9434,
+      "path": "README.md",
+      "sha256": "d4be6cee0d550eca059edfdc8211f29429a3eec432f4fac76d83de39140d640e"
+    },
+    {
+      "bytes": 20035,
+      "path": "build.py",
+      "sha256": "88cd0211b9aa58911996dd403e8b3674b8924ebc26456a66e816e0b4a0a1a376"
+    },
+    {
+      "bytes": 17476,
+      "path": "canonical-anchors.json",
+      "sha256": "c2b11444a25d6381f1a9712f24035baeca3fbe088cf8a0ee5d9fbc612178088b"
+    },
+    {
+      "bytes": 6717,
+      "path": "canonical_anchors.py",
+      "sha256": "cdaaf3f7b3b5ab88b37e93d1da8474d948c66d4cb27181a8e92f2ec763a38335"
+    },
+    {
+      "bytes": 1911,
+      "path": "check_preservation.py",
+      "sha256": "0799dcf2e2f078ac2dff08a804a5a1c51f75136ce854b124ec2fc52b28098c1e"
+    },
+    {
+      "bytes": 4137,
+      "path": "codec/atlas_parity_schema.py",
+      "sha256": "4b09160a748971eb266d848ccb6a97458caeb7c5fb81688b8a8d52ffabd50a37"
+    },
+    {
+      "bytes": 2872,
+      "path": "codec/atlas_parity_tables.py",
+      "sha256": "b6fbdb6c9c6d6692b12a4f62b4449942ff672ff3b1eabd0da9d4a8f1c01afd97"
+    },
+    {
+      "bytes": 2224,
+      "path": "configuration-selection-evidence.json",
+      "sha256": "796ec7e85dabd8a18d06b230bfcfdef4be4632137193e6079ff0b403c06d99e0"
+    },
+    {
+      "bytes": 719,
+      "path": "history/initial-independent-review/canonical-mapping-drift-probe.json",
+      "sha256": "0965bba0b7050e9527d9ea2ba8de56b14a72f818ef476bdacf82b6ec07f93538"
+    },
+    {
+      "bytes": 3087,
+      "path": "history/initial-independent-review/reproduce_input_drift.py",
+      "sha256": "5dbf66e92e9e3ee5eb25725278b2da78d0ef624f6654d46b956b61a4cc8274f1"
+    },
+    {
+      "bytes": 5510,
+      "path": "history/initial-independent-review/review-d3de6c5e.json",
+      "sha256": "f696d2d57efdb86500e97836c93415c16630e35880353eb28a72f6d05c47c0c3"
+    },
+    {
+      "bytes": 1861,
+      "path": "history/initial-independent-review/self-consistent-input-drift-probes.json",
+      "sha256": "c7a3bdc4d75151ceb2559ea65152242c53b0528ebca87051b3282e7b8de86770"
+    },
+    {
+      "bytes": 7049,
+      "path": "history/predecessor-d3de6c5e/README.md",
+      "sha256": "fa97cc9ee01bebb69be5f43730039cc0c75e7bf64d901116a2e2e70b03ecaaef"
+    },
+    {
+      "bytes": 19977,
+      "path": "history/predecessor-d3de6c5e/build.py",
+      "sha256": "6cf0278de4a5bd0acff51c7e14099612ba71d11bac634316d49c630657219b77"
+    },
+    {
+      "bytes": 2053,
+      "path": "history/predecessor-d3de6c5e/check_preservation.py",
+      "sha256": "03d2c235170420f8cce1132d99095057b3ef3b3ebd7cac9855f151c4d92d1547"
+    },
+    {
+      "bytes": 4137,
+      "path": "history/predecessor-d3de6c5e/codec/atlas_parity_schema.py",
+      "sha256": "4b09160a748971eb266d848ccb6a97458caeb7c5fb81688b8a8d52ffabd50a37"
+    },
+    {
+      "bytes": 2872,
+      "path": "history/predecessor-d3de6c5e/codec/atlas_parity_tables.py",
+      "sha256": "b6fbdb6c9c6d6692b12a4f62b4449942ff672ff3b1eabd0da9d4a8f1c01afd97"
+    },
+    {
+      "bytes": 2224,
+      "path": "history/predecessor-d3de6c5e/configuration-selection-evidence.json",
+      "sha256": "796ec7e85dabd8a18d06b230bfcfdef4be4632137193e6079ff0b403c06d99e0"
+    },
+    {
+      "bytes": 22768,
+      "path": "history/predecessor-d3de6c5e/deliverable-manifest.json",
+      "sha256": "d3de6c5ecbdec0e1ceb6fb83646aff36ebfb914ff160e4064bf98197c2ad62ac"
+    },
+    {
+      "bytes": 183332,
+      "path": "history/predecessor-d3de6c5e/inputs/capabilities.json",
+      "sha256": "a43db3ce11dd786fee36f346ed4c9685ce24dfbaac9ed3c486d3de59f83234ee"
+    },
+    {
+      "bytes": 6690,
+      "path": "history/predecessor-d3de6c5e/inputs/capture.json",
+      "sha256": "a37df63afdaf062588de9600b2cad0c13cdca4003d24c0d6e592bcd516114f50"
+    },
+    {
+      "bytes": 515,
+      "path": "history/predecessor-d3de6c5e/inputs/codec-receipts.json",
+      "sha256": "84834fdefa8a7c91ea43b501fe5ea9eef1b9b9157c2f4069b8c70a62ece0a23d"
+    },
+    {
+      "bytes": 519755,
+      "path": "history/predecessor-d3de6c5e/inputs/jax-tree.json",
+      "sha256": "eac55ea92fd4541193987c4f4f48aa8b65da9d043f4db4543f50a1c8c5e0037d"
+    },
+    {
+      "bytes": 793307,
+      "path": "history/predecessor-d3de6c5e/inputs/mappings.json",
+      "sha256": "7b62c0ce8bc23e5d153837d3d61363b2a803e4b0065e1e0c8ea1affd9b008984"
+    },
+    {
+      "bytes": 29223,
+      "path": "history/predecessor-d3de6c5e/inputs/original-six.json",
+      "sha256": "c263bb78e671a8105968b7d4e5d65a2815e414cfcda1e830244a050680282864"
+    },
+    {
+      "bytes": 7475783,
+      "path": "history/predecessor-d3de6c5e/inputs/pytorch-tree.json",
+      "sha256": "52ab248b22f15f12f13b3cd3abe05fb42cb4d91b91089b8ee5088768ed46b130"
+    },
+    {
+      "bytes": 4433475,
+      "path": "history/predecessor-d3de6c5e/inputs/reference/public-scope/bindings.json",
+      "sha256": "3e934894219a7f879ebdd0e6326d94c6b9133853824676c020f90c7a557ca68e"
+    },
+    {
+      "bytes": 96702,
+      "path": "history/predecessor-d3de6c5e/inputs/reference/public-scope/contracts.json",
+      "sha256": "0ff844a83b7d1aa6f492e450c32b280820907cacbc7ac7f9a44ac0e5bfb9eaa2"
+    },
+    {
+      "bytes": 4323917,
+      "path": "history/predecessor-d3de6c5e/inputs/reference/public-scope/jax/records.json",
+      "sha256": "ca9a7a741d9f6283203bfa53c12bd9d0c3e28a8a60ade6319987ebce7345853d"
+    },
+    {
+      "bytes": 13840298,
+      "path": "history/predecessor-d3de6c5e/inputs/reference/public-scope/pytorch/records.json",
+      "sha256": "5c81a4941edaac68a01e8df97202648391234506dc0c08fc148e18ffd152a32e"
+    },
+    {
+      "bytes": 110878,
+      "path": "history/predecessor-d3de6c5e/inputs/selection-dispositions.json",
+      "sha256": "8bef69241d643505a2bab19cc16cccb242d1105f4081b53f41ca475b772b7f6f"
+    },
+    {
+      "bytes": 21693,
+      "path": "history/predecessor-d3de6c5e/inputs/tooling-sources.json",
+      "sha256": "ba5bbaff68be9f0ffcf59879cdf3091e0a7157d63e15f589b14ed5b74bbe837f"
+    },
+    {
+      "bytes": 1459,
+      "path": "history/predecessor-d3de6c5e/inputs/torch-input-manifest.json",
+      "sha256": "ac380531638ebc88537333cac3c8cd55e4204ad7d144b3d2a5d54676211ee68a"
+    },
+    {
+      "bytes": 224608,
+      "path": "history/predecessor-d3de6c5e/inputs/torch-objects.inv",
+      "sha256": "021a9908fed68dc53daf1a52b0f43fbd1719a7eb35beb03ab2d798b214c0fe31"
+    },
+    {
+      "bytes": 471,
+      "path": "history/predecessor-d3de6c5e/inputs/versioned-docs-access.json",
+      "sha256": "4c9f61704d405cb09c5f6629db8bd1e5872c83f9642dcaafa5189dd5005b9571"
+    },
+    {
+      "bytes": 839,
+      "path": "history/predecessor-d3de6c5e/published-inventory-evidence.json",
+      "sha256": "b0077fda986ac16051369d4d40d3fb07cdc58092504cb28d8d828fab63342265"
+    },
+    {
+      "bytes": 2212,
+      "path": "history/predecessor-d3de6c5e/read-only-and-links.json",
+      "sha256": "90fcc96fd20e57a6a12f9fd7348bce6e6221dde88a8780855916927a1b491bea"
+    },
+    {
+      "bytes": 1914,
+      "path": "history/predecessor-d3de6c5e/remaining-evidence.json",
+      "sha256": "641352ad6223155fcc8194d2051473fa029951d39d36f5844872bf5c6b090e7d"
+    },
+    {
+      "bytes": 2546,
+      "path": "history/predecessor-d3de6c5e/replay.py",
+      "sha256": "cc681d481e0200d01ad596fe43f1f9219a974f7b66dcc92e54fbdaa23acf0dae"
+    },
+    {
+      "bytes": 377475,
+      "path": "history/predecessor-d3de6c5e/returned-tooling-views.json",
+      "sha256": "3031c3dd10336d191d122c479a6054e8c24486f705108661cacca0e0a30fb830"
+    },
+    {
+      "bytes": 2729,
+      "path": "history/predecessor-d3de6c5e/seal.py",
+      "sha256": "18fab7e762ac6f6de118dc1ba9e8bd18c8bfb9309d78efdefe3d754f9070594b"
+    },
+    {
+      "bytes": 70836,
+      "path": "history/predecessor-d3de6c5e/six-dispositions.json",
+      "sha256": "7016217c11752d1bc186e8451f3b9a4bc0351cf1599d76d97b3fe2c6edbb2269"
+    },
+    {
+      "bytes": 365432,
+      "path": "history/predecessor-d3de6c5e/source-receipts.json",
+      "sha256": "5651c06f4919d09f34eb8df5736e02945400c91c974b8457a2a4c73fbb1a02e8"
+    },
+    {
+      "bytes": 3357,
+      "path": "history/predecessor-d3de6c5e/source.py",
+      "sha256": "2000a368b2a625b49a2599749fda186e61a4cfd11a7e6dcc800c9640c68a5f09"
+    },
+    {
+      "bytes": 4849,
+      "path": "history/predecessor-d3de6c5e/sources/jax/.github/workflows/documentation.yml",
+      "sha256": "8a11377ba31220b18c2247be9f326998ad703d1a4cf1da0994858594d46b9df6"
+    },
+    {
+      "bytes": 1132,
+      "path": "history/predecessor-d3de6c5e/sources/jax/.readthedocs.yml",
+      "sha256": "ec835a77f6c469d3f75c1cda769199d0fb92203e53384a6db125f59aefa9004c"
+    },
+    {
+      "bytes": 5005,
+      "path": "history/predecessor-d3de6c5e/sources/jax/docs/api_compatibility.md",
+      "sha256": "628dec9fd7544e81ef65869dd0fb29f2f89c3c8f42fd2435ea5fcba751035e4a"
+    },
+    {
+      "bytes": 20603,
+      "path": "history/predecessor-d3de6c5e/sources/jax/docs/conf.py",
+      "sha256": "bccf0b84a24d05913cec0b8b4c9935f4cb83aa5e0f13fd06bdeed4c711dd0163"
+    },
+    {
+      "bytes": 507,
+      "path": "history/predecessor-d3de6c5e/sources/jax/docs/jax.stages.rst",
+      "sha256": "606603410c3b97eb0f92b6e2866b98777a77d53c871ed8431ca939796a5adb1f"
+    },
+    {
+      "bytes": 733,
+      "path": "history/predecessor-d3de6c5e/sources/jax/docs/requirements.txt",
+      "sha256": "8a8ef3922254e0e9696ca456dfd52cd0d30556de358b8c1a6ec40e7053ad4827"
+    },
+    {
+      "bytes": 2190,
+      "path": "history/predecessor-d3de6c5e/sources/jax/docs/sphinxext/jax_extensions.py",
+      "sha256": "04e8393be07da4d2e3d26d2670c9f98ebeade716c21b40e5f9c9eac3834eafff"
+    },
+    {
+      "bytes": 5408,
+      "path": "history/predecessor-d3de6c5e/sources/jax/docs/sphinxext/jax_list_config_options.py",
+      "sha256": "ef11a037c7902f7d973db15dc5d34097643cd22e7182093ea4e2605d571acc35"
+    },
+    {
+      "bytes": 3521,
+      "path": "history/predecessor-d3de6c5e/sources/jax/docs/sphinxext/source_include.py",
+      "sha256": "5a0f5d87f5655533ce9e14f9db5ef0f965c827a85244a025c66050cb852bb8b7"
+    },
+    {
+      "bytes": 43991,
+      "path": "history/predecessor-d3de6c5e/sources/jax/jax/_src/stages.py",
+      "sha256": "85faffefd43598283b52e22c5d99293b05702f9796b1c898000d3d2c38a7aca2"
+    },
+    {
+      "bytes": 1290,
+      "path": "history/predecessor-d3de6c5e/sources/jax/jax/stages.py",
+      "sha256": "5c3c565705ee5d0811055ae06ac91be6c4f3ba60e5e6b81c0c6f2dd87b5c2ffe"
+    },
+    {
+      "bytes": 80085,
+      "path": "history/predecessor-d3de6c5e/sources/pytorch/docs/source/conf.py",
+      "sha256": "2d74baa5f6c8c085353ec6f251fb7c2c9520ba8c8d0ebacaf8811c59d965c072"
+    },
+    {
+      "bytes": 58775,
+      "path": "history/predecessor-d3de6c5e/sources/pytorch/docs/source/notes/extending.md",
+      "sha256": "adf937440d119ed1b23952e76d784b76db349ce990068ae8b9a41453eb2a6a78"
+    },
+    {
+      "bytes": 900,
+      "path": "history/predecessor-d3de6c5e/sources/pytorch/docs/source/torch.overrides.md",
+      "sha256": "10688d18c1aca2b5056206c3d30c7af6fd0bf0d46466edf28ed90f0db83e6f96"
+    },
+    {
+      "bytes": 110382,
+      "path": "history/predecessor-d3de6c5e/sources/pytorch/torch/overrides.py",
+      "sha256": "86c1a756ac447d3e218e6654e744ee48042c74925bb8bfd6fb81b689e0796559"
+    },
+    {
+      "bytes": 2261,
+      "path": "history/predecessor-d3de6c5e/test_manifest.py",
+      "sha256": "9585c75d4498306bde26741f362c7c3d51612e2ee768f629a91e3a85764ec130"
+    },
+    {
+      "bytes": 10795,
+      "path": "history/predecessor-d3de6c5e/test_packet.py",
+      "sha256": "9ea10a4d0f355d39c9c28a3f5a5f6d7b5da0315c12dc802238dde8de60255d49"
+    },
+    {
+      "bytes": 49893,
+      "path": "history/predecessor-d3de6c5e/tooling-selection-evidence.json",
+      "sha256": "dcdd65c5ffd591bd1bdf0fffd5201cb528d79f85ee9b8acbdd07e0160010668c"
+    },
+    {
+      "bytes": 430782,
+      "path": "history/predecessor-d3de6c5e/tooling/sphinx-pypi.json",
+      "sha256": "34acc3a045c37cdb604ea7437a4d5919a2f06777b42981aae3e04eeeb134cef2"
+    },
+    {
+      "bytes": 116988,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.2/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.2/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.2/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.2/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.2/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116988,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.3/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.3/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.3/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.3/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.3/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116988,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.4/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.4/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.4/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.4/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.4/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116988,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.5/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.5/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.5/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.5/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.5/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116988,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.6/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.6/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.6/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.6/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.6/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116988,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.7/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.7/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.7/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.7/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.3.7/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116920,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.0/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.0/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.0/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.0/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.0/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.1/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.1/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.1/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.1/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.1/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.2/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.2/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.2/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.2/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.2/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.3/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.3/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.3/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.3/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.3/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.4/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.4/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.4/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.4/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.4/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.5/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.5/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.5/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.5/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.5/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.6/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.6/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.6/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.6/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.6/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 117180,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.7/sphinx/ext/autodoc/__init__.py",
+      "sha256": "b9ee242aa87a2a44bd5229ec9ccfcb77e5305ee2f49b4947e1846c44ed0adfbb"
+    },
+    {
+      "bytes": 15841,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.7/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.7/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.7/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33098,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/7.4.7/sphinx/util/inspect.py",
+      "sha256": "41fc857e0ecec03106f0f9efc5138e2405180d0149b4b81d0ea05ea7dd4c878c"
+    },
+    {
+      "bytes": 126247,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/cpython3.12.0/Lib/inspect.py",
+      "sha256": "2cc3b3e41032cd523110607a7d7cad966106e58d0a4dc5869b20185a097213ad"
+    },
+    {
+      "bytes": 67598,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/cpython3.12.0/Objects/descrobject.c",
+      "sha256": "2dfd2289cc3114e892c3ae069698b7f6ba54ac0e80c9a6d11bef81c1dbc28aa3"
+    },
+    {
+      "bytes": 324578,
+      "path": "history/predecessor-d3de6c5e/tooling/tooling/cpython3.12.0/Objects/typeobject.c",
+      "sha256": "401ed870bd11bc957ff5a6774067b93a55b37a85ff743734dd366b904db09f50"
+    },
+    {
+      "bytes": 20142,
+      "path": "history/predecessor-d3de6c5e/validate.py",
+      "sha256": "1a5745d54fb324a6db437879c102267384a0161fd0754535fa0e0ce63ebe5221"
+    },
+    {
+      "bytes": 13548,
+      "path": "history/predecessor-d3de6c5e/validation_sources.py",
+      "sha256": "3aa307aa81c5fd6900584c9f9c9c9e10fdad766b6a6eea31f2dbaf8524dd8e35"
+    },
+    {
+      "bytes": 1112,
+      "path": "history/predecessor-d3de6c5e/verification-report.json",
+      "sha256": "fa133f4e97b95b0bcb08f1ccdc839046773cdc9e2ce1cf48567944a943e4e43f"
+    },
+    {
+      "bytes": 1419,
+      "path": "history/predecessor-d3de6c5e/verify.py",
+      "sha256": "c63c69896fa0935fe00336a194c56a8697e5b1ded78e1d2c777feca0080ff49d"
+    },
+    {
+      "bytes": 7515,
+      "path": "history/protected-source/deliverable-manifest.json",
+      "sha256": "72206a73ecad553b819b42af2f45fc35efcdf4b6a3dea45de86e96af9fc3befe"
+    },
+    {
+      "bytes": 15710,
+      "path": "history/protected-source/independent-review.json",
+      "sha256": "364896a26a94ba037ed6895c072e9dd3211c2faa5e0298a411328d3db87f995f"
+    },
+    {
+      "bytes": 183332,
+      "path": "inputs/capabilities.json",
+      "sha256": "a43db3ce11dd786fee36f346ed4c9685ce24dfbaac9ed3c486d3de59f83234ee"
+    },
+    {
+      "bytes": 6690,
+      "path": "inputs/capture.json",
+      "sha256": "a37df63afdaf062588de9600b2cad0c13cdca4003d24c0d6e592bcd516114f50"
+    },
+    {
+      "bytes": 515,
+      "path": "inputs/codec-receipts.json",
+      "sha256": "84834fdefa8a7c91ea43b501fe5ea9eef1b9b9157c2f4069b8c70a62ece0a23d"
+    },
+    {
+      "bytes": 519755,
+      "path": "inputs/jax-tree.json",
+      "sha256": "eac55ea92fd4541193987c4f4f48aa8b65da9d043f4db4543f50a1c8c5e0037d"
+    },
+    {
+      "bytes": 793307,
+      "path": "inputs/mappings.json",
+      "sha256": "7b62c0ce8bc23e5d153837d3d61363b2a803e4b0065e1e0c8ea1affd9b008984"
+    },
+    {
+      "bytes": 29223,
+      "path": "inputs/original-six.json",
+      "sha256": "c263bb78e671a8105968b7d4e5d65a2815e414cfcda1e830244a050680282864"
+    },
+    {
+      "bytes": 7475783,
+      "path": "inputs/pytorch-tree.json",
+      "sha256": "52ab248b22f15f12f13b3cd3abe05fb42cb4d91b91089b8ee5088768ed46b130"
+    },
+    {
+      "bytes": 4433475,
+      "path": "inputs/reference/public-scope/bindings.json",
+      "sha256": "3e934894219a7f879ebdd0e6326d94c6b9133853824676c020f90c7a557ca68e"
+    },
+    {
+      "bytes": 96702,
+      "path": "inputs/reference/public-scope/contracts.json",
+      "sha256": "0ff844a83b7d1aa6f492e450c32b280820907cacbc7ac7f9a44ac0e5bfb9eaa2"
+    },
+    {
+      "bytes": 4323917,
+      "path": "inputs/reference/public-scope/jax/records.json",
+      "sha256": "ca9a7a741d9f6283203bfa53c12bd9d0c3e28a8a60ade6319987ebce7345853d"
+    },
+    {
+      "bytes": 13840298,
+      "path": "inputs/reference/public-scope/pytorch/records.json",
+      "sha256": "5c81a4941edaac68a01e8df97202648391234506dc0c08fc148e18ffd152a32e"
+    },
+    {
+      "bytes": 110878,
+      "path": "inputs/selection-dispositions.json",
+      "sha256": "8bef69241d643505a2bab19cc16cccb242d1105f4081b53f41ca475b772b7f6f"
+    },
+    {
+      "bytes": 21693,
+      "path": "inputs/tooling-sources.json",
+      "sha256": "ba5bbaff68be9f0ffcf59879cdf3091e0a7157d63e15f589b14ed5b74bbe837f"
+    },
+    {
+      "bytes": 1459,
+      "path": "inputs/torch-input-manifest.json",
+      "sha256": "ac380531638ebc88537333cac3c8cd55e4204ad7d144b3d2a5d54676211ee68a"
+    },
+    {
+      "bytes": 224608,
+      "path": "inputs/torch-objects.inv",
+      "sha256": "021a9908fed68dc53daf1a52b0f43fbd1719a7eb35beb03ab2d798b214c0fe31"
+    },
+    {
+      "bytes": 471,
+      "path": "inputs/versioned-docs-access.json",
+      "sha256": "4c9f61704d405cb09c5f6629db8bd1e5872c83f9642dcaafa5189dd5005b9571"
+    },
+    {
+      "bytes": 839,
+      "path": "published-inventory-evidence.json",
+      "sha256": "b0077fda986ac16051369d4d40d3fb07cdc58092504cb28d8d828fab63342265"
+    },
+    {
+      "bytes": 2443,
+      "path": "read-only-and-links.json",
+      "sha256": "828892e71dd2762a96417d01a7232b69c84444906128d1e143a39db44fa6044c"
+    },
+    {
+      "bytes": 3218,
+      "path": "record_canonical_anchors.py",
+      "sha256": "c3d645f3a89c5f173e50751a28e7f17f50c0bce53e7f37db1807aee7eb6939b2"
+    },
+    {
+      "bytes": 1914,
+      "path": "remaining-evidence.json",
+      "sha256": "641352ad6223155fcc8194d2051473fa029951d39d36f5844872bf5c6b090e7d"
+    },
+    {
+      "bytes": 2604,
+      "path": "replay.py",
+      "sha256": "569da975681bca40902f253cb8f677c37452ff7702c560b101b234158fd8956a"
+    },
+    {
+      "bytes": 377475,
+      "path": "returned-tooling-views.json",
+      "sha256": "3031c3dd10336d191d122c479a6054e8c24486f705108661cacca0e0a30fb830"
+    },
+    {
+      "bytes": 2730,
+      "path": "seal.py",
+      "sha256": "5f7e637ffd11f217f9039c6e797d5f412fc7cf887eb578441c37741f31f8692a"
+    },
+    {
+      "bytes": 70836,
+      "path": "six-dispositions.json",
+      "sha256": "7016217c11752d1bc186e8451f3b9a4bc0351cf1599d76d97b3fe2c6edbb2269"
+    },
+    {
+      "bytes": 365432,
+      "path": "source-receipts.json",
+      "sha256": "5651c06f4919d09f34eb8df5736e02945400c91c974b8457a2a4c73fbb1a02e8"
+    },
+    {
+      "bytes": 3357,
+      "path": "source.py",
+      "sha256": "2000a368b2a625b49a2599749fda186e61a4cfd11a7e6dcc800c9640c68a5f09"
+    },
+    {
+      "bytes": 4849,
+      "path": "sources/jax/.github/workflows/documentation.yml",
+      "sha256": "8a11377ba31220b18c2247be9f326998ad703d1a4cf1da0994858594d46b9df6"
+    },
+    {
+      "bytes": 1132,
+      "path": "sources/jax/.readthedocs.yml",
+      "sha256": "ec835a77f6c469d3f75c1cda769199d0fb92203e53384a6db125f59aefa9004c"
+    },
+    {
+      "bytes": 5005,
+      "path": "sources/jax/docs/api_compatibility.md",
+      "sha256": "628dec9fd7544e81ef65869dd0fb29f2f89c3c8f42fd2435ea5fcba751035e4a"
+    },
+    {
+      "bytes": 20603,
+      "path": "sources/jax/docs/conf.py",
+      "sha256": "bccf0b84a24d05913cec0b8b4c9935f4cb83aa5e0f13fd06bdeed4c711dd0163"
+    },
+    {
+      "bytes": 507,
+      "path": "sources/jax/docs/jax.stages.rst",
+      "sha256": "606603410c3b97eb0f92b6e2866b98777a77d53c871ed8431ca939796a5adb1f"
+    },
+    {
+      "bytes": 733,
+      "path": "sources/jax/docs/requirements.txt",
+      "sha256": "8a8ef3922254e0e9696ca456dfd52cd0d30556de358b8c1a6ec40e7053ad4827"
+    },
+    {
+      "bytes": 2190,
+      "path": "sources/jax/docs/sphinxext/jax_extensions.py",
+      "sha256": "04e8393be07da4d2e3d26d2670c9f98ebeade716c21b40e5f9c9eac3834eafff"
+    },
+    {
+      "bytes": 5408,
+      "path": "sources/jax/docs/sphinxext/jax_list_config_options.py",
+      "sha256": "ef11a037c7902f7d973db15dc5d34097643cd22e7182093ea4e2605d571acc35"
+    },
+    {
+      "bytes": 3521,
+      "path": "sources/jax/docs/sphinxext/source_include.py",
+      "sha256": "5a0f5d87f5655533ce9e14f9db5ef0f965c827a85244a025c66050cb852bb8b7"
+    },
+    {
+      "bytes": 43991,
+      "path": "sources/jax/jax/_src/stages.py",
+      "sha256": "85faffefd43598283b52e22c5d99293b05702f9796b1c898000d3d2c38a7aca2"
+    },
+    {
+      "bytes": 1290,
+      "path": "sources/jax/jax/stages.py",
+      "sha256": "5c3c565705ee5d0811055ae06ac91be6c4f3ba60e5e6b81c0c6f2dd87b5c2ffe"
+    },
+    {
+      "bytes": 80085,
+      "path": "sources/pytorch/docs/source/conf.py",
+      "sha256": "2d74baa5f6c8c085353ec6f251fb7c2c9520ba8c8d0ebacaf8811c59d965c072"
+    },
+    {
+      "bytes": 58775,
+      "path": "sources/pytorch/docs/source/notes/extending.md",
+      "sha256": "adf937440d119ed1b23952e76d784b76db349ce990068ae8b9a41453eb2a6a78"
+    },
+    {
+      "bytes": 900,
+      "path": "sources/pytorch/docs/source/torch.overrides.md",
+      "sha256": "10688d18c1aca2b5056206c3d30c7af6fd0bf0d46466edf28ed90f0db83e6f96"
+    },
+    {
+      "bytes": 110382,
+      "path": "sources/pytorch/torch/overrides.py",
+      "sha256": "86c1a756ac447d3e218e6654e744ee48042c74925bb8bfd6fb81b689e0796559"
+    },
+    {
+      "bytes": 7818,
+      "path": "test_canonical_anchors.py",
+      "sha256": "f8bea2e4072cdcca36418018850625fe7a1a2934f491300fdb1ea6784d0dad2d"
+    },
+    {
+      "bytes": 2261,
+      "path": "test_manifest.py",
+      "sha256": "9585c75d4498306bde26741f362c7c3d51612e2ee768f629a91e3a85764ec130"
+    },
+    {
+      "bytes": 11257,
+      "path": "test_packet.py",
+      "sha256": "0e174d0a450ec60be48e4eed93ebdf2e932718abdb865a1e25b7577b3e20d79e"
+    },
+    {
+      "bytes": 49893,
+      "path": "tooling-selection-evidence.json",
+      "sha256": "dcdd65c5ffd591bd1bdf0fffd5201cb528d79f85ee9b8acbdd07e0160010668c"
+    },
+    {
+      "bytes": 430782,
+      "path": "tooling/sphinx-pypi.json",
+      "sha256": "34acc3a045c37cdb604ea7437a4d5919a2f06777b42981aae3e04eeeb134cef2"
+    },
+    {
+      "bytes": 116988,
+      "path": "tooling/tooling/7.3.2/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.3.2/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.3.2/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.3.2/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "tooling/tooling/7.3.2/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116988,
+      "path": "tooling/tooling/7.3.3/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.3.3/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.3.3/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.3.3/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "tooling/tooling/7.3.3/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116988,
+      "path": "tooling/tooling/7.3.4/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.3.4/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.3.4/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.3.4/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "tooling/tooling/7.3.4/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116988,
+      "path": "tooling/tooling/7.3.5/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.3.5/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.3.5/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.3.5/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "tooling/tooling/7.3.5/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116988,
+      "path": "tooling/tooling/7.3.6/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.3.6/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.3.6/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.3.6/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "tooling/tooling/7.3.6/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116988,
+      "path": "tooling/tooling/7.3.7/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.3.7/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.3.7/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.3.7/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 31162,
+      "path": "tooling/tooling/7.3.7/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1"
+    },
+    {
+      "bytes": 116920,
+      "path": "tooling/tooling/7.4.0/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.4.0/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.4.0/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.4.0/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "tooling/tooling/7.4.0/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "tooling/tooling/7.4.1/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.4.1/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.4.1/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.4.1/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "tooling/tooling/7.4.1/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "tooling/tooling/7.4.2/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.4.2/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.4.2/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.4.2/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "tooling/tooling/7.4.2/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "tooling/tooling/7.4.3/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.4.3/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.4.3/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.4.3/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "tooling/tooling/7.4.3/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "tooling/tooling/7.4.4/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.4.4/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.4.4/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.4.4/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "tooling/tooling/7.4.4/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "tooling/tooling/7.4.5/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.4.5/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.4.5/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.4.5/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "tooling/tooling/7.4.5/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 116920,
+      "path": "tooling/tooling/7.4.6/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.4.6/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.4.6/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.4.6/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33077,
+      "path": "tooling/tooling/7.4.6/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2"
+    },
+    {
+      "bytes": 117180,
+      "path": "tooling/tooling/7.4.7/sphinx/ext/autodoc/__init__.py",
+      "sha256": "b9ee242aa87a2a44bd5229ec9ccfcb77e5305ee2f49b4947e1846c44ed0adfbb"
+    },
+    {
+      "bytes": 15841,
+      "path": "tooling/tooling/7.4.7/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42"
+    },
+    {
+      "bytes": 18153,
+      "path": "tooling/tooling/7.4.7/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a"
+    },
+    {
+      "bytes": 21558,
+      "path": "tooling/tooling/7.4.7/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1"
+    },
+    {
+      "bytes": 33098,
+      "path": "tooling/tooling/7.4.7/sphinx/util/inspect.py",
+      "sha256": "41fc857e0ecec03106f0f9efc5138e2405180d0149b4b81d0ea05ea7dd4c878c"
+    },
+    {
+      "bytes": 126247,
+      "path": "tooling/tooling/cpython3.12.0/Lib/inspect.py",
+      "sha256": "2cc3b3e41032cd523110607a7d7cad966106e58d0a4dc5869b20185a097213ad"
+    },
+    {
+      "bytes": 67598,
+      "path": "tooling/tooling/cpython3.12.0/Objects/descrobject.c",
+      "sha256": "2dfd2289cc3114e892c3ae069698b7f6ba54ac0e80c9a6d11bef81c1dbc28aa3"
+    },
+    {
+      "bytes": 324578,
+      "path": "tooling/tooling/cpython3.12.0/Objects/typeobject.c",
+      "sha256": "401ed870bd11bc957ff5a6774067b93a55b37a85ff743734dd366b904db09f50"
+    },
+    {
+      "bytes": 20032,
+      "path": "validate.py",
+      "sha256": "50c1180810e7b5d5e81b9fbf0f797e945b1dc29875d65353cca1883e13e05cc7"
+    },
+    {
+      "bytes": 13604,
+      "path": "validation_sources.py",
+      "sha256": "7588cde0516488c4222648bf5b32784b9909ae0e3d6b4a0e8a070aa1996203ae"
+    },
+    {
+      "bytes": 1112,
+      "path": "verification-report.json",
+      "sha256": "69b57db45ed0f3d28f1f6af504342d6f51d7e9b01080b80285dbdfaf84fe08e0"
+    },
+    {
+      "bytes": 1836,
+      "path": "verify.py",
+      "sha256": "bcd3a8cd5b509476e437b6030264d36c63d53073ee5bdb7aeadcb51c6698d1e4"
+    }
+  ],
+  "independent_review": "pending root-assigned exact sealed packet review",
+  "original_rows": 6,
+  "packet": "jax-torch-publicness-six-source-audit-20261026",
+  "predecessor": {
+    "artifacts": 127,
+    "manifest_sha256": "d3de6c5ecbdec0e1ceb6fb83646aff36ebfb914ff160e4064bf98197c2ad62ac",
+    "path": "history/predecessor-d3de6c5e/deliverable-manifest.json"
+  },
+  "raw_publicness_still_unresolved": 6,
+  "schema_version": 1,
+  "whole_API_or_runtime_credit": false,
+  "whole_public_denominator_complete": false
+}

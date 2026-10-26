@@ -1,0 +1,76 @@
+{
+  "status": "nonoperative_interface_recommendation",
+  "raw_invariants": [
+    "retain every exact reference ID/signature/source occurrence",
+    "original classifications and source audits remain immutable",
+    "exactly one admission disposition per raw reference",
+    "all derived counts come from validated ID sets"
+  ],
+  "orthogonal_facts": {
+    "source_visibility": [
+      "positive_public_contract",
+      "explicit_internal_only",
+      "insufficient_or_conflicting"
+    ],
+    "stability": [
+      "stable",
+      "experimental",
+      "deprecated",
+      "private_stability",
+      "unspecified"
+    ],
+    "intended_roles": [
+      "direct_public_API",
+      "documented_extension_hook",
+      "required_tooling_workflow",
+      "implementation_helper",
+      "unresolved"
+    ]
+  },
+  "derived_admission_sets": [
+    "required_external_contracts",
+    "unresolved_membership",
+    "proven_internal_only"
+  ],
+  "required_classification_rule": "Uncertified internal candidates remain unresolved. Documented external hooks/workflows remain required regardless of private stability. Only accepted exact-source certificates can discharge a literal API requirement.",
+  "functionality_rule": "Proven internal classification does not discharge required public/workflow behavior. Missing preservation targets/proof remain separate blockers.",
+  "separate_owners": [
+    "source_audit_custodian",
+    "live_canonical_API_mapping_owner",
+    "policy_or_component_supplier"
+  ],
+  "certificate_bindings": [
+    "raw_reference_id",
+    "canonical_reference_record_sha256",
+    "framework_release",
+    "source_revision",
+    "inventory_sha256",
+    "named_declaration_occurrence_and_scope",
+    "positive_internal_source_statement",
+    "portable_source_witness_hashes_line_bounds",
+    "export_traversal_documentation_and_intended_use_axes",
+    "known_conflicts_and_search_scope",
+    "required_functionality_disposition",
+    "independent_source_review_of_exact_certificate_digest"
+  ],
+  "credit_rule": "No source admission promotes semantic/runtime/implementation/performance/release state.",
+  "user_permission_rule": "No invented approval request for an ordinary source-backed correction under existing instructions; unresolved irreconcilable conflicts stay explicit.",
+  "reader_interface": {
+    "arguments": [
+      "raw_refs",
+      "source_audits",
+      "certificates",
+      "workflow_contracts"
+    ],
+    "returns": [
+      "raw_ids",
+      "required_reference_views",
+      "unresolved_membership",
+      "proven_internal_only",
+      "required_workflow_ids",
+      "preservation_gaps"
+    ]
+  },
+  "workflow_ids_are_separate_from_raw_ID_partition": true,
+  "required_obligation_universe": "kinded(required_reference_views) union kinded(required_workflow_ids)"
+}

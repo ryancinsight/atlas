@@ -1,6 +1,6 @@
 # Validation and remaining definition work
 
-Program 2026-10-26.9. Exact candidate identity and current hosted results belong
+Program 2026-10-26.11. Exact candidate identity and current hosted results belong
 in the draft PR; local evidence here describes the authored tree and commands,
 not a final merge/release certification. [Contracts](contracts.md).
 
@@ -379,3 +379,41 @@ performance and final-revision release gates stay open. No network/auth,
 provider build/import, push, PR, merge or deployment occurs in this local slice.
 
 The protected [#551 shared-tool handoff](execution.md#protected-shared-tool-prerequisite-observed-october-26) records the exact Aequitas parser mismatch, observed failing draft head and existing integrator/continuation. Owner liveness and delivery stay unverified; source presence is not authorization to adopt prepared tools. Earlier provider holds and historical receipts remain intact.
+
+## Accepted public-surface evidence increment
+
+The program.11 increment captures only the accepted TF 492 and JAX/Torch six-row source
+packets and their exact independent review receipts. The existing 498 raw IDs,
+publicness classifications, source signatures, required workflow relations and
+unmapped canonical associations remain unchanged. The two original-source
+reviews do not approve this canonical candidate or grant semantic/runtime credit.
+The reviewed admission interface remains nonoperative; no internal-source label
+or proposal subtracts an obligation. Live mapping owners are derived from actual
+canonical mappings, separately from frozen `20ae8d85` source routing facts.
+
+Source-only checks cover exact selected-byte reconstruction, source/path/blob
+receipt lineage, portable spans/AST signatures, no-credit/count/schema guards,
+and real copied/reindexed attacks and formatting controls. Four complete JAX
+configuration spans remain digest-only rather than vendored source. Full source
+analysis replay remains available through the explicit original local packets;
+normal validation is portable and consumes only committed Atlas inputs. Local
+check/test results and exact consumed-input commitment are recorded with the
+local review handoff; independent exact-head review and actual hosted gates
+remain mandatory before any external delivery. No provider or native execution,
+new source acquisition, rendered-route retry, or GitHub action occurs here.
+
+The bounded integration checks pass 17 tests with zero skips: 45 physical-file
+negative mutations are rejected after recomputing the relevant indexes; valid
+JSON/column-dictionary reformatting and a cache-free copied-tree control pass.
+The local producer replay verifies the original 199/265-file manifests and
+reproduces all 48 captured canonical files byte-identically. Link checking scans
+18 Markdown files /123 links with no missing files or anchors. The board index
+and the combined 1,000-line backlog budget pass without changing the board count.
+The historical-source regression now asserts immutable JAX.8/NumPy.9 role paths,
+introductions and consumption of every indexed artifact independently of the
+current program version; no source pin or validation obligation is weakened.
+
+The complete lightweight parity suite now passes **227 tests, zero skips**.
+The previous run's one failure is retained in the local handoff: it was the
+superseded latest-program.9 assertion, corrected by the stronger historical
+introduction/consumed-input checks above. No native or framework computation ran.

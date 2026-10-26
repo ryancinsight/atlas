@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Preserve the two independently accepted public-surface source packets in parity
+  program 2026-10-26.11 with lossless selected captures, 498 exact reference joins,
+  typed provenance/owner guards and portable witnesses. All classifications,
+  required functionality, mapping stages and runtime/release credit are unchanged;
+  no public-scope admission exemptions or package version changes.
+
 - Add the accepted NumPy native dtype source supplement to parity program
   2026-10-26.9 with lossless source capture, independently reconstructed symbolic
   relations, exact source/role guards and 47 unrun targets. Preserve JAX history,
