@@ -1,0 +1,194 @@
+{
+  "artifacts": [
+    {
+      "path": "core-tensor/analytical-fixtures.json",
+      "sha256": "862e05886baa46dc8554bb344e84a1a64bb8a1ce33662cf30d11c06726c87c65"
+    },
+    {
+      "path": "core-tensor/audit-manifest.json",
+      "sha256": "b04add4bf58c4219d0087258476dc65f34f0b8d0aa4eff268a75a7fae8021952"
+    },
+    {
+      "path": "core-tensor/cases.json",
+      "sha256": "ff31f09f2b0d713c2dbdb113748be3915566b5e3d55285434116cf44c74c948f"
+    },
+    {
+      "path": "core-tensor/contracts.json",
+      "sha256": "da243498ff4fd1fd89c380b1373fa30bc91d416c93a645297c89f6dd03406879"
+    },
+    {
+      "path": "core-tensor/core-tensor-boundaries.json",
+      "sha256": "264a9df2598dfa0e8220c724ee2a07bf3b39f9fa004083e54aeb4a2df5487e10"
+    },
+    {
+      "path": "core-tensor/gamma-source-audit.json",
+      "sha256": "299d48e568a29b4467e6681cce4f6f7c0b91f8cd006ddb92491de0d43053eb7a"
+    },
+    {
+      "path": "core-tensor/implementation-program.json",
+      "sha256": "bd8aa87a7f3d7a9c5ed63c3c968782a8f4a1c8f383b38cc267751c01ec71caa5"
+    },
+    {
+      "path": "core-tensor/independent-review/model-independent-math-results.json",
+      "sha256": "a6f78508de1958b82e2a8fd238444d04e6d927bbf4c00340b540c851d44da61d"
+    },
+    {
+      "path": "core-tensor/independent-review/model-initial-probes.json",
+      "sha256": "8c0d8d35e63e3d8ecd2bdbb51b7824a308b4c02f167c30f1fb0850b6029d657c"
+    },
+    {
+      "path": "core-tensor/independent-review/model-mapping-case-join.json",
+      "sha256": "6fc474b769ff7c5964463a445e63bdc510bb71fc4f5a81ae1a8b2483aac6ca95"
+    },
+    {
+      "path": "core-tensor/independent-review/model-partition-recheck.json",
+      "sha256": "3859612678fbf0bdfe2b38dc32c66276240bcd47e0edf5eab28dc509ee9d0a90"
+    },
+    {
+      "path": "core-tensor/independent-review/model-snapshot-invariants.json",
+      "sha256": "6a75e7d43f4087f7382a1da93c90885abea725ea4f6dcf63b8006e5ee6561a1f"
+    },
+    {
+      "path": "core-tensor/independent-review/model-validator-initial-probes.json",
+      "sha256": "7925a5cf174feb9b5b877f6a84f0ae21b6a91c86b438a417f0b4273e21aa5922"
+    },
+    {
+      "path": "core-tensor/independent-review/model-validator-package-findings.json",
+      "sha256": "c8c2aa3f840377613ce625697f86c40e65ec4a5b6d4c0c8d20cb9b5eb915bc1d"
+    },
+    {
+      "path": "core-tensor/independent-review/model-validator-recheck.json",
+      "sha256": "64ec046b6cd6d368c3567b4eee0bfa3a75397995848d4a120ec1cc2f78413207"
+    },
+    {
+      "path": "core-tensor/independent-review/numpy-jax-core-final-review.json",
+      "sha256": "2d1aca9fdc6816ec2c7a1ee6300fe551b63623ced24ac49acc8f5fed07581164"
+    },
+    {
+      "path": "core-tensor/independent-review/numpy-jax-core-initial-findings.json",
+      "sha256": "a72a3fa9d2488ec773d8cce4b8736c5c9cbf270f1a721d8777995835a17a925c"
+    },
+    {
+      "path": "core-tensor/independent-review/torch-tf-core-final-review.json",
+      "sha256": "f0161b4ed2b81615795c5c5cd4dff47b450b81ef99519f2c9237f106286d5575"
+    },
+    {
+      "path": "core-tensor/model.json",
+      "sha256": "6f94503647da73b2f861075cb109cfc1c901f1a4817e69d821454940487fe0fc"
+    },
+    {
+      "path": "core-tensor/numpy-jax/acceptance-cases.json",
+      "sha256": "833c3bb4023e9e03e0e231422e19fe122fc290217e68c514fcb790ddefaa2110"
+    },
+    {
+      "path": "core-tensor/numpy-jax/benchmarks.json",
+      "sha256": "c52f3924041b0aa588f46ea1a8595886c993311406982caa0ba1a39d8cf0069f"
+    },
+    {
+      "path": "core-tensor/numpy-jax/capture.json",
+      "sha256": "7f21acb5aaedcaa6ba4f752c3e17bff6a82d2c08e6c99b8c6ec6f977895d0e9e"
+    },
+    {
+      "path": "core-tensor/numpy-jax/contracts/jax.json",
+      "sha256": "de7acfb90ff9635fbb779a36f5479340958ebb6e2a627fd257a151d5a3e3ee57"
+    },
+    {
+      "path": "core-tensor/numpy-jax/contracts/numpy.json",
+      "sha256": "edbd632f6d55398e8182045699be87c5491b3e22c829ec7eefa6eb2ea0940044"
+    },
+    {
+      "path": "core-tensor/numpy-jax/contracts/shared-laws.json",
+      "sha256": "e8c41fc36b2663b651ea38b630caf5f8b64c48b76ba9b2b7cf1e74123e9fb973"
+    },
+    {
+      "path": "core-tensor/numpy-jax/dependency-map.json",
+      "sha256": "f8d394c6c0f705cb3e0888a4f3c0d10026a8bf700007f4e2b36631eafca3f21a"
+    },
+    {
+      "path": "core-tensor/numpy-jax/gaps.json",
+      "sha256": "7cb79bd9fa27ae8c95e911c88008b80c1cdefd6f7fc4a98f10379e4b1fd81618"
+    },
+    {
+      "path": "core-tensor/numpy-jax/manifest.json",
+      "sha256": "7c169acfcb711c3714701f6fde84fea2fe14508c30d3d8148b7e2aca1cee1ea0"
+    },
+    {
+      "path": "core-tensor/numpy-jax/reference-links.json",
+      "sha256": "de9ca10929d300a8a88d43332262cb7fca160e220a5ca460a2c7b3fb5ba0e477"
+    },
+    {
+      "path": "core-tensor/numpy-jax/scope.json",
+      "sha256": "bb465a4cdab5541579faba9053d0c2de011bcd5a75337a9ad8b8e2da09114549"
+    },
+    {
+      "path": "core-tensor/numpy-jax/source-receipts.json",
+      "sha256": "bf427f760097eb2506718a3e8a2347e45de79d39c0496b2a0fcf4c8e3923ecc3"
+    },
+    {
+      "path": "core-tensor/numpy-jax/source-witnesses.json",
+      "sha256": "9e51e13b1ed50f437790035fdaf94858711720a2eea25200bb6352cab985ab0e"
+    },
+    {
+      "path": "core-tensor/provider-source-witnesses.json",
+      "sha256": "9ffeece13da446854f3258e771fe2df262917f5abdd81142349b9a4438d2ebf7"
+    },
+    {
+      "path": "core-tensor/torch-tf/admitted-identities.json",
+      "sha256": "9f560e5eb4c220a7fad01268634184bacd7fbbdbd41e0952bfa01d0632a1e954"
+    },
+    {
+      "path": "core-tensor/torch-tf/analytical-cases.json",
+      "sha256": "efee2495b6412f2b8d20df66583aaf8193e54c9854cdd10b0522837af7a52e3c"
+    },
+    {
+      "path": "core-tensor/torch-tf/broadcast-law.json",
+      "sha256": "38fd5b35a667587eeafaf58b28468413619b64a53991dcb79bb3a76c01d1ac2c"
+    },
+    {
+      "path": "core-tensor/torch-tf/capture.json",
+      "sha256": "8c4fb64a37c04fbe13d7fbfd10ee264dc71ab778fefb4cfe9f2785122f3222bd"
+    },
+    {
+      "path": "core-tensor/torch-tf/contracts.json",
+      "sha256": "e09c60a917e9a8c145a456e8512c27792545a00ea31bdccfc5407d8c9ad5a8da"
+    },
+    {
+      "path": "core-tensor/torch-tf/line-witnesses.json",
+      "sha256": "b151709cb33bbdf97fe7b756430a21445bc17d0da6417925dc3f42010bda2408"
+    },
+    {
+      "path": "core-tensor/torch-tf/manifest.json",
+      "sha256": "875d1411199b7762da68d37ad9cc16b5df06a412fe733695d3914007a655457f"
+    },
+    {
+      "path": "core-tensor/torch-tf/source-gaps.json",
+      "sha256": "c26ea226c811c4fe1e6f4b1c3f6d74265d1a76bd3ea17f7925cfe0eef4ddad02"
+    },
+    {
+      "path": "core-tensor/torch-tf/source-provenance-registry.json",
+      "sha256": "26c4b6a4d51a4a274d99d7976bb63e938934002036489cc5cabacb620ea662ec"
+    }
+  ],
+  "parent_work_packages": [
+    "WP-003",
+    "WP-005",
+    "WP-009",
+    "WP-019",
+    "WP-020"
+  ],
+  "public_reference_denominator_changed": false,
+  "research_captures": [
+    "core-tensor/numpy-jax/capture.json",
+    "core-tensor/torch-tf/capture.json"
+  ],
+  "schema_version": 1,
+  "source_review_covers_original_blobs_required": true,
+  "status": {
+    "framework_execution_credit": 0,
+    "performance_credit": 0,
+    "provider_execution_credit": 0,
+    "release_credit": 0,
+    "source_contract_defined": false,
+    "whole_public_surface_complete": false
+  }
+}

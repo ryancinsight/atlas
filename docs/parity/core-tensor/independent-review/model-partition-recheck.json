@@ -1,0 +1,43 @@
+{
+  "fixed_empty_no_pool": true,
+  "rank_zero_positive_control": true,
+  "positive_fixture_count": 8,
+  "incorrect_expected_rejected": 8,
+  "named_partition_rejections": [
+    {
+      "id": "CT-ZERO-BROADCAST",
+      "outcome": "REJECTED",
+      "error": "ParityError: zero broadcast witness lost its zero/unit/rank boundary"
+    },
+    {
+      "id": "CT-RANK-ZERO",
+      "outcome": "REJECTED",
+      "error": "ParityError: rank-zero witness lost its scalar/nonzero-offset boundary"
+    },
+    {
+      "id": "CT-REVERSE-OFFSET",
+      "outcome": "REJECTED",
+      "error": "ParityError: reverse witness lost its negative-selection/offset boundary"
+    },
+    {
+      "id": "CT-EMPTY-VIEW",
+      "outcome": "REJECTED",
+      "error": "ParityError: empty view witness lost its empty-slice boundary"
+    },
+    {
+      "id": "CT-BROADCAST-ADJOINT",
+      "outcome": "REJECTED",
+      "error": "ParityError: adjoint witness lost repeated positions or signed nonunit cotangents"
+    },
+    {
+      "id": "CT-DUPLICATE-GATHER",
+      "outcome": "REJECTED",
+      "error": "ParityError: adjoint witness lost repeated positions or signed nonunit cotangents"
+    },
+    {
+      "id": "CT-NONAFFINE-RESHAPE",
+      "outcome": "REJECTED",
+      "error": "ParityError: reshape witness lost its nonaffine enumeration boundary"
+    }
+  ]
+}

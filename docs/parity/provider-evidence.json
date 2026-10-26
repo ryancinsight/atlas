@@ -49,7 +49,7 @@
   "atlas_public_scope_delivery_20261026": {
     "branch": "docs/parity-public-contracts-20261026",
     "ci": "No PR-triggered exact-head CI exists; local/source checks do not replace hosted gates",
-    "confirmed_pushed_revision": "3d765a943cbaf7e6b6456b1e815b7fcc4d684a04",
+    "confirmed_pushed_revision": "f09f078edda6367304763b1e977a8771066bdffe",
     "draft_pr": {
       "base": "main",
       "head": "docs/parity-public-contracts-20261026",
@@ -61,8 +61,17 @@
       "repository": "ryancinsight/atlas",
       "retry": "Stopped; no alternate creation route attempted"
     },
+    "historical_pushed_revision": "3d765a943cbaf7e6b6456b1e815b7fcc4d684a04",
     "merge_or_release": false,
-    "remaining_delivery_gates": "Predecessor guard strengthened after denial with115zero-skip local tests; exact-final-head independent re-review, PR creation and hosted CI remain pending. No definition or1.0 clearance."
+    "remaining_delivery_gates": "Reviewed/pushed f09f078e;115 focused tests0skip and exact-head independent review clear. Draft creation403 remains denied; no PR, hosted CI, merge or1.0 clearance."
+  },
+  "atlas_workflow_scope_delivery_20261026": {
+    "base_revision": "f09f078edda6367304763b1e977a8771066bdffe",
+    "branch": "docs/parity-workflow-contracts-20261026",
+    "confirmed_pushed_revision": "da03f4ea2b134539f4f26343510f0e41e8e43568",
+    "draft_pr": "Not attempted after predecessor creation403; matching readback0",
+    "hosted_checks_or_release": false,
+    "local_validation": "121 focused tests0skip and exact-head independent review clear"
   },
   "audit_date": "2026-10-26",
   "audit_kind": "read_only_source_and_selected_remote_evidence",
@@ -105,18 +114,38 @@
     "tokio_free": "not established"
   },
   "gammaln_implementation_owner_20261026": {
+    "authentication_handoff": {
+      "identity_outcome": "parent relay pending; no duplicate planning probe",
+      "identity_verification_owner": "01a17793-e227-73cf-b347-6c85477ef010",
+      "integration403_hold_resolved": false,
+      "source": "Trusted parent delegation after user Mac CLI login",
+      "user_instruction": "Use existing logged-in CLI session, not a separately supplied token"
+    },
     "authority": "Trusted parent handoff; implementation lane must check local ownership before edits",
-    "baseline_gap": "Current source rejects gradient-tracked inputs per parent; no completion or tests inferred",
+    "baseline_gap": "Tracked inputs rejected at selected baseline57f7c459; three candidate heads repair bounded CPU scalar-real first-order behavior. No default/released cohort integration inferred.",
+    "candidate_cohort": {
+      "coeus": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "eunomia": "ebb1923feed7e416cbb97a9fcb19423922ae09d2",
+      "leto": "93e2a8c653252dfc943339c1bcec143a663a77d6"
+    },
+    "default_cohort_qualification": false,
+    "delivery": "No delivery attempt established by captured gamma receipt. User reports Mac CLI login as ryancinsight; gamma owner verifies existing-session identity nonmutatively. Integration403 operations remain held pending relevant verified access evidence; planning performs no auth probe, alternate PR route or credential change.",
     "gpu": "Separate mandatory acceptance; no silent CPU fallback",
-    "heavy_slot": "Parent assigns the single free heavy-build slot to this owner; planning remains lightweight",
+    "heavy_slot": "No resource assignment inferred by planning; parent coordinates existing owner.",
+    "historical_baseline_gap": "Current source rejects gradient-tracked inputs per parent; no completion or tests inferred",
+    "historical_delivery_receipt": "No push/PR/merge/publication attempted by gamma owner; invalid CLI token and policy reads403. Stopped without alternate route or access changes.",
     "owner_task": "01a17793-e227-73cf-b347-6c85477ef010",
     "qualification_credit": 0,
+    "qualifications": "Exact-head source reviews clear; scoped CPU and locked API receipts only.7 packages196pass/57skip each, skips never verification; no registry baseline or fresh remote consumer.",
+    "released": false,
     "scope": [
       "Eunomia digamma",
       "Leto CPU gammaln/lgamma",
       "Coeus autograd",
       "Both public Python aliases"
-    ]
+    ],
+    "source_audit": "core-tensor/gamma-source-audit.json",
+    "state": "locally_qualified_cpu_candidate_delivery_blocked"
   },
   "limitations": [
     "No provider builds/tests/benchmarks executed by this audit.",

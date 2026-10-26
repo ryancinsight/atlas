@@ -192,3 +192,29 @@ supersede the pending/unfixed state above while retaining both original findings
 ## Reproduction and validation
 
 The audit reads immutable Git objects fetched from the defaults above. Mechanical checks count TSV rows/statuses, compare named `::<f32>(`/`::<f64>(` calls per gradcheck leaf, count matrix data rows between A/B/C headings, parse all 13 root manifests and validate JSON/revision source links. Selected CI logs and six registry endpoints are separate read-only evidence. Provider tests and performance are **not run**. These checks justify reconciliations, not 1.0 readiness.
+
+
+## Bounded core and CPU gamma follow-up
+
+The [core audit](core-tensor/README.md) verifies 49 selected provider source files
+at cached canonical pins. Matching older detached snapshots are not defaults or
+gamma revisions. Twelve boundary proposals retain six concrete ADR decisions;
+source observation is not implementation, device or release qualification.
+
+Existing gamma owner `01a17793-e227-73cf-b347-6c85477ef010` has a locally qualified
+CPU candidate at Eunomia `ebb1923feed7e416cbb97a9fcb19423922ae09d2`, Leto
+`93e2a8c653252dfc943339c1bcec143a663a77d6`, Coeus
+`068a5ff0ba74db9fde4d8bbe7c90f493222a0480`. The
+[receipt audit](core-tensor/gamma-source-audit.json) verifies exact source reviews,
+bounded CPU tests and seven locked API comparisons (196 pass/57 skip each).
+Skips receive no verification credit. TensorFlow numerical/device/performance,
+full AD, default-cohort and fresh remote/registry qualification remain open.
+Delivery stays stopped at invalid CLI authentication/policy reads 403, with no
+push/PR/merge/publication attempt or task-cache/path-overlay completion claimed.
+These facts supersede its historical baseline gap while retaining history.
+
+The later parent handoff reports user-completed Mac CLI login as ryancinsight and
+requires the existing CLI session rather than a supplied token. The gamma owner
+checks identity nonmutatively; this planning lane does not duplicate that probe.
+The earlier invalid-CLI receipt remains historical. Verified access findings are
+pending, and integration403 write holds are not resolved by the report alone.

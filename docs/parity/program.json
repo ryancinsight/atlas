@@ -9,6 +9,7 @@
   ],
   "files": {
     "capabilities": "capabilities.json",
+    "core_tensor_contracts": "core-tensor/index.json",
     "decisions": "decisions.json",
     "evidence": "evidence.json",
     "mappings": "mappings.json",
@@ -26,12 +27,13 @@
     "Provider audit establishes source facts only; no complete exact-revision provider execution qualification",
     "Current local native candidate cab5499f awaits same-reviewer exact-head sign-off; parent b50a96cf passed scoped source review. Controlled Linux 108-pair-per-policy and30shared-queue performance, actual Linux/Windows, all-feature/security/ADR and ordered registry acceptance remain open. Notification integrationHTTP403 stays stopped.",
     "Notification commit d94d5ab6 is pushed; draft PR creation denied HTTP403, no CI/merge/publication; no alternate-route retry permitted",
-    "Apollo original service hold and #696 version/license/registry blockers remain"
+    "Apollo original service hold and #696 version/license/registry blockers remain",
+    "CPU gamma candidate locally qualified at owned Eunomia/Leto/Coeus heads; delivery integration403 holds; user reports existing CLI login and owner identity verification is pending; registry/fresh consumer, full dtype/AD/device/performance and selected-cohort integration remain open; no path-overlay completion credit"
   ],
   "objective": "Full documented NumPy/JAX/PyTorch/TensorFlow functional equivalence under Atlas first-party native generic provider architecture.",
   "observed_at": "2026-10-26",
   "open_decisions": [],
-  "program_version": "2026-10-26.6",
+  "program_version": "2026-10-26.7",
   "protected_ownership": [
     {
       "owner_task": "01a159ec-7017-7725-a554-194472dc20dc",
@@ -66,7 +68,7 @@
     },
     {
       "owner_task": "01a17793-e227-73cf-b347-6c85477ef010",
-      "state": "admitted_provider_first_implementation_single_heavy_slot",
+      "state": "locally_qualified_cpu_candidate_delivery_blocked_no_competing_executor",
       "target": "Differentiable gammaln/lgamma: Eunomia digamma -> Leto CPU operation -> Coeus autograd and both Python aliases; GPU remains separate, no fallback"
     }
   ],

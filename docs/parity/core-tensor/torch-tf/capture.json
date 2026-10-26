@@ -1,0 +1,55 @@
+{
+  "capture_complete_for_selected_files": true,
+  "captured": [
+    {
+      "original_path": "README.md",
+      "path": "core-tensor/torch-tf/README.md",
+      "sha256": "64c1cf3801bc1c08f7c49cb1e6125b218f4d11fba535b248169d7f4622e5dd6a"
+    },
+    {
+      "original_path": "manifest.json",
+      "path": "core-tensor/torch-tf/manifest.json",
+      "sha256": "875d1411199b7762da68d37ad9cc16b5df06a412fe733695d3914007a655457f"
+    },
+    {
+      "original_path": "admitted-identities.json",
+      "path": "core-tensor/torch-tf/admitted-identities.json",
+      "sha256": "9f560e5eb4c220a7fad01268634184bacd7fbbdbd41e0952bfa01d0632a1e954"
+    },
+    {
+      "original_path": "contracts.json",
+      "path": "core-tensor/torch-tf/contracts.json",
+      "sha256": "e09c60a917e9a8c145a456e8512c27792545a00ea31bdccfc5407d8c9ad5a8da"
+    },
+    {
+      "original_path": "line-witnesses.json",
+      "path": "core-tensor/torch-tf/line-witnesses.json",
+      "sha256": "b151709cb33bbdf97fe7b756430a21445bc17d0da6417925dc3f42010bda2408"
+    },
+    {
+      "original_path": "source-gaps.json",
+      "path": "core-tensor/torch-tf/source-gaps.json",
+      "sha256": "c26ea226c811c4fe1e6f4b1c3f6d74265d1a76bd3ea17f7925cfe0eef4ddad02"
+    },
+    {
+      "original_path": "broadcast-law.json",
+      "path": "core-tensor/torch-tf/broadcast-law.json",
+      "sha256": "38fd5b35a667587eeafaf58b28468413619b64a53991dcb79bb3a76c01d1ac2c"
+    },
+    {
+      "original_path": "analytical-cases.json",
+      "path": "core-tensor/torch-tf/analytical-cases.json",
+      "sha256": "efee2495b6412f2b8d20df66583aaf8193e54c9854cdd10b0522837af7a52e3c"
+    },
+    {
+      "original_path": "source-provenance-registry.json",
+      "path": "core-tensor/torch-tf/source-provenance-registry.json",
+      "sha256": "26c4b6a4d51a4a274d99d7976bb63e938934002036489cc5cabacb620ea662ec"
+    }
+  ],
+  "full_source_files_vendored": false,
+  "manifest_sha256": "875d1411199b7762da68d37ad9cc16b5df06a412fe733695d3914007a655457f",
+  "schema_version": 1,
+  "source_packet_files": 61,
+  "source_review_requirement": "Original source blobs and line witnesses need independent review; portable receipt validation does not execute the comparator."
+}
