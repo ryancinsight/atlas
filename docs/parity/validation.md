@@ -62,7 +62,7 @@ evidence meets all protocol obligations. Both qualification commands correctly
 return 1 for this candidate. External exact-head review evidence is mandatory
 for eventual qualification; a clean tracked tree alone does not qualify.
 
-The current focused suite executes **105 tests, zero skips**, including 18 new
+The current focused suite executes **111 tests, zero skips**, including 24 new
 public-scope/storage rejection and roundtrip checks. The earlier 87-test slice
 contains 70 gate/traceability and 17 source-extractor tests collected by an import-only wrapper in
 `scripts/tests`. Hosted `pytest scripts/tests` therefore collects the same
@@ -190,3 +190,8 @@ selection, PyTorch parser/Storage/layout and Keras packaging/import distinctions
 Its four isolated cached replays compare stable outputs byte for byte; seventeen
 NumPy, ten JAX, nine PyTorch and eleven Keras source checks pass. Those counts are separately
 scoped and grant no runtime or semantic parity credit.
+
+Public-scope independent code review reproduces and corrects audit release
+relabeling, source/normalized route drift and Atlas triage counting as provider
+ownership. Capture and validation now share source normalization, bind every
+Torch row and audit header to the frozen release, and reject those false routes.

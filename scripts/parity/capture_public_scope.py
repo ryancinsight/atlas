@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from atlas_parity_references import references
 from atlas_parity_schema import api_identity, need, read_json
 from atlas_parity_tables import canonical, pack, unpack
+from atlas_parity_scope_sources import audit_identity, classify, family_rows
 
 
 def sha(data):
@@ -48,56 +49,6 @@ def contract_document(base, framework, document):
     return data, "contracts" if framework == "numpy" else "families"
 
 
-def family_rows(framework, document, key, source_artifact, caps, repos):
-    values = document[key]
-    iterable = list(values.items()) if isinstance(values, dict) else list(enumerate(values))
-    rows = []
-    for entry, original in iterable:
-        name = original.get("contract_id", original.get("id"))
-        owner = original.get("accountable_owner", original.get("accountable_owner_proposal"))
-        cap = original.get("capability", original.get("canonical_capability"))
-        cap_ids = original.get("canonical_capability_ids", [cap] if cap else [])
-        # Atlas evidence/triage accountability is never an implementation route.
-        resolved = owner in repos and owner != "atlas" and bool(cap_ids)
-        if not resolved:
-            owner, cap_ids = None, []
-        prerequisites = sorted({dep for cap_id in cap_ids for dep in caps[cap_id]["prerequisites"]})
-        rows.append({"id": framework + ":" + name, "framework": framework,
-                     "source_artifact": source_artifact, "source_entry": [key, entry],
-                     "planned_owner": owner, "owner_revision": repos[owner]["candidate_revision"] if owner else None,
-                     "capabilities": cap_ids, "prerequisites": prerequisites,
-                     "route_state": "canonical_family_proposal" if resolved else "ownership_unresolved",
-                     "semantic_definition_complete": False,
-                     "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
-                     "implementation_owner_verified": False})
-    return rows
-
-
-def classify(framework, row):
-    if framework == "numpy":
-        kind = row["classification"]
-        visible = ("internal_source_candidate" if row["visibility"] == "private" else
-                   "public_export_or_view" if "view" in kind or "export" in kind else "documented_public")
-        return (visible, row["candidate_role"], row["primary_contract"],
-                "; ".join(view.get("kind", "declaration view") for view in row["signature_variant_links"]))
-    if framework == "jax":
-        kind = row["classification"]
-        visible = ("publicness_unresolved" if kind == "unresolved" else
-                   "public_export_or_view" if "view" in kind else "documented_public")
-        return visible, kind, row["group"], row["signature"]["status"]
-    if framework == "pytorch":
-        kind = row["scope_classification"]
-        visible = ("documented_extension_hook" if kind == "private_implementation_positive_evidence" else
-                   "publicness_unresolved" if kind == "unresolved" else
-                   "public_export_or_view" if "view" in kind else "documented_public")
-        return visible, kind, row["family_proposal"], row["signature"]["status"]
-    kind = row["scope_class"]
-    # The current policy page conflicts with frozen public API traversal/goldens.
-    # Preserve all 486 proposals as unresolved; no namespace-based exclusion.
-    visible = ("publicness_unresolved" if kind in {"positive_evidence_private_implementation", "unresolved"} else
-               "documented_public" if kind == "documented_public_api" else "public_export_or_view")
-    return visible, ";".join(row["identity_roles"]), row["family_id"], row["documentation"]["status"]
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -111,6 +62,11 @@ def main():
     caps = {row["id"]: row for row in read_json(root / program["files"]["capabilities"])}
     repos = {row["repository"]: row for row in read_json(root / program["files"]["repositories"])}
     target = root / "reference" / "public-scope"
+    baselines = {}
+    for snapshot in program["reference_snapshots"]:
+        data = read_json(root / snapshot["path"])
+        baselines[snapshot["framework"]] = {"version": snapshot["version"],
+            "revision": data["source_revision"], "inventory_sha256": snapshot["sha256"]}
     contracts, bindings, receipts, captured_paths = [], [], [], []
     extras = {"numpy": ["sources.json", "signature-extraction.json", "rules-and-exceptions.json",
                          "ownership-exceptions.json", "miscellaneous-routing-audit.json", "correction-history.json"],
@@ -123,6 +79,7 @@ def main():
     for framework in ["numpy", "jax", "pytorch", "tensorflow"]:
         base = getattr(args, framework).resolve()
         document, receipt = source_document(base, framework)
+        audit_identity(framework, document, baselines[framework])
         family_document, family_key = contract_document(base, framework, document)
         relative = "reference/public-scope/" + framework + "/"
         family_path, record_path = relative + "contracts.json", relative + "records.json"

@@ -7,6 +7,7 @@ import unittest
 from atlas_parity_schema import ParityError
 from atlas_parity_scope import restore_audit, validate_bindings
 from atlas_parity_tables import canonical, pack
+from atlas_parity_scope_sources import audit_identity, classify, family_rows
 
 REV = "a" * 40
 
@@ -20,7 +21,7 @@ class ScopeTests(unittest.TestCase):
                          "source_entry": ["contracts", 0], "capabilities": ["ARRAY"],
                          "prerequisites": [], "route_state": "canonical_family_proposal",
                          "semantic_definition_complete": False, "planned_owner": "leto",
-                         "owner_revision": REV}
+                         "owner_revision": REV, "implementation_owner_verified": False}
         self.row = {"reference_id": "numpy-id", "visibility": "documented_public",
                     "identity_role": "declared", "contract": "array", "retained_obligation": True,
                     "signature_status": "source signature, coverage open",
@@ -51,6 +52,12 @@ class ScopeTests(unittest.TestCase):
         self.contract["planned_owner"] = None
         self.validate()
 
+    def test_atlas_cannot_be_canonical_provider_route(self):
+        self.contract["planned_owner"] = "atlas"
+        self.caps["ARRAY"]["owner"] = "atlas"
+        with self.assertRaisesRegex(ParityError, "planned provider"):
+            self.validate()
+
     def test_wrong_owner_revision_or_capability_rejected(self):
         for update in [{"planned_owner": "atlas"}, {"owner_revision": "b" * 40},
                        {"capabilities": ["unknown"]}, {"prerequisites": ["unknown"]}]:
@@ -68,6 +75,11 @@ class ScopeTests(unittest.TestCase):
 
     def test_family_membership_cannot_claim_complete_semantics(self):
         self.contract["semantic_definition_complete"] = True
+        with self.assertRaisesRegex(ParityError, "routing does not establish"):
+            self.validate()
+
+    def test_owner_verified_field_cannot_be_promoted(self):
+        self.contract["implementation_owner_verified"] = True
         with self.assertRaisesRegex(ParityError, "routing does not establish"):
             self.validate()
 
@@ -108,6 +120,44 @@ class ScopeTests(unittest.TestCase):
         wrong = pack([{"reference_id": "different", "reference_sha256": "c" * 64}], table["metadata"])
         with self.assertRaisesRegex(ParityError, "unknown reference"):
             restore_audit(wrong, self.refs)
+
+    def test_torch_wrong_audit_and_row_baseline_rejected(self):
+        expected = {"version": "2.14.1", "revision": REV, "inventory_sha256": "c" * 64}
+        document = {"summary": {"framework": "pytorch", "version": "2.14.1", "revision": REV},
+                    "records": [{"framework": "pytorch", "version": "2.14.1", "revision": REV}]}
+        audit_identity("pytorch", document, expected)
+        for target, key, value in [("summary", "version", "99.0.0"), ("summary", "revision", "b" * 40),
+                                   ("record", "version", "99.0.0"), ("record", "revision", "b" * 40)]:
+            changed = copy.deepcopy(document)
+            (changed["summary"] if target == "summary" else changed["records"][0])[key] = value
+            with self.subTest(target=target, key=key), self.assertRaises(ParityError):
+                audit_identity("pytorch", changed, expected)
+
+    def test_tf_input_digest_and_optional_version_cannot_drift(self):
+        expected = {"version": "2.21.0", "revision": REV, "inventory_sha256": "c" * 64}
+        audit_identity("tensorflow", {"input": {"sha256": "c" * 64}}, expected)
+        for changed in [{"input": {"sha256": "d" * 64}},
+                        {"input": {"sha256": "c" * 64}, "version": "99.0.0"}]:
+            with self.assertRaises(ParityError):
+                audit_identity("tensorflow", changed, expected)
+
+    def test_binding_and_owner_are_derived_from_pinned_source(self):
+        source = {"family_proposal": "ARR", "scope_classification": "documented_public_contract",
+                  "signature": {"status": "partial"}}
+        self.assertEqual(classify("pytorch", source)[2], "ARR")
+        raw = {"id": "ARR", "canonical_capability": "ARRAY", "accountable_owner_proposal": "leto"}
+        derived = family_rows("pytorch", {"families": [raw]}, "families", "source.json", self.caps, self.repos)[0]
+        self.assertEqual(derived["planned_owner"], "leto")
+        self.assertEqual(derived["capabilities"], ["ARRAY"])
+
+    def test_unknown_source_class_and_silent_exclusion_rejected(self):
+        row = {"family_proposal": "ARR", "scope_classification": "unknown-status",
+               "signature": {"status": "partial"}}
+        with self.assertRaisesRegex(ParityError, "unknown source publicness"):
+            classify("pytorch", row)
+        row.update(scope_classification="documented_public_contract", excluded=True)
+        with self.assertRaisesRegex(ParityError, "cannot exclude"):
+            classify("pytorch", row)
 
 
 if __name__ == "__main__":

@@ -107,7 +107,7 @@ def load(root: Path = DEFAULT) -> dict:
     refs, summaries = references(root, program["reference_snapshots"])
     closure, extra_inputs = validate_closure(root, program["files"].get("reference_closure"), program)
     scope, scope_inputs = validate_scope(root, program["files"].get("public_scope"), refs,
-                                        capabilities, repositories)
+                                        capabilities, repositories, program["reference_snapshots"])
     extra_inputs.extend(scope_inputs)
     mappings, assigned = validate_mappings(objects["mappings"], capabilities, refs, repositories)
     specified = {ref: mapping_id for ref, mapping_id in assigned.items()

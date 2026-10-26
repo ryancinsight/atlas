@@ -7,6 +7,7 @@ from pathlib import Path
 from atlas_parity_schema import (ParityError, digest, fields, local_path, need,
                                  read_json, revision, unique)
 from atlas_parity_tables import canonical, unpack
+from atlas_parity_scope_sources import audit_identity, classify, family_rows
 
 VISIBILITY = {"documented_public", "public_export_or_view", "internal_source_candidate",
               "publicness_unresolved", "documented_extension_hook"}
@@ -30,19 +31,20 @@ def validate_bindings(rows, refs, contracts, capabilities, repositories):
     for identity, row in contracts.items():
         fields(row, {"framework": str, "source_artifact": str, "source_entry": list,
                      "capabilities": list, "prerequisites": list, "route_state": str,
-                     "semantic_definition_complete": bool}, identity)
-        need(not row["semantic_definition_complete"],
+                     "semantic_definition_complete": bool, "implementation_owner_verified": bool}, identity)
+        need(not row["semantic_definition_complete"] and not row["implementation_owner_verified"],
              f"{identity}: routing does not establish complete semantic definition")
         need(row["route_state"] in {"canonical_family_proposal", "ownership_unresolved"},
              f"{identity}: unreviewed routing cannot claim implementation ownership")
         owner = row.get("planned_owner")
-        need(owner is None or owner in repositories, f"{identity}: unknown planned owner")
-        need(all(cap in capabilities for cap in row["capabilities"] + row["prerequisites"]),
+        need(owner is None or isinstance(owner, str) and owner in repositories,
+             f"{identity}: unknown planned owner")
+        need(all(isinstance(cap, str) and cap in capabilities for cap in row["capabilities"] + row["prerequisites"]),
              f"{identity}: unknown capability or prerequisite")
         if row["route_state"] == "ownership_unresolved":
             need(owner is None, f"{identity}: unresolved route cannot count a triage owner")
         else:
-            need(bool(row["capabilities"]) and owner is not None and
+            need(bool(row["capabilities"]) and owner is not None and owner != "atlas" and
                  any(capabilities[cap]["owner"] == owner for cap in row["capabilities"]),
                  f"{identity}: planned provider differs from canonical capability owner")
             revision(row.get("owner_revision"), identity)
@@ -86,7 +88,7 @@ def restore_audit(document, refs):
 
 
 def validate_scope(root: Path, relative: str, refs: dict, capabilities: dict,
-                   repositories: dict) -> tuple[dict, list[Path]]:
+                   repositories: dict, snapshots: list) -> tuple[dict, list[Path]]:
     index_path = local_path(root, relative)
     index = read_json(index_path)
     fields(index, {"schema_version": int, "artifacts": list, "bindings": str,
@@ -111,12 +113,18 @@ def validate_scope(root: Path, relative: str, refs: dict, capabilities: dict,
     contracts = unique(documents[index["contracts"]], "id", "reusable source contract")
     rows = source_records(documents[index["bindings"]])
     bindings = validate_bindings(rows, refs, contracts, capabilities, repositories)
-    source_tables = {}
+    source_tables, restored, baselines = {}, {}, {}
+    for snapshot in snapshots:
+        data = read_json(local_path(root, snapshot["path"]))
+        baselines[snapshot["framework"]] = {"version": snapshot["version"],
+            "revision": data["source_revision"], "inventory_sha256": snapshot["sha256"]}
     for identity, row in bindings.items():
         path = row["source_artifact"]
         need(path in documents, f"{identity}: unregistered source detail")
         if path not in source_tables:
-            restore_audit(documents[path], refs)
+            restored[path] = restore_audit(documents[path], refs)
+            framework = refs[identity]["framework"]
+            audit_identity(framework, restored[path], baselines[framework])
             source_tables[path] = source_records(documents[path])
         records = source_tables[path]
         need(row["source_row"] < len(records), f"{identity}: missing source row")
@@ -124,9 +132,20 @@ def validate_scope(root: Path, relative: str, refs: dict, capabilities: dict,
         expected = hashlib.sha256(canonical(refs[identity]).encode()).hexdigest()
         need(original.get("reference_id") == identity and original.get("reference_sha256") == expected,
              f"{identity}: source detail belongs to another signature/declaration")
+        framework = refs[identity]["framework"]
+        visibility, role, family, signature = classify(framework, original)
+        need((row["visibility"], row["identity_role"], row["contract"], row["signature_status"]) ==
+             (visibility, role, framework + ":" + family, signature),
+             f"{identity}: normalized binding differs from source classification/route/signature")
+    derived_documents = {}
     for identity, row in contracts.items():
         need(row["source_artifact"] in documents, f"{identity}: missing contract source")
+        framework = row["framework"]
+        need(row["source_artifact"] == f"reference/public-scope/{framework}/contracts.json",
+             f"{identity}: contract source belongs to another framework")
         current = documents[row["source_artifact"]]
+        need(current.get("framework", framework) == framework,
+             f"{identity}: raw source framework differs from normalized framework")
         try:
             for key in row["source_entry"]:
                 current = current[key]
@@ -135,6 +154,13 @@ def validate_scope(root: Path, relative: str, refs: dict, capabilities: dict,
         need(bool(current), f"{identity}: empty reusable contract")
         need(isinstance(current, dict) and current.get("contract_id", current.get("id")) == identity.split(":", 1)[1],
              f"{identity}: reusable source entry belongs to another contract")
+        path = row["source_artifact"]
+        if path not in derived_documents:
+            key = "contracts" if framework == "numpy" else "contract_groups" if framework == "jax" else "families"
+            derived_documents[path] = unique(family_rows(framework, documents[path], key, path,
+                                             capabilities, repositories), "id", "source families")
+        need(row == derived_documents[path].get(identity),
+             f"{identity}: normalized owner/capability route differs from pinned source family")
     visibility = Counter(row["visibility"] for row in rows)
     unresolved = sum(contracts[row["contract"]]["route_state"] == "ownership_unresolved" for row in rows)
     summary = {"retained_raw_candidates": len(bindings), "visibility": dict(visibility),
