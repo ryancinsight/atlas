@@ -1,0 +1,147 @@
+{
+  "reference_version": "2.14.1",
+  "reference_revision": "5c4886908584029761b579af026dcfb627c84070",
+  "candidate_count": 4,
+  "admitted_by_this_annex": 0,
+  "primary_identity_count_unchanged": 9066,
+  "full_public_surface_complete": false,
+  "records": [
+    {
+      "candidate_name": "torch._dynamo.register_backend",
+      "reference_version": "2.14.1",
+      "reference_revision": "5c4886908584029761b579af026dcfb627c84070",
+      "status": "retained_extraction_gap_not_admitted",
+      "present_primary_inventory": false,
+      "identity_key": null,
+      "semantic_mapping": "unmapped",
+      "runtime": "unrun",
+      "gap_class": "compiler_backend_registration",
+      "source_semantics_observed": "Decorator/named backend and package entry-point discovery used by torch.compile; registered name lookup precedes entry-point search.",
+      "source_refs": [
+        {
+          "path": "docs/source/user_guide/torch_compiler/torch.compiler_custom_backends.md",
+          "line": 41,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/user_guide/torch_compiler/torch.compiler_custom_backends.md#L41"
+        },
+        {
+          "path": "torch/_dynamo/__init__.py",
+          "line": 22,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_dynamo/__init__.py#L22"
+        }
+      ],
+      "definition_owner_proposal": "coeus",
+      "actual_implementation_owner": null,
+      "required_capabilities": [
+        "GRAPH-TRACE",
+        "GRAPH-COMPILE",
+        "INTEROP-TENSOR"
+      ],
+      "admission_acceptance": "Resolve exact public/export/bundled-namespace identity, signature, defaults, errors, calling convention and alias relations against frozen source and full documented workflow; record explicit admission separately. Prose appearance creates an extraction obligation, not an automatic new API identity.",
+      "architecture": "Implement functional-equivalent first-party typed compiler/AD/extension interfaces. The prose does not authorize adopting a PyTorch/Dynamo/AOT runtime architecture."
+    },
+    {
+      "candidate_name": "torch._dynamo.backends.common.aot_autograd",
+      "reference_version": "2.14.1",
+      "reference_revision": "5c4886908584029761b579af026dcfb627c84070",
+      "status": "retained_extraction_gap_not_admitted",
+      "present_primary_inventory": false,
+      "identity_key": null,
+      "semantic_mapping": "unmapped",
+      "runtime": "unrun",
+      "gap_class": "aot_forward_backward_backend",
+      "source_semantics_observed": "Wraps forward/backward compiler callbacks; unspecified backward compiler defaults to forward compiler; boxed callable is required.",
+      "source_refs": [
+        {
+          "path": "docs/source/user_guide/torch_compiler/torch.compiler_custom_backends.md",
+          "line": 97,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/user_guide/torch_compiler/torch.compiler_custom_backends.md#L97"
+        },
+        {
+          "path": "docs/source/user_guide/torch_compiler/torch.compiler_custom_backends.md",
+          "line": 102,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/user_guide/torch_compiler/torch.compiler_custom_backends.md#L102"
+        }
+      ],
+      "definition_owner_proposal": "coeus",
+      "actual_implementation_owner": null,
+      "required_capabilities": [
+        "GRAPH-TRACE",
+        "AD-REVERSE",
+        "GRAPH-COMPILE"
+      ],
+      "admission_acceptance": "Resolve exact public/export/bundled-namespace identity, signature, defaults, errors, calling convention and alias relations against frozen source and full documented workflow; record explicit admission separately. Prose appearance creates an extraction obligation, not an automatic new API identity.",
+      "architecture": "Implement functional-equivalent first-party typed compiler/AD/extension interfaces. The prose does not authorize adopting a PyTorch/Dynamo/AOT runtime architecture."
+    },
+    {
+      "candidate_name": "functorch.compile.make_boxed_func",
+      "reference_version": "2.14.1",
+      "reference_revision": "5c4886908584029761b579af026dcfb627c84070",
+      "status": "retained_extraction_gap_not_admitted",
+      "present_primary_inventory": false,
+      "identity_key": null,
+      "semantic_mapping": "unmapped",
+      "runtime": "unrun",
+      "gap_class": "bundled_namespace_boxed_calling_convention",
+      "source_semantics_observed": "Frozen workflow prose uses the bundled functorch.compile helper to box an AOT backend callable. Its bundled/companion export identity and exact wrapper/error/AD behavior still require extraction.",
+      "source_refs": [
+        {
+          "path": "docs/source/user_guide/torch_compiler/torch.compiler_custom_backends.md",
+          "line": 105,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/user_guide/torch_compiler/torch.compiler_custom_backends.md#L105"
+        },
+        {
+          "path": "docs/source/user_guide/torch_compiler/torch.compiler_custom_backends.md",
+          "line": 111,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/user_guide/torch_compiler/torch.compiler_custom_backends.md#L111"
+        }
+      ],
+      "definition_owner_proposal": "coeus",
+      "actual_implementation_owner": null,
+      "required_capabilities": [
+        "INTEROP-TENSOR",
+        "AD-REVERSE",
+        "GRAPH-COMPILE"
+      ],
+      "admission_acceptance": "Resolve exact public/export/bundled-namespace identity, signature, defaults, errors, calling convention and alias relations against frozen source and full documented workflow; record explicit admission separately. Prose appearance creates an extraction obligation, not an automatic new API identity.",
+      "architecture": "Implement functional-equivalent first-party typed compiler/AD/extension interfaces. The prose does not authorize adopting a PyTorch/Dynamo/AOT runtime architecture."
+    },
+    {
+      "candidate_name": "torch._check",
+      "reference_version": "2.14.1",
+      "reference_revision": "5c4886908584029761b579af026dcfb627c84070",
+      "status": "retained_extraction_gap_not_admitted",
+      "present_primary_inventory": false,
+      "identity_key": null,
+      "semantic_mapping": "unmapped",
+      "runtime": "unrun",
+      "gap_class": "symbolic_runtime_constraint",
+      "source_semantics_observed": "Prose uses runtime assertions to constrain unbacked symbolic values for export/control-flow reasoning; exact error/message and scalar/tensor condition domains are separate contracts.",
+      "source_refs": [
+        {
+          "path": "docs/source/user_guide/torch_compiler/export/programming_model.md",
+          "line": 314,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/user_guide/torch_compiler/export/programming_model.md#L314"
+        },
+        {
+          "path": "docs/source/user_guide/torch_compiler/compile/dynamic_shapes_troubleshooting_guardon_errors.md",
+          "line": 222,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/user_guide/torch_compiler/compile/dynamic_shapes_troubleshooting_guardon_errors.md#L222"
+        },
+        {
+          "path": "torch/__init__.py",
+          "line": 2121,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/__init__.py#L2121"
+        }
+      ],
+      "definition_owner_proposal": "coeus",
+      "actual_implementation_owner": null,
+      "required_capabilities": [
+        "GRAPH-TRACE",
+        "GRAPH-COMPILE",
+        "GRAPH-EXPORT"
+      ],
+      "admission_acceptance": "Resolve exact public/export/bundled-namespace identity, signature, defaults, errors, calling convention and alias relations against frozen source and full documented workflow; record explicit admission separately. Prose appearance creates an extraction obligation, not an automatic new API identity.",
+      "architecture": "Implement functional-equivalent first-party typed compiler/AD/extension interfaces. The prose does not authorize adopting a PyTorch/Dynamo/AOT runtime architecture."
+    }
+  ]
+}

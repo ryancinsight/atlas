@@ -1,0 +1,31 @@
+{
+  "reviewer": "scope_review",
+  "reviewed_manifest_sha256": "d77a5a48b659532b354c880d081369998a1a9278ea3439d7067bc8907922a2b4",
+  "result": "No findings.",
+  "checks": {
+    "manifest_artifacts": 73,
+    "all_ids_conserved": 24589,
+    "changed_rows": 520,
+    "unchanged_rows": 24069,
+    "decode_aliases": 17,
+    "preprocess_aliases": 17,
+    "profiles": {
+      "APP-PREDICTION-DECODE": 17,
+      "APP-PREPROCESS-IDENTITY": 4,
+      "APP-PREPROCESS-TORCH": 1,
+      "APP-PREPROCESS-MODE-SELECTOR": 1,
+      "APP-PREPROCESS-TF": 7,
+      "APP-PREPROCESS-CAFFE": 4
+    },
+    "publicness_conflicts_retained": 486,
+    "old_exception_ids_retained": 1992,
+    "unresolved_exception_rows": 2495,
+    "unresolved_exception_identities": 2345,
+    "implementation_or_evidence_promotions": 0,
+    "source_order_shape_cache_conversion_ranking": true,
+    "specific_source_target_precedes_generic_io": true,
+    "source_blobs_sha256_and_git_blob_verified": 39,
+    "generated_import_bindings_verified": 34
+  },
+  "scope": "Independent targeted source/classifier/conservation review. No framework imports/builds/execution or complete semantic contracts, no architecture approval; independent replay is assigned to provider_evidence_audit."
+}

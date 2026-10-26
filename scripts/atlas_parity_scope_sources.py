@@ -1,6 +1,8 @@
 """Source-derived public-scope normalization shared by capture and validation."""
 
-from atlas_parity_schema import fields, need, revision
+import hashlib
+
+from atlas_parity_schema import digest, fields, need, revision
 
 
 def audit_identity(framework, document, expected):
@@ -22,7 +24,8 @@ def audit_identity(framework, document, expected):
                  (framework, expected["version"], expected["revision"]), "Torch source row baseline drift")
     else:
         fields(document, {"input": dict}, "TF audit baseline")
-        need(document["input"].get("sha256") == expected["inventory_sha256"],
+        need(document["input"].get("sha256") in
+             {expected["inventory_sha256"], *expected.get("verified_input_parents", [])},
              "TF source audit inventory baseline drift")
         return
     revision(observed[2], "source audit baseline")
@@ -30,11 +33,57 @@ def audit_identity(framework, document, expected):
          f"{framework}: source audit version/revision baseline drift")
 
 
+def input_parent(expected, parent, parent_sha256):
+    """A reviewed correction may consume a frozen classification of the same inventory."""
+    digest(parent_sha256, "source-audit parent digest")
+    fields(parent, {"input": dict, "records": list, "columns": list, "tables": dict}, "source-audit parent")
+    audit_identity("tensorflow", parent, expected)
+    fields(parent["input"], {"sha256": str, "count": int}, "source-audit parent inventory")
+    need(parent["input"].get("sha256") == expected["inventory_sha256"] and
+         0 < len(parent["records"]) == parent["input"]["count"] == expected["inventory_records"],
+         "source-audit parent does not bind the selected inventory/count")
+    columns = ["declaration_id", "input_index", "symbol", "record_template", "source_ref_set",
+               "documentation_template", "typed_relation_ref_set", "semantic_variant_template"]
+    table_names = ["record_templates", "source_ref_sets", "documentation_templates",
+                   "typed_relation_ref_sets", "semantic_variant_templates"]
+    need(parent["columns"] == columns and set(parent["tables"]) == set(table_names) and
+         all(type(parent["tables"][name]) is list for name in table_names), "source-audit parent compact schema drift")
+    primary = expected["primary_records"]
+    need(len(primary) == expected["inventory_records"], "source-audit parent primary record count drift")
+    indexes, identities = set(), set()
+    for row in parent["records"]:
+        need(type(row) is list and len(row) == len(columns), "source-audit parent malformed row")
+        index = row[1]
+        need(type(index) is int and 0 <= index < len(primary) and index not in indexes,
+             "source-audit parent duplicate/missing/invalid input index")
+        indexes.add(index)
+        selected = []
+        for cell, name in zip(row[3:], table_names):
+            need(type(cell) is int and 0 <= cell < len(parent["tables"][name]),
+                 "source-audit parent invalid table reference")
+            selected.append(parent["tables"][name][cell])
+        template, source_refs, documentation, relations, variants = selected
+        fields(template, {"kind": str}, "source-audit parent template")
+        need(type(source_refs) is list and type(documentation) is dict and type(relations) is list and
+             type(variants) is dict, "source-audit parent malformed table value")
+        reference = primary[index]
+        declaration = hashlib.sha256("\0".join((reference["symbol"], reference["kind"],
+                                               reference["source"])).encode()).hexdigest()[:24]
+        need(row[0] == declaration and row[0] not in identities and row[2] == reference["symbol"] and
+             template["kind"] == reference["kind"], "source-audit parent declaration differs from frozen primary")
+        identities.add(row[0])
+    need(indexes == set(range(len(primary))), "source-audit parent missing frozen primary record")
+    return {**expected, "verified_input_parents": [parent_sha256]}
+
+
 def family_rows(framework, document, key, source_artifact, caps, repos):
     values = document[key]
     iterable = list(values.items()) if isinstance(values, dict) else list(enumerate(values))
     rows = []
     for entry, original in iterable:
+        need(original.get("framework", framework) == framework and
+             ("frameworks" not in original or framework in original["frameworks"]),
+             "raw family framework differs from its source document")
         name = original.get("contract_id", original.get("id"))
         owner = original.get("accountable_owner", original.get("accountable_owner_proposal"))
         cap = original.get("capability", original.get("canonical_capability"))

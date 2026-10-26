@@ -34,5 +34,23 @@
     "sha256": "021a9908fed68dc53daf1a52b0f43fbd1719a7eb35beb03ab2d798b214c0fe31",
     "source_url": "https://docs.pytorch.org/docs/2.14/objects.inv?raw=1",
     "bytes": 224608
+  },
+  {
+    "path": "inputs/pre-correction-record-checkpoint.json",
+    "bytes": 4785351,
+    "sha256": "c2a9df74a678141b9ca6da83ccf11fee6562f2c52b3b9721b13d39428ed68f4a",
+    "source": "immutable9cc prior handoff"
+  },
+  {
+    "path": "inputs/symmem-before-rows.json",
+    "bytes": 27057,
+    "sha256": "3f084ebd9d3e9806b1a07153660e3ff8bcca73b9bb10a227865990377198be6c",
+    "source": "immutable9cc prior handoff"
+  },
+  {
+    "path": "history/base-9ccda309/artifact-manifest.json",
+    "bytes": 5366,
+    "sha256": "9ccda3094a2ae6948fc50824f5d56b75f922a86ad7201ffc49d7d8e088688f2b",
+    "source": "immutable9cc prior handoff"
   }
 ]

@@ -23,7 +23,7 @@ underscore nor an `__internal__` spelling removes a public workflow. Counts of
 raw declarations, distinct public spellings, source aliases, semantic variants,
 capabilities and executed coverage are different quantities.
 
-The 35,492 initial planned family routes and 2,604 unresolved routes describe
+The 35,509 current planned family routes and 2,587 unresolved routes describe
 source routing proposals. **Zero implementation owners are verified by this
 audit.** The complete API specification still requires each signature's value,
 state/effect, dtype/promotion, device, layout/ownership, gradient, staging and
@@ -69,3 +69,13 @@ contracts into signature-specific parameter domains and end-to-end workflow
 acceptance; retain framework-specific precision, mutable-state, export-format,
 asynchronous ordering and failure semantics. Full-public-surface and complete
 semantic-definition flags remain false until independent closure review.
+
+The initial35,492/2,604 route accounting is retained in Git history. Reviewed
+corrections move ten PyTorch Symmetric Memory operations to distributed
+communication and34 TensorFlow/Keras application aliases to source-specific
+numeric/preprocessing contracts. Seventeen previously unrouted preprocessing
+identities receive a proposed family route. The486 TF publicness conflicts stay
+unresolved, with all original1,992 ownership exceptions retained. See the
+[Torch history](pytorch/correction-history.json) and
+[TF history](tensorflow/correction/correction-history.json). None verifies code
+ownership or a whole API.

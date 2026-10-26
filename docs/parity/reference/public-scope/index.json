@@ -3,7 +3,7 @@
     {
       "path": "reference/public-scope/bindings.json",
       "role": "source routing proposal; not semantic or runtime evidence",
-      "sha256": "33c5a783983d26db205824dc7178fb555ff51d24fc460c9d6868648e70d49f3f"
+      "sha256": "3e934894219a7f879ebdd0e6326d94c6b9133853824676c020f90c7a557ca68e"
     },
     {
       "path": "reference/public-scope/contracts.json",
@@ -68,7 +68,12 @@
     {
       "path": "reference/public-scope/pytorch/contracts.json",
       "role": "source routing proposal; not semantic or runtime evidence",
-      "sha256": "30c44d0e69a9c583df40f5fabcdfe6c1d45d33b1ba2d6c1de11a0ac43d43b91c"
+      "sha256": "7d58fe1aadd7136418cacf774754fc5df925312ee72ad7224eae194bb279e2c0"
+    },
+    {
+      "path": "reference/public-scope/pytorch/correction-history.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "3fe943237681a12c35c42ef1fa448aeb67af7b69520d539929257e3131ecdbde"
     },
     {
       "path": "reference/public-scope/pytorch/documentation-declarations.json",
@@ -78,7 +83,7 @@
     {
       "path": "reference/public-scope/pytorch/input-manifest.json",
       "role": "source routing proposal; not semantic or runtime evidence",
-      "sha256": "ac380531638ebc88537333cac3c8cd55e4204ad7d144b3d2a5d54676211ee68a"
+      "sha256": "0f91268ab7b1b58d6b8fc2b6ec583b0f68b35d6689ce5c1e26e13c52c87b9105"
     },
     {
       "path": "reference/public-scope/pytorch/ownership-exceptions.json",
@@ -86,9 +91,19 @@
       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
     },
     {
+      "path": "reference/public-scope/pytorch/prose-extraction-gap-annex.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "faa1ce05ac0ed5cdcc1a90203c5273c37151f14c369cdc8bd0be72680eb94373"
+    },
+    {
       "path": "reference/public-scope/pytorch/records.json",
       "role": "source routing proposal; not semantic or runtime evidence",
-      "sha256": "400c7d22bf2c8c14e9babe099320da7b7b61c130b06be591535a89663256055a"
+      "sha256": "5c81a4941edaac68a01e8df97202648391234506dc0c08fc148e18ffd152a32e"
+    },
+    {
+      "path": "reference/public-scope/pytorch/routing-correction.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "edae63540f0b75f41d5cc0d09072a03cc7fe767fb3db8df78d2812c8b95655d2"
     },
     {
       "path": "reference/public-scope/pytorch/source-definitions.json",
@@ -101,6 +116,21 @@
       "sha256": "eb63d3e67c1e61fd96c0eac11c2d16738e1419b2c314aa34220628d289430040"
     },
     {
+      "path": "reference/public-scope/source-review/atlas-tf-prediction-scope-review-d77a5a48.json",
+      "role": "Independent source/proposal correction review; not exact Atlas candidate or runtime qualification",
+      "sha256": "be97908773766300eba7b4bee2891f472cb4d6daf28ac6bbcc165fb23abef1e7"
+    },
+    {
+      "path": "reference/public-scope/source-review/tf-prediction-correction-review.json",
+      "role": "Independent source/proposal correction review; not exact Atlas candidate or runtime qualification",
+      "sha256": "6cd66be86dff9792e63a33da3589cddc7b8b5658b916077d873fe76317ffccd4"
+    },
+    {
+      "path": "reference/public-scope/source-review/torch-symmem-correction-review.json",
+      "role": "Independent source/proposal correction review; not exact Atlas candidate or runtime qualification",
+      "sha256": "31a326ca6abfdbb8ae8ce6cb41b656dc5e1b415da095e6e897d14886051204fb"
+    },
+    {
       "path": "reference/public-scope/tensorflow/ambiguous-operator-exceptions.json",
       "role": "source routing proposal; not semantic or runtime evidence",
       "sha256": "7ef20e005b1d9c7769fd98d13f3a4c0391402d0e037341b3f4ebd53c50b124b0"
@@ -108,7 +138,47 @@
     {
       "path": "reference/public-scope/tensorflow/contracts.json",
       "role": "source routing proposal; not semantic or runtime evidence",
-      "sha256": "21b41213579a0cda2d596ab32f6a927c7570589f3e5b627a06237cda7954acd6"
+      "sha256": "cb37a0194cf092eea5fd2eef0a382e10523164e720db8fc058416037b52c25de"
+    },
+    {
+      "path": "reference/public-scope/tensorflow/correction/assertion-results.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "01abf0b5fdb703d4e4819100b3722ead641baec69b1cc0e60a739c7d41e732d9"
+    },
+    {
+      "path": "reference/public-scope/tensorflow/correction/baseline-classifications.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "690e0b692fbf645ec289fa4e2e5f5c382175ebd044d6537725e350e847a9d92e"
+    },
+    {
+      "path": "reference/public-scope/tensorflow/correction/baseline-routing-provenance.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "2cbe603802e26dfe66237bac5714a84f231ba6dc0da37fd88e4c3642c353a227"
+    },
+    {
+      "path": "reference/public-scope/tensorflow/correction/correction-history.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "307dbb1cc3995c12df9647f07d058071523017ead38ba7b804798fe0fd719239"
+    },
+    {
+      "path": "reference/public-scope/tensorflow/correction/independent-test-specifications.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "437897de77764396d01dd7a34387d208e1a55cec3f883d654cfff3b7c46f088b"
+    },
+    {
+      "path": "reference/public-scope/tensorflow/correction/manifest.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "d77a5a48b659532b354c880d081369998a1a9278ea3439d7067bc8907922a2b4"
+    },
+    {
+      "path": "reference/public-scope/tensorflow/correction/ownership-exceptions.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "7e435802a9478384b1210bb59fffeff8765615fef5440449691f5dece1002447"
+    },
+    {
+      "path": "reference/public-scope/tensorflow/correction/source-verified-application-routes.json",
+      "role": "source routing proposal; not semantic or runtime evidence",
+      "sha256": "ae7a8fe566612aeb1905140c05e0ac4b26e3d363763257fa85b69e982d631be7"
     },
     {
       "path": "reference/public-scope/tensorflow/inputs/capabilities-9f4645b2.json",
@@ -128,7 +198,7 @@
     {
       "path": "reference/public-scope/tensorflow/records.json",
       "role": "source routing proposal; not semantic or runtime evidence",
-      "sha256": "06edb023d4e5749437a7c84c3a8987af46e8004aa4f8e4afeb8dee231389fcc1"
+      "sha256": "17455cff9c7272e5eab2edd69e15d05b70ce2ea58455166ddbab28fa5f413ce2"
     },
     {
       "path": "reference/public-scope/tensorflow/source-registry.json",
@@ -221,17 +291,32 @@
           "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
         },
         {
-          "bytes": 1459,
+          "bytes": 2088,
           "name": "input-manifest.json",
-          "sha256": "ac380531638ebc88537333cac3c8cd55e4204ad7d144b3d2a5d54676211ee68a"
+          "sha256": "0f91268ab7b1b58d6b8fc2b6ec583b0f68b35d6689ce5c1e26e13c52c87b9105"
+        },
+        {
+          "bytes": 14672,
+          "name": "routing-correction.json",
+          "sha256": "edae63540f0b75f41d5cc0d09072a03cc7fe767fb3db8df78d2812c8b95655d2"
+        },
+        {
+          "bytes": 602,
+          "name": "correction-history.json",
+          "sha256": "3fe943237681a12c35c42ef1fa448aeb67af7b69520d539929257e3131ecdbde"
+        },
+        {
+          "bytes": 8422,
+          "name": "prose-extraction-gap-annex.json",
+          "sha256": "faa1ce05ac0ed5cdcc1a90203c5273c37151f14c369cdc8bd0be72680eb94373"
         }
       ],
-      "bytes": 30678871,
+      "bytes": 30681971,
       "framework": "pytorch",
       "name": "scope.json",
       "retained_records": 9066,
-      "semantic_sha256": "e45d893356ece97ec9e4ab037fd8aa1dca70c230fb0d4774c2e5e42ae2850ebb",
-      "sha256": "42c80ab418201bf82a8f31b6bc4f01e89196dce49d969ecdbb77c17de005bcdc"
+      "semantic_sha256": "80b3066a1605b770cf48c349c15b009036710268a27174e61a036cc5c8e46086",
+      "sha256": "1d1f47977a472f2771a9897c2e2ee703285f469136dd915a4cd840d6f56c8477"
     },
     {
       "additional_evidence": [
@@ -264,14 +349,51 @@
           "bytes": 183332,
           "name": "inputs/capabilities-9f4645b2.json",
           "sha256": "0f3d54d5d881543b4603944a8110f37a0bc56d6ed3916a15c792229f7f594e7c"
+        },
+        {
+          "bytes": 14804,
+          "name": "correction/manifest.json",
+          "sha256": "d77a5a48b659532b354c880d081369998a1a9278ea3439d7067bc8907922a2b4"
+        },
+        {
+          "bytes": 388395,
+          "name": "correction/correction-history.json",
+          "sha256": "307dbb1cc3995c12df9647f07d058071523017ead38ba7b804798fe0fd719239"
+        },
+        {
+          "bytes": 115732,
+          "name": "correction/source-verified-application-routes.json",
+          "sha256": "ae7a8fe566612aeb1905140c05e0ac4b26e3d363763257fa85b69e982d631be7"
+        },
+        {
+          "bytes": 3712374,
+          "name": "correction/ownership-exceptions.json",
+          "sha256": "7e435802a9478384b1210bb59fffeff8765615fef5440449691f5dece1002447"
+        },
+        {
+          "bytes": 6661,
+          "name": "correction/independent-test-specifications.json",
+          "sha256": "437897de77764396d01dd7a34387d208e1a55cec3f883d654cfff3b7c46f088b"
+        },
+        {
+          "bytes": 2544,
+          "name": "correction/assertion-results.json",
+          "sha256": "01abf0b5fdb703d4e4819100b3722ead641baec69b1cc0e60a739c7d41e732d9"
+        },
+        {
+          "bytes": 441,
+          "name": "correction/baseline-routing-provenance.json",
+          "sha256": "2cbe603802e26dfe66237bac5714a84f231ba6dc0da37fd88e4c3642c353a227"
         }
       ],
-      "bytes": 40046228,
+      "bytes": 40464340,
       "framework": "tensorflow",
+      "input_parent": "reference/public-scope/tensorflow/correction/baseline-classifications.json",
       "name": "classified-declarations.json",
+      "preserved_baseline_handoff_sha256": "5de04f6a616c1353e65ce7cce364daedf9599415fe1bf8a352750f229fedc093",
       "retained_records": 24589,
-      "semantic_sha256": "72957f020ae420b9863c01d5fffdf76f4cf5717385a30bced9f9b705b0742c4d",
-      "sha256": "bf27c650461accf75d1c1f9afd14340c038e073836fddcda317a7ef535498224"
+      "semantic_sha256": "ba735d89bc10b42ab92c0182ea4f27559391d56658a4cd5d0e0389fa6abdd6b3",
+      "sha256": "b7c79f1f846de5cce78ccfe61963913daeb025236f023a4b2ae5f20dc47b92ad"
     }
   ],
   "contracts": "reference/public-scope/contracts.json",
@@ -280,8 +402,8 @@
     "full_public_surface_complete": false,
     "implementation_owners_verified": 0,
     "new_semantic_closures": 0,
-    "ownership_unresolved_candidates": 2604,
-    "planned_family_routes": 35492,
+    "ownership_unresolved_candidates": 2587,
+    "planned_family_routes": 35509,
     "raw_candidates_removed": 0,
     "retained_raw_candidates": 38096,
     "reusable_framework_contracts": 147,
