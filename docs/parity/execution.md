@@ -184,3 +184,7 @@ gates. After trusted merged tooling is available, the existing PyPI worker can
 rerun its unchanged normal hook on the final reviewed candidate. Publication
 holds stay separate. This source-definition increment changes no #551 branch,
 member tooling, provider pin, credential, timeout or access setting.
+
+### Conditional Torch native dtype acceptance
+
+The [Torch acceptance plan](dtype-policy/pytorch-20261026/acceptance-plan.json) is subordinate to WP-001/003/004. Definition closure must resolve public parsing/registry/default and native dependency gaps before typed Eunomia policy work; proposed Coeus integration follows policy readiness and all payload/alias/device/AD evidence. Each bounded package retains explicit case/gap IDs, prerequisites, required evidence and a null actual implementation owner. All are not ready. No provider repair is duplicated, generic widening shortcut authorized, concrete ADR approved or unsupported capability excluded.

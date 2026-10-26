@@ -1,6 +1,6 @@
 # Validation and remaining definition work
 
-Program 2026-10-26.9. Exact candidate identity and current hosted results belong
+Program 2026-10-26.10. Exact candidate identity and current hosted results belong
 in the draft PR; local evidence here describes the authored tree and commands,
 not a final merge/release certification. [Contracts](contracts.md).
 
@@ -353,3 +353,62 @@ performance and final-revision release gates stay open. No network/auth,
 provider build/import, push, PR, merge or deployment occurs in this local slice.
 
 The protected [#551 shared-tool handoff](execution.md#protected-shared-tool-prerequisite-observed-october-26) records the exact Aequitas parser mismatch, observed failing draft head and existing integrator/continuation. Owner liveness and delivery stay unverified; source presence is not authorization to adopt prepared tools. Earlier provider holds and historical receipts remain intact.
+
+
+## Torch repaired native dtype integration
+
+Program .10 retains the exact repaired `a34fc711` source packet and `013862e7`
+same-reviewer source-only acceptance. Initial `697b0c74`/`3ac30501` history is
+preserved, including both repaired material findings. The canonical capture
+keeps selected source/receipt/proof artifacts rather than full foreign source
+files or the 18 MiB source/history bundle.
+
+Ten admitted partial contracts, 47 native enum identities, 196 core lookup cells,
+2,209 promotion pairs, 2,209 cast-permission pairs, 45 receipts, 88 spans, 66
+UNRUN framework cases and 14 open gaps retain separate denominators. Current
+canonical API associations are three partial and seven unmapped; proposal,
+scalar supplier and actual implementation ownership remain distinct. No API
+mapping stage changes or execution/performance/release credit occurs.
+
+The checker independently reconstructs finite source rules and helper maps,
+checks exact typed aggregate/status/scope/ID/source/ownership roles, enforces
+integer source selectors, and validates tagged rank-zero complex/gradient
+fixtures with six input-sensitive exact-rational controls. Physical-file
+corruption probes recompute artifact indexes before rejection. Valid reformat
+and consistently changed analytical controls remain valid. Full public parsing,
+registry, descriptor/payload/layout/device/AD/error and numerical qualification
+remain open. Three subordinate native acceptance packages remain not ready;
+ordinary evidence/design work does not become a new user scope decision.
+
+JAX/NumPy source/index/review/mapping/raw-CP02 bytes and fixed .8/.9 introduction
+versions remain consumed by the new enclosing program. The inherited CI setup
+and #551 protected-owner handoff are retained. No network/auth, framework
+imports/builds, provider or protected branch edits, PR/push/merge or publication
+occurs. Independent canonical exact-head review and delivery remain parent-owned.
+
+Local canonical tooling verification runs all **231 parity tests with zero
+skips** in 48.990 seconds. Thirty-one Torch tests include real copied-file,
+reindexed corruptions, valid reformat controls, independently reconstructed
+source relations and six input-sensitive complex controls. The repaired source
+packet's original 28 tests remain separate historical evidence. All 66
+framework/provider acceptance cases remain UNRUN.
+
+Two earlier whole-suite attempts hit an incorrectly applied 60-second Python
+bound; those failed observations are retained. The global strict 60-second rule
+names `cargo nextest`; existing Python fast CI has a 10-minute whole-job bound.
+No repository timeout changes. Measured table validation removes repeated
+scalar JSON encodings and constructs invalid-cell diagnostics only on failure.
+The original canonical serializer remains the equivalence oracle across scalar
+subclasses, IntEnum, bool/int/float distinctions, huge integers, Unicode and
+surrogate strings, empty and nested values. All ten canonical tables, containing
+90,638 rows, retain exactly the original columns, value tables and row indices.
+Profiled canonical calls fall from 592,794 to 174,516; this is tooling evidence,
+not a provider performance claim or a waiver for an incomplete run.
+
+The 32-file Torch capture regenerates byte-identically. All 46 protected prior
+JAX/NumPy policy artifacts, mappings and raw CP02 retain their base bytes.
+Canonical check/report, 129 Markdown links, board index, unchanged 1,000-line
+combined backlog budget, byte-compilation and whitespace checks pass. Definition
+and release qualification remain blocked by incomplete scope, unrun evidence
+and pending independent review; exact committed-input checks follow the local
+commit, without granting any parity qualification.

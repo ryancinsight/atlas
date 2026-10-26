@@ -20,6 +20,7 @@
     "reference_closure": "reference/closure/index.json",
     "repositories": "repositories.json",
     "repository_evidence": "repository-evidence.json",
+    "torch_native_dtype_policy": "dtype-policy/pytorch-20261026/index.json",
     "work_packages": "work-packages.json",
     "workflow_contracts": "workflows/index.json"
   },
@@ -36,7 +37,7 @@
   "objective": "Full documented NumPy/JAX/PyTorch/TensorFlow functional equivalence under Atlas first-party native generic provider architecture.",
   "observed_at": "2026-10-26",
   "open_decisions": [],
-  "program_version": "2026-10-26.9",
+  "program_version": "2026-10-26.10",
   "protected_ownership": [
     {
       "owner_task": "01a159ec-7017-7725-a554-194472dc20dc",

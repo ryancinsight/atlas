@@ -1,6 +1,6 @@
 # Frozen dtype source policies
 
-Program **2026-10-26.9** consumes independent source-specific policy indexes.
+Program **2026-10-26.10** consumes independent source-specific policy indexes.
 Their introduction versions are immutable provenance, not a requirement to
 rewrite prior sources whenever the enclosing program advances. All source
 policies remain partial definitions with no runtime or mapping-stage credit.
@@ -196,3 +196,98 @@ independent symbolic reconstruction and a valid reformatted/reindexed control.
 The current candidate still requires independent exact-head review and normal
 local/hosted delivery checks. Source checks grant no framework execution,
 performance, registry, release or whole-API qualification.
+
+
+## Repaired Torch native dtype source policy
+
+The [Torch source index](pytorch-20261026/index.json), introduced in program
+**2026-10-26.10**, binds repaired packet
+`a34fc711c04e087985c8835b933bcfae275493fdeb0b72455523ee7e1618fcb0` and the
+[same-reviewer successor assessment](pytorch-20261026/independent-review.json)
+`013862e7a4bff259a08aaa1cf31531f0c5e67f0069e91d764f482124dd6b94c6`.
+PyTorch remains **2.14.1**, source commit
+`5c4886908584029761b579af026dcfb627c84070`. The source identity inventory is
+minor-series 2.14; exact patch semantics are bound separately to selected source.
+Neither an installed artifact nor complete public extraction is established.
+
+| Artifact | Boundary |
+| --- | --- |
+| [Lossless capture](pytorch-20261026/capture.json) | Selected source artifacts and initial review reconstruct accepted bytes; no full foreign source/history bundle is vendored |
+| [Partial contracts](pytorch-20261026/captured/contracts.json) and [canonical roles](pytorch-20261026/joins.json) | Ten admitted IDs retain actual API associations independently of the Coeus facade proposal and Eunomia supplier |
+| [Model metadata](pytorch-20261026/model.json), [core cells](pytorch-20261026/core_lookup_cells.json), [promotion pairs](pytorch-20261026/native_promotion_pairs.json) and [cast permissions](pytorch-20261026/native_cast_permission_pairs.json) | All 47 native enums, 196 core cells and 2,209 ordered pairs per relation; native enums are not a public kernel registry |
+| [Receipts](pytorch-20261026/captured/source-registry.json), [quotes](pytorch-20261026/captured/source-witnesses.json) and [portable proof](pytorch-20261026/source-proof.json) | 45 full-file receipts and 88 exact bounded excerpts; original review checks full bytes, canonical validation checks selected receipt/quote bindings |
+| [Computation policies](pytorch-20261026/captured/computation-policies.json) | Storage, common, computation, accumulator and result types remain separate, per source path and operation |
+| [Acceptance cases](pytorch-20261026/captured/acceptance-cases.json) and [conditional plan](pytorch-20261026/acceptance-plan.json) | All 66 framework/provider specifications remain UNRUN; three bounded subordinate packages are evidence-required, with null actual implementation owners |
+| [Repair history](pytorch-20261026/captured/correction-history.json), [source-review proof](pytorch-20261026/review-proof.json) and [open gaps](pytorch-20261026/captured/remaining-gaps.json) | Original findings/history remain intact; 14 named gaps and exact-head canonical review remain open |
+
+The initial `697b0c74` packet and `3ac30501` review remain preserved externally
+and through selected immutable history receipts. The initial material findings
+were an ambiguous complex/list fixture and aggregate wrappers capable of false
+scope/runtime credit. The repaired packet uses rank-zero native complex64
+Tensors, a Python complex Number alpha, real float32 scalar loss/cotangent and
+conjugate gradients, plus strict aggregate/status types. The same reviewer
+clears those two source findings. Its 156-file replay, 28 source tests/zero skips,
+18 physical-file reindexed probes, 58 independent negative probes and six
+independent real-coordinate controls are original source evidence only; they do
+not approve this canonical candidate or execute any of the 66 framework cases.
+
+Canonical validation reconstructs native classifiers, the 14-axis table and all
+ordered promotion/cast outcomes from pinned excerpts. Equal dtype, quantized,
+Bits, Float8 and extended-unsigned mixed rules preserve source order. A
+permitted metadata cast is not value preservation, conversion availability or a
+whole shell/quantized/extended dtype capability. Rank-zero, dimensioned,
+wrapped/Python scalar and default contexts remain distinct. The nine bounded
+rank/default analytical fixtures do not close symbolic or generated binding
+semantics.
+
+The concrete CPU sum cascade uses `acc_type<scalar_t,true>` despite running in
+the CPU source. Native and Python accumulator helpers differ; source opmath
+specializations do not qualify all kernel/device paths. Tensor.to aliasing also
+requires compatible memory format, layout and copy=False. Visible CPU integer
+trunc division checks zero then performs C++ division; no universal signed
+minimum/-1 result or exception is invented. Full generated arithmetic,
+conversion/rounding/overflow, reduction scheduling, default-context and
+layout/device/AD/error domains remain among the 14 gaps.
+
+Three selected APIs have existing partial Coeus/TEN-OPS associations; seven are
+explicitly unmapped at this source revision. The canonical validator joins the
+actual mapping records and never assumes every facade endpoint belongs to
+Coeus: an actual Eunomia association, when supplied by the canonical map, remains
+Eunomia. The Coeus facade is a proposal, while Eunomia NUM-PROMOTE supplies scalar
+policy. All actual implementation owners remain unresolved. Source-side text
+that says Coeus ownership is retained is interpreted within that proposal role,
+not used to reassign canonical owners or create mappings.
+
+Six separately tagged exact-rational complex controls verify the canonical
+oracle's input sensitivity and conjugation convention. Native Tensor shape,
+dtype/device, Python Number alpha and requires_grad leaves are checked before
+algebra. Changing inputs or cotangent while retaining stale outputs/gradients
+rejects; a correctly changed analytical control and a reformatted/reindexed
+capture remain valid. Every component and intermediate in these controls is
+binary32-exact. This finite precondition is an analytical check domain, not a
+restriction on admitted API scope or a qualification of generated arithmetic.
+
+The [conditional native plan](pytorch-20261026/acceptance-plan.json) links
+WP-001/003/004 to definition closure, Eunomia typed policy and proposed Coeus
+tensor integration. It retains all selected case obligations and gap IDs,
+explicit Storage/Promoted/Compute/Accumulator/Result policy types and real
+hardware/AD/error/release evidence requirements. Ordinary native design direction
+is authorized; it grants no concrete ADR approval, hidden widen-compute-narrow
+substitute, unsupported-capability exclusion or new user scope decision.
+
+The [opaque original README](pytorch-20261026/captured/README.source.txt) and
+history metadata retain their historical paths and pending-review labels.
+Canonical navigation uses the links above. JAX and NumPy indexes, captures,
+reviews, mappings and raw CP02 remain unchanged at introduction versions .8/.9.
+The inherited CI setup fix and protected #551 handoff remain intact; no prepared
+shared tool is adopted and no provider/build/import/network/auth action occurs.
+
+```sh
+PYTHONPATH=scripts python3 -m unittest scripts/tests/test_parity_torch_dtype.py -v
+python3 scripts/atlas-parity.py check
+python3 scripts/atlas-parity.py report
+```
+
+These checks grant no implementation, external API, performance, registry or
+release credit. Definition and release qualification remain blocked. Independent
+review of the final canonical head and normal delivery gates remain mandatory.
