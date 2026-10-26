@@ -4,6 +4,18 @@ Program 2026-10-26.9. Exact candidate identity and current hosted results belong
 in the draft PR; local evidence here describes the authored tree and commands,
 not a final merge/release certification. [Contracts](contracts.md).
 
+The initial #575 head `20ae8d85` passed its serial conformance suite and slow
+Python job, but two fast-job attempts failed in different native fixtures. The
+second exposed `rustc -vV`: missing manifest in the pinned `1.97.0` toolchain;
+the first helper's captured Cargo stderr was not exposed. Concurrent automatic
+installation is an inference from parallel consumers and incomplete installation,
+not an independently established cause. The fast workflow now prepares the root
+fixture and coherence-auditor toolchain versions and declared components serially
+before xdist starts. It uses the fixtures' existing version normalization; no pin,
+test, job timeout or gate is weakened. Failed attempts remain failed evidence.
+The resulting exact head needs independent review and fresh actual hosted checks;
+serial/slow passes do not replace a failed fast gate.
+
 The original planning/tooling slice is merged through #570 at `2dbfeabc` and
 the bounded source-disposition slice through #571 at `03464d75`. Their exact
 heads receive independent review and actual fast/slow Python, CodeQL and
