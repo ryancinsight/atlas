@@ -1,6 +1,13 @@
-# Frozen JAX promotion and casting policy
+# Frozen dtype source policies
 
-Policy **2026-10-26.1**, program **2026-10-26.8**. This source definition slice
+Program **2026-10-26.9** consumes independent source-specific policy indexes.
+Their introduction versions are immutable provenance, not a requirement to
+rewrite prior sources whenever the enclosing program advances. All source
+policies remain partial definitions with no runtime or mapping-stage credit.
+
+## JAX source policy
+
+Policy **2026-10-26.1**, introduced in program **2026-10-26.8**. This source definition slice
 preserves all **38,096** admitted candidates and their mapping stages. It adds
 no public identity, complete API mapping, runtime, performance or release credit.
 
@@ -107,3 +114,85 @@ IDs. Copied-artifact tests reindex changed files and exercise the full program
 loader; reformat/reindex remains a valid positive control. The accepted source
 packet/review and raw workflow history remain immutable. This correction still
 requires exact-head clearance before delivery.
+
+
+## NumPy native dtype source policy
+
+The [NumPy index](numpy-20261026/index.json), introduced in program
+**2026-10-26.9**, binds source packet
+`04e6d40cd363a27e7169916a1c68e6716c2ed658bd7746f1c9f93ec977265a97` and
+[independent source review](numpy-20261026/independent-review.json)
+`710b8e1d629ceb370bf70ff8866f593688f591738c44613d6072252937ddf33b`.
+NumPy remains **2.5.4**, commit `a3d0ef1df045b858e68115001fdabc930bb3b68c`.
+The accepted review covers 29 source tests, zero skips, and 211 byte-identical
+replayed artifacts. It does not review this canonical candidate or execute an
+API, provider or installed companion artifact.
+
+| Artifact | Boundary |
+| --- | --- |
+| [Lossless capture](numpy-20261026/capture.json) | Sixteen selected original roles reconstruct exact accepted bytes; original manifest/review pins remain strict |
+| [Source families](numpy-20261026/captured/native-contracts.json) and [role joins](numpy-20261026/joins.json) | Ten partial source families, three primary IDs, five supporting IDs, policy suppliers and actual canonical API mapping associations |
+| [Table policy](numpy-20261026/table-policy.json) and [symbolic cells](numpy-20261026/safe-pairs.json) | All 576 relations, including ABI expressions and nonnumeric kinds; two illustrative ABI profiles remain unobserved |
+| [Source receipts](numpy-20261026/captured/source-receipts.json), [quotes](numpy-20261026/captured/source-witnesses.json) and [bindings](numpy-20261026/source-bindings.json) | 78 file receipts, 129 exact selected function hashes/signatures, 131 bounded spans and six named registered-resolver phases |
+| [Acceptance cases](numpy-20261026/captured/acceptance-cases.json) and [benchmarks](numpy-20261026/captured/benchmarks.json) | All 47 comparator/provider specifications and every performance family remain unrun |
+| [Open gaps](numpy-20261026/captured/remaining-gaps.json) and [ownership proposal](numpy-20261026/captured/ownership-plan.json) | Descriptor/callback/payload/ABI/device/AD/source-closure obligations; no implementation owner or ADR approval |
+| [Correction disposition](numpy-20261026/correction-disposition.json) | Source-backed annotation of earlier result_type wording; historical contract/mapping bytes remain unchanged |
+
+The capture preserves symbolic relations, not a universal dtype lattice or a
+payload-representability theorem. The checker expands the pinned safe-table
+macros into all 576 cells, parses their closed comparison/boolean grammar,
+reconstructs the promotion initializer metadata and independently computes both
+illustrative profile matrices. It does not trust precomputed cells as an oracle.
+Object, structured, subarray, fixed/managed string, temporal, custom and legacy
+user descriptor callbacks retain distinct semantics outside that finite table.
+The exact observed ABI, extension callback programs, conversion kernels and all
+legal descriptor parameter combinations remain open.
+
+Registered casting implementation lookup, advertised-safety bypass, resolver
+invocation, source/target descriptor adjustment, cleanup and query-local error
+projection remain distinct phases. The registered temporal slot and its integer
+quotient branch are source-bound: same-byteorder **2001ms to 2s** satisfies
+`2001 // 2 == 1000` in the selected branch, while the durations differ. This is
+an unresolved exact-binary comparison question. It grants neither a reference
+bug waiver nor a scope exclusion, and no observed divergence is claimed.
+
+The three existing query mappings remain partial Eunomia/NUM-PROMOTE mappings.
+`numpy.dtype` and the four supporting C APIs remain explicitly unmapped.
+Descriptor/coercion and custom-dtype component planning retains Leto ownership,
+with Eunomia supplying NUM-REP policy. The source-plan label `INTEROP-NATIVE`
+is not one of the 67 registered capabilities; two families retain it explicitly
+as an unresolved prerequisite. This is ordinary provider/capability ABI design
+work, with no demonstrated irreconcilable user architecture choice. It is not
+silently reassigned to dispatch-only
+ownership. All actual implementation owners remain unresolved. One native
+generic policy encodes the representation/ABI/descriptor variation; no hidden
+widen-compute-narrow or foreign runtime architecture is authorized.
+
+The earlier result_type wording is narrower than a blanket no-value-inspection
+law: single-input descriptor discovery can depend on Python integer range;
+multi-input exact Python scalar temporaries use abstract weak kinds. The new
+annotation records this correction without rewriting the accepted core source
+or granting mapping completion.
+
+The [opaque original README](numpy-20261026/captured/README.source.txt) and source
+scope retain their original historical paths and pending-review label as exact
+source metadata. Canonical navigation uses the functional links above; the
+separate accepted review records the later source-only acceptance. Historical
+acquisition receipts describe 31 reused sources and 47 verified reads, with no
+denial or retry. This integration performs no access or network operation and
+makes no new current-access claim. Full foreign source files are not vendored;
+selected source excerpts and a frozen Git tree/receipt index preserve provenance.
+JAX's index, source, review, mappings and raw CP02 record remain unchanged.
+
+```sh
+PYTHONPATH=scripts python3 -m unittest scripts/tests/test_parity_numpy_dtype.py -v
+python3 scripts/atlas-parity.py check
+python3 scripts/atlas-parity.py report
+```
+
+The 38 NumPy integration tests include physical-file corruption followed by
+reindexing, strict status/provenance/count/role checks, source/body/phase joins,
+independent symbolic reconstruction and a valid reformatted/reindexed control.
+The current candidate still requires independent exact-head review and normal
+local/hosted delivery checks. Source checks grant no framework execution,
+performance, registry, release or whole-API qualification.

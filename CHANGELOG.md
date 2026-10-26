@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add the accepted NumPy native dtype source supplement to parity program
+  2026-10-26.9 with lossless source capture, independently reconstructed symbolic
+  relations, exact source/role guards and 47 unrun targets. Preserve JAX history,
+  existing API owners and mapping stages; no package version changes.
+
 - Define the versioned four-framework functional-parity program, release-pinned
   candidate API inventories, provider evidence reconciliation, capability owners,
   repository exit criteria and dependency-ordered work packages. Add the parity

@@ -156,3 +156,31 @@ publication caller, registry credentials, environment or deployment settings.
 Required main status rules currently name workflow lint and the debt ratchet;
 the new program additionally requires independent review even though the
 observed rule set has no required-approval rule. Reinspect on any later merge.
+
+
+### Protected shared-tool prerequisite observed October 26
+
+[Atlas #551](https://github.com/ryancinsight/atlas/pull/551) remains with recorded
+integrator task `01a169d2-8b8f-7b90-a5bd-79e24b4cb6c7`, continuation `/2`.
+Observed draft head `811a704864c3b30fb269f12196396b25099c3130` has failing hosted
+coherence/debt/member-pin gates; skipped draft Python jobs grant no verification.
+Prepared source `741aecf6b41c64810bf77a58806f07c5284c9e2d` is not adopted here.
+The durable-host task read is unavailable, so owner liveness and delivery are
+unverified; this is not an access denial or permission to create another owner.
+
+Aequitas PyPI repair task `01a178af-6ebf-7316-9b0a-f8336170703a` records candidate
+`ffc58aa07bd6e7e442dd7ac9b8b78a84c2311584` and trusted Atlas checker
+`f642337d67a7853e9c81a2f6fb07cd45a5691d83`: the normal hook's `--command-cwd`
+argument is rejected with argparse exit 2 before Cargo starts. This establishes
+a shared-tool interface prerequisite, not a Rust/Clippy or resource failure.
+The [exact protected checker source](https://github.com/ryancinsight/atlas/blob/811a704864c3b30fb269f12196396b25099c3130/scripts/atlas_cast_gate.py#L587)
+contains the corresponding flag; source presence grants no qualification.
+
+The coordinator must resume the recorded owner or arrange an explicit transfer
+that preserves its history before any successor is appointed. That owner must
+qualify the matching shared-tool change through independent exact-head review,
+normal actual CI/security/coherence checks and applicable policy/deployment
+gates. After trusted merged tooling is available, the existing PyPI worker can
+rerun its unchanged normal hook on the final reviewed candidate. Publication
+holds stay separate. This source-definition increment changes no #551 branch,
+member tooling, provider pin, credential, timeout or access setting.
