@@ -1,5 +1,11 @@
 # Core tensor model and framework contracts
 
+The [TF conversion follow-up](tf-conversion-20261026/README.md), introduced in
+program **2026-10-26.12**, complements the preserved cast/add/shape snapshot below.
+It retains ten existing IDs, four partial/six unmapped associations, 30 UNRUN
+targets and ten open gaps. Its primary API remains unmapped; source review and
+mathematical controls grant no implementation, native execution or release credit.
+
 Model **2026-10-26.1**, program **2026-10-26.7**. This slice defines source branches
 for 39 existing public identities: 37 new partial mappings and two reused NumPy
 metadata mappings. The inventory remains **38,096 candidates: two source-specified,

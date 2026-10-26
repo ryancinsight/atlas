@@ -97,3 +97,9 @@ conflicts; 974 testing-callable source views add no APIs or runtime credit.
 Source certificates bind exact original manifests/reviews; live owner/mapping
 associations are joined independently. No public-scope admission exemptions are
 applied, including the three uncertified NumPy internal proposals.
+
+The [TensorFlow conversion boundary](core-tensor/tf-conversion-20261026/README.md),
+introduced in program **2026-10-26.12**, preserves one unmapped primary API and
+ten existing identities with 30 UNRUN cases/ten open gaps. It adds reviewed
+source/analytical guards with separate live owner joins, without changing public
+IDs, mappings or execution/release credit.
