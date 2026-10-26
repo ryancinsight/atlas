@@ -229,8 +229,9 @@ NumPy getter-versus-setter wording before acceptance. Independent model review
 finds eager construction of unused coordinate pools and witnesses losing their
 named boundaries. The fixes return an empty iterator before pool allocation and
 validate each defining relational condition. Original findings remain recorded.
-Denied PR creation stays stopped; local/source validation supplies no hosted CI
-or release gate. Definition qualification remains false.
+The historical connector denial remains recorded. Later explicit CLI direction
+permits creation of PR#572 without retrying that connector. Local/source checks
+supply no hosted CI or release gate. Definition qualification remains false.
 
 Final local validation of the core slice passes139 parity tests with zero skips,
 the canonical check/report, Markdown link checks and board lint. Independent

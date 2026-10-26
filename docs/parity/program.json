@@ -28,7 +28,7 @@
     "Current local native candidate cab5499f awaits same-reviewer exact-head sign-off; parent b50a96cf passed scoped source review. Controlled Linux 108-pair-per-policy and30shared-queue performance, actual Linux/Windows, all-feature/security/ADR and ordered registry acceptance remain open. Notification integrationHTTP403 stays stopped.",
     "Notification commit d94d5ab6 is pushed; draft PR creation denied HTTP403, no CI/merge/publication; no alternate-route retry permitted",
     "Apollo original service hold and #696 version/license/registry blockers remain",
-    "CPU gamma candidate locally qualified at owned Eunomia/Leto/Coeus heads; delivery integration403 holds; user reports existing CLI login and owner identity verification is pending; registry/fresh consumer, full dtype/AD/device/performance and selected-cohort integration remain open; no path-overlay completion credit"
+    "CPU gamma candidate locally qualified at owned Eunomia/Leto/Coeus heads; delivery integration403 holds; existing CLI identity is verified and provider feature pushes are reported; full downstream delivery remains pending; registry/fresh consumer, full dtype/AD/device/performance and selected-cohort integration remain open; no path-overlay completion credit"
   ],
   "objective": "Full documented NumPy/JAX/PyTorch/TensorFlow functional equivalence under Atlas first-party native generic provider architecture.",
   "observed_at": "2026-10-26",

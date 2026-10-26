@@ -49,6 +49,15 @@
   "atlas_public_scope_delivery_20261026": {
     "branch": "docs/parity-public-contracts-20261026",
     "ci": "No PR-triggered exact-head CI exists; local/source checks do not replace hosted gates",
+    "cli_delivery": {
+      "base": "main",
+      "connector_denial_retried": false,
+      "creation": "confirmed using existing gh CLI session after duplicate check returned empty",
+      "head": "f09f078edda6367304763b1e977a8771066bdffe",
+      "merge_or_release": false,
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/572",
+      "state": "created; hosted exact-head checks and normal readiness required"
+    },
     "confirmed_pushed_revision": "f09f078edda6367304763b1e977a8771066bdffe",
     "draft_pr": {
       "base": "main",
@@ -63,7 +72,7 @@
     },
     "historical_pushed_revision": "3d765a943cbaf7e6b6456b1e815b7fcc4d684a04",
     "merge_or_release": false,
-    "remaining_delivery_gates": "Reviewed/pushed f09f078e;115 focused tests0skip and exact-head independent review clear. Draft creation403 remains denied; no PR, hosted CI, merge or1.0 clearance."
+    "remaining_delivery_gates": "Existing f09 exact-head independent review clear,115focusedtests0skip. CLI PR#572 now created; required hosted tests/security/conformance and final policy/readiness inspection remain before conditional merge. No definition or1.0 clearance."
   },
   "atlas_workflow_scope_delivery_20261026": {
     "base_revision": "f09f078edda6367304763b1e977a8771066bdffe",
@@ -115,7 +124,8 @@
   },
   "gammaln_implementation_owner_20261026": {
     "authentication_handoff": {
-      "identity_outcome": "parent relay pending; no duplicate planning probe",
+      "authorized_repository_route": "Explicit later user direction authorizes existing gh CLI session for policy/deployment reads and draft creation; connector is not retried and no credentials/access settings change.",
+      "identity_outcome": "verified ryancinsight via parent minimal-account receipt; no additional login or planning probe needed",
       "identity_verification_owner": "01a17793-e227-73cf-b347-6c85477ef010",
       "integration403_hold_resolved": false,
       "source": "Trusted parent delegation after user Mac CLI login",
@@ -129,7 +139,7 @@
       "leto": "93e2a8c653252dfc943339c1bcec143a663a77d6"
     },
     "default_cohort_qualification": false,
-    "delivery": "No delivery attempt established by captured gamma receipt. User reports Mac CLI login as ryancinsight; gamma owner verifies existing-session identity nonmutatively. Integration403 operations remain held pending relevant verified access evidence; planning performs no auth probe, alternate PR route or credential change.",
+    "delivery": "Existing CLI identity ryancinsight is verified by parent. Eunomia/Leto feature pushes are reported successful; planning has not independently read their exact remote refs, and no complete Coeus/registry/release result is inferred. Captured invalid-CLI receipt remains historical.",
     "gpu": "Separate mandatory acceptance; no silent CPU fallback",
     "heavy_slot": "No resource assignment inferred by planning; parent coordinates existing owner.",
     "historical_baseline_gap": "Current source rejects gradient-tracked inputs per parent; no completion or tests inferred",

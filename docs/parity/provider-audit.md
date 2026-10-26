@@ -218,3 +218,13 @@ requires the existing CLI session rather than a supplied token. The gamma owner
 checks identity nonmutatively; this planning lane does not duplicate that probe.
 The earlier invalid-CLI receipt remains historical. Verified access findings are
 pending, and integration403 write holds are not resolved by the report alone.
+
+The next parent receipt verifies existing CLI identity ryancinsight and reports
+Eunomia/Leto feature pushes successful. Subsequent explicit user direction
+authorizes `gh` CLI repository operations using that session. The original
+connector403 is not retried or treated as integration repair. A duplicate check
+returns no public-contract PR; CLI creation then confirms
+[Atlas#572](https://github.com/ryancinsight/atlas/pull/572) at exact f09.
+Hosted checks and all ordinary gates remain mandatory. No credential, permission
+or deployment settings change occurs. Gamma downstream/registry/release evidence
+remains with its existing owner; no path-overlay completion is inferred.

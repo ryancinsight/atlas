@@ -84,10 +84,12 @@ and locked API comparisons pass; 57 skipped checks per API package receive no
 credit. A task-private Git cache is not fresh remote/registry availability. Device,
 full AD, performance and coherent release gates stay open. Its existing owner
 retains delivery. The audit records prior invalid CLI authentication/policy reads403;
-the user now reports existing-session CLI login, with owner verification pending.
-Integration403 holds remain; planning performs no duplicate auth probe.
+the existing CLI identity is now verified and Eunomia/Leto feature pushes are
+reported successful. Exact downstream/registry/release qualification stays open.
 
-Reviewed snapshots `f09f078e`/`da03f4ea` remain preserved. Atlas draft PR creation
-remains **denied** by integration HTTP403, `Resource not accessible by integration`;
-matching-PR readback was empty. No alternate route, access change, PR CI, merge or
-release is inferred. This core slice requires its own final-head review/checks.
+Reviewed snapshots `f09f078e`/`da03f4ea` remain preserved. The historical connector
+attempt returned HTTP403 and created no PR; that connector is not retried. Later
+explicit user direction authorizes the verified existing `gh` CLI session.
+[PR#572](https://github.com/ryancinsight/atlas/pull/572) is created at exact f09.
+Hosted checks, normal readiness and independent review remain mandatory before
+conditional merging. No credentials/access change or1.0 qualification follows.
