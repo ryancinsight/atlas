@@ -163,6 +163,10 @@ def companion_header(disposition):
 def prepare_dtype_policy(root, relative, program):
     """Reject malformed source-only wrappers before loading large API ledgers."""
     root = root.resolve()
+    # Introduction version is immutable source provenance, not the enclosing
+    # program's current revision. Later programs still consume these exact bytes.
+    need(relative == PREFIX + 'index.json' and program['files'].get('dtype_policy') == relative,
+         'dtype JAX program files role association differs')
     index_path = local_path(root, relative)
     index = read_json(index_path)
     exact_fields(index, {'schema_version': int, 'version': str, 'artifacts': list, 'status': dict,
@@ -170,7 +174,7 @@ def prepare_dtype_policy(root, relative, program):
         'parent_program_version': str, 'source_manifest_sha256': str, 'independent_review_sha256': str,
         'original_source_review_scope': str}, 'dtype index source-only header')
     need(index['schema_version'] == 1 and index['version'] == '2026-10-26.1' and
-         index['parent_program_version'] == program['program_version'] and
+         index['parent_program_version'] == '2026-10-26.8' and
          index['source_manifest_sha256'] == PACKET_SHA and index['independent_review_sha256'] == REVIEW_SHA,
          'dtype index version/pin drift')
     need(index['original_source_review_scope'] == 'accepted_source_only_not_exact_canonical_candidate_review',
