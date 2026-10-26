@@ -1,0 +1,313 @@
+{
+  "decisions": [
+    {
+      "alternatives": [
+        {
+          "choice": "Embed JAX/jaxlib/XLA architecture as production computation",
+          "disposition": "incompatible_with_workspace_direction"
+        },
+        {
+          "choice": "Drop extension/compiler APIs because spelling or implementation differs",
+          "disposition": "unapproved_scope_reduction_rejected"
+        }
+      ],
+      "disposition": "scope_and_architecture_direction_resolved_implementation_ADR_required",
+      "existing_resolutions": [
+        "DEC-001",
+        "DEC-004",
+        "DEC-006",
+        "DEC-009"
+      ],
+      "id": "JAX-DESIGN-001",
+      "owner": "coeus",
+      "recommendation": "Retain tracing/IR/control effects, custom AD/batching rules, JIT/AOT, extension/lowering and portable export semantics. Implement typed first-party Coeus program transformations; Hephaestus owns native target lowering, Moirai execution. Treat documented XLA/MLIR/Pallas interfaces as functional language/format contracts, preserving behavior through first-party representations rather than embedding a third-party runtime.",
+      "remaining_work": "Approve concrete IR/effect/target-language design and map each extension signature, output artifact and error. Native kernel/lowering groups are source-linked routing, not an approved compiler implementation.",
+      "sources": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/api_compatibility.md#L92-L99",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.extend.rst#L11-L21",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/aot.md#L22-L42"
+      ],
+      "title": "First-party transforms, compiler and target interfaces"
+    },
+    {
+      "alternatives": [
+        {
+          "choice": "Always widen every reduced-precision array operation",
+          "disposition": "violates_workspace_native_T_requirement"
+        },
+        {
+          "choice": "Always compute arange explicit step in output T and call it equivalent",
+          "disposition": "requires_proof_cannot_assume_equivalence"
+        },
+        {
+          "choice": "Remove low-bit/reduced-precision dtypes from scope",
+          "disposition": "unapproved_scope_reduction_rejected"
+        }
+      ],
+      "consumers": [
+        "coeus",
+        "leto",
+        "hephaestus"
+      ],
+      "disposition": "concrete_algorithm_precision_policy_requires_design_review",
+      "existing_resolutions": [
+        "DEC-007",
+        "DEC-009"
+      ],
+      "id": "JAX-DESIGN-002",
+      "owner": "eunomia",
+      "recommendation": "Preserve native declared-T default arithmetic. For the frozen arange explicit-step low-precision contract, derive the reference rounding algorithm and encode any necessary working precision as an explicit, justified numerical policy; alternatively reproduce the reference rounding through a native implementation with proved equivalence. Do not hide widening in a generic kernel or silently drop the low-precision variant.",
+      "remaining_work": "Materialize dtype-by-branch rounding witnesses and a reviewed policy. If no policy satisfies both the required reference observable behavior and native-T constraints, surface that specific irreconcilable case to the program owner; this audit does not approve a widening exception.",
+      "sources": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/lax_numpy.py#L5952-L6013"
+      ],
+      "title": "Explicit comparator precision versus native arithmetic"
+    },
+    {
+      "alternatives": [
+        {
+          "choice": "Exclude refs/stateful APIs because the workspace favors functional code",
+          "disposition": "unapproved_scope_reduction_rejected"
+        },
+        {
+          "choice": "Treat callbacks/effects as no-op tracing metadata",
+          "disposition": "not_functionally_equivalent"
+        }
+      ],
+      "disposition": "scope_resolved_effect_representation_ADR_required",
+      "existing_resolutions": [
+        "DEC-003",
+        "DEC-004",
+        "DEC-006"
+      ],
+      "id": "JAX-DESIGN-003",
+      "owner": "coeus",
+      "recommendation": "Retain refs, stateful PRNG, callbacks, ordered effects and donation/aliasing as public functional-equivalence contracts. Represent state transition, ownership and effect order explicitly through typed program/actor/resource boundaries. Pure array update APIs retain value semantics; source compiler in-place optimization is not user-visible mutation permission.",
+      "remaining_work": "Define AD/JIT/vmap effect admissibility and negative contracts, resource lifetime/cancellation and callback failure propagation at each signature.",
+      "sources": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_methods.py#L1024-L1058",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.ref.rst#L6-L21",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.experimental.random.rst#L6-L10"
+      ],
+      "title": "Effectful APIs under functional workspace boundaries"
+    },
+    {
+      "alternatives": [
+        {
+          "choice": "Remove Compiled.__call__ because autodoc may obtain only a generic metaclass docstring",
+          "disposition": "contradicted_by_explicit_public_AOT_workflow"
+        },
+        {
+          "choice": "Assume Compiled call accepts all transforms because ordinary jitted functions do",
+          "disposition": "contradicted_by_frozen_reference"
+        }
+      ],
+      "disposition": "resolved_reference_semantic_variant_requires_tests",
+      "existing_resolutions": [
+        "DEC-004",
+        "DEC-007"
+      ],
+      "id": "JAX-DESIGN-004",
+      "owner": "coeus",
+      "recommendation": "Implement trace/lower/compile/call specialization and explicitly reject AD, vmap and jit on already AOT-compiled functions in the circumstances documented by the frozen reference. Preserve these rejection contracts as tested parity obligations. Compiled.__call__ is a documented callable workflow even though its individual getter lacks an own docstring.",
+      "remaining_work": "Define valid specializations, compile/call mismatch errors, all transformed rejection cases, donation/liveness and compiler-analysis availability.",
+      "sources": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/aot.md#L74-L106",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/aot.md#L185-L224",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L962-L971"
+      ],
+      "title": "AOT invocation and transform rejection"
+    },
+    {
+      "alternatives": [
+        {
+          "choice": "Use an older JAX workaround",
+          "disposition": "not_authorized"
+        },
+        {
+          "choice": "Use silent host fallback or omit unavailable devices",
+          "disposition": "not_parity"
+        },
+        {
+          "choice": "Treat an unbounded dependency requirement as an exact environment pin",
+          "disposition": "not_reproducible"
+        }
+      ],
+      "disposition": "reference_environment_pin_and_hardware_receipts_pending",
+      "existing_resolutions": [
+        "DEC-002",
+        "DEC-005",
+        "DEC-008"
+      ],
+      "id": "JAX-DESIGN-005",
+      "implementing_owners": [
+        "coeus",
+        "hephaestus",
+        "eunomia",
+        "tyche"
+      ],
+      "owner": "atlas",
+      "recommendation": "Keep frozen JAX 0.12.0.1. Resolve a current coherent reference oracle environment within its actual dependency requirements, recording exact JAX/jaxlib/NumPy/ml_dtypes/plugin/compiler/driver/hardware hashes and numerical configuration. Companion reexports and generated/native signatures remain unresolved until their exact artifacts are selected. Device absence blocks qualification, not the inventory.",
+      "release_metadata_receipt": {
+        "path": "/tmp/atlas-numpy-jax-parity/jax/release.json",
+        "sha256": "f8d1af9d20575aa8534bf5ef586ae6d0bf09c27ec329cba0c94c4de554effc62",
+        "source": "https://pypi.org/pypi/jax/0.12.0.1/json"
+      },
+      "remaining_work": "25 external reexport signatures and generated/native constructors/objects require source/artifact evidence. No runtime installation or execution is performed by this lane.",
+      "sources": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/api_compatibility.md#L62-L65",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/api_compatibility.md#L101-L117"
+      ],
+      "title": "Reference companion and target qualification"
+    },
+    {
+      "alternatives": [
+        {
+          "choice": "Silently exclude stale documented entries",
+          "disposition": "unapproved_scope_reduction_rejected"
+        },
+        {
+          "choice": "Assume serialization and calling-convention versions are the same",
+          "disposition": "unsupported_semantic_equivalence"
+        }
+      ],
+      "disposition": "documented_scope_retained_exact_reference_binding_pending",
+      "existing_resolutions": [
+        "DEC-001",
+        "DEC-006"
+      ],
+      "id": "JAX-DESIGN-006",
+      "owner": "coeus",
+      "recommendation": "Retain jax.export.minimum_supported_serialization_version and maximum_supported_serialization_version as documented obligations. The frozen public export module has neither a binding nor __all__ entry. Resolve exact tagged release-artifact behavior and intended semantic contract; do not replace them with similarly named calling-convention constants or delete them as unsupported.",
+      "remaining_work": "Characterize missing-binding/attribute behavior and locate authoritative versioned serialization contract without retrying the stopped docs route.",
+      "sources": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.export.rst#L49-L58",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/export.py#L14-L42"
+      ],
+      "title": "Source declaration/export drift"
+    },
+    {
+      "alternatives": [
+        {
+          "choice": "A statistical distribution test alone proves deterministic key semantics",
+          "disposition": "insufficient"
+        },
+        {
+          "choice": "Assume cross-version/back-end bitstream identity promised by compatibility policy",
+          "disposition": "not_promised_by_reference"
+        }
+      ],
+      "disposition": "frozen_reference_contract_direction_resolved_fixture_matrix_pending",
+      "existing_resolutions": [
+        "DEC-005",
+        "DEC-007"
+      ],
+      "id": "JAX-DESIGN-007",
+      "owner": "tyche",
+      "recommendation": "Keep typed/legacy keys, split/fold-in/clone, stateful APIs and extension PRNGs. Distinguish distributional correctness from exact frozen implementation/backend bitstreams. Record implementation selection and configuration; preserve both positive distribution/property evidence and required bitstream witnesses.",
+      "remaining_work": "Map each generator, state/key type and device with deterministic and distributional test obligations; quantify statistical tests analytically before execution.",
+      "sources": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/api_compatibility.md#L101-L117",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.random.rst#L9-L22"
+      ],
+      "title": "RNG version and backend variants"
+    },
+    {
+      "disposition": "admitted_set_accounted_full_namespace_not_closed",
+      "existing_resolutions": [
+        "DEC-001",
+        "DEC-006"
+      ],
+      "id": "JAX-DESIGN-008",
+      "owner": "atlas",
+      "recommendation": "Use exact source documentation/export/stability evidence. Keep experimental/example/semi-public extension APIs. Source-requested attributes lacking public evidence remain unresolved, not excluded; do not inflate public scope with private helper implementation names. Deduplicate only proven source identities while preserving every public API and signature variant.",
+      "remaining_work": "Resolve three requested attributes; reconcile 544 additional export-shaped spellings plus partial module/class member expansion and generated views. Exact rendered receipt is unavailable after HTTP403; do not retry or bypass that route.",
+      "sources": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/api_compatibility.md#L49-L65",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/api_compatibility.md#L67-L99",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L11-L23"
+      ],
+      "stopped_route_receipt": "inputs/versioned-docs-access.json",
+      "title": "Publicness, source selectors and remaining namespace closure"
+    }
+  ],
+  "framework": "jax",
+  "implementation_ADR_signoff_claimed": false,
+  "schema_version": 1,
+  "scope_reductions_authorized": false,
+  "source_revision": "dc4af684446e65ee98eee8090e1ff6f8211473fb",
+  "sources": [
+    {
+      "git_blob_sha": "72f6c9b5ffc874ff7b6f342c2ad5ab59000ac898",
+      "path": "docs/aot.md",
+      "sha256": "0c306216e8c3ff9c4cddc4c16dac0bc8e7f8fb0ea88165d97ee51c5256789c23",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/aot.md"
+    },
+    {
+      "git_blob_sha": "985b2145c5c4fe9e2bb7301be6345d3c31df18f5",
+      "path": "docs/api_compatibility.md",
+      "sha256": "628dec9fd7544e81ef65869dd0fb29f2f89c3c8f42fd2435ea5fcba751035e4a",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/api_compatibility.md"
+    },
+    {
+      "git_blob_sha": "9e9c7092fad5b2276313f1c0a6d1f444d1ff4662",
+      "path": "docs/jax.experimental.random.rst",
+      "sha256": "dcf3c6417259ea3b5d8ca393d1e7cea0fa1e82d1cb8006190b971a838c345df4",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.experimental.random.rst"
+    },
+    {
+      "git_blob_sha": "397061a3e46cd634d1dbe8d6cab1bdc92bf6f4d0",
+      "path": "docs/jax.export.rst",
+      "sha256": "e213fe3778dc627215991c2af52e23c4466dd9a373358ce3d2227d61c1a7ebee",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.export.rst"
+    },
+    {
+      "git_blob_sha": "c65b96599a952975b5c2063044725f0b7902c5af",
+      "path": "docs/jax.extend.rst",
+      "sha256": "7f35614e4d216ffb828641f10feddb069913bb65d5ed36e863098b438e2ec5af",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.extend.rst"
+    },
+    {
+      "git_blob_sha": "f5762be24d436b27778c449ff6308207d1f4d5a3",
+      "path": "docs/jax.random.rst",
+      "sha256": "5b44c009e16dcbcb5e61885340e041fb8212fc57c778bb2b9e4981f2685cb370",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.random.rst"
+    },
+    {
+      "git_blob_sha": "d22e6314a8d27c3165ca1268d02f50d6f79a3775",
+      "path": "docs/jax.ref.rst",
+      "sha256": "b55093dd1ad93c683e79ab0a9a70771cb92442138f68949279ef0d8b11d11543",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.ref.rst"
+    },
+    {
+      "git_blob_sha": "d26def14dca0e64c07adcf9324ea1c6601658828",
+      "path": "docs/jax.stages.rst",
+      "sha256": "606603410c3b97eb0f92b6e2866b98777a77d53c871ed8431ca939796a5adb1f",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst"
+    },
+    {
+      "git_blob_sha": "a53089e87667937a0d457b4b5ff1be69c6911959",
+      "path": "jax/_src/numpy/array_methods.py",
+      "sha256": "37410ddaa4f6778e0a289e9de4eef6794887fbcdec5a85182a87e217670cb08b",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_methods.py"
+    },
+    {
+      "git_blob_sha": "fd8ad9482bf013e07029952c63c14ea11a14b162",
+      "path": "jax/_src/numpy/lax_numpy.py",
+      "sha256": "4923a8e2e60112c1955b7f3f056cff1062394fb055b7ca17c2d96ed6cb573ee5",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/lax_numpy.py"
+    },
+    {
+      "git_blob_sha": "d80052c0d0a250b08b76d8524a3e21cdf2a87f61",
+      "path": "jax/_src/stages.py",
+      "sha256": "85faffefd43598283b52e22c5d99293b05702f9796b1c898000d3d2c38a7aca2",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py"
+    },
+    {
+      "git_blob_sha": "dd21b17e3c295f5cd88ed9a0459a9498327ecac4",
+      "path": "jax/export.py",
+      "sha256": "094fbbbb264b1909a4469ab674cb7e4073f55d55bb059691ae86c4926cf7e5f9",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/export.py"
+    }
+  ]
+}

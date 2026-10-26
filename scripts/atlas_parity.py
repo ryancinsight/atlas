@@ -15,6 +15,7 @@ from atlas_parity_closure import validate_closure
 from atlas_parity_evidence import (PROMOTED, review, states, validate_evidence,
                                    validate_mappings, validate_source_definition)
 from atlas_parity_references import references
+from atlas_parity_scope import validate_scope
 from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
 from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, https,
                                  local_path, need, nonempty, read_json, revision, unique)
@@ -105,6 +106,9 @@ def load(root: Path = DEFAULT) -> dict:
     program_structure(program, capabilities, repositories, packages)
     refs, summaries = references(root, program["reference_snapshots"])
     closure, extra_inputs = validate_closure(root, program["files"].get("reference_closure"), program)
+    scope, scope_inputs = validate_scope(root, program["files"].get("public_scope"), refs,
+                                        capabilities, repositories)
+    extra_inputs.extend(scope_inputs)
     mappings, assigned = validate_mappings(objects["mappings"], capabilities, refs, repositories)
     specified = {ref: mapping_id for ref, mapping_id in assigned.items()
                  if mappings[mapping_id]["status"]["mapping"] == "specified"}
@@ -159,6 +163,7 @@ def load(root: Path = DEFAULT) -> dict:
               "specified": specified,
               "decisions": decisions,
               "reference_closure": closure, "extra_inputs": extra_inputs,
+              "public_scope": scope,
               "repository_evidence": repository_evidence, "qualified_repositories": qualified_repositories}
     if program["definition_complete"]:
         need(not definition_blockers(result), "definition_complete contradicts unresolved obligations")
@@ -172,6 +177,13 @@ def definition_blockers(bundle: dict) -> list[str]:
     unresolved = len(bundle["references"]) - len(bundle.get("specified", bundle["assigned"]))
     if unresolved:
         blockers.append(f"{unresolved} API declarations lack complete semantic mappings")
+    scope = bundle.get("public_scope", {}).get("summary", {})
+    publicness = scope.get("visibility", {}).get("publicness_unresolved", 0)
+    ownership = scope.get("ownership_unresolved_candidates", 0)
+    if publicness:
+        blockers.append(f"{publicness} candidate declarations have unresolved publicness")
+    if ownership:
+        blockers.append(f"{ownership} candidate declarations lack a planned provider route")
     if program["open_decisions"]:
         blockers.append(f"{len(program['open_decisions'])} scope/architecture decisions open")
     blockers.extend(program["definition_gaps"])
@@ -219,6 +231,7 @@ def report(bundle: dict) -> dict:
             "open_policy_decisions": len(bundle["program"]["open_decisions"]),
             "implementation_blockers": bundle["program"]["implementation_blockers"],
             "reference_closure": bundle["reference_closure"],
+            "public_scope": bundle["public_scope"]["summary"],
             "definition_blockers": definition_blockers(bundle)}
 
 

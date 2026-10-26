@@ -1,0 +1,1324 @@
+{
+  "contracts": [
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "zeros/ones/full: scalar, (2,3), zero dimension; nontrivial full broadcast [2,5,9] into (2,3).",
+        "arange/linspace/logspace/geomspace: endpoint/step/count/axis/dtype variants, negative counts and signed/complex domains from exact source contract."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-CREATE",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-create",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "arrays",
+      "name": "Array construction, coercion and fill",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-CREATE",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "NUM-PROMOTE",
+        "MEM-OWN",
+        "INTEROP-DISPATCH"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.array-creation.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize the exact binding/conversion/like/device-dispatch order and effects before final output allocation; array-like protocol results and exceptions compose without implicit detachment. Intermediate allocations or custom effects cannot be reordered by this schema.",
+        "For fill workflows, broadcast fill values into exactly the requested shape; casting, descriptor initialization, object reference ownership and failure cleanup remain source-defined.",
+        "Copy, view and ownership outcomes are observable. Preserve rank-zero, empty, negative-stride, structured/subarray/object/string/temporal/extension representations where admitted."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Existing source-specified ndim/shape branch cases; custom type-object lookup failure vs successful invocation failure.",
+        "Rank-zero/empty/noncontiguous/negative/zero stride descriptors; size overflow remains explicitly partial."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-LAYOUT",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-metadata",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "arrays",
+      "name": "Shape, rank, size, strides and flags",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-LAYOUT",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-CREATE",
+        "CAP-PROOF",
+        "INTEROP-DISPATCH"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.ndarray.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Built-in ndarray metadata derives from descriptor shape/strides/dtype/flags, not numeric element values. Subclasses or delegated metadata can override this fact.",
+        "ndim/shape source contracts compose __array_function__ lookup, metadata delegation and coercion. Preserve arbitrary custom outputs and identity rather than coercing every result to int/tuple.",
+        "Size products retain npy_intp/compiler/ABI definedness obligations. No unbounded-product claim or reference-bug waiver covers overflow regions."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Shape(2,3), transpose, reversed axis and broadcast zero stride; mutation through a valid view reaches the original element.",
+        "Reshape compatible/incompatible layouts and overlapping output; verify identity, sharing and rejection independently of values."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-LAYOUT",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-layout",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "arrays",
+      "name": "Reshape, transpose, views and copies",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-LAYOUT",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-CREATE",
+        "CAP-PROOF",
+        "INTEROP-DISPATCH"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.array-manipulation.rst#L1",
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/multiarray.py#L1322",
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/multiarray.py#L1401"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Represent logical index mapping to storage by offset + sum(index_i * stride_i), with validated lifetime, byte order, alignment and overlap constraints.",
+        "Each transformation supplies output shape/index map plus the source-defined view-or-copy condition and order. An allocation that changes reference alias behavior is not equivalent.",
+        "Broadcasting, permutation, reshape and stride tricks have distinct legality/injectivity/writeability conditions; dangerous or rejected cases remain explicit obligations.",
+        "shares_memory is exact by default; may_share_memory is conservative bounds checking by default. Overlap is about represented byte sets, not merely common base identity. Work limits, overflow, protocol conversion and the documented/native max_work=0 discrepancy remain separate cases."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Mixed indices of a nontrivial (2,3,4) array; scalar vs length-one advanced index; repeated scatter targets.",
+        "Negative/out-of-range axes and indices, boolean shape mismatch and index conversion side effects."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-INDEX",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-index",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "indexing",
+      "name": "Basic/advanced indexing, gather and scatter",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-INDEX",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-LAYOUT"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.indexing.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize each index's exact integer/boolean/slice/ellipsis/newaxis conversion, bounds and axis processing, including the source-defined order of shape derivation, validation and protocol effects.",
+        "Basic slicing, advanced integer indexing and boolean indexing use separate shape/ordering/copy rules; repeated-index mutation requires operation-specific buffering semantics.",
+        "Negative indices, duplicate indices, mixed basic/advanced axes, empty selections and invalid broadcasts remain distinct variants."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Unequal shaped concatenation on valid axis, stack introducing an axis, uneven split and zero-length segment."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-JOIN",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-join",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "arrays",
+      "name": "Concatenation, stacking, splitting and tiling",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-JOIN",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-LAYOUT"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.array-manipulation.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Construct the output index map from operand partitions and exact normalized axes; concatenate and stack differ by whether an existing or new axis is used.",
+        "Shape compatibility, dtype promotion/casting, out/order/copy ownership and empty-input cases are per signature variant.",
+        "Splitting equal/unequal segments, repetition, tiling and padding do not share one universal boundary rule."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Nontrivial broadcast (2,1)+(1,3); exceptional values, adjacent representable values, signed zero and invalid casts."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-ELEMENT",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-element",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "arrays",
+      "name": "Elementwise arithmetic, predicates and numeric functions",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-ELEMENT",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "NUM-PROMOTE",
+        "ARR-LAYOUT",
+        "CPU-LANE"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.math.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "For every valid broadcast index, compute the operation's source-defined scalar law using resolved input/calculation/output dtypes; scalar law is an explicit operation parameter, never inferred from the name.",
+        "NaN/Inf/signed zero, integer overflow, complex branches, temporal/string/object dispatch and floating-error modes are observable variants.",
+        "out/where, overlap, subclass/protocol dispatch and mutation follow their own source branches; a newly allocated where-false region has no fabricated value contract."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Object-specific scalar/broadcast/generalized cases and multi-output divmod/modf/frexp; per-object/member declarations link the separate ufunc expansion."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-ELEMENT",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:ufunc-call",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "ufunc",
+      "name": "Ufunc common call and generalized-core schema",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-ELEMENT",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "NUM-PROMOTE",
+        "ARR-LAYOUT",
+        "CPU-LANE"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/ufuncs.rst#L1",
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/_ufunc_config.py#L162"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize by generated object identity, nin/nout, scalar broadcasting or exact generalized core signature, default identity/reorderability and selected type-loop/promoter state.",
+        "A gufunc core mapping, optional dimensions and axes/axis/keepdims legality are operation-specific; they cannot inherit scalar broadcasting or where availability blindly.",
+        "Preserve exact argument/output arity, tuple outputs, out=Ellipsis, casting/order/dtype/signature/subok, masks and __array_ufunc__ ordering. Inspect signatures are views rather than complete native parsers.",
+        "getbufsize/setbufsize are ufunc execution-state operations; preserve prior-size return and errstate/context-variable restoration. They are not testing/profiling tools."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Non-associative subtract scan and reduceat with nonincreasing indices; add.at with repeated indices.",
+        "matmul.reduce RuntimeError vs matmul.outer TypeError; divmod.outer remains a candidate; multi-output at rejects."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-REDUCE",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:ufunc-fold",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "ufunc",
+      "name": "Ufunc reduce, accumulate, reduceat, outer and at variants",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-REDUCE",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-ELEMENT"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/ufuncs.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Reduce-like workflows first enforce the native generalized/binary/single-output descriptor guards. Ordered scan, arbitrary indexed segments, masked fold and initial identity remain separate method variants.",
+        "Outer checks generalized/binary input arity without a single-output guard. at performs unbuffered indexed in-place updates and preserves repeated-index effects.",
+        "resolve_dtypes(reduction=True) checks nin/nout but not the generalized-core guard; dtype-mode acceptance does not establish actual reduction availability."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Nontrivial axis/tuple/None/empty tuple reductions; ill-conditioned sum, empty and all-masked operands."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-REDUCE",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-reduce",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "arrays",
+      "name": "Aggregations and cumulative operations",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-REDUCE",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-ELEMENT"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.statistics.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Normalize/materialize axes according to the operation before reduction; preserve empty-axis tuple, keepdims, initial, where and accumulator dtype distinctions.",
+        "Operation identity, order, NaN/mask policy, stable/numerically conditioned algorithms and all-masked/empty results are independent parameters.",
+        "Output shape, scalar wrapping, out alias/casting and mutation failures are observable."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Repeated values with payload indices; structured fields, NaNs, signed zero, complex and stable/unstable modes."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-SORT",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-sort",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "indexing",
+      "name": "Ordering, searching and set operations",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-SORT",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-INDEX"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.sort.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize total/partial ordering, NaN/complex/structured-field order, stable tie behavior, axis and sort/search kind.",
+        "Value and permutation/index outputs must refer to the same original elements, including duplicates; destructive partition and sorted copy are separate variants.",
+        "Set operations retain flattening, assume_unique, sorting and inverse/count/index conventions. Moving duplicate elimination across validation or observable effects requires a source-equivalence proof."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Known weighted moments; quantile endpoints and repeated samples; samples exactly on histogram edges."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-STATS",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-statistics",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "arrays",
+      "name": "Statistics, histograms and quantile policies",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-STATS",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-REDUCE",
+        "ARR-SORT"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.statistics.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize estimator, weighting, degrees of freedom, quantile interpolation/method, bin-edge membership and NaN/mask policy.",
+        "Preserve reduction shape, accumulator precision, empty/invalid domains and numerical conditioning requirements.",
+        "Histogram boundary closure and density normalization are explicit formulas per public API, not interchangeable defaults."
+      ]
+    },
+    {
+      "accountable_owner": "eunomia",
+      "analytical_and_negative_specs": [
+        "Adjacent values/ties, min/max/subnormal, signed zero, NaN/Inf, complex components and platform word/longdouble axes."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "NUM-REP",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:dtype-representation",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "dtype",
+      "name": "Scalar representations, constants and limits",
+      "owner_target_revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "ownership_authority": {
+        "capability": "NUM-REP",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Represent bit width, sign, exponent/significand or component type, byte order, platform aliases and scalar identity without hardcoded precision substitution.",
+        "Class/alias views retain distinct Python scalar constructors, promotion/overflow and type hierarchy obligations.",
+        "Nonnumeric or structured descriptor semantics route to array-type rather than being forced into numeric Scalar."
+      ]
+    },
+    {
+      "accountable_owner": "eunomia",
+      "analytical_and_negative_specs": [
+        "Promotion tables across bool/signed/unsigned/float/complex; Python scalar vs represented scalar; structured/temporal and invalid casts."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "NUM-PROMOTE",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:dtype-promotion",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "dtype",
+      "name": "Promotion, casting and dtype resolution",
+      "owner_target_revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "ownership_authority": {
+        "capability": "NUM-PROMOTE",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "NUM-REP"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.dtype.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Treat requested, input, calculation/accumulator and output descriptors as separate roles; preserve exact NumPy weak-Python-scalar and explicit dtype policy.",
+        "Casting legality is a relation parameterized by casting mode, descriptor metadata and operation, not a universal ordering of widths.",
+        "Structured/subarray/string/temporal/object/extension descriptors and conversion exceptions remain in scope."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Nested structured/subarray and zero-itemsize descriptors; field reorder/repack; bytes/unicode/StringDType and temporal units."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-TYPE",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-type",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "dtype",
+      "name": "DType descriptors, records, strings and scalar conversion",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-TYPE",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-CREATE",
+        "ARR-INDEX",
+        "NUM-PROMOTE"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.dtypes.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "A descriptor includes kind/itemsize/byteorder/alignment, fields/offsets/subarray metadata, temporal units or variable/object ownership as applicable.",
+        "Record field transforms preserve offsets, itemsize, padding and alias/copy policy; string operations preserve width/encoding/missing-value and object-hook semantics.",
+        "Extension DTypes remain protocol obligations; opaque native fields are documented views with accessor/ABI constraints, not permission to adopt NumPy storage architecture."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Partial/all/no mask, hard vs soft mask, shared mask mutation and mask-aware reduction/fill."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-MASK",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-mask",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "arrays",
+      "name": "Masked array data, mask and fill semantics",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-MASK",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-TYPE",
+        "ARR-REDUCE"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/maskedarray.baseclass.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Model data plus broadcast-compatible mask, fill value, hard/shared-mask state and subclass/ownership effects separately.",
+        "Mask propagation, all-masked reductions, scalar masked singleton, assignment/unmasking and fill behavior are operation-specific public variants.",
+        "Masked wrappers retain their own result/error semantics; ordinary ndarray behavior is not sufficient evidence."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Nontrivial coefficients in each basis, derivative/integral known solution, repeated roots and rank-deficient weighted fit."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "ARR-POLY",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-polynomial",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "arrays",
+      "name": "Polynomial bases, algebra, calculus and fitting",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "ARR-POLY",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-ELEMENT",
+        "ARR-REDUCE"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.polynomials-package.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize basis, coefficient axis/order, domain/window mapping and normalization; preserve trailing-zero and degree conventions.",
+        "Evaluation, conversion, products/division, derivatives/integrals, roots and weighted least-squares fitting have separate laws and conditioning bounds.",
+        "Legacy poly1d and modern Polynomial/Chebyshev/etc remain distinct public variants."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Non-square complex products with independently computed expected values; vector/batched/core-optional dimensions and invalid contraction extents."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "LA-DENSE",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:linalg-product",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "linalg",
+      "name": "Dense products, contractions and vector/matrix algebra",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "LA-DENSE",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-LAYOUT",
+        "CPU-LANE"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.linalg.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize contraction/core index equations, batch broadcasting, conjugation and scalar/vector/rank cases; dot, matmul, vecdot and vdot are distinct.",
+        "Preserve output/accumulator dtype, layout/copy/overlap semantics and failure domains.",
+        "Required backend execution and vendor kernels remain provider prerequisites; no host fallback establishes accelerator parity."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Known nonsymmetric/complex spectra, rank-deficient systems, residual plus reconstruction/orthogonality/spectrum and singular failures."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "LA-DECOMP",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:linalg-decompose",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "linalg",
+      "name": "Solves, decompositions, norms and conditioning",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "LA-DECOMP",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "LA-DENSE"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.linalg.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize solve/factorization equation, triangular/hermitian assumptions, full/reduced modes, singular/rank cutoff and result orientation.",
+        "Nonunique eigenvector/SVD/factor outputs need a proved equivalence relation; residual alone cannot excuse a wrong spectrum or omitted modes.",
+        "Derive numerical bounds from conditioning/precision, with explicit singular/ill-conditioned/error handling."
+      ]
+    },
+    {
+      "accountable_owner": "tyche",
+      "analytical_and_negative_specs": [
+        "Frozen seed/state known vectors, restore/replay, spawn tree, jump/advance equivalence and invalid state transitions."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "RNG-STREAM",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:random-stream",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "random",
+      "name": "Bit generators, seeds, state and reproducibility",
+      "owner_target_revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+      "ownership_authority": {
+        "capability": "RNG-STREAM",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "NUM-REP",
+        "EXEC-CPU"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/random/index.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Specify a deterministic transition (state, request) -> (bits, next_state) for each bit generator, seed expansion, jump/advance/spawn and serialization variant.",
+        "Generator and legacy RandomState have separate stream/state/compatibility contracts; equal distributions do not imply equal sequences.",
+        "Parallel scheduling, lock/capsule/FFI access and serialized state must preserve exact documented ownership and reproducibility boundaries."
+      ]
+    },
+    {
+      "accountable_owner": "tyche",
+      "analytical_and_negative_specs": [
+        "Boundary/degenerate parameters, nontrivial broadcast sample shape, endpoints and invalid probabilities; predeclared statistical power."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "RNG-DIST",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:random-distribution",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "random",
+      "name": "Distributions, sampling and randomized permutations",
+      "owner_target_revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+      "ownership_authority": {
+        "capability": "RNG-DIST",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "RNG-STREAM",
+        "ARR-ELEMENT",
+        "LA-DECOMP"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/random/generator.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize support, density/mass law, parameter admissibility, sample shape/broadcasting, dtype, algorithm/method and exact random-bit consumption promises.",
+        "Choose stream/sequence differential assertions where promised; otherwise require independently justified distributional tests plus reproducibility.",
+        "Choice/permutation/shuffle and legacy wrappers retain mutation, axis, replacement, probability validation and endpoint conventions."
+      ]
+    },
+    {
+      "accountable_owner": "apollo",
+      "analytical_and_negative_specs": [
+        "Nontrivial known spectrum/impulse/sinusoid with amplitude/phase checks, real packing/Nyquist, inverse and invalid shape/axis cases."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "TR-FFT",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:spectral-transform",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "linalg",
+      "name": "FFT and spectral transform conventions",
+      "owner_target_revision": "3fe4c021a274c33efe21847cec5f7baf67a97d1f",
+      "ownership_authority": {
+        "capability": "TR-FFT",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "LA-DENSE",
+        "EXEC-CPU"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.fft.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize sign, normalization, axes/order, n/s truncation or padding, real/complex/Hermitian packing and frequency ordering.",
+        "Preserve dtype/precision, noncontiguous layout and input/output alias/ownership contracts.",
+        "Apollo owns transform mathematics/plans; accelerator mechanics and Coeus differentiation are prerequisites, not duplicate transform owners."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Instance-only vs type-object __array_function__, metaclass lookup error vs returned-callable failure, precedence and NotImplemented chaining."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "INTEROP-DISPATCH",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:interop-dispatch",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "interop",
+      "name": "Array protocol lookup, override and callback composition",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "INTEROP-DISPATCH",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "MEM-OWN",
+        "CAP-PROOF"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.classes.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Specify lookup phase, absent/None/noncallable outcomes, participating types/precedence, exact invocation tuple and NotImplemented resolution per protocol.",
+        "Only source-defined lookup-boundary exception clearing may become absent behavior; invocation/body/coercion errors retain their lifecycle.",
+        "Custom outputs may be arbitrary graph-bearing objects. Preserve identity, ownership, effects and AD graphs; built-in getter proofs do not cover overriding subclasses."
+      ]
+    },
+    {
+      "accountable_owner": "leto",
+      "analytical_and_negative_specs": [
+        "Nontrivial strided borrowed buffer with lifetime checks; single-use capsule transfer; incorrect byte order/alignment/shape/ownership and ABI versions."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "INTEROP-ARRAY",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:interop-array",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "interop",
+      "name": "C API, buffers, DLPack, ctypes and zero-copy exchange",
+      "owner_target_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "ownership_authority": {
+        "capability": "INTEROP-ARRAY",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-LAYOUT",
+        "DEV-CORE",
+        "CAP-PROOF"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.interface.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize representation/ABI version, borrowed/owned handles, lifetime/refcount/capsule transfer, device stream synchronization, strides and descriptor validation.",
+        "A documented opaque struct pointer is public while layout/access restrictions remain observable constraints; direct private layout dependencies are not equivalent first-party architecture.",
+        "Copy versus zero-copy and read/write/mutation outcomes require explicit contracts, including invalid/untrusted metadata and failure cleanup."
+      ]
+    },
+    {
+      "accountable_owner": "consus",
+      "analytical_and_negative_specs": [
+        "Known NPY/NPZ/text representations, nonnative endian/structured/empty shapes, map modes and malformed/truncated streams."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "IO-ARRAY",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:array-persistence",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "interop",
+      "name": "Array/record persistence and exchange formats",
+      "owner_target_revision": "ef082711f3b6087b9d2214d14c2230fbdc79e620",
+      "ownership_authority": {
+        "capability": "IO-ARRAY",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "ARR-TYPE",
+        "TEN-CORE"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.io.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize format/version, dtype/endian/shape/order metadata, compression, text syntax, memory maps and object-pickle policy.",
+        "Round-trip equality is insufficient alone: verify exact known bytes/metadata, cross-reader behavior and corruption/truncation rejection.",
+        "Consus owns format computation and persistent exchange; Leto supplies represented arrays and ownership constraints."
+      ]
+    },
+    {
+      "accountable_owner": "coeus",
+      "analytical_and_negative_specs": [
+        "Intentional mismatches at shape/dtype/ULP boundaries, signed NaNs/Inf, warning filters, exception contexts and invalid version syntax."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "TOOL-PROFILE",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:tooling-test",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "tooling",
+      "name": "Testing, debug, inspection and version tools",
+      "owner_target_revision": "57f7c4596884949e15815659544096b62c570d85",
+      "ownership_authority": {
+        "capability": "TOOL-PROFILE",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [
+        "GRAPH-TRACE",
+        "OPT-SCHED",
+        "DIST-TRAIN"
+      ],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.testing.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize the public assertion's equality/tolerance, shape/dtype/strictness, NaN/Inf/complex and warning/error capture policy.",
+        "A test helper's own failure type/message/context and side effects are product semantics; passing a helper is not parity evidence for its target operation.",
+        "Typing, version inspection and debug controls retain source-admitted behavior and platform/build limitations."
+      ]
+    },
+    {
+      "accountable_owner": null,
+      "analytical_and_negative_specs": [
+        "Real bounded source/interface fixtures and negative syntax/type/ABI cases, exact generated signatures and diagnostics; toolchain/platform axes unclosed."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": null,
+      "confidence": "unapproved-owner/capability-boundary;finite-identities-enumerated",
+      "contract_id": "numpy-contract:tooling-extension",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "tooling",
+      "name": "F2PY, typing and documented compatibility/extension tooling",
+      "owner_target_revision": null,
+      "ownership_authority": {
+        "proposal_approved": false,
+        "reason": "NN/graph/model prerequisites do not establish native array/Fortran binding-generation or typing ownership.",
+        "rejected_broad_fallback_capability": "COMPAT-LEGACY",
+        "rejected_broad_fallback_owner": "coeus",
+        "status": "finite-ownership/design-exception"
+      },
+      "ownership_state": "finite-design-exception;not-approved",
+      "prerequisite_capabilities": null,
+      "recommended_owner": "leto",
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/typing.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Parameterize source/interface input, generated calling/ownership conventions, compiler/toolchain selection, diagnostics and package/import behavior.",
+        "Functional-equivalent first-party tooling is required where public behavior applies; this does not authorize a NumPy runtime or forbidden architecture dependency.",
+        "Legacy/deprecated and underscored public extension contracts remain scope. Owner routing is provisional until the build-tool bounded context is reviewed."
+      ]
+    },
+    {
+      "accountable_owner": "atlas",
+      "analytical_and_negative_specs": [
+        "Positive private-section evidence; mutation tests reject underscore-only or unsupported-only private exclusions."
+      ],
+      "benchmark_spec": "Predeclare input/workload/hardware/precision/layout and derived target; measure cold/setup and steady/end-to-end cost, allocation, synchronization and uncertainty only after correctness at the same exact revision.",
+      "capability": "PARITY-VALIDATOR",
+      "confidence": "high-for-routing-and-shared-invariants;not-semantic-completeness",
+      "contract_id": "numpy-contract:scope-private-audit",
+      "definition_status": "reusable-partial-source-contract;operation-parameter-domains-not-exhausted",
+      "differential_spec": "Use the exact frozen NumPy release/build and identical represented inputs. Compare values, metadata, ownership/alias/mutation, errors/effects and protocol outputs; derive floating bounds and retain every source-admitted variant. No skip or CPU fallback earns qualification.",
+      "domain": "tooling",
+      "name": "Retained private reference-declaration audit",
+      "owner_target_revision": "f60fef17286b8cfdacf9191b133dc975aa186787",
+      "ownership_authority": {
+        "capability": "PARITY-VALIDATOR",
+        "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+        "input": "capabilities.json"
+      },
+      "prerequisite_capabilities": [],
+      "reference_sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1"
+      ],
+      "remaining_obligations": [
+        "Bind operation-specific law and exact signature/variant applicability.",
+        "Materialize source-admitted valid/invalid dtype/device/layout/error/gradient classes and justify their completeness.",
+        "Obtain independent semantic review and executed analytical/differential/performance/release evidence."
+      ],
+      "reusable_parameters": [
+        "reference candidate ID and declaration/signature views",
+        "operation or workflow scalar/index/state/format law",
+        "argument binding and validation order",
+        "valid dtype/device/layout/shape domain and rejected combinations",
+        "mutation/alias/ownership and protocol dispatch",
+        "gradient/effect behavior where meaningful",
+        "numerical bound and benchmark workload"
+      ],
+      "runtime_or_implementation_credit": false,
+      "semantic_closure": false,
+      "source_derived_invariants": [
+        "Retain IDs and source history for declarations explicitly stated not accessible from Python and not exposed to the C API.",
+        "This classification changes public-denominator eligibility only. Public operations implemented by those internals remain required in their public families.",
+        "The reference's private runtime structure is not an Atlas implementation requirement or permission to adopt that architecture."
+      ]
+    }
+  ],
+  "existing_source_contracts": [
+    {
+      "path": "inputs/metadata-contracts.json",
+      "status": "reuse-existing-source-specified-ndim/shape;size-partial;no-new-promotion"
+    },
+    {
+      "path": "inputs/constructor-contracts.json",
+      "status": "reuse-existing-partial-source-constructor-contracts;no-new-promotion"
+    }
+  ],
+  "framework": "numpy",
+  "full_public_surface_complete": false,
+  "implementation_or_runtime_credit": false,
+  "schema_version": 1,
+  "semantic_mapping_complete": false,
+  "source_revision": "a3d0ef1df045b858e68115001fdabc930bb3b68c",
+  "version": "2.5.4"
+}

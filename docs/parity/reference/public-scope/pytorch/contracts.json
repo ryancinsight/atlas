@@ -1,0 +1,1670 @@
+{
+  "families": {
+    "T-AD-FORWARD": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "AD-FORWARD",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-AD-FORWARD",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Compare analytical JVP with independent directional derivatives over exact domains, nested transform restrictions, tangent errors and custom-rule behavior.",
+      "shared_semantics_limit": "A Torch dual-level restriction cannot silently become support or an exclusion in an Atlas generic transform.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/autograd.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/autograd.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Dual levels, make_dual/unpack_dual, tangent layout/dtype, custom Function JVP, no_grad/inference interactions and unsupported-operator diagnostics.",
+      "upstream_capability_prerequisites": [
+        "AD-REVERSE"
+      ],
+      "workflow": "autograd_transforms_compiler"
+    },
+    "T-AD-REVERSE": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "AD-REVERSE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-AD-REVERSE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Use analytical vector-Jacobian values, alias/version-counter negative cases, sparse/unused gradients, complex Wirtinger cases, accumulated grads and legal higher-order differentiation.",
+      "shared_semantics_limit": "Torch mutable .grad and graph lifetime, JAX functional pullbacks and TF tape lifetime remain distinct observable workflows.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/notes/autograd.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/notes/autograd.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Dynamic graph, leaf/nonleaf grad accumulation, backward vs grad, retain/create_graph, hooks, saved tensors, view/in-place version checks, grad modes, complex conjugate convention and nondifferentiable points.",
+      "upstream_capability_prerequisites": [
+        "TEN-OPS"
+      ],
+      "workflow": "autograd_transforms_compiler"
+    },
+    "T-BENCH": {
+      "accountable_owner_proposal": "atlas",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TOOL-BENCH",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-BENCH",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Use real input-sensitive operations, exact workload/environment hashes and independently checked statistics; benchmark correctness precedes performance qualification.",
+      "shared_semantics_limit": "Compile and steady-state costs, synchronization and CPU/device scheduling must be separately materialized across comparators.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/benchmark_utils.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/benchmark_utils.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Timer/Measurement/Compare/Callgrind and benchmark reproducibility, warmup/synchronization/thread configuration, statistics and reporting.",
+      "upstream_capability_prerequisites": [
+        "TOOL-PROFILE",
+        "PARITY-VALIDATOR"
+      ],
+      "workflow": "tooling"
+    },
+    "T-CHECKPOINT": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "IO-CHECKPOINT",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-CHECKPOINT",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Round trip a model/optimizer/RNG/shard state with independent output/update witnesses, alias maps, corruption/version/error cases and fresh-process device remapping.",
+      "shared_semantics_limit": "Legacy pickle executable semantics and native archive formats are separate obligations; choose functional-equivalent first-party readers/writers with explicit trust boundaries.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/notes/serialization.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/notes/serialization.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "save/load/state_dict, weights_only safe-global defaults, storage/alias preservation, map_location, mmap/endian/archive formats and distributed checkpoint planners/storage backends.",
+      "upstream_capability_prerequisites": [
+        "NN-MODULE",
+        "OPT-SCHED",
+        "IO-ARRAY"
+      ],
+      "workflow": "serialization_deployment"
+    },
+    "T-COMMS": {
+      "accountable_owner_proposal": "moirai",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "DIST-COMMS",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-COMMS",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Real multi-process and multi-node/multi-device collective values and failure/cancellation/reconfiguration witnesses; prove progress and synchronization, record vendor communication capabilities.",
+      "shared_semantics_limit": "MPI/NCCL/Gloo/UCC-facing behavior and stream/order semantics need distinct contracts; no transport provider ownership is displaced by this proposal.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/distributed.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/distributed.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Process groups/rendezvous/stores, collectives/P2P, async Work/Future completion, rank/group ordering, timeout/error semantics and reconfiguration.",
+      "upstream_capability_prerequisites": [
+        "EXEC-CPU",
+        "DEV-CORE"
+      ],
+      "workflow": "distributed_device"
+    },
+    "T-COMPILE": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "GRAPH-COMPILE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-COMPILE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Execute eager and compiled workflows with shape/alias/mutation/effect changes, guard failures, backward accumulation and cache reload; verify no host fallback and separate compile/steady-state costs.",
+      "shared_semantics_limit": "JAX tracing/static arguments, TF autograph and Torch graph breaks/guards are separate variants; Atlas may implement their capabilities through its own compiler.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/torch.compiler_api.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/torch.compiler_api.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Whole-call capture, graph breaks/fullgraph, guards/recompile, dynamic shapes, backend selection, cache artifacts, stance, custom ops and compiled forward/backward. Internal namespaces surfaced by public APIs remain linked.",
+      "upstream_capability_prerequisites": [
+        "GRAPH-TRACE",
+        "DEV-COMPILE"
+      ],
+      "workflow": "autograd_transforms_compiler"
+    },
+    "T-CPU": {
+      "accountable_owner_proposal": "moirai",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "EXEC-CPU",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-CPU",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Real multithread/process workloads with shared storage, cancellation/errors, reproducible scheduling requirements and observable affinity/thread controls.",
+      "shared_semantics_limit": "Generic async primitives must preserve functional process/thread capabilities without importing a foreign framework runtime.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/multiprocessing.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/multiprocessing.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Thread/process pools, inter/intra-op controls, NUMA binding, futures, multiprocessing tensor sharing, spawn/fork semantics and resource/error propagation.",
+      "upstream_capability_prerequisites": [
+        "MEM-OWN",
+        "LOC-PLACE"
+      ],
+      "workflow": "distributed_device"
+    },
+    "T-CREATE": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TEN-CORE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-CREATE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Use analytical zero/one/full and endpoint/length range tests, exact parser negatives, independent mutation/alias witnesses, dtype/device defaults, leaf/gradient checks, ndarray/buffer/CUDA-array/DLPack cases and full device execution.",
+      "shared_semantics_limit": "Share allocation/range mathematics only after separating NumPy copy/order, JAX immutable/device/X64, TF conversion and Torch prototype/legacy/AD defaults.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/tensors.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/tensors.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Separate torch.tensor, legacy torch.Tensor, as_tensor/asarray/from_* and prototype new_* routes. Account for effective dtype/device defaults, copy/alias/detach, requires_grad, layout and protocol dispatch. New_tensor docs/parser/storage contradictions remain open.",
+      "upstream_capability_prerequisites": [
+        "ARR-LAYOUT",
+        "DEV-CORE",
+        "NUM-PROMOTE"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-DATA": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "DATA-PIPE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-DATA",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Real loading-to-training pipelines with exact sample coverage/order, worker/rank seeds, irregular batches, drop_last, errors/cancellation and pinned device transfers.",
+      "shared_semantics_limit": "TF data pipelines and Torch iterable/map/worker semantics need independent workflow variants.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/data.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/data.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Dataset/IterableDataset/DataPipe/DataLoader/sampler/collate, multiprocessing/pinning, seed/epoch behavior, sharding, prefetch/order and resource cleanup.",
+      "upstream_capability_prerequisites": [
+        "EXEC-CPU",
+        "IO-ARRAY",
+        "RNG-STREAM"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-DEPLOY": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "DEPLOY-SERVE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-DEPLOY",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Export/load/run nontrivial models on required real targets, compare conditioned outputs, dynamic shapes and state, invalid formats/opsets and exact artifact dependency resolution.",
+      "shared_semantics_limit": "ONNX/TorchScript/ExecuTorch/runtime artifacts are different deployment contracts; deprecated routes remain scoped and app/service deployment is not authorized by planning work.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/onnx.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/onnx.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "ONNX export/dynamo/traditional routes, nativert/package/hub/mobile, executable artifact dependencies, target/operator versions, calling convention and inference runtime capabilities.",
+      "upstream_capability_prerequisites": [
+        "GRAPH-EXPORT",
+        "INTEROP-TENSOR",
+        "DATA-PIPE"
+      ],
+      "workflow": "serialization_deployment"
+    },
+    "T-DEVICE": {
+      "accountable_owner_proposal": "hephaestus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "DEV-CORE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-DEVICE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Run real CPU/CUDA/ROCm/MPS/XPU/MTIA/custom-device legal paths with device/stream observations, allocation/error and event-order witnesses; missing hardware remains unavailable.",
+      "shared_semantics_limit": "Source-level device syntax or CPU execution is not device parity; unsupported per-vendor cases need exact domain proof.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/accelerator.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/accelerator.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Device acquisition/current contexts, streams/events/graphs, synchronization, allocation/pools/pinning, backend capabilities, precision/determinism flags and vendor-specific APIs.",
+      "upstream_capability_prerequisites": [
+        "MEM-OWN",
+        "LOC-PLACE",
+        "CAP-PROOF"
+      ],
+      "workflow": "distributed_device"
+    },
+    "T-DEVICE-RNG": {
+      "accountable_owner_proposal": "hephaestus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "DEV-RNG",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-DEVICE-RNG",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Run independent sequence/state/restore and per-device ordering cases on actual accelerator hardware, seed bounds and graph restrictions, with no CPU fallback.",
+      "shared_semantics_limit": "PyTorch does not promise identical CPU and accelerator bitstreams; cross-device reproducibility must match the documented frozen domain rather than a fabricated universal sequence.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/cuda.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/cuda.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Per-device seed/state/generator and lazy accelerator RNG initialization, all-device state lists, stream ordering and graph-capture restrictions; core random laws remain Tyche prerequisites.",
+      "upstream_capability_prerequisites": [
+        "DEV-CORE",
+        "RNG-DIST"
+      ],
+      "workflow": "random"
+    },
+    "T-DIST-TRAIN": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "DIST-TRAIN",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-DIST-TRAIN",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Train/restart/checkpoint a nontrivial distributed model, compare global updates analytically and to unsharded reference, induce rank failures and verify recovery and exact synchronization.",
+      "shared_semantics_limit": "Elastic private extension hooks remain required extension obligations; single-process simulation and passed unit subsets do not qualify distributed training.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/fsdp.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/fsdp.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "DDP/FSDP/pipeline/ZeRO/distributed optimizers, communication hooks, gradient synchronization, sharded state, elastic recovery and extension hooks.",
+      "upstream_capability_prerequisites": [
+        "DIST-SHARD",
+        "OPT-SCHED",
+        "PREC-MIXED"
+      ],
+      "workflow": "distributed_device"
+    },
+    "T-ELEMENT": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TEN-OPS",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-ELEMENT",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Use independent nontrivial scalar solutions plus represented boundary inputs, promotion/error tables, vector broadcasting, aliases and complex/forward/reverse/higher derivatives where legal.",
+      "shared_semantics_limit": "Torch in-place version counters, out= gradient restrictions and foreach list/device rules are extra variants beyond shared scalar mathematics.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/torch.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/torch.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Pointwise arithmetic/comparison/logical/special-valued operations, broadcast result, promotion, rounding/division variants, mutation/out and foreach list semantics.",
+      "upstream_capability_prerequisites": [
+        "TEN-CORE",
+        "ARR-ELEMENT",
+        "ARR-REDUCE",
+        "LA-DENSE",
+        "DEV-DENSE"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-EXPORT": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "GRAPH-EXPORT",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-EXPORT",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Round trip versioned artifacts with independent outputs and mutable state, constraint/error checks, exact calling convention, gradients and hardware-target execution.",
+      "shared_semantics_limit": "Export formats, specialization and effect signatures remain separate from generic graph serialization; unsupported or deprecated routes remain obligations.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/user_guide/torch_compiler/export.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/user_guide/torch_compiler/export.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "ExportedProgram/signatures/state/range constraints, dynamic dimensions, joint forward-backward descriptors, archive formats, decomposition and AOT packaging/loading.",
+      "upstream_capability_prerequisites": [
+        "GRAPH-COMPILE"
+      ],
+      "workflow": "serialization_deployment"
+    },
+    "T-EXTENSION": {
+      "accountable_owner_proposal": "leto",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "INTEROP-DISPATCH",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-EXTENSION",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Build a real minimal extension only in an authorized future execution slice; run compute/AD/compile/export/device and negative schema/ABI/version cases with exact toolchain metadata.",
+      "shared_semantics_limit": "Equivalent extensibility can use first-party typed registration; matching a Python extension loader is not proof of C++ ABI or kernel support.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/cpp_extension.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/cpp_extension.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "C++/CUDA/SYCL extension toolchains, custom operator schema, dispatch/AD/fake/functionalization/batching rules, backend registration, loading and ABI/version checks.",
+      "upstream_capability_prerequisites": [
+        "MEM-OWN",
+        "CAP-PROOF"
+      ],
+      "workflow": "tooling"
+    },
+    "T-FFT": {
+      "accountable_owner_proposal": "apollo",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TR-FFT",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-FFT",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Use analytical impulse/sinusoid/multidimensional spectra and direct DFT values, odd/even real transforms, exact shape errors and adjoint gradients; round trips alone are insufficient.",
+      "shared_semantics_limit": "Normalization, half/chalf size restrictions and output dtype differ across comparators.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/fft.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/fft.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Real/complex Fourier transforms, norm conventions, n/s dimensions, Hermitian truncation, frequency order, dtype/device restrictions and gradient scaling.",
+      "upstream_capability_prerequisites": [
+        "LA-DENSE",
+        "EXEC-CPU"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-INDEX": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TEN-OPS",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-INDEX",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Specify finite index equivalence classes and exact invalid domains; test duplicate writes/reductions, empty indices, overlapping aliases, gradients and deterministic-mode outcomes.",
+      "shared_semantics_limit": "Torch duplicate-index writes, TF scatter reductions and JAX update/out-of-bounds policies cannot be merged by spelling.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/torch.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/torch.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Basic and advanced indexing, gather/scatter/index_put, duplicate-index effects, broadcasting, out/in-place overlap and bounds; boolean/index dtypes and nondeterminism require per-operation rules.",
+      "upstream_capability_prerequisites": [
+        "TEN-CORE",
+        "ARR-ELEMENT",
+        "ARR-REDUCE",
+        "LA-DENSE",
+        "DEV-DENSE"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-INTEROP": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "INTEROP-TENSOR",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-INTEROP",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Mutate both sides for alias witnesses, track lifetime/device/stream handoff, protocol version errors and subclass precedence/NotImplemented/error paths through eager/compiled/AD workflows.",
+      "shared_semantics_limit": "Protocol/ABI interoperation is permitted capability work; it does not authorize adopting PyTorch runtime computation or replacing first-party owners.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/notes/extending.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/notes/extending.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "NumPy/buffer/DLPack/CUDA-array protocols, subclass __torch_function__/__torch_dispatch__, zero-copy ownership, synchronization and custom operator graph/AD registration.",
+      "upstream_capability_prerequisites": [
+        "INTEROP-ARRAY",
+        "GRAPH-EXPORT",
+        "IO-CHECKPOINT"
+      ],
+      "workflow": "serialization_deployment"
+    },
+    "T-LAYOUT": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TEN-CORE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-LAYOUT",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Prove each address transformation; verify actual copy/alias and mutation, empty/zero-stride/overlap cases, shape errors and gradients through legal views.",
+      "shared_semantics_limit": "A shared index map does not equate NumPy negative strides, JAX immutable reshapes and Torch view/mutation/AD constraints.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/tensor_view.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/tensor_view.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Shape/stride/storage_offset, view vs reshape copies, transpose/conjugate/negative views, memory_format and contiguity; Tensor subclasses can change dispatch and supported layouts.",
+      "upstream_capability_prerequisites": [
+        "ARR-LAYOUT",
+        "DEV-CORE",
+        "NUM-PROMOTE"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-LEGACY": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "COMPAT-LEGACY",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-LEGACY",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Exercise documented supported modes and required errors/warnings at frozen version; preserve exact source/deprecation and migration links without treating a warning as exclusion.",
+      "shared_semantics_limit": "Replacement technologies do not satisfy old artifact/API workflows unless observable equivalence is established over the original supported domain.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/jit_utils.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/jit_utils.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Documented JIT/script/trace/mobile legacy, removed/migrated advisory metadata, legacy Tensor/storage constructors and deprecated APIs retain frozen-release semantics.",
+      "upstream_capability_prerequisites": [
+        "GRAPH-TRACE",
+        "NN-MODULE",
+        "INTEROP-TENSOR"
+      ],
+      "workflow": "serialization_deployment"
+    },
+    "T-LINALG": {
+      "accountable_owner_proposal": "leto",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "LA-DECOMP",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-LINALG",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Use known nontrivial solutions, residual/backward-error bounds, singular/ill-conditioned matrices, exact error/info contracts and legal complex/higher gradients on each actual device/driver.",
+      "shared_semantics_limit": "Driver availability, rank cutoffs and nonunique eigen/SVD vectors require invariant-based comparison, not arbitrary elementwise tolerance.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/linalg.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/linalg.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Batched dense products, solve/factorization/eigen/SVD/lstsq, rank/conditioning tolerances, driver/UPLO/left/adjoint variants, error-info APIs and complex phase conventions.",
+      "upstream_capability_prerequisites": [
+        "LA-DENSE"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-MEMORY": {
+      "accountable_owner_proposal": "mnemosyne",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "MEM-OWN",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-MEMORY",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Prove address maps and lifetime rules; mutate aliases, resize around views, validate byte bounds and mapping flags; distinguish reference-invalid storage combinations from absent Atlas support.",
+      "shared_semantics_limit": "Storage object identity and byte-oriented operations are Torch-specific; a generic array buffer alone does not specify them.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/storage.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/storage.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Typed/untyped storage, byte size, offset, resize, alias lifetime, pinned/shared/mapped memory and serialization identity; deprecated TypedStorage remains an obligation.",
+      "upstream_capability_prerequisites": [
+        "NUM-REP"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-MIXED": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "PREC-MIXED",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-MIXED",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Prove mixed-precision output/accumulator rules, gradient scaling and inf/nan skip/update behavior, nested context restoration, unsupported dtype/device errors and resumed training state.",
+      "shared_semantics_limit": "Autocast policy, loss-scaler growth/backoff and optimizer skip behavior differ from quantized formats and from other frameworks' mixed-precision policies.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/amp.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/amp.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Autocast dtype/device contexts, operation eligibility, nested/cache/global state, GradScaler scale/unscale/step/update, overflow and optimizer coordination; deprecated CUDA/CPU AMP spellings remain obligations.",
+      "upstream_capability_prerequisites": [
+        "NUM-PROMOTE",
+        "NN-MODULE",
+        "OPT-UPDATE"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-NESTED": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TEN-SPARSE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-NESTED",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Use irregular and empty components, independently computed masked results, offset errors, padding round trips plus value witnesses, legal gradients and compiled ragged execution.",
+      "shared_semantics_limit": "TF RaggedTensor, NumPy masked arrays and Torch jagged tensors have distinct rank/offset/fill and operation contracts.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/nested.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/nested.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Nested/jagged/masked values, offsets/lengths, padding/mask semantics, operator coverage, aliasing and compiler/AD restrictions; prototype status remains an obligation.",
+      "upstream_capability_prerequisites": [
+        "TEN-CORE",
+        "LA-SPARSE",
+        "DEV-SPARSE",
+        "ARR-MASK"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-NN-BASIC": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "NN-BASIC",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-NN-BASIC",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Analytical nontrivial outputs and gradients, reduction and broadcasting classes, empty/masked/tie cases, train/eval transitions and eager/compiled device execution.",
+      "shared_semantics_limit": "Framework default reductions, padding, loss weighting and boundary subgradients remain separate variants.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/nn.functional.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/nn.functional.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Activation/pooling/padding/embedding/loss and functional NN operations, reduction/default dimensions, ignore/mask/weight behavior, training/eval and differentiability boundaries.",
+      "upstream_capability_prerequisites": [
+        "AD-REVERSE",
+        "TEN-OPS"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-NN-CONV": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "NN-CONV",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-NN-CONV",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Direct small convolution sums and adjoints, exact shape/padding errors, grouped/dilated/transposed cases, memory formats, dtypes and actual hardware paths.",
+      "shared_semantics_limit": "Cross-correlation orientation, SAME padding conventions and output-shape rules cannot be inferred across frameworks.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/nn.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/nn.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Convolution/transposed convolution and pooling, stride/dilation/groups/padding/output_padding, channels-last, complex kernels and vendor deterministic/precision algorithms.",
+      "upstream_capability_prerequisites": [
+        "NN-LINEAR",
+        "DEV-DENSE"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-NN-INIT": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "NN-INIT",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-NN-INIT",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Prove deterministic constants/fan/gain values and orthogonal invariants; test documented random laws, stream reproducibility, dtype/device restrictions and AD effects.",
+      "shared_semantics_limit": "Matching distribution families alone does not imply identical initialization scale, fan orientation or RNG sequence.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/nn.init.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/nn.init.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Initialization distributions, fan-in/out/nonlinearity gains, in-place no-grad updates, generator/device streams and sparse/orthogonal construction.",
+      "upstream_capability_prerequisites": [
+        "NN-BASIC",
+        "RNG-DIST"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-NN-MODULE": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "NN-MODULE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-NN-MODULE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Train a nontrivial model through state/hook/parameter mutation; assert outputs, gradients, registration identities and error ordering before/after save/load and compilation.",
+      "shared_semantics_limit": "Python module reflection and hook ordering need functional-equivalent Atlas contracts without requiring identical runtime architecture.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/nn.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/nn.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Module/Parameter/Buffer registration, naming/state_dict, hooks, parametrization/pruning masks, train/eval, device/dtype conversion, lazy modules, cloning and distributed wrapping.",
+      "upstream_capability_prerequisites": [
+        "NN-SEQUENCE",
+        "GRAPH-EXPORT"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-NN-NORM": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "NN-NORM",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-NN-NORM",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Derive mean/variance and backward values, tiny/empty batches, mixed precision, running-stat updates, serialization and distributed synchronization.",
+      "shared_semantics_limit": "Momentum meaning, variance correction and epsilon placement require distinct comparator variants.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/nn.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/nn.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Batch/layer/group/instance/RMS/local normalization, epsilon placement, biased/unbiased estimates, running state, affine parameters and train/eval behavior.",
+      "upstream_capability_prerequisites": [
+        "NN-BASIC"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-NN-SEQUENCE": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "NN-SEQUENCE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-NN-SEQUENCE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Manual recurrent/attention values and gradients, unequal lengths, mask edge cases, cache/state transitions, random dropout and actual fused vs mathematical backend behavior.",
+      "shared_semantics_limit": "Gate ordering, mask polarity, causal alignment, dropout evaluation and packed/ragged layout remain framework-specific.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/nn.attention.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/nn.attention.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "RNN/LSTM/GRU, packed sequence, Transformer/attention/SDPA/flex/varlen, causal and boolean/additive masks, dropout and backend kernel selection.",
+      "upstream_capability_prerequisites": [
+        "NN-LINEAR",
+        "NN-NORM",
+        "NN-CONV"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-NUMERIC": {
+      "accountable_owner_proposal": "eunomia",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "NUM-PROMOTE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-NUMERIC",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Enumerate exact valid dtypes and cast/promotion tables; test integer limits, ties, signed zero, NaN/Inf and complex conjugation against represented inputs.",
+      "shared_semantics_limit": "NumPy casting/NEP50, JAX weak types/X64, TensorFlow explicit casts and PyTorch category/dimension promotion remain separate variants.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/tensor_attributes.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/tensor_attributes.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Scalar conversion, dtype aliases and shell/quantized/complex types; promotion distinguishes Python scalars, zero-dimensional tensors and dimensional tensors. Defaults, autocast, accumulator and output dtype are distinct policies.",
+      "upstream_capability_prerequisites": [
+        "NUM-REP"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-OPT": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "OPT-UPDATE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-OPT",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Analytical multi-step updates including zero/None grads, resumed state, parameter groups and decay; differentiate optimizer steps where legal and run fused/foreach device paths.",
+      "shared_semantics_limit": "Algorithm names hide epsilon placement, momentum initialization, coupled/decoupled decay and sparse update differences.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/optim.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/optim.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Optimizer state/parameter groups, closure evaluation, momentum/decay variants, sparse gradients, differentiable/capturable/fused/foreach execution and state_dict.",
+      "upstream_capability_prerequisites": [
+        "AD-REVERSE",
+        "RNG-DIST"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-PROFILE": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TOOL-PROFILE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-PROFILE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Run real workloads with known events/order and value-bearing counters; validate trace format/consumer import and distinguish host, device and asynchronous timings.",
+      "shared_semantics_limit": "A shared trace format does not imply equivalent device activity, attribution or instrumentation cost.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/profiler.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/profiler.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Profiler/record_function/monitor/tensorboard/logging/module tracking, timing/counters/traces, event order, memory attribution and vendor activity availability.",
+      "upstream_capability_prerequisites": [
+        "GRAPH-TRACE",
+        "OPT-SCHED",
+        "DIST-TRAIN"
+      ],
+      "workflow": "tooling"
+    },
+    "T-QUANT": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "PREC-MIXED",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-QUANT",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Prove saturation/rounding and dequantization error, per-channel broadcast, calibration/QAT state, serialized quantized models and exact supported backend/dtype/layout cases.",
+      "shared_semantics_limit": "Quantization formats and workflows are versioned separately from float8/autocast and ordinary integer casts.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/quantization.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/quantization.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Quantized Tensor qscheme/scale/zero-point/axis, observers, fake quantization, prepare/calibrate/convert, QAT, fused modules and backend configuration. torchao migration does not remove legacy APIs.",
+      "upstream_capability_prerequisites": [
+        "NUM-PROMOTE",
+        "NN-MODULE",
+        "OPT-UPDATE"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-REDUCE": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TEN-OPS",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-REDUCE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Validate exact integer/shape identities and conditioned floating bounds, empty/all-NaN/tied inputs, overflow, reduction ordering and gradient selections.",
+      "shared_semantics_limit": "Variance correction, empty reductions, max/min tie gradients and default accumulator differ across comparators.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/torch.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/torch.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Dimension lists/keepdim, accumulator/output dtype, empty identities, NaN/tie policies, corrections for variance, reduction order and deterministic behavior.",
+      "upstream_capability_prerequisites": [
+        "TEN-CORE",
+        "ARR-ELEMENT",
+        "ARR-REDUCE",
+        "LA-DENSE",
+        "DEV-DENSE"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-RNG-DIST": {
+      "accountable_owner_proposal": "tyche",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "RNG-DIST",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-RNG-DIST",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Analytical densities/CDF/moments/transform Jacobians and shape errors, justified statistical tests, reproducible streams and rsample/score-gradient checks.",
+      "shared_semantics_limit": "Support validation defaults, batch/event shapes, parameterization and reparameterized gradients differ across frameworks.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/distributions.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/distributions.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Tensor-valued distribution sample/rsample/log_prob/CDF/icdf, event/batch shapes, constraints/transforms, reparameterization, entropy/KL and generator-driven array draws.",
+      "upstream_capability_prerequisites": [
+        "RNG-STREAM",
+        "ARR-ELEMENT",
+        "LA-DECOMP"
+      ],
+      "workflow": "random"
+    },
+    "T-RNG-STREAM": {
+      "accountable_owner_proposal": "tyche",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "RNG-STREAM",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-RNG-STREAM",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Verify sequence/state invariants and seed boundaries per documented engine/device, fork/restore and worker/rank independence; record exact reproducibility domain.",
+      "shared_semantics_limit": "JAX explicit split keys, Torch mutable generators and NumPy bit-generators require separate state/stream contracts.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/random.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/random.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Generator creation/default/device, seed bounds, state save/restore, fork_rng, process/worker/device streams and determinism flags.",
+      "upstream_capability_prerequisites": [
+        "NUM-REP",
+        "EXEC-CPU"
+      ],
+      "workflow": "random"
+    },
+    "T-SCHED": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "OPT-SCHED",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-SCHED",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Exact schedule sequences at boundaries, invalid ordering/arguments and resume identity in a real optimizer training workflow.",
+      "shared_semantics_limit": "Step indexing, last_epoch initialization and schedule composition remain Torch-specific variants.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/optim.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/optim.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Learning-rate/momentum schedulers, step/epoch order, warmup/restarts/plateau metrics, composed schedulers and restored optimizer/scheduler state.",
+      "upstream_capability_prerequisites": [
+        "OPT-UPDATE",
+        "NN-MODULE"
+      ],
+      "workflow": "training_nn_optimizers"
+    },
+    "T-SHARD": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "DIST-SHARD",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-SHARD",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Derive global/local shape and placement maps, exact redistributed values/gradients and collective traces; test irregular shards, Partial reduction and actual multi-device hardware.",
+      "shared_semantics_limit": "JAX sharding and TF distribution differ in placement, partial reductions and reshard effects; debug simulation is an additional tooling contract.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/distributed.tensor.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/distributed.tensor.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "DTensor/DeviceMesh/placement/redistribution/tensor parallelism and symmetric memory; LocalTensor simulates SPMD for debugging only and cannot verify multi-node execution.",
+      "upstream_capability_prerequisites": [
+        "DIST-COMMS",
+        "GRAPH-COMPILE",
+        "LOC-PLACE"
+      ],
+      "workflow": "distributed_device"
+    },
+    "T-SIGNAL": {
+      "accountable_owner_proposal": "apollo",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TR-SPECTRAL",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-SIGNAL",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Validate independently derived windows/spectra, reconstruction with NOLA domain checks, exact length/pad errors and gradients on actual devices.",
+      "shared_semantics_limit": "STFT framing/padding and normalization are distinct from matching FFT kernels.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/signal.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/signal.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Window/STFT/ISTFT/spectral operations, centering/padding, window periodicity, overlap-add and real/complex output conventions.",
+      "upstream_capability_prerequisites": [
+        "TR-FFT"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-SORT": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TEN-OPS",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-SORT",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Verify exact permutations and rank properties with stable tie witnesses and invalid bounds; separately specify reference nondeterminism and derivative behavior.",
+      "shared_semantics_limit": "Stability/default ordering and unique sorted/inverse/count behavior remain framework variants.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/torch.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/torch.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Sort/topk/kthvalue/unique/search/bucketize, stable ordering, duplicate indices, NaN order, returned index dtype, layout and out= behavior.",
+      "upstream_capability_prerequisites": [
+        "TEN-CORE",
+        "ARR-ELEMENT",
+        "ARR-REDUCE",
+        "LA-DENSE",
+        "DEV-DENSE"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-SPARSE": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TEN-SPARSE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-SPARSE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Validate explicit index/value dense results, duplicate/coalesce identities, format invariants and errors, sparse gradients and actual CUSPARSELT/CUTLASS hardware/layout/dtype cases.",
+      "shared_semantics_limit": "Shared dense results do not equate sparse storage, duplicate policy, fill values, sparse gradients or semi-structured kernel restrictions.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/sparse.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/sparse.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "COO/CSR/CSC/BSR/BSC, coalescing/duplicates, invariant checks, sparse autograd and semi-structured CUDA Tensor subclasses; inherited methods retain dispatch- and layout-dependent domains.",
+      "upstream_capability_prerequisites": [
+        "TEN-CORE",
+        "LA-SPARSE",
+        "DEV-SPARSE",
+        "ARR-MASK"
+      ],
+      "workflow": "array_dtype_indexing"
+    },
+    "T-TEST": {
+      "accountable_owner_proposal": "atlas",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "PARITY-VALIDATOR",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-TEST",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Prove positive and adversarial rejection cases for comparison policies, derived numeric bounds and gradients; ensure zero skipped acceptance classes and exact candidate/input provenance.",
+      "shared_semantics_limit": "A test helper's default tolerances are behavior to specify, not permission to use unproved tolerances in Atlas parity evidence.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/testing.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/testing.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "assert_close/equality, dtype/device/layout/stride policies, gradcheck/gradgradcheck, sparse checks, OpInfo/developer testing APIs and comparator-specific diagnostics.",
+      "upstream_capability_prerequisites": [],
+      "workflow": "tooling"
+    },
+    "T-TOOLSTATE": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "TOOL-PROFILE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-TOOLSTATE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Record effective defaults/context restore, exact observable settings and diagnostics, concurrency/process interactions and invalid values; no global-state API is reduced to an array operation.",
+      "shared_semantics_limit": "Global state and diagnostics may require language-specific functional equivalents rather than identical Python spellings.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/torch.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/torch.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "Documented global configuration, print/type inspection, logging, diagnostics, environment controls, feature status and user-facing operational errors.",
+      "upstream_capability_prerequisites": [
+        "GRAPH-TRACE",
+        "OPT-SCHED",
+        "DIST-TRAIN"
+      ],
+      "workflow": "tooling"
+    },
+    "T-TRACE": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "GRAPH-TRACE",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-TRACE",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Verify graph semantics on nontrivial real computations, IR invariants, constant/effect capture, symbolic shapes, error diagnostics and transformed forward/backward equivalence.",
+      "shared_semantics_limit": "Functional-equivalent first-party IR is required; copying Dynamo/FX runtime architecture or depending on PyTorch is not authorized.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/fx.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/fx.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "FX graph/node/module transformations, symbolic tracing/proxies, graph editing, fake/meta execution, pytree/shape metadata and custom tracing rules.",
+      "upstream_capability_prerequisites": [
+        "TEN-RESOURCE",
+        "AD-TRANSFORM"
+      ],
+      "workflow": "autograd_transforms_compiler"
+    },
+    "T-TRANSFORMS": {
+      "accountable_owner_proposal": "coeus",
+      "actual_atlas_implementation_owner": null,
+      "canonical_capability": "AD-TRANSFORM",
+      "coverage_axes": {
+        "device": "Materialize actual CPU ISA and CUDA/ROCm/MPS/XPU/MTIA/custom/multi-device paths legally exposed by the API; no silent host fallback or hardware absence as pass.",
+        "dtype": "Materialize each API's exact valid dtypes, defaults, promotion, accumulators, cast failures, scalar representations and precision flags. Family membership does not materialize this table.",
+        "execution_error": "Materialize eager/compiled/exported/distributed modes, effect/error ordering, exact valid/invalid parameter domains, warning-as-error and unsupported-case behavior.",
+        "gradient": "Materialize forward/reverse/higher/batched/complex/custom-rule support or cited mathematical/reference inapplicability, including mutation/version and compiler interactions.",
+        "layout": "Materialize exact scalar/empty/strided/overlap/sparse/quantized/nested/subclass support, copy/view/mutation/out behavior and reference-invalid classes with source proof."
+      },
+      "done_when": "Every assigned identity has reviewed whole-API variants and finite coverage classes, implementation at exact Atlas owner revision, analytical/property/negative/integration and differential evidence with zero skips, hardware execution, predeclared qualified benchmarks and released consumer evidence. This proposal closes none of those gates.",
+      "external_execution": "unrun",
+      "id": "T-TRANSFORMS",
+      "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
+      "performance": "unqualified",
+      "release": "unreleased",
+      "required_acceptance": "Test nontrivial composed transforms, batched and unbatched analytical equality, custom AD rules, RNG/error modes, mutable input/output aliases and higher-order complex gradients.",
+      "shared_semantics_limit": "JAX jit/vmap/grad purity and Torch functionalize/randomness/side-effect limits differ; transformation names are not proofs of equivalence.",
+      "source_refs": [
+        {
+          "line": 1,
+          "path": "docs/source/func.ux_limitations.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/func.ux_limitations.md#L1"
+        }
+      ],
+      "status": "reusable_contract_proposal_per_api_axes_incomplete",
+      "test_execution": "unrun",
+      "torch_behavior": "grad/vjp/jvp/jacrev/jacfwd/hessian/vmap/functionalize, pytree structure, randomness policy, mutation/alias rewriting, custom Function rules and batching limitations.",
+      "upstream_capability_prerequisites": [
+        "AD-HIGHER"
+      ],
+      "workflow": "autograd_transforms_compiler"
+    }
+  },
+  "schema_version": 1
+}

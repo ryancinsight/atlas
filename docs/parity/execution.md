@@ -1,13 +1,13 @@
 # Dependency-ordered implementation program
 
-Program 2026-10-26.3. [Machine-readable packages](work-packages.json).
+Program 2026-10-26.5. [Machine-readable packages](work-packages.json).
 
 ## Immediate sequence and readiness
 
-1. **WP-002, executable now:** implement and independently review Atlas's
-   traceability/evidence validator against real inventories and adversarial
-   cases. It must accept honest incomplete data, report all unmapped rows,
-   and reject definition/release qualification until evidence exists.
+1. **WP-002:** the first traceability/evidence validator and bounded source
+   dispositions are integrated through #570/#571. Extend the executable gate
+   to publicness, source-view conservation, reusable contracts and unresolved
+   ownership. Honest incompleteness remains valid input and fails qualification.
 2. **WP-001:** close extraction against exact release public documentation,
    generated exports and linked companion tools; resolve every named parser,
    patch-version, autodoc, guide/prose and namespace gap. Validate source
@@ -131,8 +131,9 @@ local overrides before downstream publication; repeat after integration.
 | Target | Owner and required handoff |
 | --- | --- |
 | Moirai notification prerequisite delivery/coordinator | Task `01a159ec-7017-7725-a554-194472dc20dc`, turn `01a176ab-537b-71fe-aa02-d59f00de713d`: commit `d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da` pushed and hooks pass. Draft PR creation is denied by GitHub HTTP403; no CI/merge/publication. Do not retry through another route. Scoped 56 passes/91 exclusions and API 223 passes/30 skips do not close runtime acceptance. |
-| Native Tokio migration implementation | Task `01a176ac-6a9e-77cc-a488-42908214f023` repairs both first-round P2 findings at `b50a96cfebf38a99c52b42e816ea3a5340927c25`, tree `2513a98c6df5a37cefb4811ad3e98d0d0023218a`. Independent oracles verify the repairs. Owner retains the heavy slot for remaining unblocked acceptance/ADR reconciliation; planning remains lightweight. No duplicate implementation or publication retry. |
-| Native migration independent review | Same reviewer task `01a1771f-4ace-75e4-a240-c800b7d7e02a`, supplied turn prefix `01a17749`, reports no findings within exact-source scope: 192 async/QUIC, 26 driver, 34 actual-source Miri, both source consumers and six zero-Tokio graphs. ADR, hosted/platform/security, unchanged 108-pair performance and ordered registry gates remain open. No whole-provider or release qualification. Predecessor PR creation remains denied HTTP403; no alternate route. |
+| Native Tokio migration implementation | Task `01a176ac-6a9e-77cc-a488-42908214f023` has clean local `cab5499fa4ec41064a4c191b55911a8dbc852b60`, tree `45e6500a8b1b98eb48a6b41dc05843131f77ee3e`, with three test/docs changes above independently reviewed `b50a96cf`. It stops at ADR0084/external gates with no commands running under the latest parent handoff. No duplicate implementation or integration403 retry. |
+| Native migration independent review | Same reviewer task `01a1771f-4ace-75e4-a240-c800b7d7e02a` is assigned the new exact head; sign-off remains pending. Parent `b50a96cf` passed the recorded scoped source review, including both P2 repairs. Owner reports current 192 async/QUIC,26driver,34Miri and six zero-Tokio graphs, but these are not new independent clearance. Mac81unshaped pairs do not replace Linux108pairs per policy plus30shared-queue pairs. ADR/platform/all-feature/fresh security/registry gates remain open. |
+| Differentiable gammaln/lgamma | Task `01a17793-e227-73cf-b347-6c85477ef010` owns Eunomia digamma → Leto CPU operation → Coeus autograd and both Python aliases, after its local ownership check. It holds the single heavy-build slot. GPU acceptance is separate and mandatory; no silent CPU fallback. Planning does not duplicate this implementation. |
 | Kwavers typed errors/Miri | Task `01a16141-84fd-7045-a5d6-75c04aafa0ef`: exact revision and real executed value/error/Miri evidence. |
 | Apollo implementation | Task `01a13842-5a71-712c-b982-d6631f84e002`: service hold must be cleared through its existing owner before implementation retry. No bypass or replacement task. |
 | Atlas #551 / Apollo #696 | Existing owners retain branches. Read-only audit links preserve exact failure evidence. Integration waits for version/license/registry closure through those owners. |

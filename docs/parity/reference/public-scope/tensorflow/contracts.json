@@ -1,0 +1,1881 @@
+{
+  "canonical_capabilities_input": {
+    "acquisition": "git show of the exact original input revision, not current working-tree bytes",
+    "bytes": 183332,
+    "capability_count": 67,
+    "file": "inputs/capabilities-9f4645b2.json",
+    "git_blob_sha": "b80081255e9ae4f9e24289a719d21bce1638607e",
+    "provenance_repair": "Pins the original semantic-families input; does not substitute the later mutable canonical file or weaken hash validation.",
+    "repository": "ryancinsight/atlas",
+    "repository_path": "docs/parity/capabilities.json",
+    "revision": "9f4645b2d1bdae04e8705582bcfcc2c5490a8e0b",
+    "sha256": "0f3d54d5d881543b4603944a8110f37a0bc56d6ed3916a15c792229f7f594e7c",
+    "source_url": "https://github.com/ryancinsight/atlas/blob/9f4645b2d1bdae04e8705582bcfcc2c5490a8e0b/docs/parity/capabilities.json"
+  },
+  "families": [
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "eunomia",
+      "admitted_declaration_count": 257,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "NUM-REP",
+        "NUM-PROMOTE"
+      ],
+      "end_to_end_workflow": "Construct typed values; select explicit promotion/cast/accumulator policy; execute and serialize dtype metadata.",
+      "id": "TF-DTYPES",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Representability/ties/adjacent values; exact integer and dtype metadata; derived floating forward/backward bounds; invalid casts."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 257,
+      "recommended_native_Atlas_design": "Eunomia owns numeric representation and rounding policies; use a separate element/resource contract via Leto/Coeus. Preserve policy variants without per-dtype algorithm copies.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "TensorFlow explicit casts/default scalar inference, Keras result_type/floatx and experimental NumPy behavior are distinct policies.",
+        "String/resource/variant/quantized type metadata is not a numeric Scalar operation.",
+        "Reference-required wider accumulation must be an explicit derived associated policy, not a hidden wider generic implementation."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/framework/dtypes.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "fcc7f05f9f44eaf5542fd9b706ded3d3b9c00117d9f3a0b3be047ee29a4ce5ea",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/framework/dtypes.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "keras/src/backend/common/dtypes.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "91968720ba44e78d7b71fadfe294c53a4596e8787381b546c83e1d2961a1dbac",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/backend/common/dtypes.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": []
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "leto",
+      "admitted_declaration_count": 52,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "ARR-CREATE"
+      ],
+      "end_to_end_workflow": "Validate shape/dtype; allocate through Mnemosyne; create on explicit backend; inspect values, residency, errors and derivatives.",
+      "id": "TF-ARRAY-CREATE",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Reuse the40 source-derived creation specifications from prior handoff; positive/zero extents, scalar shapes, endpoint rounding, Fill VJP and linspace endpoint Jacobians."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 52,
+      "recommended_native_Atlas_design": "One Leto creation kernel family with explicit shape/arithmetic/endpoint policies; Coeus composes tensor AD and resource rules. Native device implementation remains Hephaestus; never credit fallback.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "tf.zeros/ones defaultfloat32, Keras ops defaults configurablefloatx, tf.fill infers from value.",
+        "Fill is scalar-value repetition, Keras full permits broadcasting.",
+        "High-level linspace and raw LinSpace differ for num0, broadcasting, dtype candidates and gradients; Range sign errors differ from NumPy empty sequences."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 206,
+          "path": "tensorflow/python/ops/array_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "ab018830f724e5ed766bf08ea3cfe9d49bcef1c8c48ee6881dfd67d778c5d378",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/array_ops.py#L206"
+        },
+        {
+          "line": 116,
+          "path": "tensorflow/python/ops/math_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "dafa42414a0968e78c5454baff43e4d353ced96ad5fc6f8a28882a4a6082ab88",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/math_ops.py#L116"
+        },
+        {
+          "line": 2008,
+          "path": "keras/src/backend/tensorflow/numpy.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "dc2188fca0a1dbe1716dfcabf3679433078c9392db8205505adb062fc5dd1e5b",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/backend/tensorflow/numpy.py#L2008"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "INTEROP-DISPATCH",
+        "MEM-OWN",
+        "NUM-PROMOTE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "leto",
+      "admitted_declaration_count": 151,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "ARR-LAYOUT"
+      ],
+      "end_to_end_workflow": "Construct logical shape; transform/compose; observe copy/alias/lifetime and device placement through a consuming program.",
+      "id": "TF-ARRAY-LAYOUT",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Noncontiguous inputs, empty/scalar outputs, composed transpose/reshape, overlap lifetime and mutation observations; analytical shape identities plus nontrivial values."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 151,
+      "recommended_native_Atlas_design": "Leto owns logical layouts/views; explicit ownership/alias proof at tensor boundary; preserve framework observable copy/mutation rules through typed policies.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "TensorFlow Tensor logical reshape/transpose/broadcast does not promise NumPy mutable strided views.",
+        "Variable effects and shared resource identity are separate from immutable tensor values.",
+        "Dynamic shapes, zero extents and symbolic shape inference remain distinct from concrete allocation."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/array_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "ab018830f724e5ed766bf08ea3cfe9d49bcef1c8c48ee6881dfd67d778c5d378",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/array_ops.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/framework/tensor_shape.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "1b67424a042aa2ef812812569fd27279cc02c347c2ca577e1d20c71a4811ddbd",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/framework/tensor_shape.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "ARR-CREATE",
+        "CAP-PROOF",
+        "INTEROP-DISPATCH"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "leto",
+      "admitted_declaration_count": 140,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "ARR-INDEX"
+      ],
+      "end_to_end_workflow": "Validate index/batch/bounds policy; gather/scatter/update on target; compose with AD and mutation observations.",
+      "id": "TF-ARRAY-INDEX",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Repeated-index analytical VJP, CPU/GPU invalid-index behavior and trace, deterministic-mode duplicates and empty/dynamic shapes."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 140,
+      "recommended_native_Atlas_design": "Leto provides one generic indexing/scatter kernel with explicit bounds/duplicate policies; Coeus supplies gather/scatter adjoints; runtime/target differences stay observable.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "gather and tensor_scatter source documents CPU/GPU differences for bad indices.",
+        "Duplicate scatter indices imply update/reduction order and determinism obligations.",
+        "batch_dims, negative indices, dynamic output sizes and boolean masks are separate domain classes."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 4788,
+          "path": "tensorflow/python/ops/array_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "ab018830f724e5ed766bf08ea3cfe9d49bcef1c8c48ee6881dfd67d778c5d378",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/array_ops.py#L4788"
+        },
+        {
+          "line": 5541,
+          "path": "tensorflow/python/ops/array_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "ab018830f724e5ed766bf08ea3cfe9d49bcef1c8c48ee6881dfd67d778c5d378",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/array_ops.py#L5541"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "ARR-LAYOUT"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 358,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "TEN-CORE"
+      ],
+      "end_to_end_workflow": "Build tensor/spec/module; pass through eager/traced computation; observe structure, metadata, resource ownership and errors.",
+      "id": "TF-TENSOR-CORE",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Concrete versus symbolic construction, shape/spec subtype compatibility, device transfer ownership, graph errors and stable public protocol methods."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 358,
+      "recommended_native_Atlas_design": "Coeus owns tensor/program/spec semantics over Leto element/layout and Hephaestus buffers; use static traits where possible and explicit effect/resource types.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "KerasTensor is symbolic metadata and rejects arbitrary TensorFlow conversion; ordinary tensors carry values.",
+        "TensorSpec/TypeSpec/OptionalSpec encode structural constraints; resource effects cannot be hidden as array values.",
+        "Public constructors and protocol methods are retained despite dunder spelling."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/framework/tensor.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "063f8c3f5c3184c0734265d79c767c20456ae5332450e9e4a5bfabd0c28ac664",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/framework/tensor.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/framework/type_spec.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "994e5e42ccfbd86612c8cedbdc2e005e8547771f984419900f80ead157012c5d",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/framework/type_spec.py#L1"
+        },
+        {
+          "line": 7,
+          "path": "keras/src/backend/common/keras_tensor.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "a350163c4c1160a1a0871d24e8eb66ae3d7b4e3034361f97f14985f09efcd963",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/backend/common/keras_tensor.py#L7"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "ARR-LAYOUT",
+        "DEV-CORE",
+        "NUM-PROMOTE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 1195,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "TEN-OPS"
+      ],
+      "end_to_end_workflow": "Run elementwise/reduction/scan/numeric program across dtype, shape, layout and target classes; differentiate where defined.",
+      "id": "TF-TENSOR-NUMERICS",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Nontrivial analytic values, empty reductions, rounding ties, complex adjoints and differential cases against exact frozen package/device."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 1194,
+      "recommended_native_Atlas_design": "Coeus orchestrates tensor semantics/AD; shared canonical Leto mathematical kernels and Eunomia precision policies are prerequisites, not copied algorithms.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "TensorFlow promotion/casting differs from NumPy/JAX/Keras policies.",
+        "Reduction accumulator/order, NaN/Inf/signedzero and complex derivative conventions are per-operation.",
+        "Raw primitive operations and composites need independent public variants, not equal-name grouping."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/math_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "dafa42414a0968e78c5454baff43e4d353ced96ad5fc6f8a28882a4a6082ab88",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/math_ops.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/math_grad.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "61e4299fb89e265a8c7678411abb04b7bc08b38e61236e60be72fd9bc609aa46",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/math_grad.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "ARR-ELEMENT",
+        "ARR-REDUCE",
+        "DEV-DENSE",
+        "LA-DENSE",
+        "TEN-CORE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 667,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "TEN-SPARSE"
+      ],
+      "end_to_end_workflow": "Create sparse/ragged/indexed representation; validate invariants; transform/compute; differentiate and serialize.",
+      "id": "TF-STRUCTURED",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Duplicate sparse indices, malformed partitions, empty rows, sparse gradient equivalence, exact round-trip metadata and actual device execution."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 666,
+      "recommended_native_Atlas_design": "Coeus owns structured tensor facade/contracts over Leto sparse/layout kernels; Hephaestus executes native target variants; keep typed conversion boundaries.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Sparse duplicate ordering/coalescing and absent-value semantics differ by operation.",
+        "Ragged row partitions/dtypes and dense conversion padding are separate contracts.",
+        "Supported operation/gradient/backend classes cannot be inferred from a representation constructor."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/sparse_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "448660522420b13e53a6d0bfd0c988659ab247b6851381bcdb1bf430fbb9b4cd",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/sparse_ops.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/ragged/ragged_tensor.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "97eb7bd3c35d23558b9b8855ad80f067b2157b13cfa0e8a90c454c489392a441",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/ragged/ragged_tensor.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "ARR-MASK",
+        "DEV-SPARSE",
+        "LA-SPARSE",
+        "TEN-CORE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 762,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "TEN-RESOURCE"
+      ],
+      "end_to_end_workflow": "Construct string/resource/variant state; execute ordered reads/writes/lookup; serialize metadata and observe aliases.",
+      "id": "TF-STRING-RESOURCE",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Handle alias identity, ordered assignment/read, invalid state/index errors, nonnumeric exact values and differentiation domain proofs."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 762,
+      "recommended_native_Atlas_design": "Coeus owns effect/resource semantics; Leto owns host element/layout; Consus owns encodings; use explicit handles and access proofs.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "CPU Fill can replicate resource handles without allocating fresh resources.",
+        "Variable/TensorArray/TensorList effects, integer indices and trainability are separate from numeric array operations.",
+        "String operations and encodings need lossless domain/error contracts; no forced numeric Scalar coercion."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/resource_variable_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "8406fe84ac7c6c122121b57025065898e4d2c275ee98bbaeb926020ad3d587f2",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/resource_variable_ops.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/string_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "1e00be23db4e68d93bf1b5d3cb7861ab5640815e607b556b02d0fe6944a797c5",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/string_ops.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/tensor_array_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "15c1f0ac7887bd7790578dfa86388973f210fc34f4c09376369342fcc928f904",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/tensor_array_ops.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "ARR-TYPE",
+        "TEN-CORE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "leto",
+      "admitted_declaration_count": 2245,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "LA-DENSE",
+        "LA-DECOMP"
+      ],
+      "end_to_end_workflow": "Create dense/operator representation; choose factorization/solve; run on target; validate numerical residuals/gradients and conditioning.",
+      "id": "TF-LINALG",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Analytically constructed spectra/solutions, singular and ill-conditioned cases, backward error, complex VJP and device-qualified benchmarks."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 2245,
+      "recommended_native_Atlas_design": "Leto owns dense kernels/factorizations; shared Hephaestus device implementations consume the same contracts; Coeus owns AD composition.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Batch broadcasting, adjoint/transposition and complex conventions are explicit.",
+        "Singular/rank-deficient behavior, algorithm defaults and condition-dependent error bounds differ by primitive.",
+        "Operator classes expose composition and solve interfaces, not just one matrix algorithm."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/linalg_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "1bc3e20186c405625324a4231fd90c935a64c3b3ae42c2b36df99c16dae4cfb4",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/linalg_ops.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/linalg/linear_operator.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "a852e757f4087765e2e83ce448acf52699bec291ceed621d1d2eddaf67ee55cd",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/linalg/linear_operator.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "ARR-LAYOUT",
+        "CPU-LANE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "athena",
+      "admitted_declaration_count": 2,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "LA-ITER"
+      ],
+      "end_to_end_workflow": "Build matrix-free/preconditioned problem; iterate under explicit stopping policy; inspect convergence diagnostics and result.",
+      "id": "TF-ITERATIVE",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "SPD analytical solutions, preconditioned residual bounds, invalid domain/error behavior and reproducible convergence histories."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 2,
+      "recommended_native_Atlas_design": "Athena owns iterative policy and convergence diagnostics over canonical Leto/Hephaestus operators; no local Coeus solver copy.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Conjugate gradient assumes operator/domain conditions; tolerance, max iterations and initial state affect observable results.",
+        "Preconditioner policy belongs above sparse kernels."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/linalg/sparse/conjugate_gradient.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "e4d80ff66e4dd9945ed49a4e1603d746904dd3f3f739911e17cf538653ba54d0",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/linalg/sparse/conjugate_gradient.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "LA-DECOMP",
+        "LA-SPARSE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 133,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "AD-REVERSE",
+        "AD-FORWARD",
+        "AD-HIGHER",
+        "AD-TRANSFORM"
+      ],
+      "end_to_end_workflow": "Watch values/resources; record effects; compute reverse/forward derivatives; compose higher/batched/complex transformations.",
+      "id": "TF-AUTODIFF",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Independent analytic VJP/JVP/Hessians, broadcasting adjoints, complex conjugation, custom rules, state mutation, sparse gradients and transform composition."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 133,
+      "recommended_native_Atlas_design": "Coeus owns generic derivative/effect transforms over canonical provider kernels, with explicit complex and unconnected-gradient policies; no external AD runtime.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "GradientTape persistent/watch_accessed_variables controls resource capture and reuse.",
+        "Vector targets, output_gradients and unconnected_gradients change VJP results and None-versus-zero structure.",
+        "ForwardAccumulator, nested tapes, jacobian/batch_jacobian and custom_gradient need separate compositional contracts.",
+        "High-level composite linspace gradients differ from raw LinSpace explicit nondifferentiability."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 705,
+          "path": "tensorflow/python/eager/backprop.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "c9a461d06085be50a2235e23e6c32a4649805fa2b5fb43d50e7fb421f92eed78",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/eager/backprop.py#L705"
+        },
+        {
+          "line": 230,
+          "path": "tensorflow/python/eager/forwardprop.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "eafa644b7914cd5f608b25d77ffbc4222ad345fefd923aff95c293d322858654",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/eager/forwardprop.py#L230"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/custom_gradient.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "c3a58bc1573c6fb70b6819b4e3b1048ca9aa35b01969e12da2ee86e470fe9fc9",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/custom_gradient.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "TEN-OPS"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 349,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "GRAPH-TRACE",
+        "GRAPH-COMPILE",
+        "GRAPH-EXPORT"
+      ],
+      "end_to_end_workflow": "Trace callable/control effects into first-party program; specialize/compile; execute with cache, shape and failure semantics; export.",
+      "id": "TF-GRAPH",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Trace-count/cache/state effects, symbolic shape/control programs, differentiation through compiled programs, exact error stages and target IR execution evidence."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 349,
+      "recommended_native_Atlas_design": "Coeus owns acyclic first-party IR, shape/effect analysis and transforms; Hephaestus owns target lowering, Moirai execution. Reproduce capabilities without embedding XLA/TF runtimes.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Python tracing effects and TensorFlow runtime effects differ; tf.function retracing/input_signature/cache rules are observable.",
+        "Autograph conversion, conditional branch tracing and while-loop shape invariants are separate contracts.",
+        "jit_compile must-compile errors and graph-only unsupported cases cannot silently fall back."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/eager/polymorphic_function/polymorphic_function.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "600024d8d26c0456b3f3295a50de01092a85a077aec82cbb32fc09c994caa381",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/eager/polymorphic_function/polymorphic_function.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/autograph/impl/api.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "7393f40d430d0c9d57aea58fbb251d8016355bb9dea21355ac47be5c634776c6",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/autograph/impl/api.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/while_loop.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "c56e2137e182192d9a2d140f991ecb7a018793b9e79f32fc9e629d29d7a54cb1",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/while_loop.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "AD-TRANSFORM",
+        "DEV-COMPILE",
+        "TEN-RESOURCE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "apollo",
+      "admitted_declaration_count": 151,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "TR-FFT",
+        "TR-SPECTRAL"
+      ],
+      "end_to_end_workflow": "Specify transform axes/type/norm/length; create/reuse plan; execute and differentiate through Coeus; validate nontrivial spectra.",
+      "id": "TF-SPECTRAL",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Known spectra and Parseval/adjoint identities plus non-identity examples, inverse reconstruction, axis/layout/dtype/device and gradient checks."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 151,
+      "recommended_native_Atlas_design": "Apollo owns transform mathematics/plans; Coeus derivative layer consumes it. Existing Apollo hold/owner work is preserved; no implementation handoff bypass.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Real/complex transforms, normalization, padding/truncation, STFT/window/reconstruction and adjoint rules differ.",
+        "Transform numeric implementation remains Apollo; tensor differentiation belongs to Coeus."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/signal/fft_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "c7d3a58fb49bb3140eb0051adbab2d691985af73b09b0b2caf72676edcfacc94",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/signal/fft_ops.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/signal/spectral_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "ba63fa48a39e2125708c5c6ef5a9e28261bab1113cd162c98364348f21989441",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/signal/spectral_ops.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "EXEC-CPU",
+        "LA-DENSE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 6482,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "NN-BASIC",
+        "NN-LINEAR",
+        "NN-CONV",
+        "NN-NORM",
+        "NN-SEQUENCE",
+        "NN-MODULE",
+        "NN-INIT"
+      ],
+      "end_to_end_workflow": "Construct model/layer/state; initialize; train/evaluate with losses/metrics; preserve updates, masking and serialization.",
+      "id": "TF-NN",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Analytic small networks plus representative end-to-end training, parameter/buffer/state transitions, nontrivial losses/metrics, gradients and exact resume tests."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 6482,
+      "recommended_native_Atlas_design": "Coeus owns NN/module/training orchestration using shared canonical kernels, typed train/eval state and explicit serialization schema; no per-backend model forks.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Keras layer call/build/weights and Model compile/fit/evaluate state are separate from numeric kernels.",
+        "Training/evaluation, moving statistics, masking/ragged inputs, padding/groups/dilation and recurrent/attention state define variants.",
+        "Metrics accumulate state and loss reductions differ; initializer objects are not tensor constructor aliases."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 71,
+          "path": "keras/src/layers/layer.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "0e38d79ad07fb89b271aea85ba48833eab69a2553d7c970bf851cfa2edc084a9",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/layers/layer.py#L71"
+        },
+        {
+          "line": 39,
+          "path": "keras/src/models/model.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "95322d9a801cdff69f95a4e950d262b0d0dbc7303c7dc7a78ea6cc1167bb3b39",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/models/model.py#L39"
+        },
+        {
+          "line": 19,
+          "path": "keras/src/trainers/trainer.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "e2bcc0198989d2430e5a0b2c2d6820128422a4ef060604a288b4be8f32e7f168",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/trainers/trainer.py#L19"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "AD-REVERSE",
+        "DEV-DENSE",
+        "GRAPH-EXPORT",
+        "RNG-DIST",
+        "TEN-OPS"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 1128,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "OPT-UPDATE",
+        "OPT-SCHED",
+        "PREC-MIXED"
+      ],
+      "end_to_end_workflow": "Create optimizer/state/policy; apply gradients; schedule/clip/scale; checkpoint and resume training.",
+      "id": "TF-OPTIMIZERS",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Analytic first/multiple updates and slots, sparse/dense gradients, schedule boundaries, overflow recovery, decay policies and saved-state resumed trajectories."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 1128,
+      "recommended_native_Atlas_design": "Coeus owns update/schedule/state contracts over generic numerical policies and resource effects; shared provider kernels implement math once.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Update ordering, epsilon placement, slots, weight decay and sparse gradients are optimizer-specific.",
+        "Loss scaling/mixed precision have overflow/skip-update/state semantics; nominal dtype alone is insufficient.",
+        "Keras optimizer instances, legacy tf.train optimizers and raw update kernels remain separate workflow variants."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 14,
+          "path": "keras/src/optimizers/base_optimizer.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "e4e2b3622286c48ee8d4feda665e49fce10c88eff07f5f1baa34349d10f99604",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/optimizers/base_optimizer.py#L14"
+        },
+        {
+          "line": 7,
+          "path": "keras/src/optimizers/adam.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "a3160c816bd37e76dde92e838f4b08ce79a94f4e4f57c30dbb6d9779b3235da5",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/optimizers/adam.py#L7"
+        },
+        {
+          "line": 242,
+          "path": "tensorflow/python/training/optimizer.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "7be583257ab24745e4b68c88784d80c91b8550976f9362f50e2a3814943c85fe",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/training/optimizer.py#L242"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "AD-REVERSE",
+        "NN-MODULE",
+        "NUM-PROMOTE",
+        "RNG-DIST"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "moirai",
+      "admitted_declaration_count": 205,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "EXEC-CPU"
+      ],
+      "end_to_end_workflow": "Schedule ordered computations/resource access; synchronize/cancel; observe bounded progress, errors and state.",
+      "id": "TF-EXECUTION",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Real resource contention/order traces, queue bounds, cancellation propagation, no lost work and typed errors; existing provider gates remain mandatory."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 205,
+      "recommended_native_Atlas_design": "Moirai owns execution/synchronization/transport policy; explicit Coeus effect dependencies and Melinoe proofs. Preserve existing native-Tokio/Quinn coordinator ownership.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "CriticalSection/group/queue and graph control effects differ from array math.",
+        "Ordering, cancellation and resource lifetime cannot be replaced by unbounded fire-and-forget tasks."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/critical_section_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "91f7c2b7ea17cd79c1e74f8fec87db11f7e5da7975ba184a3331ef552c8e689a",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/critical_section_ops.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/data_flow_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "d147a34d3f9fe988ee2e8981e84a1a657506d234f0952ceda9944fa23018f80b",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/data_flow_ops.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "LOC-PLACE",
+        "MEM-OWN"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 1936,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "DATA-PIPE"
+      ],
+      "end_to_end_workflow": "Read/decode; map/shuffle/cache/batch/prefetch/repeat; distribute consumption; cancel and propagate errors under backpressure.",
+      "id": "TF-DATA",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Exact ordered/seeded sequences, finite/infinite cardinality domains, partial batches, cancellation/error propagation, cache/iterator resume and multi-host ordering."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 1936,
+      "recommended_native_Atlas_design": "Coeus owns dataset semantics; Moirai owns scheduling/backpressure/cancellation; Consus codecs/storage and Tyche RNG feed one native pipeline.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Deterministic ordering, shuffle seeds/reshuffle_each_iteration, drop_remainder and stateful maps are observable.",
+        "Cardinality/infinite pipelines, cache persistence, iterator checkpoints and distributed sharding require end-to-end contracts.",
+        "Source file availability, optional dataset services and pipeline device transfer are separate prerequisites."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 137,
+          "path": "tensorflow/python/data/ops/dataset_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "981ea5a001b08c66e5ba9341b4bd58f0896628f56cf2abdb1d5bb73c637c25cc",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/data/ops/dataset_ops.py#L137"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/data/ops/iterator_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "439cf92cdeb01037ff451eef1bf0b382483592039b9385f4053a4e911c680c33",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/data/ops/iterator_ops.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "EXEC-CPU",
+        "IO-ARRAY",
+        "RNG-STREAM"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "tyche",
+      "admitted_declaration_count": 893,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "RNG-STREAM",
+        "RNG-DIST"
+      ],
+      "end_to_end_workflow": "Select algorithm and seed/state/split policy; sample distributions on target; checkpoint/replay and differentiate where defined.",
+      "id": "TF-RANDOM",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Independent distributional tests with derived confidence, seed/state/counter round trips, promised exact streams, split independence and reparameterized gradients."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 893,
+      "recommended_native_Atlas_design": "Tyche owns stream/distribution mathematics; Hephaestus native device kernels and Coeus AD composition consume explicit policies.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Stateful generators, global/op seed combinations and stateless seed tensors differ.",
+        "Algorithm, counter advancement, splitting and device/XLA behavior require frozen-configuration contracts.",
+        "Sampling/reparameterized gradients differ by distribution; similar histograms do not prove stream identity."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/random_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "5535d02faf7ba9eaf7d574431e07d6144ca37c71a470f4d5556c7976ca1bca6b",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/random_ops.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/stateless_random_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "00f99aa0cbed16d4ccdcbd53599b8da24b916bbe3f573b28653ed88dc238b224",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/stateless_random_ops.py#L1"
+        },
+        {
+          "line": 221,
+          "path": "tensorflow/python/ops/stateful_random_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "1e5a5769ba3269372d99824cbea044ebd6cd4f1fae571acd5be4f4ccc3d9c05c",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/stateful_random_ops.py#L221"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "ARR-ELEMENT",
+        "EXEC-CPU",
+        "LA-DECOMP",
+        "NUM-REP"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "moirai",
+      "admitted_declaration_count": 76,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "DIST-COMMS"
+      ],
+      "end_to_end_workflow": "Create topology/rank context; launch ordered collective/point-to-point operations; synchronize, fail/cancel and recover.",
+      "id": "TF-COLLECTIVES",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Real multi-process/multi-host numerical collectives, mismatched participation, cancellation/backpressure, failure propagation and device-residency traces."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 76,
+      "recommended_native_Atlas_design": "Moirai owns native transport/collectives; Themis placement and Hephaestus buffers are prerequisites. No duplicate Quinn/native-Tokio repair in this lane.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Group/instance keys, ordering, asynchronous completion, reduction dtype/order and errors are explicit.",
+        "Version-skew wire protocol support cannot be assumed from same method names."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/collective_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "5d7ce09b5148136a305b32733e92353913f4a6e87a1f14dab4ee2d68e0246e67",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/collective_ops.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "DEV-CORE",
+        "EXEC-CPU"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 1145,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "DIST-SHARD",
+        "DIST-TRAIN"
+      ],
+      "end_to_end_workflow": "Specify mesh/strategy/partition; shard state and data; train with collective gradients; checkpoint/restore and rebalance.",
+      "id": "TF-DISTRIBUTED-TRAIN",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Analytical global gradients versus local replicas, actual sharded buffers, global/local shape and checkpoint resume under topology changes."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 1145,
+      "recommended_native_Atlas_design": "Coeus owns distributed program/training semantics over Moirai collectives, Themis placement and Hephaestus native targets.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Replica-versus-cross-replica context, aggregation/variable placement and per-replica values differ.",
+        "DTensor layout/mesh semantics and Keras distribution backend constraints remain explicit.",
+        "Reference-invalid backend combinations need cited domain rules; no missing Atlas hardware exclusion."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 2026,
+          "path": "tensorflow/python/distribute/distribute_lib.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "9cd6651280b999759a5d29cddf127511ffeb3344dafd9022e3f22f0b206aad4a",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/distribute/distribute_lib.py#L2026"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/dtensor/python/api.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "6a811d2ea7f86f49ed30433bc3fa4a463d626b9bcbe329f454421e347ea97832",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/dtensor/python/api.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "keras/src/distribution/distribution_lib.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "793250f1672e5d199e452355c46a8a34b54834e75090c3c6dbd3caf006e2da74",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/distribution/distribution_lib.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "DIST-COMMS",
+        "GRAPH-COMPILE",
+        "LOC-PLACE",
+        "OPT-SCHED",
+        "PREC-MIXED"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "hephaestus",
+      "admitted_declaration_count": 584,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "DEV-CORE",
+        "DEV-COMPILE"
+      ],
+      "end_to_end_workflow": "Acquire/query target; allocate/transfer buffers; execute/synchronize; inspect placement/capabilities and diagnostics.",
+      "id": "TF-DEVICE",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Physical device/driver identity, allocation and synchronization, observed execution trace, unsupported-domain errors and required hardware qualification."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 584,
+      "recommended_native_Atlas_design": "Hephaestus owns vendors, device/buffer/target lowering; Themis/Melinoe/Mnemosyne supply placement/access/allocation law; no consumer-local vendor architecture.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Requested device, actual residency and reference host-memory integer paths differ.",
+        "CPU/GPU/TPU/custom devices, visibility/configuration, streams and compilation support are separate classes.",
+        "No implicit CPU fallback counts as target parity."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/framework/config.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "780d5db3064c2566d27af5dd74bc89aeac55dd92dd6f1fc661d22762555cfd7d",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/framework/config.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/eager/context.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "e9def9170abfb1e4c659b607fa54c6b3c66460e87569eeada864571d9190bfc7",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/eager/context.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "CAP-PROOF",
+        "DEV-DENSE",
+        "LOC-PLACE",
+        "MEM-OWN"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "consus",
+      "admitted_declaration_count": 604,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "IO-ARRAY"
+      ],
+      "end_to_end_workflow": "Encode arrays/tensors/media; write/read via documented format; validate values, metadata, byte order, error and resource behavior.",
+      "id": "TF-ARRAY-IO",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Independent format fixtures/round trips, malformed/truncated inputs, dtype/shape/endianness metadata, codec-specific bounds and memory/resource limits."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 604,
+      "recommended_native_Atlas_design": "Consus owns encodings/containers/storage; Leto/Coeus own value semantics; backend decoding must not duplicate byte-format owners.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Storage serialization, media codecs, record/protobuf parsing and string transforms are not interchangeable.",
+        "Lossy image/audio paths need explicit error contracts; lossless array metadata requires exact fidelity."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/io_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "ef16cfe56343f1d23cb6da954ca52cbd9fc8e1b9731db3ed8b7bff0be439ff76",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/io_ops.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/image_ops_impl.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "579e57451edbfa0ca57472db79bb95c18c68bff03c8558e9b828597fa892469f",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/image_ops_impl.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "ARR-TYPE",
+        "TEN-CORE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 119,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "IO-CHECKPOINT"
+      ],
+      "end_to_end_workflow": "Capture tensor/model/optimizer/resource graph; persist; restore into fresh consumer; resume numerical execution.",
+      "id": "TF-CHECKPOINT",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Exact state graph and optimizer-slot restoration, alias identity, partial mismatch cases, nontrivial resumed training and independently readable bytes."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 119,
+      "recommended_native_Atlas_design": "Coeus owns model/program/optimizer identity; Consus owns byte containers; use versioned schemas and fresh native consumers.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Object Checkpoint, legacy Saver and Keras .keras/weights-only archives preserve different state/identity graphs.",
+        "Deferred restore, missing objects, partial/mismatched state and checkpoint naming require explicit errors."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/checkpoint/checkpoint.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "cd08e08239ffbe69748e34c605f816a1b9d00fcb17d8ea0bff93cfeaecd2647d",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/checkpoint/checkpoint.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/training/saver.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "c6028074da7834aeea0827b5f98036402aef9c0d2e535d1b57892c0cce4eff42",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/training/saver.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "keras/src/saving/saving_api.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "7dbc19f8230a1213cdce889b7876f628bfc0c58bf6184b6d79af882ec6eaac0a",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/saving/saving_api.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "IO-ARRAY",
+        "NN-MODULE",
+        "OPT-SCHED"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 215,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "GRAPH-EXPORT",
+        "DEPLOY-SERVE"
+      ],
+      "end_to_end_workflow": "Capture callable signatures/assets/resources; export; load in fresh native consumer; execute inference/training signatures where promised.",
+      "id": "TF-SAVEDMODEL",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Independent exported-signature execution, captures/assets/resources and invalid signatures; fresh consumers and version-compatible graph/state checks."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 215,
+      "recommended_native_Atlas_design": "Coeus owns first-party portable program/serving semantics; Consus encoding and Hephaestus lowering are prerequisites. Documented import/export is not permission to embed external runtimes.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "SavedModel signatures/ConcreteFunctions, assets and resource initialization differ from Keras archives and raw GraphDef.",
+        "Keras3 load_model is not a SavedModel loader; Model.export is a separate inference workflow.",
+        "Serving/mobile/browser consumers require their own format/ABI/version contracts."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/saved_model/save.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "e8ffbb23361e3dbf244786e63a8df113aed01753ada28195793378a3f594175b",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/saved_model/save.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/saved_model/load.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "789ec3e587955e19a88d30fb220b09787969afb7f5837bf01efcb2351bcb9bd0",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/saved_model/load.py#L1"
+        },
+        {
+          "line": 654,
+          "path": "keras/src/models/model.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "95322d9a801cdff69f95a4e950d262b0d0dbc7303c7dc7a78ea6cc1167bb3b39",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/models/model.py#L654"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "DATA-PIPE",
+        "GRAPH-COMPILE",
+        "INTEROP-TENSOR"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 189,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "DEPLOY-SERVE"
+      ],
+      "end_to_end_workflow": "Convert/export model with quantization/options; load mobile interpreter/delegate; allocate/invoke tensors and inspect results.",
+      "id": "TF-MOBILE",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Exact conversion metadata and independently consumed artifacts, quantization derived error bounds, native delegate execution and language-ABI lifecycle tests."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 189,
+      "recommended_native_Atlas_design": "Coeus owns portable inference/workflow semantics, Hephaestus native device lowering and Consus flatbuffer/encoding support; no app deployment is authorized by planning.",
+      "remaining_scope": [
+        "Separate LiteRT/extension versions, native language inventories, delegate hardware and actual runtime tests remain required."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Converter, Interpreter, delegates/custom ops, dynamic resizing, quantization and signature runners are separate interfaces.",
+        "TensorFlow Lite/LiteRT component versions and C/Java/Swift/ObjC ABIs are not fully represented in these Python declarations."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/lite/python/lite.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "f3976d09e94fc4ebe6fb7d3f406e424725331ba58a396ebbb1df54300bbd7d1d",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/lite/python/lite.py#L1"
+        },
+        {
+          "line": 361,
+          "path": "tensorflow/lite/python/interpreter.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "a761f88ec458aa8282a7950a6b4ff68073fb5f495be53c66a643952e5debacf7",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/lite/python/interpreter.py#L361"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "DATA-PIPE",
+        "GRAPH-EXPORT",
+        "INTEROP-TENSOR"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 0,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "DEPLOY-SERVE"
+      ],
+      "end_to_end_workflow": "Versioned model server lifecycle, request batching/signatures, resources, concurrency, deployment packaging and failure semantics.",
+      "id": "TF-SERVING",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Freeze component version/source/docs; enumerate interfaces; exercise real independent exported consumers and failure modes before qualification."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 0,
+      "recommended_native_Atlas_design": "Coeus owns portable inference/tooling semantics over canonical providers; implement native capabilities without adopting third-party production runtimes. No service/app deployment authorization.",
+      "remaining_scope": [
+        "Exact separately versioned component selection, public language/API inventory, deployment format and hardware/consumer tests remain open."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "external-denominator-unextracted",
+      "semantic_variants_to_preserve": [
+        "This separately versioned component is not exhausted by the admitted Python inventory.",
+        "Public legacy/experimental/language APIs and device-valid combinations remain in scope."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "semantic_authority": "official current workflow context; exact component release/inventory unresolved",
+          "url": "https://www.tensorflow.org/tfx/guide/serving"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "DATA-PIPE",
+        "GRAPH-EXPORT",
+        "INTEROP-TENSOR"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 0,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "DEPLOY-SERVE"
+      ],
+      "end_to_end_workflow": "Browser/JavaScript tensor/model execution, graph conversion, asynchronous scheduling, backend selection and loading/storage interoperability.",
+      "id": "TF-BROWSER",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Freeze component version/source/docs; enumerate interfaces; exercise real independent exported consumers and failure modes before qualification."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 0,
+      "recommended_native_Atlas_design": "Coeus owns portable inference/tooling semantics over canonical providers; implement native capabilities without adopting third-party production runtimes. No service/app deployment authorization.",
+      "remaining_scope": [
+        "Exact separately versioned component selection, public language/API inventory, deployment format and hardware/consumer tests remain open."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "external-denominator-unextracted",
+      "semantic_variants_to_preserve": [
+        "This separately versioned component is not exhausted by the admitted Python inventory.",
+        "Public legacy/experimental/language APIs and device-valid combinations remain in scope."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "semantic_authority": "official current workflow context; exact component release/inventory unresolved",
+          "url": "https://www.tensorflow.org/js/guide"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "DATA-PIPE",
+        "GRAPH-EXPORT",
+        "INTEROP-TENSOR"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 16,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "INTEROP-TENSOR"
+      ],
+      "end_to_end_workflow": "Exchange values/programs through documented protocols; prove ownership/device synchronization; consume in independent environments.",
+      "id": "TF-INTEROP",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Zero-copy lifetime and single-consumption, device/stream synchronization, dtype/shape/layout fidelity, callback effects/errors and extension serialization."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 16,
+      "recommended_native_Atlas_design": "Coeus owns tensor/program interoperability over Leto protocols and Melinoe access proofs; external runtimes remain isolated oracles.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "DLPack zero-copy ownership/stream handoff differs from explicit NumPy copies or Python callbacks.",
+        "Custom operators/ExtensionType and py_function effects/export support remain separate."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/dlpack/dlpack.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "b71872d5cf381d418520c87b0e1b8833a3a7d83a38915f3ac66e2eab8e9e4696",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/dlpack/dlpack.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/ops/script_ops.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "da7a47484660f9dbafb0e4350b2eb3448c93bcb3f0507977bb17ee64e4fa354a",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/script_ops.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "GRAPH-EXPORT",
+        "INTEROP-ARRAY",
+        "IO-CHECKPOINT"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 785,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "TOOL-PROFILE"
+      ],
+      "end_to_end_workflow": "Instrument/debug/test a running workload; observe values/traces/errors; export diagnostic data and account for overhead.",
+      "id": "TF-TOOLING",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Trace completeness/causality, failed assertions with computed values, summary schemas and deterministic diagnostics, instrumentation overhead and exact external tooling versions."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 785,
+      "recommended_native_Atlas_design": "Coeus owns runtime/program observation; Atlas owns cross-framework evidence orchestration; preserve typed diagnostic context without changing execution.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Profiler, assertions/check_numerics, summaries/TensorBoard and testing helpers have distinct contracts.",
+        "TensorBoard dependency was removed from TF2.21 metadata; summary APIs can reach separately versioned tooling that remains denominator work."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/profiler/profiler_v2.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "f9b3c390c4026da4bdb414bbe0d95ab135680bee29e4dcee3a04b66d10f52c2b",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/profiler/profiler_v2.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/framework/test_util.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "3d06e2a66472c3b30a1a0b50f5516beb8b92be39b92f220401549fc6a572e127",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/framework/test_util.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "DIST-TRAIN",
+        "GRAPH-TRACE",
+        "OPT-SCHED"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "atlas",
+      "admitted_declaration_count": 16,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "TOOL-BENCH"
+      ],
+      "end_to_end_workflow": "Define matched workload/configuration; run bounded/counterbalanced samples; record raw results, environment and uncertainty.",
+      "id": "TF-BENCHMARK",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Matched exact-revision workload identities, statistical uncertainty, analytically justified targets and no skipped/fallback qualification."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 16,
+      "recommended_native_Atlas_design": "Atlas owns reproducible orchestration/evidence; provider-specific benchmarks remain with canonical owners and actual hardware.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Compilation/warmup, steady-state, transfer/synchronization, memory and end-to-end latency are separate metrics.",
+        "A benchmark/test name or skipped hardware branch is not performance qualification."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/platform/benchmark.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "19cacb76d4b7908ba2050c67e05f7cab4fcf8e29f129b18094da6424626bcb3a",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/platform/benchmark.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "PARITY-VALIDATOR",
+        "TOOL-PROFILE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "coeus",
+      "admitted_declaration_count": 738,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "COMPAT-LEGACY"
+      ],
+      "end_to_end_workflow": "Resolve versioned/legacy public path; build/evaluate graph/session/training workflow; preserve deprecated behavior and errors.",
+      "id": "TF-LEGACY",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Fresh graph/session lifecycles, legacy state/mutation/defaults, source-differing v1/v2 signatures and exact deprecated error contracts."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 738,
+      "recommended_native_Atlas_design": "Coeus owns public compatibility behavior through explicit semantic policies on canonical first-party operations; do not clone old runtime architecture or add cosmetic aliases.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "tf.compat.v1, deprecated Keras backend and old optimizer/session APIs retain distinct defaults/effects.",
+        "Legacy backend.zeros can return Variable or Tensor based on shape; old arange rewrites negative one-argument inputs.",
+        "Keras3 versus optional legacy tf_keras environment routes require separate frozen package identities."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/python/client/session.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "d3e1700433af72caaa669caa74709c4167a88cd91a05d82ed0d2956e93bbbae7",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/client/session.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "keras/src/legacy/backend.py",
+          "repository": "keras-team/keras",
+          "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "1385a5875153de9d83ad5630f661dad7c5ab56432e89f8938a005a4586f54186",
+          "url": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/legacy/backend.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "GRAPH-TRACE",
+        "INTEROP-TENSOR",
+        "NN-MODULE"
+      ]
+    },
+    {
+      "accountability_role": "proposed-canonical-provider",
+      "accountable_owner": "consus",
+      "admitted_declaration_count": 518,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "IO-ARRAY"
+      ],
+      "end_to_end_workflow": "Construct protocol message/schema; encode/decode and pass through graph/checkpoint/storage workflows; validate field defaults and versions.",
+      "id": "TF-SCHEMAS",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Published protobuf fixtures, field/default/unknown-field/alias preservation, malformed payloads and independent consumers."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 518,
+      "recommended_native_Atlas_design": "Consus owns byte/schema encoding; Coeus owns program/checkpoint interpretation; preserve field/unknown-field/version semantics.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Protocol message/field declarations are serialized data interfaces, not independent numeric algorithms.",
+        "One schema can have duplicate module-attribute/class declaration views; retain identities without double-counting mathematical capabilities."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/tools/api/lib/python_object_to_proto_visitor.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "958112e0849f6d115e3f1a56865771e27cfe78aa94ad2e1538f5e1838b659b43",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/tools/api/lib/python_object_to_proto_visitor.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": [
+        "ARR-TYPE",
+        "TEN-CORE"
+      ]
+    },
+    {
+      "accountability_role": "temporary-definition-triage-only",
+      "accountable_owner": "atlas",
+      "admitted_declaration_count": 1992,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "PARITY-VALIDATOR"
+      ],
+      "end_to_end_workflow": "Resolve declaration/documentation/source binding and semantic family before assigning provider implementation.",
+      "id": "TF-SCOPE-UNRESOLVED",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Conserve every raw declaration, validate typed relations and source references, retain unresolved rows and zero qualification credit."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 1988,
+      "recommended_native_Atlas_design": "Atlas owns scope/evidence adjudication only; assign a provider only when the canonical operation and dependencies are concrete.",
+      "remaining_scope": [
+        "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "A namespace, enum, generated helper or external class can be a public identity without being an independent algorithm.",
+        "Source indexing or lexical grouping cannot close public/semantic status."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/tools/api/tests/api_compatibility_test.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "1d272bd9be024b211f994c36c4400cf92f1c312d3df61c56fbf4f0780e52a267",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/tools/api/tests/api_compatibility_test.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/tools/common/public_api.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "e35401d957431bba63444c8f2f05c3e84090eb90d9fbbb0717d792981a4e3ed7",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/tools/common/public_api.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": []
+    },
+    {
+      "accountability_role": "temporary-definition-triage-only",
+      "accountable_owner": "atlas",
+      "admitted_declaration_count": 486,
+      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "canonical_capability_ids": [
+        "PARITY-VALIDATOR"
+      ],
+      "end_to_end_workflow": "Retain internal source identities for provenance and architectural context; review publisher public-status evidence.",
+      "id": "TF-PRIVATE-IMPLEMENTATION",
+      "implementation_ownership_resolved": false,
+      "independent_acceptance_examples": [
+        "Positive evidence per private disposition, public-namespace conflicts retained, documented public variants untouched and independent review."
+      ],
+      "performance_qualified": false,
+      "public_candidate_declaration_count": 0,
+      "recommended_native_Atlas_design": "Atlas coordinates public-denominator review. Do not inflate public obligation counts with implementation helpers or infer removal of a documented public capability.",
+      "remaining_scope": [
+        "Publisher policy snapshot is current, not exact-release prose;486 proposed internal dispositions still require independent review."
+      ],
+      "runtime_evidence": false,
+      "semantic_specification_status": "partial-family-proposal",
+      "semantic_variants_to_preserve": [
+        "Explicit __internal__ integration exports and publisher private policy provide positive private evidence; this is not an unsupported-capability exclusion.",
+        "Public constructors/protocol dunders are retained; spelling alone is not a general private filter."
+      ],
+      "semantics_fully_specified": false,
+      "source_evidence": [
+        {
+          "line": 1,
+          "path": "tensorflow/tools/common/public_api.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "e35401d957431bba63444c8f2f05c3e84090eb90d9fbbb0717d792981a4e3ed7",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/tools/common/public_api.py#L1"
+        },
+        {
+          "line": 1,
+          "path": "tensorflow/python/util/tf_export.py",
+          "repository": "tensorflow/tensorflow",
+          "revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+          "semantic_authority": "exact-frozen-source; runtime/binding/build qualification not implied",
+          "sha256": "2f69ee41f8eb5a93cb1540c30a9adf633ee9d417d96ba5c1d9c74bb0197f7812",
+          "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/util/tf_export.py#L1"
+        }
+      ],
+      "upstream_prerequisite_capabilities": []
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Proposed single accountable owner and upstream program dependencies; no task claim, architecture sign-off, implementation completion or semantic equivalence."
+}

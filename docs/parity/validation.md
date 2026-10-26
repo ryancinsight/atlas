@@ -1,8 +1,17 @@
 # Validation and remaining definition work
 
-Program 2026-10-26.3. Exact candidate identity and current hosted results belong
+Program 2026-10-26.5. Exact candidate identity and current hosted results belong
 in the draft PR; local evidence here describes the authored tree and commands,
 not a final merge/release certification. [Contracts](contracts.md).
+
+The original planning/tooling slice is merged through #570 at `2dbfeabc` and
+the bounded source-disposition slice through #571 at `03464d75`. Their exact
+heads receive independent review and actual fast/slow Python, CodeQL and
+conformance passes after readiness. All three post-merge #571 workflows pass;
+the exact merge has no deployment records. Earlier draft-only skip observations
+below are retained history, not passing validations or current merge blockers.
+The public-surface/shared-contract increment requires its own final-head review
+and hosted checks. Full definition and release qualification remain blocked.
 
 ## Recorded candidate surface
 
@@ -53,8 +62,9 @@ evidence meets all protocol obligations. Both qualification commands correctly
 return 1 for this candidate. External exact-head review evidence is mandatory
 for eventual qualification; a clean tracked tree alone does not qualify.
 
-The focused suite executes **87 tests, zero skips**: 70 gate/traceability tests
-and 17 source-extractor tests collected by an import-only wrapper in
+The current focused suite executes **105 tests, zero skips**, including 18 new
+public-scope/storage rejection and roundtrip checks. The earlier 87-test slice
+contains 70 gate/traceability and 17 source-extractor tests collected by an import-only wrapper in
 `scripts/tests`. Hosted `pytest scripts/tests` therefore collects the same
 extractor tests without duplicating assertions. Source extractors regenerate
 byte-identically from their independently hash-verified caches. Byte compilation

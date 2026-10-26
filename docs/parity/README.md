@@ -1,6 +1,6 @@
 # Four-framework functional parity program
 
-Program revision: **2026-10-26.4**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
+Program revision: **2026-10-26.5**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
 
 This is the canonical Atlas program for the October 26 instruction to complete
 Coeus and its providers to full NumPy, JAX, PyTorch and TensorFlow functional
@@ -13,6 +13,7 @@ bounded-scope completion claims do not establish this program's completion.
 | --- | --- |
 | [Program manifest](program.json) | Version, frozen reference snapshots, completeness and required gates |
 | [Reference inventories](reference/) and [source closure](reference/closure/README.md) | Extracted public API identities, source versions, hashes and extraction gaps |
+| [Public surface and reusable contracts](reference/public-scope/README.md) | Conserved declarations, source publicness/views, signature links and planned provider routes |
 | [Capability contracts](capabilities.json) | Single accountable owner, provider prerequisites, semantics, tests and qualification obligations |
 | [Contracts and evidence protocol](contracts.md) | Coverage axes, evidence states, equivalence and rejection rules |
 | [Work packages](work-packages.json) and [execution program](execution.md) | Dependency order, readiness, estimates, acceptance and handoffs |
@@ -42,6 +43,12 @@ Current source accounting: **38,096 candidate identities; two source-specified,
 59 partial and 38,035 unmapped**. Candidate relation tables remain separately
 visible and all four public denominators remain open. No execution or release
 state is promoted by source mapping.
+
+The public-surface capture links every admitted raw identity to one of 147
+framework-specific reusable contracts. It preserves 498 publicness questions,
+three source-internal candidates and nine documented extension hooks without
+excluding any obligation. Planned family routes are separate from verified
+implementation ownership and complete semantic mapping.
 
 The [bounded source dispositions](reference/closure/dispositions.md) preserve
 member-selection, parser and package/import distinctions. They refine required

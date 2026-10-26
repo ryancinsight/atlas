@@ -32,6 +32,20 @@
     "required_checks_run": "https://github.com/ryancinsight/atlas/actions/runs/40283691029",
     "slow_job": "success after ordinary readiness"
   },
+  "atlas_planning_delivery_571": {
+    "deployment_records": [],
+    "exact_head_independent_review": "No findings within bounded planning/tooling source scope",
+    "merge_revision": "03464d75e0bcfd0f177beb9ed505e2cb7509aa57",
+    "merged_at": "2026-10-26T09:16:20Z",
+    "post_merge_workflows": {
+      "40298262806": "Push on main:success",
+      "40298263902": "Python script tests:success",
+      "40298264181": "atlas-conformance:success"
+    },
+    "pull_request": "https://github.com/ryancinsight/atlas/pull/571",
+    "qualification_credit": "Planning/tooling delivery only; not full definition or1.0 qualification",
+    "reviewed_head": "7a1f96b1aca40131add614cc6ce835f69481bb06"
+  },
   "audit_date": "2026-10-26",
   "audit_kind": "read_only_source_and_selected_remote_evidence",
   "coordinator_handoff_20261026": {
@@ -71,6 +85,20 @@
     "sync_tests_filter_excluded": 91,
     "sync_tests_passed": 56,
     "tokio_free": "not established"
+  },
+  "gammaln_implementation_owner_20261026": {
+    "authority": "Trusted parent handoff; implementation lane must check local ownership before edits",
+    "baseline_gap": "Current source rejects gradient-tracked inputs per parent; no completion or tests inferred",
+    "gpu": "Separate mandatory acceptance; no silent CPU fallback",
+    "heavy_slot": "Parent assigns the single free heavy-build slot to this owner; planning remains lightweight",
+    "owner_task": "01a17793-e227-73cf-b347-6c85477ef010",
+    "qualification_credit": 0,
+    "scope": [
+      "Eunomia digamma",
+      "Leto CPU gammaln/lgamma",
+      "Coeus autograd",
+      "Both public Python aliases"
+    ]
   },
   "limitations": [
     "No provider builds/tests/benchmarks executed by this audit.",
@@ -146,6 +174,64 @@
     "source_receipt": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-2/receipt.json",
     "state": "Historical edfd15ea local-candidate snapshot; later repaired/re-reviewed b50a96cf observation supersedes current repair state",
     "tree": "e2c9d233b760722ca8935978a53d616bbd2c648d"
+  },
+  "native_qualification_owner_20261026": {
+    "adr": "0084 Proposed; broad native architecture direction does not grant concrete breaking-API sign-off",
+    "commit": "cab5499fa4ec41064a4c191b55911a8dbc852b60",
+    "delta": "Three test/docs files, seven additions/seven deletions, no production/manifest/lock/license/policy/performance change per owner report; exact-head independent review still required.",
+    "failed_or_unavailable": {
+      "all_feature_clippy": "Go absent during aws-lc-fips-sys build, no lint verdict",
+      "broad_windows_cross_clippy": "Missing MSVC CRT assert.h, no broad verdict",
+      "cached_cargo_deny": "Optional FIPS OpenSSL license and async-std discontinuation fail existing policy; cached advisory DB2026-10-13, no fresh-security verdict",
+      "linux_controlled_performance": "Never run:108process pairs per policy plus30shared-queue pairs with original deadlines; Mac81does not substitute",
+      "recovery_controller_python": "25run:22pass,1fail,2errors; three archived lock provenance cases require historical recovery owner reconciliation, do not replace archive",
+      "registry_consumers": "No push/PR/hosted CI/registry publication/registry-only clean consumer; predecessor integration403 remains stopped",
+      "strict_api_current_head": "Registry/git network unavailable; prior223pass30checker skips not a current-head verdict"
+    },
+    "independent_exact_head_review": "assigned_pending",
+    "owner_reported_results": {
+      "actual_source_miri": {
+        "passed": 34,
+        "skipped": 0
+      },
+      "darwin_unshaped_loopback": {
+        "controlled_linux_gate_credit": false,
+        "pairs": 81,
+        "policies": 3
+      },
+      "default_workspace": {
+        "passed": 1399,
+        "skipped": 12
+      },
+      "driver": {
+        "passed": 26,
+        "skipped": 0
+      },
+      "native_async_quic": {
+        "passed": 192,
+        "skipped": 0
+      },
+      "native_graphs": {
+        "configurations": 6,
+        "platform_runtime_credit": false,
+        "tokio_nodes": 0
+      },
+      "source_consumers": {
+        "passed": 2,
+        "skipped": 0
+      }
+    },
+    "owner_task": "01a176ac-6a9e-77cc-a488-42908214f023",
+    "parent_source_reviewed": "b50a96cfebf38a99c52b42e816ea3a5340927c25",
+    "provenance": "Trusted parent plus planning-lane read/hash/identity inspection; planning lane did not rerun provider commands.",
+    "qualification_credit": "Owner-reported scoped source/local acceptance only; no API stage promotion, performance/platform/registry/1.0 qualification",
+    "receipt_records": 1403,
+    "receipt_sha256": "36cb4995612f4fa65641af6833c7b7b29dc8254b2bc02e1f49cf44d4d5999bee",
+    "report_sha256": "28765ba3135f3b79285920735ab1f01af241350c312346ea190ef5b4a119443e",
+    "report_source": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-2/qualification/REPORT.md",
+    "same_reviewer_task": "01a1771f-4ace-75e4-a240-c800b7d7e02a",
+    "source_identity_sha256": "aa1887c83b29475cf5ac9c27cb34dcfb51f842c7b1e3360b9f7ac1ce8a7d40ed",
+    "tree": "45e6500a8b1b98eb48a6b41dc05843131f77ee3e"
   },
   "native_repaired_review_20261026": {
     "archive": {
