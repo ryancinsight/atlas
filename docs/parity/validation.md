@@ -1,6 +1,6 @@
 # Validation and remaining definition work
 
-Program 2026-10-26.1. Exact candidate identity and current hosted results belong
+Program 2026-10-26.2. Exact candidate identity and current hosted results belong
 in the draft PR; local evidence here describes the authored tree and commands,
 not a final merge/release certification. [Contracts](contracts.md).
 
@@ -45,15 +45,29 @@ evidence meets all protocol obligations. Both qualification commands correctly
 return 1 for this candidate. External exact-head review evidence is mandatory
 for eventual qualification; a clean tracked tree alone does not qualify.
 
-The focused suite executes **57 tests, zero skips**: 40 gate/traceability tests
+The focused suite executes **61 tests, zero skips**: 44 gate/traceability tests
 and 17 source-extractor tests collected by an import-only wrapper in
 `scripts/tests`. Hosted `pytest scripts/tests` therefore collects the same
 extractor tests without duplicating assertions. Source extractors regenerate
 byte-identically from their independently hash-verified caches. Byte compilation
 and whitespace checks pass. The board index is regenerated after correcting
 an inherited malformed heading, retaining blocked ownership and the publisher
-review link; the combined backlog stays at 999 lines within its 1,000-line
+review link; the combined backlog stays at 1,000 lines within its 1,000-line
 budget. Historical unrelated stale-citation reports remain advisory.
+
+The first hosted run at `47a10521` exposed four board-schema regressions and
+one UTF-8 subprocess-decoding guard failure introduced by this increment.
+The ordinary fixes use canonical `todo`/`blocked` board states, restore the
+cohort anchor and field priorities, and retain acceptance work in the existing
+program instead of an introduced root `checklist.md`. Board schema counts now
+match baseline: 0 status defects, 0 missing anchors, 85 inherited missing
+priorities and no retired root checklist. The decoding regression reproduces
+locally before the fix; all six decoding tests pass after explicit UTF-8
+decoding. No baseline, guard, timeout or test assertion is weakened. Implementation/hold
+blockers remain explicit release gates after definition closes, with an otherwise-
+qualifying negative test. That
+hosted run records 2,184 passing tests, 31 skips and one failure; the skips and
+failed run provide no acceptance credit. Final-head hosted reruns remain required.
 
 Local Markdown links added by this program are checked against actual paths.
 An inherited gap-audit link to `repos/metis/docs/adr/0003-framework-conformance.md`
@@ -95,8 +109,10 @@ guide/notebook/prose capability, version/patch mismatch and external namespace
 (C++/extension APIs, Keras inheritance, legacy graph/session and companion
 serving/mobile/browser/tooling). WP-003 must then map every retained public
 identity to canonical operations and explicit framework semantics, dtype/device/
-layout/gradient/domain classes, cases and targets. WP-004 must obtain normal
-review for all nine decisions. No API is removed because it is inconvenient,
+layout/gradient/domain classes, cases and targets. The nine scope policies now
+follow existing user/workspace direction, with rejected alternatives and impact
+recorded; WP-004 still needs concrete provider design contracts and normal ADR
+reviews where architecture changes. No API is removed because it is inconvenient,
 unimplemented or unsupported on today's host.
 
 Re-estimate and split the implementation envelopes after those classes are

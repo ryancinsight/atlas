@@ -1,4 +1,4 @@
-<a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Exact release cohorts [minor] — in-progress
+<a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Exact release cohorts [minor] — blocked
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
 <a id="atlas-alloc-count-per-thread"></a>- [ATLAS-ALLOC-COUNT-PER-THREAD](backlog/atlas-alloc-count-per-thread.md) — Count test allocations on the measuring thread only [patch] — todo
@@ -121,5 +121,5 @@
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="atlas-zip9-cohort-sweep"></a>- [ATLAS-ZIP9-COHORT-SWEEP](backlog/atlas-zip9-cohort-sweep.md) — Clear the zip < 9 advisories by moving kwavers onto the current cohort [patch] — todo
-<a id="atlas-full-parity-001"></a>- [ATLAS-FULL-PARITY-001](backlog/atlas-full-parity-001.md) — Define and execute four-framework 1.0 qualification [patch] — in-progress
+<a id="atlas-full-parity-001"></a>- [ATLAS-FULL-PARITY-001](backlog/atlas-full-parity-001.md) — Define and execute four-framework 1.0 qualification [patch] — todo
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo

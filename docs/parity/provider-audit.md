@@ -96,13 +96,29 @@ strict API checks have 223 passes and **30 skips**. Clippy/archive and
 independent review are scoped passes. No broad Miri/Loom, Tokio-free runtime,
 whole-graph acceptance or publication is established. This is a supplied
 implementation observation, not a test run by this audit or ledger promotion.
-Notification draft-PR/CI delivery belongs to task
-`01a176ab-537b-71fe-aa02-d59f00de713d`; do not duplicate it. Native Tokio removal
-still needs genuine unbounded MPSC and versioned Quinn I/O/buffer adaptation,
-with **no live executor established** in that handoff. Historical recovery
+Notification draft-PR/CI delivery belongs to coordinator task
+`01a159ec-7017-7725-a554-194472dc20dc`, current turn
+`01a176ab-537b-71fe-aa02-d59f00de713d`; do not duplicate it. The earlier report
+of no live native-Tokio executor is superseded: parent admits task
+`01a176ac-6a9e-77cc-a488-42908214f023`, turn
+`01a176ac-776a-7757-b4ab-7a881fc390e4`, started 05:26 UTC, for genuine
+unbounded MPSC and versioned Quinn I/O/buffer migration. That lane performs
+source/design/lightweight work until parent grants a heavy slot. Admission is
+ownership evidence, not native-runtime acceptance. Historical recovery
 owner `01a13836-1b78-7d83-93b2-fdef2d3b650c` is completed with experimental work
 preserved; the parent's unsupported-placement read error is neither a code
 defect nor permission denial. Apollo #696 holds remain unchanged.
+
+The subsequent delivery receipt verifies pushed commit
+[`d94d5ab6`](https://github.com/ryancinsight/Moirai/commit/d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da)
+with the same tree, proposed async 0.11.1 and passing normal hooks (79.58 s).
+Receipt SHA-256 is `1e0c29dd715e16389bd3a4c67edeac228ba44f286903f748adc6a46f64b6c3e0`.
+Draft PR creation for `codex/notify-broadcast-permit-20261026 -> main` is
+**denied**, GitHub HTTP403 “Resource not accessible by integration.” No PR,
+hosted CI, merge or publication exists for that delivery. The parent explicitly
+prohibits an alternate-route retry. The heavy slot now belongs to the admitted
+native-migration executor. These facts supersede delivery/slot state above;
+scoped tests remain scoped and no release qualification is promoted.
 
 | Work | Existing owner | Required handoff |
 | --- | --- | --- |

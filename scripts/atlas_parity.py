@@ -10,6 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from atlas_parity_decisions import validate_decisions
 from atlas_parity_evidence import PROMOTED, review, states, validate_evidence, validate_mappings
 from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
 from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, https,
@@ -183,16 +184,18 @@ def load(root: Path = DEFAULT) -> dict:
     program = read_json(local_path(root, "program.json"))
     fields(program, {"schema_version": int, "program_version": str, "atlas_base_revision": str,
                      "definition_complete": bool, "reference_snapshots": list, "files": dict,
-                     "open_decisions": list, "definition_gaps": list}, "program")
+                     "open_decisions": list, "definition_gaps": list,
+                     "implementation_blockers": list}, "program")
     need(program["schema_version"] == 1, "unsupported parity schema version")
     objects = {}
-    for key in ("capabilities", "repositories", "work_packages", "mappings", "evidence", "repository_evidence"):
+    for key in ("capabilities", "repositories", "work_packages", "mappings", "evidence", "repository_evidence", "decisions"):
         value = read_json(local_path(root, program["files"].get(key)))
         need(isinstance(value, list), f"{key}: expected list")
         objects[key] = value
     capabilities = unique(objects["capabilities"], "id", "capability")
     repositories = unique(objects["repositories"], "repository", "repository")
     packages = unique(objects["work_packages"], "id", "work package")
+    decisions = validate_decisions(program, objects["decisions"], repositories)
     need(bool(capabilities) and bool(repositories) and bool(packages), "program cannot have empty owner/DAG sets")
     program_structure(program, capabilities, repositories, packages)
     refs, summaries = references(root, program["reference_snapshots"])
@@ -213,6 +216,7 @@ def load(root: Path = DEFAULT) -> dict:
     result = {"program": program, "capabilities": capabilities, "repositories": repositories,
               "packages": packages, "references": refs, "snapshots": summaries,
               "mappings": mappings, "assigned": assigned, "evidence": evidence,
+              "decisions": decisions,
               "repository_evidence": repository_evidence, "qualified_repositories": qualified_repositories}
     if program["definition_complete"]:
         need(not definition_blockers(result), "definition_complete contradicts unresolved obligations")
@@ -243,6 +247,7 @@ def qualification(bundle: dict, gate: str, candidate: str, external: dict | None
     else:
         blockers.append("independent exact-final-revision definition review pending")
     if gate == "release":
+        blockers.extend(f"implementation: {item}" for item in program["implementation_blockers"])
         for mapping_id, row in bundle["mappings"].items():
             missing = [stage for stage, value in PROMOTED.items() if row["status"][stage] != value]
             if missing:
@@ -267,6 +272,9 @@ def report(bundle: dict) -> dict:
             "unmapped_declarations": len(bundle["references"]) - len(bundle["assigned"]),
             "capabilities": len(bundle["capabilities"]), "repositories": len(bundle["repositories"]),
             "work_packages": len(bundle["packages"]), "evidence_records": len(bundle["evidence"]),
+            "resolved_policy_decisions": len(bundle["program"].get("resolved_policy_decisions", [])),
+            "open_policy_decisions": len(bundle["program"]["open_decisions"]),
+            "implementation_blockers": bundle["program"]["implementation_blockers"],
             "definition_blockers": definition_blockers(bundle)}
 
 
@@ -279,9 +287,9 @@ def committed_inputs(paths: list[Path], repository: Path, candidate: str) -> lis
             continue
         relative = path.relative_to(repository.resolve()).as_posix()
         result = subprocess.run(["git", "-C", str(repository), "rev-parse", f"{candidate}:{relative}"],
-                                capture_output=True, text=True, timeout=10, check=False)
+                                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, check=False)
         actual = subprocess.run(["git", "-C", str(repository), "hash-object", "--path", relative, str(path)],
-                                capture_output=True, text=True, timeout=10, check=False)
+                                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, check=False)
         if result.returncode or actual.returncode or result.stdout.strip() != actual.stdout.strip():
             blockers.append(f"qualification input differs from committed candidate: {relative}")
     return blockers
@@ -299,11 +307,11 @@ def main() -> int:
         bundle = load(args.root)
         if args.mode == "qualify":
             candidate = subprocess.check_output(["git", "-C", str(args.root), "rev-parse", "HEAD"],
-                                                text=True, timeout=10).strip()
+                                                text=True, encoding="utf-8", errors="replace", timeout=10).strip()
             repository_root = Path(subprocess.check_output(
-                ["git", "-C", str(args.root), "rev-parse", "--show-toplevel"], text=True, timeout=10).strip())
+                ["git", "-C", str(args.root), "rev-parse", "--show-toplevel"], text=True, encoding="utf-8", errors="replace", timeout=10).strip())
             dirty = subprocess.check_output(["git", "-C", str(repository_root), "status", "--porcelain",
-                                              "--untracked-files=all"], text=True, timeout=10)
+                                              "--untracked-files=all"], text=True, encoding="utf-8", errors="replace", timeout=10)
             external = None
             if args.review_evidence:
                 need(not args.review_evidence.resolve().is_relative_to(repository_root.resolve()),

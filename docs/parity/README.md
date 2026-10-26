@@ -1,6 +1,6 @@
 # Four-framework functional parity program
 
-Program revision: **2026-10-26.1**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
+Program revision: **2026-10-26.2**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
 
 This is the canonical Atlas program for the October 26 instruction to complete
 Coeus and its providers to full NumPy, JAX, PyTorch and TensorFlow functional

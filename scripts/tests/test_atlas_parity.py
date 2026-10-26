@@ -18,6 +18,7 @@ import atlas_parity as parity
 from atlas_parity_evidence import validate_evidence, validate_mappings
 from atlas_parity_schema import ParityError, api_identity, read_json
 from atlas_parity_repository import ATLAS_GATES, validate_repository_evidence
+from atlas_parity_decisions import validate_decisions
 
 REV = "a" * 40
 OTHER = "b" * 40
@@ -221,6 +222,24 @@ class ProgramTests(unittest.TestCase):
         with self.assertRaisesRegex(ParityError, "unknown owner"):
             parity.program_structure(self.real["program"], caps, self.real["repositories"], self.real["packages"])
 
+    def test_scope_policies_cannot_disappear(self):
+        rows = list(self.real["decisions"].values())[1:]
+        with self.assertRaisesRegex(ParityError, "decision disappeared"):
+            validate_decisions(self.real["program"], rows, self.real["repositories"])
+
+    def test_policy_cannot_reduce_scope_or_fabricate_approval(self):
+        for flag in ("scope_reduction", "implementation_approval_granted"):
+            rows = copy.deepcopy(list(self.real["decisions"].values()))
+            rows[0][flag] = True
+            with self.subTest(flag=flag), self.assertRaisesRegex(ParityError, "reduce scope or fabricate"):
+                validate_decisions(self.real["program"], rows, self.real["repositories"])
+
+    def test_policy_summary_must_match_actual_resolutions(self):
+        for key, value in (("open_decisions", ["DEC-001"]), ("resolved_policy_decisions", [])):
+            program = {**self.real["program"], key: value}
+            with self.subTest(key=key), self.assertRaisesRegex(ParityError, "differs from decision register"):
+                validate_decisions(program, list(self.real["decisions"].values()), self.real["repositories"])
+
     def test_family_labels_cannot_claim_implementation(self):
         caps = copy.deepcopy(self.real["capabilities"])
         caps["ARR-CREATE"]["status"]["implementation"] = "implemented"
@@ -362,6 +381,19 @@ class RepositoryEvidenceTests(unittest.TestCase):
         self.record["gates"][0]["skipped"] = 1
         with self.assertRaisesRegex(ParityError, "skipped"):
             validate_repository_evidence([self.record], self.repos)
+
+    def test_release_retains_implementation_hold_after_definition_closes(self):
+        approved = {"state": "approved", "revision": REV, "independent": True,
+                    "artifact": "https://example.org/review/1"}
+        bundle = {"program": {"definition_complete": True, "open_decisions": [],
+                              "definition_gaps": [], "implementation_blockers": ["Apollo service hold"]},
+                  "snapshots": [], "references": {}, "assigned": {}, "mappings": {},
+                  "repositories": self.repos, "qualified_repositories": set()}
+        external = {"candidate_revision": REV, "definition_review": approved,
+                    "release_review": approved, "repository_evidence": [self.record]}
+        self.assertEqual(parity.qualification(bundle, "definition", REV, external), [])
+        self.assertEqual(parity.qualification(bundle, "release", REV, external),
+                         ["implementation: Apollo service hold"])
 
 
 if __name__ == "__main__":

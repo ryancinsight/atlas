@@ -1,6 +1,6 @@
 # Dependency-ordered implementation program
 
-Program 2026-10-26.1. [Machine-readable packages](work-packages.json).
+Program 2026-10-26.2. [Machine-readable packages](work-packages.json).
 
 ## Immediate sequence and readiness
 
@@ -14,7 +14,8 @@ Program 2026-10-26.1. [Machine-readable packages](work-packages.json).
    hashes/counts and independently reconcile the denominator.
 3. **WP-003 + WP-004:** assign every retained API to reviewed functional
    variants, materialize dtype/device/layout/gradient/domain classes and
-   resolve [architecture decisions](decisions.md). Reconcile stale source
+   apply the [resolved scope policies](decisions.md) and complete required
+   provider design reviews. Reconcile stale source
    checklists without granting unrun execution credit.
 4. Implement provider-first WP-005 onward only when the specific slice's
    readiness contract is met. Existing repair owners retain their claims.
@@ -99,7 +100,7 @@ Do not inherit earlier initial scope estimates as promised deadlines.
 
 | Milestone | Entry | Exit evidence |
 | --- | --- | --- |
-| M0: definition accepted | Four frozen releases; audited provider revisions; protected owners known | Complete source dispositions; all public identities and variants mapped with coverage classes and exact prerequisite revisions; reviewed decisions/ADRs; calibrated bounded tickets; independent scope review. Currently blocked. |
+| M0: definition accepted | Four frozen releases; audited provider revisions; protected owners known | Complete source dispositions; all public identities and variants mapped with coverage classes and exact prerequisite revisions; scope policies resolved, required concrete designs/ADRs reviewed; calibrated bounded tickets; independent scope review. Currently blocked. |
 | M1: providers qualified | M0 for selected slice; signed contracts; real hardware | Numeric/memory/runtime/ISA/array/algebra/RNG/transform/device acceptance, differential and qualified benchmarks at exact source revisions. Native-runtime and Apollo holds resolved by owners. |
 | M2: program/model semantics | Qualified provider graph | Tensor, all AD/transform/compiler/NN/optimizer/model and precision variants; complete bindings; real export/restore consumer evidence. |
 | M3: distributed/deploy/tooling | M2 and real multi-node/target hardware | Collectives/sharding/training/faults, storage/interop/data pipelines, deployment targets and profiler/debug tooling; no hidden fallback. |
@@ -129,9 +130,8 @@ local overrides before downstream publication; repeat after integration.
 
 | Target | Owner and required handoff |
 | --- | --- |
-| Moirai Quinn/QUIC/native-Tokio and provider blockers | Task `01a159ec-7017-7725-a554-194472dc20dc`: exact native-policy-clean revision, original acceptance runs, published graph and fresh consumers. No duplicate repairs. |
-| Moirai notification prerequisite delivery | Task `01a176ab-537b-71fe-aa02-d59f00de713d`: owns draft PR/CI for the reviewed private tree, proposed async 0.11.1. Its scoped 56 passes/91 exclusions and API 223 passes/30 skips do not close native-runtime acceptance. |
-| Native Tokio removal implementation | No live executor established in the later coordinator handoff. A responsible Moirai owner must claim genuine unbounded MPSC and versioned Quinn I/O/buffer adaptation; the notification delivery must not be duplicated. |
+| Moirai notification prerequisite delivery/coordinator | Task `01a159ec-7017-7725-a554-194472dc20dc`, turn `01a176ab-537b-71fe-aa02-d59f00de713d`: commit `d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da` pushed and hooks pass. Draft PR creation is denied by GitHub HTTP403; no CI/merge/publication. Do not retry through another route. Scoped 56 passes/91 exclusions and API 223 passes/30 skips do not close runtime acceptance. |
+| Native Tokio migration implementation | Admitted task `01a176ac-6a9e-77cc-a488-42908214f023`, turn `01a176ac-776a-7757-b4ab-7a881fc390e4`, started 05:26 UTC. Owns genuine unbounded MPSC and versioned Quinn I/O/buffer adaptation; parent now assigns it the heavy slot. Do not duplicate either lane. This supersedes the earlier no-executor handoff. |
 | Kwavers typed errors/Miri | Task `01a16141-84fd-7045-a5d6-75c04aafa0ef`: exact revision and real executed value/error/Miri evidence. |
 | Apollo implementation | Task `01a13842-5a71-712c-b982-d6631f84e002`: service hold must be cleared through its existing owner before implementation retry. No bypass or replacement task. |
 | Atlas #551 / Apollo #696 | Existing owners retain branches. Read-only audit links preserve exact failure evidence. Integration waits for version/license/registry closure through those owners. |
