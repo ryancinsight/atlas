@@ -75,10 +75,10 @@
   },
   "native_migration_local_20261026": {
     "commit": "edfd15ea7678bea24fa4f08f4df453efb9d608aa",
-    "heavy_slot_owner": "assigned independent review task01a1771f-4ace-75e4-a240-c800b7d7e02a for bounded review if needed",
+    "heavy_slot_owner": "Last explicit assignment was independent reviewer; subsequent repair resumption does not establish a new slot allocation in this ledger",
     "implementation_owner_task": "01a176ac-6a9e-77cc-a488-42908214f023",
     "independent_review_owner_task": "01a1771f-4ace-75e4-a240-c800b7d7e02a",
-    "independent_review_state": "assigned; not yet completed",
+    "independent_review_state": "Completed on edfd15ea with changes requested:2P2 findings; owner repair and replacement exact-source review pending",
     "independent_review_turn": "01a1771f-57f9-74f4-a78c-2d2193a1a0c3",
     "predecessor_commit": "d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da",
     "provenance": "Trusted parent handoff plus read-only receipt hash/head/record-count verification; independent candidate review pending",
@@ -124,8 +124,41 @@
       "source_consumer_modes": "both source-consumer mode sessions pass; not a published-registry fresh-consumer receipt"
     },
     "source_receipt": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-2/receipt.json",
-    "state": "locally committed, clean; no running command; unpushed/unpublished per supplied owner handoff",
+    "state": "Locally committed but not cleared; latest parent resumes owner repair under turn prefix01a1772c; no new candidate or publication supplied",
     "tree": "e2c9d233b760722ca8935978a53d616bbd2c648d"
+  },
+  "native_review_correction_20261026": {
+    "candidate_commit": "edfd15ea7678bea24fa4f08f4df453efb9d608aa",
+    "findings": [
+      {
+        "counterexample": "Capacity1, queued panicking payload, parked second send, caught receiver-drop unwind: candidate closed with0wakes; original main1wake. Manual candidate poll returns exact unsent payload.",
+        "failure": "Receiver::drop drops queued payloads before delivering extracted parked-sender wakes. Payload destruction panic can bypass those wakes while destruction remains outside the mutex.",
+        "id": "MOIRAI-REVIEW-DROP-WAKE",
+        "line": 349,
+        "required_acceptance": "Wake delivery survives payload destructor unwind; payload destruction stays outside mutex; preserve exact returned ownership and reentry semantics.",
+        "severity": "P2",
+        "source_path": "moirai-async/src/sync/mpsc.rs"
+      },
+      {
+        "counterexample": "Tokio1.54.1 spawned-task witness with65536queued events: upstream Pending after128; candidate65536at empty. This is a scheduling witness, not saturated QUIC performance. Native provider outsideTokio had no upstream Tokio budget.",
+        "failure": "Unbounded process_conn_events drains while holding state mutex without independent batch bound; retained runtime-tokio path loses prior cooperative yield and postpones timers/transmission/notifications.",
+        "id": "MOIRAI-REVIEW-COOPERATIVE-DRAIN",
+        "line": 85,
+        "required_acceptance": "Finite event-processing budget with wake-correct continuation; retain native graph policy and run applicable exact-source fairness/runtime/108-pair performance gates.",
+        "severity": "P2",
+        "source_path": "moirai-quinn/src/connection/state.rs"
+      }
+    ],
+    "independent_passing_scope": "218 package/driver/source-consumer tests and6zero-Tokio native graph configurations do not waive either finding. Owner33Miri witnesses were inspected, not independently rerun.",
+    "outcome": "changes_requested; two reproducible P2 defects; candidate not cleared",
+    "provenance": "Trusted later parent correction plus read-only independent review report inspection/hash",
+    "publication": "No push/PR/merge/publication for native candidate; predecessor integrationHTTP403 remains; no retry or alternate route",
+    "qualification_credit": "none; explicit known correctness/progress failures block implementation acceptance and release",
+    "repair_owner_task": "01a176ac-6a9e-77cc-a488-42908214f023",
+    "repair_turn_prefix_supplied": "01a1772c",
+    "rereview": "Replacement exact-source review pending with existing reviewer; no clear or qualification outcome",
+    "review_report_sha256": "2d4b84b510f6f704c93c57d858053b3740fc21e632fb6c5a2963a3f643a78d57",
+    "review_report_source": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-3/REVIEW_REPORT.md"
   },
   "notification_delivery_20261026": {
     "acceptance_mapping_sha256": "d73c45aa4c8de46dcffb9a28bc8dfccb1f89936231e0e9c6a0d9e383a357f64e",

@@ -143,9 +143,25 @@ delivery. This lane does not retry or use another access route. The
 [structured observation](provider-evidence.json) keeps these facts separate from
 the execution qualification ledger.
 
+A subsequent independent review requests **two P2 fixes** on that exact local
+candidate. `Receiver::drop` delivers parked-sender wakes after dropping queued
+payloads, so a payload destructor panic can lose those wakes. Its actual-source
+witness records zero candidate wakes versus one on original main. The retained
+Tokio driver also loses cooperative event-drain yielding: a spawned-task witness
+processes 128 upstream events versus all 65,536 candidate events before Pending.
+That second witness concerns retained Tokio integration, not a measured native
+QUIC saturation result or an upstream native-outside-Tokio regression.
+
+The review's 218 other passing tests and six zero-Tokio graphs do not waive the
+counterexamples. Owner `01a176ac` resumes repair under supplied turn prefix
+`01a1772c`; replacement exact-source re-review is pending. No review-clear,
+qualification, push or publication is established. The structured correction
+retains the read-only report hash and both precise acceptance failures; repository
+exit and scheduler analytical targets now name those boundaries explicitly.
+
 | Work | Existing owner | Required handoff |
 | --- | --- | --- |
-| Quinn/QUIC native migration | Implementation `01a176ac-6a9e-77cc-a488-42908214f023`; review `01a1771f-4ace-75e4-a240-c800b7d7e02a` | Review local `edfd15ea`; original full-domain transport/platform/performance gates, coherent published provider graph and consumer resolution remain. |
+| Quinn/QUIC native migration | Implementation `01a176ac-6a9e-77cc-a488-42908214f023`; review `01a1771f-4ace-75e4-a240-c800b7d7e02a` | Repair both P2 findings from `edfd15ea`, then exact-source re-review; original full-domain transport/platform/performance gates, coherent published graph and consumer resolution remain. |
 | Notification delivery | Coordinator `01a159ec-7017-7725-a554-194472dc20dc` | Existing pushed `d94d5ab6`; integration HTTP403 remains denied, no alternate-route retry. |
 | Kwavers typed-error/Miri | `01a16141-84fd-7045-a5d6-75c04aafa0ef` | Exact revision, computed-error tests and applicable real Miri execution. |
 | Apollo held work | `01a13842-5a71-712c-b982-d6631f84e002` | Resolve service hold before any implementation retry; retain version/license/registry gates. |

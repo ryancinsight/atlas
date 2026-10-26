@@ -22,7 +22,7 @@
   "implementation_blockers": [
     "Hardware and external performance matrices unqualified; unavailable targets remain obligations",
     "Provider audit establishes source facts only; no complete exact-revision provider execution qualification",
-    "Native migration edfd15ea is locally committed and unpushed atop unpublished d94d5ab6; assigned exact-candidate independent review01a1771f-4ace-75e4-a240-c800b7d7e02a is pending; scoped tests/zero-Tokio graphs do not establish platform runtime/performance or release acceptance",
+    "Native candidate edfd15ea review requests twoP2 fixes: payload-Drop panic loses sender wakes and unbounded event drain loses retained Tokio cooperative yield; owner01a176ac resumed turn prefix01a1772c; replacement exact-source re-review pending.218other passes/6zero-Tokio graphs do not waive defects; no push/publication",
     "Notification commit d94d5ab6 is pushed; draft PR creation denied HTTP403, no CI/merge/publication; no alternate-route retry permitted",
     "Apollo original service hold and #696 version/license/registry blockers remain"
   ],
