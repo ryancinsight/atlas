@@ -1,6 +1,6 @@
 # Validation and remaining definition work
 
-Program 2026-10-26.5. Exact candidate identity and current hosted results belong
+Program 2026-10-26.6. Exact candidate identity and current hosted results belong
 in the draft PR; local evidence here describes the authored tree and commands,
 not a final merge/release certification. [Contracts](contracts.md).
 
@@ -62,7 +62,7 @@ evidence meets all protocol obligations. Both qualification commands correctly
 return 1 for this candidate. External exact-head review evidence is mandatory
 for eventual qualification; a clean tracked tree alone does not qualify.
 
-The current focused suite executes **115 tests, zero skips**, including 28 new
+The public-scope slice executes **115 tests, zero skips**, including 28 new
 public-scope/storage rejection and roundtrip checks. The earlier 87-test slice
 contains 70 gate/traceability and 17 source-extractor tests collected by an import-only wrapper in
 `scripts/tests`. Hosted `pytest scripts/tests` therefore collects the same
@@ -202,3 +202,13 @@ PR. The source branch is pushed; no PR CI, merge or release is inferred. The
 creation operation stays stopped without an alternate route. Independent code
 review additionally checks predecessor compact-row/index/table integrity against
 every frozen primary declaration, rejecting duplicate, null and mismatched rows.
+
+The end-to-end workflow integration adds six focused tests, for 121 after
+integration with the reviewed public-scope parent. It checks 24 workflow
+contracts,58 unrun scenarios,29 export profiles,206 source receipts/217 anchors,
+30 unresolved companion pins and eight planning directions. Fourteen named
+mathematical witnesses have truth checks and12 deliberately wrong numerical
+fixtures fail; malformed dimensions and unregistered witnesses also reject.
+Schema/traceability rejection tests preserve unrun states, compute/assertion
+instructions, exact source/version joins and captured-review membership. None
+is an executed framework or native target acceptance case.

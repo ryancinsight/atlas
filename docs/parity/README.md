@@ -1,6 +1,6 @@
 # Four-framework functional parity program
 
-Program revision: **2026-10-26.5**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
+Program revision: **2026-10-26.6**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
 
 This is the canonical Atlas program for the October 26 instruction to complete
 Coeus and its providers to full NumPy, JAX, PyTorch and TensorFlow functional
@@ -14,6 +14,7 @@ bounded-scope completion claims do not establish this program's completion.
 | [Program manifest](program.json) | Version, frozen reference snapshots, completeness and required gates |
 | [Reference inventories](reference/) and [source closure](reference/closure/README.md) | Extracted public API identities, source versions, hashes and extraction gaps |
 | [Public surface and reusable contracts](reference/public-scope/README.md) | Conserved declarations, source publicness/views, signature links and planned provider routes |
+| [End-to-end workflows](workflows/README.md) | Source-backed acceptance programs, export profiles, analytical witnesses and unresolved companion obligations |
 | [Capability contracts](capabilities.json) | Single accountable owner, provider prerequisites, semantics, tests and qualification obligations |
 | [Contracts and evidence protocol](contracts.md) | Coverage axes, evidence states, equivalence and rejection rules |
 | [Work packages](work-packages.json) and [execution program](execution.md) | Dependency order, readiness, estimates, acceptance and handoffs |
@@ -49,6 +50,13 @@ framework-specific reusable contracts. It preserves 498 publicness questions,
 three source-internal candidates and nine documented extension hooks without
 excluding any obligation. Planned family routes are separate from verified
 implementation ownership and complete semantic mapping.
+
+The workflow slice adds 24 partial acceptance families, 58 unrun scenarios and
+29 export profiles. Fourteen mathematical witnesses have independent exact
+checks; they grant no framework execution credit. All 30 companion pin/scope
+decisions and concrete provider ADR approvals remain open. Existing native
+generic policies resolve architectural direction without dropping capabilities
+or authorizing a foreign production runtime.
 
 The [bounded source dispositions](reference/closure/dispositions.md) preserve
 member-selection, parser and package/import distinctions. They refine required
