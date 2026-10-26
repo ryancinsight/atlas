@@ -412,8 +412,8 @@ and #551 protected-owner handoff are retained. No network/auth, framework
 imports/builds, provider or protected branch edits, PR/push/merge or publication
 occurs. Independent canonical exact-head review and delivery remain parent-owned.
 
-Local canonical tooling verification runs all **231 parity tests with zero
-skips** in 48.990 seconds. Thirty-one Torch tests include real copied-file,
+At original Torch author commit `3a06bed1`, canonical tooling verification runs
+all **231 parity tests with zero skips** in 48.990 seconds. Thirty-one Torch tests include real copied-file,
 reindexed corruptions, valid reformat controls, independently reconstructed
 source relations and six input-sensitive complex controls. The repaired source
 packet's original 28 tests remain separate historical evidence. All 66
@@ -438,3 +438,29 @@ combined backlog budget, byte-compilation and whitespace checks pass. Definition
 and release qualification remain blocked by incomplete scope, unrun evidence
 and pending independent review; exact committed-input checks follow the local
 commit, without granting any parity qualification.
+
+### Shared selector successor integration
+
+The normal local merge of NumPy selector successor `010fc126` preserves the
+Torch .10 source/optimization history and the NumPy .9/JAX .8 introduction
+versions. The only backlog conflict retains both sets of obligations. Torch's
+local selector function is removed; endpoint, case and receipt joins use shared
+`source_entry_at` and its `source_selector` component checks. Each join also
+requires the exact expected position and selected source-object identity.
+
+Copied-file probes recompute artifact indexes before rejecting Boolean,
+floating, negative, string and container offsets, empty paths, wrong rows,
+overlong paths and out-of-range offsets. Shared root/leaf path semantics and
+valid reformat controls remain accepted. No compatibility resolver alias or old
+`core.entry_at` import remains. These checks repair traceability tooling only;
+all 66 Torch source-target cases and 14 gaps retain their unqualified states.
+
+The merged successor runs the unchanged complete parity discovery: **245 tests,
+zero skips, 85.860 seconds**, within an explicit 600-second local verification
+bound derived from the existing fast-Python CI job. Repository timeouts remain
+unchanged. The 83 focused Torch/NumPy/shared-selector tests also pass. All 46
+unique prior source/index/review/mapping/raw-CP02 artifacts match `010fc126`
+bytes, and all 32 Torch capture artifacts match `3a06bed1` and regenerate
+byte-identically. Markdown links, board index, unchanged 1,000-line backlog
+budget, static compilation and whitespace checks pass. Independent canonical
+exact-head review, hosted checks and source-target execution remain pending.

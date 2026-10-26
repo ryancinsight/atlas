@@ -131,8 +131,16 @@ class TorchDtypeTests(unittest.TestCase):
 
     def test_reindexed_nested_source_selectors_require_exact_integer(self):
         for group in ['records','cases']:
-            for value in [False,0.0]:self.corrupt('joins.json',lambda d,g=group,v=value:d[g][0].update(source_entry=['records',v]),'typed source selector')
-        self.corrupt('source-proof.json',lambda d:d['records'][0].update(source_entry=['records',False]),'typed source selector')
+            for value in [False, True, 0.0, -0.0, -1, '0', {}, []]:
+                self.corrupt('joins.json',lambda d,g=group,v=value:d[g][0].update(source_entry=['records',v]),'typed source selector')
+        for value in [False, 0.0, -1, '0']:
+            self.corrupt('source-proof.json',lambda d,v=value:d['records'][0].update(source_entry=['records',v]),'typed source selector')
+
+    def test_reindexed_shared_selectors_preserve_exact_source_row_identity(self):
+        for name,group in [('joins.json','records'), ('joins.json','cases'), ('source-proof.json','records')]:
+            for selector in [[], ['records', 1], ['records', 0, 'id'], ['records', 100000]]:
+                with self.subTest(name=name, group=group, selector=selector):
+                    self.corrupt(name,lambda d,g=group,s=selector:d[g][0].update(source_entry=s),'typed source selector')
 
     def test_reindexed_source_hash_or_quote_role_reject(self):
         self.corrupt('source-proof.json', lambda d:d['records'][0].update(sha256='0'*64),'source proof projection')

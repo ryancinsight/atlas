@@ -281,6 +281,10 @@ Canonical navigation uses the links above. JAX and NumPy indexes, captures,
 reviews, mappings and raw CP02 remain unchanged at introduction versions .8/.9.
 The inherited CI setup fix and protected #551 handoff remain intact; no prepared
 shared tool is adopted and no provider/build/import/network/auth action occurs.
+After the NumPy selector successor is merged locally, Torch endpoint/case/receipt
+paths use the shared typed source resolver, exact expected positions and selected
+object identities. The local duplicate resolver is removed. This tooling repair
+preserves captured source bytes, actual API ownership and every unrun obligation.
 
 ```sh
 PYTHONPATH=scripts python3 -m unittest scripts/tests/test_parity_torch_dtype.py -v

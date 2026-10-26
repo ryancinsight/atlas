@@ -2,7 +2,7 @@
 import hashlib
 
 from atlas_parity_dtype_headers import exact_fields
-from atlas_parity_schema import need
+from atlas_parity_schema import need, source_entry_at
 from atlas_parity_tables import canonical
 
 
@@ -47,7 +47,8 @@ def validate_sources(registry, witnesses, manifest, document):
     for i, row in enumerate(document['records']):
         exact_fields(row, {'path': str, 'git_blob_sha': str, 'sha256': str, 'bytes': int, 'line_count': int,
                           'source_entry': list, 'span_ids': list}, 'Torch typed source proof row')
-        from atlas_parity_torch_dtype_joins import selector
-        selector(row['source_entry'], 'records', i)
+        selected = source_entry_at(registry, row['source_entry'], 'Torch typed source selector receipt')
+        need(row['source_entry'] == ['records', i] and selected is registry['records'][i] and
+             selected['path'] == row['path'], 'Torch typed source selector receipt identity differs')
     need(canonical(document) == canonical(proof(registry, witnesses)), 'Torch selected source proof projection differs')
     return ids
