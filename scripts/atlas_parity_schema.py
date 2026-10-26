@@ -30,6 +30,30 @@ def fields(record: dict, required: dict[str, type], context: str) -> None:
              f"{context}.{key}: expected {kind.__name__}")
 
 
+def source_selector(path: object, context: str) -> None:
+    """JSON source paths use string keys and exact nonnegative integer offsets."""
+    need(type(path) is list, f"{context}: source selector must be a list")
+    for key in path:
+        need(type(key) is str or (type(key) is int and key >= 0),
+             f"{context}: invalid source selector component {key!r}")
+
+
+def source_entry_at(document: object, path: object, context: str) -> object:
+    """Resolve a typed JSON path without Python's bool/int or negative-index aliases."""
+    source_selector(path, context)
+    for key in path:
+        if type(document) is dict:
+            need(type(key) is str and key in document,
+                 f"{context}: source selector object key absent or not a string")
+        elif type(document) is list:
+            need(type(key) is int and key < len(document),
+                 f"{context}: source selector list offset absent or not an integer")
+        else:
+            need(False, f"{context}: source selector traverses a scalar")
+        document = document[key]
+    return document
+
+
 def nonempty(value: object, context: str) -> None:
     need(isinstance(value, str) and bool(value.strip()), f"{context}: empty text")
 

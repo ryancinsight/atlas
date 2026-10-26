@@ -16,6 +16,15 @@ test, job timeout or gate is weakened. Failed attempts remain failed evidence.
 The resulting exact head needs independent review and fresh actual hosted checks;
 serial/slow passes do not replace a failed fast gate.
 
+Independent physical-file/reindex review also exposed Boolean/float source
+offsets that Python compared equal to integers. A shared typed resolver now
+requires string object keys and exact nonnegative integer list offsets, resolves
+against the actual container and rejects scalar traversal. Semantic mappings,
+public-scope contracts, core contracts/cases and JAX clauses use that resolver;
+the old unchecked core helper is removed. Real copied-artifact tests preserve
+consistent index and consuming-mapping hashes so rejection must come from the
+selector contract. Frozen source, API stages and raw CP02 history remain intact.
+
 The original planning/tooling slice is merged through #570 at `2dbfeabc` and
 the bounded source-disposition slice through #571 at `03464d75`. Their exact
 heads receive independent review and actual fast/slow Python, CodeQL and

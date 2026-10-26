@@ -6,7 +6,7 @@ from atlas_parity_core_sources import validate_numpy_jax
 from atlas_parity_dtype_capture import PREFIX, PACKET_SHA, REVIEW_SHA, validate_capture
 from atlas_parity_dtype_graph import validate_graphs
 from atlas_parity_dtype_headers import exact_fields, source_witness_header
-from atlas_parity_schema import digest, local_path, need, read_json, unique
+from atlas_parity_schema import digest, local_path, need, read_json, source_entry_at, unique
 
 NO_CREDIT = {'public_denominator_changed': False, 'whole_API_semantics_complete': False,
              'reference_runtime_cases': 0, 'provider_execution_cases': 0,
@@ -130,7 +130,9 @@ def validate_joins(document, policy, cases, capabilities, references, citations,
         need(row['relation_scope'] == 'source_policy_clause_and_related_acceptance_targets_not_complete_API_legality',
              'dtype clause scope/credit drift')
         position = policy['rules'].index(original)
-        need(row['source_entry'] == ['rules', position] and row['source_citations'] == original['sources'] and
+        selected = source_entry_at(policy, row['source_entry'], 'dtype clause source entry')
+        need(row['source_entry'] == ['rules', position] and selected == original and
+             row['source_citations'] == original['sources'] and
              set(row['source_citations']) <= citations, 'dtype clause source entry/join drift')
         expected_cases = [t['id'] for t in cases['acceptance_targets'] if identity in t['rule_ids']]
         expected_refs = [r['reference_id'] for r in document['endpoints'] if identity in r['clause_ids']]

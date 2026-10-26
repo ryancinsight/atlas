@@ -21,7 +21,7 @@ from atlas_parity_core import validate_core_tensor
 from atlas_parity_dtype import prepare_dtype_policy, validate_dtype_policy
 from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
 from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, finite_number, https,
-                                 local_path, need, nonempty, read_json, revision, unique)
+                                 local_path, need, nonempty, read_json, revision, source_entry_at, unique)
 
 FRAMEWORKS = {"numpy", "jax", "pytorch", "tensorflow"}
 DEFAULT = Path(__file__).resolve().parents[1] / "docs" / "parity"
@@ -128,12 +128,7 @@ def load(root: Path = DEFAULT) -> dict:
         need(hashlib.sha256(source.read_bytes()).hexdigest() == contract["sha256"],
              f"{row['id']}: semantic source-contract hash drift")
         document = read_json(source)
-        current = document
-        try:
-            for key in contract["entry"]:
-                current = current[key]
-        except (KeyError, IndexError, TypeError) as error:
-            raise ParityError(f"{row['id']}: missing semantic contract entry") from error
+        current = source_entry_at(document, contract["entry"], f"{row['id']}: semantic contract")
         need(bool(current), f"{row['id']}: empty semantic contract")
         validate_source_definition(row, current)
         symbols = set()
