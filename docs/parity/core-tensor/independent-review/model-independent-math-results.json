@@ -1,0 +1,17 @@
+{
+  "result": "PASS",
+  "counts": {
+    "broadcast_pairs": 7225,
+    "broadcast_triples": 9261,
+    "affine_descriptors": 58536,
+    "typed_basic_slices": 15885,
+    "broadcast_storage_adjoints": 156,
+    "gather_storage_adjoints": 499,
+    "nonaffine_flatten_checks": 30788
+  },
+  "model_sha256": "76473ab7616a7ebcd7f4428a8d17cda2889fc570cc5e0d5fba5f2e85ef0f3318",
+  "scope": "Bounded independent integer-coordinate checks only; no comparator/provider execution or full semantic closure",
+  "framework_imports": 0,
+  "provider_builds": 0,
+  "canonical_writes": 0
+}

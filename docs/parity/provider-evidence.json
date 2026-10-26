@@ -48,21 +48,94 @@
   },
   "atlas_public_scope_delivery_20261026": {
     "branch": "docs/parity-public-contracts-20261026",
-    "ci": "No PR-triggered exact-head CI exists; local/source checks do not replace hosted gates",
-    "confirmed_pushed_revision": "3d765a943cbaf7e6b6456b1e815b7fcc4d684a04",
+    "ci": "Actual ready-state fast/slow pytest, all CodeQL languages and conformance pass at exact f09; three post-merge runs pass. Historical draft-skipped tests grant no credit. Tooling/source delivery is not framework/provider execution.",
+    "cli_delivery": {
+      "base": "main",
+      "connector_denial_retried": false,
+      "creation": "confirmed using existing gh CLI session after duplicate check returned empty",
+      "head": "f09f078edda6367304763b1e977a8771066bdffe",
+      "historical_receipt": true,
+      "merge_or_release": false,
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/572",
+      "receipt_phase": "initial_cli_creation_before_normal_readiness_and_gates",
+      "state": "Created at this historical receipt; verified_merge separately records completed delivery"
+    },
+    "confirmed_pushed_revision": "f09f078edda6367304763b1e977a8771066bdffe",
     "draft_pr": {
       "base": "main",
       "head": "docs/parity-public-contracts-20261026",
+      "historical_receipt": true,
       "http_status": 403,
       "operation": "Create draft pull request",
       "outcome": "denied",
       "readback_matching_pull_requests": 0,
       "reason": "Resource not accessible by integration",
       "repository": "ryancinsight/atlas",
-      "retry": "Stopped; no alternate creation route attempted"
+      "retry": "Stopped; no alternate creation route attempted",
+      "transport": "GitHub connector"
     },
-    "merge_or_release": false,
-    "remaining_delivery_gates": "Predecessor guard strengthened after denial with115zero-skip local tests; exact-final-head independent re-review, PR creation and hosted CI remain pending. No definition or1.0 clearance."
+    "historical_merge_or_release": false,
+    "historical_no_pr_ci_receipt": "No PR-triggered exact-head CI exists; local/source checks do not replace hosted gates",
+    "historical_pushed_revision": "3d765a943cbaf7e6b6456b1e815b7fcc4d684a04",
+    "merged": true,
+    "released": false,
+    "remaining_delivery_gates": "Planning slice merged after its applicable exact-head gates; full extraction/semantics, provider/hardware/performance/release and1.0 remain unqualified.",
+    "verified_merge": {
+      "active_repository_hooks": [],
+      "actual_postmerge_successful_runs": [
+        40331438934,
+        40331439275,
+        40331435947
+      ],
+      "actual_premerge_successful_runs": [
+        40329936713,
+        40329704758,
+        40329712716
+      ],
+      "github_deployments_observed": [],
+      "has_pages": false,
+      "head": "f09f078edda6367304763b1e977a8771066bdffe",
+      "independent_review_sha256": "3465133831f6c10edf27fcaba0879f2c4867932a0dac814e665dc32966da5d23",
+      "merge_commit": "60f32ba8f44a79bc93013067432e1f8704a48cdb",
+      "merged_at": "2026-10-26T13:32:13Z",
+      "method": "merge with expected-head match; no admin bypass",
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/572",
+      "runtime_or_definition_qualification": false
+    }
+  },
+  "atlas_workflow_scope_delivery_20261026": {
+    "base_revision": "60f32ba8f44a79bc93013067432e1f8704a48cdb",
+    "branch": "docs/parity-workflow-contracts-20261026",
+    "confirmed_pushed_revision": "45d24c14a8598afb2f9a5d67ead5711c5951e1d0",
+    "draft_pr": "CLI PR#573 created after duplicate check, then normalready; verifiedmerged",
+    "historical_draft_observation": "Not attempted after predecessor creation403; matching readback0",
+    "historical_hosted_checks_or_release": false,
+    "historical_pushed_snapshot": "da03f4ea2b134539f4f26343510f0e41e8e43568",
+    "local_validation": "121 focused tests0skip and exact-head independent review clear",
+    "merged": true,
+    "released": false,
+    "verified_merge": {
+      "actual_premerge_successful_runs": [
+        40334653453,
+        40333999640,
+        40334003014
+      ],
+      "focused_tests_passed": 121,
+      "focused_tests_skipped": 0,
+      "github_deployments_observed": [],
+      "head": "45d24c14a8598afb2f9a5d67ead5711c5951e1d0",
+      "independent_review_sha256": "6a65ba65901bb6ef89d85a12f52dd30194e3a4e2aaa03994ac38c7fd65a10c26",
+      "merge_commit": "de9d428d41b26a0876a3e76a4a6984bd0ad2ef65",
+      "merged_at": "2026-10-26T14:02:45Z",
+      "postmerge_runs_observed": {
+        "40335982823": "in_progress",
+        "40335982847": "success",
+        "40335982871": "success"
+      },
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/573",
+      "runtime_or_definition_qualification": false,
+      "tree_identical_to_reviewed_da03": "7b05f831de12a9b4061941c80757edd9c3fdbf7f"
+    }
   },
   "audit_date": "2026-10-26",
   "audit_kind": "read_only_source_and_selected_remote_evidence",
@@ -104,19 +177,52 @@
     "sync_tests_passed": 56,
     "tokio_free": "not established"
   },
+  "core_tensor_reviewed_snapshot_20261026": {
+    "branch": "docs/parity-core-tensor-contracts-20261026",
+    "compare": "https://github.com/ryancinsight/atlas/compare/da03f4ea2b134539f4f26343510f0e41e8e43568...510410f20cce546ea9a1ba8e79669540e9821a00",
+    "integration_main": "de9d428d41b26a0876a3e76a4a6984bd0ad2ef65",
+    "integration_tree_identical_to_saved_snapshot": true,
+    "new_status_successor_delivery_pending": true,
+    "no_full_definition_runtime_or_release_credit": true,
+    "verified_pushed_snapshot": "510410f20cce546ea9a1ba8e79669540e9821a00"
+  },
   "gammaln_implementation_owner_20261026": {
+    "authentication_handoff": {
+      "authorized_repository_route": "Explicit later user direction authorizes existing gh CLI session for policy/deployment reads and draft creation; connector is not retried and no credentials/access settings change.",
+      "cli_identity_verified_by_parent": true,
+      "cli_route_authorized": true,
+      "connector_permission_repair_claimed": false,
+      "historical_integration403_hold_resolved": false,
+      "identity_outcome": "verified ryancinsight via parent minimal-account receipt; no additional login or planning probe needed",
+      "identity_verification_owner": "01a17793-e227-73cf-b347-6c85477ef010",
+      "source": "Trusted parent delegation after user Mac CLI login",
+      "user_instruction": "Use existing logged-in CLI session, not a separately supplied token"
+    },
     "authority": "Trusted parent handoff; implementation lane must check local ownership before edits",
-    "baseline_gap": "Current source rejects gradient-tracked inputs per parent; no completion or tests inferred",
+    "baseline_gap": "Tracked inputs rejected at selected baseline57f7c459; three candidate heads repair bounded CPU scalar-real first-order behavior. No default/released cohort integration inferred.",
+    "candidate_cohort": {
+      "coeus": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "eunomia": "ebb1923feed7e416cbb97a9fcb19423922ae09d2",
+      "leto": "93e2a8c653252dfc943339c1bcec143a663a77d6"
+    },
+    "default_cohort_qualification": false,
+    "delivery": "Existing CLI identity ryancinsight is verified by parent. Eunomia/Leto feature pushes are reported successful; planning has not independently read their exact remote refs, and no complete Coeus/registry/release result is inferred. Captured invalid-CLI receipt remains historical.",
     "gpu": "Separate mandatory acceptance; no silent CPU fallback",
-    "heavy_slot": "Parent assigns the single free heavy-build slot to this owner; planning remains lightweight",
+    "heavy_slot": "No resource assignment inferred by planning; parent coordinates existing owner.",
+    "historical_baseline_gap": "Current source rejects gradient-tracked inputs per parent; no completion or tests inferred",
+    "historical_delivery_receipt": "No push/PR/merge/publication attempted by gamma owner; invalid CLI token and policy reads403. Stopped without alternate route or access changes.",
     "owner_task": "01a17793-e227-73cf-b347-6c85477ef010",
     "qualification_credit": 0,
+    "qualifications": "Exact-head source reviews clear; scoped CPU and locked API receipts only.7 packages196pass/57skip each, skips never verification; no registry baseline or fresh remote consumer.",
+    "released": false,
     "scope": [
       "Eunomia digamma",
       "Leto CPU gammaln/lgamma",
       "Coeus autograd",
       "Both public Python aliases"
-    ]
+    ],
+    "source_audit": "core-tensor/gamma-source-audit.json",
+    "state": "locally_qualified_cpu_candidate_delivery_blocked"
   },
   "limitations": [
     "No provider builds/tests/benchmarks executed by this audit.",

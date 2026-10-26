@@ -207,8 +207,44 @@ The end-to-end workflow integration adds six focused tests, for 121 after
 integration with the reviewed public-scope parent. It checks 24 workflow
 contracts,58 unrun scenarios,29 export profiles,206 source receipts/217 anchors,
 30 unresolved companion pins and eight planning directions. Fourteen named
-mathematical witnesses have truth checks and12 deliberately wrong numerical
+mathematical witnesses have truth checks and 12 deliberately wrong numerical
 fixtures fail; malformed dimensions and unregistered witnesses also reject.
 Schema/traceability rejection tests preserve unrun states, compute/assertion
 instructions, exact source/version joins and captured-review membership. None
 is an executed framework or native target acceptance case.
+
+
+## Core tensor semantic slice
+
+The [core model](core-tensor/README.md) adds 39 source overlays and 37 partial
+mappings, with no admissions or qualification promotions. Its 125 API targets
+represent 118 distinct source programs, all unrun. Eight mathematical witnesses
+check exact outputs and their defining boundary conditions; eight wrong outputs
+reject. Source identity, owner, capture membership, original case binding, typed
+no-credit states and line/hash bounds have adversarial guards. These are
+analytical/schema checks, not framework/native execution.
+
+Independent source review corrects JAX list-versus-array indexing inputs and
+NumPy getter-versus-setter wording before acceptance. Independent model review
+finds eager construction of unused coordinate pools and witnesses losing their
+named boundaries. The fixes return an empty iterator before pool allocation and
+validate each defining relational condition. Original findings remain recorded.
+The historical connector denial remains recorded. Later explicit CLI direction
+permits creation of PR#572 without retrying that connector. Local/source checks
+supply no hosted CI or release gate. Definition qualification remains false.
+
+Final local validation of the core slice passes139 parity tests with zero skips,
+the canonical check/report, Markdown link checks and board lint. Independent
+model checks cover7,225 broadcast pairs,9,261 triples,58,536 storage descriptors,
+15,885 typed slices,655 storage adjoints and30,788 flatten cases. Those are
+finite analytical checks of this model, not provider/reference API tests or an
+exhaustive domain proof. Independent source reviews bind exact7c169acf and
+875d1411 packet manifests; final Atlas revision review remains separate.
+
+The public/workflow source deliveries are now merged as PR#572/#573, in order,
+with unchanged package versions, gitlinks and CI workflows. Both execute actual
+ready-state fast/slow pytest plus CodeQL/conformance at their reviewed heads.
+Workflow integration preserves the entire reviewed da03 tree. Core integration
+against main de9d428d also preserves the saved510410f2 tree before this status
+receipt update. Fresh exact-head core review/hosted gates remain mandatory; no
+whole-program qualification follows from the completed planning deliveries.

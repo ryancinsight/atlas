@@ -17,8 +17,9 @@ from atlas_parity_evidence import (PROMOTED, review, states, validate_evidence,
 from atlas_parity_references import references
 from atlas_parity_scope import validate_scope
 from atlas_parity_workflows import validate_workflows
+from atlas_parity_core import validate_core_tensor
 from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
-from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, https,
+from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, finite_number, https,
                                  local_path, need, nonempty, read_json, revision, unique)
 
 FRAMEWORKS = {"numpy", "jax", "pytorch", "tensorflow"}
@@ -65,7 +66,7 @@ def program_structure(program: dict, capabilities: dict, repositories: dict, pac
         nonempty(row["readiness"], identity)
         estimate = row["estimate"]
         low, high = estimate.get("engineer_weeks_low"), estimate.get("engineer_weeks_high")
-        need(type(low) in (int, float) and type(high) in (int, float) and 0 <= low <= high,
+        need(finite_number(low) and finite_number(high) and 0 <= low <= high,
              f"{identity}: invalid estimate range")
         need(estimate.get("confidence") in {"low", "medium", "high"}, f"{identity}: no confidence")
         for capability in row["capabilities"]:
@@ -148,6 +149,9 @@ def load(root: Path = DEFAULT) -> dict:
         need(bool(symbols) and all(refs[identity]["symbol"] in symbols for identity in row["reference_ids"]),
              f"{row['id']}: semantic source entry belongs to another public endpoint")
         extra_inputs.append(source)
+    core_tensor, core_inputs = validate_core_tensor(root, program["files"].get("core_tensor_contracts"),
+        program, capabilities, repositories, refs, mappings, assigned, packages)
+    extra_inputs.extend(core_inputs)
     for snapshot in program["reference_snapshots"]:
         if snapshot["semantics_complete"]:
             need(all(identity in specified for identity, row in refs.items()
@@ -169,6 +173,7 @@ def load(root: Path = DEFAULT) -> dict:
               "reference_closure": closure, "extra_inputs": extra_inputs,
               "public_scope": scope,
               "workflows": workflows,
+              "core_tensor": core_tensor,
               "repository_evidence": repository_evidence, "qualified_repositories": qualified_repositories}
     if program["definition_complete"]:
         need(not definition_blockers(result), "definition_complete contradicts unresolved obligations")
@@ -238,6 +243,7 @@ def report(bundle: dict) -> dict:
             "reference_closure": bundle["reference_closure"],
             "public_scope": bundle["public_scope"]["summary"],
             "workflow_designs": bundle["workflows"],
+            "core_tensor_designs": bundle["core_tensor"],
             "definition_blockers": definition_blockers(bundle)}
 
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 from urllib.parse import urlparse
@@ -31,6 +32,11 @@ def fields(record: dict, required: dict[str, type], context: str) -> None:
 
 def nonempty(value: object, context: str) -> None:
     need(isinstance(value, str) and bool(value.strip()), f"{context}: empty text")
+
+
+def finite_number(value: object) -> bool:
+    """Bounded estimates exclude booleans and nonfinite floating values."""
+    return type(value) is int or (type(value) is float and math.isfinite(value))
 
 
 def revision(value: object, context: str) -> None:

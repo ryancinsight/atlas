@@ -192,3 +192,48 @@ supersede the pending/unfixed state above while retaining both original findings
 ## Reproduction and validation
 
 The audit reads immutable Git objects fetched from the defaults above. Mechanical checks count TSV rows/statuses, compare named `::<f32>(`/`::<f64>(` calls per gradcheck leaf, count matrix data rows between A/B/C headings, parse all 13 root manifests and validate JSON/revision source links. Selected CI logs and six registry endpoints are separate read-only evidence. Provider tests and performance are **not run**. These checks justify reconciliations, not 1.0 readiness.
+
+
+## Bounded core and CPU gamma follow-up
+
+The [core audit](core-tensor/README.md) verifies 49 selected provider source files
+at cached canonical pins. Matching older detached snapshots are not defaults or
+gamma revisions. Twelve boundary proposals retain six concrete ADR decisions;
+source observation is not implementation, device or release qualification.
+
+Existing gamma owner `01a17793-e227-73cf-b347-6c85477ef010` has a locally qualified
+CPU candidate at Eunomia `ebb1923feed7e416cbb97a9fcb19423922ae09d2`, Leto
+`93e2a8c653252dfc943339c1bcec143a663a77d6`, Coeus
+`068a5ff0ba74db9fde4d8bbe7c90f493222a0480`. The
+[receipt audit](core-tensor/gamma-source-audit.json) verifies exact source reviews,
+bounded CPU tests and seven locked API comparisons (196 pass/57 skip each).
+Skips receive no verification credit. TensorFlow numerical/device/performance,
+full AD, default-cohort and fresh remote/registry qualification remain open.
+Delivery stays stopped at invalid CLI authentication/policy reads 403, with no
+push/PR/merge/publication attempt or task-cache/path-overlay completion claimed.
+These facts supersede its historical baseline gap while retaining history.
+
+The later parent handoff reports user-completed Mac CLI login as ryancinsight and
+requires the existing CLI session rather than a supplied token. The gamma owner
+checks identity nonmutatively; this planning lane does not duplicate that probe.
+The earlier invalid-CLI receipt remains historical. Verified access findings are
+pending, and integration403 write holds are not resolved by the report alone.
+
+The next parent receipt verifies existing CLI identity ryancinsight and reports
+Eunomia/Leto feature pushes successful. Subsequent explicit user direction
+authorizes `gh` CLI repository operations using that session. The original
+connector403 is not retried or treated as integration repair. A duplicate check
+returns no public-contract PR; CLI creation then confirms
+[Atlas #572](https://github.com/ryancinsight/atlas/pull/572) at exact f09.
+Hosted checks and all ordinary gates remain mandatory. No credential, permission
+or deployment settings change occurs. Gamma downstream/registry/release evidence
+remains with its existing owner; no path-overlay completion is inferred.
+
+CLI delivery is subsequently verified: Atlas #572 head f09 merges as 60f32ba8 after
+independent exact-head review and actual pytest/CodeQL/conformance gates; all
+three post-merge runs pass, deployments remain empty. The workflow head 45d24
+incorporates that main result and has exactly the reviewed da03 tree. Atlas #573
+then merges as de9d428d after its renewed independent review, 121 zero-skip focused
+tests and actual hosted gates. Exact IDs/receipts remain in provider-evidence.json.
+These supersede the earlier pending-delivery observations without changing any
+API/native/hardware/performance/release qualification state.

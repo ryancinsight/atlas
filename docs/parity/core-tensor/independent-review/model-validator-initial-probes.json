@@ -1,0 +1,56 @@
+{
+  "results": [
+    {
+      "case": "positive_control",
+      "outcome": "ACCEPTED",
+      "counts": {
+        "partial_source_endpoints": 39,
+        "unrun_acceptance_cases": 123,
+        "distinct_unrun_source_programs": 116,
+        "reusable_laws": 9,
+        "analytical_witnesses": 8,
+        "wrong_value_probes_rejected": 8,
+        "provider_boundary_contracts": 12,
+        "framework_execution_credit": 0,
+        "whole_api_closure_credit": 0
+      }
+    },
+    {
+      "case": "capture_manifest_role_bypass",
+      "outcome": "ACCEPTED",
+      "counts": {
+        "partial_source_endpoints": 39,
+        "unrun_acceptance_cases": 123,
+        "distinct_unrun_source_programs": 116,
+        "reusable_laws": 9,
+        "analytical_witnesses": 8,
+        "wrong_value_probes_rejected": 8,
+        "provider_boundary_contracts": 12,
+        "framework_execution_credit": 0,
+        "whole_api_closure_credit": 0
+      }
+    },
+    {
+      "case": "cross_endpoint_torch_tf_case",
+      "outcome": "REJECTED",
+      "error": "ParityError: core tensor case source endpoint mismatches canonical API"
+    },
+    {
+      "case": "deleted_source_case_view",
+      "outcome": "ACCEPTED",
+      "counts": {
+        "partial_source_endpoints": 39,
+        "unrun_acceptance_cases": 122,
+        "distinct_unrun_source_programs": 115,
+        "reusable_laws": 9,
+        "analytical_witnesses": 8,
+        "wrong_value_probes_rejected": 8,
+        "provider_boundary_contracts": 12,
+        "framework_execution_credit": 0,
+        "whole_api_closure_credit": 0
+      }
+    }
+  ],
+  "source_math_helpers_only": true,
+  "canonical_provider_edits": false
+}

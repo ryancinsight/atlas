@@ -1,0 +1,225 @@
+{
+  "fixtures": [
+    {
+      "expected": [
+        2,
+        0,
+        3
+      ],
+      "id": "CT-ZERO-BROADCAST",
+      "inputs": {
+        "shapes": [
+          [],
+          [
+            2,
+            0,
+            3
+          ],
+          [
+            1,
+            3
+          ]
+        ]
+      },
+      "model_credit": 1,
+      "operation": "broadcast"
+    },
+    {
+      "expected": [
+        3
+      ],
+      "id": "CT-RANK-ZERO",
+      "inputs": {
+        "descriptor": {
+          "offset": 3,
+          "shape": [],
+          "storage_elements": 8,
+          "strides": []
+        }
+      },
+      "model_credit": 1,
+      "operation": "addresses"
+    },
+    {
+      "expected": [
+        6,
+        5,
+        4
+      ],
+      "id": "CT-REVERSE-OFFSET",
+      "inputs": {
+        "descriptor": {
+          "offset": 1,
+          "shape": [
+            2,
+            3
+          ],
+          "storage_elements": 8,
+          "strides": [
+            3,
+            1
+          ]
+        },
+        "selectors": [
+          {
+            "index": -1,
+            "kind": "integer"
+          },
+          {
+            "kind": "slice",
+            "length": 3,
+            "start": 2,
+            "step": -1
+          }
+        ]
+      },
+      "model_credit": 1,
+      "operation": "basic_view"
+    },
+    {
+      "expected": [],
+      "id": "CT-EMPTY-VIEW",
+      "inputs": {
+        "descriptor": {
+          "offset": 2,
+          "shape": [
+            3
+          ],
+          "storage_elements": 7,
+          "strides": [
+            1
+          ]
+        },
+        "selectors": [
+          {
+            "kind": "slice",
+            "length": 0,
+            "start": -1,
+            "step": -1
+          }
+        ]
+      },
+      "model_credit": 1,
+      "operation": "basic_view"
+    },
+    {
+      "expected": [
+        0,
+        0,
+        -4,
+        17,
+        0,
+        0,
+        0
+      ],
+      "id": "CT-BROADCAST-ADJOINT",
+      "inputs": {
+        "cotangents": [
+          2,
+          -3,
+          5,
+          7,
+          -11,
+          13
+        ],
+        "descriptor": {
+          "offset": 2,
+          "shape": [
+            1,
+            2
+          ],
+          "storage_elements": 7,
+          "strides": [
+            2,
+            1
+          ]
+        },
+        "target": [
+          3,
+          2
+        ]
+      },
+      "model_credit": 1,
+      "operation": "broadcast_pullback"
+    },
+    {
+      "expected": [
+        13,
+        0,
+        -4,
+        0,
+        11
+      ],
+      "id": "CT-DUPLICATE-GATHER",
+      "inputs": {
+        "cotangents": [
+          3,
+          -7,
+          11,
+          13
+        ],
+        "locations": [
+          2,
+          2,
+          4,
+          0
+        ],
+        "storage_elements": 5
+      },
+      "model_credit": 1,
+      "operation": "gather_pullback"
+    },
+    {
+      "expected": {
+        "addresses": [
+          0,
+          3,
+          1,
+          4,
+          2,
+          5
+        ],
+        "rank_one_affine": false
+      },
+      "id": "CT-NONAFFINE-RESHAPE",
+      "inputs": {
+        "descriptor": {
+          "offset": 0,
+          "shape": [
+            3,
+            2
+          ],
+          "storage_elements": 6,
+          "strides": [
+            1,
+            3
+          ]
+        }
+      },
+      "model_credit": 1,
+      "operation": "flat_affine"
+    },
+    {
+      "expected": {
+        "binary64_equal": true,
+        "distinct_integers": true,
+        "round_trip": [
+          9007199254740992,
+          9007199254740992
+        ]
+      },
+      "id": "CT-INT64-F64-LOSS",
+      "inputs": {
+        "integers": [
+          9007199254740992,
+          9007199254740993
+        ]
+      },
+      "model_credit": 1,
+      "operation": "binary64_integer_collision"
+    }
+  ],
+  "framework_execution_credit": 0,
+  "provider_execution_credit": 0,
+  "schema_version": 1
+}

@@ -1,0 +1,1684 @@
+{
+  "architecture_decisions_required": [
+    "Generic source-policy promotion/casting seam and complete source tables.",
+    "Signed canonical layout versus current unsigned Coeus facade and rank dispatch strategy.",
+    "Framework-specific view/shared-write/COW/copy observability.",
+    "Rich managed element/resource representation; inclusion required, not optional.",
+    "Typed AD/resource access phases and actual device completion semantics.",
+    "Explicit host staging versus native execution policy and qualification."
+  ],
+  "audit_kind": "source-linked planning boundary recommendation; no implementation or qualification",
+  "canonical_input": {
+    "capabilities_sha256": "a43db3ce11dd786fee36f346ed4c9685ce24dfbaac9ed3c486d3de59f83234ee",
+    "checkout": "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-core-tensor-contracts",
+    "revision": "da03f4ea2b134539f4f26343510f0e41e8e43568"
+  },
+  "cohorts": {
+    "coeus": {
+      "audited_revision": "57f7c4596884949e15815659544096b62c570d85",
+      "audited_role": "cached default ref matching canonical source-audit pin; no fresh network verification",
+      "audited_tree": "0a7318087b4955fa8140448a29f26dab6fd0e242",
+      "cached_default_ref": "refs/remotes/origin/main",
+      "checked_out_branch": "",
+      "checked_out_head": "76c531deacb7db6eafccb702cebb49dc6078617f",
+      "checked_out_role": "older detached planning snapshot; not fetched default and not gamma candidate",
+      "checkout": "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-parity-program/repos/coeus",
+      "clean_worktree": true
+    },
+    "eunomia": {
+      "audited_revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "audited_role": "cached default ref matching canonical source-audit pin; no fresh network verification",
+      "audited_tree": "3c5a8b13babb94cd7dd9d14f789b598a0d920d81",
+      "cached_default_ref": "refs/remotes/origin/main",
+      "checked_out_branch": "",
+      "checked_out_head": "f263446f9c9601fc5aaca1e9ff79737f30900265",
+      "checked_out_role": "older detached planning snapshot; not fetched default and not gamma candidate",
+      "checkout": "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-parity-program/repos/eunomia",
+      "clean_worktree": true
+    },
+    "hephaestus": {
+      "audited_revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "audited_role": "cached default ref matching canonical source-audit pin; no fresh network verification",
+      "audited_tree": "7618f3cd432aa5fa1126b49f1a31590003607540",
+      "cached_default_ref": "refs/remotes/origin/master",
+      "checked_out_branch": "",
+      "checked_out_head": "12b06c4ec81d3311ad2f6c4ea9e6a1d40d975b87",
+      "checked_out_role": "older detached planning snapshot; not fetched default and not gamma candidate",
+      "checkout": "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-parity-program/repos/hephaestus",
+      "clean_worktree": true
+    },
+    "leto": {
+      "audited_revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "audited_role": "cached default ref matching canonical source-audit pin; no fresh network verification",
+      "audited_tree": "66e8bcdf689a3d508aadc0633059bdc5767a6b0d",
+      "cached_default_ref": "refs/remotes/origin/main",
+      "checked_out_branch": "",
+      "checked_out_head": "7dbbb7ec13638771d7c4bbb3a9b3e186058c45f4",
+      "checked_out_role": "older detached planning snapshot; not fetched default and not gamma candidate",
+      "checkout": "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-parity-program/repos/leto",
+      "clean_worktree": true
+    },
+    "melinoe": {
+      "audited_revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "audited_role": "cached default ref matching canonical source-audit pin; no fresh network verification",
+      "audited_tree": "a873f6a4db81bf71b0310baf07b7c5a35f71a6c1",
+      "cached_default_ref": "refs/remotes/origin/main",
+      "checked_out_branch": "",
+      "checked_out_head": "681c550efa385ade0dd1e4697451e80ac26b7ab5",
+      "checked_out_role": "older detached planning snapshot; not fetched default and not gamma candidate",
+      "checkout": "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-parity-program/repos/melinoe",
+      "clean_worktree": true
+    },
+    "mnemosyne": {
+      "audited_revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "audited_role": "cached default ref matching canonical source-audit pin; no fresh network verification",
+      "audited_tree": "193265132fa84af58fa21e8b0efc82a3ecab6c2d",
+      "cached_default_ref": "refs/remotes/origin/main",
+      "checked_out_branch": "",
+      "checked_out_head": "f87d19524c30d9bcc418ce47eda6c2183144d625",
+      "checked_out_role": "older detached planning snapshot; not fetched default and not gamma candidate",
+      "checkout": "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-parity-program/repos/mnemosyne",
+      "clean_worktree": true
+    },
+    "themis": {
+      "audited_revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+      "audited_role": "cached default ref matching canonical source-audit pin; no fresh network verification",
+      "audited_tree": "571af8ffd56685c6f5da5e88baa73cee5cb2fe8e",
+      "cached_default_ref": "refs/remotes/origin/main",
+      "checked_out_branch": "",
+      "checked_out_head": "ce395b01a7c0eb7878a8b25a11031b3d2887cc91",
+      "checked_out_role": "older detached planning snapshot; not fetched default and not gamma candidate",
+      "checkout": "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-parity-program/repos/themis",
+      "clean_worktree": true
+    }
+  },
+  "contracts": [
+    {
+      "canonical_capability": "NUM-REP",
+      "canonical_prerequisites": [],
+      "future_acceptance_obligations": [
+        "Bit-pattern/NaN/signed-zero/subnormal/range fixtures and exact count/conversion properties per format.",
+        "Analytical accumulation and narrowing budgets with actual device/precision receipts."
+      ],
+      "id": "CT-REP",
+      "recommended_typed_generic_boundary": "Keep Eunomia representation/rounding/overflow/NaN/signed-zero and associated accumulator law as SSOT; make software-evaluation boundaries explicit in capability/mode evidence rather than inferring native execution from storage dtype.",
+      "scope": "Scalar format/bit layout, native precision and explicit accumulator/conversion laws",
+      "single_accountable_owner": "eunomia",
+      "source_observation": "NumericElement supplies sealed Self->Self arithmetic, constants, checked count conversion and BYTE_WIDTH; FloatElement declares an associated Accumulator; Zeroable/Pod are separate unsafe representation contracts.",
+      "sources": [
+        {
+          "git_blob": "18ad5f5c76763f47f21d6ad9a4453448615a67d1",
+          "line_end": 68,
+          "line_start": 16,
+          "path": "crates/eunomia/src/traits/numeric.rs",
+          "repo": "eunomia",
+          "revision": "23c604725507726c090b5d34a724f119de1047a4",
+          "sha256": "81bb15da9036cd09cef504ad743ccb11e0f99edafccd9c1f860970e766c52ad7",
+          "url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/traits/numeric.rs#L16-L68"
+        },
+        {
+          "git_blob": "05bc2bd872e026fe907130406fab0fbccdaf784a",
+          "line_end": 24,
+          "line_start": 7,
+          "path": "crates/eunomia/src/traits/float.rs",
+          "repo": "eunomia",
+          "revision": "23c604725507726c090b5d34a724f119de1047a4",
+          "sha256": "ccad6f08d74cfed5598a70ed745a39b85ea7f63fdbff56b49c48204d9f94c0b9",
+          "url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/traits/float.rs#L7-L24"
+        },
+        {
+          "git_blob": "05bc2bd872e026fe907130406fab0fbccdaf784a",
+          "line_end": 186,
+          "line_start": 158,
+          "path": "crates/eunomia/src/traits/float.rs",
+          "repo": "eunomia",
+          "revision": "23c604725507726c090b5d34a724f119de1047a4",
+          "sha256": "ccad6f08d74cfed5598a70ed745a39b85ea7f63fdbff56b49c48204d9f94c0b9",
+          "url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/traits/float.rs#L158-L186"
+        },
+        {
+          "git_blob": "5dace7c0b2abad88e23559ed7f3254d9b9d4f2f0",
+          "line_end": 38,
+          "line_start": 1,
+          "path": "crates/eunomia/src/layout/marker.rs",
+          "repo": "eunomia",
+          "revision": "23c604725507726c090b5d34a724f119de1047a4",
+          "sha256": "425e2e3371a936609f8c296714f91d3ea309a6c9007c170ffbad80fc5e37ee18",
+          "url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/layout/marker.rs#L1-L38"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [],
+      "unclosed_contract_axes": [
+        "Closed numeric traits are not a complete string/object/structured/resource element model.",
+        "Per-format hardware intrinsics/software boundaries and every conversion error domain remain separately qualified."
+      ]
+    },
+    {
+      "canonical_capability": "NUM-PROMOTE",
+      "canonical_prerequisites": [
+        "NUM-REP"
+      ],
+      "future_acceptance_obligations": [
+        "Exhaustive finite dtype-pair policy table conservation, exact representable boundaries, errors before output mutation, x64/default-dtype modes.",
+        "Analytical/differential tests for signed/unsigned/complex/reduced formats and gradients through allowed casts."
+      ],
+      "id": "CT-PROMOTE",
+      "recommended_typed_generic_boundary": "Propose one Eunomia generic promotion/cast policy seam parameterized by operand types and explicit source-policy/context ZSTs, with associated output and typed rejection. Leto and Coeus consume it instead of duplicating promotion in kernels. Exact source tables are separate semantic inputs, not inferred here.",
+      "scope": "Mixed-operand result type and value conversion/casting policy",
+      "single_accountable_owner": "eunomia",
+      "source_observation": "Inspected NumericElement arithmetic has Output=Self; scalar integer conversion exists, but these declarations do not define the four-framework weak-scalar/default-dtype/mixed-rank promotion tables.",
+      "sources": [
+        {
+          "git_blob": "18ad5f5c76763f47f21d6ad9a4453448615a67d1",
+          "line_end": 34,
+          "line_start": 16,
+          "path": "crates/eunomia/src/traits/numeric.rs",
+          "repo": "eunomia",
+          "revision": "23c604725507726c090b5d34a724f119de1047a4",
+          "sha256": "81bb15da9036cd09cef504ad743ccb11e0f99edafccd9c1f860970e766c52ad7",
+          "url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/traits/numeric.rs#L16-L34"
+        },
+        {
+          "git_blob": "358c7bb4aea612259dde78b69fc36c0e14779e84",
+          "line_end": 79,
+          "line_start": 46,
+          "path": "crates/eunomia/src/convert/integer.rs",
+          "repo": "eunomia",
+          "revision": "23c604725507726c090b5d34a724f119de1047a4",
+          "sha256": "1039291ad484f21a40d56dda64b1df9c1a41045fa0418fcae07143373f6d5f97",
+          "url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/convert/integer.rs#L46-L79"
+        },
+        {
+          "git_blob": "a6cbc42010f28eb7d552baece90ef51dcdab1465",
+          "line_end": 44,
+          "line_start": 6,
+          "path": "crates/coeus-core/src/dtype/traits/scalar.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "9d218ba8f7193aec867605071bcafab9d7660636f1b488fb31999d5e28f0be97",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/dtype/traits/scalar.rs#L6-L44"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "leto",
+          "role": "array operand and output materialization"
+        },
+        {
+          "repo": "coeus",
+          "role": "framework facade context and error/AD interpretation"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "Each reference version promotion lattice, weak scalar/array distinction, explicit dtype overrides, device admission and cast modes need exact contracts.",
+        "No mixed-operand join is established by the inspected homogeneous scalar signatures."
+      ]
+    },
+    {
+      "canonical_capability": "ARR-LAYOUT",
+      "canonical_prerequisites": [
+        "ARR-CREATE",
+        "CAP-PROOF",
+        "INTEROP-DISPATCH"
+      ],
+      "future_acceptance_obligations": [
+        "Exact address-set oracles, negative/zero strides, arbitrary injectivity, offset/noncontiguous layouts, scalar/empty and overflow cases.",
+        "View/copy observability, byte-preserving transpose/reshape, error timing and dtype/device preservation."
+      ],
+      "id": "CT-SHAPE-LAYOUT",
+      "recommended_typed_generic_boundary": "Retain Leto as shape/layout algebra owner. Resolve the Coeus unsigned facade versus signed canonical descriptor through a reviewed metadata boundary; preserve observable view/copy/alias outcomes, offset, order and rejection timing. Finite rank dispatch is an explicit bound.",
+      "scope": "Shape product, strides, offset, scalar/empty, broadcast/view and physical footprint",
+      "single_accountable_owner": "leto",
+      "source_observation": "Leto Layout<N> uses signed element strides and validates shape/offset arithmetic; LayoutDyn is a runtime-rank boundary carrier sharing kernels, not a universal runtime-rank compute claim. Coeus has separate unsigned-stride metadata and converts through coeus_cpu.",
+      "sources": [
+        {
+          "git_blob": "8d795fc742480db7051150fefe84ba85ca4d74a6",
+          "line_end": 52,
+          "line_start": 3,
+          "path": "crates/leto/src/domain/layout/core.rs",
+          "repo": "leto",
+          "revision": "074ab891cbc399163539a2f72185754875c8e943",
+          "sha256": "40feebd020646a70f2c9ba985dff8a2c007f215df5250dd69213b83b4ece4894",
+          "url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/domain/layout/core.rs#L3-L52"
+        },
+        {
+          "git_blob": "068f69d10f479f93ac61ef066383b77799d0c147",
+          "line_end": 47,
+          "line_start": 7,
+          "path": "crates/leto/src/domain/dynamic/layout.rs",
+          "repo": "leto",
+          "revision": "074ab891cbc399163539a2f72185754875c8e943",
+          "sha256": "368bb805b8f57492969702186a2eb6825cc8124a2db2c4fbfd9a39f1578da685",
+          "url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/domain/dynamic/layout.rs#L7-L47"
+        },
+        {
+          "git_blob": "557f31ac23f06b98a01de82d2b4c9e38a537259a",
+          "line_end": 80,
+          "line_start": 40,
+          "path": "crates/leto/src/domain/layout/shape.rs",
+          "repo": "leto",
+          "revision": "074ab891cbc399163539a2f72185754875c8e943",
+          "sha256": "aac982d7710b3612bd58e6311357ed9ad4712aba95bc07324550e7130bb80e68",
+          "url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/domain/layout/shape.rs#L40-L80"
+        },
+        {
+          "git_blob": "0af960c68b8e395946c659aa92a93b45949cffe3",
+          "line_end": 31,
+          "line_start": 4,
+          "path": "crates/coeus-core/src/layout/strides.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "f38c575318c39a91c3b54969f6d5ed0f67fe36af7c9cd794a503519a500e0025",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/layout/strides.rs#L4-L31"
+        },
+        {
+          "git_blob": "a98f711b5fdaa3b67e0d35ce6ffa3a7cf671118a",
+          "line_end": 73,
+          "line_start": 56,
+          "path": "crates/coeus-core/src/layout/layout.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "f90f3819a1db23788599e9e76bf3338d8fa6d8b0c7b4de845f1a55426fd40984",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/layout/layout.rs#L56-L73"
+        },
+        {
+          "git_blob": "f4bc3322eb839ce1daa7aafd6e17d1be22fbe4ec",
+          "line_end": 77,
+          "line_start": 41,
+          "path": "crates/coeus-cpu/src/convert.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "aecb5df5d48bbd5ebb93a1b60130d3017cfdee91093257d85dbc11b270e8a3ef",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-cpu/src/convert.rs#L41-L77"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "melinoe",
+          "role": "access permissions"
+        },
+        {
+          "repo": "mnemosyne",
+          "role": "backing allocation/lifetime"
+        },
+        {
+          "repo": "coeus",
+          "role": "tensor facade and metadata bridge"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "Coeus Strides=SmallVec<usize> cannot encode a negative stride.",
+        "Layout::from_shape_strides and numel are not the same validated construction contract as Leto try_new.",
+        "Dynamic rank carriers and gamma rank0..6 execution do not close arbitrary-rank computation."
+      ]
+    },
+    {
+      "canonical_capability": "ARR-INDEX",
+      "canonical_prerequisites": [
+        "ARR-LAYOUT"
+      ],
+      "future_acceptance_obligations": [
+        "Byte-address analytical overlap oracles and duplicate-index/update-order witnesses.",
+        "Zero-size/zero-stride/negative-stride, scalar mask/OOB modes, repeated updates and failure-before-partial-mutation cases."
+      ],
+      "id": "CT-INDEX-MUTATION",
+      "recommended_typed_generic_boundary": "Keep geometry, indexing and traversal in Leto, physical permission in Melinoe, and source-specific tensor mutation/version/AD rules in Coeus. A policy must say whether aliasing writes reject, update deterministically, accumulate or use a snapshot.",
+      "scope": "Array indexing, overlap, duplicate writes, mutable traversal and assignment ordering",
+      "single_accountable_owner": "leto",
+      "source_observation": "Leto validates footprint and exposes exact is_injective; assign_into routes non-injective destinations through serial logical traversal. ArrayViewMut wraps an exclusive slice and checked construction validates storage extent; this alone does not specify every comparator overlap policy.",
+      "sources": [
+        {
+          "git_blob": "557f31ac23f06b98a01de82d2b4c9e38a537259a",
+          "line_end": 80,
+          "line_start": 45,
+          "path": "crates/leto/src/domain/layout/shape.rs",
+          "repo": "leto",
+          "revision": "074ab891cbc399163539a2f72185754875c8e943",
+          "sha256": "aac982d7710b3612bd58e6311357ed9ad4712aba95bc07324550e7130bb80e68",
+          "url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/domain/layout/shape.rs#L45-L80"
+        },
+        {
+          "git_blob": "b5c9c6672637accd574b10684a76d0232af02f82",
+          "line_end": 70,
+          "line_start": 50,
+          "path": "crates/leto/src/application/view/mutable_core.rs",
+          "repo": "leto",
+          "revision": "074ab891cbc399163539a2f72185754875c8e943",
+          "sha256": "a4a598f689c2a464a3f714bf002c9a3a58a864e2ff769060c8c8f5312ee7b5df",
+          "url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/application/view/mutable_core.rs#L50-L70"
+        },
+        {
+          "git_blob": "6f8aabef66dfaed6de2183ac87af180fe63649be",
+          "line_end": 78,
+          "line_start": 37,
+          "path": "crates/leto/src/application/assign/assign_into.rs",
+          "repo": "leto",
+          "revision": "074ab891cbc399163539a2f72185754875c8e943",
+          "sha256": "012e380494030f4434a88f39fd01ff5e21616b10f5a3036a1ed76fa6546d9205",
+          "url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/application/assign/assign_into.rs#L37-L78"
+        },
+        {
+          "git_blob": "68768a73d1e4f46bc5387926e94a76c57d265b3d",
+          "line_end": 36,
+          "line_start": 19,
+          "path": "src/region/shard.rs",
+          "repo": "melinoe",
+          "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+          "sha256": "9517a6fc7b79815c7e6961c3c49adaed37d7201dcc274d19a965177ea8a39ffa",
+          "url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/src/region/shard.rs#L19-L36"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "melinoe",
+          "role": "nonforgeable exclusive/shared access and disjoint shards"
+        },
+        {
+          "repo": "coeus",
+          "role": "tensor/in-place/gradient-facing semantics"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "NumPy overlapping/advanced assignments, JAX functional updates/Array.at, PyTorch in-place alias/version rules and TF resource updates require distinct source contracts.",
+        "No inference from ownership uniqueness to universal source-visible alias semantics."
+      ]
+    },
+    {
+      "canonical_capability": "MEM-OWN",
+      "canonical_prerequisites": [
+        "NUM-REP"
+      ],
+      "future_acceptance_obligations": [
+        "Allocation overflow/alignment/ZST/empty and initialized-prefix/drop exactly-once properties.",
+        "Failure cleanup, retained/borrowed zero-copy lifetime and native/Miri evidence in its owned execution lane."
+      ],
+      "id": "CT-ALLOC",
+      "recommended_typed_generic_boundary": "Keep allocation/ownership/failure cleanup in Mnemosyne; distinguish raw capacity/uninitialized slots from initialized tensor values and typed nonescaping lifetime. Array alias policy does not belong in the allocator.",
+      "scope": "Allocation bounds/alignment, initialized length, drop/move, retention and lifetime",
+      "single_accountable_owner": "mnemosyne",
+      "source_observation": "Mnemosyne owns GlobalAlloc and low-level MemoryBackend mapping. BrandedVec tracks ptr/cap/len/heap, has !Send/!Sync marker, and requires brand permits for allocation/growth; consumers Leto/Coeus adapt storage separately.",
+      "sources": [
+        {
+          "git_blob": "019f5772051abb86246368077f104f4fe4e9942f",
+          "line_end": 68,
+          "line_start": 33,
+          "path": "crates/mnemosyne-core/src/lib.rs",
+          "repo": "mnemosyne",
+          "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+          "sha256": "846a84108e7577b5101ed4f0ec8c725da3b8ad3e88f5ebedc23ef47912cae465",
+          "url": "https://github.com/ryancinsight/mnemosyne/blob/b40870ea3dca06a324d397e0b480edf3c18fe544/crates/mnemosyne-core/src/lib.rs#L33-L68"
+        },
+        {
+          "git_blob": "f479379cf96081281c5dae2951d6eef8364985f6",
+          "line_end": 46,
+          "line_start": 9,
+          "path": "crates/mnemosyne/src/allocator.rs",
+          "repo": "mnemosyne",
+          "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+          "sha256": "9f6de07457849558159eaad566a3802a2624f0e543cc0d0c46bca6c7b49665af",
+          "url": "https://github.com/ryancinsight/mnemosyne/blob/b40870ea3dca06a324d397e0b480edf3c18fe544/crates/mnemosyne/src/allocator.rs#L9-L46"
+        },
+        {
+          "git_blob": "0b8c56b5b981ab9d54615827b35abde5869ff434",
+          "line_end": 74,
+          "line_start": 18,
+          "path": "crates/mnemosyne-heap/src/branded_vec.rs",
+          "repo": "mnemosyne",
+          "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+          "sha256": "a358b37280657d4cc7e715ad53c1b323647b58592f41f8dea841701845255edb",
+          "url": "https://github.com/ryancinsight/mnemosyne/blob/b40870ea3dca06a324d397e0b480edf3c18fe544/crates/mnemosyne-heap/src/branded_vec.rs#L18-L74"
+        },
+        {
+          "git_blob": "f425ebdead379629c05c5c021d7e933200e08cc0",
+          "line_end": 22,
+          "line_start": 1,
+          "path": "crates/leto/src/infrastructure/storage/traits.rs",
+          "repo": "leto",
+          "revision": "074ab891cbc399163539a2f72185754875c8e943",
+          "sha256": "5327a15802cabb91e74ea8ce8dac86b23745fe70ff2803c1813f71c4aa0248bb",
+          "url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/infrastructure/storage/traits.rs#L1-L22"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "melinoe",
+          "role": "branded allocation access permits"
+        },
+        {
+          "repo": "themis",
+          "role": "placement hints and tiers"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "No allocator API alone proves a tensor view is in bounds or injective.",
+        "Failure atomicity, ZST, panic/drop and each placement/backend lifetime still need operation evidence."
+      ]
+    },
+    {
+      "canonical_capability": "CAP-PROOF",
+      "canonical_prerequisites": [
+        "LOC-PLACE",
+        "MEM-OWN"
+      ],
+      "future_acceptance_obligations": [
+        "Compile-fail alias/brand/lifetime cases, disjoint address partitions and token-return state checks.",
+        "Actual backend stream/fence/readback execution; require acquired hardware, no early-return credit."
+      ],
+      "id": "CT-ACCESS",
+      "recommended_typed_generic_boundary": "Use Melinoe tokens/typestates for access phase transitions, retaining explicit backend completion evidence. Keep Melinoe foundational: capability prerequisite gates must not be interpreted as adding a Melinoe->Mnemosyne/Themis library edge and creating a crate cycle.",
+      "scope": "Read/write exclusivity, disjoint regions, token handoff and observer windows",
+      "single_accountable_owner": "melinoe",
+      "source_observation": "Melinoe seals ReadPermit/WritePermit around one BrandOwner and provides disjoint WriterShard. Device tests use real Hephaestus stream copy+synchronize, but return early when no adapter. They are source examples, not hardware receipts here.",
+      "sources": [
+        {
+          "git_blob": "2dbb0fea15a73bbaec3f81b6305841fe630bcfaf",
+          "line_end": 78,
+          "line_start": 30,
+          "path": "src/token/capability.rs",
+          "repo": "melinoe",
+          "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+          "sha256": "40d928daf683181d4ec41f9b6739a355162ae8652a535fd6f196686e2badbecc",
+          "url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/src/token/capability.rs#L30-L78"
+        },
+        {
+          "git_blob": "f261c5a453884c76114c23b3ce93364ecabc7300",
+          "line_end": 29,
+          "line_start": 5,
+          "path": "src/sync/tokens/region.rs",
+          "repo": "melinoe",
+          "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+          "sha256": "cab1d473f5e963ac1e208a7b6db2510ea0ef56d6f92a27fb6ca4543097886d23",
+          "url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/src/sync/tokens/region.rs#L5-L29"
+        },
+        {
+          "git_blob": "ef76b4031aa9349a4b6ceece7ba99fa9f882218b",
+          "line_end": 54,
+          "line_start": 21,
+          "path": "contracts/atlas-device/tests/device_buffer.rs",
+          "repo": "melinoe",
+          "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+          "sha256": "d190bdf4d7c7234e89adf0960144655c9b9eaf2e08aef6c6c8c4f981ed401bb4",
+          "url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/contracts/atlas-device/tests/device_buffer.rs#L21-L54"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "mnemosyne",
+          "role": "live physical storage"
+        },
+        {
+          "repo": "hephaestus",
+          "role": "actual stream submission/completion/fence semantics"
+        },
+        {
+          "repo": "coeus",
+          "role": "AD/resource effect integration"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "Submission versus completion and readback visibility are separate target-specific obligations.",
+        "Adapter absence/early return counts as unexecuted hardware coverage.",
+        "Current Coeus GradBuffer serialization invariant is not an existing Melinoe typed-permit integration."
+      ]
+    },
+    {
+      "canonical_capability": "LOC-PLACE",
+      "canonical_prerequisites": [],
+      "future_acceptance_obligations": [
+        "Typed placement conflict rejection, epoch/topology validity and exact requested-versus-observed target evidence."
+      ],
+      "id": "CT-PLACEMENT",
+      "recommended_typed_generic_boundary": "Keep topology facts and placement legality in Themis; allocation, kernel execution and scheduling remain provider responsibilities. A requested tier/device or tag is not an observed execution receipt.",
+      "scope": "Topology/NUMA/HBM/tier/worker locality vocabulary",
+      "single_accountable_owner": "themis",
+      "source_observation": "Themis states placement vocabulary ownership, not allocation or execution. Branded PinnedStorage requires unique borrow for a placement tag and preserves one tag with stored cells.",
+      "sources": [
+        {
+          "git_blob": "3f7e7188b2632fab3b34d0b5aba3e4e174e8f3fb",
+          "line_end": 5,
+          "line_start": 1,
+          "path": "src/lib.rs",
+          "repo": "themis",
+          "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+          "sha256": "54ef4a35833f204787f2ba84475f9dbd51f5c3b1a4bbb3f1b1c6eec0a1075f27",
+          "url": "https://github.com/ryancinsight/themis/blob/a6d0620b99d5d5518ed4e7225aa47eac66e5add2/src/lib.rs#L1-L5"
+        },
+        {
+          "git_blob": "3f7e7188b2632fab3b34d0b5aba3e4e174e8f3fb",
+          "line_end": 42,
+          "line_start": 23,
+          "path": "src/lib.rs",
+          "repo": "themis",
+          "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+          "sha256": "54ef4a35833f204787f2ba84475f9dbd51f5c3b1a4bbb3f1b1c6eec0a1075f27",
+          "url": "https://github.com/ryancinsight/themis/blob/a6d0620b99d5d5518ed4e7225aa47eac66e5add2/src/lib.rs#L23-L42"
+        },
+        {
+          "git_blob": "0804fb062bc679cfa12f00924e64a0ac78e66b4f",
+          "line_end": 108,
+          "line_start": 81,
+          "path": "src/branded/region/storage.rs",
+          "repo": "themis",
+          "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+          "sha256": "99ecf0e7a4647b3bec63bf5d4409eb2072ded0b2c378f0dd0daeea25bc438dc2",
+          "url": "https://github.com/ryancinsight/themis/blob/a6d0620b99d5d5518ed4e7225aa47eac66e5add2/src/branded/region/storage.rs#L81-L108"
+        },
+        {
+          "git_blob": "0804fb062bc679cfa12f00924e64a0ac78e66b4f",
+          "line_end": 147,
+          "line_start": 123,
+          "path": "src/branded/region/storage.rs",
+          "repo": "themis",
+          "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+          "sha256": "99ecf0e7a4647b3bec63bf5d4409eb2072ded0b2c378f0dd0daeea25bc438dc2",
+          "url": "https://github.com/ryancinsight/themis/blob/a6d0620b99d5d5518ed4e7225aa47eac66e5add2/src/branded/region/storage.rs#L123-L147"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "mnemosyne",
+          "role": "honor memory placement requests"
+        },
+        {
+          "repo": "hephaestus",
+          "role": "report observed device topology/limits"
+        },
+        {
+          "repo": "moirai",
+          "role": "honor worker/task locality"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "Actual honoring/rejection of hints and physical locality/device observations remain target-specific."
+      ]
+    },
+    {
+      "canonical_capability": "DEV-CORE",
+      "canonical_prerequisites": [
+        "MEM-OWN",
+        "LOC-PLACE",
+        "CAP-PROOF"
+      ],
+      "future_acceptance_obligations": [
+        "Hardware-bound transfer/alias/initialization/error timing and resident pipeline tests.",
+        "Device/kernel tracing, no silent host compute, physical hardware model/driver/compiler pins and synchronized benchmarks."
+      ],
+      "id": "CT-DEVICE",
+      "recommended_typed_generic_boundary": "Require explicit dtype/device/feature admission, complete output initialization and op-specific layout/alias validation at Hephaestus. Keep native kernels separate from host-delegated Leto paths or a buffer uploaded after CPU work.",
+      "scope": "Typed resident buffers, initialization/transfer, device limits and native dispatch",
+      "single_accountable_owner": "hephaestus",
+      "source_observation": "Hephaestus ComputeDevice::Buffer<T:Pod> is the typed device allocation seam; StridedView simply pairs borrowed buffer/layout and leaves operation validation to consumer. DeviceApi supplies compilation, pointer, same-allocation alias and launch seams.",
+      "sources": [
+        {
+          "git_blob": "eed06f1410d44b490ee2abb1b82d322695d44724",
+          "line_end": 163,
+          "line_start": 115,
+          "path": "crates/hephaestus-core/src/domain/device.rs",
+          "repo": "hephaestus",
+          "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+          "sha256": "391f52f9a71dca91bc47375b37f6f08fbdaf2ad29cf8089a29b8b31d47d1229e",
+          "url": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/crates/hephaestus-core/src/domain/device.rs#L115-L163"
+        },
+        {
+          "git_blob": "f25b9ea1ca8a0e1cd1b54627b5ba8d1f8d1566ce",
+          "line_end": 18,
+          "line_start": 1,
+          "path": "crates/hephaestus-core/src/domain/buffer.rs",
+          "repo": "hephaestus",
+          "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+          "sha256": "542c9eb5b75bb0fdcfdf85b7809cf7679c795b4dc7ade93bbb9300ae1fb1c483",
+          "url": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/crates/hephaestus-core/src/domain/buffer.rs#L1-L18"
+        },
+        {
+          "git_blob": "d8c4fad875b5e9a25b3632558a56782a38704d35",
+          "line_end": 39,
+          "line_start": 9,
+          "path": "crates/hephaestus-core/src/domain/view.rs",
+          "repo": "hephaestus",
+          "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+          "sha256": "e78ae9e9574d0f8e45c9d6079bc2fedd3d5979055df6401f7783e30099ea3825",
+          "url": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/crates/hephaestus-core/src/domain/view.rs#L9-L39"
+        },
+        {
+          "git_blob": "f59c27e3823e21d8410e88ade137b32fabd89e1e",
+          "line_end": 132,
+          "line_start": 100,
+          "path": "crates/hephaestus-core/src/domain/accelerator/device_api.rs",
+          "repo": "hephaestus",
+          "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+          "sha256": "c35ab1fb5759c9c1e27c1239d271fd20712207b8a675d09c9ffbd750f6819efd",
+          "url": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/crates/hephaestus-core/src/domain/accelerator/device_api.rs#L100-L132"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "eunomia",
+          "role": "Pod byte representation and precision laws"
+        },
+        {
+          "repo": "leto",
+          "role": "checked operand layout"
+        },
+        {
+          "repo": "melinoe",
+          "role": "access/completion permissions"
+        },
+        {
+          "repo": "themis",
+          "role": "placement vocabulary"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "Buffer<T> and ShaderF64/F16 declarations do not prove that the actual acquired device executes an operation in that precision.",
+        "Host fallback/staging and native target kernels must have distinct evidence statuses."
+      ]
+    },
+    {
+      "canonical_capability": "TEN-CORE",
+      "canonical_prerequisites": [
+        "ARR-LAYOUT",
+        "DEV-CORE",
+        "NUM-PROMOTE"
+      ],
+      "future_acceptance_obligations": [
+        "Dtype-changing conversion must change actual representation; exact large-int/range/NaN/error tests.",
+        "Alias/view mutation observability under each source policy and explicit host-transfer/device-residency receipts."
+      ],
+      "id": "CT-TENSOR-FACADE",
+      "recommended_typed_generic_boundary": "Coeus owns framework-facing object/error/copy/AD behavior and delegates scalar/layout/allocation/kernel operations. Encode source-specific copy/alias policies as explicit generic strategies; distinguish Rust type T from source-visible dtype objects/default modes.",
+      "scope": "Tensor object identity, dtype/device/layout facade, value retention and copy/view behavior",
+      "single_accountable_owner": "coeus",
+      "source_observation": "Tensor<T,B> contains B::DeviceBuffer<T> and Coeus Layout; clone/views share cloned storage, while StorageMut promises COW detachment. This is a concrete value-retention contract, not universal NumPy/PyTorch shared-write alias equivalence.",
+      "sources": [
+        {
+          "git_blob": "018110f6bd0907afb4ab76e4d993a3dc39fa18da",
+          "line_end": 78,
+          "line_start": 65,
+          "path": "crates/coeus-tensor/src/tensor.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "598cd44c27d7aaaeb94deba042bbf53e7b5cbcc25ffa9dbbd3c6a3758aecc709",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-tensor/src/tensor.rs#L65-L78"
+        },
+        {
+          "git_blob": "874aea24991d86d7a5ba413902097d2ddd8770d8",
+          "line_end": 75,
+          "line_start": 21,
+          "path": "crates/coeus-core/src/storage/traits.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "3cfc022a8a0c114ae0d1909de9b85c1d6f9bcf500869988dee8a2b7f9aa906d7",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/storage/traits.rs#L21-L75"
+        },
+        {
+          "git_blob": "4e944daf8420410895d53137a5f0c424dc6d8708",
+          "line_end": 28,
+          "line_start": 10,
+          "path": "crates/coeus-tensor/src/views.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "a700d74e1d0c34e63864f306bae2330450239e51483167e99b72d2191b4e664e",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-tensor/src/views.rs#L10-L28"
+        },
+        {
+          "git_blob": "1600e31c0b53c57cb1f5168f7c804a13a96aaaa5",
+          "line_end": 36,
+          "line_start": 31,
+          "path": "crates/coeus-python/src/tensor/pyimpl/pytensor.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "40a800aa5fcb4f2e5257f08ea3f309efc36f1a6abeaeae34a54fafb92cd7613e",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-python/src/tensor/pyimpl/pytensor.rs#L31-L36"
+        },
+        {
+          "git_blob": "1600e31c0b53c57cb1f5168f7c804a13a96aaaa5",
+          "line_end": 935,
+          "line_start": 905,
+          "path": "crates/coeus-python/src/tensor/pyimpl/pytensor.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "40a800aa5fcb4f2e5257f08ea3f309efc36f1a6abeaeae34a54fafb92cd7613e",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-python/src/tensor/pyimpl/pytensor.rs#L905-L935"
+        },
+        {
+          "git_blob": "dd4936f859c523611671781e51728c760b951793",
+          "line_end": 135,
+          "line_start": 122,
+          "path": "crates/coeus-core/src/backend/traits.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "bfa72322799475732c76825596d8185f6e59082abad30789a15871d35e320238",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/backend/traits.rs#L122-L135"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "eunomia",
+          "role": "dtype/promotion laws"
+        },
+        {
+          "repo": "leto",
+          "role": "array/layout mathematics"
+        },
+        {
+          "repo": "mnemosyne",
+          "role": "allocation"
+        },
+        {
+          "repo": "hephaestus",
+          "role": "device kernels/storage"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "PyTensor contains Var<f64>; float()/double() clone; long()/int() round through i64 then store f64. These are dtype parity gaps.",
+        "Unsigned facade strides and finite rank adapters remain layout gaps.",
+        "General ComputeBackend host_staging_crossover explicitly allows host-consumed reduction CPU staging and cannot earn execution-device parity."
+      ]
+    },
+    {
+      "canonical_capability": "ARR-TYPE",
+      "canonical_prerequisites": [
+        "ARR-CREATE",
+        "ARR-INDEX",
+        "NUM-PROMOTE"
+      ],
+      "future_acceptance_obligations": [
+        "Length/encoding/field-offset/missing-value/reference-lifetime and view/copy tests per source domain.",
+        "Only apply numeric/AD bounds where meaningful; explicit non-differentiability/error contracts elsewhere."
+      ],
+      "id": "CT-RICH-ARRAY",
+      "recommended_typed_generic_boundary": "Keep full rich-domain inclusion required. Propose a reviewed Element/representation hierarchy and managed-storage policy outside numeric Pod kernels; let Coeus TEN-RESOURCE consume it without declaring arbitrary objects safe Pod.",
+      "scope": "Nonnumeric and structured array element domains",
+      "single_accountable_owner": "leto",
+      "source_observation": "Leto Storage<T> and ArrayView<T> are generic over T, whereas NumericElement and Coeus Scalar require numeric/Pod capabilities. Existing signatures do not establish strings, records, object/reference elements or resource semantics.",
+      "sources": [
+        {
+          "git_blob": "f425ebdead379629c05c5c021d7e933200e08cc0",
+          "line_end": 22,
+          "line_start": 1,
+          "path": "crates/leto/src/infrastructure/storage/traits.rs",
+          "repo": "leto",
+          "revision": "074ab891cbc399163539a2f72185754875c8e943",
+          "sha256": "5327a15802cabb91e74ea8ce8dac86b23745fe70ff2803c1813f71c4aa0248bb",
+          "url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/infrastructure/storage/traits.rs#L1-L22"
+        },
+        {
+          "git_blob": "9daed89ef92b962ba3df5d712a2c0263d99a4f0a",
+          "line_end": 28,
+          "line_start": 7,
+          "path": "crates/leto/src/application/view/immutable.rs",
+          "repo": "leto",
+          "revision": "074ab891cbc399163539a2f72185754875c8e943",
+          "sha256": "b53a9a55fd1c4e58067a10197a34a69bec70a0197e40a9853daf092cd73c9960",
+          "url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/application/view/immutable.rs#L7-L28"
+        },
+        {
+          "git_blob": "a6cbc42010f28eb7d552baece90ef51dcdab1465",
+          "line_end": 44,
+          "line_start": 6,
+          "path": "crates/coeus-core/src/dtype/traits/scalar.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "9d218ba8f7193aec867605071bcafab9d7660636f1b488fb31999d5e28f0be97",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/dtype/traits/scalar.rs#L6-L44"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "eunomia",
+          "role": "numeric/bit-level leaf representation where applicable"
+        },
+        {
+          "repo": "mnemosyne",
+          "role": "owned managed-element storage and lifetimes"
+        },
+        {
+          "repo": "coeus",
+          "role": "resource/string/variant tensor semantics"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "Inclusion is resolved by the user goal/DEC-003; representation, ownership, serialization, errors and gradient domains are pending."
+      ]
+    },
+    {
+      "canonical_capability": "AD-REVERSE",
+      "canonical_prerequisites": [
+        "TEN-OPS"
+      ],
+      "future_acceptance_obligations": [
+        "Nonunit seeds, analytical JVP/VJP adjoint identities, dtype/shape/layout/device domains, shared/repeated accumulation and error/effect sequences.",
+        "JAX Ref/GradRef/GradValue/DidntWant and TF/PyTorch mutation/version behavior need source-specific state-machine cases."
+      ],
+      "id": "CT-REVERSE-AD",
+      "recommended_typed_generic_boundary": "Coeus owns tape/transforms/effect rules. Derivative formulas stay in owning scalar/kernel providers, with explicit capability bounds. A parallel/ref-aware extension needs reviewed permission and lifetime contracts rather than assuming current serialized safety extends.",
+      "scope": "Tape construction, seed/cotangent trees, accumulation and mutation effects",
+      "single_accountable_owner": "coeus",
+      "source_observation": "Var<T,B> stores tensor, gradient buffer and creator. GradBuffer uses UnsafeCell with a serialized backward/optimizer/distributed-phase premise; it is not an existing general concurrent Ref effect implementation. Gamma candidate adds only one first-order VJP through optional provider capability.",
+      "sources": [
+        {
+          "git_blob": "f2ea6b57ae50ca57a96ba5fcd1f17bdba5fb0040",
+          "line_end": 56,
+          "line_start": 49,
+          "path": "crates/coeus-autograd/src/var.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "4fb423b85eee342663b3db6b146aebf6c4184ee2b355fd2c6400bfd8f80df1db",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/src/var.rs#L49-L56"
+        },
+        {
+          "git_blob": "617b7f1b3cf36388799f1c26990905be6fbf7026",
+          "line_end": 37,
+          "line_start": 5,
+          "path": "crates/coeus-autograd/src/grad_buffer.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "fec60d8a1db4da04f936ed8048950beef203ae188f1c8dafa0fb1d80aa9da55e",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/src/grad_buffer.rs#L5-L37"
+        },
+        {
+          "git_blob": "617b7f1b3cf36388799f1c26990905be6fbf7026",
+          "line_end": 73,
+          "line_start": 46,
+          "path": "crates/coeus-autograd/src/grad_buffer.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "fec60d8a1db4da04f936ed8048950beef203ae188f1c8dafa0fb1d80aa9da55e",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/src/grad_buffer.rs#L46-L73"
+        },
+        {
+          "git_blob": "226fa0a9408af1404ad4c12b26e2cff9a0039cef",
+          "line_end": 22,
+          "line_start": 4,
+          "path": "crates/coeus-autograd/src/backward.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "b063e8ee5d747b5749cf3da777200f2cc4d89efde45dbf591d8fe9c68764e958",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/src/backward.rs#L4-L22"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "eunomia",
+          "role": "derivative scalar kernels and exact precision"
+        },
+        {
+          "repo": "leto",
+          "role": "CPU traversal, broadcast reduction/index adjoints"
+        },
+        {
+          "repo": "hephaestus",
+          "role": "resident derivative kernels"
+        },
+        {
+          "repo": "melinoe",
+          "role": "typed resource/gradient access phases"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "Forward/higher-order AD, transform order, complex convention, Ref marker/pytree/accumulator mutation and distributed/device composition remain separate.",
+        "Gamma has no implied trigamma/higher derivative or arbitrary-rank/device coverage."
+      ]
+    },
+    {
+      "canonical_capability": "TEN-RESOURCE",
+      "canonical_prerequisites": [
+        "TEN-CORE",
+        "ARR-TYPE"
+      ],
+      "future_acceptance_obligations": [
+        "Sequence-based valid/rejected state transitions, no stale aliases after consumption, source-specific OOB/gradient policy and persistence tests."
+      ],
+      "id": "CT-RESOURCE",
+      "recommended_typed_generic_boundary": "Coeus owns source-visible stateful resource semantics, delegating element storage and access proofs to providers. Use typed creation/freeze/consumption and effect policies; preserve source rejection/return markers and state updates.",
+      "scope": "Resource/string/variant tensor effect semantics",
+      "single_accountable_owner": "coeus",
+      "source_observation": "Current Coeus Tensor<T:Scalar> and Var<T:Scalar> express numeric tensors and serialized gradient storage; source does not supply the full frozen JAX/TF resource effect protocols.",
+      "sources": [
+        {
+          "git_blob": "018110f6bd0907afb4ab76e4d993a3dc39fa18da",
+          "line_end": 78,
+          "line_start": 65,
+          "path": "crates/coeus-tensor/src/tensor.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "598cd44c27d7aaaeb94deba042bbf53e7b5cbcc25ffa9dbbd3c6a3758aecc709",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-tensor/src/tensor.rs#L65-L78"
+        },
+        {
+          "git_blob": "f2ea6b57ae50ca57a96ba5fcd1f17bdba5fb0040",
+          "line_end": 56,
+          "line_start": 49,
+          "path": "crates/coeus-autograd/src/var.rs",
+          "repo": "coeus",
+          "revision": "57f7c4596884949e15815659544096b62c570d85",
+          "sha256": "4fb423b85eee342663b3db6b146aebf6c4184ee2b355fd2c6400bfd8f80df1db",
+          "url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/src/var.rs#L49-L56"
+        },
+        {
+          "git_blob": "2dbb0fea15a73bbaec3f81b6305841fe630bcfaf",
+          "line_end": 63,
+          "line_start": 39,
+          "path": "src/token/capability.rs",
+          "repo": "melinoe",
+          "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+          "sha256": "40d928daf683181d4ec41f9b6739a355162ae8652a535fd6f196686e2badbecc",
+          "url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/src/token/capability.rs#L39-L63"
+        }
+      ],
+      "status": {
+        "design_ADR_approved": false,
+        "external_verified": false,
+        "full_semantic_definition": false,
+        "implementation_complete": false,
+        "owner_proposal_approved": false,
+        "performance_qualified": false,
+        "released": false,
+        "source_boundary_observed": true,
+        "tests_executed_this_audit": 0
+      },
+      "supplier_roles": [
+        {
+          "repo": "leto",
+          "role": "ARR-TYPE element/array representation"
+        },
+        {
+          "repo": "melinoe",
+          "role": "permissions and resource lifetime state transitions"
+        },
+        {
+          "repo": "mnemosyne",
+          "role": "storage lifetime"
+        },
+        {
+          "repo": "hephaestus",
+          "role": "supported device resource operations"
+        }
+      ],
+      "unclosed_contract_axes": [
+        "Full Ref creation/indexing/freeze invalidation/capture restrictions, string/variant/resource domains and transformation order remain pending."
+      ]
+    }
+  ],
+  "dependency_policy": "Preserve canonical capability prerequisites listed per contract. These are evidence/readiness gates, not a mandate to reverse actual crate dependencies. Keep foundational Melinoe independent; Mnemosyne/Themis consume it. Device/CPU/numeric suppliers precede Coeus consumers. Do not add a Coeus fallback owner to scalar/layout/allocation/placement/device work.",
+  "protected_handoffs": [
+    "Gamma candidate ownership remains task-4 provider sequence; no provider edits or delivery retries.",
+    "Native Quinn/Moirai migration and notification ownership, Apollo service hold/#696,Atlas#551 and Kwavers Miri lane remain untouched."
+  ],
+  "provenance_conclusion": "All49 inspected files have identical Git blobs at older detached planning HEADs and the separately pinned cached default refs matching canonical provider audit snapshots. Cached refs are not fresh remote observations. Gamma candidate cohort remains separate and is not assumed integrated.",
+  "schema_version": 1,
+  "source_files": [
+    {
+      "bytes": 10377,
+      "git_blob": "18ad5f5c76763f47f21d6ad9a4453448615a67d1",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/eunomia/crates/eunomia/src/traits/numeric.rs",
+      "path": "crates/eunomia/src/traits/numeric.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "81bb15da9036cd09cef504ad743ccb11e0f99edafccd9c1f860970e766c52ad7",
+      "source_url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/traits/numeric.rs"
+    },
+    {
+      "bytes": 18034,
+      "git_blob": "05bc2bd872e026fe907130406fab0fbccdaf784a",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/eunomia/crates/eunomia/src/traits/float.rs",
+      "path": "crates/eunomia/src/traits/float.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "ccad6f08d74cfed5598a70ed745a39b85ea7f63fdbff56b49c48204d9f94c0b9",
+      "source_url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/traits/float.rs"
+    },
+    {
+      "bytes": 9166,
+      "git_blob": "04715e7be90f4d3de0aae79a21290df1db08dc6a",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/eunomia/crates/eunomia/src/traits/field.rs",
+      "path": "crates/eunomia/src/traits/field.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "0100188069bb9dd16114b90d9e1a53bd710ca34fdd21287f0acfc657703553fc",
+      "source_url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/traits/field.rs"
+    },
+    {
+      "bytes": 4159,
+      "git_blob": "5dace7c0b2abad88e23559ed7f3254d9b9d4f2f0",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/eunomia/crates/eunomia/src/layout/marker.rs",
+      "path": "crates/eunomia/src/layout/marker.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "425e2e3371a936609f8c296714f91d3ea309a6c9007c170ffbad80fc5e37ee18",
+      "source_url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/layout/marker.rs"
+    },
+    {
+      "bytes": 7320,
+      "git_blob": "358c7bb4aea612259dde78b69fc36c0e14779e84",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/eunomia/crates/eunomia/src/convert/integer.rs",
+      "path": "crates/eunomia/src/convert/integer.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "1039291ad484f21a40d56dda64b1df9c1a41045fa0418fcae07143373f6d5f97",
+      "source_url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/convert/integer.rs"
+    },
+    {
+      "bytes": 13113,
+      "git_blob": "67846b821f459705fa94aea28dadfbbe95ebc68a",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/eunomia/crates/eunomia/src/impls/wrappers/float.rs",
+      "path": "crates/eunomia/src/impls/wrappers/float.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "db1ef840bf6fdc62cd8429d07ef67cb170219ec6c6e8d746023c88ab8a5a8ba3",
+      "source_url": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/crates/eunomia/src/impls/wrappers/float.rs"
+    },
+    {
+      "bytes": 3883,
+      "git_blob": "8d795fc742480db7051150fefe84ba85ca4d74a6",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/leto/crates/leto/src/domain/layout/core.rs",
+      "path": "crates/leto/src/domain/layout/core.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "40feebd020646a70f2c9ba985dff8a2c007f215df5250dd69213b83b4ece4894",
+      "source_url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/domain/layout/core.rs"
+    },
+    {
+      "bytes": 10037,
+      "git_blob": "557f31ac23f06b98a01de82d2b4c9e38a537259a",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/leto/crates/leto/src/domain/layout/shape.rs",
+      "path": "crates/leto/src/domain/layout/shape.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "aac982d7710b3612bd58e6311357ed9ad4712aba95bc07324550e7130bb80e68",
+      "source_url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/domain/layout/shape.rs"
+    },
+    {
+      "bytes": 5975,
+      "git_blob": "068f69d10f479f93ac61ef066383b77799d0c147",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/leto/crates/leto/src/domain/dynamic/layout.rs",
+      "path": "crates/leto/src/domain/dynamic/layout.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "368bb805b8f57492969702186a2eb6825cc8124a2db2c4fbfd9a39f1578da685",
+      "source_url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/domain/dynamic/layout.rs"
+    },
+    {
+      "bytes": 8849,
+      "git_blob": "b5c9c6672637accd574b10684a76d0232af02f82",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/leto/crates/leto/src/application/view/mutable_core.rs",
+      "path": "crates/leto/src/application/view/mutable_core.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "a4a598f689c2a464a3f714bf002c9a3a58a864e2ff769060c8c8f5312ee7b5df",
+      "source_url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/application/view/mutable_core.rs"
+    },
+    {
+      "bytes": 12204,
+      "git_blob": "9daed89ef92b962ba3df5d712a2c0263d99a4f0a",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/leto/crates/leto/src/application/view/immutable.rs",
+      "path": "crates/leto/src/application/view/immutable.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "b53a9a55fd1c4e58067a10197a34a69bec70a0197e40a9853daf092cd73c9960",
+      "source_url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/application/view/immutable.rs"
+    },
+    {
+      "bytes": 6332,
+      "git_blob": "6f8aabef66dfaed6de2183ac87af180fe63649be",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/leto/crates/leto/src/application/assign/assign_into.rs",
+      "path": "crates/leto/src/application/assign/assign_into.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "012e380494030f4434a88f39fd01ff5e21616b10f5a3036a1ed76fa6546d9205",
+      "source_url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/application/assign/assign_into.rs"
+    },
+    {
+      "bytes": 696,
+      "git_blob": "f425ebdead379629c05c5c021d7e933200e08cc0",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/leto/crates/leto/src/infrastructure/storage/traits.rs",
+      "path": "crates/leto/src/infrastructure/storage/traits.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "5327a15802cabb91e74ea8ce8dac86b23745fe70ff2803c1813f71c4aa0248bb",
+      "source_url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/infrastructure/storage/traits.rs"
+    },
+    {
+      "bytes": 7261,
+      "git_blob": "6ab41f64ab52f3f49f4c688b375879f6c9a8e97c",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/leto/crates/leto/src/infrastructure/storage/mnemosyne.rs",
+      "path": "crates/leto/src/infrastructure/storage/mnemosyne.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "16d392577dcee4744bd7e8ac48d8b946efdd4d3f4e13758b85199655192d8eee",
+      "source_url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto/src/infrastructure/storage/mnemosyne.rs"
+    },
+    {
+      "bytes": 7675,
+      "git_blob": "cc0a12af3fc7c654f6e394810f5e999d8f2b2f23",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/leto/crates/leto-ops/src/domain/scalar/contract.rs",
+      "path": "crates/leto-ops/src/domain/scalar/contract.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "778d950430ee7f3a93775ad9196b076d228eac16ab001fc524d330009ae2095a",
+      "source_url": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/crates/leto-ops/src/domain/scalar/contract.rs"
+    },
+    {
+      "bytes": 8673,
+      "git_blob": "a6cbc42010f28eb7d552baece90ef51dcdab1465",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-core/src/dtype/traits/scalar.rs",
+      "path": "crates/coeus-core/src/dtype/traits/scalar.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "9d218ba8f7193aec867605071bcafab9d7660636f1b488fb31999d5e28f0be97",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/dtype/traits/scalar.rs"
+    },
+    {
+      "bytes": 8435,
+      "git_blob": "dd4936f859c523611671781e51728c760b951793",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-core/src/backend/traits.rs",
+      "path": "crates/coeus-core/src/backend/traits.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "bfa72322799475732c76825596d8185f6e59082abad30789a15871d35e320238",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/backend/traits.rs"
+    },
+    {
+      "bytes": 2407,
+      "git_blob": "874aea24991d86d7a5ba413902097d2ddd8770d8",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-core/src/storage/traits.rs",
+      "path": "crates/coeus-core/src/storage/traits.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "3cfc022a8a0c114ae0d1909de9b85c1d6f9bcf500869988dee8a2b7f9aa906d7",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/storage/traits.rs"
+    },
+    {
+      "bytes": 16682,
+      "git_blob": "6e33b0e97b985a1b73ec73a1b2b521c0dd72e44c",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-core/src/storage/cpu.rs",
+      "path": "crates/coeus-core/src/storage/cpu.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "0fa4e4ea02837f9ffdb4ca2ff1c1464f1a255c082ef606d4589cf0c4e2601014",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/storage/cpu.rs"
+    },
+    {
+      "bytes": 12144,
+      "git_blob": "a98f711b5fdaa3b67e0d35ce6ffa3a7cf671118a",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-core/src/layout/layout.rs",
+      "path": "crates/coeus-core/src/layout/layout.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "f90f3819a1db23788599e9e76bf3338d8fa6d8b0c7b4de845f1a55426fd40984",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/layout/layout.rs"
+    },
+    {
+      "bytes": 3755,
+      "git_blob": "98ddbce26bea1c6e77e827b5f40de4ac2bc5ea11",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-core/src/layout/shape.rs",
+      "path": "crates/coeus-core/src/layout/shape.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "de65ac57cb9e53679a878983c12950abb55f85d0955fadb5963b40ffc78c3025",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/layout/shape.rs"
+    },
+    {
+      "bytes": 1526,
+      "git_blob": "0af960c68b8e395946c659aa92a93b45949cffe3",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-core/src/layout/strides.rs",
+      "path": "crates/coeus-core/src/layout/strides.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "f38c575318c39a91c3b54969f6d5ed0f67fe36af7c9cd794a503519a500e0025",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-core/src/layout/strides.rs"
+    },
+    {
+      "bytes": 13090,
+      "git_blob": "018110f6bd0907afb4ab76e4d993a3dc39fa18da",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-tensor/src/tensor.rs",
+      "path": "crates/coeus-tensor/src/tensor.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "598cd44c27d7aaaeb94deba042bbf53e7b5cbcc25ffa9dbbd3c6a3758aecc709",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-tensor/src/tensor.rs"
+    },
+    {
+      "bytes": 3693,
+      "git_blob": "4e944daf8420410895d53137a5f0c424dc6d8708",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-tensor/src/views.rs",
+      "path": "crates/coeus-tensor/src/views.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "a700d74e1d0c34e63864f306bae2330450239e51483167e99b72d2191b4e664e",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-tensor/src/views.rs"
+    },
+    {
+      "bytes": 4751,
+      "git_blob": "f4bc3322eb839ce1daa7aafd6e17d1be22fbe4ec",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-cpu/src/convert.rs",
+      "path": "crates/coeus-cpu/src/convert.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "aecb5df5d48bbd5ebb93a1b60130d3017cfdee91093257d85dbc11b270e8a3ef",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-cpu/src/convert.rs"
+    },
+    {
+      "bytes": 14276,
+      "git_blob": "f2ea6b57ae50ca57a96ba5fcd1f17bdba5fb0040",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-autograd/src/var.rs",
+      "path": "crates/coeus-autograd/src/var.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "4fb423b85eee342663b3db6b146aebf6c4184ee2b355fd2c6400bfd8f80df1db",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/src/var.rs"
+    },
+    {
+      "bytes": 3168,
+      "git_blob": "617b7f1b3cf36388799f1c26990905be6fbf7026",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-autograd/src/grad_buffer.rs",
+      "path": "crates/coeus-autograd/src/grad_buffer.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "fec60d8a1db4da04f936ed8048950beef203ae188f1c8dafa0fb1d80aa9da55e",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/src/grad_buffer.rs"
+    },
+    {
+      "bytes": 2888,
+      "git_blob": "226fa0a9408af1404ad4c12b26e2cff9a0039cef",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-autograd/src/backward.rs",
+      "path": "crates/coeus-autograd/src/backward.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "b063e8ee5d747b5749cf3da777200f2cc4d89efde45dbf591d8fe9c68764e958",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/src/backward.rs"
+    },
+    {
+      "bytes": 34256,
+      "git_blob": "1600e31c0b53c57cb1f5168f7c804a13a96aaaa5",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/coeus/crates/coeus-python/src/tensor/pyimpl/pytensor.rs",
+      "path": "crates/coeus-python/src/tensor/pyimpl/pytensor.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "40a800aa5fcb4f2e5257f08ea3f309efc36f1a6abeaeae34a54fafb92cd7613e",
+      "source_url": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-python/src/tensor/pyimpl/pytensor.rs"
+    },
+    {
+      "bytes": 7079,
+      "git_blob": "019f5772051abb86246368077f104f4fe4e9942f",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/mnemosyne/crates/mnemosyne-core/src/lib.rs",
+      "path": "crates/mnemosyne-core/src/lib.rs",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "846a84108e7577b5101ed4f0ec8c725da3b8ad3e88f5ebedc23ef47912cae465",
+      "source_url": "https://github.com/ryancinsight/mnemosyne/blob/b40870ea3dca06a324d397e0b480edf3c18fe544/crates/mnemosyne-core/src/lib.rs"
+    },
+    {
+      "bytes": 6792,
+      "git_blob": "f479379cf96081281c5dae2951d6eef8364985f6",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/mnemosyne/crates/mnemosyne/src/allocator.rs",
+      "path": "crates/mnemosyne/src/allocator.rs",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "9f6de07457849558159eaad566a3802a2624f0e543cc0d0c46bca6c7b49665af",
+      "source_url": "https://github.com/ryancinsight/mnemosyne/blob/b40870ea3dca06a324d397e0b480edf3c18fe544/crates/mnemosyne/src/allocator.rs"
+    },
+    {
+      "bytes": 12010,
+      "git_blob": "0b8c56b5b981ab9d54615827b35abde5869ff434",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/mnemosyne/crates/mnemosyne-heap/src/branded_vec.rs",
+      "path": "crates/mnemosyne-heap/src/branded_vec.rs",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "a358b37280657d4cc7e715ad53c1b323647b58592f41f8dea841701845255edb",
+      "source_url": "https://github.com/ryancinsight/mnemosyne/blob/b40870ea3dca06a324d397e0b480edf3c18fe544/crates/mnemosyne-heap/src/branded_vec.rs"
+    },
+    {
+      "bytes": 12840,
+      "git_blob": "51d18ea4f571436ea7240f5dd78b18cce7461c83",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/mnemosyne/crates/mnemosyne-heap/src/branded_vec/ops.rs",
+      "path": "crates/mnemosyne-heap/src/branded_vec/ops.rs",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "4f1753008bdc9be6cf230bb11199799d46ad2f20882e937b899931df520f7c70",
+      "source_url": "https://github.com/ryancinsight/mnemosyne/blob/b40870ea3dca06a324d397e0b480edf3c18fe544/crates/mnemosyne-heap/src/branded_vec/ops.rs"
+    },
+    {
+      "bytes": 2184,
+      "git_blob": "094dfd8587414c0a935ec6630e6e836676d414b5",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/mnemosyne/crates/mnemosyne-heap/src/lib.rs",
+      "path": "crates/mnemosyne-heap/src/lib.rs",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "667e053c943e00621d7aab8a9629e7996aa611fa2638abfa9c40c1e66f596049",
+      "source_url": "https://github.com/ryancinsight/mnemosyne/blob/b40870ea3dca06a324d397e0b480edf3c18fe544/crates/mnemosyne-heap/src/lib.rs"
+    },
+    {
+      "bytes": 3662,
+      "git_blob": "2dbb0fea15a73bbaec3f81b6305841fe630bcfaf",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/melinoe/src/token/capability.rs",
+      "path": "src/token/capability.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "40d928daf683181d4ec41f9b6739a355162ae8652a535fd6f196686e2badbecc",
+      "source_url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/src/token/capability.rs"
+    },
+    {
+      "bytes": 8788,
+      "git_blob": "9e54891dccbfb352c76d5361c00ee2b9a2b7a7b4",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/melinoe/src/cell/melinoe_cell.rs",
+      "path": "src/cell/melinoe_cell.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "85e173e8ca0f1c1ca7f866dfd58a61b19fb2a94491a26a360fa09627a7bc0409",
+      "source_url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/src/cell/melinoe_cell.rs"
+    },
+    {
+      "bytes": 2705,
+      "git_blob": "f261c5a453884c76114c23b3ce93364ecabc7300",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/melinoe/src/sync/tokens/region.rs",
+      "path": "src/sync/tokens/region.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "cab1d473f5e963ac1e208a7b6db2510ea0ef56d6f92a27fb6ca4543097886d23",
+      "source_url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/src/sync/tokens/region.rs"
+    },
+    {
+      "bytes": 3024,
+      "git_blob": "5b1a50088450e590696e06262fb7552ac7194508",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/melinoe/src/sync/mod.rs",
+      "path": "src/sync/mod.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "e43a8771ddb1c2a5e4a1d6219289654136521f8fcf2400de39bd128a84ece5c1",
+      "source_url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/src/sync/mod.rs"
+    },
+    {
+      "bytes": 8156,
+      "git_blob": "68768a73d1e4f46bc5387926e94a76c57d265b3d",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/melinoe/src/region/shard.rs",
+      "path": "src/region/shard.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "9517a6fc7b79815c7e6961c3c49adaed37d7201dcc274d19a965177ea8a39ffa",
+      "source_url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/src/region/shard.rs"
+    },
+    {
+      "bytes": 3024,
+      "git_blob": "ef76b4031aa9349a4b6ceece7ba99fa9f882218b",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/melinoe/contracts/atlas-device/tests/device_buffer.rs",
+      "path": "contracts/atlas-device/tests/device_buffer.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "d190bdf4d7c7234e89adf0960144655c9b9eaf2e08aef6c6c8c4f981ed401bb4",
+      "source_url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/contracts/atlas-device/tests/device_buffer.rs"
+    },
+    {
+      "bytes": 2497,
+      "git_blob": "28f281b9d31484bc343ba2a2b96fbba96c43451e",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/melinoe/contracts/atlas-device/Cargo.toml",
+      "path": "contracts/atlas-device/Cargo.toml",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "c39ebb3fcaa92646db5cba5e94af7c3a82ee48091c807ce91f8cad141b1e9b9b",
+      "source_url": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/contracts/atlas-device/Cargo.toml"
+    },
+    {
+      "bytes": 15445,
+      "git_blob": "eed06f1410d44b490ee2abb1b82d322695d44724",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/hephaestus/crates/hephaestus-core/src/domain/device.rs",
+      "path": "crates/hephaestus-core/src/domain/device.rs",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "391f52f9a71dca91bc47375b37f6f08fbdaf2ad29cf8089a29b8b31d47d1229e",
+      "source_url": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/crates/hephaestus-core/src/domain/device.rs"
+    },
+    {
+      "bytes": 707,
+      "git_blob": "f25b9ea1ca8a0e1cd1b54627b5ba8d1f8d1566ce",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/hephaestus/crates/hephaestus-core/src/domain/buffer.rs",
+      "path": "crates/hephaestus-core/src/domain/buffer.rs",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "542c9eb5b75bb0fdcfdf85b7809cf7679c795b4dc7ade93bbb9300ae1fb1c483",
+      "source_url": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/crates/hephaestus-core/src/domain/buffer.rs"
+    },
+    {
+      "bytes": 5894,
+      "git_blob": "d8c4fad875b5e9a25b3632558a56782a38704d35",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/hephaestus/crates/hephaestus-core/src/domain/view.rs",
+      "path": "crates/hephaestus-core/src/domain/view.rs",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "e78ae9e9574d0f8e45c9d6079bc2fedd3d5979055df6401f7783e30099ea3825",
+      "source_url": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/crates/hephaestus-core/src/domain/view.rs"
+    },
+    {
+      "bytes": 4821,
+      "git_blob": "f59c27e3823e21d8410e88ade137b32fabd89e1e",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/hephaestus/crates/hephaestus-core/src/domain/accelerator/device_api.rs",
+      "path": "crates/hephaestus-core/src/domain/accelerator/device_api.rs",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "c35ab1fb5759c9c1e27c1239d271fd20712207b8a675d09c9ffbd750f6819efd",
+      "source_url": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/crates/hephaestus-core/src/domain/accelerator/device_api.rs"
+    },
+    {
+      "bytes": 11991,
+      "git_blob": "ff6959b9a09f6d8c170d8d9f44d4b6be43fe82fc",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/hephaestus/crates/hephaestus-core/src/domain/reduction.rs",
+      "path": "crates/hephaestus-core/src/domain/reduction.rs",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "9824be266b104ad1e6d70a642e22eead40d2756f31973ccd8dc320d0f65a3b98",
+      "source_url": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/crates/hephaestus-core/src/domain/reduction.rs"
+    },
+    {
+      "bytes": 2218,
+      "git_blob": "3f7e7188b2632fab3b34d0b5aba3e4e174e8f3fb",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/themis/src/lib.rs",
+      "path": "src/lib.rs",
+      "repo": "themis",
+      "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "54ef4a35833f204787f2ba84475f9dbd51f5c3b1a4bbb3f1b1c6eec0a1075f27",
+      "source_url": "https://github.com/ryancinsight/themis/blob/a6d0620b99d5d5518ed4e7225aa47eac66e5add2/src/lib.rs"
+    },
+    {
+      "bytes": 14151,
+      "git_blob": "0804fb062bc679cfa12f00924e64a0ac78e66b4f",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/themis/src/branded/region/storage.rs",
+      "path": "src/branded/region/storage.rs",
+      "repo": "themis",
+      "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "99ecf0e7a4647b3bec63bf5d4409eb2072ded0b2c378f0dd0daeea25bc438dc2",
+      "source_url": "https://github.com/ryancinsight/themis/blob/a6d0620b99d5d5518ed4e7225aa47eac66e5add2/src/branded/region/storage.rs"
+    },
+    {
+      "bytes": 5242,
+      "git_blob": "66a5c05b6f229cf083d3191b3edfe2e4042e6751",
+      "local_snapshot": "/tmp/atlas-core-tensor-provider-audit/source/themis/src/branded/region/cell.rs",
+      "path": "src/branded/region/cell.rs",
+      "repo": "themis",
+      "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+      "same_blob_as_older_detached_snapshot": true,
+      "sha256": "f283e4eae0564c3e8590961c8ec912a2e80bf7982489d11e67a2a678a1716a3e",
+      "source_url": "https://github.com/ryancinsight/themis/blob/a6d0620b99d5d5518ed4e7225aa47eac66e5add2/src/branded/region/cell.rs"
+    }
+  ],
+  "verification": {
+    "all_anchor_bounds_and_blob_hashes_checked": true,
+    "all_files_equal_at_old_and_canonical_pin": true,
+    "anchors": 48,
+    "builds_or_framework_imports": 0,
+    "canonical_provider_mutations": 0,
+    "contracts_with_one_owner": 12,
+    "hardware_execution": 0,
+    "network_policy_credential_probes": 0,
+    "qualification_promotions": 0,
+    "source_files": 49
+  }
+}
