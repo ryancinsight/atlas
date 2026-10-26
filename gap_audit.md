@@ -1,5 +1,11 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-10-26: bounded provider checklists do not define four-framework parity
+
+Risk: displacement tables, Coeus's implemented-family manifest and Leto's seeded matrix can appear complete while public comparator APIs, compiler/device/distributed variants and external performance remain unmapped. [The versioned program](docs/parity/README.md) retains source-linked candidates, explicit extraction gaps, separate evidence stages and provider ownership. Source audit corrects stale Coeus constructors/gradchecks and Leto's 28/28 headline without crediting unrun tests. Owner: ATLAS-FULL-PARITY-001. Closure requires complete extraction/semantic classes, reviewed scope decisions and exact-revision qualification; no version bump occurs here.
+
+The existing exact-release-cohort item had a level-one heading without the board's canonical status suffix, causing `atlas-board-index.py check` to fail on unchanged main. Its heading now uses the required level/status; the historical status/evidence body remains intact. The generator synchronizes current source titles, retains the overlay's blocked owner hold while correcting its source ID typo, and moves the publisher retry-review pointer into its authoritative body. No provider or publication work is declared delivered by this index repair.
+
 <!-- Compacted 2026-09-26 under the 1,000-line board budget: a risk entry holds risk/evidence/re-open-trigger/owner in ~5 lines; closed findings and delivery narrative are gone -- the record of a closed finding is the commit or PR that closed it. Recover removed narrative with `git log -p -- gap_audit.md`. -->
 
 ## Finding 2026-10-21: lanes on worktreeConfig members misresolve into the gitdir

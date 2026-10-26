@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Define the versioned four-framework functional-parity program, release-pinned
+  candidate API inventories, provider evidence reconciliation, capability owners,
+  repository exit criteria and dependency-ordered work packages. Add the parity
+  traceability/evidence validator with rejection tests. Extraction and all
+  per-API semantic mappings remain incomplete; no package version changes.
+
 - Advance the Atlas gitlinks for the six members whose provider-cohort pull
   requests merged, and regenerate the stack overlay from the recorded stack.
   Tyche, RITK, Harmonia, Prometheus, Coeus and Kwavers move to their merged

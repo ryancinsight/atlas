@@ -23,6 +23,13 @@ provider graph stays acyclic. Ownership is enforced by the
 the equivalence column below states what a package displaces, not an API
 compatibility promise.
 
+The October 26 [four-framework parity program](docs/parity/README.md) adds a
+versioned functional-equivalence goal against the full documented NumPy, JAX,
+PyTorch and TensorFlow surfaces. The historical displacement table does not
+define that denominator. Its reference extraction, semantic mapping and runtime
+qualification remain incomplete; the program records those gaps and the
+provider-first implementation/release gates without changing package versions.
+
 | Concern | Atlas owner | Displaces |
 | --- | --- | --- |
 | Allocation, arenas, staging memory | `mnemosyne` | ad-hoc global allocation and per-crate pools |
