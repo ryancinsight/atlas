@@ -194,6 +194,27 @@ class PublicEvidenceTests(unittest.TestCase):
         self.assertEqual(r['public_scope']['visibility']['internal_source_candidate'], 3)
         self.assertTrue(all(not s['public_surface_complete'] for s in r['snapshots']))
 
+    def test_approved_same_PR_replacement_is_separate_from_history_and_qualification(self):
+        target='https://github.com/ryancinsight/atlas/pull/551'
+        current=next(r for r in self.bundle['program']['protected_ownership'] if r['target']==target)
+        self.assertEqual(current['owner_task'],'01a17995-4c0b-701d-8625-8650165230c2')
+        self.assertEqual(current['replacement_owner_task'],current['owner_task'])
+        self.assertEqual(current['replacement_owner_approval'],'approved_by_user_verified_thumbs_up')
+        prior=current['ownership_history'][0]['record']
+        self.assertEqual(prior['replacement_owner_approval'],'pending')
+        self.assertEqual(prior['owner_task'],'01a169d2-8b8f-7b90-a5bd-79e24b4cb6c7')
+        self.assertEqual(current['observed_pr_head'],prior['observed_pr_head'])
+        self.assertIsNone(current['current_remote_head'])
+        self.assertIs(current['current_remote_head_verified'],False)
+        self.assertEqual(current['heavy_build_slot_owner'],'leto')
+        self.assertFalse(any(current[k] for k in ('tooling_qualified','reviews_qualified','coherence_qualified','delivery_qualified')))
+        self.assertTrue(current['preserved_existing_branch_and_work'])
+        self.assertFalse(current['duplicate_PR_authorized'])
+        provider=read_json(ROOT/'provider-evidence.json')['protected_ownership']['atlas_551_same_PR_replacement']
+        self.assertEqual(provider['owner_task'],current['owner_task'])
+        self.assertIsNone(provider['current_remote_head'])
+        self.assertFalse(any(provider[k] for k in ('tooling_qualified','reviews_qualified','coherence_qualified','delivery_qualified')))
+
     def test_498_live_and_frozen_roles_and_all_proposals_remain_separate(self):
         rows = unpack(read_json(ROOT / PREFIX / 'joins.json'))
         self.assertEqual(len({r['reference_id'] for r in rows}), 498)

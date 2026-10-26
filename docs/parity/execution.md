@@ -139,10 +139,11 @@ local overrides before downstream publication; repeat after integration.
 | Moirai notification prerequisite delivery/coordinator | Task `01a159ec-7017-7725-a554-194472dc20dc`, turn `01a176ab-537b-71fe-aa02-d59f00de713d`: commit `d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da` pushed and hooks pass. Draft PR creation is denied by GitHub HTTP403; no CI/merge/publication. Do not retry through another route. Scoped 56 passes/91 exclusions and API 223 passes/30 skips do not close runtime acceptance. |
 | Native Tokio migration implementation | Task `01a176ac-6a9e-77cc-a488-42908214f023` has clean local `cab5499fa4ec41064a4c191b55911a8dbc852b60`, tree `45e6500a8b1b98eb48a6b41dc05843131f77ee3e`, with three test/docs changes above independently reviewed `b50a96cf`. It stops at ADR0084/external gates with no commands running under the latest parent handoff. No duplicate implementation or integration403 retry. |
 | Native migration independent review | Same reviewer task `01a1771f-4ace-75e4-a240-c800b7d7e02a` is assigned the new exact head; sign-off remains pending. Parent `b50a96cf` passed the recorded scoped source review, including both P2 repairs. Owner reports current 192 async/QUIC,26driver,34Miri and six zero-Tokio graphs, but these are not new independent clearance. Mac81unshaped pairs do not replace Linux108pairs per policy plus30shared-queue pairs. ADR/platform/all-feature/fresh security/registry gates remain open. |
-| Differentiable gammaln/lgamma | Task `01a17793-e227-73cf-b347-6c85477ef010` owns Eunomia digamma → Leto CPU operation → Coeus autograd and both Python aliases, after its local ownership check. It holds the single heavy-build slot. GPU acceptance is separate and mandatory; no silent CPU fallback. Planning does not duplicate this implementation. |
+| Differentiable gammaln/lgamma | Task `01a17793-e227-73cf-b347-6c85477ef010` owns Eunomia digamma → Leto CPU operation → Coeus autograd and both Python aliases, after its local ownership check. Leto retains the single heavy-build slot. GPU acceptance is separate and mandatory; no silent CPU fallback. Planning does not duplicate this implementation. |
 | Kwavers typed errors/Miri | Task `01a16141-84fd-7045-a5d6-75c04aafa0ef`: exact revision and real executed value/error/Miri evidence. |
 | Apollo implementation | Task `01a13842-5a71-712c-b982-d6631f84e002`: service hold must be cleared through its existing owner before implementation retry. No bypass or replacement task. |
-| Atlas #551 / Apollo #696 | Existing owners retain branches. Read-only audit links preserve exact failure evidence. Integration waits for version/license/registry closure through those owners. |
+| Atlas #551 | User-approved replacement task `01a17995-4c0b-701d-8625-8650165230c2` continues the same PR, preserving the existing branch/work. It owns conflict/tooling/coherence repairs and inherits PyPI evidence and all holds; no duplicate PR or peer takeover. Tooling/reviews/coherence/delivery remain unqualified. |
+| Apollo #696 | Existing protected owner and service hold remain unchanged; version/license/registry closure stays with that owner. |
 | Atlas full-parity program | This lane: denominator, semantic contracts, program, evidence gate and draft PR. No package version changes or provider repair mutation. |
 | Moirai #640 / Eunomia #186 | Existing owner `pi:01a1747c-62a9-73dd-a2f0-7e1713113749` retains execution; no competing executor. Qualification is unverified in this lane. |
 | Ares #66 / Leto #385 | Parent reports source-verified changes; exact-revision repository qualification remains pending. Regression assessment and publication remain unverified here. |
@@ -162,13 +163,16 @@ observed rule set has no required-approval rule. Reinspect on any later merge.
 
 ### Protected shared-tool prerequisite observed October 26
 
-[Atlas #551](https://github.com/ryancinsight/atlas/pull/551) remains with recorded
+[Atlas #551](https://github.com/ryancinsight/atlas/pull/551) originally recorded
 integrator task `01a169d2-8b8f-7b90-a5bd-79e24b4cb6c7`, continuation `/2`.
-Observed draft head `811a704864c3b30fb269f12196396b25099c3130` has failing hosted
+That pre-approval snapshot and its pending-decision state remain history in
+`program.json`; the current approved replacement is recorded below.
+Last-observed draft head `811a704864c3b30fb269f12196396b25099c3130` has failing hosted
 coherence/debt/member-pin gates; skipped draft Python jobs grant no verification.
 Prepared source `741aecf6b41c64810bf77a58806f07c5284c9e2d` is not adopted here.
-The durable-host task read is unavailable, so owner liveness and delivery are
-unverified; this is not an access denial or permission to create another owner.
+The earlier durable-host task read was unavailable; its unverified liveness and
+delivery result is retained as historical evidence. No current remote head is
+asserted, and this parity lane performs no new owner/branch read.
 
 Aequitas PyPI repair task `01a178af-6ebf-7316-9b0a-f8336170703a` records candidate
 `ffc58aa07bd6e7e442dd7ac9b8b78a84c2311584` and trusted Atlas checker
@@ -178,18 +182,23 @@ a shared-tool interface prerequisite, not a Rust/Clippy or resource failure.
 The [exact protected checker source](https://github.com/ryancinsight/atlas/blob/811a704864c3b30fb269f12196396b25099c3130/scripts/atlas_cast_gate.py#L587)
 contains the corresponding flag; source presence grants no qualification.
 
-The coordinator must resume the recorded owner or arrange an explicit transfer
-that preserves its history before any successor is appointed. That owner must
-qualify the matching shared-tool change through independent exact-head review,
-normal actual CI/security/coherence checks and applicable policy/deployment
-gates. After trusted merged tooling is available, the existing PyPI worker can
-rerun its unchanged normal hook on the final reviewed candidate. Publication
-holds stay separate. This source-definition increment changes no #551 branch,
-member tooling, provider pin, credential, timeout or access setting.
+The current trusted parent handoff reports the user's verified thumbs-up approving
+replacement task `01a17995-4c0b-701d-8625-8650165230c2` to continue the **same PR**.
+It preserves the existing branch/work, owns conflict/tooling/coherence repairs,
+and inherits all PyPI prerequisite evidence and existing holds. It coordinates
+with the parity branches through the parent; this lane neither contacts nor
+takes over #551 and does not create a duplicate PR. Leto retains the heavy-build
+slot. The prior pending-decision state is history, not the current admission.
 
-The latest parent handoff records replacement-owner approval as pending for
-#551. This lane preserves the existing work and performs no owner lookup,
-resume or takeover. The historical failure/source receipts above remain intact.
+Admission is not tooling, review, coherence or delivery qualification. The
+replacement must qualify the matching shared-tool change through independent
+exact-head review, normal actual CI/security/coherence checks and applicable
+policy/deployment gates. After trusted merged tooling is available, the existing
+PyPI worker can rerun its unchanged normal hook on the final reviewed candidate.
+Publication holds stay separate. This source-definition increment changes no
+#551 branch, member tooling, provider pin, credential, timeout or access setting
+and adopts no unmerged prepared tool. The prior head `811a7048` remains only the
+last observed remote receipt.
 
 The [pending provider source records](provider-evidence.json) retain
 [Ares #66](https://github.com/ryancinsight/ares/pull/66) and

@@ -378,7 +378,7 @@ complete descriptors, actual ABI/builds, payload conversions, device/AD,
 performance and final-revision release gates stay open. No network/auth,
 provider build/import, push, PR, merge or deployment occurs in this local slice.
 
-The protected [#551 shared-tool handoff](execution.md#protected-shared-tool-prerequisite-observed-october-26) records the exact Aequitas parser mismatch, observed failing draft head and existing integrator/continuation. Owner liveness and delivery stay unverified; source presence is not authorization to adopt prepared tools. Earlier provider holds and historical receipts remain intact.
+The protected [#551 shared-tool handoff](execution.md#protected-shared-tool-prerequisite-observed-october-26) retains the exact Aequitas parser mismatch, last-observed failing draft head and original integrator/continuation as history. The user-approved replacement task `01a17995-4c0b-701d-8625-8650165230c2` now continues SAME #551 with existing work preserved; tooling/reviews/coherence/delivery remain unqualified and no current remote head is asserted; source presence is not authorization to adopt prepared tools. Earlier provider holds and historical receipts remain intact.
 
 
 ## Torch repaired native dtype integration
@@ -506,7 +506,7 @@ local review handoff; independent exact-head review and actual hosted gates
 remain mandatory before any external delivery. No provider or native execution,
 new source acquisition, rendered-route retry, or GitHub action occurs here.
 
-The bounded integration checks pass 17 tests with zero skips: 45 physical-file
+The source-capture checks at `5b0c92a5` pass 17 tests with zero skips: 45 physical-file
 negative mutations are rejected after recomputing the relevant indexes; valid
 JSON/column-dictionary reformatting and a cache-free copied-tree control pass.
 The local producer replay verifies the original 199/265-file manifests and
@@ -540,3 +540,8 @@ every indexed artifact; all original ID/stage/source-count assertions remain.
 No captured Torch source bytes or source/runtime status changes. The final
 exact-head run belongs to the review handoff, rather than replacing that failed
 run with passing evidence.
+
+A later trusted parent ownership update admits the user-approved SAME-PR #551
+replacement and retains the original owner/pending-decision record as history.
+It grants no tooling, coherence, delivery or API qualification; Leto retains the
+heavy-build slot. This lane performs no #551 lookup, contact or branch action.

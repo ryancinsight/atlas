@@ -773,6 +773,28 @@
   ],
   "protected_ownership": {
     "apollo_service_hold": "01a13842-5a71-712c-b982-d6631f84e002",
+    "atlas_551_same_PR_replacement": {
+      "authorization": "trusted_parent_relay_of_current_verified_user_thumbs_up",
+      "coherence_qualified": false,
+      "current_remote_head": null,
+      "current_remote_head_verified": false,
+      "delivery_qualified": false,
+      "duplicate_PR_authorized": false,
+      "existing_branch_and_work_preserved": true,
+      "heavy_build_slot_owner": "leto",
+      "history": "Prior pending approval/original-owner snapshot retained in program.json protected_ownership ownership_history; no new remote read or branch action by parity lane",
+      "inherited_handoffs": [
+        "PyPI prerequisite evidence",
+        "all existing holds"
+      ],
+      "last_observed_pr_head": "811a704864c3b30fb269f12196396b25099c3130",
+      "owner_task": "01a17995-4c0b-701d-8625-8650165230c2",
+      "previous_owner_task": "01a169d2-8b8f-7b90-a5bd-79e24b4cb6c7",
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/551",
+      "reviews_qualified": false,
+      "state": "admitted_same_PR_replacement_unqualified",
+      "tooling_qualified": false
+    },
     "kwavers_typed_error_miri": "01a16141-84fd-7045-a5d6-75c04aafa0ef",
     "moirai_native_independent_review": "01a1771f-4ace-75e4-a240-c800b7d7e02a",
     "moirai_native_tokio_quinn": "01a176ac-6a9e-77cc-a488-42908214f023",
