@@ -1,0 +1,1334 @@
+{
+  "schema_version": 1,
+  "framework": "numpy",
+  "version": "2.5.4",
+  "revision": "a3d0ef1df045b858e68115001fdabc930bb3b68c",
+  "baseline_inventory_sha256": "08ad3236974e650b76f33ecac6e80e7be41ae94daf7c6eb9c9a76c6b7c8eb2cd",
+  "tooling_source_provenance": [
+    {
+      "repository": "numpy/numpydoc",
+      "tag": "v1.10.0",
+      "revision": "16a20aad58d5532fb12c2a87af0eb4ea290bacb4",
+      "path": "numpydoc/docscrape.py",
+      "sha256": "5c3bf76322e7b641c6e994507568f878f570d5bd8f9233e0c951db43f4d1a091",
+      "url": "https://github.com/numpy/numpydoc/blob/16a20aad58d5532fb12c2a87af0eb4ea290bacb4/numpydoc/docscrape.py"
+    },
+    {
+      "repository": "numpy/numpydoc",
+      "tag": "v1.10.0",
+      "revision": "16a20aad58d5532fb12c2a87af0eb4ea290bacb4",
+      "path": "numpydoc/docscrape_sphinx.py",
+      "sha256": "141f0bfbdc5887a9178bc9a7ff4c40bc0cf0b8494419d33bb742efb8b898bdc1",
+      "url": "https://github.com/numpy/numpydoc/blob/16a20aad58d5532fb12c2a87af0eb4ea290bacb4/numpydoc/docscrape_sphinx.py"
+    },
+    {
+      "repository": "numpy/numpydoc",
+      "tag": "v1.10.0",
+      "revision": "16a20aad58d5532fb12c2a87af0eb4ea290bacb4",
+      "path": "numpydoc/numpydoc.py",
+      "sha256": "3194f72f7ed22b626067f3139c221f49890edf1836d33306cca096c8e4786030",
+      "url": "https://github.com/numpy/numpydoc/blob/16a20aad58d5532fb12c2a87af0eb4ea290bacb4/numpydoc/numpydoc.py"
+    },
+    {
+      "repository": "sphinx-doc/sphinx",
+      "tag": "v7.2.6",
+      "revision": "cf7d2759af0852d67288e58d823d51fe860749ca",
+      "path": "sphinx/ext/autodoc/__init__.py",
+      "sha256": "d90857ba5cc3ae25c54eeaf3aacae405de60b425b6330a0ad132c4928e7f09ff",
+      "url": "https://github.com/sphinx-doc/sphinx/blob/cf7d2759af0852d67288e58d823d51fe860749ca/sphinx/ext/autodoc/__init__.py"
+    }
+  ],
+  "scope": "65 explicit questions only; static candidate supplement is not a public capability denominator",
+  "all_65_disposed": true,
+  "full_public_inventory_complete": false,
+  "counts": {
+    "resolved-static-literal-exports": 2,
+    "resolved-protocol-or-owner-qualification": 6,
+    "resolved-empty-explicit-selection": 44,
+    "resolved-members-explicitly-disabled": 8,
+    "resolved-no-default-member-expansion": 5
+  },
+  "dispositions": [
+    {
+      "gap_id": "doc/source/f2py/usage.rst#L261",
+      "original": {
+        "path": "doc/source/f2py/usage.rst",
+        "line": 261,
+        "directive": "automodule",
+        "argument": "numpy.f2py",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/f2py/usage.rst#L261",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": ""
+      },
+      "disposition": "resolved-static-literal-exports",
+      "status": "closed-static-export-extraction",
+      "resolved_symbols": [
+        "numpy.f2py.run_main",
+        "numpy.f2py.get_include"
+      ],
+      "export_evidence": {
+        "module": "numpy.f2py",
+        "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/f2py/__init__.py#L1",
+        "literal_exports": [
+          "run_main",
+          "get_include"
+        ],
+        "export_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/f2py/__init__.py#L10",
+        "declared_record_count": 2
+      },
+      "rationale": "Explicit member expansion is bounded by this module's literal __all__; each export resolves to a local or statically traced function definition. No runtime execution is implied."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.interface.rst#L50",
+      "original": {
+        "path": "doc/source/reference/arrays.interface.rst",
+        "line": 50,
+        "argument": "object.__array_interface__",
+        "reason": "python-namespace-unresolved-in-source"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.interface.rst#L50",
+      "capabilities_verified": 0,
+      "disposition": "resolved-protocol-or-owner-qualification",
+      "status": "closed-name-resolution",
+      "resolved_identity": "numpy.array-protocol.__array_interface__",
+      "rationale": "duck-typed protocol attribute, not builtins.object or a NumPy callable",
+      "original_identifier_retained": true
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.interface.rst#L203",
+      "original": {
+        "path": "doc/source/reference/arrays.interface.rst",
+        "line": 203,
+        "argument": "object.__array_struct__",
+        "reason": "python-namespace-unresolved-in-source"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.interface.rst#L203",
+      "capabilities_verified": 0,
+      "disposition": "resolved-protocol-or-owner-qualification",
+      "status": "closed-name-resolution",
+      "resolved_identity": "numpy.array-protocol.__array_struct__",
+      "rationale": "duck-typed PyCapsule protocol attribute, not builtins.object or a NumPy callable",
+      "original_identifier_retained": true
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L95",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 95,
+        "directive": "autoclass",
+        "argument": "numpy.generic",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L95",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L99",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 99,
+        "directive": "autoclass",
+        "argument": "numpy.number",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L99",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L106",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 106,
+        "directive": "autoclass",
+        "argument": "numpy.integer",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L106",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L118",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 118,
+        "directive": "autoclass",
+        "argument": "numpy.signedinteger",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L118",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L122",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 122,
+        "directive": "autoclass",
+        "argument": "numpy.byte",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L122",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L126",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 126,
+        "directive": "autoclass",
+        "argument": "numpy.short",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L126",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L130",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 130,
+        "directive": "autoclass",
+        "argument": "numpy.intc",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L130",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L134",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 134,
+        "directive": "autoclass",
+        "argument": "numpy.int_",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L134",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L138",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 138,
+        "directive": "autoclass",
+        "argument": "numpy.long",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L138",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L142",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 142,
+        "directive": "autoclass",
+        "argument": "numpy.longlong",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L142",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L149",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 149,
+        "directive": "autoclass",
+        "argument": "numpy.unsignedinteger",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L149",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L153",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 153,
+        "directive": "autoclass",
+        "argument": "numpy.ubyte",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L153",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L157",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 157,
+        "directive": "autoclass",
+        "argument": "numpy.ushort",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L157",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L161",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 161,
+        "directive": "autoclass",
+        "argument": "numpy.uintc",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L161",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L165",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 165,
+        "directive": "autoclass",
+        "argument": "numpy.uint",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L165",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L169",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 169,
+        "directive": "autoclass",
+        "argument": "numpy.ulong",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L169",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L173",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 173,
+        "directive": "autoclass",
+        "argument": "numpy.ulonglong",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L173",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L180",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 180,
+        "directive": "autoclass",
+        "argument": "numpy.inexact",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L180",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L225",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 225,
+        "directive": "autoclass",
+        "argument": "numpy.floating",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L225",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L229",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 229,
+        "directive": "autoclass",
+        "argument": "numpy.half",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L229",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L233",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 233,
+        "directive": "autoclass",
+        "argument": "numpy.single",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L233",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L237",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 237,
+        "directive": "autoclass",
+        "argument": "numpy.double",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L237",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L241",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 241,
+        "directive": "autoclass",
+        "argument": "numpy.longdouble",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L241",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L248",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 248,
+        "directive": "autoclass",
+        "argument": "numpy.complexfloating",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L248",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L252",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 252,
+        "directive": "autoclass",
+        "argument": "numpy.csingle",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L252",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L256",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 256,
+        "directive": "autoclass",
+        "argument": "numpy.cdouble",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L256",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L260",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 260,
+        "directive": "autoclass",
+        "argument": "numpy.clongdouble",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L260",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L267",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 267,
+        "directive": "autoclass",
+        "argument": "numpy.bool_",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L267",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L271",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 271,
+        "directive": "autoclass",
+        "argument": "numpy.bool",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L271",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L275",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 275,
+        "directive": "autoclass",
+        "argument": "numpy.datetime64",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L275",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L279",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 279,
+        "directive": "autoclass",
+        "argument": "numpy.timedelta64",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L279",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L283",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 283,
+        "directive": "autoclass",
+        "argument": "numpy.object_",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L283",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L307",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 307,
+        "directive": "autoclass",
+        "argument": "numpy.flexible",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L307",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L311",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 311,
+        "directive": "autoclass",
+        "argument": "numpy.character",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L311",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L315",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 315,
+        "directive": "autoclass",
+        "argument": "numpy.bytes_",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L315",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L319",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 319,
+        "directive": "autoclass",
+        "argument": "numpy.str_",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L319",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/arrays.scalars.rst#L323",
+      "original": {
+        "path": "doc/source/reference/arrays.scalars.rst",
+        "line": 323,
+        "directive": "autoclass",
+        "argument": "numpy.void",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/arrays.scalars.rst#L323",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/random/bit_generators/mt19937.rst#L6",
+      "original": {
+        "path": "doc/source/reference/random/bit_generators/mt19937.rst",
+        "line": 6,
+        "directive": "autoclass",
+        "argument": "MT19937",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/random/bit_generators/mt19937.rst#L6",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/random/bit_generators/pcg64.rst#L6",
+      "original": {
+        "path": "doc/source/reference/random/bit_generators/pcg64.rst",
+        "line": 6,
+        "directive": "autoclass",
+        "argument": "PCG64",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/random/bit_generators/pcg64.rst#L6",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/random/bit_generators/pcg64dxsm.rst#L6",
+      "original": {
+        "path": "doc/source/reference/random/bit_generators/pcg64dxsm.rst",
+        "line": 6,
+        "directive": "autoclass",
+        "argument": "PCG64DXSM",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/random/bit_generators/pcg64dxsm.rst#L6",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/random/bit_generators/philox.rst#L6",
+      "original": {
+        "path": "doc/source/reference/random/bit_generators/philox.rst",
+        "line": 6,
+        "directive": "autoclass",
+        "argument": "Philox",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/random/bit_generators/philox.rst#L6",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/random/bit_generators/sfc64.rst#L6",
+      "original": {
+        "path": "doc/source/reference/random/bit_generators/sfc64.rst",
+        "line": 6,
+        "directive": "autoclass",
+        "argument": "SFC64",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/random/bit_generators/sfc64.rst#L6",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/random/generator.rst#L17",
+      "original": {
+        "path": "doc/source/reference/random/generator.rst",
+        "line": 17,
+        "directive": "autoclass",
+        "argument": "Generator",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/random/generator.rst#L17",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/random/legacy.rst#L50",
+      "original": {
+        "path": "doc/source/reference/random/legacy.rst",
+        "line": 50,
+        "directive": "autoclass",
+        "argument": "RandomState",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/random/legacy.rst#L50",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": "__init__",
+        "exclude-members": "__init__"
+      },
+      "disposition": "resolved-empty-explicit-selection",
+      "status": "closed-directive-question",
+      "rationale": "The only requested member is explicitly excluded; both Sphinx and pinned numpydoc respect the member/exclude sets. This does not waive inherited/source API coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.dtypes.rst#L6",
+      "original": {
+        "path": "doc/source/reference/routines.dtypes.rst",
+        "line": 6,
+        "directive": "automodule",
+        "argument": "numpy.dtypes",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.dtypes.rst#L6",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "no-members": ""
+      },
+      "disposition": "resolved-members-explicitly-disabled",
+      "status": "closed-directive-question",
+      "rationale": "This directive explicitly disables member expansion; module docstring/source exports remain audited separately."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.exceptions.rst#L2",
+      "original": {
+        "path": "doc/source/reference/routines.exceptions.rst",
+        "line": 2,
+        "directive": "automodule",
+        "argument": "numpy.exceptions",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.exceptions.rst#L2",
+      "capabilities_verified": 0,
+      "scoped_options": {},
+      "disposition": "resolved-no-default-member-expansion",
+      "status": "closed-directive-question",
+      "rationale": "No members option and no NumPy autodoc_default_options enable module-member recursion; inserted module docstring content has separate source coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.fft.rst#L2",
+      "original": {
+        "path": "doc/source/reference/routines.fft.rst",
+        "line": 2,
+        "directive": "automodule",
+        "argument": "numpy.fft",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.fft.rst#L2",
+      "capabilities_verified": 0,
+      "scoped_options": {},
+      "disposition": "resolved-no-default-member-expansion",
+      "status": "closed-directive-question",
+      "rationale": "No members option and no NumPy autodoc_default_options enable module-member recursion; inserted module docstring content has separate source coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.polynomials-package.rst#L8",
+      "original": {
+        "path": "doc/source/reference/routines.polynomials-package.rst",
+        "line": 8,
+        "directive": "automodule",
+        "argument": "numpy.polynomial",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.polynomials-package.rst#L8",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "no-members": "",
+        "no-inherited-members": "",
+        "no-special-members": ""
+      },
+      "disposition": "resolved-members-explicitly-disabled",
+      "status": "closed-directive-question",
+      "rationale": "This directive explicitly disables member expansion; module docstring/source exports remain audited separately."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.polynomials.chebyshev.rst#L1",
+      "original": {
+        "path": "doc/source/reference/routines.polynomials.chebyshev.rst",
+        "line": 1,
+        "directive": "automodule",
+        "argument": "numpy.polynomial.chebyshev",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.polynomials.chebyshev.rst#L1",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "no-members": "",
+        "no-inherited-members": "",
+        "no-special-members": ""
+      },
+      "disposition": "resolved-members-explicitly-disabled",
+      "status": "closed-directive-question",
+      "rationale": "This directive explicitly disables member expansion; module docstring/source exports remain audited separately."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.polynomials.hermite.rst#L1",
+      "original": {
+        "path": "doc/source/reference/routines.polynomials.hermite.rst",
+        "line": 1,
+        "directive": "automodule",
+        "argument": "numpy.polynomial.hermite",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.polynomials.hermite.rst#L1",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "no-members": "",
+        "no-inherited-members": "",
+        "no-special-members": ""
+      },
+      "disposition": "resolved-members-explicitly-disabled",
+      "status": "closed-directive-question",
+      "rationale": "This directive explicitly disables member expansion; module docstring/source exports remain audited separately."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.polynomials.hermite_e.rst#L1",
+      "original": {
+        "path": "doc/source/reference/routines.polynomials.hermite_e.rst",
+        "line": 1,
+        "directive": "automodule",
+        "argument": "numpy.polynomial.hermite_e",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.polynomials.hermite_e.rst#L1",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "no-members": "",
+        "no-inherited-members": "",
+        "no-special-members": ""
+      },
+      "disposition": "resolved-members-explicitly-disabled",
+      "status": "closed-directive-question",
+      "rationale": "This directive explicitly disables member expansion; module docstring/source exports remain audited separately."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.polynomials.laguerre.rst#L1",
+      "original": {
+        "path": "doc/source/reference/routines.polynomials.laguerre.rst",
+        "line": 1,
+        "directive": "automodule",
+        "argument": "numpy.polynomial.laguerre",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.polynomials.laguerre.rst#L1",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "no-members": "",
+        "no-inherited-members": "",
+        "no-special-members": ""
+      },
+      "disposition": "resolved-members-explicitly-disabled",
+      "status": "closed-directive-question",
+      "rationale": "This directive explicitly disables member expansion; module docstring/source exports remain audited separately."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.polynomials.legendre.rst#L1",
+      "original": {
+        "path": "doc/source/reference/routines.polynomials.legendre.rst",
+        "line": 1,
+        "directive": "automodule",
+        "argument": "numpy.polynomial.legendre",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.polynomials.legendre.rst#L1",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "no-members": "",
+        "no-inherited-members": "",
+        "no-special-members": ""
+      },
+      "disposition": "resolved-members-explicitly-disabled",
+      "status": "closed-directive-question",
+      "rationale": "This directive explicitly disables member expansion; module docstring/source exports remain audited separately."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.polynomials.polynomial.rst#L1",
+      "original": {
+        "path": "doc/source/reference/routines.polynomials.polynomial.rst",
+        "line": 1,
+        "directive": "automodule",
+        "argument": "numpy.polynomial.polynomial",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.polynomials.polynomial.rst#L1",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "no-members": "",
+        "no-inherited-members": "",
+        "no-special-members": ""
+      },
+      "disposition": "resolved-members-explicitly-disabled",
+      "status": "closed-directive-question",
+      "rationale": "This directive explicitly disables member expansion; module docstring/source exports remain audited separately."
+    },
+    {
+      "gap_id": "doc/source/reference/routines.polynomials.polyutils.rst#L4",
+      "original": {
+        "path": "doc/source/reference/routines.polynomials.polyutils.rst",
+        "line": 4,
+        "directive": "automodule",
+        "argument": "numpy.polynomial.polyutils",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.polynomials.polyutils.rst#L4",
+      "capabilities_verified": 0,
+      "scoped_options": {},
+      "disposition": "resolved-no-default-member-expansion",
+      "status": "closed-directive-question",
+      "rationale": "No members option and no NumPy autodoc_default_options enable module-member recursion; inserted module docstring content has separate source coverage."
+    },
+    {
+      "gap_id": "doc/source/reference/typing.rst#L2",
+      "original": {
+        "path": "doc/source/reference/typing.rst",
+        "line": 2,
+        "directive": "automodule",
+        "argument": "numpy.typing",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/typing.rst#L2",
+      "capabilities_verified": 0,
+      "scoped_options": {},
+      "disposition": "resolved-no-default-member-expansion",
+      "status": "closed-directive-question",
+      "rationale": "No members option and no NumPy autodoc_default_options enable module-member recursion; inserted module docstring content has separate source coverage."
+    },
+    {
+      "gap_id": "doc/source/user/basics.rec.rst#L711",
+      "original": {
+        "path": "doc/source/user/basics.rec.rst",
+        "line": 711,
+        "directive": "automodule",
+        "argument": "numpy.lib.recfunctions",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/user/basics.rec.rst#L711",
+      "capabilities_verified": 0,
+      "scoped_options": {
+        "members": ""
+      },
+      "disposition": "resolved-static-literal-exports",
+      "status": "closed-static-export-extraction",
+      "resolved_symbols": [
+        "numpy.lib.recfunctions.append_fields",
+        "numpy.lib.recfunctions.apply_along_fields",
+        "numpy.lib.recfunctions.assign_fields_by_name",
+        "numpy.lib.recfunctions.drop_fields",
+        "numpy.lib.recfunctions.find_duplicates",
+        "numpy.lib.recfunctions.flatten_descr",
+        "numpy.lib.recfunctions.get_fieldstructure",
+        "numpy.lib.recfunctions.get_names",
+        "numpy.lib.recfunctions.get_names_flat",
+        "numpy.lib.recfunctions.join_by",
+        "numpy.lib.recfunctions.merge_arrays",
+        "numpy.lib.recfunctions.rec_append_fields",
+        "numpy.lib.recfunctions.rec_drop_fields",
+        "numpy.lib.recfunctions.rec_join",
+        "numpy.lib.recfunctions.recursive_fill_fields",
+        "numpy.lib.recfunctions.rename_fields",
+        "numpy.lib.recfunctions.repack_fields",
+        "numpy.lib.recfunctions.require_fields",
+        "numpy.lib.recfunctions.stack_arrays",
+        "numpy.lib.recfunctions.structured_to_unstructured",
+        "numpy.lib.recfunctions.unstructured_to_structured"
+      ],
+      "export_evidence": {
+        "module": "numpy.lib.recfunctions",
+        "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/lib/recfunctions.py#L1",
+        "literal_exports": [
+          "append_fields",
+          "apply_along_fields",
+          "assign_fields_by_name",
+          "drop_fields",
+          "find_duplicates",
+          "flatten_descr",
+          "get_fieldstructure",
+          "get_names",
+          "get_names_flat",
+          "join_by",
+          "merge_arrays",
+          "rec_append_fields",
+          "rec_drop_fields",
+          "rec_join",
+          "recursive_fill_fields",
+          "rename_fields",
+          "repack_fields",
+          "require_fields",
+          "stack_arrays",
+          "structured_to_unstructured",
+          "unstructured_to_structured"
+        ],
+        "export_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/lib/recfunctions.py#L16",
+        "declared_record_count": 21
+      },
+      "rationale": "Explicit member expansion is bounded by this module's literal __all__; each export resolves to a local or statically traced function definition. No runtime execution is implied."
+    },
+    {
+      "gap_id": "doc/source/user/c-info.beyond-basics.rst#L465",
+      "original": {
+        "path": "doc/source/user/c-info.beyond-basics.rst",
+        "line": 465,
+        "argument": "ndarray.__array_finalize__",
+        "reason": "python-namespace-unresolved-in-source"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/user/c-info.beyond-basics.rst#L465",
+      "capabilities_verified": 0,
+      "disposition": "resolved-protocol-or-owner-qualification",
+      "status": "closed-name-resolution",
+      "resolved_identity": "numpy.ndarray.__array_finalize__",
+      "rationale": "ndarray subtype protocol; C method and stub corroborate owner",
+      "original_identifier_retained": true
+    },
+    {
+      "gap_id": "doc/source/user/c-info.beyond-basics.rst#L502",
+      "original": {
+        "path": "doc/source/user/c-info.beyond-basics.rst",
+        "line": 502,
+        "argument": "ndarray.__array_priority__",
+        "reason": "python-namespace-unresolved-in-source"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/user/c-info.beyond-basics.rst#L502",
+      "capabilities_verified": 0,
+      "disposition": "resolved-protocol-or-owner-qualification",
+      "status": "closed-name-resolution",
+      "resolved_identity": "numpy.ndarray.__array_priority__",
+      "rationale": "ndarray precedence attribute; native getset corroborates owner",
+      "original_identifier_retained": true
+    },
+    {
+      "gap_id": "doc/source/user/c-info.beyond-basics.rst#L520",
+      "original": {
+        "path": "doc/source/user/c-info.beyond-basics.rst",
+        "line": 520,
+        "argument": "ndarray.__array_wrap__",
+        "reason": "python-namespace-unresolved-in-source"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/user/c-info.beyond-basics.rst#L520",
+      "capabilities_verified": 0,
+      "disposition": "resolved-protocol-or-owner-qualification",
+      "status": "closed-name-resolution",
+      "resolved_identity": "numpy.ndarray.__array_wrap__",
+      "rationale": "ndarray wrapping protocol; C method and stub corroborate owner",
+      "original_identifier_retained": true
+    },
+    {
+      "gap_id": "doc/source/user/c-info.python-as-glue.rst#L606",
+      "original": {
+        "path": "doc/source/user/c-info.python-as-glue.rst",
+        "line": 606,
+        "argument": "ndpointer",
+        "reason": "python-namespace-unresolved-in-source"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/user/c-info.python-as-glue.rst#L606",
+      "capabilities_verified": 0,
+      "disposition": "resolved-protocol-or-owner-qualification",
+      "status": "closed-name-resolution",
+      "resolved_identity": "numpy.ctypeslib.ndpointer",
+      "rationale": "tutorial's ctypeslib context and pinned Python definition corroborate owner",
+      "original_identifier_retained": true,
+      "definition_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/ctypeslib/_ctypeslib.py#L239"
+    },
+    {
+      "gap_id": "numpy/typing/__init__.py#L22",
+      "original": {
+        "path": "numpy/typing/__init__.py",
+        "line": 22,
+        "directive": "automodule",
+        "argument": "numpy.typing.mypy_plugin",
+        "reason": "autodoc-member-expansion-not-executed"
+      },
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/typing/__init__.py#L22",
+      "capabilities_verified": 0,
+      "scoped_options": {},
+      "disposition": "resolved-no-default-member-expansion",
+      "status": "closed-directive-question",
+      "rationale": "No members option and no NumPy autodoc_default_options enable module-member recursion; inserted module docstring content has separate source coverage."
+    }
+  ],
+  "remaining_true_unknowns": [
+    "Rendered Sphinx/numpydoc symbol index has not been built or imported; static closure does not prove equality to rendered objects.",
+    "Platform/ABI-dependent scalar identity, longdouble precision, builtin base inheritance and conditional native template members need exact target observations; stubs are not runtime authority.",
+    "Generated ufunc DSL loop definitions require full type-set/template/ISA expansion and per-loop signature/error analysis; definitions are not capability proofs.",
+    "Protocols are source-qualified but ownership, mutation/alias/lifetime/default/error semantics need separate contracts.",
+    "Notebook/prose/C-API multi-signature and data-driven dtype exports outside these65 questions remain in full inventory scope.",
+    "Constructor custom DTypes, user override protocols and user object arithmetic can execute arbitrary dispatch; exhaustive behavior is a protocol contract, not a finite dtype list."
+  ]
+}

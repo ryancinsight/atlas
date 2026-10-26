@@ -1,8 +1,8 @@
 # Scope and architecture policy decisions
 
-Program 2026-10-26.2. [Machine register](decisions.json).
+Program 2026-10-26.3. [Machine register](decisions.json).
 
-The existing user direction resolves all nine policy choices: full parity is the
+The existing user direction resolves the initial nine policy choices: full parity is the
 denominator, and native first-party generic provider design governs implementation.
 No scope reduction or additional user approval is needed to select these policies.
 This resolves the earlier open-policy register; it does not grant provider ADR
@@ -103,3 +103,18 @@ provider implementation, reviews, and performance evidence are release/implement
 blockers; they do not justify silently excluding a documented capability. A
 specific architecture choice can be marked design-approved only with its actual
 required review evidence. No such sign-off is created by this register.
+
+## DEC-010 — leto
+
+Preserve NumPy special-method lookup behavior by execution phase. Exact builtin
+bypasses, absent attributes, any lookup exception consumed as absence, successful
+noncallable lookup and actual invocation are distinct typed outcomes. Later
+metadata/coercion/invocation errors follow their source-defined branches. Opaque
+outputs preserve identity and existing AD behavior. Diagnostics add no callbacks,
+exceptions or ownership/lifetime changes.
+
+Rejected alternatives: return a new caller error for consumed lookup failure;
+clear later errors under a broad fallback; retain/format exception objects in a
+way that changes observable behavior. Full parity and typed phase/context
+retention jointly select this policy. Concrete provider design/ADR review and
+all implementation/execution evidence remain pending.

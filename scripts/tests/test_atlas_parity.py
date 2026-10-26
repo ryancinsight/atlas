@@ -43,6 +43,7 @@ def mapping_fixture():
         "status": {"mapping": "specified", "implementation": "unknown", "tested": "unrun",
                    "external": "unrun", "performance": "unrun", "release": "unreleased"},
         "stage_evidence": {},
+        "source_contract": {"path": "fixture-source.json", "sha256": HASH, "entry": ["add"]},
     }
     evidence = {
         "id": "E1", "stage": "tested", "owner": "leto", "revision": REV, "capability": "ARRAY",
@@ -184,9 +185,26 @@ class EvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ParityError, "unresolved coverage"):
             self.validate()
 
+    def test_partial_contract_needs_obligations_and_cannot_claim_full_api_pass(self):
+        self.mapping["status"]["mapping"] = "partial"
+        self.mapping["source_contract"] = {"path": "source.json", "sha256": HASH, "entry": []}
+        self.mapping["unresolved_obligations"] = ["Exact vendor/dtype admission remains unclosed"]
+        mappings, assigned, _ = self.validate()
+        self.assertEqual(assigned, {"reference-op": "numpy-add"})
+        self.assertEqual(mappings["numpy-add"]["status"]["mapping"], "partial")
+        self.mapping["status"]["tested"] = "passed"
+        with self.assertRaisesRegex(ParityError, "partial semantic contract"):
+            self.validate()
+
     def test_missing_reference_variant_rejected(self):
         self.mapping["variants"] = []
         with self.assertRaisesRegex(ParityError, "semantic variant"):
+            self.validate()
+
+    def test_semantic_dependency_cannot_bypass_provider_order(self):
+        self.mapping["prerequisites"] = [{"capability": "DEVICE", "contract": "Device result required"}]
+        self.caps["DEVICE"] = {"owner": "leto", "prerequisites": []}
+        with self.assertRaisesRegex(ParityError, "acyclic provider order"):
             self.validate()
 
 
@@ -198,8 +216,11 @@ class ProgramTests(unittest.TestCase):
     def test_real_inventory_is_valid_and_does_not_qualify(self):
         result = parity.report(self.real)
         self.assertGreater(result["reference_declarations"], 38000)
-        self.assertEqual(result["mapped_declarations"], 0)
-        self.assertEqual(result["reference_declarations"], result["unmapped_declarations"])
+        specified = {self.real["references"][ref]["symbol"] for ref in self.real["specified"]}
+        self.assertEqual(specified, {"numpy.ndim", "numpy.shape"})
+        self.assertEqual(self.real["mappings"]["numpy-metadata-size"]["status"]["mapping"], "partial")
+        self.assertEqual(result["reference_declarations"], result["mapped_declarations"] +
+                         result["partially_mapped_declarations"] + result["unmapped_declarations"])
         self.assertEqual(result["repositories"], 29)
         self.assertTrue(parity.qualification(self.real, "definition", REV))
         self.assertTrue(parity.qualification(self.real, "release", REV))
@@ -262,6 +283,30 @@ class ProgramTests(unittest.TestCase):
         with self.assertRaisesRegex(ParityError, "completeness claim"):
             parity.references(parity.DEFAULT, snapshot)
 
+    def test_supplement_cannot_advance_frozen_reference_version(self):
+        snapshot = copy.deepcopy(self.real["program"]["reference_snapshots"])
+        snapshot[0]["supplements"][0]["version"] = "9.0.0"
+        with self.assertRaisesRegex(ParityError, "supplement changes frozen release"):
+            parity.references(parity.DEFAULT, snapshot)
+
+    def test_closure_counts_do_not_become_capabilities_or_execution_credit(self):
+        report = parity.report(self.real)
+        closure = report["reference_closure"]
+        self.assertEqual(closure["original_gaps_dispositioned"], 184)
+        self.assertEqual(closure["tensorflow_differing_signatures"], 188)
+        self.assertFalse(closure["full_surface_complete"])
+        self.assertFalse(closure["semantic_equivalence_inferred"])
+        self.assertEqual(report["evidence_records"], 0)
+        self.assertEqual(report["mapped_declarations"], 2)
+        self.assertGreater(report["partially_mapped_declarations"], report["mapped_declarations"])
+
+    def test_legacy_tensor_and_tensor_copy_workflows_remain_distinct(self):
+        rows = self.real["mappings"]
+        self.assertNotEqual(rows["pytorch-create-tensor"]["canonical_operation"],
+                            rows["pytorch-create-legacy-tensor"]["canonical_operation"])
+        self.assertTrue(set(rows["pytorch-create-tensor"]["reference_ids"]).isdisjoint(
+            rows["pytorch-create-legacy-tensor"]["reference_ids"]))
+
     def test_all_four_sources_required(self):
         with self.assertRaisesRegex(ParityError, "all four"):
             parity.references(parity.DEFAULT, self.real["program"]["reference_snapshots"][:3])
@@ -283,7 +328,8 @@ class ProgramTests(unittest.TestCase):
         bundle = {**self.real, "program": copy.deepcopy(self.real["program"])}
         bundle["program"]["definition_complete"] = True
         blockers = parity.qualification(bundle, "release", REV)
-        self.assertIn(f"{len(self.real['references'])} API declarations unmapped", blockers)
+        unresolved = len(self.real["references"]) - len(self.real["specified"])
+        self.assertIn(f"{unresolved} API declarations lack complete semantic mappings", blockers)
         self.assertIn("independent exact-final-revision release review pending", blockers)
 
     def test_repository_status_string_is_not_exit_evidence(self):

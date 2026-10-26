@@ -5,7 +5,7 @@ from __future__ import annotations
 from atlas_parity_schema import digest, fields, https, need, nonempty, revision, unique
 
 STATES = {
-    "mapping": {"unmapped", "specified"},
+    "mapping": {"unmapped", "partial", "specified"},
     "implementation": {"unknown", "absent", "partial", "implemented"},
     "tested": {"unrun", "failed", "passed", "unavailable"},
     "external": {"unrun", "failed", "passed", "unavailable"},
@@ -38,15 +38,36 @@ def validate_mappings(rows: list[dict], capabilities: dict, references: dict,
     for identity, row in mappings.items():
         fields(row, {"capability": str, "owner": str, "revision": str, "canonical_operation": str,
                      "reference_ids": list, "variants": list, "coverage_classes": list,
-                     "status": dict, "stage_evidence": dict}, identity)
+                     "status": dict, "stage_evidence": dict, "source_contract": dict}, identity)
         need(row["capability"] in capabilities, f"{identity}: unknown capability")
         need(row["owner"] == capabilities[row["capability"]]["owner"], f"{identity}: conflicting owner")
+        def upstream(capability: str) -> set[str]:
+            result = set()
+            for dependency in capabilities[capability].get("prerequisites", []):
+                result.add(dependency)
+                result.update(upstream(dependency))
+            return result
+        for prerequisite in row.get("prerequisites", []):
+            fields(prerequisite, {"capability": str, "contract": str}, identity)
+            nonempty(prerequisite["contract"], identity)
+            need(prerequisite["capability"] in upstream(row["capability"]),
+                 f"{identity}: semantic prerequisite absent from acyclic provider order")
         revision(row["revision"], identity)
         need(row["revision"] == repositories[row["owner"]]["candidate_revision"],
              f"{identity}: mapping is outside the selected exact revision")
         nonempty(row["canonical_operation"], identity)
         states(row["status"], identity)
-        need(row["status"]["mapping"] == "specified", f"{identity}: mapping rows require specified semantics")
+        need(row["status"]["mapping"] in {"partial", "specified"}, f"{identity}: mapping row has no semantic contract")
+        if row["status"]["mapping"] == "partial":
+            fields(row, {"unresolved_obligations": list, "source_contract": dict}, identity)
+            need(bool(row["unresolved_obligations"]), f"{identity}: partial mapping needs named remaining obligations")
+            need(all(isinstance(item, str) and item.strip() for item in row["unresolved_obligations"]),
+                 f"{identity}: invalid unresolved obligation")
+            need(all(row["status"][stage] != value for stage, value in PROMOTED.items()),
+                 f"{identity}: partial semantic contract cannot claim full API qualification")
+        else:
+            need(not row.get("unresolved_obligations"),
+                 f"{identity}: specified mapping retains unresolved obligations")
         need(bool(row["reference_ids"]), f"{identity}: no reference APIs")
         need(len(set(row["reference_ids"])) == len(row["reference_ids"]), f"{identity}: duplicate references")
         for ref in row["reference_ids"]:
@@ -76,6 +97,14 @@ def validate_mappings(rows: list[dict], capabilities: dict, references: dict,
                      f"{class_id}:{axis}: unresolved coverage")
         need(covered_refs == set(variants), f"{identity}: variant without coverage classes")
     return mappings, assigned
+
+
+def validate_source_definition(mapping: dict, entry: dict) -> None:
+    """Source-backed specification requires explicit whole-API definition closure."""
+    if mapping["status"]["mapping"] == "specified":
+        need(isinstance(entry, dict) and isinstance(entry.get("status"), dict) and
+             entry["status"].get("source_contract_defined") is True,
+             f"{mapping['id']}: bound source contract remains partial or undefined")
 
 
 def validate_evidence(rows: list[dict], mappings: dict, capabilities: dict, references: dict) -> dict:

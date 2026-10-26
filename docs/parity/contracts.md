@@ -1,6 +1,6 @@
 # Capability and evidence protocol
 
-Protocol 1 / program 2026-10-26.2. [Program](README.md).
+Protocol 1 / program 2026-10-26.3. [Program](README.md).
 
 ## Domain and equivalence
 

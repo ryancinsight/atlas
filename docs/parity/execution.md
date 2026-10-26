@@ -1,6 +1,6 @@
 # Dependency-ordered implementation program
 
-Program 2026-10-26.2. [Machine-readable packages](work-packages.json).
+Program 2026-10-26.3. [Machine-readable packages](work-packages.json).
 
 ## Immediate sequence and readiness
 

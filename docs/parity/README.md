@@ -1,6 +1,6 @@
 # Four-framework functional parity program
 
-Program revision: **2026-10-26.2**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
+Program revision: **2026-10-26.3**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
 
 This is the canonical Atlas program for the October 26 instruction to complete
 Coeus and its providers to full NumPy, JAX, PyTorch and TensorFlow functional
@@ -12,7 +12,7 @@ bounded-scope completion claims do not establish this program's completion.
 | Artifact | Authority |
 | --- | --- |
 | [Program manifest](program.json) | Version, frozen reference snapshots, completeness and required gates |
-| [Reference inventories](reference/) | Extracted public API identities, source versions, hashes and extraction gaps |
+| [Reference inventories](reference/) and [source closure](reference/closure/README.md) | Extracted public API identities, source versions, hashes and extraction gaps |
 | [Capability contracts](capabilities.json) | Single accountable owner, provider prerequisites, semantics, tests and qualification obligations |
 | [Contracts and evidence protocol](contracts.md) | Coverage axes, evidence states, equivalence and rejection rules |
 | [Work packages](work-packages.json) and [execution program](execution.md) | Dependency order, readiness, estimates, acceptance and handoffs |
@@ -37,6 +37,11 @@ definition exit. A structurally valid program may still fail qualification.
 Release qualification additionally requires exact-revision evidence and all
 repository and cross-repository gates. Skips, absent hardware, silent CPU
 fallback and exclusions are never successful qualification.
+
+Current source accounting: **38,096 candidate identities; two source-specified,
+59 partial and 38,035 unmapped**. Candidate relation tables remain separately
+visible and all four public denominators remain open. No execution or release
+state is promoted by source mapping.
 
 The selected first implementation slice is the Atlas traceability/evidence
 validator (WP-002). It enforces this distinction with rejection tests. Provider

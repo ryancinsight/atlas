@@ -1,0 +1,26 @@
+{
+  "repository": "numpy/doc",
+  "revision": "d65d8e044e5dedb55dab1b373ca2db763bb3cd21",
+  "commit_message": "Add documentation for v2.5.0",
+  "commit_url": "https://github.com/numpy/doc/commit/d65d8e044e5dedb55dab1b373ca2db763bb3cd21",
+  "files": [
+    {
+      "path": "2.5/objects.inv",
+      "git_blob_sha": "63ee8d9cddacc54963d8622edeb499be38de0652",
+      "sha256": "d16572c0fac3f941a5eb831f393a18418e90429a7f9e439976f2f01a6b3ee877",
+      "url": "https://github.com/numpy/doc/blob/d65d8e044e5dedb55dab1b373ca2db763bb3cd21/2.5/objects.inv"
+    },
+    {
+      "path": "2.5/_static/documentation_options.js",
+      "git_blob_sha": "8678df0395dc42a567f3df6f146282bd9efc8996",
+      "sha256": "da53df861f2494a6b610d7b637973d1fec158bec93c5a567cc10e2ebf78f25d5",
+      "url": "https://github.com/numpy/doc/blob/d65d8e044e5dedb55dab1b373ca2db763bb3cd21/2.5/_static/documentation_options.js"
+    },
+    {
+      "path": "2.5/index.html",
+      "git_blob_sha": "abaa83a5d7d0f2e9d26cc080f56493588a068a26",
+      "sha256": "99859c285333b1a2cab55a1f05a2c68828dd9cb473c9c6143e74e92fb0e1e03d",
+      "url": "https://github.com/numpy/doc/blob/d65d8e044e5dedb55dab1b373ca2db763bb3cd21/2.5/index.html"
+    }
+  ]
+}

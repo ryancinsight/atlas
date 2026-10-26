@@ -2,10 +2,10 @@
   "atlas_base_revision": "f60fef17286b8cfdacf9191b133dc975aa186787",
   "definition_complete": false,
   "definition_gaps": [
-    "Four public-surface extractions incomplete; see source-specific gap records",
-    "Per-API semantic mappings, aliases/inheritance/generated identities and workflow coverage remain incomplete",
-    "Provider design contracts and required ADR reviews remain pending where mapped variants change architecture",
-    "Implementation envelopes need decomposition and estimates tied to reviewed operation/coverage classes"
+    "Whole public/export/generated/inherited/prose/companion source coverage remains incomplete for all four references; finite audited gap dispositions do not close that denominator",
+    "Candidate declarations require complete reviewed semantic specification; partial source contracts remain partial",
+    "Concrete provider design contracts and required ADR reviews remain pending, including exact protocol dispatch/lifetime and precision policies",
+    "Implementation envelopes need decomposition and estimates tied to reviewed operation/coverage classes, including newly separated dispatch scope"
   ],
   "files": {
     "capabilities": "capabilities.json",
@@ -13,6 +13,7 @@
     "evidence": "evidence.json",
     "mappings": "mappings.json",
     "provider_evidence": "provider-evidence.json",
+    "reference_closure": "reference/closure/index.json",
     "repositories": "repositories.json",
     "repository_evidence": "repository-evidence.json",
     "work_packages": "work-packages.json"
@@ -28,7 +29,7 @@
   "objective": "Full documented NumPy/JAX/PyTorch/TensorFlow functional equivalence under Atlas first-party native generic provider architecture.",
   "observed_at": "2026-10-26",
   "open_decisions": [],
-  "program_version": "2026-10-26.2",
+  "program_version": "2026-10-26.3",
   "protected_ownership": [
     {
       "owner_task": "01a159ec-7017-7725-a554-194472dc20dc",
@@ -71,6 +72,18 @@
       "records": 2718,
       "semantics_complete": false,
       "sha256": "08ad3236974e650b76f33ecac6e80e7be41ae94daf7c6eb9c9a76c6b7c8eb2cd",
+      "supplements": [
+        {
+          "framework": "numpy",
+          "path": "reference/documented-export-additions.json",
+          "public_surface_complete": false,
+          "records": 23,
+          "semantics_complete": false,
+          "sha256": "962d74ff23e5caea771a4915c7358c372f8cf3da997060b3d35bbb54542e77d3",
+          "unique_symbols": 23,
+          "version": "2.5.4"
+        }
+      ],
       "unique_symbols": 2717,
       "version": "2.5.4"
     },
@@ -81,6 +94,18 @@
       "records": 1678,
       "semantics_complete": false,
       "sha256": "ce7362f1540e4d60060768f5177feb34e3e37cb2e645edaaafe91634585d2c34",
+      "supplements": [
+        {
+          "framework": "jax",
+          "path": "reference/source-requested-member-candidates.json",
+          "public_surface_complete": false,
+          "records": 22,
+          "semantics_complete": false,
+          "sha256": "3a4c064f55d6642473612c3b0a75f0f5727ff7101e8ca89f6165725737ebff57",
+          "unique_symbols": 22,
+          "version": "0.12.0.1"
+        }
+      ],
       "unique_symbols": 1678,
       "version": "0.12.0.1"
     },
@@ -114,7 +139,8 @@
     "DEC-006",
     "DEC-007",
     "DEC-008",
-    "DEC-009"
+    "DEC-009",
+    "DEC-010"
   ],
   "schema_version": 1
 }

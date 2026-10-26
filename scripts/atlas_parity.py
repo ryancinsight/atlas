@@ -11,7 +11,10 @@ import sys
 from pathlib import Path
 
 from atlas_parity_decisions import validate_decisions
-from atlas_parity_evidence import PROMOTED, review, states, validate_evidence, validate_mappings
+from atlas_parity_closure import validate_closure
+from atlas_parity_evidence import (PROMOTED, review, states, validate_evidence,
+                                   validate_mappings, validate_source_definition)
+from atlas_parity_references import references
 from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
 from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, https,
                                  local_path, need, nonempty, read_json, revision, unique)
@@ -19,104 +22,6 @@ from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields,
 FRAMEWORKS = {"numpy", "jax", "pytorch", "tensorflow"}
 DEFAULT = Path(__file__).resolve().parents[1] / "docs" / "parity"
 
-
-def references(root: Path, snapshots: list[dict]) -> tuple[dict, list[dict]]:
-    frozen = unique(snapshots, "framework", "reference snapshot")
-    need(set(frozen) == FRAMEWORKS, "all four reference frameworks are required")
-    result, summaries = {}, []
-    for framework, snapshot in frozen.items():
-        fields(snapshot, {"version": str, "path": str, "sha256": str, "records": int,
-                          "unique_symbols": int, "public_surface_complete": bool,
-                          "semantics_complete": bool}, framework)
-        digest(snapshot["sha256"], framework)
-        path = local_path(root, snapshot["path"])
-        need(hashlib.sha256(path.read_bytes()).hexdigest() == snapshot["sha256"],
-             f"{framework}: snapshot content hash drift")
-        data = read_json(path)
-        fields(data, {"framework": str, "version": str, "source_revision": str,
-                      "records": list, "sources": list, "extraction": dict}, framework)
-        need(data["framework"] == framework and data["version"] == snapshot["version"],
-             f"{framework}: reference version mismatch")
-        revision(data["source_revision"], framework)
-        need(bool(data["sources"]), f"{framework}: no extraction sources")
-        for source in data["sources"]:
-            fields(source, {"sha256": str}, framework)
-            digest(source["sha256"], framework)
-            if "url" in source:
-                https(source["url"], framework)
-            else:
-                nonempty(source.get("path"), framework)
-        source_urls = {}
-        source_paths = set()
-        for source in data["sources"]:
-            url = source.get("url")
-            if url is None:
-                source_paths.add(source["path"])
-                url = (f"https://github.com/{data['source_repository']}/blob/"
-                       f"{data['source_revision']}/{source['path']}")
-            need(url not in source_urls, f"{framework}: duplicate source manifest identity")
-            source_urls[url] = source
-        extraction = data["extraction"]
-        for key in ("source_count", "source_files_downloaded_and_hash_verified"):
-            if key in extraction:
-                need(extraction[key] == len(source_urls), f"{framework}: source count drift")
-        need(len(data["records"]) == snapshot["records"] > 0, f"{framework}: record count drift")
-        need(len({row["symbol"] for row in data["records"]}) == snapshot["unique_symbols"],
-             f"{framework}: symbol count drift")
-        counts = data.get("counts", {})
-        if counts:
-            need(counts.get("records") == len(data["records"]), f"{framework}: declared count mismatch")
-        else:
-            need(data["extraction"].get("unique_symbol_records") == len(data["records"]),
-                 f"{framework}: declared count mismatch")
-        for axis, aggregate in (("kind", "by_kind"), ("domain", "by_domain"), ("stability", "by_stability")):
-            declared = counts.get(aggregate, extraction.get(f"counts_{aggregate}"))
-            if declared is not None:
-                need(declared == dict(Counter(row[axis] for row in data["records"])),
-                     f"{framework}: {axis} aggregate drift")
-        if "unique_symbols" in counts:
-            need(counts["unique_symbols"] == snapshot["unique_symbols"], f"{framework}: unique symbol aggregate drift")
-        if "declaration_occurrences" in extraction:
-            need(extraction["declaration_occurrences"] == sum(len(row.get("occurrences", [])) for row in data["records"]),
-                 f"{framework}: declaration occurrence count drift")
-        occurrence_counts = Counter(row["source"].split("#", 1)[0] for row in data["records"])
-        for row in data.get("documentation_records", []):
-            occurrence_counts[row["source"].split("#", 1)[0]] += 1
-        documentation = data.get("documentation_records", [])
-        documentation_counts = data.get("documentation_counts", {})
-        if documentation_counts:
-            need(documentation_counts.get("records") == len(documentation) and
-                 documentation_counts.get("unique_symbols") == len({row["symbol"] for row in documentation}),
-                 f"{framework}: documentation aggregate drift")
-            for axis in ("kind", "domain", "stability"):
-                need(documentation_counts.get(f"by_{axis}") == dict(Counter(row[axis] for row in documentation)),
-                     f"{framework}: documentation {axis} aggregate drift")
-        need(set(occurrence_counts) <= set(source_urls), f"{framework}: API source absent from source manifest")
-        for url, source in source_urls.items():
-            if "observed_entries" in source:
-                need(source["observed_entries"] == occurrence_counts[url],
-                     f"{framework}: per-source declaration count drift")
-                if "parsed_entries" in source:
-                    need(source["parsed_entries"] == source["observed_entries"], f"{framework}: source parse loss")
-        complete = data["extraction"].get("public_surface_complete", data["extraction"].get("complete"))
-        need(type(complete) is bool and complete == snapshot["public_surface_complete"],
-             f"{framework}: completeness claim differs from extraction")
-        for row in data["records"]:
-            fields(row, {"domain": str, "stability": str}, framework)
-            identity = api_identity(framework, data["version"], row)
-            need(identity not in result, f"{framework}: duplicate API identity {identity}")
-            https(row["source"], identity)
-            for occurrence in row.get("occurrences", []):
-                fields(occurrence, {"path": str, "line": int}, identity)
-                need(occurrence["path"] in source_paths and occurrence["line"] > 0,
-                     f"{identity}: occurrence absent from source manifest or invalid line")
-            need(row.get("framework", framework) == framework and
-                 row.get("version", data["version"]) == data["version"], f"{identity}: per-row version drift")
-            result[identity] = {**row, "framework": framework, "version": data["version"]}
-        summaries.append({"framework": framework, "version": data["version"],
-                          "records": snapshot["records"], "unique_symbols": snapshot["unique_symbols"],
-                          "public_surface_complete": complete})
-    return result, summaries
 
 
 def program_structure(program: dict, capabilities: dict, repositories: dict, packages: dict) -> None:
@@ -199,10 +104,45 @@ def load(root: Path = DEFAULT) -> dict:
     need(bool(capabilities) and bool(repositories) and bool(packages), "program cannot have empty owner/DAG sets")
     program_structure(program, capabilities, repositories, packages)
     refs, summaries = references(root, program["reference_snapshots"])
+    closure, extra_inputs = validate_closure(root, program["files"].get("reference_closure"), program)
     mappings, assigned = validate_mappings(objects["mappings"], capabilities, refs, repositories)
+    specified = {ref: mapping_id for ref, mapping_id in assigned.items()
+                 if mappings[mapping_id]["status"]["mapping"] == "specified"}
+    for row in mappings.values():
+        if "source_contract" not in row:
+            continue
+        contract = row["source_contract"]
+        fields(contract, {"path": str, "sha256": str, "entry": list}, row["id"])
+        source = local_path(root, contract["path"])
+        need(hashlib.sha256(source.read_bytes()).hexdigest() == contract["sha256"],
+             f"{row['id']}: semantic source-contract hash drift")
+        document = read_json(source)
+        current = document
+        try:
+            for key in contract["entry"]:
+                current = current[key]
+        except (KeyError, IndexError, TypeError) as error:
+            raise ParityError(f"{row['id']}: missing semantic contract entry") from error
+        need(bool(current), f"{row['id']}: empty semantic contract")
+        validate_source_definition(row, current)
+        symbols = set()
+        if isinstance(current, dict):
+            if isinstance(current.get("symbol"), str):
+                symbols.add(current["symbol"])
+            symbols.update(current.get("endpoints", []))
+            if (not symbols and document.get("framework") == "numpy" and contract["entry"] and
+                    isinstance(contract["entry"][-1], str)):
+                name = contract["entry"][-1]
+                signature = next((current[key] for key in ("published_signature", "runtime_python_signature",
+                                 "published_text_signature") if key in current), "")
+                need(signature.startswith(name + "("), f"{row['id']}: signature/entry mismatch")
+                symbols.add("numpy." + name)
+        need(bool(symbols) and all(refs[identity]["symbol"] in symbols for identity in row["reference_ids"]),
+             f"{row['id']}: semantic source entry belongs to another public endpoint")
+        extra_inputs.append(source)
     for snapshot in program["reference_snapshots"]:
         if snapshot["semantics_complete"]:
-            need(all(identity in assigned for identity, row in refs.items()
+            need(all(identity in specified for identity, row in refs.items()
                      if row["framework"] == snapshot["framework"]),
                  f"{snapshot['framework']}: semantics_complete contradicts unmapped APIs")
     evidence = validate_evidence(objects["evidence"], mappings, capabilities, refs)
@@ -216,7 +156,9 @@ def load(root: Path = DEFAULT) -> dict:
     result = {"program": program, "capabilities": capabilities, "repositories": repositories,
               "packages": packages, "references": refs, "snapshots": summaries,
               "mappings": mappings, "assigned": assigned, "evidence": evidence,
+              "specified": specified,
               "decisions": decisions,
+              "reference_closure": closure, "extra_inputs": extra_inputs,
               "repository_evidence": repository_evidence, "qualified_repositories": qualified_repositories}
     if program["definition_complete"]:
         need(not definition_blockers(result), "definition_complete contradicts unresolved obligations")
@@ -227,9 +169,9 @@ def definition_blockers(bundle: dict) -> list[str]:
     program = bundle["program"]
     blockers = [f"{row['framework']}: public source extraction incomplete"
                 for row in bundle["snapshots"] if not row["public_surface_complete"]]
-    unmapped = len(bundle["references"]) - len(bundle["assigned"])
-    if unmapped:
-        blockers.append(f"{unmapped} API declarations unmapped")
+    unresolved = len(bundle["references"]) - len(bundle.get("specified", bundle["assigned"]))
+    if unresolved:
+        blockers.append(f"{unresolved} API declarations lack complete semantic mappings")
     if program["open_decisions"]:
         blockers.append(f"{len(program['open_decisions'])} scope/architecture decisions open")
     blockers.extend(program["definition_gaps"])
@@ -268,13 +210,15 @@ def qualification(bundle: dict, gate: str, candidate: str, external: dict | None
 def report(bundle: dict) -> dict:
     return {"program_version": bundle["program"]["program_version"],
             "snapshots": bundle["snapshots"], "reference_declarations": len(bundle["references"]),
-            "mapped_declarations": len(bundle["assigned"]),
+            "mapped_declarations": len(bundle["specified"]),
+            "partially_mapped_declarations": len(bundle["assigned"]) - len(bundle["specified"]),
             "unmapped_declarations": len(bundle["references"]) - len(bundle["assigned"]),
             "capabilities": len(bundle["capabilities"]), "repositories": len(bundle["repositories"]),
             "work_packages": len(bundle["packages"]), "evidence_records": len(bundle["evidence"]),
             "resolved_policy_decisions": len(bundle["program"].get("resolved_policy_decisions", [])),
             "open_policy_decisions": len(bundle["program"]["open_decisions"]),
             "implementation_blockers": bundle["program"]["implementation_blockers"],
+            "reference_closure": bundle["reference_closure"],
             "definition_blockers": definition_blockers(bundle)}
 
 
@@ -323,6 +267,9 @@ def main() -> int:
             inputs = [local_path(args.root, "program.json")]
             inputs.extend(local_path(args.root, path) for path in bundle["program"]["files"].values())
             inputs.extend(local_path(args.root, item["path"]) for item in bundle["program"]["reference_snapshots"])
+            for snapshot in bundle["program"]["reference_snapshots"]:
+                inputs.extend(local_path(args.root, item["path"]) for item in snapshot.get("supplements", []))
+            inputs.extend(bundle["extra_inputs"])
             inputs.extend(Path(__file__).parent.glob("atlas_parity*.py"))
             inputs.append(Path(__file__).parent / "atlas-parity.py")
             blockers.extend(committed_inputs(inputs, repository_root, candidate))

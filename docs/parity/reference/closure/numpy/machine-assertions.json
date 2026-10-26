@@ -1,0 +1,12 @@
+{
+  "source_files_git_blob_and_sha256_checked": 437,
+  "baseline_gap_count": 65,
+  "all_gap_ids_unique": true,
+  "all_gap_ids_disposed": true,
+  "literal_export_modules_resolved": 2,
+  "new_static_export_records": 23,
+  "inherited_candidate_records": 4335,
+  "ufunc_definition_and_alias_records": 133,
+  "no_framework_imports_or_builds": true,
+  "capabilities_verified": 0
+}

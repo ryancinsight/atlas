@@ -1,0 +1,722 @@
+{
+  "framework": "jax",
+  "version": "0.12.0.1",
+  "source_revision": "dc4af684446e65ee98eee8090e1ff6f8211473fb",
+  "public_surface_complete": false,
+  "api_semantics_complete": false,
+  "common_contract": {
+    "source_derived_not_runtime_verified": true,
+    "dtype_policy": {
+      "defaults": "Python bool/int/float/complex dtype arguments select config-dependent default types. enable_x64=False gives int32/uint32/float32/complex64 defaults; True gives corresponding64/128 defaults.",
+      "explicit_x64": "With enable_x64=False, jax_explicit_x64_dtypes=WARN(default) warns+canonicalizes int64,uint64,float64,complex128 down; ERROR raisesValueError; ALLOW respects explicit wide dtype. enable_x64=True respects explicit dtype in all three modes.",
+      "promotion": "jax_numpy_dtype_promotion STANDARD/STRICT and weak Python scalars matter where result_type is used; do not substitute NumPy promotion.",
+      "source": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/dtypes.py#L230-L250",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/dtypes.py#L957-L979",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/dtypes.py#L1103-L1128",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/config.py#L1687-L1725"
+      ]
+    },
+    "dtype_candidates": {
+      "ordinary_numeric": [
+        "bool",
+        "int2",
+        "uint2",
+        "int4",
+        "uint4",
+        "int8",
+        "uint8",
+        "int16",
+        "uint16",
+        "int32",
+        "uint32",
+        "int64",
+        "uint64",
+        "float4_e2m1fn",
+        "float6_e2m3fn",
+        "float6_e3m2fn",
+        "float8_e3m4",
+        "float8_e4m3",
+        "float8_e8m0fnu",
+        "float8_e4m3b11fnuz",
+        "float8_e4m3fn",
+        "float8_e4m3fnuz",
+        "float8_e5m2",
+        "float8_e5m2fnuz",
+        "bfloat16",
+        "float16",
+        "float32",
+        "float64",
+        "complex64",
+        "complex128"
+      ],
+      "conditional_companion_types": [
+        "int1 if ml_dtypes exports it",
+        "uint1 if ml_dtypes exports it"
+      ],
+      "additional_valid_parser_types": [
+        "StringDType",
+        "float0",
+        "ExtendedDType with owner-provided _rules.full"
+      ],
+      "critical_limit": "Valid dtype parsing is NOT operation/backend support. String, float0, extended types and low-bit arithmetic each need per-operation/device admissibility or typed-rejection source/oracle evidence; these are open obligations, never excluded or counted as success.",
+      "source": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/dtypes.py#L95-L215",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/dtypes.py#L575-L620",
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/lax/lax.py#L3678-L3714"
+      ]
+    },
+    "shape_domain": "Finite rank>=0 shape tuples of nonnegative integer dimensions, scalar integer length, and concrete scalar/1D integer-array shape forms supported by canonicalize_shape. Include (),0,(0,),(2,0,3),(1,),(2,3), symbolic dimension expressions where exported shape-polymorphic primitive supports them; negative/noninteger/nonconcrete forms require exact errors.",
+    "layout_policy": "No order/strides argument in these seven APIs; JAX value arrays are immutable. Test scalar/broadcasted/noncontiguous host or JAX inputs where accepted, output value-index mapping and sharding. Physical device layout remains compiler/backend-qualified; do not invent ndarray alias/mutation behavior.",
+    "execution": [
+      "eager",
+      "jit with static shape/count/axis/config keys",
+      "jvp/vjp/grad where input domain is differentiable",
+      "nested vmap-jit-grad with static output shape",
+      "export symbolic-dimension special cases",
+      "explicit device/sharding and ambient default-device/mesh"
+    ],
+    "required_device_families": [
+      "CPU x86_64",
+      "CPU aarch64",
+      "CUDA12",
+      "CUDA13",
+      "ROCm7",
+      "oneAPI",
+      "TPU"
+    ],
+    "oracle_environment": "Freeze JAX0.12.0.1 plus selected jaxlib, ml_dtypes, NumPy, SciPy and device plugins/driver/compiler flags. JAX release permitsjaxlib0.11.2..0.12.0.1,ml_dtypes>=0.5.0; optional plugins alter dtype/device surface. Exact versions/hashes remain a definition prerequisite.",
+    "precision_rule": "Derive bounds from conditioning and represented arithmetic/declared computation dtype. Integer/index/shape invariants require exact values. Inexact fixtures list mathematical targets; conditioning-derived bounds and reference arithmetic policy must be finalized before execution. Exact representability of a target alone does not remove intermediate-rounding error. Never copy the reference test suite's ad-hoc relaxed epsilon as proof; native source tests include skipped/narrowed cases and are not full acceptance evidence.",
+    "cross_framework_dedup": "Keep all public API identities and JAX policy variants. Same internal target/name or NumPy-like signature does not prove equivalent errors/defaults/device/AD semantics."
+  },
+  "records": [
+    {
+      "id": "JAX-CREATE-ZEROS",
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.numpy.zeros",
+      "signature": "shape: Any, dtype: DTypeLike | None=None, *, device: xc.Device | Sharding | None=None, out_sharding: NamedSharding | P | None=None",
+      "implementation_source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L50-L95",
+      "semantics": {
+        "mathematics": "For every logical output index i, result[i]=cast_dtype(0). dtypeNone -> Pythonfloat default. Returned array has weak_type=False because dtype is resolved explicitly before lax.full.",
+        "device": "device or out_sharding mutually exclusive; neither specified uses ambient/default placement. Device may be actualDevice or Sharding; out_sharding accepts NamedSharding or PartitionSpec canonicalized under active mesh.",
+        "gradients": "No differentiable numeric argument: shape/dtype/device/sharding are static structural parameters. An enclosing function with unused floating input has zero derivative, not a derivative of shape. Test jvp/vjp of surrounding computations separately.",
+        "errors": [
+          "shape generator:TypeError",
+          "two positional int arguments mistaken for shape dimensions:TypeError with forgotten-tuple hint",
+          "noninteger/negative/nonconcrete shape:TypeError",
+          "unsupported dtype parser:TypeError; dtypearrayargument:ValueError",
+          "device and out_sharding both set:ValueError",
+          "explicitwide dtype under ERROR:ValueError; underWARN:warning+canonicaldtype"
+        ],
+        "analytical_cases": [
+          {
+            "shape": [],
+            "dtype": "float32",
+            "expected": 0.0
+          },
+          {
+            "shape": [
+              2,
+              3
+            ],
+            "dtype": "int32",
+            "expected": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ]
+            ]
+          },
+          {
+            "shape": [
+              2,
+              0,
+              3
+            ],
+            "dtype": "bool",
+            "expected_shape": [
+              2,
+              0,
+              3
+            ],
+            "expected_size": 0
+          }
+        ],
+        "sources": [
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L50-L95",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/core.py#L2130-L2169",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/util.py#L331-L344",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/tests/lax_numpy_test.py#L2956-L2974",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/tests/lax_numpy_test.py#L6205-L6217"
+        ]
+      },
+      "definition_status": "source-derived workflow contract; not full API-axis closure",
+      "implementation_status": "unmapped",
+      "tested": "unrun",
+      "external": "unrun",
+      "performance": "unrun",
+      "release": "unreleased",
+      "mandatory_open_classes": [
+        "operation/device admissibility ofalllow-bit/string/float0/extendedtypes",
+        "companionjaxlib/ml_dtypes/pluginversion-andhashselection",
+        "backend/layout/sharding acceptanceanderror matrix",
+        "specialfloatNaN/Inf/signedzero/overflowexactpolicies andcomplexbranchgradients",
+        "conditioning-derivedfloatingbounds plusnativehardware differentialexecution"
+      ]
+    },
+    {
+      "id": "JAX-CREATE-ONES",
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.numpy.ones",
+      "signature": "shape: Any, dtype: DTypeLike | None=None, *, device: xc.Device | Sharding | None=None, out_sharding: NamedSharding | P | None=None",
+      "implementation_source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L99-L144",
+      "semantics": {
+        "mathematics": "For every logical output index i, result[i]=cast_dtype(1). dtypeNone -> Pythonfloat default; explicit dtype resolves weak_type=False.",
+        "device": "Same device/out_sharding policy as zeros.",
+        "gradients": "Same structural nondifferentiability as zeros; boolean/integer output tangents use float0 rules where accepted by AD API.",
+        "errors": [
+          "shape generator and forgotten tuple:TypeError",
+          "invalid/nonconcrete/negative shape:TypeError",
+          "dtype policy/errors as zeros",
+          "device+out_sharding:ValueError"
+        ],
+        "analytical_cases": [
+          {
+            "shape": [],
+            "dtype": "complex64",
+            "expected": {
+              "real": 1,
+              "imag": 0
+            }
+          },
+          {
+            "shape": [
+              2,
+              2
+            ],
+            "dtype": "bool",
+            "expected": [
+              [
+                true,
+                true
+              ],
+              [
+                true,
+                true
+              ]
+            ]
+          },
+          {
+            "shape": [
+              0
+            ],
+            "dtype": "int32",
+            "expected": []
+          }
+        ],
+        "sources": [
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L99-L144",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/util.py#L331-L344",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/tests/lax_numpy_test.py#L2956-L2974"
+        ]
+      },
+      "definition_status": "source-derived workflow contract; not full API-axis closure",
+      "implementation_status": "unmapped",
+      "tested": "unrun",
+      "external": "unrun",
+      "performance": "unrun",
+      "release": "unreleased",
+      "mandatory_open_classes": [
+        "operation/device admissibility ofalllow-bit/string/float0/extendedtypes",
+        "companionjaxlib/ml_dtypes/pluginversion-andhashselection",
+        "backend/layout/sharding acceptanceanderror matrix",
+        "specialfloatNaN/Inf/signedzero/overflowexactpolicies andcomplexbranchgradients",
+        "conditioning-derivedfloatingbounds plusnativehardware differentialexecution"
+      ]
+    },
+    {
+      "id": "JAX-CREATE-FULL",
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.numpy.full",
+      "signature": "shape: Any, fill_value: ArrayLike, dtype: DTypeLike | None=None, *, device: xc.Device | Sharding | None=None, out_sharding: NamedSharding | P | None=None",
+      "implementation_source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L210-L266",
+      "semantics": {
+        "mathematics": "Scalar fill_value is converted then broadcast to shape using lax.full. Nonscalar fill_value is converted with asarray then broadcast to specified shape. dtypeNone uses fill dtype and retains weak typing where represented; explicit dtype forces strong output. Rank/broadcast mismatches are errors, not scalar-only exclusions.",
+        "device": "Same mutually exclusive device/out_sharding selector. Concrete scalar-fill sharding may construct addressable shard callbacks; nonscalar SingleDeviceSharding branch calls device_put, otherwise explicit broadcastsharding.",
+        "gradients": "For real/complex inexact fill and inexact output, JVP broadcasts/casts tangent; VJP sums cotangents along inserted/size1 broadcast axes. ScalarfillVJP is sum over all result entries. Integer/bool casting has float0/zero tangent policy; shape remains static.",
+        "errors": [
+          "nonarraylikefill:TypeError",
+          "incompatible fill broadcast shape:ValueError",
+          "invalidshape and dtype rules as zeros",
+          "device+out_sharding:ValueError",
+          "extended dtype calls explicit dtype._rules.full; behavior cannot be guessed fromnumeric kernels"
+        ],
+        "analytical_cases": [
+          {
+            "shape": [
+              2,
+              3
+            ],
+            "fill": [
+              1,
+              2,
+              3
+            ],
+            "dtype": "float32",
+            "expected": [
+              [
+                1,
+                2,
+                3
+              ],
+              [
+                1,
+                2,
+                3
+              ]
+            ],
+            "vjp_all_one_cotangent": [
+              2,
+              2,
+              2
+            ]
+          },
+          {
+            "shape": [
+              2,
+              3
+            ],
+            "fill": 2.5,
+            "dtype": "float32",
+            "expected": [
+              [
+                2.5,
+                2.5,
+                2.5
+              ],
+              [
+                2.5,
+                2.5,
+                2.5
+              ]
+            ],
+            "scalar_vjp_all_one_cotangent": 6
+          }
+        ],
+        "sources": [
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L210-L266",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/lax/lax.py#L3678-L3714",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/tests/lax_numpy_test.py#L2890-L2905"
+        ]
+      },
+      "definition_status": "source-derived workflow contract; not full API-axis closure",
+      "implementation_status": "unmapped",
+      "tested": "unrun",
+      "external": "unrun",
+      "performance": "unrun",
+      "release": "unreleased",
+      "mandatory_open_classes": [
+        "operation/device admissibility ofalllow-bit/string/float0/extendedtypes",
+        "companionjaxlib/ml_dtypes/pluginversion-andhashselection",
+        "backend/layout/sharding acceptanceanderror matrix",
+        "specialfloatNaN/Inf/signedzero/overflowexactpolicies andcomplexbranchgradients",
+        "conditioning-derivedfloatingbounds plusnativehardware differentialexecution"
+      ]
+    },
+    {
+      "id": "JAX-CREATE-ARANGE",
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.numpy.arange",
+      "signature": "start: ArrayLike | DimSize, stop: ArrayLike | DimSize | None=None, step: ArrayLike | None=None, dtype: DTypeLike | None=None, *, device: xc.Device | Sharding | None=None, out_sharding: NamedSharding | P | None=None",
+      "implementation_source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/lax_numpy.py#L5865-L5949",
+      "semantics": {
+        "mathematics": "Positional forms stop;start,stop;start,stop,step. Inclusive start, exclusive stop. Concrete scalar arguments; absentdtype fromresult_type(start,stop,step) underJAXpromotion. Explicitstep size=max(0,ceil((stop-start)/step)); result cast(start + step*iota). No-step start0 usesdirectiota; nonzerostart usesstart+iota. Negative step supported.",
+        "device": "Supports mutually exclusive device/out_sharding. Nonconcrete NamedSharding passed to primitive; concrete sharding appliesdevice_put to generatedoutput.",
+        "gradients": "start/stop/step must be concrete for static outputlength; differentiating them with tracing normally raises ConcretizationTypeError. A closure overstaticrange is valid insidegrad/jit; derivative w.r.t a separate multiplicative parameter is not derivative w.r.t range bounds. Symbolic integerdimension mode separately admits dimension expressions with statically resolvable step sign.",
+        "errors": [
+          "nonscalarstart/stop/step:ValueError",
+          "complexstart/stop/step:ValueError sinceJAX0.10",
+          "nonconcretearrayboundstracer:ConcretizationTypeError",
+          "zero step:explicit symbolic branchValueError; concrete arithmetic/ceil errors need pinned-oracle characterization",
+          "symbolic noninteger or statically undecidable sign:ValueError/InconclusiveDimensionOperation",
+          "dtype unsupportedbyiota/arithmetic and overflow/Inf/NaN bounds:keep typed-error/numeric cases open until exacttargetcharacterization"
+        ],
+        "precision": "When step is explicitly supplied and outputdtype isfloating withbits<32, frozen source usesfloat32 workingdtype thenconvertsoutput. The no-step branchdoesnotsharethisforcedwidening. Atlas must encode comparator arithmetic through reviewedprecisionpolicy, never hiddenfakegenericwidening.",
+        "analytical_cases": [
+          {
+            "args": [
+              2,
+              13,
+              3
+            ],
+            "dtype": "int32",
+            "expected": [
+              2,
+              5,
+              8,
+              11
+            ]
+          },
+          {
+            "args": [
+              8,
+              -3,
+              -3
+            ],
+            "dtype": "int32",
+            "expected": [
+              8,
+              5,
+              2,
+              -1
+            ]
+          },
+          {
+            "args": [
+              0,
+              1,
+              -0.5
+            ],
+            "expected": []
+          },
+          {
+            "args": [
+              0,
+              2,
+              0.5
+            ],
+            "dtype": "float32",
+            "expected": [
+              0,
+              0.5,
+              1,
+              1.5
+            ]
+          }
+        ],
+        "sources": [
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/lax_numpy.py#L5865-L6053",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/tests/lax_numpy_test.py#L5388-L5477",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/tests/lax_numpy_test.py#L6264-L6278"
+        ]
+      },
+      "definition_status": "source-derived workflow contract; not full API-axis closure",
+      "implementation_status": "unmapped",
+      "tested": "unrun",
+      "external": "unrun",
+      "performance": "unrun",
+      "release": "unreleased",
+      "mandatory_open_classes": [
+        "operation/device admissibility ofalllow-bit/string/float0/extendedtypes",
+        "companionjaxlib/ml_dtypes/pluginversion-andhashselection",
+        "backend/layout/sharding acceptanceanderror matrix",
+        "specialfloatNaN/Inf/signedzero/overflowexactpolicies andcomplexbranchgradients",
+        "conditioning-derivedfloatingbounds plusnativehardware differentialexecution"
+      ]
+    },
+    {
+      "id": "JAX-CREATE-LINSPACE",
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.numpy.linspace",
+      "signature": "start: ArrayLike, stop: ArrayLike, num: int=50, endpoint: bool=True, retstep: bool=False, dtype: DTypeLike | None=None, axis: int=0, *, device: xc.Device | Sharding | None=None",
+      "implementation_source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L520-L586",
+      "semantics": {
+        "mathematics": "Broadcast a=start,b=stop. Forn>1 define d=n-1 ifendpointelse n andt=k/d. Value formula source is a*(1-t)+(b/d)*k, with exact convertedstop appendedforendpoint. n1 givesstart; n0 givesempty axis. retstep returnsdelta=(b-a)/d forn>1, NaN forn0 or(n1,endpoint), b-a forn1endpointFalse. dtypeNone=to_inexact_dtype(result_type(a,b)); explicitintegeroutput floors beforefinalcast, unlike simpletruncation.",
+        "device": "Onlydevice keyword: Device orSharding canonicalized atfinalconversion; noout_sharding keywordinthisversion.",
+        "gradients": "Forinexactoutputn>1, JVP(da,db)=(1-t)da+t db; VJP weighted broadcast-reduction. Higher derivativesofvalues w.r.tbounds vanish. n1 valuegrad(1,0); n0 emptygrad0. retstep derivatives(-1/d,1/d); n1endpointFalse(-1,1); constantNaNretsteps carryconstanttangent. Explicitintegerarrayoutput has floor/castzero tangent whilefloatingretstep canstilldependonbounds.",
+        "errors": [
+          "num andaxis must beconcrete; negative num:ValueError",
+          "nonnumericarraylike/invaliddtype:TypeError",
+          "nonbroadcastablebounds:ValueError",
+          "axis outsideoutputrankrange:typedaxiserror; empty/n1specificbranches requireexactoracleerrors too",
+          "jit requires num,endpoint,retstep,dtype,axis,device static; dynamicbounds permitted"
+        ],
+        "analytical_cases": [
+          {
+            "start": -1,
+            "stop": 1,
+            "num": 5,
+            "expected": [
+              -1,
+              -0.5,
+              0,
+              0.5,
+              1
+            ],
+            "da": [
+              1,
+              0.75,
+              0.5,
+              0.25,
+              0
+            ],
+            "db": [
+              0,
+              0.25,
+              0.5,
+              0.75,
+              1
+            ]
+          },
+          {
+            "start": 0,
+            "stop": 8,
+            "num": 4,
+            "endpoint": false,
+            "expected": [
+              0,
+              2,
+              4,
+              6
+            ],
+            "retstep": 2
+          },
+          {
+            "start": -1,
+            "stop": 1,
+            "num": 4,
+            "dtype": "int32",
+            "expected": [
+              -1,
+              -1,
+              0,
+              1
+            ]
+          },
+          {
+            "start": 2,
+            "stop": 5,
+            "num": 1,
+            "endpoint": false,
+            "expected": [
+              2
+            ],
+            "retstep": 3
+          },
+          {
+            "start": 2,
+            "stop": 5,
+            "num": 0,
+            "expected": [],
+            "retstep": "NaN"
+          }
+        ],
+        "sources": [
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L496-L646",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/tests/lax_numpy_test.py#L5830-L5878"
+        ]
+      },
+      "definition_status": "source-derived workflow contract; not full API-axis closure",
+      "implementation_status": "unmapped",
+      "tested": "unrun",
+      "external": "unrun",
+      "performance": "unrun",
+      "release": "unreleased",
+      "mandatory_open_classes": [
+        "operation/device admissibility ofalllow-bit/string/float0/extendedtypes",
+        "companionjaxlib/ml_dtypes/pluginversion-andhashselection",
+        "backend/layout/sharding acceptanceanderror matrix",
+        "specialfloatNaN/Inf/signedzero/overflowexactpolicies andcomplexbranchgradients",
+        "conditioning-derivedfloatingbounds plusnativehardware differentialexecution"
+      ]
+    },
+    {
+      "id": "JAX-CREATE-LOGSPACE",
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.numpy.logspace",
+      "signature": "start: ArrayLike, stop: ArrayLike, num: int=50, endpoint: bool=True, base: ArrayLike=10.0, dtype: DTypeLike | None=None, axis: int=0",
+      "implementation_source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L649-L714",
+      "semantics": {
+        "mathematics": "l=linspace(start,stop,num,endpoint,dtypeNone,axis); output=convert_dtype(power(base,l)). dtypeNone depends onstart/stop result_type->inexact, notbase. base isarraylike and participates inpowerbroadcast/promotion beforefinalconversion. Defaultbase10. Noendpointcorrectionafterpower.",
+        "device": "Nodirect device/out_sharding keyword; ambient placement and argument/sharding context controlbackend.",
+        "gradients": "Smoothrealbase>0: dy/da=y*ln(base)*(1-t), dy/dbound=y*ln(base)*t, dy/dbase=l*base**(l-1), withbroadcasttranspose. Source allowsbase asdifferentiableargument. Higherorders/nonpositiveorcomplexbases requireactualpowerbranch/subgradient rules; integeroutputcastzerotangent.",
+        "errors": [
+          "num/axis staticconcrete; numnegative delegatedlinspaceValueError",
+          "broadcast/dtypeerrors includebasearraybroadcast",
+          "base<=0 orcomplexbase, NaN/Inf/overflow arepowerdomain cases; do not importNumPyerrorbehavior or silently restrictbasepositive",
+          "dtypefrombounds maycastawaycomplexpower components; characterizewarnings/castpolicy explicitly"
+        ],
+        "analytical_cases": [
+          {
+            "start": 0,
+            "stop": 3,
+            "num": 4,
+            "base": 2,
+            "expected": [
+              1,
+              2,
+              4,
+              8
+            ]
+          },
+          {
+            "start": 0,
+            "stop": 4,
+            "num": 4,
+            "base": 2,
+            "endpoint": false,
+            "expected": [
+              1,
+              2,
+              4,
+              8
+            ]
+          }
+        ],
+        "sources": [
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L649-L730",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/tests/lax_numpy_test.py#L5880-L5921"
+        ]
+      },
+      "definition_status": "source-derived workflow contract; not full API-axis closure",
+      "implementation_status": "unmapped",
+      "tested": "unrun",
+      "external": "unrun",
+      "performance": "unrun",
+      "release": "unreleased",
+      "mandatory_open_classes": [
+        "operation/device admissibility ofalllow-bit/string/float0/extendedtypes",
+        "companionjaxlib/ml_dtypes/pluginversion-andhashselection",
+        "backend/layout/sharding acceptanceanderror matrix",
+        "specialfloatNaN/Inf/signedzero/overflowexactpolicies andcomplexbranchgradients",
+        "conditioning-derivedfloatingbounds plusnativehardware differentialexecution"
+      ]
+    },
+    {
+      "id": "JAX-CREATE-GEOMSPACE",
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.numpy.geomspace",
+      "signature": "start: ArrayLike, stop: ArrayLike, num: int=50, endpoint: bool=True, dtype: DTypeLike | None=None, axis: int=0",
+      "implementation_source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L735-L785",
+      "semantics": {
+        "mathematics": "Compute sign=sign(start), then sign*logspace(log10(start/sign),log10(stop/sign),base10,axis0); movegeneratedaxis afterward; finaldtypecast. Same-signrealnonzero core gives sign(a)*abs(a)**(1-t)*abs(b)**t. Complexphase/sign/logbranch semantics retained; source says followsNumPy2.0complexsemantics.",
+        "device": "Nodirect device/out_sharding keyword; ambient context andinputscontrolplacement.",
+        "gradients": "Smoothsame-signrealnonzero core: dy/da=(1-t)y/a; dy/db=t y/b withbroadcast-reduction andhigher derivatives. Complexbranchpoints/zero/sign changes require JAX composed primitive conventions, not globalholomorphic assumptions. Integeroutputcastzerotangent.",
+        "errors": [
+          "num/axis concrete/static andnegative num delegatedlinspaceerror",
+          "zero endpoints/oppositesignreal/NaN/Inf arecomposedlog/sign numericaldomains: noexplicit zeroguard exists here; NumPyzero-endpointValueError mustnotbeassumed",
+          "broadcast/axis/dtypeerrors ascomposedprimitives; no exclusionofintegeroutput evenreference tests chooseinexact"
+        ],
+        "analytical_cases": [
+          {
+            "start": 1,
+            "stop": 16,
+            "num": 5,
+            "expected": [
+              1,
+              2,
+              4,
+              8,
+              16
+            ]
+          },
+          {
+            "start": -1,
+            "stop": -16,
+            "num": 5,
+            "expected": [
+              -1,
+              -2,
+              -4,
+              -8,
+              -16
+            ]
+          },
+          {
+            "start": 1,
+            "stop": 16,
+            "num": 4,
+            "endpoint": false,
+            "expected": [
+              1,
+              2,
+              4,
+              8
+            ]
+          }
+        ],
+        "sources": [
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py#L735-L813",
+          "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/tests/lax_numpy_test.py#L5924-L5969"
+        ]
+      },
+      "definition_status": "source-derived workflow contract; not full API-axis closure",
+      "implementation_status": "unmapped",
+      "tested": "unrun",
+      "external": "unrun",
+      "performance": "unrun",
+      "release": "unreleased",
+      "mandatory_open_classes": [
+        "operation/device admissibility ofalllow-bit/string/float0/extendedtypes",
+        "companionjaxlib/ml_dtypes/pluginversion-andhashselection",
+        "backend/layout/sharding acceptanceanderror matrix",
+        "specialfloatNaN/Inf/signedzero/overflowexactpolicies andcomplexbranchgradients",
+        "conditioning-derivedfloatingbounds plusnativehardware differentialexecution"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "path": "jax/_src/config.py",
+      "git_blob_sha": "9e3d29d08f54280279bc1f848272a129bdc85e67",
+      "sha256": "59a1d0723ee8ebe6441ab22859e5cb8af1580ab5a4f2bf99a408aa8dc7a585f1",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/config.py"
+    },
+    {
+      "path": "jax/_src/core.py",
+      "git_blob_sha": "1a5f38845186d96c52a9ecc0f8d215dd9ac70287",
+      "sha256": "6f540dccb5e2275d7a38cf448d94ae1a315f29da2de673f29629a4f31152d0b2",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/core.py"
+    },
+    {
+      "path": "jax/_src/dtypes.py",
+      "git_blob_sha": "02677588c9e25ad4ca3c81c7ae0ef24f810d8814",
+      "sha256": "7748ff6dbd7ab19595c42fc71c01e3a5246d2490438dd45612cabb3e47814610",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/dtypes.py"
+    },
+    {
+      "path": "jax/_src/lax/lax.py",
+      "git_blob_sha": "c16e4e651b5819b89ee3b19efc067e5ddcb40735",
+      "sha256": "017f9cbce9fb78726431b883ede7310ec91dcc06daebf03ee11384bef24c0c31",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/lax/lax.py"
+    },
+    {
+      "path": "jax/_src/numpy/array_creation.py",
+      "git_blob_sha": "79d80f6b0f2ecfe11bf007851737366dfaf235ea",
+      "sha256": "f20eba396bb33f5ed44a8db6761ada6f8a81142618dfe986d314dfd63349bbac",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/array_creation.py"
+    },
+    {
+      "path": "jax/_src/numpy/lax_numpy.py",
+      "git_blob_sha": "fd8ad9482bf013e07029952c63c14ea11a14b162",
+      "sha256": "4923a8e2e60112c1955b7f3f056cff1062394fb055b7ca17c2d96ed6cb573ee5",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/lax_numpy.py"
+    },
+    {
+      "path": "jax/_src/numpy/util.py",
+      "git_blob_sha": "f7dc2857f0444e8e1ca6dcc9f60c0b9a9fcd5efd",
+      "sha256": "c9e56f32121ebcc748fe87e40c67d3326bd30888712839a2c9f8000c11e00345",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/util.py"
+    },
+    {
+      "path": "tests/lax_numpy_test.py",
+      "git_blob_sha": "866edb840efab324f5029b41213f74ed4b15ce52",
+      "sha256": "be16dbf0acb9a169b83e4d9be9199ffa25a752f9e529f3581c1b0bf15523caf5",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/tests/lax_numpy_test.py"
+    }
+  ],
+  "runtime_executed": false
+}

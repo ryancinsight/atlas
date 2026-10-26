@@ -1,6 +1,6 @@
 # Validation and remaining definition work
 
-Program 2026-10-26.2. Exact candidate identity and current hosted results belong
+Program 2026-10-26.3. Exact candidate identity and current hosted results belong
 in the draft PR; local evidence here describes the authored tree and commands,
 not a final merge/release certification. [Contracts](contracts.md).
 
@@ -8,18 +8,26 @@ not a final merge/release certification. [Contracts](contracts.md).
 
 | Frozen reference | Candidate declarations | Distinct symbol spellings | Extraction state |
 | --- | ---: | ---: | --- |
-| NumPy 2.5.4 | 2,718 | 2,717 | Incomplete: 65 explicit declaration/expansion gaps and further prose/generated scope |
-| JAX 0.12.0.1 | 1,678 | 1,678 | Incomplete: 119 autodoc expansion gaps and further prose/generated scope |
-| PyTorch 2.14.1 | 9,066 | 9,066 | Complete parsing of 2.14 inventory; patch semantics, C++ and companion surfaces unclosed |
-| TensorFlow 2.21.0 + Keras 3.15.1 | 24,589 | 23,379 | Complete parsing of selected source declarations; documentation drift/inheritance/companion scope unclosed |
-| Total | 38,051 | 36,840 | Not a complete public API denominator |
+| NumPy 2.5.4 | 2,741 | 2,740 | Original 65 gap payloads dispositioned; whole generated/public/prose scope remains incomplete |
+| JAX 0.12.0.1 | 1,700 | 1,700 | 90 false-positive gaps resolved; five requested sets still need rendered selection, 24 other cases partial |
+| PyTorch 2.14.1 | 9,066 | 9,066 | Minor header explained by source config; patch/device semantics and broader native/tooling scope remain open |
+| TensorFlow 2.21.0 + Keras 3.15.1 | 24,589 | 23,379 | Source/export/inherited relations retained; generated/public/companion/documentation reconciliation remains open |
+| Total | 38,096 | 36,885 | Not a complete public API denominator |
 
-PyTorch additionally retains 8,944 documentation/label records. Those are
-source evidence for further capability extraction, not automatically API
-obligations. Source-specific inventories retain unstable/private-spelling/
-deprecated/legacy candidates for review. There are **zero reviewed API
-mappings, zero qualification evidence records and no qualified repositories**.
-The 66 family contracts route future work; they do not map these declarations.
+The original four inventory files (38,051 declarations) remain byte-identical.
+The additional 45 source-bound candidates preserve their extraction and member-
+selection obligations. Source-candidate tables also retain missing exports,
+conditional bindings and inherited members; they overlap and are not an additive
+capability count. PyTorch retains 8,944 documentation/label records separately.
+See [the closure slice](reference/closure/README.md) for exact finite dispositions.
+
+Two API contracts, `numpy.ndim` and `numpy.shape`, are independently reviewed
+SOURCE `mapping=specified`. Thirty-six constructor contracts plus `numpy.size`
+remain partial, covering 59 declaration views. Another 38,035 candidate
+identities are unmapped. All 38,094 not-fully-specified identities continue to
+block definition completion. There are zero runtime qualification evidence
+records and no qualified repositories. The 67 family contracts route ownership;
+they do not convert candidate declarations into implemented capabilities.
 
 ## Reproduction
 
@@ -45,7 +53,7 @@ evidence meets all protocol obligations. Both qualification commands correctly
 return 1 for this candidate. External exact-head review evidence is mandatory
 for eventual qualification; a clean tracked tree alone does not qualify.
 
-The focused suite executes **61 tests, zero skips**: 44 gate/traceability tests
+The focused suite executes **71 tests, zero skips**: 54 gate/traceability tests
 and 17 source-extractor tests collected by an import-only wrapper in
 `scripts/tests`. Hosted `pytest scripts/tests` therefore collects the same
 extractor tests without duplicating assertions. Source extractors regenerate
@@ -73,7 +81,7 @@ Local Markdown links added by this program are checked against actual paths.
 An inherited gap-audit link to `repos/metis/docs/adr/0003-framework-conformance.md`
 does not exist at its recorded Metis gitlink; it remains unchanged and is not
 reported as a passing link. Inventory source links retain exact commits except the explicit
-PyTorch minor-version inventory mismatch. Provider audit independently checks
+PyTorch minor-version label; exact source explains that label while the published build revision still needs reconciliation. Provider audit independently checks
 77 immutable source links/line bounds and 13 manifest hashes. No provider
 build/test/performance result is generated or credited by this change.
 
@@ -96,6 +104,11 @@ build/test/performance result is generated or credited by this change.
 - Source manifest membership/aggregates and hosted extractor-test collection
   are enforced; generator reconciliation preserves existing owner holds and
   review pointers.
+- A partial mapping cannot become specified by changing its status or deleting
+  obligations: every mapping binds a hashed source entry and specification
+  requires an explicit positive whole-API source-definition marker.
+- Replay caches bind exact frozen tree identities, and NumPy metadata witnesses
+  are regenerated from cached primary source rather than accepted as seeded JSON.
 
 Independent review of the final committed diff and required hosted CI remain
 mandatory before integration. The draft state is intentional. Existing global
@@ -109,7 +122,7 @@ guide/notebook/prose capability, version/patch mismatch and external namespace
 (C++/extension APIs, Keras inheritance, legacy graph/session and companion
 serving/mobile/browser/tooling). WP-003 must then map every retained public
 identity to canonical operations and explicit framework semantics, dtype/device/
-layout/gradient/domain classes, cases and targets. The nine scope policies now
+layout/gradient/domain classes, cases and targets. The ten recorded scope/behavior policies now
 follow existing user/workspace direction, with rejected alternatives and impact
 recorded; WP-004 still needs concrete provider design contracts and normal ADR
 reviews where architecture changes. No API is removed because it is inconvenient,
@@ -120,5 +133,20 @@ known. The initial 110.4–324 engineer-week allowances and 70–205 week
 unconstrained package-path calculation are neither a total-program bound nor a
 delivery schedule; unknown extraction/semantic/hardware work can increase them.
 The first implementation slice is WP-002's real validator, locally tested and
-awaiting draft-PR integration. The next unowned execution is reference closure,
-not a duplicate of the held Quinn/Apollo/provider repairs.
+awaiting draft-PR integration. Source closure and semantic mapping are active in separately reviewed slices;
+no held Quinn/Apollo/provider repair is duplicated.
+
+## Exact-head CI and bounded source checks
+
+The ordinary-fix commit `f2adbfc67a4e8386e530440c314ee09d88ef6245` passes the
+required [workflow/debt gates](https://github.com/ryancinsight/atlas/actions/runs/40276591640),
+gitlink checks and CodeQL. Separate draft pytest jobs remain skipped, with no
+verification credit. New source/semantic changes require a new exact-head run.
+
+Four cached source-audit pipelines run without importing a framework. Independent
+source checks verify 437 NumPy, 164 JAX, 40 PyTorch and 4,134 TF/Keras file
+identities. NumPy's 11 static/artifact checks, JAX's six source checks, PyTorch's
+four negative mutations and TF's 12 static/analytical checks are source-audit
+evidence only. Replayed source/semantic tables match the captured bytes. These
+checks do not replace reference execution, Atlas implementation tests, native
+hardware qualification or benchmarks.
