@@ -5,7 +5,7 @@ import re
 
 from atlas_parity_dtype_headers import exact_fields
 from atlas_parity_numpy_dtype_capture import REVISION
-from atlas_parity_schema import digest, need, unique
+from atlas_parity_schema import digest, need, source_entry_at, unique
 
 PHASES = [
     ('registered-lookup', 'PyArray_GetCastingImpl', ['if (from == to)', 'if (res != NULL)', 'ensure_castingimpl_exists(from, to)']),
@@ -108,6 +108,9 @@ def validate_sources(receipts, witnesses, catalog, tree, bindings):
     for row in bindings['functions']:
         exact_fields(row, {'id': str, 'source_entry': list, 'source_citation': str, 'path': str, 'signature_source': str,
             'body_sha256': str, 'body_kind': str, 'source_mapping_complete': bool}, 'NumPy typed function binding')
+        selected = source_entry_at(witnesses, row['source_entry'], 'NumPy function source entry')
+        need(row['source_entry'] == ['functions', row['id']] and type(selected) is dict and
+             selected['id'] == row['id'], 'NumPy function source entry/identity drift')
     for row in bindings['registered_resolver_phases']:
         exact_fields(row, {'id': str, 'function_id': str, 'source_citation': str, 'ordered_source_markers': list,
             'runtime_executed': bool, 'scope': str}, 'NumPy typed registered phase')

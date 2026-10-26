@@ -3,7 +3,7 @@ import hashlib
 import json
 
 from atlas_parity_dtype_headers import exact_fields
-from atlas_parity_schema import local_path, need, read_json
+from atlas_parity_schema import fields, local_path, need, read_json, source_selector
 from atlas_parity_tables import unpack
 
 PREFIX = 'dtype-policy/numpy-20261026/'
@@ -31,6 +31,21 @@ def policy_from_table(metadata, table):
     return result
 
 
+def preflight_selectors(joins, bindings, correction):
+    """Reject malformed addresses before lossless source reconstruction; keep all later checks."""
+    for document, groups in ((joins, ('endpoints', 'families', 'cases')), (bindings, ('functions',))):
+        for group in groups:
+            fields(document, {group: list}, 'NumPy source selector collection')
+            for row in document[group]:
+                fields(row, {'source_entry': list}, 'NumPy source selector row')
+                source_selector(row['source_entry'], 'NumPy ' + group + ' source entry')
+    fields(correction, {'correction_entry': list, 'raw_source_contract': dict}, 'NumPy correction source selectors')
+    source_selector(correction['correction_entry'], 'NumPy correction source entry')
+    exact_fields(correction['raw_source_contract'], {'entry': list, 'path': str, 'sha256': str},
+                 'NumPy copied actual mapping source contract')
+    source_selector(correction['raw_source_contract']['entry'], 'NumPy copied actual mapping source entry')
+
+
 def validate_capture(root, index):
     paths, documents = [], {}
     for item in index['artifacts']:
@@ -46,6 +61,7 @@ def validate_capture(root, index):
         key = PREFIX + name
         need(key in documents, 'NumPy native artifact absent: ' + name)
         return documents[key]
+    preflight_selectors(get('joins.json'), get('source-bindings.json'), get('correction-disposition.json'))
     capture, manifest, review = get('capture.json'), get('captured/manifest.json'), get('independent-review.json')
     exact_fields(capture, {'schema_version': int, 'source_manifest_sha256': str,
         'independent_review_sha256': str, 'captured': list, 'full_source_files_vendored': bool,

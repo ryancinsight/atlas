@@ -1,7 +1,7 @@
 """NumPy source families, unrun cases, suppliers and existing API associations."""
 from atlas_parity_dtype import mapping_association, policy_supplier
 from atlas_parity_dtype_headers import exact_fields
-from atlas_parity_schema import need, unique
+from atlas_parity_schema import need, source_entry_at, unique
 
 FAMILY_SUPPLIERS = {'native:argument-and-dispatch': 'INTEROP-DISPATCH',
                     'native:descriptor-coercion': 'NUM-REP',
@@ -105,6 +105,12 @@ def validate_joins(document, policy, cases, witnesses, capabilities, references,
         exact_fields(row, {'reference_id': str, 'symbol': str, 'role': str, 'admission': str, 'source_entry': list,
             'family_ids': list, 'policy_supplier': dict, 'canonical_API_mapping': dict,
             'complete_API_mapping_credit': bool, 'semantic_completion_credit': bool}, 'NumPy endpoint typed role')
+        group = {'primary_entrypoint': 'public_entrypoints',
+                 'supporting_existing_ID': 'supporting_admitted_ids'}.get(row['role'])
+        selected = source_entry_at(policy, row['source_entry'], 'NumPy endpoint source entry')
+        need(group is not None and row['source_entry'] == [group, row['symbol']] and
+             type(selected) is dict and selected['reference_id'] == row['reference_id'],
+             'NumPy endpoint source entry/identity drift')
         policy_supplier(row['policy_supplier'], 'NUM-PROMOTE', capabilities)
         association = row['canonical_API_mapping']
         kinds = {'state': str, 'reference_id': str}
@@ -117,6 +123,7 @@ def validate_joins(document, policy, cases, witnesses, capabilities, references,
              'NumPy endpoint qualification credit forbidden')
     functions = witnesses['functions']
     source_families = unique(policy['families'], 'id', 'NumPy captured family')
+    family_positions = {row['id']: position for position, row in enumerate(policy['families'])}
     need(len(source_families) == len(document['families']) == 10, 'NumPy native family conservation drift')
     for row in document['families']:
         exact_fields(row, {'id': str, 'source_entry': list, 'planned_component': str, 'planned_owner': str,
@@ -125,7 +132,11 @@ def validate_joins(document, policy, cases, witnesses, capabilities, references,
             'related_existing_reference_ids': list,
             'case_ids': list, 'actual_implementation_owner': type(None), 'source_mapping_complete': bool,
             'runtime_cases_executed': int}, 'NumPy family typed source/owner role')
+        need(row['id'] in source_families, 'NumPy family source identity absent')
         original = source_families[row['id']]
+        selected = source_entry_at(policy, row['source_entry'], 'NumPy family source entry')
+        need(row['source_entry'] == ['families', family_positions[row['id']]] and selected is original,
+             'NumPy family source entry/identity drift')
         policy_supplier(row['policy_supplier'], FAMILY_SUPPLIERS.get(row['id'], 'NUM-PROMOTE'), capabilities)
         need(row['planned_owner'] == original['planned_owner'] and
              set(row['source_function_ids']) <= functions.keys() and row['source_function_ids'] and
@@ -139,6 +150,8 @@ def validate_joins(document, policy, cases, witnesses, capabilities, references,
              'NumPy family source-only status drift')
     need(cases['execution_status'] == 'all_unrun' and len(cases['cases']) == len(document['cases']) == 47 and
          len({c['id'] for c in cases['cases']}) == 47, 'NumPy acceptance case count/status drift')
+    source_cases = unique(cases['cases'], 'id', 'NumPy captured case')
+    case_positions = {row['id']: position for position, row in enumerate(cases['cases'])}
     for row in cases['cases']:
         need(row['status'] == 'unrun' and row['reference_evidence'] is None and row['provider_evidence'] is None and
              row['no_runtime_or_semantic_promotion'] is True and row['reference_id'] in endpoints,
@@ -146,6 +159,11 @@ def validate_joins(document, policy, cases, witnesses, capabilities, references,
     for row in document['cases']:
         exact_fields(row, {'id': str, 'source_entry': list, 'reference_id': str, 'related_family_ids': list,
             'source_relation_scope': str, 'runtime_executed': bool}, 'NumPy case typed relation')
+        need(row['id'] in source_cases, 'NumPy case source identity absent')
+        selected = source_entry_at(cases, row['source_entry'], 'NumPy case source entry')
+        need(row['source_entry'] == ['cases', case_positions[row['id']]] and
+             selected is source_cases[row['id']] and selected['reference_id'] == row['reference_id'],
+             'NumPy case source entry/identity drift')
         need(row['related_family_ids'] and row['runtime_executed'] is False,
              'NumPy case source relation absent or runtime credit')
     need(document == expected_joins(policy, cases, witnesses, capabilities, mappings, assigned),
