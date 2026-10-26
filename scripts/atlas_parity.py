@@ -18,6 +18,7 @@ from atlas_parity_references import references
 from atlas_parity_scope import validate_scope
 from atlas_parity_workflows import validate_workflows
 from atlas_parity_core import validate_core_tensor
+from atlas_parity_dtype import validate_dtype_policy
 from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
 from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, finite_number, https,
                                  local_path, need, nonempty, read_json, revision, unique)
@@ -152,6 +153,9 @@ def load(root: Path = DEFAULT) -> dict:
     core_tensor, core_inputs = validate_core_tensor(root, program["files"].get("core_tensor_contracts"),
         program, capabilities, repositories, refs, mappings, assigned, packages)
     extra_inputs.extend(core_inputs)
+    dtype_policy, dtype_inputs = validate_dtype_policy(root, program["files"].get("dtype_policy"),
+                                                      program, capabilities, refs)
+    extra_inputs.extend(dtype_inputs)
     for snapshot in program["reference_snapshots"]:
         if snapshot["semantics_complete"]:
             need(all(identity in specified for identity, row in refs.items()
@@ -174,6 +178,7 @@ def load(root: Path = DEFAULT) -> dict:
               "public_scope": scope,
               "workflows": workflows,
               "core_tensor": core_tensor,
+              "dtype_policy": dtype_policy,
               "repository_evidence": repository_evidence, "qualified_repositories": qualified_repositories}
     if program["definition_complete"]:
         need(not definition_blockers(result), "definition_complete contradicts unresolved obligations")
@@ -244,6 +249,7 @@ def report(bundle: dict) -> dict:
             "public_scope": bundle["public_scope"]["summary"],
             "workflow_designs": bundle["workflows"],
             "core_tensor_designs": bundle["core_tensor"],
+            "dtype_policy_designs": bundle["dtype_policy"],
             "definition_blockers": definition_blockers(bundle)}
 
 

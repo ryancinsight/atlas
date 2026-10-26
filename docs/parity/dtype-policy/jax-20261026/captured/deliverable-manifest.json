@@ -1,0 +1,212 @@
+{
+  "checks": {
+    "framework_cases_executed": 0,
+    "passing": 24,
+    "provider_cases_executed": 0,
+    "skipped": 0
+  },
+  "files": {
+    "CP02-evidence-audit.json": {
+      "bytes": 8072,
+      "sha256": "8c8b7059d49cd78ca2c5599f14ddf205dd6a892a99843982ea732f2b73e00112"
+    },
+    "README.md": {
+      "bytes": 8765,
+      "sha256": "4e781703173d75030c5448685158bf069a726998ddb51fa00ab7640a32bc9f4c"
+    },
+    "acceptance-targets.json": {
+      "bytes": 15359,
+      "sha256": "f013a374837e2469e8d9abb79f232fef2768eb05338204401b7c7630bd959ec8"
+    },
+    "acceptance.py": {
+      "bytes": 8762,
+      "sha256": "501ab36067c84835591f9234378208a1efe538a2fc1b01177707d2a053bd2afd"
+    },
+    "analytical-witnesses.json": {
+      "bytes": 8986,
+      "sha256": "d7286b638eaff131e2753df705524ba7a37fa81d1fbbd4c40ca29406d9b4bf15"
+    },
+    "analytical.py": {
+      "bytes": 3348,
+      "sha256": "e51e3fd6dfe3cdcbd7af5940030030009830bea1dab7593ddafc092cd5676362"
+    },
+    "build.py": {
+      "bytes": 2988,
+      "sha256": "24c3618357b79558ff2373e0a6fd1827267bbd1db157015c715978fb028caa79"
+    },
+    "dtype-catalog.json": {
+      "bytes": 9574,
+      "sha256": "aec353f6a626a1e28bffb7d905f8683e2bf9f532358da9f9a90b19e9f6a0a6f8"
+    },
+    "inputs/CP02.json": {
+      "bytes": 2047,
+      "sha256": "14fbe92aaee06a5d7f6087aecf5e6644e5fe5428ca13bc82dfdacc1deeed7864"
+    },
+    "inputs/admitted-endpoints.json": {
+      "bytes": 49646,
+      "sha256": "7bdfbe86724f96737bcf6b829fb11086700462c65dc219a4472dd48a01b6f9bf"
+    },
+    "inputs/capabilities.json": {
+      "bytes": 15293,
+      "sha256": "2224c8e532b1669116c17511667865e32eba7de02a0a0407bc279c66b0471703"
+    },
+    "inputs/capture.json": {
+      "bytes": 975,
+      "sha256": "60157186ea1af1e5dbc8f2e5c641c30d8b0aa138ac7f28baccab008cb60d7018"
+    },
+    "inputs/jax-reference.json": {
+      "bytes": 798407,
+      "sha256": "ce7362f1540e4d60060768f5177feb34e3e37cb2e645edaaafe91634585d2c34"
+    },
+    "inputs/jax-tree.json": {
+      "bytes": 519755,
+      "sha256": "eac55ea92fd4541193987c4f4f48aa8b65da9d043f4db4543f50a1c8c5e0037d"
+    },
+    "inputs/numpy-reference.json": {
+      "bytes": 1524513,
+      "sha256": "08ad3236974e650b76f33ecac6e80e7be41ae94daf7c6eb9c9a76c6b7c8eb2cd"
+    },
+    "inputs/numpy-tree.json": {
+      "bytes": 594390,
+      "sha256": "3fafe0b89018b61fc289a522ca66ea689a848576ca251a2b90ecb3de8087a49d"
+    },
+    "lattice.py": {
+      "bytes": 10577,
+      "sha256": "e24311916dbe51eddb05156b5fbcf3bafcb2fe309520821bfc22006ea6f16eb4"
+    },
+    "policy-contracts.json": {
+      "bytes": 32044,
+      "sha256": "8e184a22d595eefec86eae86b8909d3c4c0c91393cdd2dc6c6ff4d890995d218"
+    },
+    "policy.py": {
+      "bytes": 19752,
+      "sha256": "fc837c3f1c28c09cf20dea3269280aa114e0d3d732ca176bdd3cd3a841daf31f"
+    },
+    "promotion-graph.json": {
+      "bytes": 2499948,
+      "sha256": "362cee9d8f7eed0953f786bafc72d898fa843162af17def36d21339dfb9db403"
+    },
+    "remaining-gaps.json": {
+      "bytes": 5154,
+      "sha256": "eb58dc6e94d879b31040b1e7ad7defb781d12a4dec7c94e4cc0f04357c99ca9d"
+    },
+    "scope.json": {
+      "bytes": 1274,
+      "sha256": "a3a377ee453765c3fd69e6b364c250d3e0b4ead3c801499097711ce1d480573d"
+    },
+    "source-receipts.json": {
+      "bytes": 31305,
+      "sha256": "4bfc39c137d85a4a18295db13bcfa4bd23e06bc5b0196f91360e8757b8c4a5dd"
+    },
+    "source.py": {
+      "bytes": 3116,
+      "sha256": "4e9b83fe885ed22287534f968ea31ace9c0eb83eaecbdea07983b8d605d4e464"
+    },
+    "sources/jax/docs/101/type_promotion.rst": {
+      "bytes": 14747,
+      "sha256": "aff60457bb0d6c36141d46f705eb317f18ef4155d99f5bde3564179ab797b1b5"
+    },
+    "sources/jax/docs/jep/9407-type-promotion.md": {
+      "bytes": 43503,
+      "sha256": "332c4c554819227563bcf3673492320680df0fcbeac745a741a111af8da7985d"
+    },
+    "sources/jax/jax/_src/api.py": {
+      "bytes": 125707,
+      "sha256": "b44bb1cc87412b4710ed663aca19a7a6a9dc0d21a5bb379e87bb7bc757b03e6b"
+    },
+    "sources/jax/jax/_src/config.py": {
+      "bytes": 89833,
+      "sha256": "59a1d0723ee8ebe6441ab22859e5cb8af1580ab5a4f2bf99a408aa8dc7a585f1"
+    },
+    "sources/jax/jax/_src/core.py": {
+      "bytes": 163318,
+      "sha256": "6f540dccb5e2275d7a38cf448d94ae1a315f29da2de673f29629a4f31152d0b2"
+    },
+    "sources/jax/jax/_src/dtypes.py": {
+      "bytes": 42237,
+      "sha256": "7748ff6dbd7ab19595c42fc71c01e3a5246d2490438dd45612cabb3e47814610"
+    },
+    "sources/jax/jax/_src/lax/lax.py": {
+      "bytes": 427961,
+      "sha256": "017f9cbce9fb78726431b883ede7310ec91dcc06daebf03ee11384bef24c0c31"
+    },
+    "sources/jax/jax/_src/numpy/array_constructors.py": {
+      "bytes": 17528,
+      "sha256": "cc95722a6e8a38ad3f60f349fc7339d49e2d4f9d6a5cc0c7c42f45fa683a032f"
+    },
+    "sources/jax/jax/_src/numpy/lax_numpy.py": {
+      "bytes": 338153,
+      "sha256": "4923a8e2e60112c1955b7f3f056cff1062394fb055b7ca17c2d96ed6cb573ee5"
+    },
+    "sources/jax/jax/_src/numpy/scalar_types.py": {
+      "bytes": 4040,
+      "sha256": "5a3943813c26b6cb0059a8b7123776b339df72ebad30a4b4eeca8b08d3f1d80f"
+    },
+    "sources/jax/jax/_src/numpy/util.py": {
+      "bytes": 17707,
+      "sha256": "c9e56f32121ebcc748fe87e40c67d3326bd30888712839a2c9f8000c11e00345"
+    },
+    "sources/jax/jax/dtypes.py": {
+      "bytes": 1270,
+      "sha256": "56e66e6e3a19d9d2fe6cd36d76fb86f9e342b6535daa553381c012f810b138fc"
+    },
+    "sources/jax/jax/numpy/__init__.py": {
+      "bytes": 12533,
+      "sha256": "159f9fdb2b7176d2b6b6696c2ec449818a1728b8ab95161fa6af021d9531d52c"
+    },
+    "sources/jax/jax/typing.py": {
+      "bytes": 3319,
+      "sha256": "ce28ccb0b5b314eaa7faef3ffc36c6c7123b3328de3f1a54c14e67144fcfefc6"
+    },
+    "sources/jax/jax/version.py": {
+      "bytes": 6795,
+      "sha256": "cb251da83cc1fd6dbb5a8bffe7d0c516a21700fe3099662d402828aac25ef5c6"
+    },
+    "sources/jax/setup.py": {
+      "bytes": 5297,
+      "sha256": "44c56443444b9de094d693536799bd9be6b07dff9a15330872cd1c031853f62e"
+    },
+    "sources/numpy/numpy/_core/multiarray.py": {
+      "bytes": 56885,
+      "sha256": "afd14181b927aa10800a0c5dab5f456f52e219726847dbef379e313419029d49"
+    },
+    "validate.py": {
+      "bytes": 7255,
+      "sha256": "9abc382156acdfd6b0ac5845f156014559309f0a514f1014c966137d81e13afe"
+    },
+    "verification.json": {
+      "bytes": 2689,
+      "sha256": "89be708fbd93f74235202513f965c86e8d5be22045bd5c5e75ccff92abd6fb9b"
+    },
+    "verify.py": {
+      "bytes": 12152,
+      "sha256": "bcfc86be3f15f031300c2179237d37bf1c59257197c4cec4250c7068a9f494fe"
+    }
+  },
+  "independent_exact_packet_review": "pending_parent_integration_review",
+  "network_framework_import_build_or_PR_actions": 0,
+  "public_semantic_inventory_or_runtime_closure": false,
+  "purpose": "bounded_JAX_native_promotion_casting_policy_source_definition",
+  "reference_source_revision": "dc4af684446e65ee98eee8090e1ff6f8211473fb",
+  "reproduction_commands": [
+    "python3 build.py",
+    "python3 verify.py",
+    "python3 validate.py"
+  ],
+  "schema_version": 1,
+  "scope_counts": {
+    "acceptance_targets": 18,
+    "admitted_existing_endpoint_links": 9,
+    "conditional_profiles": 4,
+    "constructible_profiles": 2,
+    "graphs": 8,
+    "ordered_binary_source_symbol_pairs": 9256,
+    "ordinary_CP02_evidence_gaps": 8,
+    "rules": 18,
+    "selected_source_files": 17,
+    "source_citations": 63,
+    "true_user_decisions_identified_now": 0
+  },
+  "source_core_manifest_sha256": "7c169acfcb711c3714701f6fde84fea2fe14508c30d3d8148b7e2aca1cee1ea0",
+  "version": "0.12.0.1"
+}

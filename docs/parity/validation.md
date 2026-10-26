@@ -1,6 +1,6 @@
 # Validation and remaining definition work
 
-Program 2026-10-26.6. Exact candidate identity and current hosted results belong
+Program 2026-10-26.8. Exact candidate identity and current hosted results belong
 in the draft PR; local evidence here describes the authored tree and commands,
 not a final merge/release certification. [Contracts](contracts.md).
 
@@ -248,3 +248,32 @@ Workflow integration preserves the entire reviewed da03 tree. Core integration
 against main de9d428d also preserves the saved510410f2 tree before this status
 receipt update. Fresh exact-head core review/hosted gates remain mandatory; no
 whole-program qualification follows from the completed planning deliveries.
+
+## Frozen JAX dtype policy increment
+
+The [versioned policy](dtype-policy/README.md) losslessly captures reviewed packet
+`72206a73` and review `364896a2`, preserving nine IDs, all 9,256 finite source-symbol
+pairs, 18 unrun targets, ten wider gaps and eight ordinary CP02 evidence gaps.
+The raw workflow record stays immutable; the derived disposition requests evidence,
+not user scope reduction. Exact source/review pins, graph edges/joins/guards,
+owner/prerequisite/API/case/source links and false-stage-credit rejection are
+inputs to the actual checker/report and committed-input gate. Source-only
+checks grant no API/runtime/backend/performance/release qualification.
+
+Run `PYTHONPATH=scripts python3 -m unittest scripts/tests/test_parity_dtype.py -v`
+for the bounded adversarial suite. Canonical validation uses portable exact span
+bytes and signatures; original interpreter-specific AST-render hashes remain
+immutable captured provenance. The original packet replay is recorded separately
+and imports no numerical framework. No full third-party sources are vendored.
+
+Core prerequisite #574 merges exact head `11406055` as `f642337d` after parent-verified
+fast/slow40339245066, CodeQL40339117660 and conformance40339121408 passes and
+mandatory exact-head review (139 tests, zero skips). The new local dtype candidate
+requires separate final-head review and hosted checks before external delivery.
+
+The authored dtype tree passes 155 parity tests with zero skips, including 16
+new dtype conservation/adversarial methods. The checker/report, 19 added canonical
+local links, board index and artifact budget pass. Expanded backlog remains1,000
+lines and gap audit333; board lint retains advisory historical stale-item,
+commit-reference and live-mention reports. No framework/provider or hardware test
+is credited by these source checks.

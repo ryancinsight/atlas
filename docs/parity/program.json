@@ -11,6 +11,7 @@
     "capabilities": "capabilities.json",
     "core_tensor_contracts": "core-tensor/index.json",
     "decisions": "decisions.json",
+    "dtype_policy": "dtype-policy/jax-20261026/index.json",
     "evidence": "evidence.json",
     "mappings": "mappings.json",
     "provider_evidence": "provider-evidence.json",
@@ -33,7 +34,7 @@
   "objective": "Full documented NumPy/JAX/PyTorch/TensorFlow functional equivalence under Atlas first-party native generic provider architecture.",
   "observed_at": "2026-10-26",
   "open_decisions": [],
-  "program_version": "2026-10-26.7",
+  "program_version": "2026-10-26.8",
   "protected_ownership": [
     {
       "owner_task": "01a159ec-7017-7725-a554-194472dc20dc",

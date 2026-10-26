@@ -46,6 +46,37 @@
     "qualification_credit": "Planning/tooling delivery only; not full definition or1.0 qualification",
     "reviewed_head": "7a1f96b1aca40131add614cc6ce835f69481bb06"
   },
+  "atlas_planning_delivery_574": {
+    "actual_required_runs": {
+      "codeql": 40339117660,
+      "conformance": 40339121408,
+      "fast_slow": 40339245066
+    },
+    "exact_head": "11406055bc424500c98fb37b2e59456696a9f87b",
+    "mandatory_exact_head_review": {
+      "expanded_board_lines": 1000,
+      "local_links": 43,
+      "skipped": 0,
+      "source": "/tmp/atlas-core-tensor-independent-review/FINAL_REVIEW_11406055.json",
+      "tests_passed": 139
+    },
+    "merge_commit": "f642337d67a7853e9c81a2f6fb07cd45a5691d83",
+    "merged_at": "2026-10-26T14:33:57Z",
+    "no_full_definition_runtime_or_release_credit": true,
+    "parent_observed_policy": {
+      "admin_bypass": false,
+      "copilot_review_only": true,
+      "hooks": [],
+      "pages": false,
+      "premerge_main": "de9d428d41b26a0876a3e76a4a6984bd0ad2ef65",
+      "required_check_observation": "Parent reports rules2requiredchecks bothsuccess"
+    },
+    "provenance": "Trusted parent delivery handoff; this dtype lane performs no network/auth/protection probe",
+    "pull_request": "https://github.com/ryancinsight/atlas/pull/574",
+    "required_runs_result": "success",
+    "saved_snapshot_preserved": "510410f20cce546ea9a1ba8e79669540e9821a00",
+    "state": "verified_merged"
+  },
   "atlas_public_scope_delivery_20261026": {
     "branch": "docs/parity-public-contracts-20261026",
     "ci": "Actual ready-state fast/slow pytest, all CodeQL languages and conformance pass at exact f09; three post-merge runs pass. Historical draft-skipped tests grant no credit. Tooling/source delivery is not framework/provider execution.",
@@ -184,6 +215,7 @@
     "integration_tree_identical_to_saved_snapshot": true,
     "new_status_successor_delivery_pending": true,
     "no_full_definition_runtime_or_release_credit": true,
+    "status_interpretation": "Historical saved-snapshot fields retained; current completed delivery is atlas_planning_delivery_574.",
     "verified_pushed_snapshot": "510410f20cce546ea9a1ba8e79669540e9821a00"
   },
   "gammaln_implementation_owner_20261026": {

@@ -100,5 +100,13 @@ It is merged at `de9d428d` after121 zero-skip focused tests, independent review
 and actual hosted gates. The [provider ledger](../provider-evidence.json) retains
 exact heads, merge commits, source reviews and run IDs. Those planning deliveries
 do not qualify framework execution, full definition or1.0. The core snapshot
-`510410f2` is saved and independently reviewed; final integration/status changes
-require their own exact-head review and applicable hosted gates.
+`510410f2` remains saved and independently reviewed. The final prerequisite
+[PR#574](https://github.com/ryancinsight/atlas/pull/574), exact head
+`11406055bc424500c98fb37b2e59456696a9f87b`, merges as
+`f642337d67a7853e9c81a2f6fb07cd45a5691d83` at 2026-10-26T14:33:57Z.
+Parent-verified fast/slow run40339245066, CodeQL40339117660 and
+conformance40339121408 pass, with mandatory exact-head review (139 tests,
+zero skips; 43 links; expanded board1,000). This delivered planning prerequisite
+does not qualify framework execution, the native cohort, full definition or1.0.
+The [dtype policy follow-up](../dtype-policy/README.md) has its own exact-head
+review/delivery boundary.

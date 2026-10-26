@@ -1,0 +1,252 @@
+{
+  "CP02_gaps": [
+    {
+      "classification": "artifact_evidence_gap",
+      "id": "CP02-E01",
+      "outcome": "unresolved_evidence_not_a_denied_action",
+      "owner": "atlas",
+      "required_action": "Select coherent matching0.12.0.1 candidate; capture wheel/source hash, build suffix, ABI, _jax valid-dtype registration and full native dependency graph; source range is not selected binary evidence.",
+      "target": "jaxlib",
+      "user_decision_required_now": false
+    },
+    {
+      "classification": "artifact_evidence_gap",
+      "id": "CP02-E02",
+      "outcome": "unresolved_evidence_not_a_denied_action",
+      "owner": "atlas",
+      "required_action": "Select exact coherent artifact/version/hash and prove every unconditional symbol plus both/none int1/uint1 profile; capture dtype registration, finfo/iinfo, layouts/rounding/encoding and supported kernels separately.",
+      "target": "ml_dtypes",
+      "user_decision_required_now": false
+    },
+    {
+      "classification": "artifact_evidence_gap",
+      "id": "CP02-E03",
+      "outcome": "unresolved_evidence_not_a_denied_action",
+      "owner": "atlas",
+      "required_action": "Retain frozen NumPy2.5.4 comparator; capture actual selected JAX-oracle companion wheel/source/hash and metadata compatibility. Bind np.dtype/can_cast/asarray/astype/issubdtype/result_type behavior, byte order and platform-native scalar types. Do not infer exact artifact from >=2.2.",
+      "target": "NumPy",
+      "user_decision_required_now": false
+    },
+    {
+      "classification": "artifact_evidence_gap",
+      "id": "CP02-E04",
+      "outcome": "unresolved_evidence_not_a_denied_action",
+      "owner": "atlas",
+      "required_action": "Resolve exact latest coherent versions, immutable artifacts, public/interoperability scope and actual workflow compatibility; source minima/unbounded dependency is not installed evidence.",
+      "target": "SciPy/opt_einsum",
+      "user_decision_required_now": false
+    },
+    {
+      "classification": "environment_evidence_gap",
+      "id": "CP02-E05",
+      "outcome": "unresolved_evidence_not_a_denied_action",
+      "owner": "atlas",
+      "required_action": "Materialize Python exact version/ABI, optimization/assertion flags, OS/architecture, byte order, CPU ISA, libc/toolchain, wheel tags and build options for each supported target; Python>=3.12 is a range.",
+      "target": "Python/platform",
+      "user_decision_required_now": false
+    },
+    {
+      "classification": "configuration_evidence_gap",
+      "id": "CP02-E06",
+      "outcome": "unresolved_evidence_not_a_denied_action",
+      "owner": "atlas",
+      "required_action": "Record enable_x64, explicit_x64_dtypes WARN/ERROR/ALLOW, numpy_dtype_promotion STANDARD/STRICT, context/thread/trace/JIT-key state and registered weak/preserved scalar types; report warnings/errors as outputs.",
+      "target": "JAX dtype state",
+      "user_decision_required_now": false
+    },
+    {
+      "classification": "compatibility_evidence_gap",
+      "id": "CP02-E07",
+      "outcome": "unresolved_evidence_not_a_denied_action",
+      "owner": "atlas",
+      "required_action": "Run concrete WF01/WF04 plus WF02 dtype/AD compositions at exact selected artifacts; device extensions/hardware remain CP03/CP04 obligations. No unsupported kernel or CPU fallback counts as parity.",
+      "target": "workflow/AD/device",
+      "user_decision_required_now": false
+    },
+    {
+      "classification": "scope_inventory_gap",
+      "id": "CP02-E08",
+      "outcome": "unresolved_evidence_not_a_denied_action",
+      "owner": "atlas",
+      "required_action": "Enumerate full companion scope versus explicitly modeled interoperability obligations under existing full-parity direction; do not silently exclude source-exposed dtype/extension behavior.",
+      "target": "companion public capabilities",
+      "user_decision_required_now": false
+    }
+  ],
+  "analytical_scope": "Exact integer2^24+1/binary32 spacing and finite graph algebra only; no executed cast, importability, compatibility, hardware, performance, release or whole API claim.",
+  "blocking_findings": [],
+  "checks": {
+    "all_manifest_files_remain_identical": 44,
+    "checks_skipped": 0,
+    "conditional_profiles": 4,
+    "constructible_graph_config_views": 8,
+    "existing_reference_IDs": 9,
+    "framework_provider_runtime_credit": 0,
+    "generated_outputs_replayed_byte_identical": 9,
+    "ordered_source_symbol_pairs_independently_proved": 9256,
+    "ordinary_CP02_evidence_gaps": 8,
+    "original_and_protected_packets_unchanged": true,
+    "primary_source_function_signatures_and_AST_hashes": 17,
+    "sealed_manifest_files": 44,
+    "source_checks_passed": 24,
+    "source_files": 17,
+    "source_policy_clauses": 18,
+    "source_spans": 63,
+    "unrun_acceptance_targets": 18,
+    "wider_open_gaps": 10
+  },
+  "one_sided_static_proofs": [
+    {
+      "after_assert_removed": "unpack arity mismatch still rejects; static source proof, no JAX import",
+      "assert_enabled_first_error": "ValueError",
+      "int_type_values": 13,
+      "profile": "int1_0_uint1_1",
+      "source_unpack_targets": 12
+    },
+    {
+      "after_assert_removed": "unpack arity mismatch still rejects; static source proof, no JAX import",
+      "assert_enabled_first_error": "AssertionError",
+      "int_type_values": 13,
+      "profile": "int1_1_uint1_0",
+      "source_unpack_targets": 14
+    }
+  ],
+  "prohibited_actions": {
+    "canonical_provider_changes": 0,
+    "framework_imports_builds": 0,
+    "network_auth_protection_PR": 0,
+    "original_packet_changes": 0
+  },
+  "remaining_gaps": [
+    {
+      "id": "JPG01",
+      "related_contracts": "JP01/JP06/JP07",
+      "required_action": "Finite source-symbol LUBs are complete only for the extracted graph; expand each public API representation/error/type domain and final NumPy dtype realization.",
+      "scope_reduction": false,
+      "state": "unresolved_definition_or_execution_evidence",
+      "topic": "API-legality matrix",
+      "user_decision_required_now": false
+    },
+    {
+      "id": "JPG02",
+      "related_contracts": "CP02-E01..E08",
+      "required_action": "Resolve exact selected artifacts, native libraries, platforms and all configuration receipts; no stable version inferred from a source minimum.",
+      "scope_reduction": false,
+      "state": "unresolved_definition_or_execution_evidence",
+      "topic": "Companion artifact matrix",
+      "user_decision_required_now": false
+    },
+    {
+      "id": "JPG03",
+      "related_contracts": "JP13",
+      "required_action": "Prove actual format symbols, coherent optional attribute profiles and dtype registry/finfo/iinfo; native device support and unsupported-error behavior remain distinct.",
+      "scope_reduction": false,
+      "state": "unresolved_definition_or_execution_evidence",
+      "topic": "Conditional formats and native kernels",
+      "user_decision_required_now": false
+    },
+    {
+      "id": "JPG04",
+      "related_contracts": "JP12/JP18",
+      "required_action": "Enumerate protocol-level constraints plus source-selected extended/PRNG/custom type implementations; arbitrary custom registration is an open domain, not a finite graph omission.",
+      "scope_reduction": false,
+      "state": "unresolved_definition_or_execution_evidence",
+      "topic": "Extended/custom dtype protocol",
+      "user_decision_required_now": false
+    },
+    {
+      "id": "JPG05",
+      "related_contracts": "JP02/JP05/JP09/JP10",
+      "required_action": "Materialize Python/NumPy/JAX scalar class/value, dtype object/string, array/protocol and registered weak/preserved types, including ranges and coercion side effects.",
+      "scope_reduction": false,
+      "state": "unresolved_definition_or_execution_evidence",
+      "topic": "Representation and scalar registrations",
+      "user_decision_required_now": false
+    },
+    {
+      "id": "JPG06",
+      "related_contracts": "JP04/JP07",
+      "required_action": "Bind thread/context, trace/JIT cache keys, explicit-X64 modes and distributed agreement to selected versions; no runtime or concurrency evidence exists in this packet.",
+      "scope_reduction": false,
+      "state": "unresolved_definition_or_execution_evidence",
+      "topic": "Scoped configuration and compiled execution",
+      "user_decision_required_now": false
+    },
+    {
+      "id": "JPG07",
+      "related_contracts": "JP08",
+      "required_action": "Python can_cast is a dispatcher/alias. Trace exact selected NumPy native implementation, custom dtype/casting methods and five casting modes; do not substitute JAX safe_to_cast.",
+      "scope_reduction": false,
+      "state": "unresolved_definition_or_execution_evidence",
+      "topic": "Companion native casting predicate",
+      "user_decision_required_now": false
+    },
+    {
+      "id": "JPG08",
+      "related_contracts": "JP14/JP15",
+      "required_action": "Complete transitive versioned deprecation registry, StableHLO/backend conversion semantics, rounding/NaN/Inf/subnormal/overflow/complex and representation conversion domains.",
+      "scope_reduction": false,
+      "state": "unresolved_definition_or_execution_evidence",
+      "topic": "Numeric conversion and deprecation policy",
+      "user_decision_required_now": false
+    },
+    {
+      "id": "JPG09",
+      "related_contracts": "JP16/JP17/JP18",
+      "required_action": "Complete per-dtype forward/reverse/higher, complex, vmap/JIT order, symbolic-zero/float0, extended tangent and Ref accumulation tests without treating promotion as AD.",
+      "scope_reduction": false,
+      "state": "unresolved_definition_or_execution_evidence",
+      "topic": "AD and effect compositions",
+      "user_decision_required_now": false
+    },
+    {
+      "id": "JPG10",
+      "related_contracts": "NUM-PROMOTE",
+      "required_action": "Materialize real supported ISA/device/layout/sharding domains, analytical numerical bounds, synchronization/memory benchmarks and exact-revision release evidence; no hidden fallback or unsupported exclusion.",
+      "scope_reduction": false,
+      "state": "unresolved_definition_or_execution_evidence",
+      "topic": "Layout/device/performance/release",
+      "user_decision_required_now": false
+    }
+  ],
+  "result": "accept_bounded_source_dtype_policy_definition",
+  "reviewed_manifest_sha256": "72206a73ecad553b819b42af2f45fc35efcdf4b6a3dea45de86e96af9fc3befe",
+  "reviewer": "provider_evidence_audit",
+  "runs": [
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/tmp/atlas-jax-promotion-policy-independent-review/replay/build.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "{'acceptance_targets': 18, 'admitted_existing_endpoint_links': 9, 'conditional_profiles': 4, 'constructible_profiles': 2, 'graphs': 8, 'ordered_binary_source_symbol_pairs': 9256, 'ordinary_CP02_evidence_gaps': 8, 'rules': 18, 'selected_source_files': 17, 'source_citations': 63, 'true_user_decisions_identified_now': 0}\n"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/tmp/atlas-jax-promotion-policy-independent-review/replay/verify.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "test_AD_dtype_contracts_do_not_use_LUB (__main__.Verify.test_AD_dtype_contracts_do_not_use_LUB) ... ok\ntest_CP02_constraints_match_cached_setup_and_version (__main__.Verify.test_CP02_constraints_match_cached_setup_and_version) ... ok\ntest_CP02_is_evidence_gap_without_scope_reduction (__main__.Verify.test_CP02_is_evidence_gap_without_scope_reduction) ... ok\ntest_both_or_neither_one_bit_and_assertion_qualification (__main__.Verify.test_both_or_neither_one_bit_and_assertion_qualification) ... ok\ntest_cache_only_byte_identical_replay (__main__.Verify.test_cache_only_byte_identical_replay) ... ok\ntest_can_cast_alias_and_safe_to_cast_expression_differ (__main__.Verify.test_can_cast_alias_and_safe_to_cast_expression_differ) ... ok\ntest_canonical_map_is_exact_four_pairs (__main__.Verify.test_canonical_map_is_exact_four_pairs) ... ok\ntest_categories_are_not_native_valid_or_graph_sets (__main__.Verify.test_categories_are_not_native_valid_or_graph_sets) ... ok\ntest_companion_attributes_not_inferred_from_minimum_version (__main__.Verify.test_companion_attributes_not_inferred_from_minimum_version) ... ok\ntest_full_packet_and_existing_owner_traceability (__main__.Verify.test_full_packet_and_existing_owner_traceability) ... ok\ntest_graph_safe_cast_is_not_all_values_exact (__main__.Verify.test_graph_safe_cast_is_not_all_values_exact) ... ok\ntest_independent_bitset_oracle_all_source_symbol_pairs (__main__.Verify.test_independent_bitset_oracle_all_source_symbol_pairs) ... ok\ntest_no_framework_imports_or_dynamic_source_execution (__main__.Verify.test_no_framework_imports_or_dynamic_source_execution) ... ok\ntest_preformed_x64_and_explicit_mode_are_separate_ast_branches (__main__.Verify.test_preformed_x64_and_explicit_mode_are_separate_ast_branches) ... ok\ntest_reject_cycle (__main__.Verify.test_reject_cycle) ... ok\ntest_reject_missing_conditional_profile (__main__.Verify.test_reject_missing_conditional_profile) ... ok\ntest_reject_missing_pair (__main__.Verify.test_reject_missing_pair) ... ok\ntest_reject_tampered_source_span (__main__.Verify.test_reject_tampered_source_span) ... ok\ntest_reject_wrong_lub (__main__.Verify.test_reject_wrong_lub) ... ok\ntest_result_type_overloads_and_private_helper_are_not_new_ids (__main__.Verify.test_result_type_overloads_and_private_helper_are_not_new_ids) ... ok\ntest_scalar_signed_boundaries_exact_arithmetic (__main__.Verify.test_scalar_signed_boundaries_exact_arithmetic) ... ok\ntest_strict_config_views_equal_and_no_different_strong_join (__main__.Verify.test_strict_config_views_equal_and_no_different_strong_join) ... ok\ntest_twenty_two_independent_expected_joins (__main__.Verify.test_twenty_two_independent_expected_joins) ... ok\ntest_x64_graph_delta_is_uint32_edge_only (__main__.Verify.test_x64_graph_delta_is_uint32_edge_only) ... ok\n\n----------------------------------------------------------------------\nRan 24 tests in 1.769s\n\nOK\n\n{'graphs': 8, 'analytical_source_symbol_pairs': 9256, 'rules': 18, 'source_blobs': 17, 'source_spans': 63, 'existing_identity_links': 9, 'framework_cases_executed': 0}\n"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/tmp/atlas-jax-promotion-policy-independent-review/replay/validate.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "{'graphs': 8, 'analytical_source_symbol_pairs': 9256, 'rules': 18, 'source_blobs': 17, 'source_spans': 63, 'existing_identity_links': 9, 'framework_cases_executed': 0}\n"
+    }
+  ],
+  "schema_version": 1,
+  "source_conclusions": [
+    "Both/neither optional int1/uint1 profiles are source alternatives, not observed companion artifacts; one-sided profiles fail assertion/unpack paths.",
+    "All9256 entries are symbolic DAG results. Final np.dtype realization, registry equality, API legality and device kernels remain unverified.",
+    "Public result_type weak/default/canonical/explicit/preserved branches, promote_types graph policy and np.can_cast alias are distinct; internal safe_to_cast is not an alias or universal exact-value predicate.",
+    "float0/StringDType and extended/custom/PRNG/PrimalTangentDType domains remain explicit beyond finite graph membership; tangent rules do not use numeric LUB.",
+    "CP02 evidence_required disposition is supported by missing ordinary pins/compatibility receipts. No genuine user decision, scope reduction or runtime architecture exception follows from absent evidence."
+  ]
+}

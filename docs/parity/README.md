@@ -1,6 +1,6 @@
 # Four-framework functional parity program
 
-Program revision: **2026-10-26.7**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
+Program revision: **2026-10-26.8**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
 
 This is the canonical Atlas program for the October 26 instruction to complete
 Coeus and its providers to full NumPy, JAX, PyTorch and TensorFlow functional
@@ -15,6 +15,7 @@ bounded-scope completion claims do not establish this program's completion.
 | [Reference inventories](reference/) and [source closure](reference/closure/README.md) | Extracted public API identities, source versions, hashes and extraction gaps |
 | [Public surface and reusable contracts](reference/public-scope/README.md) | Conserved declarations, source publicness/views, signature links and planned provider routes |
 | [Core tensor semantics](core-tensor/README.md) | Source-backed shape/dtype/layout/alias/effect/AD contracts and bounded acceptance packages |
+| [JAX promotion policy](dtype-policy/README.md) | Lossless finite source graph, policy/case/owner joins and derived CP02 evidence gaps |
 | [End-to-end workflows](workflows/README.md) | Source-backed acceptance programs, export profiles, analytical witnesses and unresolved companion obligations |
 | [Capability contracts](capabilities.json) | Single accountable owner, provider prerequisites, semantics, tests and qualification obligations |
 | [Contracts and evidence protocol](contracts.md) | Coverage axes, evidence states, equivalence and rejection rules |
@@ -55,8 +56,9 @@ implementation ownership and complete semantic mapping.
 The workflow slice adds 24 partial acceptance families, 58 unrun scenarios and
 29 export profiles. Fourteen mathematical witnesses have independent exact
 checks; they grant no framework execution credit. All 30 companion pin/scope
-decisions and concrete provider ADR approvals remain open. Existing native
-generic policies resolve architectural direction without dropping capabilities
+records and concrete provider ADR approvals remain open. CP02's derived
+evidence-required disposition preserves its raw captured decision label.
+Existing native generic policies resolve architectural direction without dropping capabilities
 or authorizing a foreign production runtime.
 
 The [bounded source dispositions](reference/closure/dispositions.md) preserve
@@ -66,3 +68,8 @@ acceptance cases without excluding candidates or granting execution credit.
 The selected first implementation slice is the Atlas traceability/evidence
 validator (WP-002). It enforces this distinction with rejection tests. Provider
 repairs remain with their existing owners; no protected branch is modified.
+
+The dtype-policy slice retains eight source graph/config views, 9,256 symbolic
+pairs, 18 source clauses and 18 unrun targets. These refine nine existing IDs
+without changing mapping stages. Ten wider gaps and eight ordinary CP02 evidence
+gaps remain; no runtime/backend or whole dtype-legality claim follows.
