@@ -83,6 +83,12 @@ and numeric policy suppliers remain separate; no mapping stage changes. Full
 descriptor/callback/payload/ABI/device/AD/performance qualification remains open,
 including the temporal 2001ms-to-2s integer-quotient source question.
 
+The repaired Torch native dtype supplement preserves ten existing ID contracts,
+45 source receipts / 88 spans, 47 native enum identities, 196 core cells and
+2,209 ordered pairs each for promotion and cast permission. All 66 framework
+cases and 14 gaps remain unqualified. Actual canonical API associations are
+separate from the proposed Coeus facade and Eunomia policy supplier.
+
 The accepted public-surface evidence slice preserves all 498 unresolved IDs and
 all existing mapping stages. TF's six internal-base proposals, five required
 protocol views, one namespace and 480 unresolved rows remain proposals/evidence.

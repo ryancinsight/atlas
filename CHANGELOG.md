@@ -8,6 +8,15 @@
   required functionality, mapping stages and runtime/release credit are unchanged;
   no public-scope admission exemptions or package version changes.
 
+- Add repaired Torch native dtype source definitions to parity program
+  2026-10-26.10, with lossless finite tables, typed source/owner/status guards
+  and input-sensitive complex/gradient analytical controls. All 66 framework
+  cases and 14 wider gaps remain open; prior framework captures stay unchanged.
+  Merge the NumPy selector repair and use its shared typed resolver for Torch
+  source-row identity checks without retaining a local compatibility alias.
+  Reject weakened conditional evidence/gap obligations and normalize malformed
+  scalar-access errors after independent canonical review; preserve source bytes.
+
 - Add the accepted NumPy native dtype source supplement to parity program
   2026-10-26.9 with lossless source capture, independently reconstructed symbolic
   relations, exact source/role guards and 47 unrun targets. Preserve JAX history,

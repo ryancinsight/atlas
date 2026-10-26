@@ -1,10 +1,83 @@
 """Storage transformations must conserve values and distinguish absent/null."""
 
 import copy
+import enum
+import sys
 import unittest
 
 from atlas_parity_schema import ParityError
-from atlas_parity_tables import pack, record_index, unpack
+from atlas_parity_tables import _value_key, canonical, pack, record_index, unpack
+
+
+class DisplayInt(int):
+    def __repr__(self):
+        return "display is not JSON"
+
+    def __int__(self):
+        return 999
+
+
+class DisplayString(str):
+    def __str__(self):
+        return "display is not JSON"
+
+
+class DisplayList(list):
+    def __repr__(self):
+        return "display is not JSON"
+
+
+class DisplayFloat(float):
+    def __repr__(self):
+        return "display is not JSON"
+
+
+class Number(enum.IntEnum):
+    ONE = 1
+
+
+class String(enum.StrEnum):
+    ONE = "one"
+
+
+class ObjectAsInt:
+    @property
+    def __class__(self):
+        return int
+
+
+class IntAsString(int):
+    @property
+    def __class__(self):
+        return str
+
+
+class FloatAsString(float):
+    @property
+    def __class__(self):
+        return str
+
+
+def slow_pack(records):
+    """Original canonical-JSON deduplication oracle, without the scalar path."""
+    columns = sorted(set().union(*(row.keys() for row in records)))
+    tables = {column: [] for column in columns}
+    indexes = {column: {} for column in columns}
+    rows = []
+    for record in records:
+        row = []
+        for column in columns:
+            if column not in record:
+                row.append(-1)
+                continue
+            key = canonical(record[column])
+            if key not in indexes[column]:
+                indexes[column][key] = len(tables[column])
+                tables[column].append(record[column])
+            row.append(indexes[column][key])
+        rows.append(row)
+    return {"format": "atlas-column-table-v1", "metadata": {},
+            "columns": columns, "tables": tables, "rows": rows}
 
 
 class TablesTests(unittest.TestCase):
@@ -51,6 +124,60 @@ class TablesTests(unittest.TestCase):
     def test_nonfinite_json_rejected(self):
         with self.assertRaisesRegex(ParityError, "finite JSON"):
             pack([{"id": float("nan")}])
+
+    def test_scalar_keys_match_original_json_equivalence(self):
+        # Each pair is challenged against the original canonical serializer,
+        # including values whose Python == relation is less discriminating.
+        values = [None, False, True, 0, 1, -1, 10 ** 1000, 0.0, -0.0, 1.0,
+                  1e300, "", "0", "true", "one", "\\n", "\n", "\"\\",
+                  "λ", "\ud800", "\udc00", "\ud83d\ude00", "\U0001f600",
+                  DisplayInt(1), Number.ONE, DisplayString("one"), String.ONE,
+                  DisplayFloat(1.0), DisplayList([1, False]),
+                  [], (), {}, [1, False], (1, False), {"x": [None, "λ"]},
+                  {"x": (None, "λ")}, {"b": 1, "a": True}, {"a": True, "b": 1}]
+        for left in values:
+            for right in values:
+                with self.subTest(left=ascii(left), right=ascii(right)):
+                    self.assertEqual(canonical(left) == canonical(right),
+                                     _value_key(left) == _value_key(right))
+        records = [{"value": value} for value in values] + [{}, {"value": None}]
+        self.assertEqual(canonical(pack(records)), canonical(slow_pack(records)))
+        self.assertEqual(canonical(unpack(pack(records))), canonical(records))
+
+    def test_mixed_builtin_and_fallback_duplicates_rejected(self):
+        for left, right in [(DisplayInt(1), 1), (Number.ONE, 1),
+                            (DisplayString("one"), "one"), (String.ONE, "one"),
+                            ([1, False], (1, False))]:
+            table = pack([{"value": left}])
+            table["tables"]["value"].append(right)
+            with self.assertRaisesRegex(ParityError, "duplicate table values"):
+                unpack(table)
+
+    def test_scalar_path_preserves_invalid_json_rejection(self):
+        for value in [float("nan"), float("inf"), -float("inf"), object(),
+                      {"nested": float("nan")}]:
+            with self.assertRaisesRegex(ParityError, "finite JSON"):
+                _value_key(value)
+        limit = sys.get_int_max_str_digits()
+        if limit:
+            too_large = 10 ** limit
+            with self.assertRaisesRegex(ParityError, "finite JSON"):
+                canonical(too_large)
+            with self.assertRaisesRegex(ParityError, "finite JSON"):
+                _value_key(too_large)
+
+    def test_class_spoofing_preserves_original_typed_error_boundary(self):
+        for value in [ObjectAsInt(), IntAsString(1), FloatAsString(1.0)]:
+            with self.subTest(actual_type=type(value).__name__):
+                with self.assertRaisesRegex(ParityError, "value is not finite JSON"):
+                    canonical(value)
+                with self.assertRaisesRegex(ParityError, "value is not finite JSON"):
+                    _value_key(value)
+                with self.assertRaisesRegex(ParityError, "value is not finite JSON"):
+                    pack([{'value': value}])
+                table = pack([{'value': 1}]);table['tables']['value'][0] = value
+                with self.assertRaisesRegex(ParityError, "value is not finite JSON"):
+                    unpack(table)
 
 
 if __name__ == "__main__":

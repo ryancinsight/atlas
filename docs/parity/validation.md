@@ -380,6 +380,110 @@ provider build/import, push, PR, merge or deployment occurs in this local slice.
 
 The protected [#551 shared-tool handoff](execution.md#protected-shared-tool-prerequisite-observed-october-26) records the exact Aequitas parser mismatch, observed failing draft head and existing integrator/continuation. Owner liveness and delivery stay unverified; source presence is not authorization to adopt prepared tools. Earlier provider holds and historical receipts remain intact.
 
+
+## Torch repaired native dtype integration
+
+Program .10 retains the exact repaired `a34fc711` source packet and `013862e7`
+same-reviewer source-only acceptance. Initial `697b0c74`/`3ac30501` history is
+preserved, including both repaired material findings. The canonical capture
+keeps selected source/receipt/proof artifacts rather than full foreign source
+files or the 18 MiB source/history bundle.
+
+Ten admitted partial contracts, 47 native enum identities, 196 core lookup cells,
+2,209 promotion pairs, 2,209 cast-permission pairs, 45 receipts, 88 spans, 66
+UNRUN framework cases and 14 open gaps retain separate denominators. Current
+canonical API associations are three partial and seven unmapped; proposal,
+scalar supplier and actual implementation ownership remain distinct. No API
+mapping stage changes or execution/performance/release credit occurs.
+
+The checker independently reconstructs finite source rules and helper maps,
+checks exact typed aggregate/status/scope/ID/source/ownership roles, enforces
+integer source selectors, and validates tagged rank-zero complex/gradient
+fixtures with six input-sensitive exact-rational controls. Physical-file
+corruption probes recompute artifact indexes before rejection. Valid reformat
+and consistently changed analytical controls remain valid. Full public parsing,
+registry, descriptor/payload/layout/device/AD/error and numerical qualification
+remain open. Three subordinate native acceptance packages remain not ready;
+ordinary evidence/design work does not become a new user scope decision.
+
+JAX/NumPy source/index/review/mapping/raw-CP02 bytes and fixed .8/.9 introduction
+versions remain consumed by the new enclosing program. The inherited CI setup
+and #551 protected-owner handoff are retained. No network/auth, framework
+imports/builds, provider or protected branch edits, PR/push/merge or publication
+occurs. Independent canonical exact-head review and delivery remain parent-owned.
+
+At original Torch author commit `3a06bed1`, canonical tooling verification runs
+all **231 parity tests with zero skips** in 48.990 seconds. Thirty-one Torch tests include real copied-file,
+reindexed corruptions, valid reformat controls, independently reconstructed
+source relations and six input-sensitive complex controls. The repaired source
+packet's original 28 tests remain separate historical evidence. All 66
+framework/provider acceptance cases remain UNRUN.
+
+Two earlier whole-suite attempts hit an incorrectly applied 60-second Python
+bound; those failed observations are retained. The global strict 60-second rule
+names `cargo nextest`; existing Python fast CI has a 10-minute whole-job bound.
+No repository timeout changes. Measured table validation removes repeated
+scalar JSON encodings and constructs invalid-cell diagnostics only on failure.
+The original canonical serializer remains the equivalence oracle across scalar
+subclasses, IntEnum, bool/int/float distinctions, huge integers, Unicode and
+surrogate strings, empty and nested values. All ten canonical tables, containing
+90,638 rows, retain exactly the original columns, value tables and row indices.
+Profiled canonical calls fall from 592,794 to 174,516; this is tooling evidence,
+not a provider performance claim or a waiver for an incomplete run.
+
+The 32-file Torch capture regenerates byte-identically. All 46 protected prior
+JAX/NumPy policy artifacts, mappings and raw CP02 retain their base bytes.
+Canonical check/report, 129 Markdown links, board index, unchanged 1,000-line
+combined backlog budget, byte-compilation and whitespace checks pass. Definition
+and release qualification remain blocked by incomplete scope, unrun evidence
+and pending independent review; exact committed-input checks follow the local
+commit, without granting any parity qualification.
+
+### Shared selector successor integration
+
+The normal local merge of NumPy selector successor `010fc126` preserves the
+Torch .10 source/optimization history and the NumPy .9/JAX .8 introduction
+versions. The only backlog conflict retains both sets of obligations. Torch's
+local selector function is removed; endpoint, case and receipt joins use shared
+`source_entry_at` and its `source_selector` component checks. Each join also
+requires the exact expected position and selected source-object identity.
+
+Copied-file probes recompute artifact indexes before rejecting Boolean,
+floating, negative, string and container offsets, empty paths, wrong rows,
+overlong paths and out-of-range offsets. Shared root/leaf path semantics and
+valid reformat controls remain accepted. No compatibility resolver alias or old
+`core.entry_at` import remains. These checks repair traceability tooling only;
+all 66 Torch source-target cases and 14 gaps retain their unqualified states.
+
+The merged successor runs the unchanged complete parity discovery: **245 tests,
+zero skips, 85.860 seconds**, within an explicit 600-second local verification
+bound derived from the existing fast-Python CI job. Repository timeouts remain
+unchanged. The 83 focused Torch/NumPy/shared-selector tests also pass. All 46
+unique prior source/index/review/mapping/raw-CP02 artifacts match `010fc126`
+bytes, and all 32 Torch capture artifacts match `3a06bed1` and regenerate
+byte-identically. Markdown links, board index, unchanged 1,000-line backlog
+budget, static compilation and whitespace checks pass. Independent canonical
+exact-head review, hosted checks and source-target execution remain pending.
+
+### Torch canonical review repairs
+
+Independent review of `e09cb3b4` records P2 conditional-evidence weakening and
+P3 scalar error normalization in receipt
+`061f7d35998c1083842a6e6f020b0a66bc141d3d737499cad4ad48f799469f3d`.
+New regressions first reproduce ten failed assertions and three raw TypeErrors;
+that failed observation remains retained. The repaired focused suite passes all
+45 Torch/table tests with zero skips in 24.659 seconds.
+
+One shared construction supplies approved package gap/case/evidence obligations
+to capture and validation. Ordered evidence roles require exact nonempty text;
+missing, duplicate, substituted or weakened obligations reject after real file
+copy/reindex, including the full loader. Valid analytical-input changes remain
+accepted. Scalar base-accessor failures now preserve the original ParityError
+boundary; accepted JSON subclasses and every source artifact remain unchanged.
+These are canonical tooling repairs pending the same reviewer's final-head
+assessment. All 66 target cases and 14 source gaps remain unqualified. Pending
+provider qualifications and protected-owner approval receive no execution credit.
+
 ## Accepted public-surface evidence increment
 
 The program.11 increment captures only the accepted TF 492 and JAX/Torch six-row source
@@ -406,14 +510,25 @@ The bounded integration checks pass 17 tests with zero skips: 45 physical-file
 negative mutations are rejected after recomputing the relevant indexes; valid
 JSON/column-dictionary reformatting and a cache-free copied-tree control pass.
 The local producer replay verifies the original 199/265-file manifests and
-reproduces all 48 captured canonical files byte-identically. Link checking scans
+reproduces all 48 captured canonical files byte-identically. Before actual-main integration, link checking scans
 18 Markdown files /123 links with no missing files or anchors. The board index
 and the combined 1,000-line backlog budget pass without changing the board count.
 The historical-source regression now asserts immutable JAX.8/NumPy.9 role paths,
 introductions and consumption of every indexed artifact independently of the
 current program version; no source pin or validation obligation is weakened.
 
-The complete lightweight parity suite now passes **227 tests, zero skips**.
+Before actual-main integration, local source-evidence commit `5b0c92a5` passes
+**227 lightweight parity tests, zero skips**.
 The previous run's one failure is retained in the local handoff: it was the
 superseded latest-program.9 assertion, corrected by the stronger historical
 introduction/consumed-input checks above. No native or framework computation ran.
+
+The parent-directed integration includes actual merged main `05c8ccc8`, carrying
+Torch program.10 from #577. All 32 incoming Torch capture files remain
+byte-identical to that main revision; JAX.8 and NumPy.9 introductions and source
+bytes remain fixed. Program.11 retains the separate public-evidence capture and
+all 498 unresolved classifications without changing any API stage or denominator.
+The exact final integrated commit, consumed-input proof and final lightweight
+checks are recorded in the local review handoff. External delivery and fresh
+hosted qualification remain parent-owned; no unrelated TF conversion packet is
+admitted by this integration.
