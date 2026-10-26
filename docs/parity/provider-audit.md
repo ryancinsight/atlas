@@ -1,0 +1,133 @@
+# Provider evidence audit — full-parity program
+
+Audit version: 1.0.0. Date: 2026-10-26. Phase: Foundation. Change class: [patch].
+This is a source/evidence audit, not a full-parity certification. Companion: [provider-evidence.json](provider-evidence.json).
+
+## Snapshot and limits
+
+Default branches are fetched into isolated read-only audit clones. Active owner checkouts, protected PR branches and service-held tasks are unchanged. No provider builds, tests, benchmarks, deployment or publication run in this audit. Unavailable, ignored, adapterless and skipped hardware clauses receive no execution credit.
+
+| Repository | Default revision | Workspace version | Bounded-context owner |
+| --- | --- | --- | --- |
+| `coeus` | [`57f7c459`](https://github.com/ryancinsight/coeus/commit/57f7c4596884949e15815659544096b62c570d85) | 0.12.0 | Tensor/program semantics, autodiff, NN, optimizers and bindings |
+| `leto` | [`074ab891`](https://github.com/ryancinsight/leto/commit/074ab891cbc399163539a2f72185754875c8e943) | 0.46.5 | CPU arrays/layouts and dense/sparse/direct-LA kernels |
+| `hephaestus` | [`13dad9cd`](https://github.com/ryancinsight/hephaestus/commit/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3) | 0.27.0 | Accelerator devices, resident kernels and precision admission |
+| `moirai` | [`4bb7d2d4`](https://github.com/ryancinsight/moirai/commit/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5) | 0.11.0 | Scheduling, task lifecycle and async/transport execution |
+| `apollo` | [`3fe4c021`](https://github.com/ryancinsight/apollo/commit/3fe4c021a274c33efe21847cec5f7baf67a97d1f) | 0.17.1 | Transform mathematics and plans |
+| `eunomia` | [`23c60472`](https://github.com/ryancinsight/eunomia/commit/23c604725507726c090b5d34a724f119de1047a4) | 0.10.0 | Dtype/scalar laws and representations |
+| `mnemosyne` | [`b40870ea`](https://github.com/ryancinsight/Mnemosyne/commit/b40870ea3dca06a324d397e0b480edf3c18fe544) | per-package | Allocation, memory tiers and staging lifetime |
+| `hermes` | [`f9b6322e`](https://github.com/ryancinsight/hermes/commit/f9b6322e62d3f059964746b0bb82e5782e41b4e4) | 0.9.2 | CPU lane kernels and ISA dispatch |
+| `themis` | [`a6d0620b`](https://github.com/ryancinsight/themis/commit/a6d0620b99d5d5518ed4e7225aa47eac66e5add2) | 0.11.3 | Topology, locality and placement vocabulary |
+| `melinoe` | [`3ddf61ed`](https://github.com/ryancinsight/melinoe/commit/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6) | 0.10.0 | Branded access and disjoint ownership proofs |
+| `consus` | [`ef082711`](https://github.com/ryancinsight/consus/commit/ef082711f3b6087b9d2214d14c2230fbdc79e620) | 0.4.0 | Formats, compression, durable stores and byte serialization |
+| `tyche` | [`1f6cd334`](https://github.com/ryancinsight/tyche/commit/1f6cd334b8aad90a05e5f4db27643626e43d928c) | 0.4.0 | Study seed/replay, sampling and statistical laws |
+| `athena` | [`7e8cace8`](https://github.com/ryancinsight/athena/commit/7e8cace82ef36df5f2130fe7824966d5cadf6429) | 0.3.3 | Iterative solve/preconditioning policy over provider kernels |
+
+Workspace versions are manifest defaults; crates may override them. These are not registry/release claims. JSON records manifest SHA-256 and direct first-party Git prerequisites. Cargo-edge evidence is separate from the conceptual README ownership diagram.
+
+## Coeus reconciliation
+
+[ADR 0025](https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/docs/adr/0025-external-framework-parity-without-burn.md#L26) names PyTorch/JAX/MLX correctness oracles. It records 413/215/70 tests at its own historical revision, acknowledges MLX non-execution, and retires external Burn performance comparisons in favor of Sequential-versus-Moirai benchmarks. Those counts cannot become current four-framework coverage. The inspected policy establishes no TensorFlow oracle or complete four-framework denominator.
+
+The [NN evidence manifest](https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-nn/benches/nn_bench/evidence.tsv#L1) has **21 family rows** with **four Python partials**: convolution, dropout, regularization and RNN. Its [guard](https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-nn/tests/nn_ops/evidence_manifest.rs#L166) compares against Coeus's implemented public NN families. That is implementation consistency, not completeness against the comparator union. Criterion presence does not establish external performance parity.
+
+Retain history and annotate these stale backlog findings:
+
+- `COEUS-LINSPACE-FAKE-GENERIC`: [free constructors](https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-ops/src/constructors.rs#L14) delegate to [native-T Tensor implementations](https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-tensor/src/constructors.rs#L119). Existing scalar test source is present. Source correction does not certify full NumPy constructor semantics: zero-count/errors, endpoints, promotion and device residency still need mapping.
+- `COEUS-GRADCHECK-GENERIC-INSTANTIATION`: **11 gradcheck leaves** have identical named f32/f64 invocation sets, **146 cases per dtype**. Activation, losses, reductions and shape are already dual-instantiated. The [module contract](https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/tests/autograd/gradcheck/mod.rs#L36) separates f64 sensitivity and f32 instantiation. No runtime pass follows from invocation counts.
+- `COEUS-COUNT-CONV-SPELLING`: the backlog says `from_count` does not exist; current [Eunomia](https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/README.md#L26) already exposes `from_count`, `from_integer` and `TryFromCount`. Consumer migration and exactness contracts remain separate work.
+
+The [reverse tape](https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/src/var.rs#L50) uses dynamic BackwardNode links and gradient buffers. That does not establish forward-mode JVP, higher-order AD, transformation composition, JIT, export, graph optimization or distributed semantics. Those domains stay unmapped until explicit contracts exist. [Device integration residuals](https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/backlog.md#L18) distinguish provider seams, real-device evidence and SemVer/release work.
+
+## Leto reconciliation
+
+The [plan](https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/docs/completeness/PLAN.md#L4) targets ndarray 0.16 and nalgebra 0.35, plus separately tracked companions. It is not a full NumPy inventory. The [matrix](https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/docs/completeness/parity_matrix.md#L19) contains **34 array data rows** and **25 linear-algebra rows**, including two exclusions. Its [headline](https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/docs/completeness/parity_matrix.md#L116) still says **28/28** array rows. The document labels the score a seed awaiting full extraction; correct the denominator before reporting percentages.
+
+The old [Complete definition](https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/docs/completeness/PLAN.md#L49) allows a slower operation if an oracle benchmark exists. Separate benchmarked from performance-qualified. Historical 2026-06-14 f64/AVX2 timings do not qualify current revisions, all dtypes or other hardware.
+
+[ADR 0008](https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/docs/adr/0008-parity-scope-boundary.md#L33) excludes type-level shapes and geometry. Geometry may retain a downstream owner while preserving required functional scope. Compile-time guarantees versus runtime-validated shapes need an explicit decision when relevant to a comparator capability. Neither exclusion may silently shrink the program. Structured/object/string/datetime dtypes, byte order, C/F layouts, ufunc override/dispatch and complete NumPy serialization need rows beyond this seeded Rust-crate inventory.
+
+## Hephaestus reconciliation
+
+The [README](https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/README.md#L264) describes Leto host-delegated families followed by upload to device buffers. Buffer ownership or adapter identity does not prove device-resident computation. Native decomposition, RNG generation and remaining host routes need operation/dtype/device/residency records.
+
+The [backlog](https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/backlog.md#L78) retains CUDA/ROCm obligations for shape/indexing, argmin/argmax/topk, embedding scatter-add, interpolation and adaptive pooling, plus aggregate/conformance wiring. WGPU through Metal is the accepted canonical adapter route; it is not an independently implemented kernel family.
+
+[ROCm policy](https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/README.md#L342) distinguishes container/adapterless checks from actual AMD execution. Required-device flags reject absent hardware. [FP64 admission](https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/README.md#L360) rejects unsupported requests before mutation; typed rejection is error behavior, not FP64 computation parity. The [Mac checklist](https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/docs/verification/macos/checklist.md#L71) records 783 local zero-skip tests historically while retaining unavailable CUDA/Intel and unmeasured hosted/native-kernel/performance gaps. None is rerun here.
+
+## Moirai reconciliation
+
+[ADR 0001](https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/docs/adr/0001-moirai-as-complete-alternative-to-tokio-rayon.md#L10) requires a standalone runtime without implementation dependencies on replaced Tokio/Rayon. [QUIC documentation](https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/README.md#L165) acknowledges Quinn Tokio synchronization primitives. The existing coordinator owns this policy violation and transport acceptance; this lane does not retry or bypass that work.
+
+The [bounded-runtime item](https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/backlog.md#L252) covers select, IPv6 and shutdown. The [risk ledger](https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/gap_audit.md#L332) bounds Rayon and makes HTTP/2 consumer-conditional. The [readiness gap](https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/gap_audit.md#L362) says historical stabilization/readiness/platform/examples/tooling/performance goals lack acceptance contracts. Supply those contracts wherever required higher-level comparator behavior depends on them; do not require unrelated Tokio APIs solely because Tokio exists.
+
+[GPU co-scheduling](https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/gap_audit.md#L344) depends on a Hephaestus queue/persistent-kernel contract. Preserve the acyclic owner graph.
+
+## Apollo and selected release prerequisites
+
+Apollo remains service-held under task `01a13842-5a71-712c-b982-d6631f84e002`. Read-only [PR #696](https://github.com/ryancinsight/apollo/pull/696) inspection observes head `b62b9c7ef780cb41e0fedba526db877b0ad3fc88`, base `3fe4c021a274c33efe21847cec5f7baf67a97d1f`. Its CI executes synthetic merge **`0ed605ccefa2adcfe1f2ac43637d015ac7aa44b1`**, not the branch head alone.
+
+- [Version guard](https://github.com/ryancinsight/apollo/actions/runs/40023895725/job/120655327820) fails: **19 published-drifted packages** retain published versions after Moirai requirements change from 0.10 to ^0.11.
+- [Rust workspace](https://github.com/ryancinsight/apollo/actions/runs/40023895725/job/120655327406) fails cargo-deny: `subtle 2.6.1` has BSD-3-Clause outside the allowlist via rustls → moirai-quic → moirai-runtime. The allowlist must not be weakened.
+- Of 16 head-associated checks, release and informational SemVer are skipped. A locked-source contract passes. Native ARM and Python successes do not remove failed version/license gates or establish released functionality.
+
+Selected 2026-10-26 registry metadata checks return **404** for [`moirai-runtime 0.11.0`](https://crates.io/api/v1/crates/moirai-runtime/0.11.0), [`moirai-quic 0.1.0`](https://crates.io/api/v1/crates/moirai-quic/0.1.0) and [`coeus-core 0.12.1`](https://crates.io/api/v1/crates/coeus-core/0.12.1). [`moirai-async 0.11.0`](https://crates.io/api/v1/crates/moirai-async/0.11.0), [`leto 0.46.5`](https://crates.io/api/v1/crates/leto/0.46.5) and [`hephaestus-core 0.27.0`](https://crates.io/api/v1/crates/hephaestus-core/0.27.0) exist and are not yanked; JSON records their checksums. These establish selected availability only, not archive identity, whole-graph resolution or execution. Missing provider packages still block graph release closure.
+
+## Associated-provider boundaries
+
+- [Eunomia](https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/README.md#L12) owns scalar/complex/packed representations and conversion laws. A representation does not prove numerical execution. Promotion, weak scalars, structured/string/datetime/resource/variant contracts and every hardware admission matrix need mapping.
+- [Mnemosyne](https://github.com/ryancinsight/Mnemosyne/blob/b40870ea3dca06a324d397e0b480edf3c18fe544/README.md#L1), [Melinoe](https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/README.md#L1) and [Themis](https://github.com/ryancinsight/themis/blob/a6d0620b99d5d5518ed4e7225aa47eac66e5add2/README.md#L15) own allocation, access proofs and locality. Their safety/platform evidence precedes consumer qualification; topology defaults cannot count as actual NUMA hardware proof.
+- [Hermes](https://github.com/ryancinsight/hermes/blob/f9b6322e62d3f059964746b0bb82e5782e41b4e4/README.md#L26) owns CPU ISA kernels. AMX source exists but no CI machine satisfies the CPUID/XCR0/permission chain. Native evidence must record the selected ISA.
+- [Consus](https://github.com/ryancinsight/consus/blob/ef082711f3b6087b9d2214d14c2230fbdc79e620/README.md#L53) owns formats. [NPY](https://github.com/ryancinsight/consus/blob/ef082711f3b6087b9d2214d14c2230fbdc79e620/crates/consus-npy/src/array.rs#L36) has four typed built-ins (f32/f64/i32/i64); its [writer](https://github.com/ryancinsight/consus/blob/ef082711f3b6087b9d2214d14c2230fbdc79e620/crates/consus-npy/src/format.rs#L65) rejects Fortran-order output and writes v1.0. ONNX document parsing does not certify model execution/export, SavedModel/checkpoints or deployment. Coeus owns model/program semantics above byte formats.
+- [Tyche](https://github.com/ryancinsight/tyche/blob/1f6cd334b8aad90a05e5f4db27643626e43d928c/README.md#L12) owns seed/replay laws, sampling and statistics. Framework RNG algorithms, keys/splitting, stream independence, deterministic replay, distributions and gradients need contracts. Leto/Hephaestus retain execution-kernel ownership.
+- [Athena](https://github.com/ryancinsight/athena/blob/7e8cace82ef36df5f2130fe7824966d5cadf6429/README.md#L25) owns iterative policy. Generic LSQR currently ships only a Leto rectangular operator; accelerator LSQR is unproved.
+
+No complete mapping is established for forward/higher-order AD, graph/JIT/compiler/export, automatic batching, sharding/collectives/fault handling, data pipelines, distributed training, quantization/AMP, ragged/nested/string/resource tensors, complete checkpoint roundtrips, deployment targets or profiling/debugging. These remain definition obligations. Bounded source search does not certify global absence and does not authorize exclusion.
+
+## Ownership handoffs
+
+The later coordinator handoff supplies a scoped notification prerequisite at
+uncommitted Git tree `8eae3a73447526609b52dc782c526e8d9ef4c14b` on base
+`4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5`, proposing `moirai-async 0.11.1`.
+Read-only receipt verification matches SHA-256
+`c11d5b6a14baa65d745a59764f24e8469f6becac44d24fb515421f03aa31eecd`.
+Seven baseline witnesses fail; 56 sync tests pass with 91 filter exclusions;
+strict API checks have 223 passes and **30 skips**. Clippy/archive and
+independent review are scoped passes. No broad Miri/Loom, Tokio-free runtime,
+whole-graph acceptance or publication is established. This is a supplied
+implementation observation, not a test run by this audit or ledger promotion.
+Notification draft-PR/CI delivery belongs to coordinator task
+`01a159ec-7017-7725-a554-194472dc20dc`, current turn
+`01a176ab-537b-71fe-aa02-d59f00de713d`; do not duplicate it. The earlier report
+of no live native-Tokio executor is superseded: parent admits task
+`01a176ac-6a9e-77cc-a488-42908214f023`, turn
+`01a176ac-776a-7757-b4ab-7a881fc390e4`, started 05:26 UTC, for genuine
+unbounded MPSC and versioned Quinn I/O/buffer migration. That lane performs
+source/design/lightweight work until parent grants a heavy slot. Admission is
+ownership evidence, not native-runtime acceptance. Historical recovery
+owner `01a13836-1b78-7d83-93b2-fdef2d3b650c` is completed with experimental work
+preserved; the parent's unsupported-placement read error is neither a code
+defect nor permission denial. Apollo #696 holds remain unchanged.
+
+The subsequent delivery receipt verifies pushed commit
+[`d94d5ab6`](https://github.com/ryancinsight/Moirai/commit/d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da)
+with the same tree, proposed async 0.11.1 and passing normal hooks (79.58 s).
+Receipt SHA-256 is `1e0c29dd715e16389bd3a4c67edeac228ba44f286903f748adc6a46f64b6c3e0`.
+Draft PR creation for `codex/notify-broadcast-permit-20261026 -> main` is
+**denied**, GitHub HTTP403 “Resource not accessible by integration.” No PR,
+hosted CI, merge or publication exists for that delivery. The parent explicitly
+prohibits an alternate-route retry. The heavy slot now belongs to the admitted
+native-migration executor. These facts supersede delivery/slot state above;
+scoped tests remain scoped and no release qualification is promoted.
+
+| Work | Existing owner | Required handoff |
+| --- | --- | --- |
+| Quinn/QUIC native-Tokio/provider blockers | `01a159ec-7017-7725-a554-194472dc20dc` | Exact revision, dependency-policy pass, original full-domain transport gates, provider registry graph and consumer resolution. |
+| Kwavers typed-error/Miri | `01a16141-84fd-7045-a5d6-75c04aafa0ef` | Exact revision, computed-error tests and applicable real Miri execution. |
+| Apollo held work | `01a13842-5a71-712c-b982-d6631f84e002` | Resolve service hold before any implementation retry; retain version/license/registry gates. |
+| Atlas #551 / Apollo #696 | Existing branch owners | Read-only evidence; no branch mutation or replacement repair. |
+| Four-framework inventory/schema/gates | Atlas parity-program lane | Complete extraction disposition, unmatched rows retained, independent review before definition closure. |
+
+## Reproduction and validation
+
+The audit reads immutable Git objects fetched from the defaults above. Mechanical checks count TSV rows/statuses, compare named `::<f32>(`/`::<f64>(` calls per gradcheck leaf, count matrix data rows between A/B/C headings, parse all 13 root manifests and validate JSON/revision source links. Selected CI logs and six registry endpoints are separate read-only evidence. Provider tests and performance are **not run**. These checks justify reconciliations, not 1.0 readiness.

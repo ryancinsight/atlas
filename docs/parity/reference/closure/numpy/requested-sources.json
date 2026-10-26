@@ -1,0 +1,602 @@
+[
+  {
+    "path": "doc/source/conf.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "1f1933727f390f8cc98c98de8acf3d1c70130b53",
+    "size": 21022,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/1f1933727f390f8cc98c98de8acf3d1c70130b53"
+  },
+  {
+    "path": "numpy/__init__.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "be46f6b09c7531a43f341b8e530465a58f1725de",
+    "size": 25220,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/be46f6b09c7531a43f341b8e530465a58f1725de"
+  },
+  {
+    "path": "numpy/__init__.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "d50397a5c4d90bc3a93964016df9b1b559f44312",
+    "size": 285616,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/d50397a5c4d90bc3a93964016df9b1b559f44312"
+  },
+  {
+    "path": "numpy/_core/numeric.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "4ba4ae4cae1d6192ff95a206905a1c30ecf7633c",
+    "size": 80583,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/4ba4ae4cae1d6192ff95a206905a1c30ecf7633c"
+  },
+  {
+    "path": "numpy/_core/function_base.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "b01ba108d2c4ed1994e551457fea47ea82a8b52d",
+    "size": 19689,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/b01ba108d2c4ed1994e551457fea47ea82a8b52d"
+  },
+  {
+    "path": "numpy/_core/multiarray.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "c7f21b60c488bcec7f889709dd7d8ed716bdc74b",
+    "size": 56885,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/c7f21b60c488bcec7f889709dd7d8ed716bdc74b"
+  },
+  {
+    "path": "numpy/_core/multiarray.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "bf39d7d3fe39f899fa3b86fdb7b4b5532fdb8d64",
+    "size": 56592,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/bf39d7d3fe39f899fa3b86fdb7b4b5532fdb8d64"
+  },
+  {
+    "path": "numpy/_core/numeric.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f9826f430b7384ea292ec28cb32ddb57bd915a71",
+    "size": 35439,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f9826f430b7384ea292ec28cb32ddb57bd915a71"
+  },
+  {
+    "path": "numpy/_core/function_base.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "982a169bcbd5b393501ceac322e523a4884d1265",
+    "size": 11383,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/982a169bcbd5b393501ceac322e523a4884d1265"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/multiarraymodule.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "543c1977b4d930c38f93b3ac886af20636cf6646",
+    "size": 161846,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/543c1977b4d930c38f93b3ac886af20636cf6646"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/ctors.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "ce4a23011d82381fe3c89e6859c6c54c2e403813",
+    "size": 126480,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/ce4a23011d82381fe3c89e6859c6c54c2e403813"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/alloc.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "386fcb08686337178d771ce786b522f761013c15",
+    "size": 18267,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/386fcb08686337178d771ce786b522f761013c15"
+  },
+  {
+    "path": "numpy/_core/_add_newdocs.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "eed4d7f945a8a0cb7899acba0e08abb3239fed77",
+    "size": 215165,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/eed4d7f945a8a0cb7899acba0e08abb3239fed77"
+  },
+  {
+    "path": "numpy/_core/_add_newdocs_scalars.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "3f9eca5e47f375e55a66e3c547b5a811de5eb22f",
+    "size": 12933,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/3f9eca5e47f375e55a66e3c547b5a811de5eb22f"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/methods.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "35d882fe25e236f0babcdc041fc750a434a33bb3",
+    "size": 92659,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/35d882fe25e236f0babcdc041fc750a434a33bb3"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/scalartypes.c.src",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "c56563be8b004153d9859fa3ee38ba4c8a4d217f",
+    "size": 137867,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/c56563be8b004153d9859fa3ee38ba4c8a4d217f"
+  },
+  {
+    "path": "numpy/_core/code_generators/generate_umath.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "ecb455767a24528f8748e2da6d9a83037a81bae4",
+    "size": 55081,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/ecb455767a24528f8748e2da6d9a83037a81bae4"
+  },
+  {
+    "path": "numpy/_core/src/umath/umathmodule.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "439a2ac308d95bfc397767f3be8dab7d8c124747",
+    "size": 8129,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/439a2ac308d95bfc397767f3be8dab7d8c124747"
+  },
+  {
+    "path": "numpy/typing/mypy_plugin.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "04014a9e867b7ec4069eef07cea1bc0d6627cd70",
+    "size": 6835,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/04014a9e867b7ec4069eef07cea1bc0d6627cd70"
+  },
+  {
+    "path": "numpy/ctypeslib/_ctypeslib.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "2ac905f166fc350b2dba546baf5011096755dcb9",
+    "size": 19076,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/2ac905f166fc350b2dba546baf5011096755dcb9"
+  },
+  {
+    "path": "numpy/_core/tests/test_numeric.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "258e8b46e3d39bda83f1b288275e5fa8b8e02fd7",
+    "size": 159930,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/258e8b46e3d39bda83f1b288275e5fa8b8e02fd7"
+  },
+  {
+    "path": "numpy/_core/tests/test_function_base.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "b78c79a6f032aaa3d7514f747702791a7beb7fda",
+    "size": 17600,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/b78c79a6f032aaa3d7514f747702791a7beb7fda"
+  },
+  {
+    "path": "numpy/_core/tests/test_multiarray.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f7fa51fff2554ded88c1dfed9ddfa89ca06bf60a",
+    "size": 442839,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f7fa51fff2554ded88c1dfed9ddfa89ca06bf60a"
+  },
+  {
+    "path": "numpy/_core/numerictypes.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f99f9236dfd12ee37528477db1dd53e26b5eb9c9",
+    "size": 14816,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f99f9236dfd12ee37528477db1dd53e26b5eb9c9"
+  },
+  {
+    "path": "numpy/_core/_type_aliases.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "baa5e9c20276a580a549bd143249747ffdeafe2b",
+    "size": 3797,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/baa5e9c20276a580a549bd143249747ffdeafe2b"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/conversion_utils.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "41405beef9a859baae3c1dc263014776ca2f0d02",
+    "size": 38498,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/41405beef9a859baae3c1dc263014776ca2f0d02"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/ctors.h",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "7e3e9f6587bbe2086028dbb1bfc18a5b3a80610f",
+    "size": 4799,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/7e3e9f6587bbe2086028dbb1bfc18a5b3a80610f"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/array_coercion.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "9bf0a86fedae94e844881d52f73543fb69c553f0",
+    "size": 51584,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/9bf0a86fedae94e844881d52f73543fb69c553f0"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/getset.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "3c4fe5ccaeb102f0b9ca0b616dc7077e0df009bd",
+    "size": 24614,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/3c4fe5ccaeb102f0b9ca0b616dc7077e0df009bd"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/descriptor.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "0e395fe354cf36ff35b0442ffad953bd55826be2",
+    "size": 122194,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/0e395fe354cf36ff35b0442ffad953bd55826be2"
+  },
+  {
+    "path": "numpy/_core/src/umath/ufunc_object.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f86b6736e68d8f173b99d3e067dd320d648357e4",
+    "size": 232938,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f86b6736e68d8f173b99d3e067dd320d648357e4"
+  },
+  {
+    "path": "numpy/_core/src/umath/ufunc_type_resolution.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "8f37445ce945d9e3a266f8d73f9b283c133a7c3c",
+    "size": 79388,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/8f37445ce945d9e3a266f8d73f9b283c133a7c3c"
+  },
+  {
+    "path": "requirements/doc_requirements.txt",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "d1dd30ac46e8c66f95c0b6ad501bd5537fb3b03c",
+    "size": 547,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/d1dd30ac46e8c66f95c0b6ad501bd5537fb3b03c"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/arraytypes.c.src",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "dcb39c4fb9f9d7b3c6930317a894dc9e2915d86d",
+    "size": 134256,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/dcb39c4fb9f9d7b3c6930317a894dc9e2915d86d"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/datetime.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f4ba58628a9cd131cb3953e615febfdee96723ec",
+    "size": 135684,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f4ba58628a9cd131cb3953e615febfdee96723ec"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/_datetime.h",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "c6fb57ee283779c2c6760f73217d0123444d32c4",
+    "size": 12129,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/c6fb57ee283779c2c6760f73217d0123444d32c4"
+  },
+  {
+    "path": "numpy/_core/overrides.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "1bd2373dbaa45136deec27cc7548d8d17dde5576",
+    "size": 7478,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/1bd2373dbaa45136deec27cc7548d8d17dde5576"
+  },
+  {
+    "path": "numpy/f2py/f2py2e.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "bb9a6c063fbdebdd817e9e31ee65f1c92fa321a2",
+    "size": 27426,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/bb9a6c063fbdebdd817e9e31ee65f1c92fa321a2"
+  },
+  {
+    "path": "numpy/random/__init__.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "6c3d72afd06238bc0a675988684d86fad21b9839",
+    "size": 2228,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/6c3d72afd06238bc0a675988684d86fad21b9839"
+  },
+  {
+    "path": "numpy/random/_bounded_integers.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "c9c2ef67bd9d44a21f9d3673ba631c0840740ced",
+    "size": 24,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/c9c2ef67bd9d44a21f9d3673ba631c0840740ced"
+  },
+  {
+    "path": "numpy/random/_common.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "417387612014b8e631c57aae8b7058151593695b",
+    "size": 457,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/417387612014b8e631c57aae8b7058151593695b"
+  },
+  {
+    "path": "numpy/random/_common.pyx",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "9ba78b2fa7e3b6e76fcffbd643ffb77280a5e244",
+    "size": 39867,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/9ba78b2fa7e3b6e76fcffbd643ffb77280a5e244"
+  },
+  {
+    "path": "numpy/random/_examples/cython/extending.pyx",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "6a0f45e1be9e6f32ac9ac39952cd01597b93a2e9",
+    "size": 2267,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/6a0f45e1be9e6f32ac9ac39952cd01597b93a2e9"
+  },
+  {
+    "path": "numpy/random/_examples/cython/extending_distributions.pyx",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "8de722686304bd46f997aa35c2f7d15582626e01",
+    "size": 3844,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/8de722686304bd46f997aa35c2f7d15582626e01"
+  },
+  {
+    "path": "numpy/random/_generator.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "e45990c1db65fec58a93185539f5d4f7612e2b54",
+    "size": 35793,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/e45990c1db65fec58a93185539f5d4f7612e2b54"
+  },
+  {
+    "path": "numpy/random/_generator.pyx",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "5af15e90eb34879b65d1a913808d8a0353a9bbcd",
+    "size": 201559,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/5af15e90eb34879b65d1a913808d8a0353a9bbcd"
+  },
+  {
+    "path": "numpy/random/_mt19937.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "074a8eec5447e2083f4ed152fc47e93cc91eb865",
+    "size": 855,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/074a8eec5447e2083f4ed152fc47e93cc91eb865"
+  },
+  {
+    "path": "numpy/random/_mt19937.pyx",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "b836d9e8378f9005abbe89a7a149604307cb6252",
+    "size": 10744,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/b836d9e8378f9005abbe89a7a149604307cb6252"
+  },
+  {
+    "path": "numpy/random/_pcg64.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "aede210d4026e629f53e63615a0daef04738bc76",
+    "size": 1201,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/aede210d4026e629f53e63615a0daef04738bc76"
+  },
+  {
+    "path": "numpy/random/_pcg64.pyx",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "20f30cd51f82ea595ddbd8cf3997d46070737ec6",
+    "size": 19157,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/20f30cd51f82ea595ddbd8cf3997d46070737ec6"
+  },
+  {
+    "path": "numpy/random/_philox.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "ea9880ea10e2ddc7713ab07aba11af5d34add9dc",
+    "size": 1046,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/ea9880ea10e2ddc7713ab07aba11af5d34add9dc"
+  },
+  {
+    "path": "numpy/random/_philox.pyx",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "24505e3e05b4248ca61ea28b688286e2d8a8815c",
+    "size": 12267,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/24505e3e05b4248ca61ea28b688286e2d8a8815c"
+  },
+  {
+    "path": "numpy/random/_pickle.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "b0aa143801baf6de284e4030602266266e393d72",
+    "size": 1615,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/b0aa143801baf6de284e4030602266266e393d72"
+  },
+  {
+    "path": "numpy/random/_sfc64.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "5bddaf2b7676fa74b176d04a7c19717fc580d4c6",
+    "size": 724,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/5bddaf2b7676fa74b176d04a7c19717fc580d4c6"
+  },
+  {
+    "path": "numpy/random/_sfc64.pyx",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f5f2a453342c7e753456a2a7027898b2f12e05c4",
+    "size": 5389,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f5f2a453342c7e753456a2a7027898b2f12e05c4"
+  },
+  {
+    "path": "numpy/random/bit_generator.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "51ee8188e65fa73a66fe00c82081bf7e3cb6a36a",
+    "size": 3566,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/51ee8188e65fa73a66fe00c82081bf7e3cb6a36a"
+  },
+  {
+    "path": "numpy/random/bit_generator.pyx",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "614b33726a3449f196e7b1ffab4d03a5aafa017c",
+    "size": 25199,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/614b33726a3449f196e7b1ffab4d03a5aafa017c"
+  },
+  {
+    "path": "numpy/random/mtrand.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "15cbb7c32827a1d4ff148805f9f521b8297c197d",
+    "size": 26906,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/15cbb7c32827a1d4ff148805f9f521b8297c197d"
+  },
+  {
+    "path": "numpy/random/mtrand.pyx",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "975384e6a57e5a1668b5f50147b8cf1b5e7185b2",
+    "size": 192734,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/975384e6a57e5a1668b5f50147b8cf1b5e7185b2"
+  },
+  {
+    "path": "numpy/dtypes.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "3a423bdc83099f9708968ec96af58e19a92ed798",
+    "size": 15567,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/3a423bdc83099f9708968ec96af58e19a92ed798"
+  },
+  {
+    "path": "numpy/_core/umath.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "0f37d41749df4e96174e3270ac3e33f2fbf9990a",
+    "size": 2117,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/0f37d41749df4e96174e3270ac3e33f2fbf9990a"
+  },
+  {
+    "path": "numpy/strings/__init__.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "561dadcf37d090ce201f9b9bec2dbb6e86a3dc06",
+    "size": 83,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/561dadcf37d090ce201f9b9bec2dbb6e86a3dc06"
+  },
+  {
+    "path": "numpy/_core/strings.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "371a582d35fedc616134676abc7733902385fe3b",
+    "size": 50588,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/371a582d35fedc616134676abc7733902385fe3b"
+  },
+  {
+    "path": "numpy/_core/defchararray.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "8d67766b6e97d4cb499a50a5f14524948596fee8",
+    "size": 38241,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/8d67766b6e97d4cb499a50a5f14524948596fee8"
+  },
+  {
+    "path": "numpy/_core/fromnumeric.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "0b40381cbf2c607c9a2e09723065483c84d29188",
+    "size": 143960,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/0b40381cbf2c607c9a2e09723065483c84d29188"
+  },
+  {
+    "path": "numpy/_core/fromnumeric.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "674f065377284e8897b5a722c7a8ffe8ee0e134d",
+    "size": 96107,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/674f065377284e8897b5a722c7a8ffe8ee0e134d"
+  },
+  {
+    "path": "numpy/_core/include/numpy/ndarraytypes.h",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "c454573282169b587fe7035f452fc194cae62613",
+    "size": 70586,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/c454573282169b587fe7035f452fc194cae62613"
+  },
+  {
+    "path": "numpy/_core/include/numpy/numpyconfig.h",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "b50e42d30c5b9bb96d70d5eeb599bc37a42d4ad4",
+    "size": 7457,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/b50e42d30c5b9bb96d70d5eeb599bc37a42d4ad4"
+  },
+  {
+    "path": "numpy/_core/src/common/npy_argparse.h",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f48ba90791fe8e8ca4ebaaa2af5de6ab3aa6ea91",
+    "size": 4335,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f48ba90791fe8e8ca4ebaaa2af5de6ab3aa6ea91"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/common.h",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "e34b4ff8d5ff8558612d1fe47bc8ad06c775ddf1",
+    "size": 13283,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/e34b4ff8d5ff8558612d1fe47bc8ad06c775ddf1"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/conversion_utils.h",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "bff1db0c069d3f74ef2e5004f5a3eef993141161",
+    "size": 3431,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/bff1db0c069d3f74ef2e5004f5a3eef993141161"
+  },
+  {
+    "path": "numpy/_core/src/common/npy_argparse.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "8961bdd61e494c6aa2ac714f1186e0bb9634ba98",
+    "size": 13612,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/8961bdd61e494c6aa2ac714f1186e0bb9634ba98"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/arrayfunction_override.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "72211e2a6d629426e60491e426b8d7d530bf6cbc",
+    "size": 23647,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/72211e2a6d629426e60491e426b8d7d530bf6cbc"
+  },
+  {
+    "path": "numpy/_core/src/common/get_attr_string.h",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "324a92c5ef0c454a5255d3293f587f23e11b8406",
+    "size": 2454,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/324a92c5ef0c454a5255d3293f587f23e11b8406"
+  },
+  {
+    "path": "numpy/_core/include/numpy/ndarrayobject.h",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "405b9d881db7c8765fe4fabb1cd199a56171f783",
+    "size": 11586,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/405b9d881db7c8765fe4fabb1cd199a56171f783"
+  }
+]

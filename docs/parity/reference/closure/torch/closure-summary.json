@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "framework": "pytorch",
+  "version": "2.14.1",
+  "revision": "5c4886908584029761b579af026dcfb627c84070",
+  "base_revision": "2b3ec34829036a65cd9d1398ea72a0167dc37470",
+  "patch_reconciliation": {
+    "docs_minor_label": "expected_by_exact_release_conf.py",
+    "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/conf.py#L138",
+    "compare_commits": 5,
+    "changed_files": 15,
+    "changed_documentation_blobs": [],
+    "all_native_function_schemas_unchanged": true,
+    "native_schema_count": 2585,
+    "native_dispatch_delta": "conj_physical.out MPS dispatch now shares conj_physical_out with CPU/CUDA/XPU",
+    "numerical_correctness_delta_required": [
+      "MPS complex batched underdetermined lstsq",
+      "MPS rank-deficient/ill-conditioned SVD orthogonality/small singular values",
+      "MPS conjugated/column-major SVD and native small-input path",
+      "CUDA13.2.2 NVFP4 cublasLt scaling and divergent-kernel correctness in binary selection"
+    ],
+    "inventory_artifact_source_commit": "not cryptographically identified by published Sphinx header; exact-source corroboration is scoped, not proof of all inventory semantics"
+  },
+  "counts": {
+    "top_level_docstring_targets": 476,
+    "inherited_tensor_docstring_targets": 544,
+    "docstring_targets_total": 1020,
+    "docstring_targets_absent_from_inventory": 27,
+    "finite_foreach_generated_candidates": 58,
+    "explicit_docstring_alias_relations": 56,
+    "native_schema_overloads": 2585,
+    "cpp_doxygen_inputs": 49,
+    "cpp_generated_input_gaps": 3,
+    "namespace_export_alias_relations": 19,
+    "source_files_hash_verified": 40
+  },
+  "extraction_closure": {
+    "selected_docstring_call_sites": "complete for direct module-level add_docstr/add_docstr_all calls in two exact files; function helper body excluded",
+    "foreach_loop": "all29*2 name candidates retained with hasattr condition, not public availability proof",
+    "native_schemas": "all2585 explicit - func entries retained; generated autogen declarations retained separately; Python skip/manual binding code must be reconciled, not blanket exported",
+    "cpp": "Doxygen input list fully enumerated; actual C++ declarations/inheritance/generated headers remain unclosed"
+  },
+  "gaps": [
+    "All torch modules beyond these two documentation files require their own autodoc/export/decorator/inheritance closure.",
+    "Source docstrings absent from published inventory are retained, not silently classified nonpublic.",
+    "Operator schema/python codegen skip/manual exposure and autogen expansion require exact generation audit.",
+    "C++ generated headers/Doxygen declarations/inheritance require source generator output; no build/import was performed.",
+    "Companion package versions and contracts remain separately unclosed; no arbitrary latest package is substituted.",
+    "Per-backend dtype/layout/gradient/compiler coverage remains unexecuted and partly unmapped."
+  ]
+}

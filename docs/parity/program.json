@@ -1,0 +1,146 @@
+{
+  "atlas_base_revision": "f60fef17286b8cfdacf9191b133dc975aa186787",
+  "definition_complete": false,
+  "definition_gaps": [
+    "Whole public/export/generated/inherited/prose/companion source coverage remains incomplete for all four references; finite audited gap dispositions do not close that denominator",
+    "Candidate declarations require complete reviewed semantic specification; partial source contracts remain partial",
+    "Concrete provider design contracts and required ADR reviews remain pending, including exact protocol dispatch/lifetime and precision policies",
+    "Implementation envelopes need decomposition and estimates tied to reviewed operation/coverage classes, including newly separated dispatch scope"
+  ],
+  "files": {
+    "capabilities": "capabilities.json",
+    "decisions": "decisions.json",
+    "evidence": "evidence.json",
+    "mappings": "mappings.json",
+    "provider_evidence": "provider-evidence.json",
+    "reference_closure": "reference/closure/index.json",
+    "repositories": "repositories.json",
+    "repository_evidence": "repository-evidence.json",
+    "work_packages": "work-packages.json"
+  },
+  "first_executable_package": "WP-002",
+  "implementation_blockers": [
+    "Hardware and external performance matrices unqualified; unavailable targets remain obligations",
+    "Provider audit establishes source facts only; no complete exact-revision provider execution qualification",
+    "Native Tokio migration is admitted under task01a176ac-6a9e-77cc-a488-42908214f023 / turn01a176ac-776a-7757-b4ab-7a881fc390e4, heavy slot now assigned by parent",
+    "Notification commit d94d5ab6 is pushed; draft PR creation denied HTTP403, no CI/merge/publication; no alternate-route retry permitted",
+    "Apollo original service hold and #696 version/license/registry blockers remain"
+  ],
+  "objective": "Full documented NumPy/JAX/PyTorch/TensorFlow functional equivalence under Atlas first-party native generic provider architecture.",
+  "observed_at": "2026-10-26",
+  "open_decisions": [],
+  "program_version": "2026-10-26.3",
+  "protected_ownership": [
+    {
+      "owner_task": "01a159ec-7017-7725-a554-194472dc20dc",
+      "owner_turn": "01a176ab-537b-71fe-aa02-d59f00de713d",
+      "state": "notification_pushed_pr_creation_denied_no_retry",
+      "target": "Moirai notification coordinator; commit pushed, PR denied, heavy slot released"
+    },
+    {
+      "owner_task": "01a16141-84fd-7045-a5d6-75c04aafa0ef",
+      "state": "owned",
+      "target": "Kwavers typed errors/Miri"
+    },
+    {
+      "owner_task": "01a13842-5a71-712c-b982-d6631f84e002",
+      "state": "service_held",
+      "target": "Apollo implementation"
+    },
+    {
+      "state": "protected_existing_work",
+      "target": "https://github.com/ryancinsight/atlas/pull/551"
+    },
+    {
+      "state": "protected_existing_work",
+      "target": "https://github.com/ryancinsight/apollo/pull/696"
+    },
+    {
+      "owner_task": "01a176ac-6a9e-77cc-a488-42908214f023",
+      "owner_turn": "01a176ac-776a-7757-b4ab-7a881fc390e4",
+      "started_utc": "2026-10-26T05:26:00Z",
+      "state": "admitted_parent_heavy_slot_assigned",
+      "target": "Native Tokio migration: genuine unbounded MPSC and Quinn I/O/buffer adaptation"
+    }
+  ],
+  "qualification_policy": "contracts.md",
+  "reference_snapshots": [
+    {
+      "framework": "numpy",
+      "path": "reference/numpy.json",
+      "public_surface_complete": false,
+      "records": 2718,
+      "semantics_complete": false,
+      "sha256": "08ad3236974e650b76f33ecac6e80e7be41ae94daf7c6eb9c9a76c6b7c8eb2cd",
+      "supplements": [
+        {
+          "framework": "numpy",
+          "path": "reference/documented-export-additions.json",
+          "public_surface_complete": false,
+          "records": 23,
+          "semantics_complete": false,
+          "sha256": "962d74ff23e5caea771a4915c7358c372f8cf3da997060b3d35bbb54542e77d3",
+          "unique_symbols": 23,
+          "version": "2.5.4"
+        }
+      ],
+      "unique_symbols": 2717,
+      "version": "2.5.4"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/jax.json",
+      "public_surface_complete": false,
+      "records": 1678,
+      "semantics_complete": false,
+      "sha256": "ce7362f1540e4d60060768f5177feb34e3e37cb2e645edaaafe91634585d2c34",
+      "supplements": [
+        {
+          "framework": "jax",
+          "path": "reference/source-requested-member-candidates.json",
+          "public_surface_complete": false,
+          "records": 22,
+          "semantics_complete": false,
+          "sha256": "3a4c064f55d6642473612c3b0a75f0f5727ff7101e8ca89f6165725737ebff57",
+          "unique_symbols": 22,
+          "version": "0.12.0.1"
+        }
+      ],
+      "unique_symbols": 1678,
+      "version": "0.12.0.1"
+    },
+    {
+      "framework": "pytorch",
+      "path": "reference/pytorch.json",
+      "public_surface_complete": false,
+      "records": 9066,
+      "semantics_complete": false,
+      "sha256": "9b7339ea2c74a4b50cc676ce6684eb55ac2a96561f959b45da0206b14b79eea2",
+      "unique_symbols": 9066,
+      "version": "2.14.1"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/tensorflow.json",
+      "public_surface_complete": false,
+      "records": 24589,
+      "semantics_complete": false,
+      "sha256": "2c897d3e656483964fc733742a6d4d79de1851a222d88219f227116a8a80830b",
+      "unique_symbols": 23379,
+      "version": "2.21.0"
+    }
+  ],
+  "resolved_policy_decisions": [
+    "DEC-001",
+    "DEC-002",
+    "DEC-003",
+    "DEC-004",
+    "DEC-005",
+    "DEC-006",
+    "DEC-007",
+    "DEC-008",
+    "DEC-009",
+    "DEC-010"
+  ],
+  "schema_version": 1
+}

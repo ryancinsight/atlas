@@ -1,4 +1,4 @@
-<a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Bound publication to exact reviewed package versions [minor] — todo
+<a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Exact release cohorts [minor] — blocked
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
 <a id="atlas-alloc-count-per-thread"></a>- [ATLAS-ALLOC-COUNT-PER-THREAD](backlog/atlas-alloc-count-per-thread.md) — Count test allocations on the measuring thread only [patch] — todo
@@ -59,7 +59,7 @@
 <a id="atlas-lane-audit-001"></a>- [ATLAS-LANE-AUDIT-001](backlog/atlas-lane-audit-001.md) — Lane-root sweep results and residuals [patch] — todo
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — todo
 <a id="atlas-lockfile-checker-single-source"></a>- [ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE](backlog/atlas-lockfile-checker-single-source.md) — Delete the member lockfile.py copies the hooks no longer run [patch] — todo
-<a id="atlas-leto-cast-row-001"></a>- [ATLAS-LETO-CAST-ROW-001](backlog/atlas-leto-cast-row-001.md) — kwavers-math cast row below its pinned count; leto rows regenerated [tightening][patch] — todo
+<a id="atlas-leto-cast-row-001"></a>- [ATLAS-LETO-CAST-ROW-001](backlog/atlas-leto-cast-row-001.md) — The kwavers-math cast row is below the count at its pin [tightening][patch] — todo
 <a id="mnemosyne-pin-campaign-stranded"></a>- [ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06](backlog/mnemosyne-pin-campaign-stranded.md) — A provider-pin campaign stalled undelivered in five members [patch] — todo
 <a id="atlas-modality-003"></a>- [ATLAS-MODALITY-003](backlog/atlas-modality-003.md) — Optical-transport and RF/EM promotion watchpoint [arch] — blocked
 <a id="atlas-moirai-accelerator-route-2026-08-21"></a>- [ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21](backlog/atlas-moirai-accelerator-route-2026-08-21.md) — Execute accelerator routes [major] [arch] — todo
@@ -86,7 +86,6 @@
 <a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
 <a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the bump guard and require it [patch] — todo
 <a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
-<a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo; release retry identity [review](docs/pr/crate-release-identity.md)
 <a id="atlas-publish-001-book-mdbook-test-001"></a>- [ATLAS-PUBLISH-001-BOOK-MDBOOK-TEST-001](backlog/atlas-publish-001-book-mdbook-test-001.md) — Cross-book `mdbook test` gate alignment [patch] — blocked
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked
 <a id="atlas-published-git-dep-rot-001"></a>- [ATLAS-PUBLISHED-GIT-DEP-ROT-001](backlog/atlas-published-git-dep-rot-001.md) — Published members carry floating git deps that rot every fresh resolution [arch] — todo
@@ -111,7 +110,7 @@
 <a id="atlas-unwired-gates-224"></a>- [ATLAS-UNWIRED-GATES-224](backlog/atlas-unwired-gates-224.md) — Instruments that exist, pass, and are never run [patch] — todo
 <a id="atlas-us-capability-023"></a>- [ATLAS-US-CAPABILITY-023](backlog/atlas-us-capability-023.md) — ITKUltrasound capability parity [arch] — todo
 <a id="atlas-usct-fwi-024"></a>- [ATLAS-USCT-FWI-024](backlog/atlas-usct-fwi-024.md) — Transmission-USCT FWI parity [minor] — todo
-<a id="atlas-version-coherence-sweep-2026-09-30"></a>- [ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30](backlog/atlas-version-coherence-sweep-2026-09-30.md) — Follow melinoe, themis and the horae rename into every consumer [correctness] — todo
+<a id="atlas-version-coherence-sweep-2026-09-30"></a>- [ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30](backlog/atlas-version-coherence-sweep-2026-09-30.md) — Follow the current provider cohort into every consumer [correctness] — todo
 <a id="atlas-version-guard-001"></a>- [ATLAS-VERSION-GUARD-001](backlog/atlas-version-guard-001.md) — Manifest-version guard and stack coherence check [patch] — todo
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
 <a id="atlas-worktree-001"></a>- [ATLAS-WORKTREE-001](backlog/atlas-worktree-001.md) — Canonical lane root consolidation [patch] — todo
@@ -121,4 +120,6 @@
 <a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — blocked
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
-<a id="atlas-zip9-cohort-sweep"></a>- [ATLAS-ZIP9-COHORT-SWEEP](backlog/atlas-zip9-cohort-sweep.md) — Clear the zip < 9 advisories by moving kwavers onto the 0.10 provider cohort [patch] — todo
+<a id="atlas-zip9-cohort-sweep"></a>- [ATLAS-ZIP9-COHORT-SWEEP](backlog/atlas-zip9-cohort-sweep.md) — Clear the zip < 9 advisories by moving kwavers onto the current cohort [patch] — todo
+<a id="atlas-full-parity-001"></a>- [ATLAS-FULL-PARITY-001](backlog/atlas-full-parity-001.md) — Define and execute four-framework 1.0 qualification [patch] — todo
+<a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo

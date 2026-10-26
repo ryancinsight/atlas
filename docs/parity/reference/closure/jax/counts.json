@@ -1,0 +1,23 @@
+{
+  "framework": "jax",
+  "version": "0.12.0.1",
+  "source_revision": "dc4af684446e65ee98eee8090e1ff6f8211473fb",
+  "source_tree": "bb9547a8148e50cab9c20f8521bf7af7c752b6f6",
+  "input_inventory_sha256": "ce7362f1540e4d60060768f5177feb34e3e37cb2e645edaaafe91634585d2c34",
+  "mode": "read-only static proposal; not integrated inventory or runtime proof",
+  "public_surface_complete": false,
+  "original_gap_count": 119,
+  "states": {
+    "closed_false_positive_no_member_expansion_requested": 90,
+    "partially_expanded_static_local_definitions": 2,
+    "partially_expanded_static_class": 22,
+    "expanded_requested_member_set": 5
+  },
+  "generated_member_candidates": 199,
+  "remaining_scope": [
+    "whole public export reconciliation",
+    "complete inherited/native/generated member selection",
+    "notebook/prose workflows and deprecation review",
+    "all API semantic axes and executed differential/device qualification"
+  ]
+}
