@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "source_handoff_manifest_sha256": "ce995ad707c1bd3bd4da77784bcab754c6e1bcb64dfff77951140882bdf316fe",
+  "artifacts": [
+    {
+      "path": "workflows/acceptance-language.json",
+      "sha256": "e5e61849b703a95eac083a7b370564ff2449aae49a92b0c57bf72c1a17320223",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/analytical-fixtures.json",
+      "sha256": "6c375d1e75dc11f2068d2645782d61bbd638e624accbeb819a4100cd1f569941",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/architecture-decisions.json",
+      "sha256": "b0999d9a8426ff01dcacd8fab61748d5c2fe9cbb791bb7fe5f0bc90d2edb5fc8",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/audit-findings.json",
+      "sha256": "46ebe8e15ee750d016ce2b688fe1eb96d49cd0dd121f2e2fce18c34dc780382f",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/companion-inventory.json",
+      "sha256": "f7d49dbe8a3a345acd9a516f2c7ceeb48b4011a35cd45e89c3c4be0d84f25920",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/coverage-assertions.json",
+      "sha256": "d5d81125b2b04d296bc3dcf4d1c90119202b240609c14ea802228091a785d673",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/deliverable-manifest.json",
+      "sha256": "ce995ad707c1bd3bd4da77784bcab754c6e1bcb64dfff77951140882bdf316fe",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/deterministic-replay.json",
+      "sha256": "8de75fec3613c18cd16a80a269df13940d9dcf5621020d6e9c7e7443b26ba1d2",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/export-acceptance-matrix.json",
+      "sha256": "f450ff8d4184187999ede6bc3235f373f422d7829364751896c5f173df7bdcc1",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/independent-review/corrected-independent-checks.json",
+      "sha256": "9a44286ce1ac382edbfca1f0506bec9457a88f0074136244654b90b7215af2a9",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/independent-review/corrected-replay.json",
+      "sha256": "819305a596ea4d6cbcc031bffb69c0f4589e70daa708716a83d2f4f5cec6a3f1",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/independent-review/final-review.json",
+      "sha256": "3736d10746bd55cebdfc171e1b98676c1883fd18993cf4b0c199fedbf5be2e42",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/prior-evidence-receipts.json",
+      "sha256": "9116ad4d92f29bfc25c323c3ac4140848165081a941bd54a56ea14ed9668d3f3",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/provider-dag.json",
+      "sha256": "ec0b9fed55d54a3d4594fdf12c732d870ab77c598b3aaf6c433bccba79a9a6a2",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/revision-notes.json",
+      "sha256": "44b3346a0761fdb83463aa7fca5466a97ac2101ba10400399a0dac1950092038",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/source-acquisition-summary.json",
+      "sha256": "64c070c0a00f9ab7436d2040a96968150109749d61aa0cf0d43220a9f47723a7",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/source-citations.json",
+      "sha256": "f469aae1c61bb1bb624d188066a7ed977d908f2798f7df3720086eab69db62b0",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/source-manifest.json",
+      "sha256": "9e85d252ab9a9d9bb5451e9b6e08b824d7c7be94a5be070268630d4bcbed5fde",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/source-tree-provenance.json",
+      "sha256": "16c4c77fd0046b191101b59f56fafa2785a15be9594ba089a4d84861131f6700",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/workflow-contracts.json",
+      "sha256": "2c384a5f3f204cd9b69a8da58ee96c74f3f7ccf9ba62f8550ff2f6e8992b28ec",
+      "role": "reviewed partial workflow design; zero runtime qualification"
+    },
+    {
+      "path": "workflows/planning-dispositions.json",
+      "sha256": "e4a8eab5ba77282c47f764b1045dcd0ba5070ba5592d0dcc9c59833049c5f218",
+      "role": "Planning direction under existing user/native policies; no concrete implementation ADR approval"
+    },
+    {
+      "path": "workflows/source-witnesses.json",
+      "sha256": "4b54a6258ce7326de3a26e7c9bb4475d90dea06bc0b445ebd89e8deb3db7f8a7",
+      "role": "Source length and first-line witnesses remeasured from206SHA/Git-blob verified cached files"
+    }
+  ],
+  "full_workflow_inventory_complete": false,
+  "semantic_definition_complete": false,
+  "execution_credit": 0
+}

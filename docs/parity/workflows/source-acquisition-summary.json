@@ -1,0 +1,29 @@
+{
+  "verified": 206,
+  "unresolved": [
+    {
+      "framework": "tensorflow",
+      "path": "tensorflow/python/distribute/experimental/dtensor_strategy.py",
+      "status": "not_in_frozen_tree",
+      "scope_removed": false
+    },
+    {
+      "framework": "tensorflow",
+      "path": "third_party/xla/workspace.bzl",
+      "status": "not_in_frozen_tree",
+      "scope_removed": false
+    },
+    {
+      "framework": "keras",
+      "path": "keras/src/export/orbax.py",
+      "status": "not_in_frozen_tree",
+      "scope_removed": false
+    },
+    {
+      "framework": "keras",
+      "path": "keras/src/export/orbax_export.py",
+      "status": "not_in_frozen_tree",
+      "scope_removed": false
+    }
+  ]
+}

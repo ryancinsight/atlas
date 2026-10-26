@@ -16,6 +16,7 @@ from atlas_parity_evidence import (PROMOTED, review, states, validate_evidence,
                                    validate_mappings, validate_source_definition)
 from atlas_parity_references import references
 from atlas_parity_scope import validate_scope
+from atlas_parity_workflows import validate_workflows
 from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
 from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, https,
                                  local_path, need, nonempty, read_json, revision, unique)
@@ -109,6 +110,9 @@ def load(root: Path = DEFAULT) -> dict:
     scope, scope_inputs = validate_scope(root, program["files"].get("public_scope"), refs,
                                         capabilities, repositories, program["reference_snapshots"])
     extra_inputs.extend(scope_inputs)
+    workflows, workflow_inputs = validate_workflows(root, program["files"].get("workflow_contracts"),
+                                                    program, capabilities, repositories)
+    extra_inputs.extend(workflow_inputs)
     mappings, assigned = validate_mappings(objects["mappings"], capabilities, refs, repositories)
     specified = {ref: mapping_id for ref, mapping_id in assigned.items()
                  if mappings[mapping_id]["status"]["mapping"] == "specified"}
@@ -164,6 +168,7 @@ def load(root: Path = DEFAULT) -> dict:
               "decisions": decisions,
               "reference_closure": closure, "extra_inputs": extra_inputs,
               "public_scope": scope,
+              "workflows": workflows,
               "repository_evidence": repository_evidence, "qualified_repositories": qualified_repositories}
     if program["definition_complete"]:
         need(not definition_blockers(result), "definition_complete contradicts unresolved obligations")
@@ -232,6 +237,7 @@ def report(bundle: dict) -> dict:
             "implementation_blockers": bundle["program"]["implementation_blockers"],
             "reference_closure": bundle["reference_closure"],
             "public_scope": bundle["public_scope"]["summary"],
+            "workflow_designs": bundle["workflows"],
             "definition_blockers": definition_blockers(bundle)}
 
 

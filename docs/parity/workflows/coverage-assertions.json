@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "result": "passed",
+  "scope": "offline source/definition/traceability/mathematics assertions only",
+  "public_surface_complete": false,
+  "semantic_mapping_complete": false,
+  "full_workflow_inventory_complete": false,
+  "framework_cases_executed": 0,
+  "api_mapping_credit": 0,
+  "counts": {
+    "workflows": 24,
+    "acceptance_scenarios": 58,
+    "workflow_edges": 55,
+    "provider_capabilities": 67,
+    "companion_pin_decisions": 30,
+    "architecture_decisions": 8,
+    "source_blobs": 206,
+    "source_citations": 217,
+    "retained_prior_artifacts": 75,
+    "analytical_fixtures": 14,
+    "export_route_profiles": 29,
+    "negative_numerical_probes": 12
+  },
+  "topological_order": [
+    "WF01",
+    "WF02",
+    "WF03",
+    "WF04",
+    "WF05",
+    "WF06",
+    "WF07",
+    "WF08",
+    "WF09",
+    "WF10",
+    "WF11",
+    "WF12",
+    "WF13",
+    "WF14",
+    "WF15",
+    "WF16",
+    "WF17",
+    "WF18",
+    "WF19",
+    "WF20",
+    "WF21",
+    "WF22",
+    "WF23",
+    "WF24"
+  ],
+  "longest_dependency_chain_by_edge_count": [
+    "WF01",
+    "WF02",
+    "WF05",
+    "WF06",
+    "WF07",
+    "WF08",
+    "WF10",
+    "WF14",
+    "WF15",
+    "WF20",
+    "WF24"
+  ],
+  "critical_path_caveat": "Unweighted dependency depth, not duration/effort estimate. Parent work-package estimates and hardware/companion decisions determine schedule.",
+  "checks": [
+    {
+      "check": "frozen selected source text/blob/SHA256 identities and explicit unresolved path requests",
+      "result": "passed",
+      "checked": 206,
+      "scope": "definition/source/math only; no runtime parity credit"
+    },
+    {
+      "check": "exact line anchors and immutable source links",
+      "result": "passed",
+      "checked": 217,
+      "scope": "definition/source/math only; no runtime parity credit"
+    },
+    {
+      "check": "workflow single-owner/provider prerequisite DAG, scenarios and no-stage-promotion",
+      "result": "passed",
+      "checked": 24,
+      "scope": "definition/source/math only; no runtime parity credit"
+    },
+    {
+      "check": "backend-format shape/rejection/specialization matrix, AWQ, staged AD and asynchronous history",
+      "result": "passed",
+      "checked": 29,
+      "scope": "definition/source/math only; no runtime parity credit"
+    },
+    {
+      "check": "companion unresolved pins, source/protocol distinctions and explicit hardware",
+      "result": "passed",
+      "checked": 30,
+      "scope": "definition/source/math only; no runtime parity credit"
+    },
+    {
+      "check": "open architecture decisions preserve source capabilities without runtime permission",
+      "result": "passed",
+      "checked": 8,
+      "scope": "definition/source/math only; no runtime parity credit"
+    },
+    {
+      "check": "existing 75 canonical artifacts and frozen baseline receipts captured without promotions",
+      "result": "passed",
+      "checked": 75,
+      "scope": "definition/source/math only; no runtime parity credit"
+    },
+    {
+      "check": "all twelve malformed numerical fixtures rejected by scenario-specific arithmetic assertions",
+      "result": "passed",
+      "checked": 12,
+      "scope": "definition/source/math only; no runtime parity credit"
+    },
+    {
+      "check": "independent exact scalar/rational mathematical fixtures (not framework conformance)",
+      "result": "passed",
+      "checked": 14,
+      "scope": "definition/source/math only; no runtime parity credit"
+    },
+    {
+      "check": "typed acceptance operation programs and explicit rejection of unbound adapters",
+      "result": "passed",
+      "checked": 58,
+      "scope": "definition/source/math only; no runtime parity credit"
+    },
+    {
+      "check": "source-tree subset/provenance scope and actionable finding citations",
+      "result": "passed",
+      "checked": 11,
+      "scope": "definition/source/math only; no runtime parity credit"
+    }
+  ],
+  "negative_fixture_probes": [
+    {
+      "probe": "unchecked_row_mean",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-ARRAY.row_mean",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "unchecked_residual",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-AD.truth.residual",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "unchecked_training_residual",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-TRAIN.step1.residual",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "unchecked_complex_encoding",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-COMPLEX.encodings",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "compensating_wrong_rank_contributions",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-DIST.per-rank",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "wrong_parity_same_flat_set",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-DATA.parity-order-multiplicity",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "wrong_awq_channel_max",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-AWQ.channel_max",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "wrong_awq_scaled_weights",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-AWQ.scaled_W",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "wrong_export_batch_output",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-EXPORT.Y",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "wrong_export_shape",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-EXPORT.batchclasses",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "frozen_export_counter",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-COUNTER.state",
+      "runtime_parity_credit": 0
+    },
+    {
+      "probe": "wrong_stale_worker_gradient",
+      "incorrect_fixture_rejected": true,
+      "numerical_assertion": "FX-ASYNC.workergradients",
+      "runtime_parity_credit": 0
+    }
+  ],
+  "remaining_definition_gaps": [
+    "Complete every frozen public API selection and per-API axis/domain/parameter mapping; workflows do not alter any source classification",
+    "Bind native/oracle adapters and enumerate finite legal dtype/device/layout/AD/execution equivalence classes with source proofs",
+    "Expand all public operator/NN/loss/metric/initializer/optimizer/scheduler/sparse/ragged/structured/custom-op subfamilies and compiler/interop targets",
+    "Resolve 30 companion scope/version/build/ABI/protocol decisions and artifact hashes, including browser/native/edge/serving public workflow sources",
+    "Confirm public documented rendered selections; no JAX docs403 retry or bypass is performed",
+    "Predeclare numerical conditioning/error and per-workload performance budgets, acquire real required hardware and execute exact-revision gates",
+    "Independent review/approval of eight architecture decisions and complete candidate artifacts remains pending"
+  ]
+}

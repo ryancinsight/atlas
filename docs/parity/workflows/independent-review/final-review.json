@@ -1,0 +1,126 @@
+{
+  "canonical_input_revision_at_independent_replay": "eda0d31ef2831e617698614e8f78f252b6240097",
+  "corrected_counts": {
+    "architecture_dispositions": 8,
+    "companion_decisions": 30,
+    "companion_edges_reciprocal": true,
+    "current_prior_artifacts_hash_matching": 75,
+    "extra_verified_existing_sources": [
+      {
+        "git_blob_sha": "6810c79ee0306491c1e0f329d45e6f23c387318b",
+        "path": "keras/src/quantizers/awq_config.py",
+        "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+        "sha256": "8cf0fcf924665a7fee1ddd58b5411f23a57c7f19b294e17c6ed50931ead5684b",
+        "source": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/quantizers/awq_config.py"
+      },
+      {
+        "git_blob_sha": "417efe69e7c52718caf7381d4a9479685b1d643b",
+        "path": "keras/src/backend/jax/export.py",
+        "revision": "250b42181ce9f37df68319d8f4753ec89a349a43",
+        "sha256": "81d64b282f586aca9ab0032c0424ff2e176319aede91861e72c09339cff37363",
+        "source": "https://github.com/keras-team/keras/blob/250b42181ce9f37df68319d8f4753ec89a349a43/keras/src/backend/jax/export.py"
+      }
+    ],
+    "provider_graph": {
+      "acyclic": true,
+      "edges": 139,
+      "max_dependency_nodes": 22,
+      "nodes": 67
+    },
+    "scenarios": 58,
+    "source_blobs": 206,
+    "source_citations": 217,
+    "workflow_graph": {
+      "acyclic": true,
+      "edges": 55,
+      "max_dependency_nodes": 11,
+      "nodes": 24
+    }
+  },
+  "framework_imports_builds_or_scenario_execution": false,
+  "incorrect_mutants_accepted": 0,
+  "independent_malformed_fixture_probes": 12,
+  "independent_replay_byte_identical": true,
+  "independent_replay_files": 15,
+  "independently_recomputed_mathematical_fixtures": 14,
+  "remaining_definition_limits": [
+    "All58 scenario/native/oracle adapters remain unbound/unrun and per-API legal dtype/device/layout/gradient/effect/shape/error classes incomplete.",
+    "Rich Ref cotangent marker/lifetime/alias/custom/transform/microbatch variants are source obligations, not complete tested component contracts.",
+    "All30 companion version/artifact selections and compatibility runs remain unresolved; source locks/ranges/comments are not selected oracle environments.",
+    "All29 export route profiles retain incomplete axis/compatibility state; source-supported or source-rejected route labels are not runtime evidence.",
+    "No hardware, differential, performance, deployment, registry/fresh-consumer or release qualification ran.",
+    "Parent canonical integration/schema changes need their own exact-final-revision checks and independent review.",
+    "JAX rendered documentation403 route remains stopped and no rendered/public API completeness is asserted."
+  ],
+  "resolutions": [
+    {
+      "detail": "AWQ positive public source/config, calibration/scaling/packing/serialization retained; Keras-only scenario; per-mode axes and execution remain open.",
+      "id": "WREV-001",
+      "initial_severity": "P1",
+      "recheck_status": "corrected_bounded_source_definition"
+    },
+    {
+      "detail": "25 backend x format cells plus4 native profiles; fixed/symbolic/rejection/specialization cases separated; all29 profiles unrun and axis expansion incomplete.",
+      "id": "WREV-002",
+      "initial_severity": "P1",
+      "recheck_status": "corrected_bounded_source_definition"
+    },
+    {
+      "detail": "All12 isolated malformed-fixture probes fail field-specific arithmetic;14 finite fixtures recompute correctly; no runtime parity inference.",
+      "id": "WREV-003",
+      "initial_severity": "P1",
+      "recheck_status": "corrected_and_independently_retested"
+    },
+    {
+      "detail": "Ignored JAX2TF legacy flags and unconditional NativeSerializationImpl captured; no non-XLA/success/failure claim from false options.",
+      "id": "WREV-004",
+      "initial_severity": "P2",
+      "recheck_status": "source_obligation_preserved_compatibility_unrun"
+    },
+    {
+      "detail": "AD-REVERSE prerequisite added; WF05 consumes primal indexing readiness and WF02 AD suffix follows WF05; qualified stages avoid a workflow cycle.",
+      "id": "WREV-005",
+      "initial_severity": "P2",
+      "recheck_status": "corrected_staged_readiness"
+    },
+    {
+      "detail": "Typed valid/rejection/stress/to-bind outcomes preserve Array/Ref OOB and FFT policies; unmaterialized domains cannot execute or pass.",
+      "id": "WREV-006",
+      "initial_severity": "P2",
+      "recheck_status": "corrected_case_class_design_domains_still_open"
+    },
+    {
+      "detail": "GradRef/GradValue/DidntWant, sparse/repeated accumulation, transform/ref lifetime and custom VJP constraints are retained. Two scalar Ref cases do not close those variants. Stateful export counter added, still unrun.",
+      "id": "WREV-007",
+      "initial_severity": "P2",
+      "recheck_status": "preserved_explicit_open_obligations"
+    },
+    {
+      "detail": "C1 now explicitly synchronous; a TensorFlow-only controlled stale-gradient history has a separate exact mathematical fixture. Arbitrary async scheduling/fault semantics remain open.",
+      "id": "WREV-008",
+      "initial_severity": "P2",
+      "recheck_status": "corrected_controlled_history_definition"
+    },
+    {
+      "detail": "DEC-003 required nonnumeric inclusion replaces scope-exclusion choice. Concrete representation/effect/IR/ABI designs and required ADR reviews remain pending.",
+      "id": "WREV-009",
+      "initial_severity": "P2",
+      "recheck_status": "scope_wording_corrected_implementation_ADRs_pending"
+    },
+    {
+      "detail": "Coordinator and admitted native migration executor are separate; no provider completion inferred; parent refreshes current states before integration.",
+      "id": "WREV-010",
+      "initial_severity": "P2",
+      "recheck_status": "corrected_handoffs_current_task_state_refresh_required"
+    }
+  ],
+  "review_conclusion": "No remaining blocking defect found in the reviewed correction slice for integration as explicitly partial source/acceptance design. This is not full definition, implementation, runtime, public selection, performance, release or future integrated-head approval.",
+  "reviewed_coverage_sha256": "d5d81125b2b04d296bc3dcf4d1c90119202b240609c14ea802228091a785d673",
+  "reviewed_manifest_sha256": "ce995ad707c1bd3bd4da77784bcab754c6e1bcb64dfff77951140882bdf316fe",
+  "reviewed_target_unchanged_by_reviewer": true,
+  "reviewed_workflow_sha256": "2c384a5f3f204cd9b69a8da58ee96c74f3f7ccf9ba62f8550ff2f6e8992b28ec",
+  "role": "independent corrected workflow review; excludes reviewers own JAX classifier",
+  "runtime_parity_credit": 0,
+  "scope_reductions_authorized": false,
+  "source_public_qualification_promoted": false
+}

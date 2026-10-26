@@ -1,0 +1,63 @@
+{
+  "byte_identical": true,
+  "canonical_input_head_after": "eda0d31ef2831e617698614e8f78f252b6240097",
+  "canonical_input_head_before": "eda0d31ef2831e617698614e8f78f252b6240097",
+  "commands": [
+    {
+      "arguments": [
+        "--canonical",
+        "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-public-contracts"
+      ],
+      "exit_code": 0,
+      "script": "design_workflows.py",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "arguments": [],
+      "exit_code": 0,
+      "script": "finalize_artifacts.py",
+      "stderr": "",
+      "stdout": "{\"files\": 22, \"source_snapshots\": 206, \"findings\": 11, \"runtime_cases_executed\": 0}"
+    },
+    {
+      "arguments": [
+        "--write-results"
+      ],
+      "exit_code": 0,
+      "script": "verify_workflows.py",
+      "stderr": "",
+      "stdout": "{\n  \"result\": \"passed\",\n  \"counts\": {\n    \"workflows\": 24,\n    \"acceptance_scenarios\": 58,\n    \"workflow_edges\": 55,\n    \"provider_capabilities\": 67,\n    \"companion_pin_decisions\": 30,\n    \"architecture_decisions\": 8,\n    \"source_blobs\": 206,\n    \"source_citations\": 217,\n    \"retained_prior_artifacts\": 75,\n    \"analytical_fixtures\": 14,\n    \"export_route_profiles\": 29,\n    \"negative_numerical_probes\": 12\n  },\n  \"framework_cases_executed\": 0,\n  \"api_mapping_credit\": 0\n}"
+    },
+    {
+      "arguments": [],
+      "exit_code": 0,
+      "script": "finalize_artifacts.py",
+      "stderr": "",
+      "stdout": "{\"files\": 22, \"source_snapshots\": 206, \"findings\": 11, \"runtime_cases_executed\": 0}"
+    }
+  ],
+  "differences": {},
+  "files_compared": 15,
+  "network_or_framework_import_build_execution": false,
+  "original_target_tree_unchanged": true,
+  "role": "independent corrected metadata replay",
+  "runtime_parity_credit": 0,
+  "sha256": {
+    "acceptance-language.json": "e5e61849b703a95eac083a7b370564ff2449aae49a92b0c57bf72c1a17320223",
+    "analytical-fixtures.json": "6c375d1e75dc11f2068d2645782d61bbd638e624accbeb819a4100cd1f569941",
+    "architecture-decisions.json": "b0999d9a8426ff01dcacd8fab61748d5c2fe9cbb791bb7fe5f0bc90d2edb5fc8",
+    "audit-findings.json": "46ebe8e15ee750d016ce2b688fe1eb96d49cd0dd121f2e2fce18c34dc780382f",
+    "companion-inventory.json": "f7d49dbe8a3a345acd9a516f2c7ceeb48b4011a35cd45e89c3c4be0d84f25920",
+    "coverage-assertions.json": "d5d81125b2b04d296bc3dcf4d1c90119202b240609c14ea802228091a785d673",
+    "export-acceptance-matrix.json": "f450ff8d4184187999ede6bc3235f373f422d7829364751896c5f173df7bdcc1",
+    "prior-evidence-receipts.json": "9116ad4d92f29bfc25c323c3ac4140848165081a941bd54a56ea14ed9668d3f3",
+    "provider-dag.json": "ec0b9fed55d54a3d4594fdf12c732d870ab77c598b3aaf6c433bccba79a9a6a2",
+    "revision-notes.json": "44b3346a0761fdb83463aa7fca5466a97ac2101ba10400399a0dac1950092038",
+    "source-acquisition-summary.json": "64c070c0a00f9ab7436d2040a96968150109749d61aa0cf0d43220a9f47723a7",
+    "source-citations.json": "f469aae1c61bb1bb624d188066a7ed977d908f2798f7df3720086eab69db62b0",
+    "source-manifest.json": "9e85d252ab9a9d9bb5451e9b6e08b824d7c7be94a5be070268630d4bcbed5fde",
+    "source-tree-provenance.json": "16c4c77fd0046b191101b59f56fafa2785a15be9594ba089a4d84861131f6700",
+    "workflow-contracts.json": "2c384a5f3f204cd9b69a8da58ee96c74f3f7ccf9ba62f8550ff2f6e8992b28ec"
+  }
+}
