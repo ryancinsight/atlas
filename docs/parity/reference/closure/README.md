@@ -1,6 +1,6 @@
 # Source closure and semantic definition slice
 
-Program 2026-10-26.3. [Frozen index](index.json). These are versioned source
+Program 2026-10-26.4. [Frozen index](index.json). These are versioned source
 audits, candidate relations and partial semantic specifications. The four
 original inventory files remain byte-identical. No source table, alias, test
 specification or inherited name establishes implemented/runtime parity.
@@ -66,3 +66,7 @@ can change those generator hashes without changing source facts. Normal CI
 checks frozen artifacts, identities, gap accounting and relation distinctions;
 cached source checks remain separately scoped evidence. No reference runtime
 installation, compiler build, device test or deployment runs in this slice.
+
+The separately reviewed [source-disposition follow-up](dispositions.md) refines
+selection, parser, package and workflow questions while preserving every
+retained identity and the incomplete global denominators.

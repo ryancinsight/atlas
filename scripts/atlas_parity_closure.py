@@ -5,6 +5,7 @@ import hashlib
 from pathlib import Path
 
 from atlas_parity_schema import digest, fields, local_path, need, read_json, unique
+from atlas_parity_dispositions import validate_dispositions
 
 
 def gap_key(row: dict) -> tuple:
@@ -117,4 +118,5 @@ def validate_closure(root: Path, relative: str, program: dict) -> tuple[dict, li
         "tensorflow_missing_exports": len(missing["records"]),
         "keras_inherited_and_direct_member_candidates": keras["counts"]["member_declarations"],
     }
+    summary["bounded_source_dispositions"] = validate_dispositions(get, index["baselines"])
     return summary, inputs

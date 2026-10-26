@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "framework": "pytorch",
+  "version": "2.14.1",
+  "revision": "5c4886908584029761b579af026dcfb627c84070",
+  "source_blobs_verified": 26,
+  "source_tests_passed": 9,
+  "source_tests_skipped": 0,
+  "runtime_tests_executed": 0,
+  "source_assertion_groups": 15,
+  "unrun_acceptance_cases": 26,
+  "copy_layout_documentation_discrepancies": 3,
+  "whole_api_complete": false,
+  "byte_identical_regeneration": true,
+  "artifact_sha256": {
+    "contract.json": "ab23b5bd7e57d3d73864408873d8d651b19f5bd24556b3a4c5972e64f09a97d3",
+    "acceptance-cases.json": "03563decbaaf36923dbd50bc11f28d4cc0f6d872a17ecd56eeec902a954b2a5a",
+    "sources.json": "0df268d60158963b2de00032e67aaba0ed911b866b561bb0805c489f146d99d0"
+  },
+  "old_replay_artifacts_unchanged": true
+}
