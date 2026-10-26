@@ -48,15 +48,17 @@
   },
   "atlas_public_scope_delivery_20261026": {
     "branch": "docs/parity-public-contracts-20261026",
-    "ci": "CLI PR#572 exists at exact f09; normal readiness starts actual fast/slow pytest jobs and CodeQL/conformance checks. This planning snapshot grants no hosted-CI pass credit; actual exact-head results must be read before integration.",
+    "ci": "Actual ready-state fast/slow pytest, all CodeQL languages and conformance pass at exact f09; three post-merge runs pass. Historical draft-skipped tests grant no credit. Tooling/source delivery is not framework/provider execution.",
     "cli_delivery": {
       "base": "main",
       "connector_denial_retried": false,
       "creation": "confirmed using existing gh CLI session after duplicate check returned empty",
       "head": "f09f078edda6367304763b1e977a8771066bdffe",
+      "historical_receipt": true,
       "merge_or_release": false,
       "pull_request": "https://github.com/ryancinsight/atlas/pull/572",
-      "state": "created; hosted exact-head checks and normal readiness required"
+      "receipt_phase": "initial_cli_creation_before_normal_readiness_and_gates",
+      "state": "Created at this historical receipt; verified_merge separately records completed delivery"
     },
     "confirmed_pushed_revision": "f09f078edda6367304763b1e977a8771066bdffe",
     "draft_pr": {
@@ -72,18 +74,68 @@
       "retry": "Stopped; no alternate creation route attempted",
       "transport": "GitHub connector"
     },
+    "historical_merge_or_release": false,
     "historical_no_pr_ci_receipt": "No PR-triggered exact-head CI exists; local/source checks do not replace hosted gates",
     "historical_pushed_revision": "3d765a943cbaf7e6b6456b1e815b7fcc4d684a04",
-    "merge_or_release": false,
-    "remaining_delivery_gates": "Existing f09 exact-head independent review clear,115focusedtests0skip. CLI PR#572 now created; required hosted tests/security/conformance and final policy/readiness inspection remain before conditional merge. No definition or1.0 clearance."
+    "merged": true,
+    "released": false,
+    "remaining_delivery_gates": "Planning slice merged after its applicable exact-head gates; full extraction/semantics, provider/hardware/performance/release and1.0 remain unqualified.",
+    "verified_merge": {
+      "active_repository_hooks": [],
+      "actual_postmerge_successful_runs": [
+        40331438934,
+        40331439275,
+        40331435947
+      ],
+      "actual_premerge_successful_runs": [
+        40329936713,
+        40329704758,
+        40329712716
+      ],
+      "github_deployments_observed": [],
+      "has_pages": false,
+      "head": "f09f078edda6367304763b1e977a8771066bdffe",
+      "independent_review_sha256": "3465133831f6c10edf27fcaba0879f2c4867932a0dac814e665dc32966da5d23",
+      "merge_commit": "60f32ba8f44a79bc93013067432e1f8704a48cdb",
+      "merged_at": "2026-10-26T13:32:13Z",
+      "method": "merge with expected-head match; no admin bypass",
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/572",
+      "runtime_or_definition_qualification": false
+    }
   },
   "atlas_workflow_scope_delivery_20261026": {
-    "base_revision": "f09f078edda6367304763b1e977a8771066bdffe",
+    "base_revision": "60f32ba8f44a79bc93013067432e1f8704a48cdb",
     "branch": "docs/parity-workflow-contracts-20261026",
-    "confirmed_pushed_revision": "da03f4ea2b134539f4f26343510f0e41e8e43568",
-    "draft_pr": "Not attempted after predecessor creation403; matching readback0",
-    "hosted_checks_or_release": false,
-    "local_validation": "121 focused tests0skip and exact-head independent review clear"
+    "confirmed_pushed_revision": "45d24c14a8598afb2f9a5d67ead5711c5951e1d0",
+    "draft_pr": "CLI PR#573 created after duplicate check, then normalready; verifiedmerged",
+    "historical_draft_observation": "Not attempted after predecessor creation403; matching readback0",
+    "historical_hosted_checks_or_release": false,
+    "historical_pushed_snapshot": "da03f4ea2b134539f4f26343510f0e41e8e43568",
+    "local_validation": "121 focused tests0skip and exact-head independent review clear",
+    "merged": true,
+    "released": false,
+    "verified_merge": {
+      "actual_premerge_successful_runs": [
+        40334653453,
+        40333999640,
+        40334003014
+      ],
+      "focused_tests_passed": 121,
+      "focused_tests_skipped": 0,
+      "github_deployments_observed": [],
+      "head": "45d24c14a8598afb2f9a5d67ead5711c5951e1d0",
+      "independent_review_sha256": "6a65ba65901bb6ef89d85a12f52dd30194e3a4e2aaa03994ac38c7fd65a10c26",
+      "merge_commit": "de9d428d41b26a0876a3e76a4a6984bd0ad2ef65",
+      "merged_at": "2026-10-26T14:02:45Z",
+      "postmerge_runs_observed": {
+        "40335982823": "in_progress",
+        "40335982847": "success",
+        "40335982871": "success"
+      },
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/573",
+      "runtime_or_definition_qualification": false,
+      "tree_identical_to_reviewed_da03": "7b05f831de12a9b4061941c80757edd9c3fdbf7f"
+    }
   },
   "audit_date": "2026-10-26",
   "audit_kind": "read_only_source_and_selected_remote_evidence",
@@ -125,12 +177,24 @@
     "sync_tests_passed": 56,
     "tokio_free": "not established"
   },
+  "core_tensor_reviewed_snapshot_20261026": {
+    "branch": "docs/parity-core-tensor-contracts-20261026",
+    "compare": "https://github.com/ryancinsight/atlas/compare/da03f4ea2b134539f4f26343510f0e41e8e43568...510410f20cce546ea9a1ba8e79669540e9821a00",
+    "integration_main": "de9d428d41b26a0876a3e76a4a6984bd0ad2ef65",
+    "integration_tree_identical_to_saved_snapshot": true,
+    "new_status_successor_delivery_pending": true,
+    "no_full_definition_runtime_or_release_credit": true,
+    "verified_pushed_snapshot": "510410f20cce546ea9a1ba8e79669540e9821a00"
+  },
   "gammaln_implementation_owner_20261026": {
     "authentication_handoff": {
       "authorized_repository_route": "Explicit later user direction authorizes existing gh CLI session for policy/deployment reads and draft creation; connector is not retried and no credentials/access settings change.",
+      "cli_identity_verified_by_parent": true,
+      "cli_route_authorized": true,
+      "connector_permission_repair_claimed": false,
+      "historical_integration403_hold_resolved": false,
       "identity_outcome": "verified ryancinsight via parent minimal-account receipt; no additional login or planning probe needed",
       "identity_verification_owner": "01a17793-e227-73cf-b347-6c85477ef010",
-      "integration403_hold_resolved": false,
       "source": "Trusted parent delegation after user Mac CLI login",
       "user_instruction": "Use existing logged-in CLI session, not a separately supplied token"
     },

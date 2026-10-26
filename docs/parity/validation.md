@@ -240,3 +240,11 @@ model checks cover7,225 broadcast pairs,9,261 triples,58,536 storage descriptors
 finite analytical checks of this model, not provider/reference API tests or an
 exhaustive domain proof. Independent source reviews bind exact7c169acf and
 875d1411 packet manifests; final Atlas revision review remains separate.
+
+The public/workflow source deliveries are now merged as PR#572/#573, in order,
+with unchanged package versions, gitlinks and CI workflows. Both execute actual
+ready-state fast/slow pytest plus CodeQL/conformance at their reviewed heads.
+Workflow integration preserves the entire reviewed da03 tree. Core integration
+against main de9d428d also preserves the saved510410f2 tree before this status
+receipt update. Fresh exact-head core review/hosted gates remain mandatory; no
+whole-program qualification follows from the completed planning deliveries.

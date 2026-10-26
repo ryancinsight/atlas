@@ -224,7 +224,16 @@ Eunomia/Leto feature pushes successful. Subsequent explicit user direction
 authorizes `gh` CLI repository operations using that session. The original
 connector403 is not retried or treated as integration repair. A duplicate check
 returns no public-contract PR; CLI creation then confirms
-[Atlas#572](https://github.com/ryancinsight/atlas/pull/572) at exact f09.
+[Atlas #572](https://github.com/ryancinsight/atlas/pull/572) at exact f09.
 Hosted checks and all ordinary gates remain mandatory. No credential, permission
 or deployment settings change occurs. Gamma downstream/registry/release evidence
 remains with its existing owner; no path-overlay completion is inferred.
+
+CLI delivery is subsequently verified: Atlas #572 head f09 merges as 60f32ba8 after
+independent exact-head review and actual pytest/CodeQL/conformance gates; all
+three post-merge runs pass, deployments remain empty. The workflow head 45d24
+incorporates that main result and has exactly the reviewed da03 tree. Atlas #573
+then merges as de9d428d after its renewed independent review, 121 zero-skip focused
+tests and actual hosted gates. Exact IDs/receipts remain in provider-evidence.json.
+These supersede the earlier pending-delivery observations without changing any
+API/native/hardware/performance/release qualification state.

@@ -88,8 +88,17 @@ the existing CLI identity is now verified and Eunomia/Leto feature pushes are
 reported successful. Exact downstream/registry/release qualification stays open.
 
 Reviewed snapshots `f09f078e`/`da03f4ea` remain preserved. The historical connector
-attempt returned HTTP403 and created no PR; that connector is not retried. Later
-explicit user direction authorizes the verified existing `gh` CLI session.
-[PR#572](https://github.com/ryancinsight/atlas/pull/572) is created at exact f09.
-Hosted checks, normal readiness and independent review remain mandatory before
-conditional merging. No credentials/access change or1.0 qualification follows.
+attempt returned403 and is not retried. Explicit user direction authorizes the
+existing `gh` CLI session. [PR#572](https://github.com/ryancinsight/atlas/pull/572)
+is merged at `60f32ba8` after actual fast/slow pytest, CodeQL, conformance and
+independent exact-head review. All three post-merge runs pass; deployments are
+empty, Pages is disabled and hooks are empty.
+
+[PR#573](https://github.com/ryancinsight/atlas/pull/573) refreshes the workflow
+snapshot against that prerequisite; its tree remains identical to reviewed da03.
+It is merged at `de9d428d` after121 zero-skip focused tests, independent review
+and actual hosted gates. The [provider ledger](../provider-evidence.json) retains
+exact heads, merge commits, source reviews and run IDs. Those planning deliveries
+do not qualify framework execution, full definition or1.0. The core snapshot
+`510410f2` is saved and independently reviewed; final integration/status changes
+require their own exact-head review and applicable hosted gates.
