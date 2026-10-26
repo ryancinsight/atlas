@@ -190,6 +190,8 @@ class ScopeTests(unittest.TestCase):
         for change in [{"sha256": "e" * 64, "count": 2}, {"sha256": "c" * 64, "count": 1}]:
             with self.subTest(change=change), self.assertRaises(ParityError):
                 input_parent(expected, {**parent, "input": change}, "d" * 64)
+        with self.assertRaisesRegex(ParityError, "contradictory audit version"):
+            input_parent(expected, {**parent, "version": "99.0.0"}, "d" * 64)
 
     def test_parent_null_and_duplicate_rows_cannot_preserve_identity_count(self):
         expected, parent = self.parent_fixture()

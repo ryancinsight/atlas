@@ -37,6 +37,7 @@ def input_parent(expected, parent, parent_sha256):
     """A reviewed correction may consume a frozen classification of the same inventory."""
     digest(parent_sha256, "source-audit parent digest")
     fields(parent, {"input": dict, "records": list, "columns": list, "tables": dict}, "source-audit parent")
+    audit_identity("tensorflow", parent, expected)
     fields(parent["input"], {"sha256": str, "count": int}, "source-audit parent inventory")
     need(parent["input"].get("sha256") == expected["inventory_sha256"] and
          0 < len(parent["records"]) == parent["input"]["count"] == expected["inventory_records"],
