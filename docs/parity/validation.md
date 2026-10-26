@@ -10,7 +10,14 @@ heads receive independent review and actual fast/slow Python, CodeQL and
 conformance passes after readiness. All three post-merge #571 workflows pass;
 the exact merge has no deployment records. Earlier draft-only skip observations
 below are retained history, not passing validations or current merge blockers.
-The public-surface/shared-contract increment requires its own final-head review
+The public-surface/shared-contract increment subsequently merged through
+[Atlas #572](https://github.com/ryancinsight/atlas/pull/572) at `60f32ba8`,
+workflow contracts through [#573](https://github.com/ryancinsight/atlas/pull/573)
+at `de9d428d`, and core tensor contracts through
+[#574](https://github.com/ryancinsight/atlas/pull/574) at `f642337d`.
+Each exact head passed independent review and actual fast/slow Python, CodeQL
+and conformance checks; each merge's post-merge checks passed with no deployment
+records. The current dtype policy increment requires its own exact-head review
 and hosted checks. Full definition and release qualification remain blocked.
 
 ## Recorded candidate surface
@@ -31,12 +38,15 @@ capability count. PyTorch retains 8,944 documentation/label records separately.
 See [the closure slice](reference/closure/README.md) for exact finite dispositions.
 
 Two API contracts, `numpy.ndim` and `numpy.shape`, are independently reviewed
-SOURCE `mapping=specified`. Thirty-six constructor contracts plus `numpy.size`
-remain partial, covering 59 declaration views. Another 38,035 candidate
-identities are unmapped. All 38,094 not-fully-specified identities continue to
-block definition completion. There are zero runtime qualification evidence
-records and no qualified repositories. The 67 family contracts route ownership;
-they do not convert candidate declarations into implemented capabilities.
+SOURCE `mapping=specified`. The historical #572 baseline had 36 constructor
+contracts plus `numpy.size`, covering 59 partial declaration views and leaving
+38,035 candidate identities unmapped. The #574 core increment added 37 partial
+views while reusing both specified contracts. The current report therefore has
+**96 partial and 37,998 unmapped identities**; all **38,094** without complete
+semantic mappings continue to block definition completion. The dtype policy
+slice changes none of these stages. There are zero runtime qualification
+evidence records and no qualified repositories. The 67 family contracts route
+ownership; they do not convert candidate declarations into implemented capabilities.
 
 ## Reproduction
 

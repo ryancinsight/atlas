@@ -26,8 +26,11 @@ JAX remains **0.12.0.1**, commit
 **2.5.4**, commit `a3d0ef1df045b858e68115001fdabc930bb3b68c`. These source pins
 do not identify installed companion artifacts. Full third-party source files are
 not vendored; portable excerpts, hashes and original review preserve provenance.
-Captured research documentation and replay receipts describe the original packet.
-Canonical reproduction uses the Atlas checker and tests below.
+The [opaque original README](jax-20261026/captured/README.source.txt) and replay
+receipts describe the original packet, preserving its exact bytes and historical
+relative paths. Canonical navigation uses the [graph](jax-20261026/graph.json),
+[pair table](jax-20261026/pairs.json) and other artifacts above. Canonical
+reproduction uses the Atlas checker and tests below.
 
 The finite graph has 33 nodes when both `ml_dtypes.int1` and `uint1` are absent,
 35 when both are present, and source initialization rejections for the two
