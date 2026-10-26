@@ -78,8 +78,8 @@ def unpack(document):
         need(type(row) is list and len(row) == len(columns), "record-table row width differs")
         record = {}
         for column, cell in zip(columns, row):
-            need(type(cell) is int and -1 <= cell < len(tables[column]),
-                 f"{column}: invalid record-table cell")
+            if type(cell) is not int or not -1 <= cell < len(tables[column]):
+                raise ParityError(f"{column}: invalid record-table cell")
             if cell >= 0:
                 record[column] = tables[column][cell]
         records.append(record)
