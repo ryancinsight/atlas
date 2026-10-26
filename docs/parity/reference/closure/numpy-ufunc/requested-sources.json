@@ -1,0 +1,242 @@
+[
+  {
+    "path": "doc/source/reference/c-api/generalized-ufuncs.rst",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "7a436b102600ab54b1041a71930d26c49ff38f68",
+    "size": 16525,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/7a436b102600ab54b1041a71930d26c49ff38f68"
+  },
+  {
+    "path": "doc/source/reference/c-api/ufunc.rst",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "2dbc8cae2fa19421c5572936b0cd7d7482c66417",
+    "size": 19281,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/2dbc8cae2fa19421c5572936b0cd7d7482c66417"
+  },
+  {
+    "path": "doc/source/reference/routines.bitwise.rst",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f6c15dd60f3490c8197a5154200b08838f5e3450",
+    "size": 516,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f6c15dd60f3490c8197a5154200b08838f5e3450"
+  },
+  {
+    "path": "doc/source/reference/routines.linalg.rst",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "3920e28f999464751d754d6aef9d0afb4e716876",
+    "size": 4625,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/3920e28f999464751d754d6aef9d0afb4e716876"
+  },
+  {
+    "path": "doc/source/reference/routines.logic.rst",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "68a236605f90223b5bd6cc2bbbc7e5e2500d850f",
+    "size": 822,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/68a236605f90223b5bd6cc2bbbc7e5e2500d850f"
+  },
+  {
+    "path": "doc/source/reference/routines.math.rst",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f08304e74f51d571683f241cdb5498c2cb0bdc9d",
+    "size": 2207,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f08304e74f51d571683f241cdb5498c2cb0bdc9d"
+  },
+  {
+    "path": "doc/source/reference/routines.strings.rst",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "68387aee22ff14863ab18d42dacd3a5eb88632d1",
+    "size": 1651,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/68387aee22ff14863ab18d42dacd3a5eb88632d1"
+  },
+  {
+    "path": "doc/source/reference/ufuncs.rst",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "cac15b66cf14cd4eee510b4cd5724720299c3129",
+    "size": 13654,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/cac15b66cf14cd4eee510b4cd5724720299c3129"
+  },
+  {
+    "path": "doc/source/user/basics.ufuncs.rst",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "5c91ab6c0168b2af033a10e9ed8f3f440cc3bede",
+    "size": 14756,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/5c91ab6c0168b2af033a10e9ed8f3f440cc3bede"
+  },
+  {
+    "path": "numpy/__init__.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "be46f6b09c7531a43f341b8e530465a58f1725de",
+    "size": 25220,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/be46f6b09c7531a43f341b8e530465a58f1725de"
+  },
+  {
+    "path": "numpy/__init__.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "d50397a5c4d90bc3a93964016df9b1b559f44312",
+    "size": 285616,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/d50397a5c4d90bc3a93964016df9b1b559f44312"
+  },
+  {
+    "path": "numpy/_core/__init__.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "ede50aaeefc3f595ed7e5993eadfba6d044fd94c",
+    "size": 6662,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/ede50aaeefc3f595ed7e5993eadfba6d044fd94c"
+  },
+  {
+    "path": "numpy/_core/_add_newdocs.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "eed4d7f945a8a0cb7899acba0e08abb3239fed77",
+    "size": 215165,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/eed4d7f945a8a0cb7899acba0e08abb3239fed77"
+  },
+  {
+    "path": "numpy/_core/_internal.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "15f436b80bd78ab03e4fd54be6ca26f3f923b93b",
+    "size": 29401,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/15f436b80bd78ab03e4fd54be6ca26f3f923b93b"
+  },
+  {
+    "path": "numpy/_core/code_generators/generate_umath.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "ecb455767a24528f8748e2da6d9a83037a81bae4",
+    "size": 55081,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/ecb455767a24528f8748e2da6d9a83037a81bae4"
+  },
+  {
+    "path": "numpy/_core/code_generators/generate_umath_doc.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f2f1e5d35d885f00064d0c3fc809c37b82736561",
+    "size": 1447,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f2f1e5d35d885f00064d0c3fc809c37b82736561"
+  },
+  {
+    "path": "numpy/_core/code_generators/ufunc_docstrings.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "6973ba34322e5bdb045c68869a8ab0a7ebe56070",
+    "size": 143110,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/6973ba34322e5bdb045c68869a8ab0a7ebe56070"
+  },
+  {
+    "path": "numpy/_core/defchararray.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "8d67766b6e97d4cb499a50a5f14524948596fee8",
+    "size": 38241,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/8d67766b6e97d4cb499a50a5f14524948596fee8"
+  },
+  {
+    "path": "numpy/_core/multiarray.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "c7f21b60c488bcec7f889709dd7d8ed716bdc74b",
+    "size": 56885,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/c7f21b60c488bcec7f889709dd7d8ed716bdc74b"
+  },
+  {
+    "path": "numpy/_core/numeric.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "4ba4ae4cae1d6192ff95a206905a1c30ecf7633c",
+    "size": 80583,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/4ba4ae4cae1d6192ff95a206905a1c30ecf7633c"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/multiarraymodule.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "543c1977b4d930c38f93b3ac886af20636cf6646",
+    "size": 161846,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/543c1977b4d930c38f93b3ac886af20636cf6646"
+  },
+  {
+    "path": "numpy/_core/src/umath/override.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "421359eb6203a23f05762151686cda31088143b3",
+    "size": 13624,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/421359eb6203a23f05762151686cda31088143b3"
+  },
+  {
+    "path": "numpy/_core/src/umath/ufunc_object.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "f86b6736e68d8f173b99d3e067dd320d648357e4",
+    "size": 232938,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/f86b6736e68d8f173b99d3e067dd320d648357e4"
+  },
+  {
+    "path": "numpy/_core/src/umath/umathmodule.c",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "439a2ac308d95bfc397767f3be8dab7d8c124747",
+    "size": 8129,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/439a2ac308d95bfc397767f3be8dab7d8c124747"
+  },
+  {
+    "path": "numpy/_core/strings.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "371a582d35fedc616134676abc7733902385fe3b",
+    "size": 50588,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/371a582d35fedc616134676abc7733902385fe3b"
+  },
+  {
+    "path": "numpy/_core/umath.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "0f37d41749df4e96174e3270ac3e33f2fbf9990a",
+    "size": 2117,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/0f37d41749df4e96174e3270ac3e33f2fbf9990a"
+  },
+  {
+    "path": "numpy/_globals.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "76f380b3e23e0708c5d19deea9d31877a8259c8d",
+    "size": 4156,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/76f380b3e23e0708c5d19deea9d31877a8259c8d"
+  },
+  {
+    "path": "numpy/_typing/_ufunc.pyi",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "5ace7d90d00a53f67011933902ca3adf7971f27b",
+    "size": 29281,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/5ace7d90d00a53f67011933902ca3adf7971f27b"
+  },
+  {
+    "path": "numpy/char/__init__.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "a757fcee58ac4901abc2ed93e1720250111d0fd1",
+    "size": 828,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/a757fcee58ac4901abc2ed93e1720250111d0fd1"
+  },
+  {
+    "path": "numpy/strings/__init__.py",
+    "mode": "100644",
+    "type": "blob",
+    "sha": "561dadcf37d090ce201f9b9bec2dbb6e86a3dc06",
+    "size": 83,
+    "url": "https://api.github.com/repos/numpy/numpy/git/blobs/561dadcf37d090ce201f9b9bec2dbb6e86a3dc06"
+  }
+]

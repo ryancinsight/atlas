@@ -53,7 +53,7 @@ evidence meets all protocol obligations. Both qualification commands correctly
 return 1 for this candidate. External exact-head review evidence is mandatory
 for eventual qualification; a clean tracked tree alone does not qualify.
 
-The focused suite executes **77 tests, zero skips**: 60 gate/traceability tests
+The focused suite executes **87 tests, zero skips**: 70 gate/traceability tests
 and 17 source-extractor tests collected by an import-only wrapper in
 `scripts/tests`. Hosted `pytest scripts/tests` therefore collects the same
 extractor tests without duplicating assertions. Source extractors regenerate
@@ -142,10 +142,13 @@ no held Quinn/Apollo/provider repair is duplicated.
 
 ## Exact-head CI and bounded source checks
 
-The ordinary-fix commit `f2adbfc67a4e8386e530440c314ee09d88ef6245` passes the
-required [workflow/debt gates](https://github.com/ryancinsight/atlas/actions/runs/40276591640),
-gitlink checks and CodeQL. Separate draft pytest jobs remain skipped, with no
-verification credit. New source/semantic changes require a new exact-head run.
+The preceding slice `756d2c80ed1a7b431cd26df2d4c1c8421d7b94dd` passes the
+required [workflow/debt gates](https://github.com/ryancinsight/atlas/actions/runs/40283691029)
+and [CodeQL](https://github.com/ryancinsight/atlas/runs/121442532253), with no
+findings in independent exact-head review. The gitlink-policy job succeeds;
+conditional provider compilation is skipped because pins are unchanged, with
+no provider verification credit. Separate draft pytest jobs remain skipped.
+New source/semantic changes require a new exact-head run.
 
 Four cached source-audit pipelines run without importing a framework. Independent
 source checks verify 437 NumPy, 164 JAX, 40 PyTorch and 4,134 TF/Keras file
@@ -154,3 +157,9 @@ four negative mutations and TF's 12 static/analytical checks are source-audit
 evidence only. Replayed source/semantic tables match the captured bytes. These
 checks do not replace reference execution, Atlas implementation tests, native
 hardware qualification or benchmarks.
+
+The [source-disposition follow-up](reference/closure/dispositions.md) adds JAX
+selection, PyTorch parser/Storage/layout and Keras packaging/import distinctions.
+Its four isolated cached replays compare stable outputs byte for byte; seventeen
+NumPy, ten JAX, nine PyTorch and eleven Keras source checks pass. Those counts are separately
+scoped and grant no runtime or semantic parity credit.

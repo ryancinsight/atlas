@@ -22,14 +22,14 @@
   "implementation_blockers": [
     "Hardware and external performance matrices unqualified; unavailable targets remain obligations",
     "Provider audit establishes source facts only; no complete exact-revision provider execution qualification",
-    "Native Tokio migration is admitted under task01a176ac-6a9e-77cc-a488-42908214f023 / turn01a176ac-776a-7757-b4ab-7a881fc390e4, heavy slot now assigned by parent",
+    "Native migration edfd15ea is locally committed and unpushed atop unpublished d94d5ab6; assigned exact-candidate independent review01a1771f-4ace-75e4-a240-c800b7d7e02a is pending; scoped tests/zero-Tokio graphs do not establish platform runtime/performance or release acceptance",
     "Notification commit d94d5ab6 is pushed; draft PR creation denied HTTP403, no CI/merge/publication; no alternate-route retry permitted",
     "Apollo original service hold and #696 version/license/registry blockers remain"
   ],
   "objective": "Full documented NumPy/JAX/PyTorch/TensorFlow functional equivalence under Atlas first-party native generic provider architecture.",
   "observed_at": "2026-10-26",
   "open_decisions": [],
-  "program_version": "2026-10-26.3",
+  "program_version": "2026-10-26.4",
   "protected_ownership": [
     {
       "owner_task": "01a159ec-7017-7725-a554-194472dc20dc",

@@ -1,6 +1,6 @@
 # Four-framework functional parity program
 
-Program revision: **2026-10-26.3**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
+Program revision: **2026-10-26.4**. Protocol: **1**. State: **definition in progress; no 1.0 qualification**.
 
 This is the canonical Atlas program for the October 26 instruction to complete
 Coeus and its providers to full NumPy, JAX, PyTorch and TensorFlow functional
@@ -42,6 +42,10 @@ Current source accounting: **38,096 candidate identities; two source-specified,
 59 partial and 38,035 unmapped**. Candidate relation tables remain separately
 visible and all four public denominators remain open. No execution or release
 state is promoted by source mapping.
+
+The [bounded source dispositions](reference/closure/dispositions.md) preserve
+member-selection, parser and package/import distinctions. They refine required
+acceptance cases without excluding candidates or granting execution credit.
 
 The selected first implementation slice is the Atlas traceability/evidence
 validator (WP-002). It enforces this distinction with rejection tests. Provider

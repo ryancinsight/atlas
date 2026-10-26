@@ -265,6 +265,265 @@
       "public_surface_complete": false,
       "role": "unresolved_endpoint_candidates_retained",
       "sha256": "27c2ee3a7608d11501784ecb6b4641cecdca3e907b277eb82b9294b137b66d41"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax-selection/selection-dispositions.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "8bef69241d643505a2bab19cc16cccb242d1105f4081b53f41ca475b772b7f6f"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax-selection/tooling-sources.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "ba5bbaff68be9f0ffcf59879cdf3091e0a7157d63e15f589b14ed5b74bbe837f"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax-selection/versioned-docs-access.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "4c9f61704d405cb09c5f6629db8bd1e5872c83f9642dcaafa5189dd5005b9571"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax-selection/sphinx-pypi.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "34acc3a045c37cdb604ea7437a4d5919a2f06777b42981aae3e04eeeb134cef2"
+    },
+    {
+      "framework": "pytorch",
+      "path": "reference/closure/torch-new-tensor/contract.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "ab23b5bd7e57d3d73864408873d8d651b19f5bd24556b3a4c5972e64f09a97d3"
+    },
+    {
+      "framework": "pytorch",
+      "path": "reference/closure/torch-new-tensor/acceptance-cases.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "03563decbaaf36923dbd50bc11f28d4cc0f6d872a17ecd56eeec902a954b2a5a"
+    },
+    {
+      "framework": "pytorch",
+      "path": "reference/closure/torch-new-tensor/sources.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "0df268d60158963b2de00032e67aaba0ed911b866b561bb0805c489f146d99d0"
+    },
+    {
+      "framework": "pytorch",
+      "path": "reference/closure/torch-new-tensor/verification.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "805f23b7bfe398d95ae359d9273822208f8a4dab96290764caa3c307ca2b5d11"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/artifact-provenance.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "1dcb66577b04c3fffd3b30edc187c88c0c17608b3eafc27156c35460b177e3e4"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/assertion-results.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "ebda2b9b9dce2a35134748914ee156402a6c2256c7d8b5f5e925b23278968ea1"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/git-source-verification.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "105a059cd25280d847558c3e1e0a6070090957342611a6b7daf0a7012e3c1d4e"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/manifest.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "6f78f46e7e4aee5383574804bc2c695910555f17fc59e0178c3d4b088d359181"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/official-doc-observations.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "5fd0506cc295450cbe13759c4adca583bc0f9d7cd7476e64675d88045d82324f"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/packaged-module-exports.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "f17ac9db5af1ba9b72b7900fef0c64404f58b97a1a908b15151984ef6f8fd99d"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/pypi-keras-3.15.1.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "eb34e1011c92ba64aa4bd8918a971cdf4fb0b8990f9848b3c9d265cec7669304"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/record-verification.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "b1258560299aae05676d769cede48800aa548bb3471aa0a1dd5f277a75b9a7de"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/saving-acceptance-specifications.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "182dd6d8c3887bbb9bc49ec77ac461fdfdb1b4c32e58e9b871884424f490abaa"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/saving-endpoint-resolution.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "af9f4fad15f3270692aef616729dee0319dd35fe4033e3a67fca8c870d693ffc"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/source-witnesses.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "9609549fcd35a484a3dd1f1fa48a7b85d5c80774d111cfe57b9d24851bf9122a"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/submodule-importers.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "a8ba3c82144d1bee82a7b3040cb5189b7be6d459fcfa8265fd76a2eae159392e"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/wheel-source-correspondence.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "589041d12e7f21f1cce16b1d963b31d736c5799af2043ad616d7cc84bde8c2b5"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/inputs/keras-tree.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "4ba66941cfd30b008418dab1162e98b6c6b709659d5f94cdb55332be1d9cafd0"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/inputs/retained-endpoint-names.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "99e3da914975e6448b3aed1a4d0f12a7e5546ff21fa5c47421af130cbcf13b56"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/bounded-completeness.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "d01fbe7486cdaf69e8bf386ddcb5da875575dbedef9a4efb23c4101dd34f0efc"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/documentation-dispositions.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "d02797079afa4b1846a33cbe801256b0ac640bf0c658281ab3b6e8a2448ace71"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/handoff-manifest.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "55c5c5143f99a42cad243328de9c3a3d9a03d33b42f5530f837fc766df082a85"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/identity-input-comparison.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "c336ea659df34e462b7fd259efd587faa6cd482f829a64da527faa8a8e6b5e9a"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/remaining-scope.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "dde39acf663784c8ddff4614eeccab8115f8336f2fe1f87da2de953c8feae90e"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/requested-sources.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "15e37aead0f31fe54205fa7eca47f94cf4542a4d892ec06a6063fd4cfbf717fb"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/source-manifest.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "08617c225a85696c6f980bdea061cc84eb7aaa309a7be13e5720884b9356cb54"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/ufunc-bindings.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "8fb8d70201c1e62dd6f9534084be0b88344bf45fb4a79d83f9e669f25e943c9e"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/ufunc-expansions.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "6198d6bc2545e2d6f6053237546350622cc00a2c76bd5e476971578cada0d9cc"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/ufunc-members.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "145a16d60508232f5e23fdda8e8af27d2705b893cb94a182fea3eb366c562ec7"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/ufunc-objects.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "4c2c386915fda9cbf87c172a2d5045dc20f0f39203d7c2a12897b519099cdefe"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/verification-report.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "0218cae131e967919cace27d7e06598622f71b066ef15ef506ee969a36f16fef"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/inputs/manifest.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "5da68f0bd003eac1fec127d534d39eb7a0de9787e2123dfa1d036f90e4eef899"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/comparison-source/manifest.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "1d9addd64319ba8d97c6443e9c1703e5de4cb366276427acb24513ed14666bd2"
     }
   ],
   "baselines": {
@@ -291,7 +550,7 @@
   },
   "binding_and_relation_candidates_are_capabilities": false,
   "execution_verification": false,
-  "program_version": "2026-10-26.3",
+  "program_version": "2026-10-26.4",
   "public_surface_complete": false,
   "schema_version": 1,
   "scope": "Source closure audits and partial semantic specifications; no source relation is automatic functional equivalence. Original snapshots remain immutable.",

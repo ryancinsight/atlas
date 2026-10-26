@@ -1,0 +1,210 @@
+[
+  {
+    "path": "tools/autograd/templates/python_variable_methods.cpp",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/tools/autograd/templates/python_variable_methods.cpp",
+    "blob_sha": "35a6a7d6f721bcb68bacf2ba9415cc021c8a7b5a",
+    "sha256": "4ff0ea4da30f714698062edf697f0ffccc418f933ad30a070143d61d71289068",
+    "bytes": 53705,
+    "lines": 1327
+  },
+  {
+    "path": "torch/csrc/utils/tensor_new.cpp",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp",
+    "blob_sha": "0c802652af8fd07292d0b6ae2773bb49da4f7b78",
+    "sha256": "cd753c8a617ee283c430f586a613709c288f185828548a0653c3f14d4c67a547",
+    "bytes": 65252,
+    "lines": 1877
+  },
+  {
+    "path": "torch/csrc/utils/tensor_new.h",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.h",
+    "blob_sha": "4eb7941cbd2a875285c0d3dbf053eb13819c315d",
+    "sha256": "b2c9937c1462984cf52325eff3d2c17ccadab5b2bfd4050d2f130088ebc89506",
+    "bytes": 4091,
+    "lines": 137
+  },
+  {
+    "path": "torch/csrc/utils/python_arg_parser.cpp",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_arg_parser.cpp",
+    "blob_sha": "4e6ccb5a750768189bc0f14e5a3729bda1ab6311",
+    "sha256": "4570c57751c10e5c1cfa74416f179c8cbd30067d091093c56c29c6ee0f752bc3",
+    "bytes": 66758,
+    "lines": 2048
+  },
+  {
+    "path": "torch/csrc/utils/python_arg_parser.h",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_arg_parser.h",
+    "blob_sha": "205956e14281caa6317cef3035b9d9b9ada0ef55",
+    "sha256": "96f337ea15dca376b29dece4a8db13df4c1374a93e6d376fab7159b58fdd78d5",
+    "bytes": 42442,
+    "lines": 1331
+  },
+  {
+    "path": "torch/csrc/utils/tensor_types.cpp",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_types.cpp",
+    "blob_sha": "95ae4772c1e8a9afd3b28f276489fe8b82f5de0f",
+    "sha256": "7e4cb35d401610376dead82607e9502b773adf031452bf15b37d478d72963eb7",
+    "bytes": 4883,
+    "lines": 158
+  },
+  {
+    "path": "torch/csrc/utils/tensor_numpy.cpp",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_numpy.cpp",
+    "blob_sha": "d4cdbb8d9125d334b80a7dd44684333140c1f662",
+    "sha256": "e8ae93829b13ca4d106726a377e310a0632ef57faf436cd63c8ee80b1ac7d9b1",
+    "bytes": 19279,
+    "lines": 590
+  },
+  {
+    "path": "torch/utils/dlpack.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/utils/dlpack.py",
+    "blob_sha": "19677591444676054cad30c2d3e7105b06549c5c",
+    "sha256": "e0431395885cfe0e02e4d16b894e01f91e42f5b8cec001a4367e73463d9e2a30",
+    "bytes": 11245,
+    "lines": 297
+  },
+  {
+    "path": "torch/csrc/autograd/variable.h",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/autograd/variable.h",
+    "blob_sha": "c83c3428700611d2a288020aa45defbf8a50a593",
+    "sha256": "94dbc890e0fac8dcde6dc3556bcafbdfffa5f8bce09d83e0169fed3ddbfbe5cd",
+    "bytes": 42963,
+    "lines": 1015
+  },
+  {
+    "path": "test/test_tensor_creation_ops.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/test/test_tensor_creation_ops.py",
+    "blob_sha": "a46a0f97cd7f71274ac2971d437285ab4092d064",
+    "sha256": "e279c83f1ab018d4cb2f5b01d4a0f80a9a8fc3e410bf5572641ffe7a2e098ac0",
+    "bytes": 211777,
+    "lines": 4567
+  },
+  {
+    "path": "test/test_torch.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/test/test_torch.py",
+    "blob_sha": "e394ba710e806bf456a32743315151d0460473f4",
+    "sha256": "7f8496ce7562ab78bbdb697f828841234886b5c33ed77aa628d3fcaa6ffe39d7",
+    "bytes": 494811,
+    "lines": 11197
+  },
+  {
+    "path": "test/test_numpy_interop.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/test/test_numpy_interop.py",
+    "blob_sha": "e737dbfa246ccf71aad5e2846f81e652d8c6e7b5",
+    "sha256": "af89187cf5f01d8816789b120e6370454a6702e0f09b223a7dcec330f6c88a37",
+    "bytes": 26969,
+    "lines": 712
+  },
+  {
+    "path": "test/test_dlpack.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/test/test_dlpack.py",
+    "blob_sha": "78886833f7378093e4201b1145529b70d88f7fcc",
+    "sha256": "fc809bbc9175f40b649fc9a549dde9d7ae7cf938d719714a69e4545b34a1ef60",
+    "bytes": 43874,
+    "lines": 1071
+  },
+  {
+    "path": "test/test_overrides.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/test/test_overrides.py",
+    "blob_sha": "16609e60cb31e5182cc35908c1e817656e210280",
+    "sha256": "5f69e46ebc520f1db691d21f887fc570edf98a0a83f01f0619760e1254aabcb2",
+    "bytes": 74604,
+    "lines": 2078
+  },
+  {
+    "path": "test/test_python_dispatch.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/test/test_python_dispatch.py",
+    "blob_sha": "ec98612a64bfde57ddd8568bd473a4cc471157dd",
+    "sha256": "2eee84e51d3106eeab15a04ee66f4d7b21d0f8ce25da6bdddcfc54db2d31e2f4",
+    "bytes": 114847,
+    "lines": 2932
+  },
+  {
+    "path": "test/test_sparse.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/test/test_sparse.py",
+    "blob_sha": "12f64476f38323b89b7af5c9a6f3c7c7414fb708",
+    "sha256": "9facd1be566fbe62eecb2572ed5996386b6e83f2689603b69ee0e174236efdde",
+    "bytes": 274330,
+    "lines": 5890
+  },
+  {
+    "path": "test/quantization/core/test_quantized_tensor.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/test/quantization/core/test_quantized_tensor.py",
+    "blob_sha": "379f2180d54aeff875fa8c0aa45f1df75e98d727",
+    "sha256": "c2b920433b45ef933a5f7c7883d2a8783febd03574caf341995c7896a5e36a28",
+    "bytes": 80598,
+    "lines": 1680
+  },
+  {
+    "path": "torch/_tensor_docs.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py",
+    "blob_sha": "d024f2a467070c5ee17f828823f8154c63179bcf",
+    "sha256": "9c3d4d0bcef8041352cc87cff68980c39ddd8c506d4e8db6410af306bd46f189",
+    "bytes": 142677,
+    "lines": 6922
+  },
+  {
+    "path": "torch/_tensor.py",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/_tensor.py",
+    "blob_sha": "e346bccf14b677e27f2244ff0244e2c3d81c3dc9",
+    "sha256": "dead69ea4e782ca5f68f046115b2a6defb3c93fe8ff671d93fa84d139f3d9f33",
+    "bytes": 70738,
+    "lines": 1746
+  },
+  {
+    "path": "torch/csrc/DynamicTypes.cpp",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/DynamicTypes.cpp",
+    "blob_sha": "d5e4b6f44597bbf1e5cd67a4909b41c505cafda2",
+    "sha256": "bd322c92a8030e18f3052a35d02ffbd8a20b16ab2ecb30b2b578fe8451f70afe",
+    "bytes": 4008,
+    "lines": 123
+  },
+  {
+    "path": "torch/csrc/autograd/python_variable.cpp",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/autograd/python_variable.cpp",
+    "blob_sha": "6814c925953edaa1913f536ef2ecf7f8fc0f68df",
+    "sha256": "3842753e9df5af0db19b96caa4a5b553ae5dba46e59a22719303caeaae6e8c49",
+    "bytes": 140432,
+    "lines": 3943
+  },
+  {
+    "path": "aten/src/ATen/core/LegacyTypeDispatch.h",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/core/LegacyTypeDispatch.h",
+    "blob_sha": "3efe5e0f7b87b66a1cf22ef1d5fb0f93e2f78494",
+    "sha256": "3ada62421934dcfe0cf42c6fee58a1c9ceec4cd904bdb8322520b21f3c21d5d0",
+    "bytes": 4857,
+    "lines": 111
+  },
+  {
+    "path": "torch/csrc/utils/tensor_types.h",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_types.h",
+    "blob_sha": "a4b905604da60afeda3c99543bfa9bbff1531d2b",
+    "sha256": "f33ac423c3db059a9df75811b13dedfb6de6f6834f5534dc6fcf9cdb42cac61a",
+    "bytes": 669,
+    "lines": 20
+  },
+  {
+    "path": "c10/core/DispatchKeySet.h",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/c10/core/DispatchKeySet.h",
+    "blob_sha": "968138932afcc47f80e359a2c12d1d9687cfabd7",
+    "sha256": "46667b673e18b20e01bb14e7737d806bc054f05a5cb11d3bd016fcfa75dfcf22",
+    "bytes": 41676,
+    "lines": 966
+  },
+  {
+    "path": "torch/csrc/utils/python_scalars.h",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_scalars.h",
+    "blob_sha": "a6c91c8bd14a5e2e818b7d960df2ce26f8481970",
+    "sha256": "877070f2b47dc53ed229a03a7caad57a9342f3cb0e785353a782421e11a26003",
+    "bytes": 6410,
+    "lines": 177
+  },
+  {
+    "path": "aten/src/ATen/native/TensorConversions.cpp",
+    "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/TensorConversions.cpp",
+    "blob_sha": "ae1005a86ec06a66a89a7b07bc5f14a91f48fff8",
+    "sha256": "41121014a505a007c0d45f21beafce38b6aaf4d34c152214ad4a0f7b00d22d5d",
+    "bytes": 88147,
+    "lines": 2524
+  }
+]

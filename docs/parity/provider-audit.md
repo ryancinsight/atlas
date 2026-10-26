@@ -120,9 +120,33 @@ prohibits an alternate-route retry. The heavy slot now belongs to the admitted
 native-migration executor. These facts supersede delivery/slot state above;
 scoped tests remain scoped and no release qualification is promoted.
 
+The latest native-migration handoff supersedes the executor's active-build
+state: local candidate `edfd15ea7678bea24fa4f08f4df453efb9d608aa`, tree
+`e2c9d233b760722ca8935978a53d616bbd2c648d`, is clean and unpushed, stacked on
+unpublished notification `d94d5ab6`. Read-only verification matches the supplied
+1,436-record receipt SHA-256
+`ed2993676318dff7bdc5f161a2d11a2297257d9f06fc9b6266de2bfa35c93152`.
+Scoped groups report 191 async/native-QUIC passes, 25 driver passes including
+three stress cases, and 33 actual-source Miri witness passes, each with zero
+skips. Both source-consumer mode sessions pass. Six native normal/build graph
+configurations (macOS/Linux/Windows, default/minimal) contain zero Tokio nodes.
+These are overlapping scoped owner receipts, not a combined coverage denominator
+or platform runtime/performance/release acceptance. The current Atlas gitlink
+and capability target revisions remain unchanged.
+
+Independent exact-candidate review is assigned to task
+`01a1771f-4ace-75e4-a240-c800b7d7e02a`, turn
+`01a1771f-57f9-74f4-a78c-2d2193a1a0c3`, with the heavy slot for bounded review
+if needed. Its outcome is pending. Neither the local native candidate nor its
+predecessor is published; the predecessor PR's integration HTTP403 still blocks
+delivery. This lane does not retry or use another access route. The
+[structured observation](provider-evidence.json) keeps these facts separate from
+the execution qualification ledger.
+
 | Work | Existing owner | Required handoff |
 | --- | --- | --- |
-| Quinn/QUIC native-Tokio/provider blockers | `01a159ec-7017-7725-a554-194472dc20dc` | Exact revision, dependency-policy pass, original full-domain transport gates, provider registry graph and consumer resolution. |
+| Quinn/QUIC native migration | Implementation `01a176ac-6a9e-77cc-a488-42908214f023`; review `01a1771f-4ace-75e4-a240-c800b7d7e02a` | Review local `edfd15ea`; original full-domain transport/platform/performance gates, coherent published provider graph and consumer resolution remain. |
+| Notification delivery | Coordinator `01a159ec-7017-7725-a554-194472dc20dc` | Existing pushed `d94d5ab6`; integration HTTP403 remains denied, no alternate-route retry. |
 | Kwavers typed-error/Miri | `01a16141-84fd-7045-a5d6-75c04aafa0ef` | Exact revision, computed-error tests and applicable real Miri execution. |
 | Apollo held work | `01a13842-5a71-712c-b982-d6631f84e002` | Resolve service hold before any implementation retry; retain version/license/registry gates. |
 | Atlas #551 / Apollo #696 | Existing branch owners | Read-only evidence; no branch mutation or replacement repair. |

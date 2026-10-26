@@ -1,0 +1,22 @@
+[
+  {
+    "path": "frozen-original-inventory.json",
+    "sha256": "08ad3236974e650b76f33ecac6e80e7be41ae94daf7c6eb9c9a76c6b7c8eb2cd"
+  },
+  {
+    "path": "official-inventory-2.5.0.json",
+    "sha256": "e1394431091510753f6477f0e6c47e1500f5eb9223a4261a29b06f2fff5811c7"
+  },
+  {
+    "path": "original-generated-ufunc-rows.json",
+    "sha256": "73c0c3604025b633dd85cb4dbf3bc6e1891bd5e75a1fc597ffad3a055c8eb913"
+  },
+  {
+    "path": "source-tree-v2.5.0.json",
+    "sha256": "081a439ed29f4414b98bf4c542ce949dce653fb9c7e1b99ec5d75b69b273e5b7"
+  },
+  {
+    "path": "source-tree.json",
+    "sha256": "3fafe0b89018b61fc289a522ca66ea689a848576ca251a2b90ecb3de8087a49d"
+  }
+]
