@@ -165,17 +165,45 @@ class ScopeTests(unittest.TestCase):
         with self.assertRaisesRegex(ParityError, "raw family framework"):
             family_rows("pytorch", {"families": [raw]}, "families", "source.json", self.caps, self.repos)
 
-    def test_corrected_tf_audit_requires_a_parent_of_the_same_frozen_inventory(self):
+    def parent_fixture(self):
+        primary = [{"symbol": "tf.add", "kind": "function", "source": "https://example.org/add"},
+                   {"symbol": "tf.mul", "kind": "function", "source": "https://example.org/mul"}]
         expected = {"version": "2.21.0", "revision": REV, "inventory_sha256": "c" * 64,
-                    "inventory_records": 1}
-        parent = {"input": {"sha256": "c" * 64, "count": 1}, "records": [{"symbol": "tf.add"}]}
+                    "inventory_records": 2, "primary_records": primary}
+        parent = {"input": {"sha256": "c" * 64, "count": 2},
+                  "columns": ["declaration_id", "input_index", "symbol", "record_template", "source_ref_set",
+                              "documentation_template", "typed_relation_ref_set", "semantic_variant_template"],
+                  "tables": {"record_templates": [{"kind": "function"}], "source_ref_sets": [[]],
+                             "documentation_templates": [{}], "typed_relation_ref_sets": [[]],
+                             "semantic_variant_templates": [{}]}, "records": []}
+        for index, row in enumerate(primary):
+            identity = hashlib.sha256("\0".join((row["symbol"], row["kind"], row["source"])).encode()).hexdigest()[:24]
+            parent["records"].append([identity, index, row["symbol"], 0, 0, 0, 0, 0])
+        return expected, parent
+
+    def test_corrected_tf_audit_requires_a_parent_of_the_same_frozen_inventory(self):
+        expected, parent = self.parent_fixture()
         corrected = {"input": {"sha256": "d" * 64}}
         with self.assertRaises(ParityError):
             audit_identity("tensorflow", corrected, expected)
         audit_identity("tensorflow", corrected, input_parent(expected, parent, "d" * 64))
-        for change in [{"sha256": "e" * 64, "count": 1}, {"sha256": "c" * 64, "count": 2}]:
+        for change in [{"sha256": "e" * 64, "count": 2}, {"sha256": "c" * 64, "count": 1}]:
             with self.subTest(change=change), self.assertRaises(ParityError):
                 input_parent(expected, {**parent, "input": change}, "d" * 64)
+
+    def test_parent_null_and_duplicate_rows_cannot_preserve_identity_count(self):
+        expected, parent = self.parent_fixture()
+        for records in [[None, None], [parent["records"][0], parent["records"][0]]]:
+            with self.subTest(records=records), self.assertRaises(ParityError):
+                input_parent(expected, {**parent, "records": records}, "d" * 64)
+
+    def test_parent_table_indices_and_declaration_identity_are_source_bound(self):
+        expected, parent = self.parent_fixture()
+        for column, bad in [(0, "wrong-declaration"), (1, True), (2, "tf.other"), (3, 999)]:
+            changed = copy.deepcopy(parent)
+            changed["records"][0][column] = bad
+            with self.subTest(column=column), self.assertRaises(ParityError):
+                input_parent(expected, changed, "d" * 64)
 
 
 if __name__ == "__main__":

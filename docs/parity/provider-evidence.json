@@ -46,6 +46,24 @@
     "qualification_credit": "Planning/tooling delivery only; not full definition or1.0 qualification",
     "reviewed_head": "7a1f96b1aca40131add614cc6ce835f69481bb06"
   },
+  "atlas_public_scope_delivery_20261026": {
+    "branch": "docs/parity-public-contracts-20261026",
+    "ci": "No PR-triggered exact-head CI exists; local/source checks do not replace hosted gates",
+    "confirmed_pushed_revision": "3d765a943cbaf7e6b6456b1e815b7fcc4d684a04",
+    "draft_pr": {
+      "base": "main",
+      "head": "docs/parity-public-contracts-20261026",
+      "http_status": 403,
+      "operation": "Create draft pull request",
+      "outcome": "denied",
+      "readback_matching_pull_requests": 0,
+      "reason": "Resource not accessible by integration",
+      "repository": "ryancinsight/atlas",
+      "retry": "Stopped; no alternate creation route attempted"
+    },
+    "merge_or_release": false,
+    "remaining_delivery_gates": "Predecessor guard strengthened after denial with115zero-skip local tests; exact-final-head independent re-review, PR creation and hosted CI remain pending. No definition or1.0 clearance."
+  },
   "audit_date": "2026-10-26",
   "audit_kind": "read_only_source_and_selected_remote_evidence",
   "coordinator_handoff_20261026": {

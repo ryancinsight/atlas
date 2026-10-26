@@ -69,7 +69,7 @@ def main():
         data = read_json(root / snapshot["path"])
         baselines[snapshot["framework"]] = {"version": snapshot["version"],
             "revision": data["source_revision"], "inventory_sha256": snapshot["sha256"],
-            "inventory_records": snapshot["records"]}
+            "inventory_records": snapshot["records"], "primary_records": data["records"]}
     contracts, bindings, receipts, captured_paths = [], [], [], []
     extras = {"numpy": ["sources.json", "signature-extraction.json", "rules-and-exceptions.json",
                          "ownership-exceptions.json", "miscellaneous-routing-audit.json", "correction-history.json"],

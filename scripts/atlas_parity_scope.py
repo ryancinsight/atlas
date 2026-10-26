@@ -118,7 +118,7 @@ def validate_scope(root: Path, relative: str, refs: dict, capabilities: dict,
         data = read_json(local_path(root, snapshot["path"]))
         baselines[snapshot["framework"]] = {"version": snapshot["version"],
             "revision": data["source_revision"], "inventory_sha256": snapshot["sha256"],
-            "inventory_records": snapshot["records"]}
+            "inventory_records": snapshot["records"], "primary_records": data["records"]}
     for identity, row in bindings.items():
         path = row["source_artifact"]
         need(path in documents, f"{identity}: unregistered source detail")
