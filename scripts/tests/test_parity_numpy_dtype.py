@@ -373,9 +373,9 @@ class NumpyDtypeIntegrationTests(unittest.TestCase):
             self.assertEqual(result['symbolic_safe_cells'], 576)
             self.assertEqual(result['existing_mapped_API_associations'], 3)
 
-    def test_JAX_introduction_and_all_historical_bytes_stay_consumed_by_program9(self):
+    def test_JAX_introduction_and_all_historical_bytes_stay_consumed_by_current_program(self):
         b = self.bundle
-        self.assertEqual(b['program']['program_version'], '2026-10-26.9')
+        self.assertEqual(read_json(ROOT / PREFIX / 'index.json')['parent_program_version'], '2026-10-26.9')
         path = ROOT / JAX_PREFIX / 'index.json'
         self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), '9ba4444ce793edf0d90d106d95b6140e6216f9a1be8adcfe1987a792952e3774')
         self.assertEqual(read_json(path)['parent_program_version'], '2026-10-26.8')

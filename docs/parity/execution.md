@@ -144,6 +144,8 @@ local overrides before downstream publication; repeat after integration.
 | Apollo implementation | Task `01a13842-5a71-712c-b982-d6631f84e002`: service hold must be cleared through its existing owner before implementation retry. No bypass or replacement task. |
 | Atlas #551 / Apollo #696 | Existing owners retain branches. Read-only audit links preserve exact failure evidence. Integration waits for version/license/registry closure through those owners. |
 | Atlas full-parity program | This lane: denominator, semantic contracts, program, evidence gate and draft PR. No package version changes or provider repair mutation. |
+| Moirai #640 / Eunomia #186 | Existing owner `pi:01a1747c-62a9-73dd-a2f0-7e1713113749` retains execution; no competing executor. Qualification is unverified in this lane. |
+| Ares #66 / Leto #385 | Parent reports source-verified changes; exact-revision repository qualification remains pending. Regression assessment and publication remain unverified here. |
 
 ## Current deployment inspection
 
@@ -184,3 +186,18 @@ gates. After trusted merged tooling is available, the existing PyPI worker can
 rerun its unchanged normal hook on the final reviewed candidate. Publication
 holds stay separate. This source-definition increment changes no #551 branch,
 member tooling, provider pin, credential, timeout or access setting.
+
+The latest parent handoff records replacement-owner approval as pending for
+#551. This lane preserves the existing work and performs no owner lookup,
+resume or takeover. The historical failure/source receipts above remain intact.
+
+The [pending provider source records](provider-evidence.json) retain
+[Ares #66](https://github.com/ryancinsight/ares/pull/66) and
+[Leto #385](https://github.com/ryancinsight/leto/pull/385) as source-verified by the
+parent. Exact candidate revisions, required repository gates, regression
+assessment, registry receipts and publication remain pending verification;
+repository qualification and API evidence stages receive no credit.
+
+### Conditional Torch native dtype acceptance
+
+The [Torch acceptance plan](dtype-policy/pytorch-20261026/acceptance-plan.json) is subordinate to WP-001/003/004. Definition closure must resolve public parsing/registry/default and native dependency gaps before typed Eunomia policy work; proposed Coeus integration follows policy readiness and all payload/alias/device/AD evidence. Each bounded package retains explicit case/gap IDs, prerequisites, required evidence and a null actual implementation owner. All are not ready. No provider repair is duplicated, generic widening shortcut authorized, concrete ADR approved or unsupported capability excluded.

@@ -20,6 +20,7 @@
     "reference_closure": "reference/closure/index.json",
     "repositories": "repositories.json",
     "repository_evidence": "repository-evidence.json",
+    "torch_native_dtype_policy": "dtype-policy/pytorch-20261026/index.json",
     "work_packages": "work-packages.json",
     "workflow_contracts": "workflows/index.json"
   },
@@ -31,12 +32,13 @@
     "Notification commit d94d5ab6 is pushed; connector draft PR creation was denied HTTP403 and that connector route remains stopped. Existing logged-in gh CLI is now authorized for owner-led delivery; current PR/CI/merge/publication outcome is not verified by this lane.",
     "Apollo original service hold and #696 version/license/registry blockers remain",
     "CPU gamma candidate locally qualified at owned Eunomia/Leto/Coeus heads; original invalidCLI and connector403 receipts remain historical. Existing CLI identity is verified and provider feature pushes are reported; full downstream delivery remains pending verification; registry/fresh consumer, full dtype/AD/device/performance and selected-cohort integration remain open; no path-overlay completion credit",
-    "Aequitas PyPI task01a178af on candidate ffc58aa07bd6e7e442dd7ac9b8b78a84c2311584 is blocked before Cargo: trusted Atlasf642337d67a7853e9c81a2f6fb07cd45a5691d83 cast checker rejects --command-cwd (argparse exit2). Protected Atlas#551 owner01a169d2-8b8f-7b90-a5bd-79e24b4cb6c7 continuation/2 retains the matching tool change: observed draft head811a704864c3b30fb269f12196396b25099c3130 has failing hosted gates, prepared source741aecf6b41c64810bf77a58806f07c5284c9e2d is unqualified. Owner liveness/delivery remain unverified after durable host read unavailable; no successor, prepared-tool adoption or bypass. Existing-owner qualification and trusted merged tooling must precede rerunning the unchanged Aequitas hook. Source: https://github.com/ryancinsight/atlas/blob/811a704864c3b30fb269f12196396b25099c3130/scripts/atlas_cast_gate.py#L587"
+    "Aequitas PyPI task01a178af on candidate ffc58aa07bd6e7e442dd7ac9b8b78a84c2311584 is blocked before Cargo: trusted Atlasf642337d67a7853e9c81a2f6fb07cd45a5691d83 cast checker rejects --command-cwd (argparse exit2). Protected Atlas#551 owner01a169d2-8b8f-7b90-a5bd-79e24b4cb6c7 continuation/2 retains the matching tool change: observed draft head811a704864c3b30fb269f12196396b25099c3130 has failing hosted gates, prepared source741aecf6b41c64810bf77a58806f07c5284c9e2d is unqualified. Owner liveness/delivery remain unverified after durable host read unavailable; no successor, prepared-tool adoption or bypass. Existing-owner qualification and trusted merged tooling must precede rerunning the unchanged Aequitas hook. Source: https://github.com/ryancinsight/atlas/blob/811a704864c3b30fb269f12196396b25099c3130/scripts/atlas_cast_gate.py#L587",
+    "Source-verified Ares#66 and Leto#385 are reported by the parent; exact-revision repository qualification remains pending. No regression or publication result is inferred. Pending source records: provider-evidence.json pending_provider_qualification_changes; PRs https://github.com/ryancinsight/ares/pull/66 and https://github.com/ryancinsight/leto/pull/385"
   ],
   "objective": "Full documented NumPy/JAX/PyTorch/TensorFlow functional equivalence under Atlas first-party native generic provider architecture.",
   "observed_at": "2026-10-26",
   "open_decisions": [],
-  "program_version": "2026-10-26.9",
+  "program_version": "2026-10-26.10",
   "protected_ownership": [
     {
       "owner_task": "01a159ec-7017-7725-a554-194472dc20dc",
@@ -55,6 +57,7 @@
       "target": "Apollo implementation"
     },
     {
+      "current_lane_action": "no_lookup_resume_or_takeover; preserve_existing_work",
       "delivery_state": "blocked_existing_owner_tooling_qualification_pending_no_unmerged_tool_adoption",
       "downstream_candidate": "ffc58aa07bd6e7e442dd7ac9b8b78a84c2311584",
       "downstream_owner_task": "01a178af-6ebf-7316-9b0a-f8336170703a",
@@ -68,6 +71,8 @@
       "owner_liveness": "unverified_after_durable_host_unavailable",
       "owner_task": "01a169d2-8b8f-7b90-a5bd-79e24b4cb6c7",
       "prepared_source_revision": "741aecf6b41c64810bf77a58806f07c5284c9e2d",
+      "replacement_owner_approval": "pending",
+      "replacement_owner_task": null,
       "state": "protected_existing_work_downstream_tooling_prerequisite",
       "target": "https://github.com/ryancinsight/atlas/pull/551",
       "trusted_checker_revision": "f642337d67a7853e9c81a2f6fb07cd45a5691d83"
@@ -87,6 +92,16 @@
       "owner_task": "01a17793-e227-73cf-b347-6c85477ef010",
       "state": "locally_qualified_cpu_candidate_delivery_blocked_no_competing_executor",
       "target": "Differentiable gammaln/lgamma: Eunomia digamma -> Leto CPU operation -> Coeus autograd and both Python aliases; GPU remains separate, no fallback"
+    },
+    {
+      "owner_task": "pi:01a1747c-62a9-73dd-a2f0-7e1713113749",
+      "qualification": "not_verified_in_this_lane",
+      "source_urls": [
+        "https://github.com/ryancinsight/moirai/pull/640",
+        "https://github.com/ryancinsight/eunomia/pull/186"
+      ],
+      "state": "owned_no_competing_executor",
+      "target": "Moirai #640 / Eunomia #186"
     }
   ],
   "qualification_policy": "contracts.md",

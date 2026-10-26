@@ -747,6 +747,30 @@
       "status": "source_observed"
     }
   ],
+  "pending_provider_qualification_changes": [
+    {
+      "candidate_revision": null,
+      "publication": "unverified",
+      "pull_request": "https://github.com/ryancinsight/ares/pull/66",
+      "qualification": "pending_exact_revision_repository_gates",
+      "qualification_credit": false,
+      "registry_receipt": null,
+      "regression_assessment": "not_assessed_in_this_lane",
+      "repository": "ares",
+      "source_verification": "reported_source_verified_by_parent_2026_10_26"
+    },
+    {
+      "candidate_revision": null,
+      "publication": "unverified",
+      "pull_request": "https://github.com/ryancinsight/leto/pull/385",
+      "qualification": "pending_exact_revision_repository_gates",
+      "qualification_credit": false,
+      "registry_receipt": null,
+      "regression_assessment": "not_assessed_in_this_lane",
+      "repository": "leto",
+      "source_verification": "reported_source_verified_by_parent_2026_10_26"
+    }
+  ],
   "protected_ownership": {
     "apollo_service_hold": "01a13842-5a71-712c-b982-d6631f84e002",
     "kwavers_typed_error_miri": "01a16141-84fd-7045-a5d6-75c04aafa0ef",
