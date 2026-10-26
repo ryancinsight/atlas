@@ -1,6 +1,6 @@
 # Dependency-ordered implementation program
 
-Program 2026-10-26.5. [Machine-readable packages](work-packages.json).
+Program 2026-10-26.6. [Machine-readable packages](work-packages.json).
 
 ## Immediate sequence and readiness
 
@@ -19,6 +19,12 @@ Program 2026-10-26.5. [Machine-readable packages](work-packages.json).
    checklists without granting unrun execution credit.
 4. Implement provider-first WP-005 onward only when the specific slice's
    readiness contract is met. Existing repair owners retain their claims.
+
+The [workflow contracts](workflows/README.md) add a second dependency DAG and
+finite acceptance programs. The24 workflow nodes and58 unrun scenarios retain
+target-specific export, state/effect and asynchronous-history contracts. They
+do not replace complete per-API classes or grant runtime readiness. All30
+companion pin/scope decisions and concrete provider ADR approvals remain open.
 
 A work package marked `envelope` is a capacity/risk allowance, not a ready
 implementation ticket. Before execution, its owner selects a finite set of

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "files": [
+    {"bytes": 9949, "path": "README.md", "sha256": "03ab368fa0e71e373a9a47baed0dfac1cbc80b7b25738e8360505643820c234a"},
+    {"bytes": 199089, "path": "acceptance-language.json", "sha256": "e5e61849b703a95eac083a7b370564ff2449aae49a92b0c57bf72c1a17320223"},
+    {"bytes": 9871, "path": "acquire_sources.py", "sha256": "6cde1102e2485285064c2ba9989f4a6fe822d963c9ba4c50e5344ee0157de6b8"},
+    {"bytes": 4815, "path": "analytical-fixtures.json", "sha256": "6c375d1e75dc11f2068d2645782d61bbd638e624accbeb819a4100cd1f569941"},
+    {"bytes": 9576, "path": "architecture-decisions.json", "sha256": "b0999d9a8426ff01dcacd8fab61748d5c2fe9cbb791bb7fe5f0bc90d2edb5fc8"},
+    {"bytes": 17657, "path": "audit-findings.json", "sha256": "46ebe8e15ee750d016ce2b688fe1eb96d49cd0dd121f2e2fce18c34dc780382f"},
+    {"bytes": 64805, "path": "companion-inventory.json", "sha256": "f7d49dbe8a3a345acd9a516f2c7ceeb48b4011a35cd45e89c3c4be0d84f25920"},
+    {"bytes": 7136, "path": "coverage-assertions.json", "sha256": "d5d81125b2b04d296bc3dcf4d1c90119202b240609c14ea802228091a785d673"},
+    {"bytes": 113593, "path": "design_workflows.py", "sha256": "b0e850bdee0535ff25821d8ee82663253be48908e8ebbd77eb497bfd64ed43e6"},
+    {"bytes": 2452, "path": "deterministic-replay.json", "sha256": "8de75fec3613c18cd16a80a269df13940d9dcf5621020d6e9c7e7443b26ba1d2"},
+    {"bytes": 42846, "path": "export-acceptance-matrix.json", "sha256": "f450ff8d4184187999ede6bc3235f373f422d7829364751896c5f173df7bdcc1"},
+    {"bytes": 11843, "path": "export_contracts.py", "sha256": "324d9b575bbe65c8970e2715d4112b7a2fa878c5c8a8cef76386a5df1aa3e7eb"},
+    {"bytes": 26483, "path": "finalize_artifacts.py", "sha256": "c9b9685b96e83c7067508a54021561fe8b61e8ea347835779c949d71bda0afc9"},
+    {"bytes": 29859, "path": "prior-evidence-receipts.json", "sha256": "9116ad4d92f29bfc25c323c3ac4140848165081a941bd54a56ea14ed9668d3f3"},
+    {"bytes": 7298, "path": "provider-dag.json", "sha256": "ec0b9fed55d54a3d4594fdf12c732d870ab77c598b3aaf6c433bccba79a9a6a2"},
+    {"bytes": 2203, "path": "revision-notes.json", "sha256": "44b3346a0761fdb83463aa7fca5466a97ac2101ba10400399a0dac1950092038"},
+    {"bytes": 705, "path": "source-acquisition-summary.json", "sha256": "64c070c0a00f9ab7436d2040a96968150109749d61aa0cf0d43220a9f47723a7"},
+    {"bytes": 122862, "path": "source-citations.json", "sha256": "f469aae1c61bb1bb624d188066a7ed977d908f2798f7df3720086eab69db62b0"},
+    {"bytes": 161393, "path": "source-manifest.json", "sha256": "9e85d252ab9a9d9bb5451e9b6e08b824d7c7be94a5be070268630d4bcbed5fde"},
+    {"bytes": 5950, "path": "source-tree-provenance.json", "sha256": "16c4c77fd0046b191101b59f56fafa2785a15be9594ba089a4d84861131f6700"},
+    {"bytes": 21208, "path": "verify_workflows.py", "sha256": "74d61e31ff5cfb65aa565fa4312f27d57a97f9ae1c5cca3173e11274ab4c7f77"},
+    {"bytes": 212757, "path": "workflow-contracts.json", "sha256": "2c384a5f3f204cd9b69a8da58ee96c74f3f7ccf9ba62f8550ff2f6e8992b28ec"}
+  ],
+  "source_snapshots_recorded_in": "source-manifest.json",
+  "source_snapshot_count": 206,
+  "source_snapshot_hashes_checked": true,
+  "framework_cases_executed": 0,
+  "full_inventory_complete": false,
+  "semantic_mapping_complete": false
+}

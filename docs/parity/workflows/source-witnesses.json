@@ -1,0 +1,2340 @@
+{
+  "anchors": {
+    "jax:MODULE.bazel#L43": {
+      "first_line": "    strip_prefix = \"xla-d867969800d4a8fd045505eabc65e1e66f30794f\",",
+      "line_end": 48,
+      "line_start": 43,
+      "source_id": "jax:MODULE.bazel"
+    },
+    "jax:MODULE.bazel#L90": {
+      "first_line": "    \"stablehlo\",",
+      "line_end": 95,
+      "line_start": 90,
+      "source_id": "jax:MODULE.bazel"
+    },
+    "jax:docs/101/state.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/101/state.md"
+    },
+    "jax:docs/101/state.md#L256": {
+      "first_line": "Indexing mostly follows NumPy behavior, except that an out-of-bounds index",
+      "line_end": 261,
+      "line_start": 256,
+      "source_id": "jax:docs/101/state.md"
+    },
+    "jax:docs/201/shard-map.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/201/shard-map.md"
+    },
+    "jax:docs/201/sharding.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/201/sharding.md"
+    },
+    "jax:docs/301/refs.md#L70": {
+      "first_line": "gradient for a ref must itself live in a ref. Instead, use `jax.vjp` and",
+      "line_end": 75,
+      "line_start": 70,
+      "source_id": "jax:docs/301/refs.md"
+    },
+    "jax:docs/301/sharding-ad.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/301/sharding-ad.md"
+    },
+    "jax:docs/advanced_autodiff.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/advanced_autodiff.md"
+    },
+    "jax:docs/aot.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/aot.md"
+    },
+    "jax:docs/async_dispatch.rst#L1": {
+      "first_line": ":nosearch:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/async_dispatch.rst"
+    },
+    "jax:docs/automatic-differentiation.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/automatic-differentiation.md"
+    },
+    "jax:docs/automatic-vectorization.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/automatic-vectorization.md"
+    },
+    "jax:docs/benchmarking.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/benchmarking.md"
+    },
+    "jax:docs/complex-differentiation.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/complex-differentiation.md"
+    },
+    "jax:docs/control-flow.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/control-flow.md"
+    },
+    "jax:docs/debugging.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/debugging.md"
+    },
+    "jax:docs/debugging/checkify_guide.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/debugging/checkify_guide.md"
+    },
+    "jax:docs/device_memory_profiling.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/device_memory_profiling.md"
+    },
+    "jax:docs/distributed_data_loading.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/distributed_data_loading.md"
+    },
+    "jax:docs/export/export.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/export/export.md"
+    },
+    "jax:docs/export/jax2tf.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/export/jax2tf.md"
+    },
+    "jax:docs/export/shape_poly.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/export/shape_poly.md"
+    },
+    "jax:docs/external-callbacks.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/external-callbacks.md"
+    },
+    "jax:docs/fault_tolerance.rst#L1": {
+      "first_line": ":nosearch:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/fault_tolerance.rst"
+    },
+    "jax:docs/ffi.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/ffi.md"
+    },
+    "jax:docs/installation.md#L1": {
+      "first_line": "(installation)=",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/installation.md"
+    },
+    "jax:docs/installation.md#L210": {
+      "first_line": "JAX requires libdevice10.bc, which typically comes from the cuda-nvvm package.",
+      "line_end": 215,
+      "line_start": 210,
+      "source_id": "jax:docs/installation.md"
+    },
+    "jax:docs/installation.md#L258": {
+      "first_line": "Each JAX ROCm plugin release targets a specific ROCm version, so the installed",
+      "line_end": 263,
+      "line_start": 258,
+      "source_id": "jax:docs/installation.md"
+    },
+    "jax:docs/installation.md#L342": {
+      "first_line": "Intel provides experimental oneAPI PJRT and plugin wheels for JAX on PyPI. These enable JAX applications to run on Intel GPUs using XLA's SYCL platform support.",
+      "line_end": 347,
+      "line_start": 342,
+      "source_id": "jax:docs/installation.md"
+    },
+    "jax:docs/installation.md#L84": {
+      "first_line": "On CUDA 12, JAX supports NVIDIA GPUs that have SM version 5.2 (Maxwell) or newer.",
+      "line_end": 89,
+      "line_start": 84,
+      "source_id": "jax:docs/installation.md"
+    },
+    "jax:docs/installation.md#L92": {
+      "first_line": "version must be >= 525 for CUDA 12 on Linux, and >= 580 for CUDA 13 on Linux.",
+      "line_end": 97,
+      "line_start": 92,
+      "source_id": "jax:docs/installation.md"
+    },
+    "jax:docs/jit-compilation.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/jit-compilation.md"
+    },
+    "jax:docs/multi_process.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/multi_process.md"
+    },
+    "jax:docs/pallas/quickstart.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/pallas/quickstart.md"
+    },
+    "jax:docs/persistent_compilation_cache.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/persistent_compilation_cache.md"
+    },
+    "jax:docs/pytrees.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/pytrees.md"
+    },
+    "jax:docs/random-numbers.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:docs/random-numbers.md"
+    },
+    "jax:jax/example_libraries/optimizers.py#L1": {
+      "first_line": "# Copyright 2018 The JAX Authors.",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "jax:jax/example_libraries/optimizers.py"
+    },
+    "jax:jax/experimental/jax2tf/jax2tf.py#L231": {
+      "first_line": "  del native_serialization",
+      "line_end": 236,
+      "line_start": 231,
+      "source_id": "jax:jax/experimental/jax2tf/jax2tf.py"
+    },
+    "jax:jax/experimental/jax2tf/jax2tf.py#L294": {
+      "first_line": "    impl = NativeSerializationImpl(",
+      "line_end": 299,
+      "line_start": 294,
+      "source_id": "jax:jax/experimental/jax2tf/jax2tf.py"
+    },
+    "jax:jax/version.py#L160": {
+      "first_line": "_minimum_jaxlib_version = '0.11.2'",
+      "line_end": 165,
+      "line_start": 160,
+      "source_id": "jax:jax/version.py"
+    },
+    "jax:setup.py#L100": {
+      "first_line": "        'cuda13': [",
+      "line_end": 105,
+      "line_start": 100,
+      "source_id": "jax:setup.py"
+    },
+    "jax:setup.py#L121": {
+      "first_line": "        'rocm7-local': [",
+      "line_end": 126,
+      "line_start": 121,
+      "source_id": "jax:setup.py"
+    },
+    "jax:setup.py#L126": {
+      "first_line": "        'oneapi': [",
+      "line_end": 131,
+      "line_start": 126,
+      "source_id": "jax:setup.py"
+    },
+    "jax:setup.py#L27": {
+      "first_line": "_libtpu_version = '0.0.50.*'",
+      "line_end": 32,
+      "line_start": 27,
+      "source_id": "jax:setup.py"
+    },
+    "jax:setup.py#L63": {
+      "first_line": "    python_requires='>=3.12',",
+      "line_end": 68,
+      "line_start": 63,
+      "source_id": "jax:setup.py"
+    },
+    "jax:setup.py#L64": {
+      "first_line": "    install_requires=[",
+      "line_end": 69,
+      "line_start": 64,
+      "source_id": "jax:setup.py"
+    },
+    "jax:setup.py#L95": {
+      "first_line": "        'cuda12': [",
+      "line_end": 100,
+      "line_start": 95,
+      "source_id": "jax:setup.py"
+    },
+    "keras:keras/src/backend/jax/export.py#L1": {
+      "first_line": "import copy",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/backend/jax/export.py"
+    },
+    "keras:keras/src/backend/jax/export.py#L20": {
+      "first_line": "        self._backend_non_trainable_variables = []",
+      "line_end": 25,
+      "line_start": 20,
+      "source_id": "keras:keras/src/backend/jax/export.py"
+    },
+    "keras:keras/src/backend/jax/export.py#L50": {
+      "first_line": "        is_static = bool(kwargs.pop(\"is_static\", False))",
+      "line_end": 55,
+      "line_start": 50,
+      "source_id": "keras:keras/src/backend/jax/export.py"
+    },
+    "keras:keras/src/backend/jax/trainer.py#L1": {
+      "first_line": "import itertools",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/backend/jax/trainer.py"
+    },
+    "keras:keras/src/backend/numpy/export.py#L1": {
+      "first_line": "class NumpyExportArchive:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/backend/numpy/export.py"
+    },
+    "keras:keras/src/backend/numpy/trainer.py#L170": {
+      "first_line": "        raise NotImplementedError(\"fit not implemented for NumPy backend.\")",
+      "line_end": 175,
+      "line_start": 170,
+      "source_id": "keras:keras/src/backend/numpy/trainer.py"
+    },
+    "keras:keras/src/backend/openvino/export.py#L1": {
+      "first_line": "class OpenvinoExportArchive:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/backend/openvino/export.py"
+    },
+    "keras:keras/src/backend/openvino/trainer.py#L215": {
+      "first_line": "    def fit(",
+      "line_end": 220,
+      "line_start": 215,
+      "source_id": "keras:keras/src/backend/openvino/trainer.py"
+    },
+    "keras:keras/src/backend/tensorflow/export.py#L1": {
+      "first_line": "import tensorflow as tf",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/backend/tensorflow/export.py"
+    },
+    "keras:keras/src/backend/torch/export.py#L1": {
+      "first_line": "import copy",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/backend/torch/export.py"
+    },
+    "keras:keras/src/backend/torch/trainer.py#L1": {
+      "first_line": "import warnings",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/backend/torch/trainer.py"
+    },
+    "keras:keras/src/export/litert.py#L1": {
+      "first_line": "import contextlib",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/export/litert.py"
+    },
+    "keras:keras/src/export/litert.py#L202": {
+      "first_line": "    # jax_enable_x64, which breaks dtype-sensitive tests elsewhere.",
+      "line_end": 207,
+      "line_start": 202,
+      "source_id": "keras:keras/src/export/litert.py"
+    },
+    "keras:keras/src/export/litert.py#L204": {
+      "first_line": "    with _preserve_jax_x64_state():",
+      "line_end": 209,
+      "line_start": 204,
+      "source_id": "keras:keras/src/export/litert.py"
+    },
+    "keras:keras/src/export/litert.py#L216": {
+      "first_line": "                v.value.data = v.value.data.to(\"cpu\")",
+      "line_end": 221,
+      "line_start": 216,
+      "source_id": "keras:keras/src/export/litert.py"
+    },
+    "keras:keras/src/export/litert.py#L224": {
+      "first_line": "                    lambda x: convert_spec_to_tensor(x, replace_none_number=1),",
+      "line_end": 229,
+      "line_start": 224,
+      "source_id": "keras:keras/src/export/litert.py"
+    },
+    "keras:keras/src/export/onnx.py#L1": {
+      "first_line": "import warnings",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/export/onnx.py"
+    },
+    "keras:keras/src/export/onnx.py#L103": {
+      "first_line": "        patch_tf2onnx()  # TODO: Remove this once `tf2onnx` supports numpy 2.",
+      "line_end": 108,
+      "line_start": 103,
+      "source_id": "keras:keras/src/export/onnx.py"
+    },
+    "keras:keras/src/export/onnx.py#L53": {
+      "first_line": "    **Note:** The dynamic shape feature is not yet supported with Torch",
+      "line_end": 58,
+      "line_start": 53,
+      "source_id": "keras:keras/src/export/onnx.py"
+    },
+    "keras:keras/src/export/openvino.py#L1": {
+      "first_line": "import warnings",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/export/openvino.py"
+    },
+    "keras:keras/src/export/openvino.py#L131": {
+      "first_line": "            traced = torch.jit.trace(model, sample_inputs)",
+      "line_end": 136,
+      "line_start": 131,
+      "source_id": "keras:keras/src/export/openvino.py"
+    },
+    "keras:keras/src/export/openvino.py#L170": {
+      "first_line": "def _check_jax_kwargs(kwargs):",
+      "line_end": 175,
+      "line_start": 170,
+      "source_id": "keras:keras/src/export/openvino.py"
+    },
+    "keras:keras/src/export/openvino.py#L59": {
+      "first_line": "    import openvino.opset16 as ov_opset",
+      "line_end": 64,
+      "line_start": 59,
+      "source_id": "keras:keras/src/export/openvino.py"
+    },
+    "keras:keras/src/export/openvino.py#L93": {
+      "first_line": "            lambda x: convert_spec_to_tensor(x, replace_none_number=1),",
+      "line_end": 98,
+      "line_start": 93,
+      "source_id": "keras:keras/src/export/openvino.py"
+    },
+    "keras:keras/src/export/saved_model.py#L1": {
+      "first_line": "\"\"\"Library for exporting SavedModel for Keras models/layers.\"\"\"",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/export/saved_model.py"
+    },
+    "keras:keras/src/export/saved_model.py#L80": {
+      "first_line": "    **Note:** The dynamic shape feature is not yet supported with Torch",
+      "line_end": 85,
+      "line_start": 80,
+      "source_id": "keras:keras/src/export/saved_model.py"
+    },
+    "keras:keras/src/export/torch.py#L1": {
+      "first_line": "\"\"\"PyTorch ExportedProgram export utilities.\"\"\"",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/export/torch.py"
+    },
+    "keras:keras/src/export/torch.py#L76": {
+      "first_line": "    replace_none_number = 2 if dynamic_shapes is not None else 1",
+      "line_end": 81,
+      "line_start": 76,
+      "source_id": "keras:keras/src/export/torch.py"
+    },
+    "keras:keras/src/layers/core/dense.py#L346": {
+      "first_line": "        self.is_awq_calibrated = mode == \"awq\"",
+      "line_end": 351,
+      "line_start": 346,
+      "source_id": "keras:keras/src/layers/core/dense.py"
+    },
+    "keras:keras/src/models/model.py#L463": {
+      "first_line": "            mode: The mode of the quantization. Supported modes are:",
+      "line_end": 468,
+      "line_start": 463,
+      "source_id": "keras:keras/src/models/model.py"
+    },
+    "keras:keras/src/models/model.py#L551": {
+      "first_line": "        if mode in [\"gptq\", \"awq\"]:",
+      "line_end": 556,
+      "line_start": 551,
+      "source_id": "keras:keras/src/models/model.py"
+    },
+    "keras:keras/src/models/model.py#L667": {
+      "first_line": "            format: `str`. The export format. Supported values:",
+      "line_end": 672,
+      "line_start": 667,
+      "source_id": "keras:keras/src/models/model.py"
+    },
+    "keras:keras/src/models/model.py#L679": {
+      "first_line": "                input shapes are not supported. Any dynamic dimensions (i.e.,",
+      "line_end": 684,
+      "line_start": 679,
+      "source_id": "keras:keras/src/models/model.py"
+    },
+    "keras:keras/src/optimizers/adam.py#L1": {
+      "first_line": "from keras.src import ops",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/optimizers/adam.py"
+    },
+    "keras:keras/src/optimizers/base_optimizer.py#L1": {
+      "first_line": "import re",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/optimizers/base_optimizer.py"
+    },
+    "keras:keras/src/optimizers/loss_scale_optimizer.py#L1": {
+      "first_line": "from keras.src import backend",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/optimizers/loss_scale_optimizer.py"
+    },
+    "keras:keras/src/optimizers/sgd.py#L1": {
+      "first_line": "from keras.src import ops",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/optimizers/sgd.py"
+    },
+    "keras:keras/src/quantizers/awq.py#L291": {
+      "first_line": "    def update_activation_magnitudes(self, input_batch):",
+      "line_end": 296,
+      "line_start": 291,
+      "source_id": "keras:keras/src/quantizers/awq.py"
+    },
+    "keras:keras/src/quantizers/awq.py#L345": {
+      "first_line": "        quantized_packed, _, _ = quantizers.pack_int4(",
+      "line_end": 350,
+      "line_start": 345,
+      "source_id": "keras:keras/src/quantizers/awq.py"
+    },
+    "keras:keras/src/quantizers/awq_config.py#L124": {
+      "first_line": "    def get_config(self):",
+      "line_end": 129,
+      "line_start": 124,
+      "source_id": "keras:keras/src/quantizers/awq_config.py"
+    },
+    "keras:keras/src/quantizers/awq_config.py#L5": {
+      "first_line": "@keras_export(\"keras.quantizers.AWQConfig\")",
+      "line_end": 10,
+      "line_start": 5,
+      "source_id": "keras:keras/src/quantizers/awq_config.py"
+    },
+    "keras:keras/src/quantizers/awq_config.py#L54": {
+      "first_line": "    from keras.quantizers import AWQConfig",
+      "line_end": 59,
+      "line_start": 54,
+      "source_id": "keras:keras/src/quantizers/awq_config.py"
+    },
+    "keras:keras/src/quantizers/awq_core.py#L23": {
+      "first_line": "def stream_activations(layers_map, awq_objects):",
+      "line_end": 28,
+      "line_start": 23,
+      "source_id": "keras:keras/src/quantizers/awq_core.py"
+    },
+    "keras:keras/src/quantizers/quantization_config.py#L1": {
+      "first_line": "from keras.src.api_export import keras_export",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/quantizers/quantization_config.py"
+    },
+    "keras:keras/src/quantizers/quantization_config.py#L239": {
+      "first_line": "        elif mode == \"awq\":",
+      "line_end": 244,
+      "line_start": 239,
+      "source_id": "keras:keras/src/quantizers/quantization_config.py"
+    },
+    "keras:keras/src/saving/orbax_util.py#L1": {
+      "first_line": "\"\"\"Orbax checkpoint loading functionality.\"\"\"",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/saving/orbax_util.py"
+    },
+    "keras:keras/src/saving/saving_api.py#L1": {
+      "first_line": "import os",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/saving/saving_api.py"
+    },
+    "keras:keras/src/saving/saving_lib.py#L1": {
+      "first_line": "\"\"\"Python-based idempotent model-saving functionality.\"\"\"",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/saving/saving_lib.py"
+    },
+    "keras:keras/src/saving/serialization_lib.py#L1": {
+      "first_line": "\"\"\"Object config serialization and deserialization logic.\"\"\"",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/saving/serialization_lib.py"
+    },
+    "keras:keras/src/trainers/data_adapters/grain_dataset_adapter.py#L1": {
+      "first_line": "import itertools",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/trainers/data_adapters/grain_dataset_adapter.py"
+    },
+    "keras:keras/src/trainers/data_adapters/tf_dataset_adapter.py#L1": {
+      "first_line": "from keras.src import tree",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/trainers/data_adapters/tf_dataset_adapter.py"
+    },
+    "keras:keras/src/trainers/data_adapters/torch_data_loader_adapter.py#L1": {
+      "first_line": "import itertools",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:keras/src/trainers/data_adapters/torch_data_loader_adapter.py"
+    },
+    "keras:keras/src/trainers/trainer.py#L40": {
+      "first_line": "    def compile(",
+      "line_end": 45,
+      "line_start": 40,
+      "source_id": "keras:keras/src/trainers/trainer.py"
+    },
+    "keras:keras/src/trainers/trainer.py#L548": {
+      "first_line": "    def fit(",
+      "line_end": 553,
+      "line_start": 548,
+      "source_id": "keras:keras/src/trainers/trainer.py"
+    },
+    "keras:pyproject.toml#L12": {
+      "first_line": "requires-python = \">=3.11\"",
+      "line_end": 17,
+      "line_start": 12,
+      "source_id": "keras:pyproject.toml"
+    },
+    "keras:requirements-common.txt#L11": {
+      "first_line": "h5py",
+      "line_end": 16,
+      "line_start": 11,
+      "source_id": "keras:requirements-common.txt"
+    },
+    "keras:requirements-common.txt#L15": {
+      "first_line": "tensorboard-plugin-profile",
+      "line_end": 20,
+      "line_start": 15,
+      "source_id": "keras:requirements-common.txt"
+    },
+    "keras:requirements-common.txt#L30": {
+      "first_line": "onnxscript!=0.3.2",
+      "line_end": 35,
+      "line_start": 30,
+      "source_id": "keras:requirements-common.txt"
+    },
+    "keras:requirements-common.txt#L33": {
+      "first_line": "grain",
+      "line_end": 35,
+      "line_start": 33,
+      "source_id": "keras:requirements-common.txt"
+    },
+    "keras:requirements-common.txt#L35": {
+      "first_line": "orbax-checkpoint",
+      "line_end": 35,
+      "line_start": 35,
+      "source_id": "keras:requirements-common.txt"
+    },
+    "keras:requirements-jax-cuda.txt#L1": {
+      "first_line": "# Tensorflow cpu-only version (needed for testing).",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:requirements-jax-cuda.txt"
+    },
+    "keras:requirements-jax-tpu.txt#L1": {
+      "first_line": "# Tensorflow cpu-only version (needed for testing).",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:requirements-jax-tpu.txt"
+    },
+    "keras:requirements-tensorflow-cuda.txt#L1": {
+      "first_line": "# Tensorflow with cuda support.",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:requirements-tensorflow-cuda.txt"
+    },
+    "keras:requirements-tensorflow-tpu.txt#L1": {
+      "first_line": "# 2.19.1 is the last version of the TensorFlow that supports TPUs.",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:requirements-tensorflow-tpu.txt"
+    },
+    "keras:requirements-torch-cuda.txt#L1": {
+      "first_line": "# Tensorflow cpu-only version (needed for testing).",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:requirements-torch-cuda.txt"
+    },
+    "keras:requirements.txt#L1": {
+      "first_line": "# Tensorflow.",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "keras:requirements.txt"
+    },
+    "keras:requirements.txt#L11": {
+      "first_line": "torch-xla;sys_platform != 'darwin'",
+      "line_end": 16,
+      "line_start": 11,
+      "source_id": "keras:requirements.txt"
+    },
+    "keras:requirements.txt#L17": {
+      "first_line": "flax",
+      "line_end": 22,
+      "line_start": 17,
+      "source_id": "keras:requirements.txt"
+    },
+    "keras:requirements.txt#L26": {
+      "first_line": "litert-torch>=0.9.1",
+      "line_end": 26,
+      "line_start": 26,
+      "source_id": "keras:requirements.txt"
+    },
+    "keras:requirements.txt#L6": {
+      "first_line": "ai-edge-litert",
+      "line_end": 11,
+      "line_start": 6,
+      "source_id": "keras:requirements.txt"
+    },
+    "numpy:doc/source/building/blas_lapack.rst#L1": {
+      "first_line": ".. _building-blas-and-lapack:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/building/blas_lapack.rst"
+    },
+    "numpy:doc/source/building/cpu_simd.rst#L1": {
+      "first_line": "CPU support & SIMD",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/building/cpu_simd.rst"
+    },
+    "numpy:doc/source/f2py/buildtools/meson.rst#L1": {
+      "first_line": ".. _f2py-meson:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/f2py/buildtools/meson.rst"
+    },
+    "numpy:doc/source/reference/arrays.datetime.rst#L1": {
+      "first_line": ".. currentmodule:: numpy",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/reference/arrays.datetime.rst"
+    },
+    "numpy:doc/source/reference/c-api/array.rst#L1": {
+      "first_line": "Array API",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/reference/c-api/array.rst"
+    },
+    "numpy:doc/source/reference/random/compatibility.rst#L1": {
+      "first_line": ".. _random-compatibility:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/reference/random/compatibility.rst"
+    },
+    "numpy:doc/source/reference/random/parallel.rst#L1": {
+      "first_line": "Parallel random number generation",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/reference/random/parallel.rst"
+    },
+    "numpy:doc/source/reference/routines.fft.rst#L1": {
+      "first_line": ".. _routines.fft:",
+      "line_end": 2,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/reference/routines.fft.rst"
+    },
+    "numpy:doc/source/reference/routines.linalg.rst#L1": {
+      "first_line": ".. _routines.linalg:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/reference/routines.linalg.rst"
+    },
+    "numpy:doc/source/reference/thread_safety.rst#L1": {
+      "first_line": ".. _thread_safety:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/reference/thread_safety.rst"
+    },
+    "numpy:doc/source/user/basics.broadcasting.rst#L1": {
+      "first_line": ".. _basics.broadcasting:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/user/basics.broadcasting.rst"
+    },
+    "numpy:doc/source/user/basics.copies.rst#L1": {
+      "first_line": ".. _basics.copies-and-views:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/user/basics.copies.rst"
+    },
+    "numpy:doc/source/user/basics.creation.rst#L1": {
+      "first_line": ".. _arrays.creation:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/user/basics.creation.rst"
+    },
+    "numpy:doc/source/user/basics.indexing.rst#L1": {
+      "first_line": ".. for doctest:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/user/basics.indexing.rst"
+    },
+    "numpy:doc/source/user/basics.interoperability.rst#L2": {
+      "first_line": ".. _basics.interoperability:",
+      "line_end": 7,
+      "line_start": 2,
+      "source_id": "numpy:doc/source/user/basics.interoperability.rst"
+    },
+    "numpy:doc/source/user/basics.io.rst#L1": {
+      "first_line": "**************",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/user/basics.io.rst"
+    },
+    "numpy:doc/source/user/basics.strings.rst#L1": {
+      "first_line": ".. _basics.strings:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/user/basics.strings.rst"
+    },
+    "numpy:doc/source/user/basics.types.rst#L1": {
+      "first_line": ".. _basics.types:",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/user/basics.types.rst"
+    },
+    "numpy:doc/source/user/basics.ufuncs.rst#L1": {
+      "first_line": ".. sectionauthor:: adapted from \"Guide to NumPy\" by Travis E. Oliphant",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "numpy:doc/source/user/basics.ufuncs.rst"
+    },
+    "numpy:pyproject.toml#L16": {
+      "first_line": "requires-python = \">=3.12\"",
+      "line_end": 21,
+      "line_start": 16,
+      "source_id": "numpy:pyproject.toml"
+    },
+    "numpy:pyproject.toml#L4": {
+      "first_line": "    \"meson-python>=0.18.0\",",
+      "line_end": 9,
+      "line_start": 4,
+      "source_id": "numpy:pyproject.toml"
+    },
+    "pytorch:.ci/docker/ci_commit_pins/executorch.txt#L1": {
+      "first_line": "deb42f2a8e48f5032b4a98ee781a15fa87a157cf",
+      "line_end": 1,
+      "line_start": 1,
+      "source_id": "pytorch:.ci/docker/ci_commit_pins/executorch.txt"
+    },
+    "pytorch:.ci/docker/ci_commit_pins/nccl.txt#L1": {
+      "first_line": "v2.30.7-1",
+      "line_end": 1,
+      "line_start": 1,
+      "source_id": "pytorch:.ci/docker/ci_commit_pins/nccl.txt"
+    },
+    "pytorch:.ci/docker/triton_version.txt#L1": {
+      "first_line": "3.8.0",
+      "line_end": 1,
+      "line_start": 1,
+      "source_id": "pytorch:.ci/docker/triton_version.txt"
+    },
+    "pytorch:.ci/docker/triton_xpu_version.txt#L1": {
+      "first_line": "3.8.0",
+      "line_end": 1,
+      "line_start": 1,
+      "source_id": "pytorch:.ci/docker/triton_xpu_version.txt"
+    },
+    "pytorch:.github/scripts/generate_binary_build_matrix.py#L27": {
+      "first_line": "CUDA_ARCHES = [\"12.6\", \"13.0\", \"13.2\"]",
+      "line_end": 32,
+      "line_start": 27,
+      "source_id": "pytorch:.github/scripts/generate_binary_build_matrix.py"
+    },
+    "pytorch:.github/scripts/generate_binary_build_matrix.py#L60": {
+      "first_line": "PYTORCH_EXTRA_INSTALL_REQUIREMENTS = {",
+      "line_end": 65,
+      "line_start": 60,
+      "source_id": "pytorch:.github/scripts/generate_binary_build_matrix.py"
+    },
+    "pytorch:docs/source/amp.md#L1": {
+      "first_line": "```{eval-rst}",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/amp.md"
+    },
+    "pytorch:docs/source/cpp_extension.md#L1": {
+      "first_line": "# torch.utils.cpp_extension",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/cpp_extension.md"
+    },
+    "pytorch:docs/source/cpp_index.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/cpp_index.md"
+    },
+    "pytorch:docs/source/data.md#L1": {
+      "first_line": "# torch.utils.data",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/data.md"
+    },
+    "pytorch:docs/source/distributed.algorithms.join.md#L1": {
+      "first_line": "```{role} hidden",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/distributed.algorithms.join.md"
+    },
+    "pytorch:docs/source/distributed.checkpoint.md#L1": {
+      "first_line": "```{eval-rst}",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/distributed.checkpoint.md"
+    },
+    "pytorch:docs/source/distributed.elastic.md#L1": {
+      "first_line": "# Torch Distributed Elastic",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/distributed.elastic.md"
+    },
+    "pytorch:docs/source/distributed.fsdp.fully_shard.md#L1": {
+      "first_line": "# torch.distributed.fsdp.fully_shard",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/distributed.fsdp.fully_shard.md"
+    },
+    "pytorch:docs/source/distributed.md#L1": {
+      "first_line": "```{eval-rst}",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/distributed.md"
+    },
+    "pytorch:docs/source/distributed.pipelining.md#L1": {
+      "first_line": "```{eval-rst}",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/distributed.pipelining.md"
+    },
+    "pytorch:docs/source/distributed.tensor.md#L2": {
+      "first_line": ":::{currentmodule} torch.distributed.tensor",
+      "line_end": 7,
+      "line_start": 2,
+      "source_id": "pytorch:docs/source/distributed.tensor.md"
+    },
+    "pytorch:docs/source/distributed.tensor.parallel.md#L1": {
+      "first_line": ":::{role} hidden",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/distributed.tensor.parallel.md"
+    },
+    "pytorch:docs/source/func.md#L1": {
+      "first_line": "# torch.func",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/func.md"
+    },
+    "pytorch:docs/source/mobile_optimizer.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/mobile_optimizer.md"
+    },
+    "pytorch:docs/source/notes/amp_examples.md#L1": {
+      "first_line": "(amp-examples)=",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/notes/amp_examples.md"
+    },
+    "pytorch:docs/source/notes/autograd.md#L1": {
+      "first_line": "(autograd-mechanics)=",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/notes/autograd.md"
+    },
+    "pytorch:docs/source/notes/cuda.md#L1": {
+      "first_line": "---",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/notes/cuda.md"
+    },
+    "pytorch:docs/source/notes/mps.md#L1": {
+      "first_line": "(mps-backend)=",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/notes/mps.md"
+    },
+    "pytorch:docs/source/notes/randomness.md#L1": {
+      "first_line": "(reproducibility)=",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/notes/randomness.md"
+    },
+    "pytorch:docs/source/notes/serialization.md#L1": {
+      "first_line": "# Serialization semantics",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/notes/serialization.md"
+    },
+    "pytorch:docs/source/onnx_export.md#L1": {
+      "first_line": "# torch.export-based ONNX Exporter",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/onnx_export.md"
+    },
+    "pytorch:docs/source/onnx_verification.md#L1": {
+      "first_line": "# torch.onnx.verification",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/onnx_verification.md"
+    },
+    "pytorch:docs/source/optim.md#L1": {
+      "first_line": "# torch.optim",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/optim.md"
+    },
+    "pytorch:docs/source/profiler.md#L1": {
+      "first_line": "```{eval-rst}",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/profiler.md"
+    },
+    "pytorch:docs/source/quantization.md#L1": {
+      "first_line": "(quantization-doc)=",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/quantization.md"
+    },
+    "pytorch:docs/source/tensorboard.md#L1": {
+      "first_line": "# torch.utils.tensorboard",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/tensorboard.md"
+    },
+    "pytorch:docs/source/user_guide/torch_compiler/compile/programming_model.custom_ops.md#L1": {
+      "first_line": "# Custom Operators",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/user_guide/torch_compiler/compile/programming_model.custom_ops.md"
+    },
+    "pytorch:docs/source/user_guide/torch_compiler/compile/programming_model.md#L1": {
+      "first_line": "(compile_programming_model)=",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:docs/source/user_guide/torch_compiler/compile/programming_model.md"
+    },
+    "pytorch:pyproject.toml#L348": {
+      "first_line": "requires-python = \">=3.10\"",
+      "line_end": 353,
+      "line_start": 348,
+      "source_id": "pytorch:pyproject.toml"
+    },
+    "pytorch:requirements.txt#L18": {
+      "first_line": "sympy>=1.13.3",
+      "line_end": 19,
+      "line_start": 18,
+      "source_id": "pytorch:requirements.txt"
+    },
+    "pytorch:torch/export/__init__.py#L1": {
+      "first_line": "import logging",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "pytorch:torch/export/__init__.py"
+    },
+    "tensorflow:requirements_lock_3_12.txt#L228": {
+      "first_line": "keras==3.12.1 \\",
+      "line_end": 233,
+      "line_start": 228,
+      "source_id": "tensorflow:requirements_lock_3_12.txt"
+    },
+    "tensorflow:requirements_lock_3_12.txt#L288": {
+      "first_line": "numpy==2.1.3 \\",
+      "line_end": 293,
+      "line_start": 288,
+      "source_id": "tensorflow:requirements_lock_3_12.txt"
+    },
+    "tensorflow:tensorflow/c/c_api.h#L1": {
+      "first_line": "/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/c/c_api.h"
+    },
+    "tensorflow:tensorflow/c/eager/c_api.h#L1": {
+      "first_line": "/* Copyright 2017 The TensorFlow Authors. All Rights Reserved.",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/c/eager/c_api.h"
+    },
+    "tensorflow:tensorflow/core/protobuf/saved_model.proto#L1": {
+      "first_line": "syntax = \"proto3\";",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/core/protobuf/saved_model.proto"
+    },
+    "tensorflow:tensorflow/dtensor/python/api.py#L1": {
+      "first_line": "# Copyright 2022 The TensorFlow Authors. All Rights Reserved.",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/dtensor/python/api.py"
+    },
+    "tensorflow:tensorflow/lite/core/c/c_api.h#L1": {
+      "first_line": "/* Copyright 2018 The TensorFlow Authors. All Rights Reserved.",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/lite/core/c/c_api.h"
+    },
+    "tensorflow:tensorflow/lite/g3doc/guide/ops_compatibility.md#L1": {
+      "first_line": "# TensorFlow Lite and TensorFlow operator compatibility",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/lite/g3doc/guide/ops_compatibility.md"
+    },
+    "tensorflow:tensorflow/lite/g3doc/guide/ops_custom.md#L1": {
+      "first_line": "# Custom operators",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/lite/g3doc/guide/ops_custom.md"
+    },
+    "tensorflow:tensorflow/lite/g3doc/guide/ops_select.md#L1": {
+      "first_line": "# Select TensorFlow operators",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/lite/g3doc/guide/ops_select.md"
+    },
+    "tensorflow:tensorflow/lite/micro/README.md#L1": {
+      "first_line": "As of June 25, 2021, the TFLM codebase has moved to a [stand-alone github",
+      "line_end": 2,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/lite/micro/README.md"
+    },
+    "tensorflow:tensorflow/lite/python/interpreter.py#L361": {
+      "first_line": "class Interpreter:",
+      "line_end": 366,
+      "line_start": 361,
+      "source_id": "tensorflow:tensorflow/lite/python/interpreter.py"
+    },
+    "tensorflow:tensorflow/lite/python/interpreter.py#L48": {
+      "first_line": "_INTERPRETER_DELETION_WARNING = \"\"\"\\",
+      "line_end": 53,
+      "line_start": 48,
+      "source_id": "tensorflow:tensorflow/lite/python/interpreter.py"
+    },
+    "tensorflow:tensorflow/lite/python/lite.py#L2095": {
+      "first_line": "class TFLiteConverterV2(TFLiteFrozenGraphConverterV2):",
+      "line_end": 2100,
+      "line_start": 2095,
+      "source_id": "tensorflow:tensorflow/lite/python/lite.py"
+    },
+    "tensorflow:tensorflow/lite/tools/benchmark/README.md#L1": {
+      "first_line": "# TFLite Model Benchmark Tool with C++ Binary",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/lite/tools/benchmark/README.md"
+    },
+    "tensorflow:tensorflow/python/checkpoint/checkpoint.py#L2061": {
+      "first_line": "class Checkpoint(autotrackable.AutoTrackable):",
+      "line_end": 2066,
+      "line_start": 2061,
+      "source_id": "tensorflow:tensorflow/python/checkpoint/checkpoint.py"
+    },
+    "tensorflow:tensorflow/python/data/ops/dataset_ops.py#L137": {
+      "first_line": "class DatasetV2(",
+      "line_end": 142,
+      "line_start": 137,
+      "source_id": "tensorflow:tensorflow/python/data/ops/dataset_ops.py"
+    },
+    "tensorflow:tensorflow/python/distribute/collective_all_reduce_strategy.py#L57": {
+      "first_line": "class CollectiveAllReduceStrategy(distribute_lib.Strategy):",
+      "line_end": 62,
+      "line_start": 57,
+      "source_id": "tensorflow:tensorflow/python/distribute/collective_all_reduce_strategy.py"
+    },
+    "tensorflow:tensorflow/python/distribute/mirrored_strategy.py#L200": {
+      "first_line": "class MirroredStrategy(distribute_lib.Strategy):",
+      "line_end": 205,
+      "line_start": 200,
+      "source_id": "tensorflow:tensorflow/python/distribute/mirrored_strategy.py"
+    },
+    "tensorflow:tensorflow/python/distribute/parameter_server_strategy_v2.py#L77": {
+      "first_line": "class ParameterServerStrategyV2(distribute_lib.Strategy):",
+      "line_end": 82,
+      "line_start": 77,
+      "source_id": "tensorflow:tensorflow/python/distribute/parameter_server_strategy_v2.py"
+    },
+    "tensorflow:tensorflow/python/distribute/parameter_server_strategy_v2.py#L86": {
+      "first_line": "  asynchronous training.",
+      "line_end": 91,
+      "line_start": 86,
+      "source_id": "tensorflow:tensorflow/python/distribute/parameter_server_strategy_v2.py"
+    },
+    "tensorflow:tensorflow/python/distribute/tpu_strategy.py#L243": {
+      "first_line": "class TPUStrategyV2(distribute_lib.Strategy):",
+      "line_end": 248,
+      "line_start": 243,
+      "source_id": "tensorflow:tensorflow/python/distribute/tpu_strategy.py"
+    },
+    "tensorflow:tensorflow/python/eager/backprop.py#L705": {
+      "first_line": "class GradientTape:",
+      "line_end": 710,
+      "line_start": 705,
+      "source_id": "tensorflow:tensorflow/python/eager/backprop.py"
+    },
+    "tensorflow:tensorflow/python/eager/forwardprop.py#L230": {
+      "first_line": "class ForwardAccumulator():",
+      "line_end": 235,
+      "line_start": 230,
+      "source_id": "tensorflow:tensorflow/python/eager/forwardprop.py"
+    },
+    "tensorflow:tensorflow/python/eager/polymorphic_function/polymorphic_function.py#L1316": {
+      "first_line": "def function(",
+      "line_end": 1321,
+      "line_start": 1316,
+      "source_id": "tensorflow:tensorflow/python/eager/polymorphic_function/polymorphic_function.py"
+    },
+    "tensorflow:tensorflow/python/framework/extension_type.py#L78": {
+      "first_line": "class ExtensionTypeMetaclass(abc.ABCMeta):",
+      "line_end": 83,
+      "line_start": 78,
+      "source_id": "tensorflow:tensorflow/python/framework/extension_type.py"
+    },
+    "tensorflow:tensorflow/python/ops/ragged/ragged_tensor.py#L66": {
+      "first_line": "class RaggedTensor(",
+      "line_end": 71,
+      "line_start": 66,
+      "source_id": "tensorflow:tensorflow/python/ops/ragged/ragged_tensor.py"
+    },
+    "tensorflow:tensorflow/python/ops/variables.py#L65": {
+      "first_line": "class VariableSynchronization(enum.Enum):",
+      "line_end": 70,
+      "line_start": 65,
+      "source_id": "tensorflow:tensorflow/python/ops/variables.py"
+    },
+    "tensorflow:tensorflow/python/profiler/profiler_v2.py#L1": {
+      "first_line": "# Copyright 2020 The TensorFlow Authors. All Rights Reserved.",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/python/profiler/profiler_v2.py"
+    },
+    "tensorflow:tensorflow/python/saved_model/load.py#L821": {
+      "first_line": "def load(export_dir, tags=None, options=None):",
+      "line_end": 826,
+      "line_start": 821,
+      "source_id": "tensorflow:tensorflow/python/saved_model/load.py"
+    },
+    "tensorflow:tensorflow/python/saved_model/save.py#L1099": {
+      "first_line": "        \"link the custom ops to the serving binary. Once you've confirmed this,\"",
+      "line_end": 1104,
+      "line_start": 1099,
+      "source_id": "tensorflow:tensorflow/python/saved_model/save.py"
+    },
+    "tensorflow:tensorflow/python/saved_model/save.py#L1244": {
+      "first_line": "def save(",
+      "line_end": 1249,
+      "line_start": 1244,
+      "source_id": "tensorflow:tensorflow/python/saved_model/save.py"
+    },
+    "tensorflow:tensorflow/python/saved_model/save.py#L1273": {
+      "first_line": "  available to programs which consume `SavedModel`s, for example, serving",
+      "line_end": 1278,
+      "line_start": 1273,
+      "source_id": "tensorflow:tensorflow/python/saved_model/save.py"
+    },
+    "tensorflow:tensorflow/python/tools/saved_model_cli.py#L1": {
+      "first_line": "# Copyright 2017 The TensorFlow Authors. All Rights Reserved.",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:tensorflow/python/tools/saved_model_cli.py"
+    },
+    "tensorflow:tensorflow/tools/pip_package/setup.py.tpl#L106": {
+      "first_line": "    'protobuf >= 6.31.1, < 8.0.0',",
+      "line_end": 111,
+      "line_start": 106,
+      "source_id": "tensorflow:tensorflow/tools/pip_package/setup.py.tpl"
+    },
+    "tensorflow:tensorflow/tools/pip_package/setup.py.tpl#L125": {
+      "first_line": "    # 'keras >= 2.14.0rc0, < 2.15' on the release branch after the branch cut.",
+      "line_end": 130,
+      "line_start": 125,
+      "source_id": "tensorflow:tensorflow/tools/pip_package/setup.py.tpl"
+    },
+    "tensorflow:tensorflow/tools/pip_package/setup.py.tpl#L130": {
+      "first_line": "    'ml_dtypes >= 0.5.1, < 1.0.0',",
+      "line_end": 135,
+      "line_start": 130,
+      "source_id": "tensorflow:tensorflow/tools/pip_package/setup.py.tpl"
+    },
+    "tensorflow:tensorflow/tools/pip_package/setup.py.tpl#L401": {
+      "first_line": "    python_requires='>=3.10',",
+      "line_end": 406,
+      "line_start": 401,
+      "source_id": "tensorflow:tensorflow/tools/pip_package/setup.py.tpl"
+    },
+    "tensorflow:third_party/py/ml_dtypes/workspace.bzl#L10": {
+      "first_line": "    ML_DTYPES_COMMIT = \"00d98cd92ade342fef589c0470379abb27baebe9\"",
+      "line_end": 15,
+      "line_start": 10,
+      "source_id": "tensorflow:third_party/py/ml_dtypes/workspace.bzl"
+    },
+    "tensorflow:third_party/xla/MODULE.bazel#L1": {
+      "first_line": "module(name = \"xla\")",
+      "line_end": 6,
+      "line_start": 1,
+      "source_id": "tensorflow:third_party/xla/MODULE.bazel"
+    }
+  },
+  "role": "Frozen cached source measurements; not runtime evidence or new source acquisition",
+  "schema_version": 1,
+  "sources": {
+    "jax:MODULE.bazel": {
+      "git_blob_sha": "d0ee2c7fad3abe17baaf21602baf91e3848b16b9",
+      "lines": 386,
+      "source_sha256": "31ca85a6a195e6e3fec867ba5c0c6420d6daf2a818d3e5b11d0f910b4bbd082b"
+    },
+    "jax:build/requirements.in": {
+      "git_blob_sha": "c8fad110ef1a52bc27b889664144b2b6899d6b5d",
+      "lines": 45,
+      "source_sha256": "e348789fccac32c50f6e304a37bbae1b7ece32256e4b4f228ec394f792faee7c"
+    },
+    "jax:build/requirements_lock_3_12.txt": {
+      "git_blob_sha": "d666110bdc4c18a5168036c37fae96ac15963f7e",
+      "lines": 1954,
+      "source_sha256": "fc656b78f1d6d729fedd7bb2e1160281b993e4cc5e6b1d7783e8e74545acd007"
+    },
+    "jax:docs/101/state.md": {
+      "git_blob_sha": "0a8f055adb736ba8fec6107c5ec71101d240aa18",
+      "lines": 363,
+      "source_sha256": "cc1d251e58d79863fdac61634aaa8e1e148cba083b605cf82da4acbfe41cdaf4"
+    },
+    "jax:docs/201/controlling-xla.md": {
+      "git_blob_sha": "a6fe2631b24c9abc2c85a4ac03f6b6aaaf5ccba1",
+      "lines": 254,
+      "source_sha256": "04c3abaee6dad8ce140c5b762ce0c2a0acb6070b08964b62eada4717b913ec26"
+    },
+    "jax:docs/201/shard-map.md": {
+      "git_blob_sha": "8ec4c765748d24b1d78630bfe335b0389d3c84d2",
+      "lines": 1728,
+      "source_sha256": "c66395b93edefec264a02dcc7840500a4ea943424206801c07b4041af7238046"
+    },
+    "jax:docs/201/sharding.md": {
+      "git_blob_sha": "57782c95527276544cbfb9f510babb55c0d2984a",
+      "lines": 811,
+      "source_sha256": "ca939135865e97e60a6fc344b584edb6b603d066f3d34b6f36610924670104f4"
+    },
+    "jax:docs/301/refs.md": {
+      "git_blob_sha": "2ce65d1ee290d24ecf201b43dea1ccf998a7163c",
+      "lines": 462,
+      "source_sha256": "0b6f283637d027a94f441920a437e80a201d05784e9daaaffc3869d69d13c8f3"
+    },
+    "jax:docs/301/sharding-ad.md": {
+      "git_blob_sha": "1e8cb4d15bea0574897e897ef195472ec1806f38",
+      "lines": 546,
+      "source_sha256": "610db60a897ccf9c1f07c6cb5b5f4a1a3fcb3c4be5763187b8987d72bdf20c77"
+    },
+    "jax:docs/advanced_autodiff.md": {
+      "git_blob_sha": "cdc111e3bd121300593c2122fda1e95a081e9013",
+      "lines": 16,
+      "source_sha256": "a6872461ec07e77ce537f6efb1a01da0516241f33476431f5e244032db49c0a4"
+    },
+    "jax:docs/aot.md": {
+      "git_blob_sha": "72f6c9b5ffc874ff7b6f342c2ad5ab59000ac898",
+      "lines": 255,
+      "source_sha256": "0c306216e8c3ff9c4cddc4c16dac0bc8e7f8fb0ea88165d97ee51c5256789c23"
+    },
+    "jax:docs/async_dispatch.rst": {
+      "git_blob_sha": "47b147f5158e86842f63e8fec47f1cd7d88093e0",
+      "lines": 114,
+      "source_sha256": "c15b6237a159c34c9fb2ea8674133dafc49dd7707950ed45f50508a6102c5611"
+    },
+    "jax:docs/automatic-differentiation.md": {
+      "git_blob_sha": "bc0d104b3030d3fa6eec066c761b8db3483cd95a",
+      "lines": 235,
+      "source_sha256": "b4b51a655b658d295ec84487f0b420f1d66e7aa50cd77ae7dfe4127bfefc09ef"
+    },
+    "jax:docs/automatic-vectorization.md": {
+      "git_blob_sha": "02ed04aaaf5abe33e5904728677bbced2e9c60f0",
+      "lines": 134,
+      "source_sha256": "1040355919a9c0efef5802c6120fe029b9b0ef391f793a816a4a78643f391ede"
+    },
+    "jax:docs/benchmarking.md": {
+      "git_blob_sha": "84cf79dd730357484c5530c11a71210c19e98850",
+      "lines": 73,
+      "source_sha256": "91b894295371696b872536ec3e955954d348d5fa17a30c25aecbca87c12f510d"
+    },
+    "jax:docs/complex-differentiation.md": {
+      "git_blob_sha": "6a21c1c290278a33fac9aad7f1141716fe540326",
+      "lines": 209,
+      "source_sha256": "a76599c28e1b5baa429ba11906f0da7027a9c7f59bc8387ee0ca60af654a6f90"
+    },
+    "jax:docs/control-flow.md": {
+      "git_blob_sha": "b911bdc31f16595ad57d0feb497fdf806100c7d0",
+      "lines": 396,
+      "source_sha256": "ff082ad08baa99a195e154b22b7687283ca2ef27fe027427755d877c6f5670c8"
+    },
+    "jax:docs/debugging.md": {
+      "git_blob_sha": "5e94990cbb3d33c1790af74b8c4046a232d0bae0",
+      "lines": 279,
+      "source_sha256": "25ae0a197474a30ff526c2b188a172291161391f9768496820b6d01274267bf3"
+    },
+    "jax:docs/debugging/checkify_guide.md": {
+      "git_blob_sha": "37f4e3589a68f08777e35c134b53634222ac82f7",
+      "lines": 292,
+      "source_sha256": "38d4314a2d506c1f271a64a242a0c0ffc40de78b6bba4628297c396e66d88201"
+    },
+    "jax:docs/device_memory_profiling.md": {
+      "git_blob_sha": "6bebe9828b8daace005882ad81736cd7033897eb",
+      "lines": 155,
+      "source_sha256": "9b38a404d0b27c28e45f9f93e4c329250a1cf47ce3d6aebca4f5f36ff294e699"
+    },
+    "jax:docs/distributed_data_loading.md": {
+      "git_blob_sha": "3918b4681e983ed0e094028931eef7a3b4543a0c",
+      "lines": 406,
+      "source_sha256": "99dea1fa734bf67b33048ed97af2ce8630266d558c2d41ca6d4ef83a517db1cc"
+    },
+    "jax:docs/export/export.md": {
+      "git_blob_sha": "271a81f9ac51d5208f80d1eaed57467acd083af6",
+      "lines": 842,
+      "source_sha256": "d95465786a5af7bbf9d384bfc4fd422f43d6be5ab481f1ca32ed22e404173b56"
+    },
+    "jax:docs/export/jax2tf.md": {
+      "git_blob_sha": "5df3231ac7508ceb69f511a5f1bea72c9d3f07b8",
+      "lines": 9,
+      "source_sha256": "1c4de6bc7b74017c8097dbe581358b841565ce2b6b1d04598e27b26fe20c153e"
+    },
+    "jax:docs/export/shape_poly.md": {
+      "git_blob_sha": "1087b95a47abed53f1037b628e2d27bc75716d98",
+      "lines": 663,
+      "source_sha256": "0da8f91942b96a978de72b62828b70561a316c6208063e771af60a785a9ac0c4"
+    },
+    "jax:docs/external-callbacks.md": {
+      "git_blob_sha": "0830d37a67ecfa9106c5d59d3294274c7ae6391f",
+      "lines": 433,
+      "source_sha256": "072c76404ada4b6fa73a6737ec085df3d0fc2a16d3b90518c84c5cdca1636be9"
+    },
+    "jax:docs/fault_tolerance.rst": {
+      "git_blob_sha": "7f9d528efb7590664f547e1d112ecaaaa57735b3",
+      "lines": 1532,
+      "source_sha256": "d095dab0465b055e7cf8c5edd21f0d8a14cf524b3c8d0014a4adaaf8c4b7626f"
+    },
+    "jax:docs/ffi.md": {
+      "git_blob_sha": "053c6870854bc176d463c515a948e9ce58612db2",
+      "lines": 682,
+      "source_sha256": "aaca5616b11cd6ccf9cbe51a9af0a3d7d3d8914de219b6c531faaa6214ce01be"
+    },
+    "jax:docs/installation.md": {
+      "git_blob_sha": "7aae2c611749b3cbbf2a4d9ec625433dffeecb93",
+      "lines": 475,
+      "source_sha256": "f100006495106af365282ceb5ef8a77b8b1a1ea38578c901480baa5d8b5978f8"
+    },
+    "jax:docs/jit-compilation.md": {
+      "git_blob_sha": "14c75f0c276673c04dacbc62e8491b94772808d2",
+      "lines": 281,
+      "source_sha256": "0fc41a22c2833df53ee40dd0bcadb208c2441a7d838a6fd5335c4bd5006985f7"
+    },
+    "jax:docs/multi_process.md": {
+      "git_blob_sha": "5c30d0a7dcce9f9e8c7b2a8c99827fdd8653c24a",
+      "lines": 945,
+      "source_sha256": "beccff92f2bc29947ace30e9cf6eef313d709af2112117bd4183f0f928083b4b"
+    },
+    "jax:docs/pallas/gpu/reference.md": {
+      "git_blob_sha": "011110c049ca2cf4576105179fc5a889b72c91ae",
+      "lines": 1548,
+      "source_sha256": "cb6fbd18ebba2a67d7e998bd99a413e22e3dcc0525389f14065d77deef61a6a5"
+    },
+    "jax:docs/pallas/quickstart.md": {
+      "git_blob_sha": "1879506b958eb73bacf7d05d9943302c9e4b5d40",
+      "lines": 424,
+      "source_sha256": "e4123df287b4a5da180fd6a7ab7b63ec2810e9943d3e39c261fa5359b34b62c3"
+    },
+    "jax:docs/persistent_compilation_cache.md": {
+      "git_blob_sha": "0d8bfced97d98268c24aa8e5527563498c4a43a1",
+      "lines": 312,
+      "source_sha256": "d8c93131d29c47a5b62f6c7ad44dee47129c2031ea278dfe245a41c602e8c9d7"
+    },
+    "jax:docs/pytrees.md": {
+      "git_blob_sha": "977fe0b394daa975e1dfad6aa3bea22fba258e87",
+      "lines": 339,
+      "source_sha256": "75ac5c8f294d11f8c93cc7a8acfbfb970856c25a19a71beefa2b52cb02360a4b"
+    },
+    "jax:docs/random-numbers.md": {
+      "git_blob_sha": "42dbddd8613f7dfa560c583223d9d29e917f95ca",
+      "lines": 230,
+      "source_sha256": "7d9ed0333e7eb444d72898f15c27be328f924d500d32bb7ecee8fef97c9c46fe"
+    },
+    "jax:docs/stateful-computations.md": {
+      "git_blob_sha": "caa844f87a24ee26bb221e626792112025f495b0",
+      "lines": 240,
+      "source_sha256": "d4540b66d540d1584689f1280b0ade3d71bf5fee07f3780fd35e7c6fcce81810"
+    },
+    "jax:jax/_src/test_util.py": {
+      "git_blob_sha": "6223bf94faf91a36771742d4737e00cf8738237f",
+      "lines": 2195,
+      "source_sha256": "1a4db8118b5eede64f167b5a5d99dfa1cc015c8972e891367e8ca79f2a4003cf"
+    },
+    "jax:jax/example_libraries/optimizers.py": {
+      "git_blob_sha": "3ad717ce358a5590bd26466f96875b555b242f13",
+      "lines": 621,
+      "source_sha256": "4f60f7a833d6679d24c13c837b62173cf2db394bb4e1c41375fe75a0775756f5"
+    },
+    "jax:jax/experimental/jax2tf/README.md": {
+      "git_blob_sha": "80f3d03b99c2acd80602b21ae2838b20344a8e34",
+      "lines": 1672,
+      "source_sha256": "9aa31b1c342e1fed1d5bdf879a7119aa5dae89e791fba8d4c7b1ff0f14022157"
+    },
+    "jax:jax/experimental/jax2tf/jax2tf.py": {
+      "git_blob_sha": "114b84f1c800d9d28cef84eef6bac95f4de2a19d",
+      "lines": 919,
+      "source_sha256": "1f498522ae7cfa652b3e88613501eee8f25330dde566ba102b157867b0b9a2d4"
+    },
+    "jax:jax/version.py": {
+      "git_blob_sha": "602915bd0a1e8055eea4e3fa3809e4875c64f399",
+      "lines": 166,
+      "source_sha256": "cb251da83cc1fd6dbb5a8bffe7d0c516a21700fe3099662d402828aac25ef5c6"
+    },
+    "jax:jaxlib/setup.py": {
+      "git_blob_sha": "de4d40771d3d7f8ad7a6ef8b3e35ed9a294fba4f",
+      "lines": 120,
+      "source_sha256": "81c71e9e5fafe9067f897dc2f869a8911a60a4ded455b0da90506cbf41d5d2cc"
+    },
+    "jax:setup.py": {
+      "git_blob_sha": "f59ff6d466acf91fc96e3588d546023f76fdd962",
+      "lines": 152,
+      "source_sha256": "44c56443444b9de094d693536799bd9be6b07dff9a15330872cd1c031853f62e"
+    },
+    "keras:keras/src/backend/jax/export.py": {
+      "git_blob_sha": "417efe69e7c52718caf7381d4a9479685b1d643b",
+      "lines": 188,
+      "source_sha256": "81d64b282f586aca9ab0032c0424ff2e176319aede91861e72c09339cff37363"
+    },
+    "keras:keras/src/backend/jax/trainer.py": {
+      "git_blob_sha": "167b18ac2f451ddca5011ae55054e5b0a9b2e61c",
+      "lines": 1135,
+      "source_sha256": "38fdd0bbd92bbaf02b8ce644f1aad32343263a420815e486b6c59cba72c4dd1e"
+    },
+    "keras:keras/src/backend/numpy/export.py": {
+      "git_blob_sha": "f754c5bc6333ba6c82d74889ff7762ae10933928",
+      "lines": 10,
+      "source_sha256": "99727c7a00b6465fc8fa08183937be35b3de7968afe79a1ddfd69666299485ea"
+    },
+    "keras:keras/src/backend/numpy/trainer.py": {
+      "git_blob_sha": "7307504cf7a89fdb65f4ddebd20a081d5e29048e",
+      "lines": 332,
+      "source_sha256": "28ad40b10914a2e0e960b6990ef93c12626b7fdef5ce68174cef1582023c7bc2"
+    },
+    "keras:keras/src/backend/openvino/export.py": {
+      "git_blob_sha": "977ce42607b8a5393412c05f4843417a2a99a368",
+      "lines": 10,
+      "source_sha256": "7830d99824d72328a2dd85c43cc1035d855423fcf4ec194725a0f4368bc4a171"
+    },
+    "keras:keras/src/backend/openvino/trainer.py": {
+      "git_blob_sha": "cfbbf82eeed981efe7bbec2c4f346abcb24e8e76",
+      "lines": 384,
+      "source_sha256": "d4e6be73cb7763cb9c063f8f57ed71511a7bcd3aa04221aabac92bd63be9978e"
+    },
+    "keras:keras/src/backend/tensorflow/distribution_lib.py": {
+      "git_blob_sha": "b306fd07dd0efec40868413158d8e70166f6720c",
+      "lines": 87,
+      "source_sha256": "426ed682e76544b5a8e8dfc416872a194bec6b522deaee1e002ecb4a33a928c9"
+    },
+    "keras:keras/src/backend/tensorflow/export.py": {
+      "git_blob_sha": "06fa8b09d6dffe6f40ea852f8c76c6c893eaf749",
+      "lines": 23,
+      "source_sha256": "048440e078a2c3f93f2bb961b2943b8054c0f5ac2b6695d70f918365ac2e02cf"
+    },
+    "keras:keras/src/backend/tensorflow/optimizer.py": {
+      "git_blob_sha": "9d230d91a7bb44b6ac496826a047dced4c78cdd3",
+      "lines": 258,
+      "source_sha256": "b427911df68f785d58cc0eb5fa89922618b58ce15c034dba74c22fbec214f8fe"
+    },
+    "keras:keras/src/backend/tensorflow/trainer.py": {
+      "git_blob_sha": "bd8a19c9ba68f52756b63c562e0ffd2128e8fb21",
+      "lines": 1005,
+      "source_sha256": "a639e89bb357751ea7e987dd071ae1c0045627266b000c5b6093e49fbcfe67f5"
+    },
+    "keras:keras/src/backend/torch/export.py": {
+      "git_blob_sha": "556ef6717cf3da9b442dd7e8ba8e31e70f8a8773",
+      "lines": 169,
+      "source_sha256": "d3ead91e84183994db2a5a8323020e49055f75d0978cd5ecfcfb033c891c4460"
+    },
+    "keras:keras/src/backend/torch/trainer.py": {
+      "git_blob_sha": "93e3b8f9bc14b5fc077c6b7e823824ef84eb9ea0",
+      "lines": 518,
+      "source_sha256": "b6a947643e3629e82991e7e98e48a0c5855feb3de5373646dee4b9c518fc51c0"
+    },
+    "keras:keras/src/export/__init__.py": {
+      "git_blob_sha": "5e04a27720da6d11af03a4e3d6ef5d3b49c161c3",
+      "lines": 8,
+      "source_sha256": "86a1d0e73e62d0460a8e1ae5ef80abb7320ddbff60628d72c997236f99d02df8"
+    },
+    "keras:keras/src/export/litert.py": {
+      "git_blob_sha": "676cb488646621aa9580a64c11749008447dc4fa",
+      "lines": 379,
+      "source_sha256": "6c0c074deb1150fbf6715f34cce67680e6d7f2b59b0f5fb1983183d47143df23"
+    },
+    "keras:keras/src/export/neptune_model_export_archive.py": {
+      "git_blob_sha": "9d57729c38c540dc634e9dff0301a6d4d1d35359",
+      "lines": 24,
+      "source_sha256": "9966f4ee0d154ded22b6176ea25207f5e81117ba2f9d63b05dc5bb0857de847b"
+    },
+    "keras:keras/src/export/onnx.py": {
+      "git_blob_sha": "6f149457490b95f86225554dcc2a9e8dceb23e85",
+      "lines": 344,
+      "source_sha256": "327090c42c020b074e9c2009e3c7a5b3e4b5958ae4098194d87fca45c12ed9b3"
+    },
+    "keras:keras/src/export/openvino.py": {
+      "git_blob_sha": "fa938102529b9cb766dc02801975a086acf45940",
+      "lines": 205,
+      "source_sha256": "de8564bbe9143dbdbb9ed9d3264e9b5fcde09a9739c793be874f4f4c192693a4"
+    },
+    "keras:keras/src/export/saved_model.py": {
+      "git_blob_sha": "7dec1c34213c1f585d316ed84a584b9779e33e63",
+      "lines": 436,
+      "source_sha256": "b24d0387ce114df47db2a9e9013ccd7b597bf047b3bbced6a094181f33ff1279"
+    },
+    "keras:keras/src/export/saved_model_export_archive.py": {
+      "git_blob_sha": "fd351cf56a8be8dea05bf81497139c5f7c0b9f54",
+      "lines": 457,
+      "source_sha256": "f8d11210abbc2012c6c914c918d71cee4a31b74b1e186e11bb6b831f1ce2165d"
+    },
+    "keras:keras/src/export/tf2onnx_lib.py": {
+      "git_blob_sha": "834560f2e414cead1971e9db11d244f2efe1b875",
+      "lines": 176,
+      "source_sha256": "a7812443aaa27d3cfdb2035cb364485a6221e2ca7f53d456915c1af01e026adf"
+    },
+    "keras:keras/src/export/torch.py": {
+      "git_blob_sha": "82b426b09e3a187e6f0beb855fb865d43e470378",
+      "lines": 171,
+      "source_sha256": "8e17726205304345d499f82e07b5a16a5bc46245b9772be5a70a22ad04e1d8b8"
+    },
+    "keras:keras/src/layers/core/dense.py": {
+      "git_blob_sha": "ee8f637c14ced71cb5115629d9d6e0e1e5465587",
+      "lines": 1247,
+      "source_sha256": "765645551985cf684f1663575ce5d171a0ad660c6aae606c33ff90a634eb05b7"
+    },
+    "keras:keras/src/models/model.py": {
+      "git_blob_sha": "5c4a8d02ad18b7a12f85a550b1c32dcd5a53ba76",
+      "lines": 1153,
+      "source_sha256": "95322d9a801cdff69f95a4e950d262b0d0dbc7303c7dc7a78ea6cc1167bb3b39"
+    },
+    "keras:keras/src/optimizers/adam.py": {
+      "git_blob_sha": "a0189fb4695d96f231457e693900789a502769a9",
+      "lines": 155,
+      "source_sha256": "a3160c816bd37e76dde92e838f4b08ce79a94f4e4f57c30dbb6d9779b3235da5"
+    },
+    "keras:keras/src/optimizers/base_optimizer.py": {
+      "git_blob_sha": "bb2d2896df13c110a22ab253360103956b6f3b6f",
+      "lines": 1197,
+      "source_sha256": "e4e2b3622286c48ee8d4feda665e49fce10c88eff07f5f1baa34349d10f99604"
+    },
+    "keras:keras/src/optimizers/loss_scale_optimizer.py": {
+      "git_blob_sha": "443974d1f7486f235b4a5776f8362f37b55b28aa",
+      "lines": 346,
+      "source_sha256": "83187ba55a1f29e0ecb49d47b8186d3e0c4e6cf02b3cb01b08d4d6184b4fdce2"
+    },
+    "keras:keras/src/optimizers/sgd.py": {
+      "git_blob_sha": "b3e8d206075663f94790660c4301184ab3043b29",
+      "lines": 139,
+      "source_sha256": "45f98573a4147a32c44d3e537d2c0ff4886e0d7931e6a01b30e996c885372003"
+    },
+    "keras:keras/src/quantizers/awq.py": {
+      "git_blob_sha": "b23e11b285c19b6ac1c9e1e145e67e6220bd4e0d",
+      "lines": 361,
+      "source_sha256": "8bb9685adcbd2c4cdf3f4e3f140cab45b2845d2864a1079270b352bb14552aef"
+    },
+    "keras:keras/src/quantizers/awq_config.py": {
+      "git_blob_sha": "6810c79ee0306491c1e0f329d45e6f23c387318b",
+      "lines": 140,
+      "source_sha256": "8cf0fcf924665a7fee1ddd58b5411f23a57c7f19b294e17c6ed50931ead5684b"
+    },
+    "keras:keras/src/quantizers/awq_core.py": {
+      "git_blob_sha": "41bd49414e72797e2739f6ee450f2393d3dd196e",
+      "lines": 217,
+      "source_sha256": "00981bc9232f4b010d335bbe7b4f2a6f4d265f9b9bdde814aecebbed475829e4"
+    },
+    "keras:keras/src/quantizers/quantization_config.py": {
+      "git_blob_sha": "ea11c68e18981f6db08436b96620064d595d7e06",
+      "lines": 340,
+      "source_sha256": "b1d630af03be2861d52986dbcc8308ead6ca27cd020d3f46cc206a3964950028"
+    },
+    "keras:keras/src/quantizers/quantizers.py": {
+      "git_blob_sha": "24db7820941625d16dc4e5ea0075249e3330617b",
+      "lines": 1233,
+      "source_sha256": "d154e2b842decf3e3245ab9e49cebc3b44cb26912925755fda39d0cb9097ab33"
+    },
+    "keras:keras/src/saving/orbax_util.py": {
+      "git_blob_sha": "e7bd8c33b82effbd251d843f04c65fc15b1597be",
+      "lines": 108,
+      "source_sha256": "59c8a57a93cd847159ec4d7a21a8793c482f21dda6d57dfc709b9cc987a5bc9d"
+    },
+    "keras:keras/src/saving/saving_api.py": {
+      "git_blob_sha": "4d46379969c29d2d0c9da6c754592127638894c3",
+      "lines": 450,
+      "source_sha256": "7dbc19f8230a1213cdce889b7876f628bfc0c58bf6184b6d79af882ec6eaac0a"
+    },
+    "keras:keras/src/saving/saving_lib.py": {
+      "git_blob_sha": "8a14ed9fa0172fba0cf7dbf1447723c7f8916fd8",
+      "lines": 2135,
+      "source_sha256": "5b1fe86866d48a78344f95439a18e25a2c66a342d888e2f7b5fd9fe226c878c6"
+    },
+    "keras:keras/src/saving/serialization_lib.py": {
+      "git_blob_sha": "51c9fb332e1c5c26171b0e35b12f2dfbfdf27944",
+      "lines": 905,
+      "source_sha256": "7931b89e5e4af1691f81952b5ac7c7579da37d170c444e6e211b12c52805fb59"
+    },
+    "keras:keras/src/trainers/data_adapters/grain_dataset_adapter.py": {
+      "git_blob_sha": "653cf2426a507d33339de59fb233b955d96242d9",
+      "lines": 218,
+      "source_sha256": "baa7b34107bb913ab41cedcdd5eca11359ee680e1d0d044b8011901b0c6e683a"
+    },
+    "keras:keras/src/trainers/data_adapters/tf_dataset_adapter.py": {
+      "git_blob_sha": "f27fd234dbeb77e176f7aa0b423a83548157ddc0",
+      "lines": 143,
+      "source_sha256": "bbdd862cac30e065ef24bcc91a3cdbffeb7d2cde3d5a398591357dba132432c2"
+    },
+    "keras:keras/src/trainers/data_adapters/torch_data_loader_adapter.py": {
+      "git_blob_sha": "01fd65b67552fdb1713fa5d75689424b26168e1a",
+      "lines": 85,
+      "source_sha256": "b45d8b82ca600cd9f5b3dcb73be382cd3a2b8623c4cb8bcbbe7429f4e17035c2"
+    },
+    "keras:keras/src/trainers/trainer.py": {
+      "git_blob_sha": "2418476302402364595b121d4bc8657f0ebc27a3",
+      "lines": 1228,
+      "source_sha256": "e2bcc0198989d2430e5a0b2c2d6820128422a4ef060604a288b4be8f32e7f168"
+    },
+    "keras:keras/src/utils/module_utils.py": {
+      "git_blob_sha": "59359010f04a0716e1d45e8890eb9f1c2b1e24c6",
+      "lines": 91,
+      "source_sha256": "81b8e8f7dddc7242c03a463811d5d466e94f6825946eaac94d4c32a23a9c3615"
+    },
+    "keras:keras/src/version.py": {
+      "git_blob_sha": "b8b083446940d5ec6b39460fe630086464ed4ade",
+      "lines": 9,
+      "source_sha256": "5952d9a253d662bb0a56da20a2e88ff78b7df731c8b4cfcc07fa0e39c9762a50"
+    },
+    "keras:pyproject.toml": {
+      "git_blob_sha": "68cdbcd12bb5b48dbe8377297e07fd2cf15304b6",
+      "lines": 114,
+      "source_sha256": "903f8a8b7c215ee092282fa7709464740a80db903000c18f957bc0f0a2c681d8"
+    },
+    "keras:requirements-common.txt": {
+      "git_blob_sha": "f679a86b6ea87780ebd4997497b77659971eb9a9",
+      "lines": 35,
+      "source_sha256": "533ca4c58ff0b1191d85847687b5325c4465462097474567bc4ff69f77b588ed"
+    },
+    "keras:requirements-jax-cuda.txt": {
+      "git_blob_sha": "9157a7952f9975d5c14a1f93575fcbbe00f64f42",
+      "lines": 12,
+      "source_sha256": "9e3dd6feb5fbc931c2b60b659421359089bcff75cc0348cace2181843df3c610"
+    },
+    "keras:requirements-jax-tpu.txt": {
+      "git_blob_sha": "9daebf7924c264e55ec0152670479bf19b969cbc",
+      "lines": 13,
+      "source_sha256": "2e9418fe0c3a4f2fe201a17ea0526c3026c6a2e3eb00d38e42c18061a7a9fbb1"
+    },
+    "keras:requirements-tensorflow-cuda.txt": {
+      "git_blob_sha": "bb9968b4ff032dc98b23205fa00892bc3f7b6475",
+      "lines": 12,
+      "source_sha256": "b04883dbf25931c7c2700fd0f0c0d2f7be8c9f28689da680a39f53fcad4d0ab1"
+    },
+    "keras:requirements-tensorflow-tpu.txt": {
+      "git_blob_sha": "7e24a53c8aa3dc231215812ccb59519d70695613",
+      "lines": 12,
+      "source_sha256": "82d0dd26eb77306f77db4ca99de419d00aa770677b515e4bc3b9d08d29b7ebf1"
+    },
+    "keras:requirements-torch-cuda.txt": {
+      "git_blob_sha": "dc96315b56eb67956a1adf1459878577bba5f66c",
+      "lines": 16,
+      "source_sha256": "395058aa4facf050ce8c71e2b56e40930871b12966121529a17935ffc2491337"
+    },
+    "keras:requirements.txt": {
+      "git_blob_sha": "56fef64ce4fd5ae56f71ec487a2505e50875bb17",
+      "lines": 26,
+      "source_sha256": "f34e2fa7d9bb205afe36e7cb8a0d53f6e3be39d0dc51b38de0619529e4e919b8"
+    },
+    "numpy:doc/source/building/blas_lapack.rst": {
+      "git_blob_sha": "c00b3646d84e5228d5d8e8756732ca2064f6b42f",
+      "lines": 112,
+      "source_sha256": "4fe7c112155b2a590f27f011aef19cefb01660ee3e34dba2c2f9d0241377d4b6"
+    },
+    "numpy:doc/source/building/cpu_simd.rst": {
+      "git_blob_sha": "f99a68b0c28ae6e6fb65c2efec4fda780ec4ea65",
+      "lines": 26,
+      "source_sha256": "ec9d8355ff791b5c6bf1fba8dddb045b7691fc08c695a95f94e8aba288666874"
+    },
+    "numpy:doc/source/f2py/buildtools/meson.rst": {
+      "git_blob_sha": "44560bef8c5f2d0a6842e37f587506928fa281ea",
+      "lines": 116,
+      "source_sha256": "d4dc7a93cf758a666421d04af1075b65b349f8f32efb7ab944a2aa4fc8509539"
+    },
+    "numpy:doc/source/f2py/usage.rst": {
+      "git_blob_sha": "a1fd38d57b9d3bac8396c06211e4cd7d01d92d44",
+      "lines": 324,
+      "source_sha256": "620746fb2db0fcb6535f1a713ed21a61da13063fb5bcbc8e79b95ae7cad7acbc"
+    },
+    "numpy:doc/source/reference/arrays.datetime.rst": {
+      "git_blob_sha": "9adbe82e272808dd46c7e886df0dde1b3dbe8e97",
+      "lines": 710,
+      "source_sha256": "bf1acdd5c6e724dcaeaa7532d425fb251fd3efc9d46f2a1f468433096596c4a5"
+    },
+    "numpy:doc/source/reference/arrays.dtypes.rst": {
+      "git_blob_sha": "b1887fc09d23575b2735eb6b62991ad0fd775821",
+      "lines": 694,
+      "source_sha256": "e615475e56ea40368a52863f75e70e105e4ca9a0d2a05c124aff643f166fa500"
+    },
+    "numpy:doc/source/reference/arrays.interface.rst": {
+      "git_blob_sha": "75c17060c8fc9db601e039c9d0335ade2a396921",
+      "lines": 365,
+      "source_sha256": "66e2baaf8e9b77c187be8efdd025d317b0fdd652682d1f6313377681d650ca10"
+    },
+    "numpy:doc/source/reference/c-api/array.rst": {
+      "git_blob_sha": "6b1e7b7c436250668268f99c21242f75077dfa5e",
+      "lines": 4807,
+      "source_sha256": "9f4b6e1dc49d5eb244d0bb532ffff06e29307dc07ea7f3b3d426f4573c036d37"
+    },
+    "numpy:doc/source/reference/c-api/ufunc.rst": {
+      "git_blob_sha": "2dbc8cae2fa19421c5572936b0cd7d7482c66417",
+      "lines": 470,
+      "source_sha256": "4d25e510a2bb583972199f5e18caf3174c46333397d889ac479a2bea13e17799"
+    },
+    "numpy:doc/source/reference/global_state.rst": {
+      "git_blob_sha": "e66c86faf1b306093491ce1bfb4697de1bf1ca33",
+      "lines": 72,
+      "source_sha256": "a4c54faa6342be56da21a9179253e49fbacaf27be4711025543631bb6b50a13c"
+    },
+    "numpy:doc/source/reference/random/bit_generators/philox.rst": {
+      "git_blob_sha": "0debb0e2ee4ba98f6b5090d8306405bc0b861ddc",
+      "lines": 34,
+      "source_sha256": "e210788521c91e9fa1f95b82914b82398c98d6e18e8561c8e2d1989b130290d7"
+    },
+    "numpy:doc/source/reference/random/compatibility.rst": {
+      "git_blob_sha": "455a2485ea4a0b4ccba5db0c2d16b73124672856",
+      "lines": 87,
+      "source_sha256": "39b4ad0aa810da95ebdac25333501f8de3701fee9886ace23c8921952f8f40c8"
+    },
+    "numpy:doc/source/reference/random/parallel.rst": {
+      "git_blob_sha": "892ceb3d169820149eaaee275b7d7c6e9fc2bc25",
+      "lines": 296,
+      "source_sha256": "89371fd6f1d5de49c398498687dd34493cb3178bea16b029e336778ba4b93828"
+    },
+    "numpy:doc/source/reference/routines.fft.rst": {
+      "git_blob_sha": "6c47925eee31ec1bca9adae1656c25a03dd0ecd4",
+      "lines": 2,
+      "source_sha256": "e668c9a468d31a18b322af778bc23291d4dc8b7fafc7e2ec102daa8d3c99f50e"
+    },
+    "numpy:doc/source/reference/routines.linalg.rst": {
+      "git_blob_sha": "3920e28f999464751d754d6aef9d0afb4e716876",
+      "lines": 158,
+      "source_sha256": "b7fad216e7e18de7883193aa1db2f7d8741b2b3ce1a30f88b9bf1e0003ed0f6e"
+    },
+    "numpy:doc/source/reference/thread_safety.rst": {
+      "git_blob_sha": "b07419259690470c66a7816eda2ff4e53242668f",
+      "lines": 78,
+      "source_sha256": "c403402535188bc5510309b24b960d3c8f81d4d64a15e68660a25d8be7284c85"
+    },
+    "numpy:doc/source/user/basics.broadcasting.rst": {
+      "git_blob_sha": "2b03817bba91b8742399ff8705e8e9ab28208ac2",
+      "lines": 314,
+      "source_sha256": "d1379801e96ec350b320d2929687d35b045e24bea962a29efb2259d080427048"
+    },
+    "numpy:doc/source/user/basics.copies.rst": {
+      "git_blob_sha": "c0dbc8e8fb51a4971816467e9c42f874dac6668f",
+      "lines": 142,
+      "source_sha256": "4d16f5c890f95c112fc7b7704d23720f42e3ea457ffeaa59b9093d9d5031833b"
+    },
+    "numpy:doc/source/user/basics.creation.rst": {
+      "git_blob_sha": "19fa737d5f8d5c73fe0ab7720284fac836ed373a",
+      "lines": 400,
+      "source_sha256": "23ea005c950a1c23fe0e002e8690e8af427a45b4ecbdd90447d283a417e0ca1e"
+    },
+    "numpy:doc/source/user/basics.indexing.rst": {
+      "git_blob_sha": "51d126f8183b3e376239fef520fa77a1e1398278",
+      "lines": 905,
+      "source_sha256": "651fbfef9875429901319df4bed44ea3b687b119663a8a0f2fee63e2d212cb24"
+    },
+    "numpy:doc/source/user/basics.interoperability.rst": {
+      "git_blob_sha": "f9f52bfeab8e0483cb7548dee979e116ebf6cbfb",
+      "lines": 548,
+      "source_sha256": "c30115b51875eb3ea0cfbfc95d9ba98c4f993721f43024e9486fbf48c189c077"
+    },
+    "numpy:doc/source/user/basics.io.rst": {
+      "git_blob_sha": "c0c96dceccbd0246fa87bbee42c484d2da2f1c97",
+      "lines": 8,
+      "source_sha256": "0fb435969a2abe466eda666308e4dfae4d71a8437f0ec97ae71be0528ae3abc1"
+    },
+    "numpy:doc/source/user/basics.strings.rst": {
+      "git_blob_sha": "cbbaa8f6e3b38d51b2db170289d564c199842686",
+      "lines": 241,
+      "source_sha256": "f3b0a2978af4943b48848468372b02968700ba20d3a85243c05e936f0152ce36"
+    },
+    "numpy:doc/source/user/basics.types.rst": {
+      "git_blob_sha": "d6914f437faad1e9c4272d01f0a0fe14251f3123",
+      "lines": 416,
+      "source_sha256": "3a1d088bf1f6a9e406c1c06ed1cc6bfb5aca67eb95874243a6e08f6f6ca827ed"
+    },
+    "numpy:doc/source/user/basics.ufuncs.rst": {
+      "git_blob_sha": "5c91ab6c0168b2af033a10e9ed8f3f440cc3bede",
+      "lines": 348,
+      "source_sha256": "d606ea5bf20727b5596c6d25dc35d683674b35cbd4d65024c6885e0c52e1c4be"
+    },
+    "numpy:doc/source/user/byteswapping.rst": {
+      "git_blob_sha": "8f08d2a01a3ddc5b3e3dbf20f1edb15263b36a6e",
+      "lines": 156,
+      "source_sha256": "23d32d470a26339d5f7103c1e3cd7724dc62e549a17f23a179f8a23ad85a7d62"
+    },
+    "numpy:pyproject.toml": {
+      "git_blob_sha": "668dfa27b56fe5f2b130b51160345cc72b7e6d01",
+      "lines": 305,
+      "source_sha256": "ca481a43fe6b283917c835b70fcabb225a89ca0f533c811c9fff1071c836f698"
+    },
+    "pytorch:.ci/docker/ci_commit_pins/executorch.txt": {
+      "git_blob_sha": "f2e2d655a6cf225c910cf77e4cfd51a746790014",
+      "lines": 1,
+      "source_sha256": "24bc2feb600d1876df7649266feba5c7fce84d4ca3a4b063ce7f95f7f7a31748"
+    },
+    "pytorch:.ci/docker/ci_commit_pins/nccl.txt": {
+      "git_blob_sha": "78c9713f77d41c0f0d9fef932abbcb9dd59daeb1",
+      "lines": 1,
+      "source_sha256": "768dfffbc60e094e31a543d698a9c0ddd7cea05270805baaccf2b81d70303947"
+    },
+    "pytorch:.ci/docker/common/install_cuda.sh": {
+      "git_blob_sha": "c4635590978bb65c5358837ec2850842ab3bd0b0",
+      "lines": 262,
+      "source_sha256": "2905d5253d4dfc43292b308036c27302425daa3e3c03c907976d0de55e62cb2c"
+    },
+    "pytorch:.ci/docker/triton_version.txt": {
+      "git_blob_sha": "19811903a7f7584d7aa752ea29bbf9d74cf78b47",
+      "lines": 1,
+      "source_sha256": "88206afd2d9b56ca71466c85d1ed1421b1db0e78fa00072697918fb8a9ac54ef"
+    },
+    "pytorch:.ci/docker/triton_xpu_version.txt": {
+      "git_blob_sha": "19811903a7f7584d7aa752ea29bbf9d74cf78b47",
+      "lines": 1,
+      "source_sha256": "88206afd2d9b56ca71466c85d1ed1421b1db0e78fa00072697918fb8a9ac54ef"
+    },
+    "pytorch:.github/scripts/generate_binary_build_matrix.py": {
+      "git_blob_sha": "8282049aa68b54cce5c7c5cc3dcb0dcd3661d355",
+      "lines": 584,
+      "source_sha256": "e2761bcfe6185a1f737f03fb904937aa382c3d78d9f8fd71101c8c9969beaffe"
+    },
+    "pytorch:docs/source/amp.md": {
+      "git_blob_sha": "d3977d856aca09c3dd197666cc286c4d159851b9",
+      "lines": 590,
+      "source_sha256": "aa9d045fba05182db2c76544abed398128434651bdaecc6372303769e1d87934"
+    },
+    "pytorch:docs/source/autograd.md": {
+      "git_blob_sha": "838537fc57ee3161d3a41f0fa4b5cad83acfb8a4",
+      "lines": 516,
+      "source_sha256": "d2bbec01924b9291534d874c7b4e95037f481f6f49da292c77676a5a19b3b578"
+    },
+    "pytorch:docs/source/cpp_extension.md": {
+      "git_blob_sha": "598d6addc641d005b15e4e67b4914d6c5c7a6b8a",
+      "lines": 25,
+      "source_sha256": "0a3a43dd55e583276e468844dbb1935ee07e5cb899843da220f52750d51ccd78"
+    },
+    "pytorch:docs/source/cpp_index.md": {
+      "git_blob_sha": "911dff60f56ab9de84183432474cd89189453e7c",
+      "lines": 31,
+      "source_sha256": "bb104ace52bed4f29f2f109558aaf6154f76f81b8573eccc572437ca70e17d33"
+    },
+    "pytorch:docs/source/data.md": {
+      "git_blob_sha": "ce117ddccf5e6d00f6ef5c082a8196171d271805",
+      "lines": 586,
+      "source_sha256": "449cfb60223a94a9929d8ddf395f2309e09a717a220eba0ce70423a52af4d54c"
+    },
+    "pytorch:docs/source/ddp_comm_hooks.md": {
+      "git_blob_sha": "2b1298156b915d45d53b6345f2c643694df27d87",
+      "lines": 241,
+      "source_sha256": "c166087e6d527130824f3a21796946de33780f692080dff7ba9897603c10713b"
+    },
+    "pytorch:docs/source/distributed.algorithms.join.md": {
+      "git_blob_sha": "c8c661557dcedd676871f7606963f5ff25dc4dcb",
+      "lines": 24,
+      "source_sha256": "7c15668e5010d367f1f4bfd38bb299a489f917890457c8790d11f652a532aa52"
+    },
+    "pytorch:docs/source/distributed.checkpoint.md": {
+      "git_blob_sha": "44a4dec91a413006357e7eed6e0456ed5979933c",
+      "lines": 341,
+      "source_sha256": "3e19035f9027094c33659c7722c8e9ca0783ee9fba996f37aa38414a2d154c8d"
+    },
+    "pytorch:docs/source/distributed.elastic.md": {
+      "git_blob_sha": "1c7177dd4a9a039eeb3398f712e863d72d94534f",
+      "lines": 47,
+      "source_sha256": "ee6d33445c896739b72e6f84626d3f12be6ca797c76a16cd667f6bd9fc55c2b6"
+    },
+    "pytorch:docs/source/distributed.fsdp.fully_shard.md": {
+      "git_blob_sha": "cf81f5d5689227f7376cb330a78179fae298020d",
+      "lines": 211,
+      "source_sha256": "016bdbf45eb0163cbd947047c01a498702cdf62ce0d9a965059bc920acfa7f10"
+    },
+    "pytorch:docs/source/distributed.md": {
+      "git_blob_sha": "4dd9034e8b032e56b0dd26590bcceff7a652753b",
+      "lines": 1768,
+      "source_sha256": "792d540527415d46db4bb5477cae7c3b150a1fb78d435403874d6781bc3674ac"
+    },
+    "pytorch:docs/source/distributed.pipelining.md": {
+      "git_blob_sha": "6e4ac70842039f30b50c913118c604f621cb3826",
+      "lines": 537,
+      "source_sha256": "9120bdf900fdfbb8125a52c616646d80c9553a74218a12650dc81389952d1d00"
+    },
+    "pytorch:docs/source/distributed.tensor.md": {
+      "git_blob_sha": "216fa8744524a090c3440280c9e2f0dca5592867",
+      "lines": 355,
+      "source_sha256": "ad5ccb7c4a85a3026438f5c76903ce25bf019e0ff5d22a7330d10304dac6d8bb"
+    },
+    "pytorch:docs/source/distributed.tensor.parallel.md": {
+      "git_blob_sha": "288a25be6b659f3956368b21095f80cece165660",
+      "lines": 107,
+      "source_sha256": "a71658040f4e5c4e833ff9bcc7516a8e901e33ebfd5b27106a4595b2bd83e944"
+    },
+    "pytorch:docs/source/fsdp.md": {
+      "git_blob_sha": "1b1e6725b586c0dcc1535863b1ff879801d04d91",
+      "lines": 91,
+      "source_sha256": "c6c12cb6d21e98b79e04a82621ee0204bb02f1992a5c8b801dfee5f4ec175fba"
+    },
+    "pytorch:docs/source/func.md": {
+      "git_blob_sha": "d1b81a00fa5332020e42a9c023db602cb37d5152",
+      "lines": 56,
+      "source_sha256": "79c950454bb87ced22b31f33218a60aed016efe28a451389c6f4785a7cfba2f4"
+    },
+    "pytorch:docs/source/mobile_optimizer.md": {
+      "git_blob_sha": "81c2b069a90ca17caa8506dfca72eea921659396",
+      "lines": 28,
+      "source_sha256": "76e2c83ed202ca040d9eb06d14e41d63735baebcc22d73684367bc30e2d858e8"
+    },
+    "pytorch:docs/source/notes/amp_examples.md": {
+      "git_blob_sha": "f5740df6d38e4279209ebdc063d1355f1a6e5b51",
+      "lines": 425,
+      "source_sha256": "cfcaf23662153f75dfe7a717925197dad204894b4df9d5e4bcb0b3b0d4eb41a4"
+    },
+    "pytorch:docs/source/notes/autograd.md": {
+      "git_blob_sha": "2b6651c8682fdee2f0c37c0474e73fecb61c55fa",
+      "lines": 1035,
+      "source_sha256": "f45e27007e129d49bdab58a11111d9a3d7f158b6dbcc7113df5a1277afadf668"
+    },
+    "pytorch:docs/source/notes/cuda.md": {
+      "git_blob_sha": "2959f765f47ee705f3eb220989a65d1a90adafeb",
+      "lines": 1869,
+      "source_sha256": "133ae6298b2696c121a866eeb1e0433c2344fb2d938188b43ebdddea0b09bf8a"
+    },
+    "pytorch:docs/source/notes/mps.md": {
+      "git_blob_sha": "1af45a482ad6349a71381d2bdeb95391b6e79ce8",
+      "lines": 43,
+      "source_sha256": "4b3e0a32b6a3f0616bbc0bdbf1d01b045774062653f616e290429e84fa26e544"
+    },
+    "pytorch:docs/source/notes/randomness.md": {
+      "git_blob_sha": "298bba7332eb7e648cd72430b38db58b9f2b5872",
+      "lines": 272,
+      "source_sha256": "a76a40ed971524450b8f08b4162d06d1f58c694391a6c82b6472975ceef4cfe1"
+    },
+    "pytorch:docs/source/notes/serialization.md": {
+      "git_blob_sha": "bd52b55ab8d52855981fe8af703da6580a9e040c",
+      "lines": 405,
+      "source_sha256": "d7bfc78aefe95ac8edd2972d0749b338e824736f67f8d55aa4fbd7e72fe14b92"
+    },
+    "pytorch:docs/source/onnx.md": {
+      "git_blob_sha": "8310b2aa7130225ca3764cd7dde7f486e5874985",
+      "lines": 138,
+      "source_sha256": "b32858021c27353e5b168aa3b2bd62b491a56eb1b59daac160c6bcd2c8c24408"
+    },
+    "pytorch:docs/source/onnx_export.md": {
+      "git_blob_sha": "e1497bafdc55744db271caac30b58841e6f800d2",
+      "lines": 252,
+      "source_sha256": "edd1898f9aa1808e0a1f4925860969b6cb5d05ab74cf40c369dd16c01d31709b"
+    },
+    "pytorch:docs/source/onnx_verification.md": {
+      "git_blob_sha": "4036aea8f81a798591fb06473a2a0d36a2d30d3d",
+      "lines": 14,
+      "source_sha256": "fee49cf6c59dc18a20d9954ba4f45774bd179d927b348d545376cb7052b25fb7"
+    },
+    "pytorch:docs/source/optim.md": {
+      "git_blob_sha": "70cf06c4782155c4b6ee46dd296dbede0b933b8d",
+      "lines": 728,
+      "source_sha256": "b45f4ae9d63c0c553e5954b6322e82960e6373984a5c77c686396a22ca33d65c"
+    },
+    "pytorch:docs/source/profiler.md": {
+      "git_blob_sha": "080f3f2eac1e6dd05c2fce4c6d293fbe7632a8ed",
+      "lines": 56,
+      "source_sha256": "b7dadcf8dc6f7a64206fd74d1c969ac122d80e62e975662d845ba03a2d6baca8"
+    },
+    "pytorch:docs/source/quantization.md": {
+      "git_blob_sha": "c7146ecbc17568361d9f2e0417b9381c1012543c",
+      "lines": 192,
+      "source_sha256": "7c06359b0d36e2c12a3eb87931bf6238c32e69773834f8401ca53d39d15a47a5"
+    },
+    "pytorch:docs/source/tensorboard.md": {
+      "git_blob_sha": "2cec6a841c084645dbab5774eec19c82e492b84f",
+      "lines": 100,
+      "source_sha256": "169264c8f7c1349796ce835018f344caef33e25f916d6e6c92a212194e50cdf5"
+    },
+    "pytorch:docs/source/torch.compiler_api.md": {
+      "git_blob_sha": "4d2ae84128900b485ed61ebac1baab50c325e64d",
+      "lines": 139,
+      "source_sha256": "432c85a9197ceb406084cc566c4ca2edc0f824ee33042d54475ff31cd1b8ed46"
+    },
+    "pytorch:docs/source/user_guide/torch_compiler/compile/programming_model.custom_ops.md": {
+      "git_blob_sha": "b1b78b9db68cb38a833c74b566b4ea7162d17083",
+      "lines": 12,
+      "source_sha256": "0ec9ef5eba571daca7c08e3d5517132081a7f0b36c818822b3eec86a14277eb6"
+    },
+    "pytorch:docs/source/user_guide/torch_compiler/compile/programming_model.md": {
+      "git_blob_sha": "e0f87e99ec81842dc1205ab793b6b04f9b456610",
+      "lines": 20,
+      "source_sha256": "a5ee4f778bb029ac19302f3bcc92ea19d58df5e3b7c79ed193885fde8ec7a65a"
+    },
+    "pytorch:pyproject.toml": {
+      "git_blob_sha": "695842c971aeff3513933eeabc14b2bba48976ed",
+      "lines": 691,
+      "source_sha256": "8ba6dc482d955267f9ead956b8b5a9f1dd6442a026d7f0b8ebf516bf989f9069"
+    },
+    "pytorch:requirements-build.txt": {
+      "git_blob_sha": "76818b92dde109068ddb145c05e1fd8e21af7ce4",
+      "lines": 15,
+      "source_sha256": "27259501f13108b8c0d2c444ec5d03487f2fad8a6f48bb7d230db71ad8006dd0"
+    },
+    "pytorch:requirements.txt": {
+      "git_blob_sha": "8f7bc79ff7a3b1796597832304e4b4ecc1c68d05",
+      "lines": 19,
+      "source_sha256": "8a9af72713bb665ef7ccf604ffb12131543bf8dd2bcdb314bc26dda9c3ced7be"
+    },
+    "pytorch:torch/_inductor/__init__.py": {
+      "git_blob_sha": "812f79dda45a2c91695eb2b27171dd46e04236b8",
+      "lines": 482,
+      "source_sha256": "bdc3f10db497a114d40b61ba5f59983786a2d302000e4c2111478b1f01701546"
+    },
+    "pytorch:torch/export/__init__.py": {
+      "git_blob_sha": "ff6f87b59543ec30c557ba56d145272424c801ca",
+      "lines": 573,
+      "source_sha256": "7b2493a7ecedd06b81c6594df0cb5c5b06004446d886cc6508c1015e774657e9"
+    },
+    "pytorch:torch/onnx/_internal/exporter/_compat.py": {
+      "git_blob_sha": "f6292e1e4d09c26f5eec3ce8e26372b24ebc4fb4",
+      "lines": 202,
+      "source_sha256": "e0705c9fb21f99dece76f9e0452ddd3134b2600b1fac79c4d03aeee7f0fc1500"
+    },
+    "pytorch:torch/utils/dlpack.py": {
+      "git_blob_sha": "19677591444676054cad30c2d3e7105b06549c5c",
+      "lines": 297,
+      "source_sha256": "e0431395885cfe0e02e4d16b894e01f91e42f5b8cec001a4367e73463d9e2a30"
+    },
+    "pytorch:torch/utils/mobile_optimizer.py": {
+      "git_blob_sha": "12073c3b8061067289d0cd5c65184416c0193c03",
+      "lines": 135,
+      "source_sha256": "5a30d97ee56753cc134e9ac10c157a10c81fdcb752b7ef8b4f112e0a31e7f01d"
+    },
+    "tensorflow:README.md": {
+      "git_blob_sha": "fda0c8ab9fd45b1d182d2cf6edb209aead8710ff",
+      "lines": 173,
+      "source_sha256": "5e25db9f7d2a733880923a155bd2944dd783362d76a84ffe6dd05864d9641257"
+    },
+    "tensorflow:requirements_lock_3_12.txt": {
+      "git_blob_sha": "a5ec4875721a59c257c0c7fd3f77bb8214453c55",
+      "lines": 852,
+      "source_sha256": "bee45e43f321d0414c542a74c7ca176b80ca58cbace0d2f5dff8847c8c1c9777"
+    },
+    "tensorflow:tensorflow/c/c_api.h": {
+      "git_blob_sha": "9812b0a7dfcef30e3ddc7625eb1733f19a476803",
+      "lines": 1667,
+      "source_sha256": "4ccd0a99a0832bffac33eeb2a26a900710d50c212549ef8e66be3f906d5bdac5"
+    },
+    "tensorflow:tensorflow/c/eager/c_api.h": {
+      "git_blob_sha": "7f458ac50abb88c092ecebbc645decc7c9ced8c5",
+      "lines": 448,
+      "source_sha256": "3c5f0b114a9e6b0e6274cbaea3d272465eae52083a5dd9fbf0cc0d27fd36cb13"
+    },
+    "tensorflow:tensorflow/core/protobuf/saved_model.proto": {
+      "git_blob_sha": "47a707c81397f5287f96375b6a904d86fd59582f",
+      "lines": 23,
+      "source_sha256": "92a5f0017b32d2d96e5ded381936148f306698dd28e06addfcdee55fd02cb006"
+    },
+    "tensorflow:tensorflow/core/public/README.md": {
+      "git_blob_sha": "45767e1c8c83bda49baf6b31763961dd8c458111",
+      "lines": 87,
+      "source_sha256": "a04ac366f04e1042f9065a7a0dab3093fd1ba4739b349ae07bc063b29ffcb0e2"
+    },
+    "tensorflow:tensorflow/dtensor/python/api.py": {
+      "git_blob_sha": "4a49cd82fa33943cd64a12eef5f52111979358e7",
+      "lines": 568,
+      "source_sha256": "6a811d2ea7f86f49ed30433bc3fa4a463d626b9bcbe329f454421e347ea97832"
+    },
+    "tensorflow:tensorflow/lite/core/c/c_api.h": {
+      "git_blob_sha": "d8445c9c7c9c40a3ae3afd0f8d75111e902e9cd4",
+      "lines": 663,
+      "source_sha256": "b99853ec1cf4ae2a2c9b3a7567e1d312aa82585ed9b279e454a37801896ef834"
+    },
+    "tensorflow:tensorflow/lite/g3doc/guide/inference.md": {
+      "git_blob_sha": "16ede2fd71ff7222f6eae76c39eb3102ccdd30b4",
+      "lines": 647,
+      "source_sha256": "38019f88599b3a338e33b35ade0b2fa1333a9ca9b4cb7fe6b8001f763484c702"
+    },
+    "tensorflow:tensorflow/lite/g3doc/guide/ops_compatibility.md": {
+      "git_blob_sha": "d5de333c7eaf584a50b883152d66212bf7c74c23",
+      "lines": 143,
+      "source_sha256": "fe46fc80fdd4d0f6ba0a7fd640b0b3a443bf9adc7c0ba50ecb0b70ad7c6d451c"
+    },
+    "tensorflow:tensorflow/lite/g3doc/guide/ops_custom.md": {
+      "git_blob_sha": "283424e1316a3286a8fb720cc58159ea1bd66a8d",
+      "lines": 650,
+      "source_sha256": "b5c5f096ed84a43621674ca05c60bc5b92d209181355829a2373236f0e692093"
+    },
+    "tensorflow:tensorflow/lite/g3doc/guide/ops_select.md": {
+      "git_blob_sha": "3581d4ea1c28301388bb90b4251407e09a0e9c19",
+      "lines": 298,
+      "source_sha256": "399536a2c639d82a45eec2de0e86bc726a46126b094bda51c04254756199a8b7"
+    },
+    "tensorflow:tensorflow/lite/micro/README.md": {
+      "git_blob_sha": "d0e07a67a854a7def98454c045a7fecd31c466dc",
+      "lines": 2,
+      "source_sha256": "5f1dbc76af531c717a2d3c68931e6626a254fa4de3e8c712e1326408987a2b85"
+    },
+    "tensorflow:tensorflow/lite/python/interpreter.py": {
+      "git_blob_sha": "40852fafaad5646b010bc74a68a4c94486206393",
+      "lines": 1039,
+      "source_sha256": "a761f88ec458aa8282a7950a6b4ff68073fb5f495be53c66a643952e5debacf7"
+    },
+    "tensorflow:tensorflow/lite/python/lite.py": {
+      "git_blob_sha": "55afc80c329795b46a702c1b2e45b5b7bcdcaf9f",
+      "lines": 3452,
+      "source_sha256": "f3976d09e94fc4ebe6fb7d3f406e424725331ba58a396ebbb1df54300bbd7d1d"
+    },
+    "tensorflow:tensorflow/lite/tools/benchmark/README.md": {
+      "git_blob_sha": "040f09fe3e7cccff673f3ac8de234a285774a927",
+      "lines": 554,
+      "source_sha256": "6a39692e4d46a6332525218aa01ef59d1d544ceb4656c613f21cc6b224b4da92"
+    },
+    "tensorflow:tensorflow/python/checkpoint/checkpoint.py": {
+      "git_blob_sha": "30a65f1a2ed885f43dd2e6007d90ddc184d00a48",
+      "lines": 2753,
+      "source_sha256": "cd08e08239ffbe69748e34c605f816a1b9d00fcb17d8ea0bff93cfeaecd2647d"
+    },
+    "tensorflow:tensorflow/python/data/ops/dataset_ops.py": {
+      "git_blob_sha": "06ed4275dcbb2e8907ee1e30b465ec8896f6adb6",
+      "lines": 5286,
+      "source_sha256": "981ea5a001b08c66e5ba9341b4bd58f0896628f56cf2abdb1d5bb73c637c25cc"
+    },
+    "tensorflow:tensorflow/python/distribute/collective_all_reduce_strategy.py": {
+      "git_blob_sha": "87a5f9cb772f6274f4df3e5aeecef64a5e83a890",
+      "lines": 1158,
+      "source_sha256": "a51c636fef6cc11c5e1dc6c7aa7acb3d7c6256f4a205eb0f64c23295c8ca87c0"
+    },
+    "tensorflow:tensorflow/python/distribute/mirrored_strategy.py": {
+      "git_blob_sha": "3be22ea30837e05c5bd3015d9c416b06a6457b76",
+      "lines": 941,
+      "source_sha256": "5948775f364dc9de728f4f530faaa4b9974823b3a9ac92cc407ade127a811e6a"
+    },
+    "tensorflow:tensorflow/python/distribute/parameter_server_strategy_v2.py": {
+      "git_blob_sha": "9f188b030b76cdfff41a2ae3a36000f0ea9615e2",
+      "lines": 1060,
+      "source_sha256": "23a46fa1b4fce102b94f019e607ea0fad85709ee1f379886527f780b4c38ab96"
+    },
+    "tensorflow:tensorflow/python/distribute/tpu_strategy.py": {
+      "git_blob_sha": "c3e1f17f715554e058d73d490dbe57a303a26c4c",
+      "lines": 2106,
+      "source_sha256": "d64de11faf8875dc79a15880ead7be2c1b07a2518cb8fda1015c400899a4d8ea"
+    },
+    "tensorflow:tensorflow/python/eager/backprop.py": {
+      "git_blob_sha": "57593eac09b26dd2936c5e356f9b80373421c444",
+      "lines": 1345,
+      "source_sha256": "c9a461d06085be50a2235e23e6c32a4649805fa2b5fb43d50e7fb421f92eed78"
+    },
+    "tensorflow:tensorflow/python/eager/forwardprop.py": {
+      "git_blob_sha": "1a02be97bd6bfc866cbfd7c8d0cac2f6383133f8",
+      "lines": 487,
+      "source_sha256": "eafa644b7914cd5f608b25d77ffbc4222ad345fefd923aff95c293d322858654"
+    },
+    "tensorflow:tensorflow/python/eager/polymorphic_function/polymorphic_function.py": {
+      "git_blob_sha": "41c3c602012f3d673e795a613b6d96e29e2ae8e0",
+      "lines": 1749,
+      "source_sha256": "600024d8d26c0456b3f3295a50de01092a85a077aec82cbb32fc09c994caa381"
+    },
+    "tensorflow:tensorflow/python/framework/extension_type.py": {
+      "git_blob_sha": "37d172cc5400da0988b0760e4597c96df5dad0c0",
+      "lines": 1319,
+      "source_sha256": "f502b6e13a659b0999d7c7080f24e658e0dac26b191ef3938b9bb22f2a3704bd"
+    },
+    "tensorflow:tensorflow/python/framework/ops.py": {
+      "git_blob_sha": "0c413bb57f3ef9ae406fd24ff25d6c4091fa8737",
+      "lines": 6232,
+      "source_sha256": "f795a78cce2827ce2b50892e20c01b628a07a71fa463ece766f0de9e2ec7677d"
+    },
+    "tensorflow:tensorflow/python/ops/ragged/ragged_tensor.py": {
+      "git_blob_sha": "727001c8e80bdc2b2cff35386ef92806edd4b947",
+      "lines": 3149,
+      "source_sha256": "97eb7bd3c35d23558b9b8855ad80f067b2157b13cfa0e8a90c454c489392a441"
+    },
+    "tensorflow:tensorflow/python/ops/variables.py": {
+      "git_blob_sha": "dd35a506e042a8dac9a6c0c9c69480298e4de054",
+      "lines": 2114,
+      "source_sha256": "a71b8a698a6aaee3caec9afbfb337a9e49419efe5c287c79dd38930b3b57e356"
+    },
+    "tensorflow:tensorflow/python/profiler/profiler_v2.py": {
+      "git_blob_sha": "4b6715c07123b3558b3b0d539ac15b18355e300f",
+      "lines": 212,
+      "source_sha256": "f9b3c390c4026da4bdb414bbe0d95ab135680bee29e4dcee3a04b66d10f52c2b"
+    },
+    "tensorflow:tensorflow/python/saved_model/load.py": {
+      "git_blob_sha": "aa4f18e8353ca573e2a396aaaa0b7c265f4df904",
+      "lines": 1145,
+      "source_sha256": "789ec3e587955e19a88d30fb220b09787969afb7f5837bf01efcb2351bcb9bd0"
+    },
+    "tensorflow:tensorflow/python/saved_model/save.py": {
+      "git_blob_sha": "5b56dc40ec04d08f58d75659f3661b25dbb28eec",
+      "lines": 1682,
+      "source_sha256": "e8ffbb23361e3dbf244786e63a8df113aed01753ada28195793378a3f594175b"
+    },
+    "tensorflow:tensorflow/python/tools/saved_model_cli.py": {
+      "git_blob_sha": "b271b8145e3c982f5afcabc71a154d77e5388b85",
+      "lines": 1394,
+      "source_sha256": "b117e2306ef0814a2d7556a3e0bb97812ca33d94415eb818c5e4e54b21b15785"
+    },
+    "tensorflow:tensorflow/tools/pip_package/setup.py.tpl": {
+      "git_blob_sha": "9480a3d39ec44914739112b42ccc25796fc2d8c9",
+      "lines": 428,
+      "source_sha256": "ea89cd20ffda00cb1f76103ac84d46e9ae3ef13c68bc611a50db3292494bcd40"
+    },
+    "tensorflow:tensorflow/workspace0.bzl": {
+      "git_blob_sha": "04258fc116f521a81e912e791775f28f0cf9ab93",
+      "lines": 120,
+      "source_sha256": "5df0fa17b73c1a8fec34b391a6a3ee5c352245c9103181784bad7a2b7895a984"
+    },
+    "tensorflow:third_party/py/ml_dtypes/workspace.bzl": {
+      "git_blob_sha": "f7a49a40ad380b0c2e3e8620218bdb63e2cbe396",
+      "lines": 21,
+      "source_sha256": "96986ab3380d0d1dc07105d721d068d1dd4df934f49885b99db3a392db8c12ae"
+    },
+    "tensorflow:third_party/xla/MODULE.bazel": {
+      "git_blob_sha": "b5e8c6d13502aa74af2f894abfb00a1e81f6c83e",
+      "lines": 221,
+      "source_sha256": "751f639d41f4fbe40ba31ee7e8d7ead8c39557ac7b4e5ce74803c755ce7e53ab"
+    },
+    "tensorflow:third_party/xla/README.md": {
+      "git_blob_sha": "7291b3ce2aa641305568dfa4b8045e1368cfd11b",
+      "lines": 49,
+      "source_sha256": "98fc97dc1b470b3efed23cb11d574ffa6874be72884098f299834c8b5cb9a033"
+    },
+    "tensorflow:third_party/xla/workspace0.bzl": {
+      "git_blob_sha": "eac33ca20f0b72519145d729f9823fe7e76d4169",
+      "lines": 158,
+      "source_sha256": "deea927436695626b370480aba053adb7d4787aef2e37847ab08bb10bbf6dafe"
+    }
+  }
+}
