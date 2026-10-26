@@ -272,9 +272,16 @@ def validate_core_tensor(root: Path, relative: str, program, capabilities, repos
     def path_cost(identity, bound):
         package = packages[identity]
         return package["estimate"][bound] + max((path_cost(parent, bound) for parent in package["dependencies"]), default=0)
-    estimated_range = [max(path_cost(identity, bound) for identity in packages)
-                       for bound in ["engineer_weeks_low", "engineer_weeks_high"]]
-    need(package_document["estimate_non_calendar_engineer_weeks_range"] == estimated_range,
+    try:
+        estimated_range = [max(path_cost(identity, bound) for identity in packages)
+                           for bound in ["engineer_weeks_low", "engineer_weeks_high"]]
+    except OverflowError as error:
+        raise ParityError("core package aggregate estimate arithmetic overflow") from error
+    declared_range = package_document["estimate_non_calendar_engineer_weeks_range"]
+    need(type(declared_range) is list and len(declared_range) == 2 and
+         all(finite_number(value) for value in declared_range + estimated_range),
+         "core aggregate estimate must remain finite")
+    need(declared_range == estimated_range,
          "core package aggregate estimate contradicts dependency path")
     critical = package_document["critical_path"]
     need(type(critical) is list and bool(critical) and all(identity in packages for identity in critical) and

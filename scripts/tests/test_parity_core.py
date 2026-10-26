@@ -47,6 +47,10 @@ class CoreContractTests(unittest.TestCase):
                 no_credit(changed)
 
     def test_owner_identity_case_and_math_mutations_fail_closed(self):
+        def overflow_estimate(document):
+            for row in document["packages"]:
+                row["estimate"].update({"engineer_weeks_low": 1e308, "engineer_weeks_high": 1e308})
+            document["estimate_non_calendar_engineer_weeks_range"] = [float("inf"), float("inf")]
         changes = [
             ("core-tensor/contracts.json", lambda d: d["contracts"][0].update({"owner": "atlas"})),
             ("core-tensor/contracts.json", lambda d: d["contracts"][0].update({"reference_id": "unadmitted"})),
@@ -66,6 +70,7 @@ class CoreContractTests(unittest.TestCase):
             ("core-tensor/implementation-program.json", lambda d: d["packages"][0].update({"done_is_whole_framework_parity": True})),
             ("core-tensor/implementation-program.json", lambda d: d.update({"remaining_full_scope_not_reduced": False})),
             ("core-tensor/implementation-program.json", lambda d: d["packages"][0]["estimate"].update({"engineer_weeks_high": float("inf")})),
+            ("core-tensor/implementation-program.json", overflow_estimate),
         ]
         for path, change in changes:
             with self.subTest(path=path), self.assertRaises(ParityError):
