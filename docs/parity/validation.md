@@ -53,7 +53,7 @@ evidence meets all protocol obligations. Both qualification commands correctly
 return 1 for this candidate. External exact-head review evidence is mandatory
 for eventual qualification; a clean tracked tree alone does not qualify.
 
-The focused suite executes **71 tests, zero skips**: 54 gate/traceability tests
+The focused suite executes **77 tests, zero skips**: 60 gate/traceability tests
 and 17 source-extractor tests collected by an import-only wrapper in
 `scripts/tests`. Hosted `pytest scripts/tests` therefore collects the same
 extractor tests without duplicating assertions. Source extractors regenerate
@@ -109,6 +109,10 @@ build/test/performance result is generated or credited by this change.
   requires an explicit positive whole-API source-definition marker.
 - Replay caches bind exact frozen tree identities, and NumPy metadata witnesses
   are regenerated from cached primary source rather than accepted as seeded JSON.
+- Scanned NumPy/TF/Keras files also bind canonical manifest hashes and pinned
+  tree blobs. Self-consistent stale manifests and undeclared files are rejected.
+  Isolated-cache tests cover relative paths, the TF extra-source fetch entry
+  point, and NumPy's flattened supplemental mirror artifact.
 
 Independent review of the final committed diff and required hosted CI remain
 mandatory before integration. The draft state is intentional. Existing global

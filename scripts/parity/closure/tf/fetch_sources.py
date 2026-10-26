@@ -4,8 +4,9 @@ ROOT = Path(__file__).resolve().parent
 SPECS = [('tensorflow', 'tensorflow/tensorflow', 'a481b10260dfdf833a1b16007eead49c1d7febf3', str(ROOT / 'tensorflow-tree.json')), ('keras', 'keras-team/keras', '250b42181ce9f37df68319d8f4753ec89a349a43', str(ROOT / 'keras-tree.json'))]
 EXTRA_TF = {'tensorflow/core/ops/array_ops.cc', 'tensorflow/core/ops/math_ops.cc', 'tensorflow/core/kernels/constant_op.cc', 'tensorflow/core/kernels/sequence_ops.cc', 'tensorflow/core/kernels/sequence_ops.h', 'tensorflow/core/kernels/sequence_ops_gpu.cu.cc', 'tensorflow/core/kernels/fill_functor.h', 'tensorflow/core/kernels/fill_functor.cc', 'tensorflow/compiler/tf2xla/kernels/sequence_ops.cc', 'tensorflow/compiler/tf2xla/kernels/constant_op.cc'}
 for name, repo, revision, tree_file in SPECS:
-    tree = json.load(open(tree_file))
-    assert not tree['truncated']
+    tree = json.loads(Path(tree_file).read_text(encoding='utf-8'))
+    if tree.get('sha') != revision or tree.get('truncated') is not False:
+        raise ValueError('Frozen source tree mismatch or truncation: ' + name)
     expected = {i['path']: i for i in tree['tree'] if i['type'] == 'blob' and (i['path'].endswith('.py') or (name == 'tensorflow' and i['path'] in EXTRA_TF))}
     dest = ROOT / 'source' / name
     dest.mkdir(parents=True, exist_ok=True)

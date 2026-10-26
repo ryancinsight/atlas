@@ -56,7 +56,9 @@ downloads; `--work` selects an isolated output/cache directory and JAX additiona
 accepts `--source-cache`. Original source bytes remain outside Git; source
 paths, commit identities, Git blob IDs and SHA-256 are retained here. Source
 tree inputs must match the exact frozen tree identity, including existing and
-legacy caches. NumPy's metadata witness producer reruns its source assertions;
+legacy caches. Scanned NumPy/TF/Keras sources must match the versioned canonical
+manifest and pinned tree blobs; undeclared cached files are rejected. NumPy's
+metadata witness producer reruns its source assertions;
 seeding a captured witness JSON never counts as reproducing those assertions.
 Regenerated semantic/source tables match the captured bytes on the verified cache. Capture
 manifests also record research-script hashes; code-format/portability changes

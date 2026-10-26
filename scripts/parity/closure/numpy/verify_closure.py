@@ -80,7 +80,7 @@ class ResearchArtifactTests(unittest.TestCase):
         self.assertFalse(data['verification_status']['full_parity_claim'])
 
     def test_old_official_inventory_is_not_relabeled_frozen_patch(self):
-        inventory = self.load('official-doc-mirror/inventory-2.5.0.json')
+        inventory = self.load('mirror-inventory-2.5.0.json')
         self.assertEqual(inventory['reference_documentation_version'], '2.5.0')
         self.assertFalse(inventory['frozen2_5_4_equivalence_verified'])
         comparison = self.load('source-comparison-2.5.0-to-2.5.4.json')
