@@ -62,7 +62,7 @@ evidence meets all protocol obligations. Both qualification commands correctly
 return 1 for this candidate. External exact-head review evidence is mandatory
 for eventual qualification; a clean tracked tree alone does not qualify.
 
-The current focused suite executes **111 tests, zero skips**, including 24 new
+The current focused suite executes **113 tests, zero skips**, including 26 new
 public-scope/storage rejection and roundtrip checks. The earlier 87-test slice
 contains 70 gate/traceability and 17 source-extractor tests collected by an import-only wrapper in
 `scripts/tests`. Hosted `pytest scripts/tests` therefore collects the same

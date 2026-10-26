@@ -22,6 +22,7 @@
         "NUM-REP",
         "NUM-PROMOTE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Construct typed values; select explicit promotion/cast/accumulator policy; execute and serialize dtype metadata.",
       "id": "TF-DTYPES",
       "implementation_ownership_resolved": false,
@@ -29,11 +30,16 @@
         "Representability/ties/adjacent values; exact integer and dtype metadata; derived floating forward/backward bounds; invalid casts."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 257,
+        "public_candidate_declaration_count": 257
+      },
       "public_candidate_declaration_count": 257,
       "recommended_native_Atlas_design": "Eunomia owns numeric representation and rounding policies; use a separate element/resource contract via Leto/Coeus. Preserve policy variants without per-dtype algorithm copies.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -72,6 +78,7 @@
       "canonical_capability_ids": [
         "ARR-CREATE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Validate shape/dtype; allocate through Mnemosyne; create on explicit backend; inspect values, residency, errors and derivatives.",
       "id": "TF-ARRAY-CREATE",
       "implementation_ownership_resolved": false,
@@ -79,11 +86,16 @@
         "Reuse the40 source-derived creation specifications from prior handoff; positive/zero extents, scalar shapes, endpoint rounding, Fill VJP and linspace endpoint Jacobians."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 52,
+        "public_candidate_declaration_count": 52
+      },
       "public_candidate_declaration_count": 52,
       "recommended_native_Atlas_design": "One Leto creation kernel family with explicit shape/arithmetic/endpoint policies; Coeus composes tensor AD and resource rules. Native device implementation remains Hephaestus; never credit fallback.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -135,6 +147,7 @@
       "canonical_capability_ids": [
         "ARR-LAYOUT"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Construct logical shape; transform/compose; observe copy/alias/lifetime and device placement through a consuming program.",
       "id": "TF-ARRAY-LAYOUT",
       "implementation_ownership_resolved": false,
@@ -142,11 +155,16 @@
         "Noncontiguous inputs, empty/scalar outputs, composed transpose/reshape, overlap lifetime and mutation observations; analytical shape identities plus nontrivial values."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 151,
+        "public_candidate_declaration_count": 151
+      },
       "public_candidate_declaration_count": 151,
       "recommended_native_Atlas_design": "Leto owns logical layouts/views; explicit ownership/alias proof at tensor boundary; preserve framework observable copy/mutation rules through typed policies.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -189,6 +207,7 @@
       "canonical_capability_ids": [
         "ARR-INDEX"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Validate index/batch/bounds policy; gather/scatter/update on target; compose with AD and mutation observations.",
       "id": "TF-ARRAY-INDEX",
       "implementation_ownership_resolved": false,
@@ -196,11 +215,16 @@
         "Repeated-index analytical VJP, CPU/GPU invalid-index behavior and trace, deterministic-mode duplicates and empty/dynamic shapes."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 140,
+        "public_candidate_declaration_count": 140
+      },
       "public_candidate_declaration_count": 140,
       "recommended_native_Atlas_design": "Leto provides one generic indexing/scatter kernel with explicit bounds/duplicate policies; Coeus supplies gather/scatter adjoints; runtime/target differences stay observable.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -241,6 +265,7 @@
       "canonical_capability_ids": [
         "TEN-CORE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Build tensor/spec/module; pass through eager/traced computation; observe structure, metadata, resource ownership and errors.",
       "id": "TF-TENSOR-CORE",
       "implementation_ownership_resolved": false,
@@ -248,11 +273,16 @@
         "Concrete versus symbolic construction, shape/spec subtype compatibility, device transfer ownership, graph errors and stable public protocol methods."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 358,
+        "public_candidate_declaration_count": 358
+      },
       "public_candidate_declaration_count": 358,
       "recommended_native_Atlas_design": "Coeus owns tensor/program/spec semantics over Leto element/layout and Hephaestus buffers; use static traits where possible and explicit effect/resource types.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -299,11 +329,12 @@
     {
       "accountability_role": "proposed-canonical-provider",
       "accountable_owner": "coeus",
-      "admitted_declaration_count": 1195,
+      "admitted_declaration_count": 1229,
       "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
       "canonical_capability_ids": [
         "TEN-OPS"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Run elementwise/reduction/scan/numeric program across dtype, shape, layout and target classes; differentiate where defined.",
       "id": "TF-TENSOR-NUMERICS",
       "implementation_ownership_resolved": false,
@@ -311,11 +342,16 @@
         "Nontrivial analytic values, empty reductions, rounding ties, complex adjoints and differential cases against exact frozen package/device."
       ],
       "performance_qualified": false,
-      "public_candidate_declaration_count": 1194,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 1195,
+        "public_candidate_declaration_count": 1194
+      },
+      "public_candidate_declaration_count": 1228,
       "recommended_native_Atlas_design": "Coeus orchestrates tensor semantics/AD; shared canonical Leto mathematical kernels and Eunomia precision policies are prerequisites, not copied algorithms.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 1,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -344,6 +380,33 @@
           "url": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/ops/math_grad.py#L1"
         }
       ],
+      "source_route_correction": {
+        "declarations": 34,
+        "implementation_owner_status": "unresolved",
+        "planned_capability": "TEN-OPS",
+        "required_supplier_substeps": [
+          "leto ARR-SORT/INTEROP-ARRAY for prediction ranking/conversion",
+          "leto ARR-ELEMENT/ARR-LAYOUT for preprocessing math/layout",
+          "consus IO-ARRAY only for class-index asset transport/JSON"
+        ],
+        "source_profile_artifact": "source-verified-application-routes.json",
+        "source_workflow_upstream_prerequisites": {
+          "identity_preprocessing": [
+            "TEN-CORE"
+          ],
+          "numeric_preprocessing": [
+            "ARR-ELEMENT",
+            "ARR-LAYOUT",
+            "INTEROP-ARRAY"
+          ],
+          "prediction_decoding": [
+            "ARR-SORT",
+            "INTEROP-ARRAY",
+            "IO-ARRAY"
+          ]
+        },
+        "workflow": "named application preprocessing/postprocessing facade"
+      },
       "upstream_prerequisite_capabilities": [
         "ARR-ELEMENT",
         "ARR-REDUCE",
@@ -360,6 +423,7 @@
       "canonical_capability_ids": [
         "TEN-SPARSE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Create sparse/ragged/indexed representation; validate invariants; transform/compute; differentiate and serialize.",
       "id": "TF-STRUCTURED",
       "implementation_ownership_resolved": false,
@@ -367,11 +431,16 @@
         "Duplicate sparse indices, malformed partitions, empty rows, sparse gradient equivalence, exact round-trip metadata and actual device execution."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 667,
+        "public_candidate_declaration_count": 666
+      },
       "public_candidate_declaration_count": 666,
       "recommended_native_Atlas_design": "Coeus owns structured tensor facade/contracts over Leto sparse/layout kernels; Hephaestus executes native target variants; keep typed conversion boundaries.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 1,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -415,6 +484,7 @@
       "canonical_capability_ids": [
         "TEN-RESOURCE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Construct string/resource/variant state; execute ordered reads/writes/lookup; serialize metadata and observe aliases.",
       "id": "TF-STRING-RESOURCE",
       "implementation_ownership_resolved": false,
@@ -422,11 +492,16 @@
         "Handle alias identity, ordered assignment/read, invalid state/index errors, nonnumeric exact values and differentiation domain proofs."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 762,
+        "public_candidate_declaration_count": 762
+      },
       "public_candidate_declaration_count": 762,
       "recommended_native_Atlas_design": "Coeus owns effect/resource semantics; Leto owns host element/layout; Consus owns encodings; use explicit handles and access proofs.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -478,6 +553,7 @@
         "LA-DENSE",
         "LA-DECOMP"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Create dense/operator representation; choose factorization/solve; run on target; validate numerical residuals/gradients and conditioning.",
       "id": "TF-LINALG",
       "implementation_ownership_resolved": false,
@@ -485,11 +561,16 @@
         "Analytically constructed spectra/solutions, singular and ill-conditioned cases, backward error, complex VJP and device-qualified benchmarks."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 2245,
+        "public_candidate_declaration_count": 2245
+      },
       "public_candidate_declaration_count": 2245,
       "recommended_native_Atlas_design": "Leto owns dense kernels/factorizations; shared Hephaestus device implementations consume the same contracts; Coeus owns AD composition.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -531,6 +612,7 @@
       "canonical_capability_ids": [
         "LA-ITER"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Build matrix-free/preconditioned problem; iterate under explicit stopping policy; inspect convergence diagnostics and result.",
       "id": "TF-ITERATIVE",
       "implementation_ownership_resolved": false,
@@ -538,11 +620,16 @@
         "SPD analytical solutions, preconditioned residual bounds, invalid domain/error behavior and reproducible convergence histories."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 2,
+        "public_candidate_declaration_count": 2
+      },
       "public_candidate_declaration_count": 2,
       "recommended_native_Atlas_design": "Athena owns iterative policy and convergence diagnostics over canonical Leto/Hephaestus operators; no local Coeus solver copy.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -577,6 +664,7 @@
         "AD-HIGHER",
         "AD-TRANSFORM"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Watch values/resources; record effects; compute reverse/forward derivatives; compose higher/batched/complex transformations.",
       "id": "TF-AUTODIFF",
       "implementation_ownership_resolved": false,
@@ -584,11 +672,16 @@
         "Independent analytic VJP/JVP/Hessians, broadcasting adjoints, complex conjugation, custom rules, state mutation, sparse gradients and transform composition."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 133,
+        "public_candidate_declaration_count": 133
+      },
       "public_candidate_declaration_count": 133,
       "recommended_native_Atlas_design": "Coeus owns generic derivative/effect transforms over canonical provider kernels, with explicit complex and unconnected-gradient policies; no external AD runtime.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -641,6 +734,7 @@
         "GRAPH-COMPILE",
         "GRAPH-EXPORT"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Trace callable/control effects into first-party program; specialize/compile; execute with cache, shape and failure semantics; export.",
       "id": "TF-GRAPH",
       "implementation_ownership_resolved": false,
@@ -648,11 +742,16 @@
         "Trace-count/cache/state effects, symbolic shape/control programs, differentiation through compiled programs, exact error stages and target IR execution evidence."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 349,
+        "public_candidate_declaration_count": 349
+      },
       "public_candidate_declaration_count": 349,
       "recommended_native_Atlas_design": "Coeus owns acyclic first-party IR, shape/effect analysis and transforms; Hephaestus owns target lowering, Moirai execution. Reproduce capabilities without embedding XLA/TF runtimes.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -705,6 +804,7 @@
         "TR-FFT",
         "TR-SPECTRAL"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Specify transform axes/type/norm/length; create/reuse plan; execute and differentiate through Coeus; validate nontrivial spectra.",
       "id": "TF-SPECTRAL",
       "implementation_ownership_resolved": false,
@@ -712,11 +812,16 @@
         "Known spectra and Parseval/adjoint identities plus non-identity examples, inverse reconstruction, axis/layout/dtype/device and gradient checks."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 151,
+        "public_candidate_declaration_count": 151
+      },
       "public_candidate_declaration_count": 151,
       "recommended_native_Atlas_design": "Apollo owns transform mathematics/plans; Coeus derivative layer consumes it. Existing Apollo hold/owner work is preserved; no implementation handoff bypass.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -763,6 +868,7 @@
         "NN-MODULE",
         "NN-INIT"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Construct model/layer/state; initialize; train/evaluate with losses/metrics; preserve updates, masking and serialization.",
       "id": "TF-NN",
       "implementation_ownership_resolved": false,
@@ -770,11 +876,16 @@
         "Analytic small networks plus representative end-to-end training, parameter/buffer/state transitions, nontrivial losses/metrics, gradients and exact resume tests."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 6482,
+        "public_candidate_declaration_count": 6482
+      },
       "public_candidate_declaration_count": 6482,
       "recommended_native_Atlas_design": "Coeus owns NN/module/training orchestration using shared canonical kernels, typed train/eval state and explicit serialization schema; no per-backend model forks.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -830,6 +941,7 @@
         "OPT-SCHED",
         "PREC-MIXED"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Create optimizer/state/policy; apply gradients; schedule/clip/scale; checkpoint and resume training.",
       "id": "TF-OPTIMIZERS",
       "implementation_ownership_resolved": false,
@@ -837,11 +949,16 @@
         "Analytic first/multiple updates and slots, sparse/dense gradients, schedule boundaries, overflow recovery, decay policies and saved-state resumed trajectories."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 1128,
+        "public_candidate_declaration_count": 1128
+      },
       "public_candidate_declaration_count": 1128,
       "recommended_native_Atlas_design": "Coeus owns update/schedule/state contracts over generic numerical policies and resource effects; shared provider kernels implement math once.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -894,6 +1011,7 @@
       "canonical_capability_ids": [
         "EXEC-CPU"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Schedule ordered computations/resource access; synchronize/cancel; observe bounded progress, errors and state.",
       "id": "TF-EXECUTION",
       "implementation_ownership_resolved": false,
@@ -901,11 +1019,16 @@
         "Real resource contention/order traces, queue bounds, cancellation propagation, no lost work and typed errors; existing provider gates remain mandatory."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 205,
+        "public_candidate_declaration_count": 205
+      },
       "public_candidate_declaration_count": 205,
       "recommended_native_Atlas_design": "Moirai owns execution/synchronization/transport policy; explicit Coeus effect dependencies and Melinoe proofs. Preserve existing native-Tokio/Quinn coordinator ownership.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -946,6 +1069,7 @@
       "canonical_capability_ids": [
         "DATA-PIPE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Read/decode; map/shuffle/cache/batch/prefetch/repeat; distribute consumption; cancel and propagate errors under backpressure.",
       "id": "TF-DATA",
       "implementation_ownership_resolved": false,
@@ -953,11 +1077,16 @@
         "Exact ordered/seeded sequences, finite/infinite cardinality domains, partial batches, cancellation/error propagation, cache/iterator resume and multi-host ordering."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 1936,
+        "public_candidate_declaration_count": 1936
+      },
       "public_candidate_declaration_count": 1936,
       "recommended_native_Atlas_design": "Coeus owns dataset semantics; Moirai owns scheduling/backpressure/cancellation; Consus codecs/storage and Tyche RNG feed one native pipeline.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1001,6 +1130,7 @@
         "RNG-STREAM",
         "RNG-DIST"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Select algorithm and seed/state/split policy; sample distributions on target; checkpoint/replay and differentiate where defined.",
       "id": "TF-RANDOM",
       "implementation_ownership_resolved": false,
@@ -1008,11 +1138,16 @@
         "Independent distributional tests with derived confidence, seed/state/counter round trips, promised exact streams, split independence and reparameterized gradients."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 893,
+        "public_candidate_declaration_count": 893
+      },
       "public_candidate_declaration_count": 893,
       "recommended_native_Atlas_design": "Tyche owns stream/distribution mathematics; Hephaestus native device kernels and Coeus AD composition consume explicit policies.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1065,6 +1200,7 @@
       "canonical_capability_ids": [
         "DIST-COMMS"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Create topology/rank context; launch ordered collective/point-to-point operations; synchronize, fail/cancel and recover.",
       "id": "TF-COLLECTIVES",
       "implementation_ownership_resolved": false,
@@ -1072,11 +1208,16 @@
         "Real multi-process/multi-host numerical collectives, mismatched participation, cancellation/backpressure, failure propagation and device-residency traces."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 76,
+        "public_candidate_declaration_count": 76
+      },
       "public_candidate_declaration_count": 76,
       "recommended_native_Atlas_design": "Moirai owns native transport/collectives; Themis placement and Hephaestus buffers are prerequisites. No duplicate Quinn/native-Tokio repair in this lane.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1109,6 +1250,7 @@
         "DIST-SHARD",
         "DIST-TRAIN"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Specify mesh/strategy/partition; shard state and data; train with collective gradients; checkpoint/restore and rebalance.",
       "id": "TF-DISTRIBUTED-TRAIN",
       "implementation_ownership_resolved": false,
@@ -1116,11 +1258,16 @@
         "Analytical global gradients versus local replicas, actual sharded buffers, global/local shape and checkpoint resume under topology changes."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 1145,
+        "public_candidate_declaration_count": 1145
+      },
       "public_candidate_declaration_count": 1145,
       "recommended_native_Atlas_design": "Coeus owns distributed program/training semantics over Moirai collectives, Themis placement and Hephaestus native targets.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1175,6 +1322,7 @@
         "DEV-CORE",
         "DEV-COMPILE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Acquire/query target; allocate/transfer buffers; execute/synchronize; inspect placement/capabilities and diagnostics.",
       "id": "TF-DEVICE",
       "implementation_ownership_resolved": false,
@@ -1182,11 +1330,16 @@
         "Physical device/driver identity, allocation and synchronization, observed execution trace, unsupported-domain errors and required hardware qualification."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 584,
+        "public_candidate_declaration_count": 584
+      },
       "public_candidate_declaration_count": 584,
       "recommended_native_Atlas_design": "Hephaestus owns vendors, device/buffer/target lowering; Themis/Melinoe/Mnemosyne supply placement/access/allocation law; no consumer-local vendor architecture.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1225,11 +1378,12 @@
     {
       "accountability_role": "proposed-canonical-provider",
       "accountable_owner": "consus",
-      "admitted_declaration_count": 604,
+      "admitted_declaration_count": 587,
       "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
       "canonical_capability_ids": [
         "IO-ARRAY"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Encode arrays/tensors/media; write/read via documented format; validate values, metadata, byte order, error and resource behavior.",
       "id": "TF-ARRAY-IO",
       "implementation_ownership_resolved": false,
@@ -1237,11 +1391,16 @@
         "Independent format fixtures/round trips, malformed/truncated inputs, dtype/shape/endianness metadata, codec-specific bounds and memory/resource limits."
       ],
       "performance_qualified": false,
-      "public_candidate_declaration_count": 604,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 604,
+        "public_candidate_declaration_count": 604
+      },
+      "public_candidate_declaration_count": 587,
       "recommended_native_Atlas_design": "Consus owns encodings/containers/storage; Leto/Coeus own value semantics; backend decoding must not duplicate byte-format owners.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1282,6 +1441,7 @@
       "canonical_capability_ids": [
         "IO-CHECKPOINT"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Capture tensor/model/optimizer/resource graph; persist; restore into fresh consumer; resume numerical execution.",
       "id": "TF-CHECKPOINT",
       "implementation_ownership_resolved": false,
@@ -1289,11 +1449,16 @@
         "Exact state graph and optimizer-slot restoration, alias identity, partial mismatch cases, nontrivial resumed training and independently readable bytes."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 119,
+        "public_candidate_declaration_count": 119
+      },
       "public_candidate_declaration_count": 119,
       "recommended_native_Atlas_design": "Coeus owns model/program/optimizer identity; Consus owns byte containers; use versioned schemas and fresh native consumers.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1345,6 +1510,7 @@
         "GRAPH-EXPORT",
         "DEPLOY-SERVE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Capture callable signatures/assets/resources; export; load in fresh native consumer; execute inference/training signatures where promised.",
       "id": "TF-SAVEDMODEL",
       "implementation_ownership_resolved": false,
@@ -1352,11 +1518,16 @@
         "Independent exported-signature execution, captures/assets/resources and invalid signatures; fresh consumers and version-compatible graph/state checks."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 215,
+        "public_candidate_declaration_count": 215
+      },
       "public_candidate_declaration_count": 215,
       "recommended_native_Atlas_design": "Coeus owns first-party portable program/serving semantics; Consus encoding and Hephaestus lowering are prerequisites. Documented import/export is not permission to embed external runtimes.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1408,6 +1579,7 @@
       "canonical_capability_ids": [
         "DEPLOY-SERVE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Convert/export model with quantization/options; load mobile interpreter/delegate; allocate/invoke tensors and inspect results.",
       "id": "TF-MOBILE",
       "implementation_ownership_resolved": false,
@@ -1415,11 +1587,16 @@
         "Exact conversion metadata and independently consumed artifacts, quantization derived error bounds, native delegate execution and language-ABI lifecycle tests."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 189,
+        "public_candidate_declaration_count": 189
+      },
       "public_candidate_declaration_count": 189,
       "recommended_native_Atlas_design": "Coeus owns portable inference/workflow semantics, Hephaestus native device lowering and Consus flatbuffer/encoding support; no app deployment is authorized by planning.",
       "remaining_scope": [
         "Separate LiteRT/extension versions, native language inventories, delegate hardware and actual runtime tests remain required."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1461,6 +1638,7 @@
       "canonical_capability_ids": [
         "DEPLOY-SERVE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Versioned model server lifecycle, request batching/signatures, resources, concurrency, deployment packaging and failure semantics.",
       "id": "TF-SERVING",
       "implementation_ownership_resolved": false,
@@ -1468,11 +1646,16 @@
         "Freeze component version/source/docs; enumerate interfaces; exercise real independent exported consumers and failure modes before qualification."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 0,
+        "public_candidate_declaration_count": 0
+      },
       "public_candidate_declaration_count": 0,
       "recommended_native_Atlas_design": "Coeus owns portable inference/tooling semantics over canonical providers; implement native capabilities without adopting third-party production runtimes. No service/app deployment authorization.",
       "remaining_scope": [
         "Exact separately versioned component selection, public language/API inventory, deployment format and hardware/consumer tests remain open."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "external-denominator-unextracted",
       "semantic_variants_to_preserve": [
@@ -1500,6 +1683,7 @@
       "canonical_capability_ids": [
         "DEPLOY-SERVE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Browser/JavaScript tensor/model execution, graph conversion, asynchronous scheduling, backend selection and loading/storage interoperability.",
       "id": "TF-BROWSER",
       "implementation_ownership_resolved": false,
@@ -1507,11 +1691,16 @@
         "Freeze component version/source/docs; enumerate interfaces; exercise real independent exported consumers and failure modes before qualification."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 0,
+        "public_candidate_declaration_count": 0
+      },
       "public_candidate_declaration_count": 0,
       "recommended_native_Atlas_design": "Coeus owns portable inference/tooling semantics over canonical providers; implement native capabilities without adopting third-party production runtimes. No service/app deployment authorization.",
       "remaining_scope": [
         "Exact separately versioned component selection, public language/API inventory, deployment format and hardware/consumer tests remain open."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "external-denominator-unextracted",
       "semantic_variants_to_preserve": [
@@ -1539,6 +1728,7 @@
       "canonical_capability_ids": [
         "INTEROP-TENSOR"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Exchange values/programs through documented protocols; prove ownership/device synchronization; consume in independent environments.",
       "id": "TF-INTEROP",
       "implementation_ownership_resolved": false,
@@ -1546,11 +1736,16 @@
         "Zero-copy lifetime and single-consumption, device/stream synchronization, dtype/shape/layout fidelity, callback effects/errors and extension serialization."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 16,
+        "public_candidate_declaration_count": 16
+      },
       "public_candidate_declaration_count": 16,
       "recommended_native_Atlas_design": "Coeus owns tensor/program interoperability over Leto protocols and Melinoe access proofs; external runtimes remain isolated oracles.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1592,6 +1787,7 @@
       "canonical_capability_ids": [
         "TOOL-PROFILE"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Instrument/debug/test a running workload; observe values/traces/errors; export diagnostic data and account for overhead.",
       "id": "TF-TOOLING",
       "implementation_ownership_resolved": false,
@@ -1599,11 +1795,16 @@
         "Trace completeness/causality, failed assertions with computed values, summary schemas and deterministic diagnostics, instrumentation overhead and exact external tooling versions."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 785,
+        "public_candidate_declaration_count": 785
+      },
       "public_candidate_declaration_count": 785,
       "recommended_native_Atlas_design": "Coeus owns runtime/program observation; Atlas owns cross-framework evidence orchestration; preserve typed diagnostic context without changing execution.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1645,6 +1846,7 @@
       "canonical_capability_ids": [
         "TOOL-BENCH"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Define matched workload/configuration; run bounded/counterbalanced samples; record raw results, environment and uncertainty.",
       "id": "TF-BENCHMARK",
       "implementation_ownership_resolved": false,
@@ -1652,11 +1854,16 @@
         "Matched exact-revision workload identities, statistical uncertainty, analytically justified targets and no skipped/fallback qualification."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 16,
+        "public_candidate_declaration_count": 16
+      },
       "public_candidate_declaration_count": 16,
       "recommended_native_Atlas_design": "Atlas owns reproducible orchestration/evidence; provider-specific benchmarks remain with canonical owners and actual hardware.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1688,6 +1895,7 @@
       "canonical_capability_ids": [
         "COMPAT-LEGACY"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Resolve versioned/legacy public path; build/evaluate graph/session/training workflow; preserve deprecated behavior and errors.",
       "id": "TF-LEGACY",
       "implementation_ownership_resolved": false,
@@ -1695,11 +1903,16 @@
         "Fresh graph/session lifecycles, legacy state/mutation/defaults, source-differing v1/v2 signatures and exact deprecated error contracts."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 738,
+        "public_candidate_declaration_count": 738
+      },
       "public_candidate_declaration_count": 738,
       "recommended_native_Atlas_design": "Coeus owns public compatibility behavior through explicit semantic policies on canonical first-party operations; do not clone old runtime architecture or add cosmetic aliases.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1742,6 +1955,7 @@
       "canonical_capability_ids": [
         "IO-ARRAY"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Construct protocol message/schema; encode/decode and pass through graph/checkpoint/storage workflows; validate field defaults and versions.",
       "id": "TF-SCHEMAS",
       "implementation_ownership_resolved": false,
@@ -1749,11 +1963,16 @@
         "Published protobuf fixtures, field/default/unknown-field/alias preservation, malformed payloads and independent consumers."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 518,
+        "public_candidate_declaration_count": 518
+      },
       "public_candidate_declaration_count": 518,
       "recommended_native_Atlas_design": "Consus owns byte/schema encoding; Coeus owns program/checkpoint interpretation; preserve field/unknown-field/version semantics.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1780,11 +1999,12 @@
     {
       "accountability_role": "temporary-definition-triage-only",
       "accountable_owner": "atlas",
-      "admitted_declaration_count": 1992,
-      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "admitted_declaration_count": 2461,
+      "assignment_status": "temporary Atlas definition triage only; no implementation supplier assignment or private capability exclusion",
       "canonical_capability_ids": [
         "PARITY-VALIDATOR"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Resolve declaration/documentation/source binding and semantic family before assigning provider implementation.",
       "id": "TF-SCOPE-UNRESOLVED",
       "implementation_ownership_resolved": false,
@@ -1792,11 +2012,16 @@
         "Conserve every raw declaration, validate typed relations and source references, retain unresolved rows and zero qualification credit."
       ],
       "performance_qualified": false,
-      "public_candidate_declaration_count": 1988,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 1992,
+        "public_candidate_declaration_count": 1988
+      },
+      "public_candidate_declaration_count": 1971,
       "recommended_native_Atlas_design": "Atlas owns scope/evidence adjudication only; assign a provider only when the canonical operation and dependencies are concrete.",
       "remaining_scope": [
         "Per-API finite dtype/device/layout/gradient/eager/graph/jit/error classes and public/deprecation decisions remain materialization work."
       ],
+      "retained_publicness_unresolved_count": 490,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [
@@ -1829,11 +2054,12 @@
     {
       "accountability_role": "temporary-definition-triage-only",
       "accountable_owner": "atlas",
-      "admitted_declaration_count": 486,
-      "assignment_status": "planning-proposal; provider task ownership and architecture reviews not granted",
+      "admitted_declaration_count": 0,
+      "assignment_status": "temporary Atlas definition triage only; no implementation supplier assignment or private capability exclusion",
       "canonical_capability_ids": [
         "PARITY-VALIDATOR"
       ],
+      "count_policy": "All admitted declarations remain required retained source identities; publicness-pending counts are explicit review partitions, never parity exclusions or completed capabilities.",
       "end_to_end_workflow": "Retain internal source identities for provenance and architectural context; review publisher public-status evidence.",
       "id": "TF-PRIVATE-IMPLEMENTATION",
       "implementation_ownership_resolved": false,
@@ -1841,11 +2067,16 @@
         "Positive evidence per private disposition, public-namespace conflicts retained, documented public variants untouched and independent review."
       ],
       "performance_qualified": false,
+      "prior_declaration_count_history": {
+        "admitted_declaration_count": 486,
+        "public_candidate_declaration_count": 0
+      },
       "public_candidate_declaration_count": 0,
       "recommended_native_Atlas_design": "Atlas coordinates public-denominator review. Do not inflate public obligation counts with implementation helpers or infer removal of a documented public capability.",
       "remaining_scope": [
         "Publisher policy snapshot is current, not exact-release prose;486 proposed internal dispositions still require independent review."
       ],
+      "retained_publicness_unresolved_count": 0,
       "runtime_evidence": false,
       "semantic_specification_status": "partial-family-proposal",
       "semantic_variants_to_preserve": [

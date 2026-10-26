@@ -156,18 +156,23 @@
       "owner_proposal_basis": "Existing canonical capability owner; API-specific implementation ownership is not verified by this research.",
       "performance": "unqualified",
       "release": "unreleased",
-      "required_acceptance": "Real multi-process and multi-node/multi-device collective values and failure/cancellation/reconfiguration witnesses; prove progress and synchronization, record vendor communication capabilities.",
+      "required_acceptance": "Real multi-process and multi-node/multi-device collective values and failure/cancellation/reconfiguration witnesses; prove progress and synchronization, record vendor communication capabilities. For symmetric memory, prove peer-buffer lifetime, rank call ordering, split/offset/alignment maps, in-place/out mutation and supported real GPU/interconnect configurations; a unit simulation or skipped/deadlocked launch is not acceptance.",
       "shared_semantics_limit": "MPI/NCCL/Gloo/UCC-facing behavior and stream/order semantics need distinct contracts; no transport provider ownership is displaced by this proposal.",
       "source_refs": [
         {
           "line": 1,
           "path": "docs/source/distributed.md",
           "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/distributed.md#L1"
+        },
+        {
+          "line": 643,
+          "path": "docs/source/symmetric_memory.md",
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
         }
       ],
       "status": "reusable_contract_proposal_per_api_axes_incomplete",
       "test_execution": "unrun",
-      "torch_behavior": "Process groups/rendezvous/stores, collectives/P2P, async Work/Future completion, rank/group ordering, timeout/error semantics and reconfiguration.",
+      "torch_behavior": "Process groups/rendezvous/stores, collectives/P2P, async Work/Future completion, rank/group ordering, timeout/error semantics and reconfiguration. Symmetric-memory torch.ops.symm_mem collectives include in-kernel remote-memory synchronization, symmetric allocation/rendezvous prerequisites, one-stream-per-group signal-pad ordering, NVSHMEM split/offset and multimem hardware constraints.",
       "upstream_capability_prerequisites": [
         "EXEC-CPU",
         "DEV-CORE"

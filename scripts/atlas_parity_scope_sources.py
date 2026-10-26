@@ -22,7 +22,8 @@ def audit_identity(framework, document, expected):
                  (framework, expected["version"], expected["revision"]), "Torch source row baseline drift")
     else:
         fields(document, {"input": dict}, "TF audit baseline")
-        need(document["input"].get("sha256") == expected["inventory_sha256"],
+        need(document["input"].get("sha256") in
+             {expected["inventory_sha256"], *expected.get("verified_input_parents", [])},
              "TF source audit inventory baseline drift")
         return
     revision(observed[2], "source audit baseline")
@@ -30,11 +31,24 @@ def audit_identity(framework, document, expected):
          f"{framework}: source audit version/revision baseline drift")
 
 
+def input_parent(expected, parent, parent_sha256):
+    """A reviewed correction may consume a frozen classification of the same inventory."""
+    fields(parent, {"input": dict, "records": list}, "source-audit parent")
+    fields(parent["input"], {"sha256": str, "count": int}, "source-audit parent inventory")
+    need(parent["input"].get("sha256") == expected["inventory_sha256"] and
+         0 < len(parent["records"]) == parent["input"]["count"] == expected["inventory_records"],
+         "source-audit parent does not bind the selected inventory/count")
+    return {**expected, "verified_input_parents": [parent_sha256]}
+
+
 def family_rows(framework, document, key, source_artifact, caps, repos):
     values = document[key]
     iterable = list(values.items()) if isinstance(values, dict) else list(enumerate(values))
     rows = []
     for entry, original in iterable:
+        need(original.get("framework", framework) == framework and
+             ("frameworks" not in original or framework in original["frameworks"]),
+             "raw family framework differs from its source document")
         name = original.get("contract_id", original.get("id"))
         owner = original.get("accountable_owner", original.get("accountable_owner_proposal"))
         cap = original.get("capability", original.get("canonical_capability"))

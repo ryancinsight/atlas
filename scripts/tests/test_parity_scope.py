@@ -7,7 +7,7 @@ import unittest
 from atlas_parity_schema import ParityError
 from atlas_parity_scope import restore_audit, validate_bindings
 from atlas_parity_tables import canonical, pack
-from atlas_parity_scope_sources import audit_identity, classify, family_rows
+from atlas_parity_scope_sources import audit_identity, classify, family_rows, input_parent
 
 REV = "a" * 40
 
@@ -158,6 +158,24 @@ class ScopeTests(unittest.TestCase):
         row.update(scope_classification="documented_public_contract", excluded=True)
         with self.assertRaisesRegex(ParityError, "cannot exclude"):
             classify("pytorch", row)
+
+    def test_raw_family_framework_cannot_be_relabelled_by_document_path(self):
+        raw = {"id": "ARR", "framework": "numpy", "canonical_capability": "ARRAY",
+               "accountable_owner_proposal": "leto"}
+        with self.assertRaisesRegex(ParityError, "raw family framework"):
+            family_rows("pytorch", {"families": [raw]}, "families", "source.json", self.caps, self.repos)
+
+    def test_corrected_tf_audit_requires_a_parent_of_the_same_frozen_inventory(self):
+        expected = {"version": "2.21.0", "revision": REV, "inventory_sha256": "c" * 64,
+                    "inventory_records": 1}
+        parent = {"input": {"sha256": "c" * 64, "count": 1}, "records": [{"symbol": "tf.add"}]}
+        corrected = {"input": {"sha256": "d" * 64}}
+        with self.assertRaises(ParityError):
+            audit_identity("tensorflow", corrected, expected)
+        audit_identity("tensorflow", corrected, input_parent(expected, parent, "d" * 64))
+        for change in [{"sha256": "e" * 64, "count": 1}, {"sha256": "c" * 64, "count": 2}]:
+            with self.subTest(change=change), self.assertRaises(ParityError):
+                input_parent(expected, {**parent, "input": change}, "d" * 64)
 
 
 if __name__ == "__main__":

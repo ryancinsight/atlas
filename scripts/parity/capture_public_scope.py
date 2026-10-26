@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from atlas_parity_references import references
 from atlas_parity_schema import api_identity, need, read_json
 from atlas_parity_tables import canonical, pack, unpack
-from atlas_parity_scope_sources import audit_identity, classify, family_rows
+from atlas_parity_scope_sources import audit_identity, classify, family_rows, input_parent
 
 
 def sha(data):
@@ -55,6 +55,8 @@ def main():
     parser.add_argument("--root", type=Path, required=True)
     for framework in ["numpy", "jax", "pytorch", "tensorflow"]:
         parser.add_argument("--" + framework, type=Path, required=True)
+    parser.add_argument("--tensorflow-correction", type=Path,
+                        help="Reviewed correction over the unchanged frozen TensorFlow source-audit inputs")
     args = parser.parse_args()
     root = args.root.resolve()
     program = read_json(root / "program.json")
@@ -66,7 +68,8 @@ def main():
     for snapshot in program["reference_snapshots"]:
         data = read_json(root / snapshot["path"])
         baselines[snapshot["framework"]] = {"version": snapshot["version"],
-            "revision": data["source_revision"], "inventory_sha256": snapshot["sha256"]}
+            "revision": data["source_revision"], "inventory_sha256": snapshot["sha256"],
+            "inventory_records": snapshot["records"]}
     contracts, bindings, receipts, captured_paths = [], [], [], []
     extras = {"numpy": ["sources.json", "signature-extraction.json", "rules-and-exceptions.json",
                          "ownership-exceptions.json", "miscellaneous-routing-audit.json", "correction-history.json"],
@@ -78,9 +81,17 @@ def main():
                              "inputs/capabilities-provenance.json", "inputs/capabilities-9f4645b2.json"]}
     for framework in ["numpy", "jax", "pytorch", "tensorflow"]:
         base = getattr(args, framework).resolve()
-        document, receipt = source_document(base, framework)
-        audit_identity(framework, document, baselines[framework])
-        family_document, family_key = contract_document(base, framework, document)
+        audit = args.tensorflow_correction.resolve() if framework == "tensorflow" and args.tensorflow_correction else base
+        document, receipt = source_document(audit, framework)
+        expected = baselines[framework]
+        if audit != base:
+            parent = audit / "inputs/before-classified-declarations-compact.json"
+            parent_hash = sha(parent.read_bytes())
+            need(document["input"]["sha256"] == parent_hash, "correction parent input hash drift")
+            expected = input_parent(expected, read_json(parent), parent_hash)
+            receipt["input_parent"] = "reference/public-scope/tensorflow/correction/baseline-classifications.json"
+        audit_identity(framework, document, expected)
+        family_document, family_key = contract_document(audit, framework, document)
         relative = "reference/public-scope/" + framework + "/"
         family_path, record_path = relative + "contracts.json", relative + "records.json"
         write(root / family_path, family_document)
@@ -103,7 +114,7 @@ def main():
             elif framework == "tensorflow":
                 original = tf_input[row["input_index"]]
                 need(original["symbol"] == row["symbol"] and original["kind"] == row["kind"], "TF declaration mismatch")
-                identity = api_identity(framework, program["reference_snapshots"][3]["version"], original)
+                identity = api_identity(framework, baselines["tensorflow"]["version"], original)
             else:
                 candidates = by_symbol_kind[(row["symbol"], row["kind"])]
                 need(len(candidates) == 1, "Torch source identity is ambiguous")
@@ -127,18 +138,46 @@ def main():
         write(root / record_path, encoded, compact=True)
         captured_paths.append(root / record_path)
         extra_receipts = []
-        for name in extras[framework]:
+        names = list(extras[framework])
+        if framework == "pytorch":
+            correction_names = ["routing-correction.json", "correction-history.json", "prose-extraction-gap-annex.json"]
+            if any((base / name).exists() for name in correction_names):
+                need(all((base / name).is_file() for name in correction_names), "partial Torch correction handoff")
+                names.extend(correction_names)
+        for name in names:
             source, destination = base / name, root / relative / name
             need(source.is_file(), f"missing selected source evidence: {source}")
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, destination)
             captured_paths.append(destination)
             extra_receipts.append({"name": name, "sha256": sha(source.read_bytes()), "bytes": source.stat().st_size})
+        if audit != base:
+            manifest = read_json(audit / "manifest.json")
+            baseline_hash = sha((base / "manifest.json").read_bytes())
+            need(manifest["frozen_handoffs"]["scope"]["sha256"] == baseline_hash,
+                 "TF correction does not preserve the selected baseline handoff")
+            correction_names = ["manifest.json", "correction-history.json", "source-verified-application-routes.json",
+                                "ownership-exceptions.json", "independent-test-specifications.json",
+                                "assertion-results.json", "baseline-routing-provenance.json"]
+            for name in correction_names:
+                source, destination = audit / name, root / relative / "correction" / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, destination)
+                captured_paths.append(destination)
+                extra_receipts.append({"name": "correction/" + name, "sha256": sha(source.read_bytes()),
+                                       "bytes": source.stat().st_size})
+            destination = root / receipt["input_parent"]
+            shutil.copyfile(audit / "inputs/before-classified-declarations-compact.json", destination)
+            captured_paths.append(destination)
+            receipt["preserved_baseline_handoff_sha256"] = baseline_hash
         receipt["additional_evidence"] = extra_receipts
         receipts.append({"framework": framework, **receipt, "retained_records": len(normalized_rows)})
     write(target / "contracts.json", contracts)
     write(target / "bindings.json", pack(bindings), compact=True)
     captured_paths.extend([target / "contracts.json", target / "bindings.json"])
+    # Source component reviews are external to the generation step. Retain their
+    # committed receipt bytes, without calling them an exact Atlas-head review.
+    captured_paths.extend(sorted((target / "source-review").glob("*.json")))
     by_contract = {row["id"]: row for row in contracts}
     unresolved = sum(by_contract[row["contract"]]["route_state"] == "ownership_unresolved" for row in bindings)
     counts = {"retained_raw_candidates": len(bindings), "visibility": dict(Counter(row["visibility"] for row in bindings)),
@@ -147,7 +186,9 @@ def main():
               "new_semantic_closures": 0, "execution_credit": 0, "raw_candidates_removed": 0,
               "full_public_surface_complete": False}
     artifacts = [{"path": path.relative_to(root).as_posix(), "sha256": sha(path.read_bytes()),
-                  "role": "source routing proposal; not semantic or runtime evidence"}
+                  "role": ("Independent source/proposal correction review; not exact Atlas candidate or runtime qualification"
+                           if path.parent.name == "source-review" else
+                           "source routing proposal; not semantic or runtime evidence")}
                  for path in sorted(captured_paths)]
     write(target / "index.json", {"schema_version": 1, "artifacts": artifacts,
           "bindings": "reference/public-scope/bindings.json", "contracts": "reference/public-scope/contracts.json",

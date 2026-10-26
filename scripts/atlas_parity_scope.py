@@ -7,7 +7,7 @@ from pathlib import Path
 from atlas_parity_schema import (ParityError, digest, fields, local_path, need,
                                  read_json, revision, unique)
 from atlas_parity_tables import canonical, unpack
-from atlas_parity_scope_sources import audit_identity, classify, family_rows
+from atlas_parity_scope_sources import audit_identity, classify, family_rows, input_parent
 
 VISIBILITY = {"documented_public", "public_export_or_view", "internal_source_candidate",
               "publicness_unresolved", "documented_extension_hook"}
@@ -117,15 +117,24 @@ def validate_scope(root: Path, relative: str, refs: dict, capabilities: dict,
     for snapshot in snapshots:
         data = read_json(local_path(root, snapshot["path"]))
         baselines[snapshot["framework"]] = {"version": snapshot["version"],
-            "revision": data["source_revision"], "inventory_sha256": snapshot["sha256"]}
+            "revision": data["source_revision"], "inventory_sha256": snapshot["sha256"],
+            "inventory_records": snapshot["records"]}
     for identity, row in bindings.items():
         path = row["source_artifact"]
         need(path in documents, f"{identity}: unregistered source detail")
         if path not in source_tables:
             restored[path] = restore_audit(documents[path], refs)
             framework = refs[identity]["framework"]
-            audit_identity(framework, restored[path], baselines[framework])
+            expected = baselines[framework]
+            parent = documents[path]["metadata"]["capture_receipt"].get("input_parent")
+            if parent is not None:
+                need(parent in documents, "source-audit parent is not a registered candidate input")
+                expected = input_parent(expected, documents[parent], artifacts[parent]["sha256"])
+            audit_identity(framework, restored[path], expected)
             source_tables[path] = source_records(documents[path])
+            source_ids = unique(source_tables[path], "reference_id", "source-audit detail")
+            need(set(source_ids) == {ref_id for ref_id, ref in refs.items() if ref["framework"] == framework},
+                 "source-audit table lost a candidate or contains unbound duplicate/extra rows")
         records = source_tables[path]
         need(row["source_row"] < len(records), f"{identity}: missing source row")
         original = records[row["source_row"]]
