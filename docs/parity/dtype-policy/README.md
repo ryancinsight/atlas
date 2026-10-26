@@ -15,7 +15,7 @@ requires its own exact-head review and normal delivery gates.
 | --- | --- |
 | [Lossless capture](jax-20261026/capture.json) | Original hashes and roles; compact JSON reconstructs the original bytes |
 | [Source graph](jax-20261026/graph.json) and [pair table](jax-20261026/pairs.json) | Eight graph/config views and 9,256 finite source-symbol joins |
-| [Source clauses](jax-20261026/captured/policy-contracts.json) and [canonical joins](jax-20261026/joins.json) | 18 clauses, nine existing IDs, owners, prerequisites, source spans and acceptance links |
+| [Source clauses](jax-20261026/captured/policy-contracts.json) and [canonical joins](jax-20261026/joins.json) | 18 clauses, nine IDs, policy suppliers, actual API mapping associations, source spans and acceptance links |
 | [Acceptance targets](jax-20261026/captured/acceptance-targets.json) | 18 targets, all unrun |
 | [CP02 disposition](jax-20261026/companion-disposition.json) | Derived evidence-required state; immutable raw workflow record retained |
 | [Remaining gaps](jax-20261026/captured/remaining-gaps.json) | Ten open definition/execution groups |
@@ -59,8 +59,14 @@ custom primal/tangent rules differ. AD tangent dtype and Ref accumulation follow
 Coeus contracts, independently of ordinary promotion. Actual casting, coercion,
 warnings/errors, shape/layout/device rules and higher transforms remain unrun.
 
-The canonical NUM-PROMOTE owner remains **Eunomia**, prerequisite **NUM-REP**.
-The joins reuse Coeus AD owners and prerequisites. One generic native policy
+The NUM-PROMOTE policy supplier remains **Eunomia**, prerequisite **NUM-REP**.
+Each endpoint separately records its policy supplier and its association with
+the actual canonical API mapping. Four endpoints have existing partial mappings:
+`result_type`, `promote_types` and `can_cast` join Eunomia/NUM-PROMOTE; `astype`
+joins Coeus/TEN-OPS while retaining Eunomia as its scalar policy supplier. The
+other five endpoints remain explicitly unmapped. These joins never reassign
+canonical API ownership or create a mapping. Source clauses retain Eunomia scalar
+and Coeus AD policy suppliers with their existing prerequisites. One generic native policy
 encodes dtype/weak/config/format variation; no foreign production runtime,
 precision-cloned algorithm or silent CPU fallback is authorized.
 
@@ -80,7 +86,7 @@ PYTHONPATH=scripts python3 -m unittest scripts/tests/test_parity_dtype.py -v
 
 The actual checker conserves graph/profile/pair counts, independently recomputes
 joins and expected source edges, verifies lossless source/review hashes and exact
-source spans, and checks every ID/owner/prerequisite/clause/case link. It consumes
+source spans, and checks every ID/supplier/API-mapping/prerequisite/clause/case link. It consumes
 all captured artifacts as committed qualification inputs. Exact span bytes bind
 source bodies; original AST-render digests remain immutable provenance across
 Python versions. No framework import/build or hardware execution occurs.
@@ -89,3 +95,12 @@ The original packet's 24 source/analytical checks, 22 expected join fixtures and
 byte-identical replay are historical source evidence, not executed acceptance
 targets. All 18 targets, ten wider gaps and eight CP02 evidence gaps remain open.
 The rendered JAX documentation 403 route remains stopped.
+
+Canonical review found and corrected the earlier supplier/API-owner ambiguity
+and a reindexed source-witness header that could claim runtime credit. Exact
+typed wrapper schemas now bind source-only credit, original review scope,
+17-source/44-file counts, structured replay provenance and eight unique CP02 gap
+IDs. Copied-artifact tests reindex changed files and exercise the full program
+loader; reformat/reindex remains a valid positive control. The accepted source
+packet/review and raw workflow history remain immutable. This correction still
+requires exact-head clearance before delivery.

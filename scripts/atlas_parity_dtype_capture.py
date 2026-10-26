@@ -2,8 +2,9 @@
 import hashlib
 import json
 
-from atlas_parity_schema import fields, local_path, need, read_json
+from atlas_parity_schema import local_path, need, read_json
 from atlas_parity_tables import unpack
+from atlas_parity_dtype_headers import exact_fields
 
 PACKET_SHA = '72206a73ecad553b819b42af2f45fc35efcdf4b6a3dea45de86e96af9fc3befe'
 REVIEW_SHA = '364896a26a94ba037ed6895c072e9dd3211c2faa5e0298a411328d3db87f995f'
@@ -17,6 +18,8 @@ def original_bytes(document):
 def graphs_from_tables(metadata, table):
     # Preserve original graph and pair order, including null versus absent keys.
     need(all('pair_table' not in g for g in metadata['graphs']), 'dtype compact graph duplicates pair storage')
+    exact_fields(table, {'format': str, 'metadata': dict, 'columns': list, 'tables': dict, 'rows': list},
+                 'dtype pair table wrapper')
     need(table['metadata'] == {'role': 'finite_source_symbol_pairs_not_runtime_or_dtype_legality',
                               'source_pairs': 9256}, 'dtype pair table must retain source-only role')
     result = dict(metadata)
@@ -35,7 +38,7 @@ def validate_capture(root, index):
     paths = []
     documents = {}
     for item in index['artifacts']:
-        fields(item, {'path': str, 'sha256': str}, 'dtype artifact')
+        exact_fields(item, {'path': str, 'sha256': str}, 'dtype artifact')
         path = local_path(root, item['path'])
         need(path not in paths and hashlib.sha256(path.read_bytes()).hexdigest() == item['sha256'],
              'dtype artifact hash drift or repeated input')
@@ -47,6 +50,11 @@ def validate_capture(root, index):
         need(key in documents, 'dtype artifact absent: ' + name)
         return documents[key]
     capture = get('capture.json')
+    exact_fields(capture, {'schema_version': int, 'source_manifest_sha256': str,
+        'independent_review_sha256': str, 'captured': list, 'full_source_files_vendored': bool,
+        'capture_complete_for_selected_artifacts': bool, 'original_json_serialization': str,
+        'research_source_files': int, 'research_sealed_files': int, 'source_packet_replay': dict},
+        'dtype capture source-only header')
     manifest_path = local_path(root, PREFIX + 'captured/deliverable-manifest.json')
     review_path = local_path(root, PREFIX + 'independent-review.json')
     need(hashlib.sha256(manifest_path.read_bytes()).hexdigest() == PACKET_SHA and
@@ -62,8 +70,22 @@ def validate_capture(root, index):
          capture['full_source_files_vendored'] is False and
          capture['capture_complete_for_selected_artifacts'] is True,
          'dtype source capture provenance/scope drift')
+    need(capture['research_source_files'] == 17 and
+         capture['research_sealed_files'] == len(manifest['files']) == 44 and
+         capture['original_json_serialization'] == 'json.dumps(indent=2,sort_keys=True,ensure_ascii=True)+newline',
+         'dtype capture source/sealed count or serialization drift')
+    replay = capture['source_packet_replay']
+    exact_fields(replay, {'checks_passed': int, 'checks_skipped': int, 'generated_outputs': int,
+        'byte_identical': bool, 'reviewed_source_manifest_sha256': str, 'scope': str,
+        'framework_cases_executed': int}, 'dtype source replay header')
+    need(replay == {'checks_passed': manifest['checks']['passing'], 'checks_skipped': 0,
+        'generated_outputs': 9, 'byte_identical': True, 'reviewed_source_manifest_sha256': PACKET_SHA,
+        'scope': 'source_only_no_framework_or_API_runtime_credit', 'framework_cases_executed': 0},
+        'dtype replay source-only provenance/credit drift')
     original = {}
     for row in capture['captured']:
+        exact_fields(row, {'original_path': str, 'paths': list, 'sha256': str, 'storage': str},
+                     'dtype captured role')
         name = row['original_path']
         need(name not in original and name in manifest['files'], 'dtype captured role duplicated or unknown')
         if row['storage'] == 'graph-with-column-pairs':

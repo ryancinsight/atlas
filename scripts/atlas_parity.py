@@ -18,7 +18,7 @@ from atlas_parity_references import references
 from atlas_parity_scope import validate_scope
 from atlas_parity_workflows import validate_workflows
 from atlas_parity_core import validate_core_tensor
-from atlas_parity_dtype import validate_dtype_policy
+from atlas_parity_dtype import prepare_dtype_policy, validate_dtype_policy
 from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
 from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, finite_number, https,
                                  local_path, need, nonempty, read_json, revision, unique)
@@ -107,6 +107,7 @@ def load(root: Path = DEFAULT) -> dict:
     decisions = validate_decisions(program, objects["decisions"], repositories)
     need(bool(capabilities) and bool(repositories) and bool(packages), "program cannot have empty owner/DAG sets")
     program_structure(program, capabilities, repositories, packages)
+    dtype_prepared = prepare_dtype_policy(root, program["files"].get("dtype_policy"), program)
     refs, summaries = references(root, program["reference_snapshots"])
     closure, extra_inputs = validate_closure(root, program["files"].get("reference_closure"), program)
     scope, scope_inputs = validate_scope(root, program["files"].get("public_scope"), refs,
@@ -153,8 +154,8 @@ def load(root: Path = DEFAULT) -> dict:
     core_tensor, core_inputs = validate_core_tensor(root, program["files"].get("core_tensor_contracts"),
         program, capabilities, repositories, refs, mappings, assigned, packages)
     extra_inputs.extend(core_inputs)
-    dtype_policy, dtype_inputs = validate_dtype_policy(root, program["files"].get("dtype_policy"),
-                                                      program, capabilities, refs)
+    dtype_policy, dtype_inputs = validate_dtype_policy(dtype_prepared, program, capabilities,
+                                                      refs, mappings, assigned)
     extra_inputs.extend(dtype_inputs)
     for snapshot in program["reference_snapshots"]:
         if snapshot["semantics_complete"]:

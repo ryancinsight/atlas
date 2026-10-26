@@ -277,3 +277,19 @@ local links, board index and artifact budget pass. Expanded backlog remains1,000
 lines and gap audit333; board lint retains advisory historical stale-item,
 commit-reference and live-mention reports. No framework/provider or hardware test
 is credited by these source checks.
+
+Canonical review of saved `ba1faa3` then exposes two gaps the initial155 checks
+did not cover: supplier/API ownership ambiguity (`astype` is canonically
+Coeus/TEN-OPS while Eunomia supplies scalar policy), and a reindexed witness
+header that claims API/runtime credit. Both regressions reproduce before repair.
+The corrected joins distinguish policy suppliers from exact current mapping
+associations (four mapped, five explicitly unmapped). Strict source-only wrapper
+schemas reject unsupported credit, canonical-review approval labels, wrong
+17/44 counts and duplicate CP02 IDs even after real artifact reindexing.
+
+The corrected authored tree passes159 parity tests, zero skips, including20
+dtype methods and copied-program full-loader adversaries with a valid reformat/
+reindex control. Early wrapper validation retains all cases while reducing the
+focused suite from65.7s to17.8s; the full suite completes in47.7s. Main mappings,
+source722/review364, all9,256 graph pairs and raw CP02 history stay unchanged.
+All18 acceptance targets remain unrun; exact-head clearance remains required.

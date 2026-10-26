@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from atlas_parity import load, report
-from atlas_parity_dtype import no_credit, validate_dtype_policy, validate_joins
+from atlas_parity_dtype import no_credit, prepare_dtype_policy, validate_dtype_policy, validate_joins
 from atlas_parity_dtype_capture import PREFIX, graphs_from_tables, original_bytes, validate_capture
 from atlas_parity_dtype_graph import validate_graphs
 from atlas_parity_schema import ParityError, read_json
@@ -36,8 +36,9 @@ class DtypePolicyTests(unittest.TestCase):
         b = self.bundle
         with patch('atlas_parity_dtype.read_json', side_effect=altered_read), \
              patch('atlas_parity_dtype_capture.read_json', side_effect=altered_read):
-            return validate_dtype_policy(ROOT, b['program']['files']['dtype_policy'],
-                                         b['program'], b['capabilities'], b['references'])
+            prepared = prepare_dtype_policy(ROOT, b['program']['files']['dtype_policy'], b['program'])
+            return validate_dtype_policy(prepared, b['program'], b['capabilities'], b['references'],
+                                         b['mappings'], b['assigned'])
 
     def test_report_conserves_denominator_and_unrun_targets(self):
         result = report(self.bundle)
@@ -49,6 +50,8 @@ class DtypePolicyTests(unittest.TestCase):
         self.assertEqual(dtype['open_wider_gaps'], 10)
         self.assertEqual(dtype['ordinary_companion_evidence_gaps'], 8)
         self.assertEqual(dtype['framework_execution_credit'], 0)
+        self.assertEqual(dtype['existing_mapped_API_associations'], 4)
+        self.assertEqual(dtype['explicitly_unmapped_API_associations'], 5)
         self.assertFalse(dtype['public_denominator_changed'])
 
     def test_lossless_pair_table_reconstruction(self):
@@ -107,13 +110,15 @@ class DtypePolicyTests(unittest.TestCase):
                 with self.subTest(key=key, replacement=replacement), self.assertRaises(ParityError):
                     no_credit(changed)
 
-    def check_joins(self, document):
+    def check_joins(self, document, mappings=None, assigned=None):
         b = self.bundle
-        validate_joins(document, self.policy, self.cases, b['capabilities'], b['references'], self.citations)
+        validate_joins(document, self.policy, self.cases, b['capabilities'], b['references'], self.citations,
+                       b['mappings'] if mappings is None else mappings,
+                       b['assigned'] if assigned is None else assigned)
 
     def test_owner_prerequisite_source_case_and_ID_joins_reject_mutation(self):
-        changes = [lambda d: d['clauses'][0].update(single_accountable_owner='atlas'),
-                   lambda d: d['clauses'][0].update(prerequisites=[]),
+        changes = [lambda d: d['clauses'][0]['policy_supplier'].update(owner='atlas'),
+                   lambda d: d['clauses'][0]['policy_supplier'].update(prerequisites=[]),
                    lambda d: d['clauses'][0].update(source_entry=['rules', 1]),
                    lambda d: d['clauses'][0].update(source_citations=[]),
                    lambda d: d['clauses'][0].update(case_ids=[]),
@@ -124,6 +129,31 @@ class DtypePolicyTests(unittest.TestCase):
             document = copy.deepcopy(self.joins);change(document)
             with self.subTest(change=change), self.assertRaises(ParityError):
                 self.check_joins(document)
+
+    def test_actual_mapping_associations_and_suppliers_cannot_substitute_each_other(self):
+        def astype(document):
+            return next(r for r in document['endpoints'] if r['symbol'] == 'jax.numpy.astype')
+        def unmapped(document):
+            return next(r for r in document['endpoints'] if r['symbol'] == 'jax.grad')
+        changes = [lambda d: astype(d)['canonical_API_mapping'].update(owner='eunomia'),
+                   lambda d: astype(d)['canonical_API_mapping'].update(capability='NUM-PROMOTE'),
+                   lambda d: astype(d)['canonical_API_mapping'].update(mapping_id='core-jax-jax-numpy-can-cast'),
+                   lambda d: astype(d).update(canonical_API_mapping=dict(state='unmapped', reference_id=astype(d)['reference_id'])),
+                   lambda d: astype(d)['policy_supplier'].update(capability='TEN-OPS', owner='coeus', prerequisites=['TEN-CORE']),
+                   lambda d: astype(d).update(single_accountable_owner='eunomia'),
+                   lambda d: unmapped(d).update(canonical_API_mapping=dict(state='mapped', reference_id=unmapped(d)['reference_id'], mapping_id='invented', capability='AD-REVERSE', owner='coeus'))]
+        for change in changes:
+            document = copy.deepcopy(self.joins);change(document)
+            with self.subTest(change=change), self.assertRaises(ParityError):
+                self.check_joins(document)
+        row = astype(self.joins); identity = row['reference_id']
+        assigned = dict(self.bundle['assigned']);assigned[identity] = 'core-jax-jax-numpy-can-cast'
+        with self.assertRaisesRegex(ParityError, 'actual API assignment'):
+            self.check_joins(self.joins, assigned=assigned)
+        mappings = copy.deepcopy(self.bundle['mappings'])
+        mappings[self.bundle['assigned'][identity]]['reference_ids'] = []
+        with self.assertRaisesRegex(ParityError, 'actual API assignment'):
+            self.check_joins(self.joins, mappings=mappings)
 
     def test_self_consistent_wrong_existing_clause_association_rejects(self):
         document = copy.deepcopy(self.joins)
