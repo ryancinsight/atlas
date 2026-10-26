@@ -48,7 +48,7 @@
   },
   "atlas_public_scope_delivery_20261026": {
     "branch": "docs/parity-public-contracts-20261026",
-    "ci": "No PR-triggered exact-head CI exists; local/source checks do not replace hosted gates",
+    "ci": "CLI PR#572 exists at exact f09; normal readiness starts actual fast/slow pytest jobs and CodeQL/conformance checks. This planning snapshot grants no hosted-CI pass credit; actual exact-head results must be read before integration.",
     "cli_delivery": {
       "base": "main",
       "connector_denial_retried": false,
@@ -62,14 +62,17 @@
     "draft_pr": {
       "base": "main",
       "head": "docs/parity-public-contracts-20261026",
+      "historical_receipt": true,
       "http_status": 403,
       "operation": "Create draft pull request",
       "outcome": "denied",
       "readback_matching_pull_requests": 0,
       "reason": "Resource not accessible by integration",
       "repository": "ryancinsight/atlas",
-      "retry": "Stopped; no alternate creation route attempted"
+      "retry": "Stopped; no alternate creation route attempted",
+      "transport": "GitHub connector"
     },
+    "historical_no_pr_ci_receipt": "No PR-triggered exact-head CI exists; local/source checks do not replace hosted gates",
     "historical_pushed_revision": "3d765a943cbaf7e6b6456b1e815b7fcc4d684a04",
     "merge_or_release": false,
     "remaining_delivery_gates": "Existing f09 exact-head independent review clear,115focusedtests0skip. CLI PR#572 now created; required hosted tests/security/conformance and final policy/readiness inspection remain before conditional merge. No definition or1.0 clearance."
