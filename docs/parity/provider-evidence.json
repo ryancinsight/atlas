@@ -12,6 +12,26 @@
     "version_log": "https://github.com/ryancinsight/apollo/actions/runs/40023895725/job/120655327820",
     "workspace_log": "https://github.com/ryancinsight/apollo/actions/runs/40023895725/job/120655327406"
   },
+  "atlas_planning_delivery_570": {
+    "deployment_inspection": "Pages disabled; no webhooks or deployment history; all16workflow blobs unchanged; publish/book/wheel workflows call-only without automatic Atlas callers",
+    "fast_job": "success after ordinary readiness",
+    "head": "756d2c80ed1a7b431cd26df2d4c1c8421d7b94dd",
+    "independent_review": "No findings on exact source head; repository has no required GitHub approval rule",
+    "merge_commit": "2dbfeabc9f44de2d37e5cdfa2776bd272bb513bb",
+    "merged_verified": true,
+    "policy": "Active ruleset23641010, no policy/credential changes and no admin bypass requested",
+    "post_merge_actions": "Only Python script tests, atlas-conformance and dynamic security analysis observed at merge revision; no deployment record",
+    "pr": "https://github.com/ryancinsight/atlas/pull/570",
+    "previous_main": "f60fef17286b8cfdacf9191b133dc975aa186787",
+    "qualification_credit": "Bounded planning/tooling delivery only. Full program, per-API runtime/performance and repository1.0 exits remain unqualified; skipped cases receive no credit",
+    "readiness_python_checks_run": "https://github.com/ryancinsight/atlas/actions/runs/40292702283",
+    "required_checks": [
+      "Workflows are valid / Workflows are valid",
+      "Debt-class ratchet (counts non-increasing vs committed baseline)"
+    ],
+    "required_checks_run": "https://github.com/ryancinsight/atlas/actions/runs/40283691029",
+    "slow_job": "success after ordinary readiness"
+  },
   "audit_date": "2026-10-26",
   "audit_kind": "read_only_source_and_selected_remote_evidence",
   "coordinator_handoff_20261026": {
@@ -78,7 +98,7 @@
     "heavy_slot_owner": "Last explicit assignment was independent reviewer; subsequent repair resumption does not establish a new slot allocation in this ledger",
     "implementation_owner_task": "01a176ac-6a9e-77cc-a488-42908214f023",
     "independent_review_owner_task": "01a1771f-4ace-75e4-a240-c800b7d7e02a",
-    "independent_review_state": "Completed on edfd15ea with changes requested:2P2 findings; owner repair and replacement exact-source review pending",
+    "independent_review_state": "Historical first review requests two P2 fixes; latest exact b50a96cf re-review resolves both within scope",
     "independent_review_turn": "01a1771f-57f9-74f4-a78c-2d2193a1a0c3",
     "predecessor_commit": "d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da",
     "provenance": "Trusted parent handoff plus read-only receipt hash/head/record-count verification; independent candidate review pending",
@@ -124,11 +144,89 @@
       "source_consumer_modes": "both source-consumer mode sessions pass; not a published-registry fresh-consumer receipt"
     },
     "source_receipt": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-2/receipt.json",
-    "state": "Locally committed but not cleared; latest parent resumes owner repair under turn prefix01a1772c; no new candidate or publication supplied",
+    "state": "Historical edfd15ea local-candidate snapshot; later repaired/re-reviewed b50a96cf observation supersedes current repair state",
     "tree": "e2c9d233b760722ca8935978a53d616bbd2c648d"
+  },
+  "native_repaired_review_20261026": {
+    "archive": {
+      "entries_verified": 79,
+      "registry_publication": false,
+      "rust_files_matched": 74,
+      "sha256": "6a553579d59a1163111cba803d89ad31b10b891ec4bde795ef7431edfeee8489"
+    },
+    "commit": "b50a96cfebf38a99c52b42e816ea3a5340927c25",
+    "delivery": "Source review permits continuation to remaining gates only. No native push, PR, merge, publication or full-parity clearance is inferred; notification integration HTTP403 remains stopped.",
+    "heavy_slot_owner": "Native owner continues remaining unblocked acceptance under parent assignment",
+    "implementation_owner_task": "01a176ac-6a9e-77cc-a488-42908214f023",
+    "independent_executed_scope": {
+      "actual_source_miri": {
+        "passed": 34,
+        "skipped": 0,
+        "warning": "One isolated-library unused-method warning retained"
+      },
+      "async_native_quic": {
+        "passed": 192,
+        "skipped": 0
+      },
+      "driver": {
+        "includes_original_stress_cases": 3,
+        "passed": 26,
+        "skipped": 0
+      },
+      "native_normal_build_graphs": {
+        "configurations": 6,
+        "platform_runtime_acceptance": false,
+        "tokio_nodes": 0
+      },
+      "source_consumers": {
+        "default_passed": 1,
+        "minimal_passed": 1,
+        "skipped": 0
+      }
+    },
+    "notification_predecessor": "d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da",
+    "ordered_release_targets": [
+      "moirai-async 0.12.0",
+      "moirai-quinn 0.1.0",
+      "moirai-quic 0.2.0",
+      "moirai-runtime 0.12.0"
+    ],
+    "owner_receipt_records_independently_verified": 1336,
+    "owner_receipt_sha256": "9faef4809a5e43772ea8eea573142e9c5b006e3f130cd908757086fc44356452",
+    "parent": "edfd15ea7678bea24fa4f08f4df453efb9d608aa",
+    "provenance": "Trusted parent handoff plus read-only inspection of same independent reviewer report and identity-verification result; planning lane does not rerun provider tests",
+    "qualification_credit": "Scoped independently executed source evidence outside the current Atlas pinned revision; no API-ledger stage, platform/performance, registry or 1.0 promotion",
+    "remaining_gates": [
+      "ADR 0084 sign-off and precise ADR reconciliation",
+      "Exact-head hosted/workspace/all-feature/doc/doctest/licensing/security checks and current policy",
+      "Actual Linux/Windows, FIPS/post-quantum and alternative-runtime execution",
+      "Full fuzz/workspace-Miri applicability",
+      "Unchanged controlled 108-pair performance/fairness/latency/queue/recovery acceptance",
+      "Ordered package/registry publication and clean registry-only consumers"
+    ],
+    "resolved_findings": {
+      "MOIRAI-REVIEW-COOPERATIVE-DRAIN": "Actual driver has finite 128-event batch and wake-correct continuation outside mutex; six backlog boundaries verify remainder, protocol transmission and timer servicing",
+      "MOIRAI-REVIEW-DROP-WAKE": "Original and expanded ownership/reentry oracles pass; wakes precede queued-payload destruction after mutex release; values and allocation addresses preserved"
+    },
+    "review_outcome": "No findings within the recorded source-review scope; both first-round P2 findings resolved on this exact head",
+    "review_owner_task": "01a1771f-4ace-75e4-a240-c800b7d7e02a",
+    "review_report_sha256": "e55a6565b313f32ac7bbb35aa6bb2cd0370279c52870feef93baa3f63dbf482d",
+    "review_report_source": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-3/revision-2-review/REVIEW_REPORT.md",
+    "review_turn_prefix_supplied": "01a17749",
+    "review_verification_sha256": "524b5b05261130acde989fabbae463d475bcbd0d62ffe100fa85bf89ed155695",
+    "review_verification_source": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-3/revision-2-review/verification.json",
+    "source_records_independently_verified": 1273,
+    "strict_api_owner_observation": {
+      "checker_skipped": 30,
+      "independently_rerun": false,
+      "passed": 223,
+      "qualification_credit": "No full API qualification from skipped checker cases"
+    },
+    "tree": "2513a98c6df5a37cefb4811ad3e98d0d0023218a"
   },
   "native_review_correction_20261026": {
     "candidate_commit": "edfd15ea7678bea24fa4f08f4df453efb9d608aa",
+    "current_disposition": "Both findings resolved by independent oracles on b50a96cf; retain the first-round counterexamples and acceptance criteria as history",
     "findings": [
       {
         "counterexample": "Capacity1, queued panicking payload, parked second send, caught receiver-drop unwind: candidate closed with0wakes; original main1wake. Manual candidate poll returns exact unsent payload.",

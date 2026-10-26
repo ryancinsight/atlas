@@ -159,9 +159,30 @@ qualification, push or publication is established. The structured correction
 retains the read-only report hash and both precise acceptance failures; repository
 exit and scheduler analytical targets now name those boundaries explicitly.
 
+The same reviewer subsequently clears both repairs on exact head
+`b50a96cfebf38a99c52b42e816ea3a5340927c25`, tree
+`2513a98c6df5a37cefb4811ad3e98d0d0023218a`. The read-only re-review report
+SHA-256 is `e55a6565b313f32ac7bbb35aa6bb2cd0370279c52870feef93baa3f63dbf482d`;
+its identity result binds 1,336 owner-receipt records and 1,273 source files.
+Original/expanded payload oracles verify wake delivery, unlocked reentry and
+exact returned ownership. Actual driver cases cover backlogs 0, 1, 127, 128,
+129 and 65,536, including finite batches, transmission/timer work and continuation.
+This is source-review clearance of the repairs, not a saturated performance bound.
+
+Independently executed groups pass with zero skips: 192 async/native-QUIC,
+26 driver (including three original stress cases), 34 actual-source Miri and
+one source-consumer session in each default/minimal mode. Six normal/build
+graph configurations retain zero Tokio nodes. The isolated Miri warning remains
+explicit; full workspace/fuzz/Miri qualification is not inferred. ADR 0084 sign-off,
+hosted/platform/security gates, the unchanged 108-pair performance domain and
+ordered registry-only consumer release gates remain open. Owner continues that
+work with the heavy slot. Notification integration HTTP403 and Apollo holds
+remain; no retry or alternate publication route occurs. These later facts
+supersede the pending/unfixed state above while retaining both original findings.
+
 | Work | Existing owner | Required handoff |
 | --- | --- | --- |
-| Quinn/QUIC native migration | Implementation `01a176ac-6a9e-77cc-a488-42908214f023`; review `01a1771f-4ace-75e4-a240-c800b7d7e02a` | Repair both P2 findings from `edfd15ea`, then exact-source re-review; original full-domain transport/platform/performance gates, coherent published graph and consumer resolution remain. |
+| Quinn/QUIC native migration | Implementation `01a176ac-6a9e-77cc-a488-42908214f023`; review `01a1771f-4ace-75e4-a240-c800b7d7e02a` | Both P2 repairs on `b50a96cf` pass scoped exact-source review; ADR, original transport/platform/security/performance gates, coherent published graph and registry-only consumers remain. |
 | Notification delivery | Coordinator `01a159ec-7017-7725-a554-194472dc20dc` | Existing pushed `d94d5ab6`; integration HTTP403 remains denied, no alternate-route retry. |
 | Kwavers typed-error/Miri | `01a16141-84fd-7045-a5d6-75c04aafa0ef` | Exact revision, computed-error tests and applicable real Miri execution. |
 | Apollo held work | `01a13842-5a71-712c-b982-d6631f84e002` | Resolve service hold before any implementation retry; retain version/license/registry gates. |

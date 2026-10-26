@@ -22,7 +22,7 @@
   "implementation_blockers": [
     "Hardware and external performance matrices unqualified; unavailable targets remain obligations",
     "Provider audit establishes source facts only; no complete exact-revision provider execution qualification",
-    "Native candidate edfd15ea review requests twoP2 fixes: payload-Drop panic loses sender wakes and unbounded event drain loses retained Tokio cooperative yield; owner01a176ac resumed turn prefix01a1772c; replacement exact-source re-review pending.218other passes/6zero-Tokio graphs do not waive defects; no push/publication",
+    "Native b50a96cf repairs pass scoped independent source review; ADR, hosted/platform/security, full fuzz/Miri applicability, unchanged 108-pair performance and ordered registry/consumer gates remain. Current Atlas pins are unchanged; predecessor integration HTTP403 prevents delivery.",
     "Notification commit d94d5ab6 is pushed; draft PR creation denied HTTP403, no CI/merge/publication; no alternate-route retry permitted",
     "Apollo original service hold and #696 version/license/registry blockers remain"
   ],
