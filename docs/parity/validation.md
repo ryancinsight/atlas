@@ -150,6 +150,13 @@ conditional provider compilation is skipped because pins are unchanged, with
 no provider verification credit. Separate draft pytest jobs remain skipped.
 New source/semantic changes require a new exact-head run.
 
+For the dependent source-disposition PR, feature-branch targeting did not start
+Atlas's CodeQL analysis. Retargeting alone also left the observed `1ee5e596`
+head without a CodeQL run. Keep the dependency on #570 explicit, target `main`,
+and verify actual analysis on the subsequent head event. Neither absent checks
+nor results belonging to a predecessor revision satisfy the final-revision gate;
+no workflow/security configuration is weakened to obtain a passing label.
+
 Four cached source-audit pipelines run without importing a framework. Independent
 source checks verify 437 NumPy, 164 JAX, 40 PyTorch and 4,134 TF/Keras file
 identities. NumPy's 11 static/artifact checks, JAX's six source checks, PyTorch's
