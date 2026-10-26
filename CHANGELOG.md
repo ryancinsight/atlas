@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Integrate the independently reviewed TF conversion source boundary in parity
+  program 2026-10-26.12, with lossless selected captures, typed live owner/API
+  joins and input-sensitive rounding/cotangent controls. Preserve all 30 UNRUN
+  cases, ten open gaps, existing mappings and prior source-policy editions;
+  no package version, public scope or execution/release qualification changes.
+
 - Preserve the two independently accepted public-surface source packets in parity
   program 2026-10-26.11 with lossless selected captures, 498 exact reference joins,
   typed provenance/owner guards and portable witnesses. All classifications,

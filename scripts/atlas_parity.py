@@ -22,6 +22,7 @@ from atlas_parity_dtype import prepare_dtype_policy, validate_dtype_policy
 from atlas_parity_numpy_dtype import prepare_numpy_dtype, validate_numpy_dtype
 from atlas_parity_torch_dtype import prepare_torch_dtype, validate_torch_dtype
 from atlas_parity_public_evidence import prepare_public_evidence, validate_public_evidence
+from atlas_parity_tf_conversion import prepare_tf_conversion, validate_tf_conversion
 from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
 from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, finite_number, https,
                                  local_path, need, nonempty, read_json, revision, source_entry_at, unique)
@@ -114,6 +115,7 @@ def load(root: Path = DEFAULT) -> dict:
     numpy_dtype_prepared = prepare_numpy_dtype(root, program["files"].get("numpy_native_dtype_policy"), program)
     torch_dtype_prepared = prepare_torch_dtype(root, program["files"].get("torch_native_dtype_policy"), program)
     public_prepared = prepare_public_evidence(root, program["files"].get("public_evidence"), program)
+    tf_conversion_prepared = prepare_tf_conversion(root, program["files"].get("tensorflow_conversion_boundary"), program)
     refs, summaries = references(root, program["reference_snapshots"])
     closure, extra_inputs = validate_closure(root, program["files"].get("reference_closure"), program)
     scope, scope_inputs = validate_scope(root, program["files"].get("public_scope"), refs,
@@ -167,6 +169,9 @@ def load(root: Path = DEFAULT) -> dict:
     public_evidence, public_inputs = validate_public_evidence(public_prepared, program, refs, scope,
         capabilities, mappings, assigned)
     extra_inputs.extend(public_inputs)
+    tf_conversion, tf_conversion_inputs = validate_tf_conversion(tf_conversion_prepared, program,
+        capabilities, repositories, packages, refs, mappings, assigned)
+    extra_inputs.extend(tf_conversion_inputs)
     for snapshot in program["reference_snapshots"]:
         if snapshot["semantics_complete"]:
             need(all(identity in specified for identity, row in refs.items()
@@ -193,6 +198,7 @@ def load(root: Path = DEFAULT) -> dict:
               "numpy_native_dtype_policy": numpy_dtype_policy,
               "torch_native_dtype_policy": torch_dtype_policy,
               "public_evidence": public_evidence,
+              "tensorflow_conversion_boundary": tf_conversion,
               "repository_evidence": repository_evidence, "qualified_repositories": qualified_repositories}
     if program["definition_complete"]:
         need(not definition_blockers(result), "definition_complete contradicts unresolved obligations")
@@ -267,6 +273,7 @@ def report(bundle: dict) -> dict:
             "numpy_native_dtype_designs": bundle["numpy_native_dtype_policy"],
             "torch_native_dtype_designs": bundle["torch_native_dtype_policy"],
             "public_evidence": bundle["public_evidence"],
+            "tensorflow_conversion_designs": bundle["tensorflow_conversion_boundary"],
             "definition_blockers": definition_blockers(bundle)}
 
 
