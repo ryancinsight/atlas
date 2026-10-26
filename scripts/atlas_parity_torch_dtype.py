@@ -8,6 +8,7 @@ from atlas_parity_torch_dtype_joins import validate_joins
 from atlas_parity_torch_dtype_model import validate_model, result_type
 from atlas_parity_torch_dtype_oracles import validate_complex_case
 from atlas_parity_torch_dtype_sources import validate_sources
+from atlas_parity_torch_dtype_plan import conditional_packages, EVIDENCE_ROLES
 from atlas_parity_schema import need, local_path, read_json
 from atlas_parity_tables import canonical
 
@@ -105,22 +106,23 @@ def validate_plan(plan, original, citations):
          plan['parent_work_packages'] == ['WP-001', 'WP-003', 'WP-004'] and plan['framework_runtime_cases_executed'] == 0 and
          plan['whole_API_credit'] is False and len(plan['packages']) == 3 and len(plan['analytical_controls']) == 6,
          'Torch conditional acceptance scope/count differs')
-    need(len({p['id'] for p in plan['packages']}) == 3 and {p['id'] for p in plan['packages']} ==
-         {'TORCH-DTYPE-DEFINITION', 'TORCH-DTYPE-POLICY', 'TORCH-DTYPE-TENSOR'}, 'Torch bounded package IDs differ')
-    numeric = {'PT-DTYPE-PROMOTE', 'PT-DTYPE-CANCAST', 'PT-DTYPE-RESULT', 'PT-DTYPE-GET-DEFAULT', 'PT-DTYPE-SET-DEFAULT'}
+    expected_packages = conditional_packages(original)
     for index, package in enumerate(plan['packages']):
         exact_fields(package, {'id': str, 'planned_owner': str, 'prerequisites': list, 'readiness': str,
             'gap_ids': list, 'acceptance_case_ids': list, 'required_evidence': list,
             'actual_implementation_owner': type(None)}, 'Torch conditional package')
-        expected_cases = [c['id'] for c in original['acceptance-cases.json']['records'] if index == 0 or (c['contract_id'] in numeric) == (index == 1)]
-        need(package['acceptance_case_ids'] == expected_cases, 'Torch conditional operation/case domain differs')
-        need(package['planned_owner'] == ['atlas', 'eunomia', 'coeus'][index] and
-             package['prerequisites'] == [[], ['TORCH-DTYPE-DEFINITION'], ['TORCH-DTYPE-POLICY']][index] and
-             package['readiness'] == 'not_ready_evidence_required' and package['actual_implementation_owner'] is None and
-             package['required_evidence'] and package['acceptance_case_ids'] and
-             set(package['gap_ids']) <= {r['id'] for r in original['remaining-gaps.json']['records']} and
-             set(package['acceptance_case_ids']) <= {r['id'] for r in original['acceptance-cases.json']['records']} and
-             set(package['prerequisites']) <= {p['id'] for p in plan['packages'][:index]}, 'Torch conditional readiness/DAG/case/gap differs')
+        expected = expected_packages[index]
+        need(package['acceptance_case_ids'] == expected['acceptance_case_ids'],
+             'Torch conditional operation/case domain differs')
+        need(len(package['required_evidence']) == len(EVIDENCE_ROLES[index]) and
+             all(type(item) is str and item.strip() for item in package['required_evidence']),
+             'Torch conditional package evidence roles require exact nonempty text')
+        need(bool(package['gap_ids']) and
+             all(type(item) is str and item.strip() for item in package['gap_ids']) and
+             len(package['gap_ids']) == len(set(package['gap_ids'])),
+             'Torch conditional package gap obligations require unique nonempty source IDs')
+        need(canonical(package) == canonical(expected),
+             'Torch conditional package required gap/evidence/readiness obligations differ')
     for control in plan['analytical_controls']:
         exact_fields(control, {'id': str, 'source_case_id': str, 'case': dict, 'runtime_executed': bool}, 'Torch analytical control role')
         need(control['source_case_id'] == 'ADD-COMPLEX-GRAD' and control['runtime_executed'] is False,

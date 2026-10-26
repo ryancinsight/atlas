@@ -161,6 +161,36 @@ class TorchDtypeTests(unittest.TestCase):
     def test_conditional_policy_cannot_drop_cases(self):
         self.corrupt('acceptance-plan.json',lambda d:d['packages'][1]['acceptance_case_ids'].pop(),'operation/case domain')
 
+    def test_reindexed_conditional_evidence_requires_exact_nonempty_text(self):
+        for evidence in [[False], [{}], [''], [' \t\n'], [], ['Evidence optional.']]:
+            with self.subTest(evidence=evidence):
+                self.corrupt('acceptance-plan.json',lambda d,e=evidence:d['packages'][1].update(required_evidence=e),'Torch conditional')
+        for index in [0, 1, 2]:
+            for mutation in [lambda p:p['required_evidence'].pop(),
+                             lambda p:p['required_evidence'].append(p['required_evidence'][0])]:
+                self.corrupt('acceptance-plan.json',lambda d,i=index,m=mutation:m(d['packages'][i]),'Torch conditional')
+
+    def test_reindexed_conditional_gaps_require_exact_source_package_obligations(self):
+        for index in [0, 1, 2]:
+            for mutation in [lambda p:p.update(gap_ids=[]),
+                             lambda p:p['gap_ids'].append(p['gap_ids'][0]),
+                             lambda p:p['gap_ids'].__setitem__(0,'G-SUM-ORDER' if p['id']!='TORCH-DTYPE-TENSOR' else 'G-DTYPE-REGISTRY')]:
+                self.corrupt('acceptance-plan.json',lambda d,i=index,m=mutation:m(d['packages'][i]),'Torch conditional')
+
+    def test_full_loader_rejects_reindexed_plan_weakening_and_keeps_changed_control(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)/'parity';shutil.copytree(ROOT,root)
+            path=root/PREFIX/'acceptance-plan.json';original=read_json(path)
+            for change in [dict(required_evidence=[False]), dict(gap_ids=[]),
+                           dict(required_evidence=[{}],gap_ids=[])]:
+                value=copy.deepcopy(original);value['packages'][1].update(change);write(path,value);self.reindex(root)
+                with self.subTest(change=change),self.assertRaisesRegex(ParityError,'Torch conditional'):
+                    load(root)
+            value=copy.deepcopy(original)
+            value['analytical_controls'][0]['case']=analytical_control((2,-1),(0.5,2),(-2,0.5),-0.5)
+            write(path,value,indent=2);self.reindex(root)
+            self.assertEqual(load(root)['torch_native_dtype_policy']['analytical_complex_controls'],6)
+
     def test_reindexed_manifest_review_and_history_pins_reject(self):
         self.corrupt('independent-review.json',lambda d:d.update(result='runtime_qualified'),'immutable pin')
         self.corrupt('captured/manifest.json',lambda d:d['counts'].update(runtime_cases_executed=1),'immutable pin')

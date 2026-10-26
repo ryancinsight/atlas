@@ -285,6 +285,10 @@ After the NumPy selector successor is merged locally, Torch endpoint/case/receip
 paths use the shared typed source resolver, exact expected positions and selected
 object identities. The local duplicate resolver is removed. This tooling repair
 preserves captured source bytes, actual API ownership and every unrun obligation.
+Canonical review repairs bind package gap/case/evidence lists to one shared
+construction. Evidence positions have defined roles and exact nonempty text;
+source-linked gaps cannot be removed, duplicated or replaced. Independently
+derived analytical inputs remain editable when their computed values validate.
 
 ```sh
 PYTHONPATH=scripts python3 -m unittest scripts/tests/test_parity_torch_dtype.py -v

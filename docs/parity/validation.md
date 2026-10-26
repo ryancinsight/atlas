@@ -464,3 +464,22 @@ bytes, and all 32 Torch capture artifacts match `3a06bed1` and regenerate
 byte-identically. Markdown links, board index, unchanged 1,000-line backlog
 budget, static compilation and whitespace checks pass. Independent canonical
 exact-head review, hosted checks and source-target execution remain pending.
+
+### Torch canonical review repairs
+
+Independent review of `e09cb3b4` records P2 conditional-evidence weakening and
+P3 scalar error normalization in receipt
+`061f7d35998c1083842a6e6f020b0a66bc141d3d737499cad4ad48f799469f3d`.
+New regressions first reproduce ten failed assertions and three raw TypeErrors;
+that failed observation remains retained. The repaired focused suite passes all
+45 Torch/table tests with zero skips in 24.659 seconds.
+
+One shared construction supplies approved package gap/case/evidence obligations
+to capture and validation. Ordered evidence roles require exact nonempty text;
+missing, duplicate, substituted or weakened obligations reject after real file
+copy/reindex, including the full loader. Valid analytical-input changes remain
+accepted. Scalar base-accessor failures now preserve the original ParityError
+boundary; accepted JSON subclasses and every source artifact remain unchanged.
+These are canonical tooling repairs pending the same reviewer's final-head
+assessment. All 66 target cases and 14 source gaps remain unqualified. Pending
+provider qualifications and protected-owner approval receive no execution credit.

@@ -11,6 +11,7 @@ from atlas_parity_torch_dtype import counts
 from atlas_parity_torch_dtype_capture import PREFIX, PACKET_SHA, REVIEW_SHA, REVISION, SELECTED, ROW_FIELDS, original_bytes
 from atlas_parity_torch_dtype_joins import expected_joins
 from atlas_parity_torch_dtype_oracles import analytical_control
+from atlas_parity_torch_dtype_plan import conditional_packages
 from atlas_parity_torch_dtype_sources import proof
 from atlas_parity_tables import pack
 
@@ -59,25 +60,7 @@ def main():
     assigned = {i: r['id'] for r in mappings.values() for i in r['reference_ids']}
     write('joins.json', expected_joins(selected['contracts.json'], selected['acceptance-cases.json'], caps, mappings, assigned))
     write('source-proof.json', proof(selected['source-registry.json'], selected['source-witnesses.json']))
-    cases = selected['acceptance-cases.json']['records'];gaps = selected['remaining-gaps.json']['records']
-    numeric = {'PT-DTYPE-PROMOTE', 'PT-DTYPE-CANCAST', 'PT-DTYPE-RESULT', 'PT-DTYPE-GET-DEFAULT', 'PT-DTYPE-SET-DEFAULT'}
-    packages = []
-    definitions = [
-      ('TORCH-DTYPE-DEFINITION', 'atlas', [], cases, [g['id'] for g in gaps],
-       ['Resolve public parsing/registry/default-context and native helper source gaps at exact revisions; all10 IDs remain partial.',
-        'Materialize dtype/device/layout/AD/error valid and invalid domains before provider readiness; no unsupported exclusion or new user scope decision.']),
-      ('TORCH-DTYPE-POLICY', 'eunomia', ['TORCH-DTYPE-DEFINITION'], [c for c in cases if c['contract_id'] in numeric],
-       ['G-GENERATED-QUERY', 'G-DTYPE-REGISTRY', 'G-DEFAULT-DOC-CONFLICT', 'G-SCALAR-SYMBOLIC', 'G-CONTEXT'],
-       ['Native typed representation and source-parametric promotion/cast/default policies with explicit ABI/context inputs.',
-        'Execute exact enum/error/rank/wrapped/default analytical and pinned differential cases; metadata canCast is not value preservation or kernel availability.']),
-      ('TORCH-DTYPE-TENSOR', 'coeus', ['TORCH-DTYPE-POLICY'], [c for c in cases if c['contract_id'] not in numeric],
-       ['G-CONVERSION-KERNELS', 'G-TO-BACKWARD', 'G-ADD-GENERATED', 'G-ELEMENTWISE-LOOPS', 'G-REDUCTION-LOOPS', 'G-SUM-ORDER', 'G-DEVICE-LAYOUT', 'G-AD-BACKWARDS'],
-       ['Preserve actual canonical API owners; Coeus facade is a proposal consuming Eunomia policy, Leto arrays, Hermes CPU and Hephaestus devices.',
-        'Use explicit Storage/Compute/Accumulator/Result associated types with rounding, overflow, reduction and conjugation analysis; no hidden widening stand-in.',
-        'Execute payload/alias/complex forward-reverse-higher AD cases and all legal device/layout branches with zero skips/fallback; qualify hardware benchmarks and exact-revision independent/registry/release gates.'])]
-    for identity, owner, dependencies, subset, gap_ids, evidence in definitions:
-        packages.append(dict(id=identity, planned_owner=owner, prerequisites=dependencies, readiness='not_ready_evidence_required',
-            gap_ids=gap_ids, acceptance_case_ids=[c['id'] for c in subset], required_evidence=evidence, actual_implementation_owner=None))
+    packages = conditional_packages(selected)
     configs = [((1,2),(3,-1),(2,1),1),((-2,0),(1,3),(-1,0.5),2),((0,0),(0,0),(0,0),0),
                ((0.5,-1),(2,0.5),(0.5,-2),-0.5),((-4,2),(0.25,-0.5),(4,0),0.25),((0,-0.5),(-1,2),(0,1),-2)]
     controls = [dict(id='TORCH-COMPLEX-ANALYTICAL-' + str(i), source_case_id='ADD-COMPLEX-GRAD',

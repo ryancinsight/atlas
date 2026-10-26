@@ -40,6 +40,24 @@ class String(enum.StrEnum):
     ONE = "one"
 
 
+class ObjectAsInt:
+    @property
+    def __class__(self):
+        return int
+
+
+class IntAsString(int):
+    @property
+    def __class__(self):
+        return str
+
+
+class FloatAsString(float):
+    @property
+    def __class__(self):
+        return str
+
+
 def slow_pack(records):
     """Original canonical-JSON deduplication oracle, without the scalar path."""
     columns = sorted(set().union(*(row.keys() for row in records)))
@@ -147,6 +165,19 @@ class TablesTests(unittest.TestCase):
                 canonical(too_large)
             with self.assertRaisesRegex(ParityError, "finite JSON"):
                 _value_key(too_large)
+
+    def test_class_spoofing_preserves_original_typed_error_boundary(self):
+        for value in [ObjectAsInt(), IntAsString(1), FloatAsString(1.0)]:
+            with self.subTest(actual_type=type(value).__name__):
+                with self.assertRaisesRegex(ParityError, "value is not finite JSON"):
+                    canonical(value)
+                with self.assertRaisesRegex(ParityError, "value is not finite JSON"):
+                    _value_key(value)
+                with self.assertRaisesRegex(ParityError, "value is not finite JSON"):
+                    pack([{'value': value}])
+                table = pack([{'value': 1}]);table['tables']['value'][0] = value
+                with self.assertRaisesRegex(ParityError, "value is not finite JSON"):
+                    unpack(table)
 
 
 if __name__ == "__main__":

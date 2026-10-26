@@ -29,13 +29,13 @@ def _value_key(value):
         return (type(None),)
     if type(value) is bool:
         return (bool, value)
-    if isinstance(value, str):
-        return (str, str.__str__(value))
-    if isinstance(value, int):
-        try:
+    try:
+        if isinstance(value, str):
+            return (str, str.__str__(value))
+        if isinstance(value, int):
             return (int, int.__repr__(value))
-        except ValueError as error:
-            raise ParityError("record table: value is not finite JSON") from error
+    except (TypeError, ValueError) as error:
+        raise ParityError("record table: value is not finite JSON") from error
     return ('json', canonical(value))
 
 
