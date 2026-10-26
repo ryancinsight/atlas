@@ -139,6 +139,36 @@ def test_a_standalone_manifest_is_linted_in_place(tmp_path):
     assert "--workspace" in command and "-p" not in command
 
 
+def test_cargo_directory_keeps_the_exported_overlay_out_of_resolution(tmp_path, monkeypatch):
+    from atlas_target_dir import shared_target_for
+
+    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    export = tmp_path / "export"
+    execution = tmp_path / "execution"
+    execution.mkdir()
+    (export / "src").mkdir(parents=True)
+    (export / ".cargo").mkdir()
+    (export / "Cargo.toml").write_text(
+        '[package]\nname = "overlay-probe"\nversion = "0.1.0"\nedition = "2024"\n'
+    )
+    (export / "src" / "lib.rs").write_text("pub fn answer() -> usize { 42 }\n")
+    (export / "Cargo.lock").write_text(
+        'version = 4\n[[package]]\nname = "overlay-probe"\nversion = "0.1.0"\n'
+    )
+    config = (
+        '[patch."https://github.com/ryancinsight/coeus"]\n'
+        'coeus-leto = { path = "repos/coeus/crates/coeus-leto" }\n'
+    )
+    (export / ".cargo" / "config.toml").write_text(config)
+
+    space = gate.workspace(export, command_cwd=execution)
+
+    assert set(space.names().values()) == {"overlay-probe"}
+    assert space.root == export
+    assert gate.run_clippy(export, ["overlay-probe"], command_cwd=execution) == (0, set())
+    assert (export / ".cargo" / "config.toml").read_text() == config
+
+
 def test_a_cargo_fuzz_crate_builds_with_the_fuzzing_cfg(monkeypatch):
     fuzz = [{"id": "f", "name": "f", "metadata": {"cargo-fuzz": True}}]
     plain = [{"id": "p", "name": "p", "metadata": None}, {"id": "q", "name": "q"}]
@@ -148,6 +178,61 @@ def test_a_cargo_fuzz_crate_builds_with_the_fuzzing_cfg(monkeypatch):
     monkeypatch.delenv("RUSTFLAGS")
     assert gate.clippy_environment(fuzz)["RUSTFLAGS"] == "--cfg fuzzing"
     assert "RUSTFLAGS" not in gate.clippy_environment(plain)
+
+
+@pytest.mark.parametrize("command", ["clippy", "measure"])
+@pytest.mark.parametrize("compiles", [True, False])
+def test_cli_uses_the_command_directory_for_every_cargo_step(tmp_path, monkeypatch, capsys,
+                                                           command, compiles):
+    from atlas_target_dir import shared_target_for
+
+    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    export = (tmp_path / "export").resolve()
+    execution = (tmp_path / "execution").resolve()
+    execution.mkdir()
+    (export / "src").mkdir(parents=True)
+    (export / ".cargo").mkdir()
+    (export / "Cargo.toml").write_text(
+        '[package]\nname = "cwd-probe"\nversion = "0.1.0"\nedition = "2024"\n'
+    )
+    (export / "src" / "lib.rs").write_text(
+        "pub fn widen(value: u8) -> usize { value as usize }\n"
+        if compiles else "pub fn broken() -> usize { missing }\n"
+    )
+    (export / "Cargo.lock").write_text(
+        'version = 4\n[[package]]\nname = "cwd-probe"\nversion = "0.1.0"\n'
+    )
+    config = (
+        '[patch."https://github.com/ryancinsight/coeus"]\n'
+        'coeus-leto = { path = "repos/coeus/crates/coeus-leto" }\n'
+    )
+    (export / ".cargo" / "config.toml").write_text(config)
+    args = [command, "--export", str(export), "--command-cwd", str(execution)]
+    if command == "clippy":
+        sites_file = tmp_path / "sites.json"
+        packages_file = tmp_path / "packages.txt"
+        # Exercise both extra metadata calls, as well as run_clippy's call.
+        args += ["--sites", str(sites_file), "--present-only", "-p", "cwd-probe",
+                 "--packages-out", str(packages_file)]
+    else:
+        args += ["--member", "fixture"]
+
+    expected_status = 0 if compiles else (101 if command == "clippy" else 2)
+    assert gate.main(args) == expected_status
+
+    if command == "clippy":
+        found = gate.read_sites(sites_file)
+        expected = {
+            ("cwd-probe", "src/lib.rs", 1),
+        } if compiles else set()
+        assert {(s.package, s.path, s.line) for s in found} == expected
+        assert len(found) == len(expected)
+        assert packages_file.read_bytes() == b"cwd-probe\n"
+    elif not compiles:
+        assert "clippy did not complete (exit 101)" in capsys.readouterr().err
+    else:
+        assert json.loads(capsys.readouterr().out) == {"fixture": {"cwd-probe": 1}}
+    assert (export / ".cargo" / "config.toml").read_text() == config
 
 
 def test_clippy_runs_a_fuzz_manifest_and_names_its_packages(tmp_path, monkeypatch):

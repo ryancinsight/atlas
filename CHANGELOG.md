@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Fix the shared cast checker's optional `--command-cwd` interface for Clippy,
+  metadata and package enumeration. Preserve the export directory default and
+  cast/compiler failure handling, and record the compiler selected from the
+  actual execution directory. This prerequisite leaves #551's provider cohort,
+  hooks, pins, overlay, locks and required gates unchanged.
+
 - Integrate the independently reviewed TF conversion source boundary in parity
   program 2026-10-26.12, with lossless selected captures, typed live owner/API
   joins and input-sensitive rounding/cotangent controls. Preserve all 30 UNRUN
