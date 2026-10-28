@@ -46,6 +46,13 @@ The base run is the one extra compile, under the same leases.
     atlas_cast_gate.py check --member eunomia --repo <dir> --base <sha> \
         --tip <sha> --package eunomia --sites <file> [--sites ...] \
         [--base-sites <file> ... --base-package eunomia ...]
+
+`--base-package` names the packages the base could hold to a count. The gate
+holds the ones the base's workspace had: a package the base never had carries
+no count there, so its casts are judged by the row that records them, and a
+crate that returns to the workspace brings that debt with it. The membership
+is read from the base revision's own manifests, so a package the push adds is
+absent from it.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
     atlas_cast_gate.py measure --member eunomia --export <dir>
     atlas_cast_gate.py ratchet --repo <atlas> --base <sha> --tip <sha>
@@ -68,6 +75,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import tomllib
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 
@@ -371,6 +379,136 @@ def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
     return list(dict.fromkeys(reasons))
 
 
+def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
+    """The file at `path` in `revision`, or None when the revision has none."""
+    run = subprocess.run(["git", "-C", str(repo), "show", f"{revision}:{path}"],
+                         capture_output=True)
+    if run.returncode != 0:
+        return None
+    return run.stdout.decode("utf-8", errors="replace")
+
+
+def git_manifests(repo: pathlib.Path, revision: str) -> list[str]:
+    """Every manifest path at `revision`."""
+    run = subprocess.run(["git", "-C", str(repo), "ls-tree", "-r", "--name-only", revision],
+                         capture_output=True, check=True)
+    return [line for line in run.stdout.decode("utf-8", errors="replace").splitlines()
+            if line == "Cargo.toml" or line.endswith("/Cargo.toml")]
+
+
+def package_name(manifest: dict) -> str | None:
+    """The package a manifest declares, or None when it declares none."""
+    package = manifest.get("package")
+    if isinstance(package, dict) and isinstance(package.get("name"), str):
+        return package["name"]
+    return None
+
+
+def member_regex(pattern: str) -> re.Pattern[str]:
+    """Cargo's member glob: `*` and `?` stop at a separator, `**` crosses it."""
+    parts: list[str] = []
+    index = 0
+    while index < len(pattern):
+        char = pattern[index]
+        if char == "*":
+            if pattern.startswith("**", index):
+                parts.append(".*")
+                index += 2
+                continue
+            parts.append("[^/]*")
+        elif char == "?":
+            parts.append("[^/]")
+        elif char == "[":
+            end = pattern.find("]", index + 1)
+            if end == -1:
+                parts.append(re.escape(char))
+            else:
+                parts.append(pattern[index:end + 1])
+                index = end + 1
+                continue
+        else:
+            parts.append(re.escape(char))
+        index += 1
+    return re.compile("^" + "".join(parts) + "$")
+
+
+def member_manifests(member: str, manifests: list[str]) -> list[str]:
+    """The manifests a member entry names, under cargo's glob rules."""
+    entry = member.rstrip("/")
+    if not any(char in entry for char in "*?["):
+        path = f"{entry}/Cargo.toml" if entry not in ("", ".") else "Cargo.toml"
+        return [path] if path in manifests else []
+    pattern = member_regex(entry)
+    named = []
+    for manifest in manifests:
+        directory = "" if manifest == "Cargo.toml" else manifest[: -len("/Cargo.toml")]
+        if pattern.match(directory):
+            named.append(manifest)
+    return named
+
+
+def is_excluded(directory: str, pattern: str) -> bool:
+    """Whether a member directory lies under an excluded path."""
+    entry = pattern.rstrip("/")
+    if any(char in entry for char in "*?["):
+        return bool(member_regex(entry).match(directory))
+    return directory == entry or directory.startswith(entry + "/")
+
+
+def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
+    """The packages the workspace at `base` had.
+
+    The root manifest at `base` names the members, and each member manifest
+    names its package. A repository that is one package is its own workspace.
+    """
+    root = git_file(repo, base, "Cargo.toml")
+    if root is None:
+        return frozenset()
+    data = tomllib.loads(root)
+    workspace = data.get("workspace")
+    if not isinstance(workspace, dict):
+        name = package_name(data)
+        return frozenset({name}) if name else frozenset()
+    packages = set()
+    name = package_name(data)
+    if name:
+        packages.add(name)
+    excluded = [entry for entry in workspace.get("exclude", []) if isinstance(entry, str)]
+    manifests = git_manifests(repo, base)
+    for member in workspace.get("members", []):
+        if not isinstance(member, str):
+            continue
+        for manifest in member_manifests(member, manifests):
+            directory = "" if manifest == "Cargo.toml" else manifest[: -len("/Cargo.toml")]
+            if any(is_excluded(directory, entry) for entry in excluded):
+                continue
+            text = git_file(repo, base, manifest)
+            if text is None:
+                continue
+            member_package = package_name(tomllib.loads(text))
+            if member_package:
+                packages.add(member_package)
+    return frozenset(packages)
+
+
+def held_to_base(repo: pathlib.Path, base: str, candidates: Iterable[str],
+                 measured: set[Site]) -> frozenset[str]:
+    """The candidate packages the base can hold to a count.
+
+    A package the base never had carries no count there: its casts are the
+    debt its row in `cast-baseline.json` records, and a crate that returns
+    to the workspace brings that debt with it. The membership is read from
+    the base revision's own manifests, so a package the push adds is absent
+    from it; a package the base measured is present even when its workspace
+    was a nested one.
+    """
+    if not base:
+        return frozenset()
+    present = set(base_workspace_packages(repo, base))
+    present.update(site.package for site in measured)
+    return frozenset(candidates) & present
+
+
 @dataclass(frozen=True)
 class Baseline:
     """Sanctioned conversion and cast modules, and per-package site counts."""
@@ -413,9 +551,8 @@ def violations(member: str, found: set[Site], added: dict[str, set[int]],
     """Why the push fails, one line per violation; empty when it passes.
 
     `base` holds the sites of the pushed range's base, measured with the same
-    selection. Each package in `base_packages` is held to its count there (a
-    package the base lacks counts zero); any other package is held to its row
-    alone.
+    selection. Each package in `base_packages` is held to its count there; any
+    other package is held to its row alone.
     """
     sanctioned = baseline.sanctioned.get(member, frozenset())
     bare = sorted(s for s in found if s.path not in sanctioned)
@@ -490,9 +627,11 @@ def check(args: argparse.Namespace) -> int:
     base: set[Site] = set()
     for path in args.base_sites:
         base |= read_sites(pathlib.Path(path))
-    added = pushed_additions(pathlib.Path(args.repo), args.base or None, args.tip)
+    repo = pathlib.Path(args.repo)
+    added = pushed_additions(repo, args.base or None, args.tip)
+    held = held_to_base(repo, args.base, args.base_package, base)
     problems = violations(args.member, found, added, args.package, baseline, base,
-                          args.base_package)
+                          held)
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:
@@ -602,8 +741,8 @@ def main(argv: list[str] | None = None) -> int:
     gate.add_argument("--base-sites", action="append", default=[],
                       help="a file `clippy` wrote for the range's base")
     gate.add_argument("--base-package", action="append", default=[],
-                      help="a package held to its count at the base; others are held to "
-                           "their rows alone")
+                      help="a package the base can hold to its count; the ones the base "
+                           "never had are held to their rows alone")
     gate.set_defaults(run=check)
     trigger = commands.add_parser(
         "base-triggers", help="print why the range needs the base count; nothing when it does not")
