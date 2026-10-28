@@ -1,12 +1,12 @@
 # atlas — cross-repository integration gap audit
 
-## Finding 2026-10-26: deployed hook calls an unsupported cast-checker argument
+## Finding 2026-10-28: parallel clones leave CI member checkout serial
 
-Risk: the published checker rejects the hook's `--command-cwd` before Cargo,
-and source identity probes the compiler at the source rather than execution
-directory. The compatible checker/identity prerequisite adds real Cargo CLI
-regressions and preserves legacy calls and failure exits; blobless parallel CI member setup preserves pins/history and test budgets. Delivery requires
-unchanged exact-head gates and independent review; #551's cohort remains held.
+Risk: member checkout consumes the fast job's unchanged ten-minute budget;
+`git submodule update --jobs` overlaps clones but not worktree materialization.
+The bounded CI helper freezes every committed direct pin and complete mapping,
+registers serially, then updates four disjoint fresh destinations with root-state
+and error/child-lifetime checks. Closure requires exact-head review and unchanged gates; #551's cohort remains held.
 
 ## Finding 2026-10-26: bounded provider checklists do not define four-framework parity
 

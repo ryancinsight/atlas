@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Materialize CI member worktrees concurrently after serial registration, not
+  only their initial clones. Freeze committed pins/mappings, reject existing
+  or overlapping destinations, preserve root state, and retire owned children
+  on failure/interruption through the existing process-tree supervisor. Retain
+  all Python tests, timeouts, full member history and blob filtering.
+
 - Fix the shared cast checker's optional `--command-cwd` interface for Clippy,
   metadata and package enumeration. Preserve the export directory default and
   cast/compiler failure handling, and record the compiler selected from the
