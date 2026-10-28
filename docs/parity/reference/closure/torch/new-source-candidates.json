@@ -1,0 +1,251 @@
+{
+  "framework": "pytorch",
+  "version": "2.14.1",
+  "source_revision": "5c4886908584029761b579af026dcfb627c84070",
+  "kind_policy": "Source documentation binding; callable/attribute/property identity must be proven against binding definitions, not guessed from name.",
+  "records": [
+    {
+      "symbol": "torch.unsafe_chunk",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_torch_docs.py#L2203",
+      "line": 2203,
+      "signature_text": "unsafe_chunk(input, chunks, dim=0) -> List of Tensors",
+      "source_path": "torch/_torch_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.unsafe_split",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_torch_docs.py#L2220",
+      "line": 2220,
+      "signature_text": "unsafe_split(tensor, split_size_or_sections, dim=0) -> List of Tensors",
+      "source_path": "torch/_torch_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch._assert_async",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_torch_docs.py#L14568",
+      "line": 14568,
+      "signature_text": "_assert_async(tensor) -> void",
+      "source_path": "torch/_torch_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.new_empty_strided",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L151",
+      "line": 151,
+      "signature_text": "new_empty_strided(size, stride, dtype=None, device=None, requires_grad=False, layout=torch.strided, pin_memory=False) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.as_strided_",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L643",
+      "line": 643,
+      "signature_text": "as_strided_(size, stride, storage_offset=None) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.mtia",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L1344",
+      "line": 1344,
+      "signature_text": "mtia(device=None, non_blocking=False, memory_format=torch.preserve_format) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.ipu",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L1364",
+      "line": 1364,
+      "signature_text": "ipu(device=None, non_blocking=False, memory_format=torch.preserve_format) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.as_strided_scatter",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L1569",
+      "line": 1569,
+      "signature_text": "as_strided_scatter(src, size, stride, storage_offset=None) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.exp2",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L1844",
+      "line": 1844,
+      "signature_text": "exp2() -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.exp2_",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L1853",
+      "line": 1853,
+      "signature_text": "exp2_() -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.heaviside_",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L2313",
+      "line": 2313,
+      "signature_text": "heaviside_(values) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.is_neg",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L2760",
+      "line": 2760,
+      "signature_text": "is_neg() -> bool",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.kron",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L2807",
+      "line": 2807,
+      "signature_text": "kron(other) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.put",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L3797",
+      "line": 3797,
+      "signature_text": "put(input, index, source, accumulate=False) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.rad2deg_",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L3911",
+      "line": 3911,
+      "signature_text": "rad2deg_() -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.deg2rad_",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L3929",
+      "line": 3929,
+      "signature_text": "deg2rad_() -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.swapdims_",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L5063",
+      "line": 5063,
+      "signature_text": "swapdims_(dim0, dim1) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.swapaxes_",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L5081",
+      "line": 5081,
+      "signature_text": "swapaxes_(axis0, axis1) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.unsafe_chunk",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L6308",
+      "line": 6308,
+      "signature_text": "unsafe_chunk(chunks, dim=0) -> List of Tensors",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.unsafe_split",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L6317",
+      "line": 6317,
+      "signature_text": "unsafe_split(split_size, dim=0) -> List of Tensors",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.grad_dtype",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L6565",
+      "line": 6565,
+      "signature_text": "The allowed dtype of :attr:``grad`` for this tensor.",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.is_cpu",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L6675",
+      "line": 6675,
+      "signature_text": "Is ``True`` if the Tensor is stored on the CPU, ``False`` otherwise.",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.is_xla",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L6682",
+      "line": 6682,
+      "signature_text": "Is ``True`` if the Tensor is stored on an XLA device, ``False`` otherwise.",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.is_ipu",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L6689",
+      "line": 6689,
+      "signature_text": "Is ``True`` if the Tensor is stored on the IPU, ``False`` otherwise.",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.is_xpu",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L6696",
+      "line": 6696,
+      "signature_text": "Is ``True`` if the Tensor is stored on the XPU, ``False`` otherwise.",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.is_mps",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L6718",
+      "line": 6718,
+      "signature_text": "Is ``True`` if the Tensor is stored on the MPS device, ``False`` otherwise.",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    },
+    {
+      "symbol": "torch.Tensor.to_padded_tensor",
+      "kind": "source:doc-binding",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L6916",
+      "line": 6916,
+      "signature_text": "to_padded_tensor(padding, output_size=None) -> Tensor",
+      "source_path": "torch/_tensor_docs.py",
+      "stability": "exact-release-docstring-public-status-review-required"
+    }
+  ]
+}

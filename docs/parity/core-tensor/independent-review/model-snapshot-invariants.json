@@ -1,0 +1,15 @@
+{
+  "base_mappings": 39,
+  "current_mappings": 76,
+  "added_mappings": 37,
+  "removed_mappings": [],
+  "mutated_existing_mappings": [],
+  "source_contracts": 39,
+  "reuse_rows": [
+    "core-numpy-numpy-shape",
+    "core-numpy-numpy-ndim"
+  ],
+  "added_refs": 37,
+  "current_candidate_revision_files_unchanged": true,
+  "all_new_partial_and_unrun": true
+}

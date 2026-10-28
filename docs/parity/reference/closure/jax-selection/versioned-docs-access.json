@@ -1,0 +1,17 @@
+[
+  {
+    "url": "https://docs.jax.dev/en/jax-v0.12.0.1/jax.stages.html",
+    "status": 403,
+    "outcome": "HTTP error; no exact rendered output obtained"
+  },
+  {
+    "url": "https://docs.jax.dev/en/v0.12.0.1/jax.stages.html",
+    "status": 403,
+    "outcome": "HTTP error; no exact rendered output obtained"
+  },
+  {
+    "url": "https://docs.jax.dev/en/0.12.0.1/jax.stages.html",
+    "status": 403,
+    "outcome": "HTTP error; no exact rendered output obtained"
+  }
+]

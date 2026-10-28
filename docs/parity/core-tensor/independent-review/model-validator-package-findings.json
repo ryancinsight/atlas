@@ -1,0 +1,106 @@
+{
+  "results": [
+    {
+      "case": "positive_control",
+      "outcome": "ACCEPTED",
+      "counts": {
+        "partial_source_endpoints": 39,
+        "unrun_acceptance_cases": 125,
+        "distinct_unrun_source_programs": 118,
+        "reusable_laws": 9,
+        "analytical_witnesses": 8,
+        "wrong_value_probes_rejected": 8,
+        "provider_boundary_contracts": 12,
+        "framework_execution_credit": 0,
+        "whole_api_closure_credit": 0
+      }
+    },
+    {
+      "case": "capture_manifest_role_bypass",
+      "outcome": "REJECTED",
+      "error": "ParityError: core captured source role/path association drift"
+    },
+    {
+      "case": "deleted_source_case_view",
+      "outcome": "REJECTED",
+      "error": "ParityError: core captured source case views lost or duplicated"
+    },
+    {
+      "case": "duplicated_source_case_view",
+      "outcome": "REJECTED",
+      "error": "ParityError: core captured source case views lost or duplicated"
+    },
+    {
+      "case": "cross_endpoint_torch_tf_case",
+      "outcome": "REJECTED",
+      "error": "ParityError: core tensor case source endpoint mismatches canonical API"
+    },
+    {
+      "case": "package_whole_framework_parity",
+      "outcome": "ACCEPTED",
+      "counts": {
+        "partial_source_endpoints": 39,
+        "unrun_acceptance_cases": 125,
+        "distinct_unrun_source_programs": 118,
+        "reusable_laws": 9,
+        "analytical_witnesses": 8,
+        "wrong_value_probes_rejected": 8,
+        "provider_boundary_contracts": 12,
+        "framework_execution_credit": 0,
+        "whole_api_closure_credit": 0
+      }
+    },
+    {
+      "case": "remaining_scope_reduced",
+      "outcome": "ACCEPTED",
+      "counts": {
+        "partial_source_endpoints": 39,
+        "unrun_acceptance_cases": 125,
+        "distinct_unrun_source_programs": 118,
+        "reusable_laws": 9,
+        "analytical_witnesses": 8,
+        "wrong_value_probes_rejected": 8,
+        "provider_boundary_contracts": 12,
+        "framework_execution_credit": 0,
+        "whole_api_closure_credit": 0
+      }
+    },
+    {
+      "case": "package_owner_mismatch",
+      "outcome": "ACCEPTED",
+      "counts": {
+        "partial_source_endpoints": 39,
+        "unrun_acceptance_cases": 125,
+        "distinct_unrun_source_programs": 118,
+        "reusable_laws": 9,
+        "analytical_witnesses": 8,
+        "wrong_value_probes_rejected": 8,
+        "provider_boundary_contracts": 12,
+        "framework_execution_credit": 0,
+        "whole_api_closure_credit": 0
+      }
+    },
+    {
+      "case": "unbounded_package_estimate",
+      "outcome": "ACCEPTED",
+      "counts": {
+        "partial_source_endpoints": 39,
+        "unrun_acceptance_cases": 125,
+        "distinct_unrun_source_programs": 118,
+        "reusable_laws": 9,
+        "analytical_witnesses": 8,
+        "wrong_value_probes_rejected": 8,
+        "provider_boundary_contracts": 12,
+        "framework_execution_credit": 0,
+        "whole_api_closure_credit": 0
+      }
+    }
+  ],
+  "validator_sha256": "823f344fccda8b9fdf3c9180bf48ea5b7878e83dfa8d2b6d3a5456af960f4c0e",
+  "source_manifest_sha256": {
+    "numpy-jax": "7c169acfcb711c3714701f6fde84fea2fe14508c30d3d8148b7e2aca1cee1ea0",
+    "torch-tf": "875d1411199b7762da68d37ad9cc16b5df06a412fe733695d3914007a655457f"
+  },
+  "canonical_provider_writes": 0,
+  "source_or_runtime_acquisitions": 0
+}

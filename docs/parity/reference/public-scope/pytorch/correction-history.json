@@ -1,0 +1,13 @@
+{
+  "base_manifest": "history/base-9ccda309/artifact-manifest.json",
+  "base_manifest_sha256": "9ccda3094a2ae6948fc50824f5d56b75f922a86ad7201ffc49d7d8e088688f2b",
+  "base_scope_sha256": "42c80ab418201bf82a8f31b6bc4f01e89196dce49d969ecdbb77c17de005bcdc",
+  "base_directory_unchanged": "/tmp/atlas-parity-torch-public-scope",
+  "changed_route_count": 10,
+  "other_record_hashes_identical": 9056,
+  "ten_record_non_route_payload_hashes_identical": 10,
+  "scope_counts_identical": true,
+  "primary_identity_count": 9066,
+  "new_prose_candidates_unadmitted": 4,
+  "source_runtime_qualification_credit": 0
+}

@@ -1,0 +1,60 @@
+{
+  "revision": "20ae8d85f6c3aa6a6712e4f0b823b5f066bdc008",
+  "tree": "4741babc0cf80e7ca642f4f8e93006bd8724ead4",
+  "porcelain": "",
+  "counts": {
+    "raw": 38096,
+    "known_required_candidate_views": 37595,
+    "explicit_publicness_unresolved": 498,
+    "internal_candidates_pending_admission_certificate": 3,
+    "proven_internal_admission_exemptions_in_current_gate": 0,
+    "conservative_uncertain_partition_for_future_admission": 501,
+    "documented_extension_hooks": 9,
+    "visibility": {
+      "documented_public": 18396,
+      "public_export_or_view": 19190,
+      "internal_source_candidate": 3,
+      "publicness_unresolved": 498,
+      "documented_extension_hook": 9
+    },
+    "unresolved_by_framework": {
+      "jax": 3,
+      "pytorch": 3,
+      "tensorflow": 492
+    }
+  },
+  "current_gate_definition_blockers": [
+    "numpy: public source extraction incomplete",
+    "jax: public source extraction incomplete",
+    "pytorch: public source extraction incomplete",
+    "tensorflow: public source extraction incomplete",
+    "38094 API declarations lack complete semantic mappings",
+    "498 candidate declarations have unresolved publicness",
+    "2587 candidate declarations lack a planned provider route",
+    "Whole public/export/generated/inherited/prose/companion source coverage remains incomplete for all four references; finite audited gap dispositions do not close that denominator",
+    "Candidate declarations require complete reviewed semantic specification; partial source contracts remain partial",
+    "Concrete provider design contracts and required ADR reviews remain pending, including exact protocol dispatch/lifetime and precision policies",
+    "Implementation envelopes need decomposition and estimates tied to reviewed operation/coverage classes, including newly separated dispatch scope"
+  ],
+  "normalization_safety_probe": {
+    "real_public_reference": "numpy@2.5.4|autosummary-object|numpy.shape|6dfc9f624d7e6926",
+    "actual_before": [
+      "documented_public",
+      "source-API-contract-candidate",
+      "numpy-contract:array-metadata",
+      "preserved-declaration/selector-view"
+    ],
+    "only_changed_field": "visibility=private",
+    "actual_after": [
+      "internal_source_candidate",
+      "source-API-contract-candidate",
+      "numpy-contract:array-metadata",
+      "preserved-declaration/selector-view"
+    ],
+    "source_evidence_changed": false,
+    "interpretation": "This normalizer emits a candidate class, not a proof. Current all-raw obligation policy remains safe; do not use this result alone to exempt an API."
+  },
+  "classified_internal_with_existing_semantic_mapping": [],
+  "canonical_source_writes": 0,
+  "framework_builds_network_actions": 0
+}

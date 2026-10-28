@@ -60,6 +60,31 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r scripts/requirements-test.txt
 
+      - name: Setup recorded fast-suite toolchains
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          # The fixtures select these versions themselves. Finish installation
+          # before xdist workers can concurrently provision the same toolchain.
+          python3 - <<'PY'
+          import re
+          import subprocess
+          import tomllib
+          from pathlib import Path
+
+          required = {}
+          for manifest in ("rust-toolchain.toml", "tools/gitlink-coherence/rust-toolchain.toml"):
+              pin = tomllib.loads(Path(manifest).read_text(encoding="utf-8"))["toolchain"]
+              version = re.match(r"\d+\.\d+\.\d+", pin["channel"])
+              channel = version.group(0) if version else pin["channel"]
+              required.setdefault(channel, set()).update(pin.get("components", []))
+          for channel, components in sorted(required.items()):
+              command = ["rustup", "toolchain", "install", channel, "--profile", "minimal"]
+              for component in sorted(components):
+                  command.extend(("--component", component))
+              subprocess.run(command, check=True)
+          PY
+
       - name: Run pytest (fast)
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"

@@ -1,0 +1,3311 @@
+[
+  {
+    "capabilities": [
+      "ARR-CREATE"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-create",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "INTEROP-DISPATCH",
+      "MEM-OWN",
+      "NUM-PROMOTE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      0
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-LAYOUT"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-metadata",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-CREATE",
+      "CAP-PROOF",
+      "INTEROP-DISPATCH"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      1
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-LAYOUT"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-layout",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-CREATE",
+      "CAP-PROOF",
+      "INTEROP-DISPATCH"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      2
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-INDEX"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-index",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-LAYOUT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      3
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-JOIN"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-join",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-LAYOUT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      4
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-ELEMENT"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-element",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-LAYOUT",
+      "CPU-LANE",
+      "NUM-PROMOTE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      5
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-ELEMENT"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:ufunc-call",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-LAYOUT",
+      "CPU-LANE",
+      "NUM-PROMOTE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      6
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-REDUCE"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:ufunc-fold",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-ELEMENT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      7
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-REDUCE"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-reduce",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-ELEMENT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      8
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-SORT"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-sort",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-INDEX"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      9
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-STATS"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-statistics",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-REDUCE",
+      "ARR-SORT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      10
+    ]
+  },
+  {
+    "capabilities": [
+      "NUM-REP"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:dtype-representation",
+    "implementation_owner_verified": false,
+    "owner_revision": "23c604725507726c090b5d34a724f119de1047a4",
+    "planned_owner": "eunomia",
+    "prerequisites": [],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      11
+    ]
+  },
+  {
+    "capabilities": [
+      "NUM-PROMOTE"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:dtype-promotion",
+    "implementation_owner_verified": false,
+    "owner_revision": "23c604725507726c090b5d34a724f119de1047a4",
+    "planned_owner": "eunomia",
+    "prerequisites": [
+      "NUM-REP"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      12
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-TYPE"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-type",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-CREATE",
+      "ARR-INDEX",
+      "NUM-PROMOTE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      13
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-MASK"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-mask",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-REDUCE",
+      "ARR-TYPE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      14
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-POLY"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-polynomial",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      15
+    ]
+  },
+  {
+    "capabilities": [
+      "LA-DENSE"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:linalg-product",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-LAYOUT",
+      "CPU-LANE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      16
+    ]
+  },
+  {
+    "capabilities": [
+      "LA-DECOMP"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:linalg-decompose",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "LA-DENSE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      17
+    ]
+  },
+  {
+    "capabilities": [
+      "RNG-STREAM"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:random-stream",
+    "implementation_owner_verified": false,
+    "owner_revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+    "planned_owner": "tyche",
+    "prerequisites": [
+      "EXEC-CPU",
+      "NUM-REP"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      18
+    ]
+  },
+  {
+    "capabilities": [
+      "RNG-DIST"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:random-distribution",
+    "implementation_owner_verified": false,
+    "owner_revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+    "planned_owner": "tyche",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "LA-DECOMP",
+      "RNG-STREAM"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      19
+    ]
+  },
+  {
+    "capabilities": [
+      "TR-FFT"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:spectral-transform",
+    "implementation_owner_verified": false,
+    "owner_revision": "3fe4c021a274c33efe21847cec5f7baf67a97d1f",
+    "planned_owner": "apollo",
+    "prerequisites": [
+      "EXEC-CPU",
+      "LA-DENSE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      20
+    ]
+  },
+  {
+    "capabilities": [
+      "INTEROP-DISPATCH"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:interop-dispatch",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "CAP-PROOF",
+      "MEM-OWN"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      21
+    ]
+  },
+  {
+    "capabilities": [
+      "INTEROP-ARRAY"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:interop-array",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-LAYOUT",
+      "CAP-PROOF",
+      "DEV-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      22
+    ]
+  },
+  {
+    "capabilities": [
+      "IO-ARRAY"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:array-persistence",
+    "implementation_owner_verified": false,
+    "owner_revision": "ef082711f3b6087b9d2214d14c2230fbdc79e620",
+    "planned_owner": "consus",
+    "prerequisites": [
+      "ARR-TYPE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      23
+    ]
+  },
+  {
+    "capabilities": [
+      "TOOL-PROFILE"
+    ],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:tooling-test",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DIST-TRAIN",
+      "GRAPH-TRACE",
+      "OPT-SCHED"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      24
+    ]
+  },
+  {
+    "capabilities": [],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:tooling-extension",
+    "implementation_owner_verified": false,
+    "owner_revision": null,
+    "planned_owner": null,
+    "prerequisites": [],
+    "route_state": "ownership_unresolved",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      25
+    ]
+  },
+  {
+    "capabilities": [],
+    "framework": "numpy",
+    "id": "numpy:numpy-contract:scope-private-audit",
+    "implementation_owner_verified": false,
+    "owner_revision": null,
+    "planned_owner": null,
+    "prerequisites": [],
+    "route_state": "ownership_unresolved",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/numpy/contracts.json",
+    "source_entry": [
+      "contracts",
+      26
+    ]
+  },
+  {
+    "capabilities": [
+      "NUM-REP"
+    ],
+    "framework": "jax",
+    "id": "jax:dtype-representation",
+    "implementation_owner_verified": false,
+    "owner_revision": "23c604725507726c090b5d34a724f119de1047a4",
+    "planned_owner": "eunomia",
+    "prerequisites": [],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      0
+    ]
+  },
+  {
+    "capabilities": [
+      "NUM-PROMOTE"
+    ],
+    "framework": "jax",
+    "id": "jax:promotion-casting",
+    "implementation_owner_verified": false,
+    "owner_revision": "23c604725507726c090b5d34a724f119de1047a4",
+    "planned_owner": "eunomia",
+    "prerequisites": [
+      "NUM-REP"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      1
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-CORE"
+    ],
+    "framework": "jax",
+    "id": "jax:tensor-creation",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-LAYOUT",
+      "DEV-CORE",
+      "NUM-PROMOTE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      2
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-CORE"
+    ],
+    "framework": "jax",
+    "id": "jax:tensor-metadata-layout",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-LAYOUT",
+      "DEV-CORE",
+      "NUM-PROMOTE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      3
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "jax",
+    "id": "jax:indexing-updates",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      4
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "jax",
+    "id": "jax:elementwise-numeric",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      5
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "jax",
+    "id": "jax:reductions-statistics",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      6
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "jax",
+    "id": "jax:sorting-sets-selection",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      7
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "jax",
+    "id": "jax:contractions-linalg",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      8
+    ]
+  },
+  {
+    "capabilities": [
+      "LA-ITER"
+    ],
+    "framework": "jax",
+    "id": "jax:iterative-linear-solvers",
+    "implementation_owner_verified": false,
+    "owner_revision": "7e8cace82ef36df5f2130fe7824966d5cadf6429",
+    "planned_owner": "athena",
+    "prerequisites": [
+      "LA-DECOMP",
+      "LA-SPARSE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      9
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "jax",
+    "id": "jax:polynomial-calculus",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      10
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-SPARSE"
+    ],
+    "framework": "jax",
+    "id": "jax:sparse-tensors",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-MASK",
+      "DEV-SPARSE",
+      "LA-SPARSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      11
+    ]
+  },
+  {
+    "capabilities": [
+      "AD-TRANSFORMS"
+    ],
+    "framework": "jax",
+    "id": "jax:spectral-transforms",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-REVERSE",
+      "TR-FFT",
+      "TR-SPECTRAL"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      12
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "jax",
+    "id": "jax:signal-image",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      13
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "jax",
+    "id": "jax:scientific-functions",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      14
+    ]
+  },
+  {
+    "capabilities": [
+      "OPT-UPDATE"
+    ],
+    "framework": "jax",
+    "id": "jax:scientific-optimization",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-REVERSE",
+      "RNG-DIST"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      15
+    ]
+  },
+  {
+    "capabilities": [
+      "RNG-STREAM"
+    ],
+    "framework": "jax",
+    "id": "jax:random-keys-streams",
+    "implementation_owner_verified": false,
+    "owner_revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+    "planned_owner": "tyche",
+    "prerequisites": [
+      "EXEC-CPU",
+      "NUM-REP"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      16
+    ]
+  },
+  {
+    "capabilities": [
+      "RNG-DIST"
+    ],
+    "framework": "jax",
+    "id": "jax:random-sampling",
+    "implementation_owner_verified": false,
+    "owner_revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+    "planned_owner": "tyche",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "LA-DECOMP",
+      "RNG-STREAM"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      17
+    ]
+  },
+  {
+    "capabilities": [
+      "AD-REVERSE"
+    ],
+    "framework": "jax",
+    "id": "jax:reverse-autodiff",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "TEN-OPS"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      18
+    ]
+  },
+  {
+    "capabilities": [
+      "AD-FORWARD"
+    ],
+    "framework": "jax",
+    "id": "jax:forward-autodiff",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-REVERSE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      19
+    ]
+  },
+  {
+    "capabilities": [
+      "AD-HIGHER"
+    ],
+    "framework": "jax",
+    "id": "jax:higher-composed-autodiff",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-FORWARD"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      20
+    ]
+  },
+  {
+    "capabilities": [
+      "AD-TRANSFORM"
+    ],
+    "framework": "jax",
+    "id": "jax:batching-vectorization",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-HIGHER"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      21
+    ]
+  },
+  {
+    "capabilities": [
+      "GRAPH-TRACE"
+    ],
+    "framework": "jax",
+    "id": "jax:trace-ir-control-effects",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-TRANSFORM",
+      "TEN-RESOURCE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      22
+    ]
+  },
+  {
+    "capabilities": [
+      "GRAPH-TRACE"
+    ],
+    "framework": "jax",
+    "id": "jax:pytree-structure",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-TRANSFORM",
+      "TEN-RESOURCE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      23
+    ]
+  },
+  {
+    "capabilities": [
+      "GRAPH-COMPILE"
+    ],
+    "framework": "jax",
+    "id": "jax:jit-aot-compile",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DEV-COMPILE",
+      "GRAPH-TRACE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      24
+    ]
+  },
+  {
+    "capabilities": [
+      "AD-TRANSFORM"
+    ],
+    "framework": "jax",
+    "id": "jax:checkpoint-remat",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-HIGHER"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      25
+    ]
+  },
+  {
+    "capabilities": [
+      "GRAPH-EXPORT"
+    ],
+    "framework": "jax",
+    "id": "jax:export-serialization",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-COMPILE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      26
+    ]
+  },
+  {
+    "capabilities": [
+      "DIST-SHARD"
+    ],
+    "framework": "jax",
+    "id": "jax:mesh-sharding",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DIST-COMMS",
+      "GRAPH-COMPILE",
+      "LOC-PLACE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      27
+    ]
+  },
+  {
+    "capabilities": [
+      "DIST-COMMS"
+    ],
+    "framework": "jax",
+    "id": "jax:collectives-distributed",
+    "implementation_owner_verified": false,
+    "owner_revision": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+    "planned_owner": "moirai",
+    "prerequisites": [
+      "DEV-CORE",
+      "EXEC-CPU"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      28
+    ]
+  },
+  {
+    "capabilities": [
+      "DEV-CORE"
+    ],
+    "framework": "jax",
+    "id": "jax:device-runtime",
+    "implementation_owner_verified": false,
+    "owner_revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+    "planned_owner": "hephaestus",
+    "prerequisites": [
+      "CAP-PROOF",
+      "LOC-PLACE",
+      "MEM-OWN"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      29
+    ]
+  },
+  {
+    "capabilities": [
+      "DEV-COMPILE"
+    ],
+    "framework": "jax",
+    "id": "jax:native-kernel-lowering",
+    "implementation_owner_verified": false,
+    "owner_revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+    "planned_owner": "hephaestus",
+    "prerequisites": [
+      "DEV-DENSE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      30
+    ]
+  },
+  {
+    "capabilities": [
+      "INTEROP-TENSOR"
+    ],
+    "framework": "jax",
+    "id": "jax:tensor-interop-ffi",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-EXPORT",
+      "INTEROP-ARRAY",
+      "IO-CHECKPOINT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      31
+    ]
+  },
+  {
+    "capabilities": [
+      "NN-BASIC"
+    ],
+    "framework": "jax",
+    "id": "jax:neural-functions",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-REVERSE",
+      "TEN-OPS"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      32
+    ]
+  },
+  {
+    "capabilities": [
+      "NN-INIT"
+    ],
+    "framework": "jax",
+    "id": "jax:neural-initializers",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "NN-BASIC",
+      "RNG-DIST"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      33
+    ]
+  },
+  {
+    "capabilities": [
+      "NN-MODULE"
+    ],
+    "framework": "jax",
+    "id": "jax:example-neural-libraries",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-EXPORT",
+      "NN-SEQUENCE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      34
+    ]
+  },
+  {
+    "capabilities": [
+      "OPT-UPDATE"
+    ],
+    "framework": "jax",
+    "id": "jax:training-optimizers",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-REVERSE",
+      "RNG-DIST"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      35
+    ]
+  },
+  {
+    "capabilities": [
+      "TOOL-PROFILE"
+    ],
+    "framework": "jax",
+    "id": "jax:runtime-tooling",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DIST-TRAIN",
+      "GRAPH-TRACE",
+      "OPT-SCHED"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      36
+    ]
+  },
+  {
+    "capabilities": [
+      "COMPAT-LEGACY"
+    ],
+    "framework": "jax",
+    "id": "jax:documented-extension-language",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-TRACE",
+      "INTEROP-TENSOR",
+      "NN-MODULE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      37
+    ]
+  },
+  {
+    "capabilities": [
+      "COMPAT-LEGACY"
+    ],
+    "framework": "jax",
+    "id": "jax:namespace-container",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-TRACE",
+      "INTEROP-TENSOR",
+      "NN-MODULE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/jax/contracts.json",
+    "source_entry": [
+      "contract_groups",
+      38
+    ]
+  },
+  {
+    "capabilities": [
+      "NUM-PROMOTE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-NUMERIC",
+    "implementation_owner_verified": false,
+    "owner_revision": "23c604725507726c090b5d34a724f119de1047a4",
+    "planned_owner": "eunomia",
+    "prerequisites": [
+      "NUM-REP"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-NUMERIC"
+    ]
+  },
+  {
+    "capabilities": [
+      "MEM-OWN"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-MEMORY",
+    "implementation_owner_verified": false,
+    "owner_revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+    "planned_owner": "mnemosyne",
+    "prerequisites": [
+      "NUM-REP"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-MEMORY"
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-CORE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-CREATE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-LAYOUT",
+      "DEV-CORE",
+      "NUM-PROMOTE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-CREATE"
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-CORE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-LAYOUT",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-LAYOUT",
+      "DEV-CORE",
+      "NUM-PROMOTE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-LAYOUT"
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-INDEX",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-INDEX"
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-ELEMENT",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-ELEMENT"
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-REDUCE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-REDUCE"
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-SORT",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-SORT"
+    ]
+  },
+  {
+    "capabilities": [
+      "LA-DECOMP"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-LINALG",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "LA-DENSE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-LINALG"
+    ]
+  },
+  {
+    "capabilities": [
+      "TR-FFT"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-FFT",
+    "implementation_owner_verified": false,
+    "owner_revision": "3fe4c021a274c33efe21847cec5f7baf67a97d1f",
+    "planned_owner": "apollo",
+    "prerequisites": [
+      "EXEC-CPU",
+      "LA-DENSE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-FFT"
+    ]
+  },
+  {
+    "capabilities": [
+      "TR-SPECTRAL"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-SIGNAL",
+    "implementation_owner_verified": false,
+    "owner_revision": "3fe4c021a274c33efe21847cec5f7baf67a97d1f",
+    "planned_owner": "apollo",
+    "prerequisites": [
+      "TR-FFT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-SIGNAL"
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-SPARSE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-SPARSE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-MASK",
+      "DEV-SPARSE",
+      "LA-SPARSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-SPARSE"
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-SPARSE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-NESTED",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-MASK",
+      "DEV-SPARSE",
+      "LA-SPARSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-NESTED"
+    ]
+  },
+  {
+    "capabilities": [
+      "PREC-MIXED"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-QUANT",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "NN-MODULE",
+      "NUM-PROMOTE",
+      "OPT-UPDATE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-QUANT"
+    ]
+  },
+  {
+    "capabilities": [
+      "PREC-MIXED"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-MIXED",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "NN-MODULE",
+      "NUM-PROMOTE",
+      "OPT-UPDATE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-MIXED"
+    ]
+  },
+  {
+    "capabilities": [
+      "AD-REVERSE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-AD-REVERSE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "TEN-OPS"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-AD-REVERSE"
+    ]
+  },
+  {
+    "capabilities": [
+      "AD-FORWARD"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-AD-FORWARD",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-REVERSE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-AD-FORWARD"
+    ]
+  },
+  {
+    "capabilities": [
+      "AD-TRANSFORM"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-TRANSFORMS",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-HIGHER"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-TRANSFORMS"
+    ]
+  },
+  {
+    "capabilities": [
+      "GRAPH-TRACE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-TRACE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-TRANSFORM",
+      "TEN-RESOURCE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-TRACE"
+    ]
+  },
+  {
+    "capabilities": [
+      "GRAPH-COMPILE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-COMPILE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DEV-COMPILE",
+      "GRAPH-TRACE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-COMPILE"
+    ]
+  },
+  {
+    "capabilities": [
+      "GRAPH-EXPORT"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-EXPORT",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-COMPILE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-EXPORT"
+    ]
+  },
+  {
+    "capabilities": [
+      "NN-BASIC"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-NN-BASIC",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-REVERSE",
+      "TEN-OPS"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-NN-BASIC"
+    ]
+  },
+  {
+    "capabilities": [
+      "NN-CONV"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-NN-CONV",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DEV-DENSE",
+      "NN-LINEAR"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-NN-CONV"
+    ]
+  },
+  {
+    "capabilities": [
+      "NN-NORM"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-NN-NORM",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "NN-BASIC"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-NN-NORM"
+    ]
+  },
+  {
+    "capabilities": [
+      "NN-SEQUENCE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-NN-SEQUENCE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "NN-CONV",
+      "NN-LINEAR",
+      "NN-NORM"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-NN-SEQUENCE"
+    ]
+  },
+  {
+    "capabilities": [
+      "NN-MODULE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-NN-MODULE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-EXPORT",
+      "NN-SEQUENCE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-NN-MODULE"
+    ]
+  },
+  {
+    "capabilities": [
+      "NN-INIT"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-NN-INIT",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "NN-BASIC",
+      "RNG-DIST"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-NN-INIT"
+    ]
+  },
+  {
+    "capabilities": [
+      "OPT-UPDATE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-OPT",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-REVERSE",
+      "RNG-DIST"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-OPT"
+    ]
+  },
+  {
+    "capabilities": [
+      "OPT-SCHED"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-SCHED",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "NN-MODULE",
+      "OPT-UPDATE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-SCHED"
+    ]
+  },
+  {
+    "capabilities": [
+      "RNG-STREAM"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-RNG-STREAM",
+    "implementation_owner_verified": false,
+    "owner_revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+    "planned_owner": "tyche",
+    "prerequisites": [
+      "EXEC-CPU",
+      "NUM-REP"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-RNG-STREAM"
+    ]
+  },
+  {
+    "capabilities": [
+      "RNG-DIST"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-RNG-DIST",
+    "implementation_owner_verified": false,
+    "owner_revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+    "planned_owner": "tyche",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "LA-DECOMP",
+      "RNG-STREAM"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-RNG-DIST"
+    ]
+  },
+  {
+    "capabilities": [
+      "DEV-CORE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-DEVICE",
+    "implementation_owner_verified": false,
+    "owner_revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+    "planned_owner": "hephaestus",
+    "prerequisites": [
+      "CAP-PROOF",
+      "LOC-PLACE",
+      "MEM-OWN"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-DEVICE"
+    ]
+  },
+  {
+    "capabilities": [
+      "DEV-RNG"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-DEVICE-RNG",
+    "implementation_owner_verified": false,
+    "owner_revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+    "planned_owner": "hephaestus",
+    "prerequisites": [
+      "DEV-CORE",
+      "RNG-DIST"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-DEVICE-RNG"
+    ]
+  },
+  {
+    "capabilities": [
+      "EXEC-CPU"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-CPU",
+    "implementation_owner_verified": false,
+    "owner_revision": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+    "planned_owner": "moirai",
+    "prerequisites": [
+      "LOC-PLACE",
+      "MEM-OWN"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-CPU"
+    ]
+  },
+  {
+    "capabilities": [
+      "DIST-COMMS"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-COMMS",
+    "implementation_owner_verified": false,
+    "owner_revision": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+    "planned_owner": "moirai",
+    "prerequisites": [
+      "DEV-CORE",
+      "EXEC-CPU"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-COMMS"
+    ]
+  },
+  {
+    "capabilities": [
+      "DIST-SHARD"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-SHARD",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DIST-COMMS",
+      "GRAPH-COMPILE",
+      "LOC-PLACE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-SHARD"
+    ]
+  },
+  {
+    "capabilities": [
+      "DIST-TRAIN"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-DIST-TRAIN",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DIST-SHARD",
+      "OPT-SCHED",
+      "PREC-MIXED"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-DIST-TRAIN"
+    ]
+  },
+  {
+    "capabilities": [
+      "DATA-PIPE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-DATA",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "EXEC-CPU",
+      "IO-ARRAY",
+      "RNG-STREAM"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-DATA"
+    ]
+  },
+  {
+    "capabilities": [
+      "IO-CHECKPOINT"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-CHECKPOINT",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "IO-ARRAY",
+      "NN-MODULE",
+      "OPT-SCHED"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-CHECKPOINT"
+    ]
+  },
+  {
+    "capabilities": [
+      "INTEROP-TENSOR"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-INTEROP",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-EXPORT",
+      "INTEROP-ARRAY",
+      "IO-CHECKPOINT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-INTEROP"
+    ]
+  },
+  {
+    "capabilities": [
+      "INTEROP-DISPATCH"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-EXTENSION",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "CAP-PROOF",
+      "MEM-OWN"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-EXTENSION"
+    ]
+  },
+  {
+    "capabilities": [
+      "DEPLOY-SERVE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-DEPLOY",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DATA-PIPE",
+      "GRAPH-EXPORT",
+      "INTEROP-TENSOR"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-DEPLOY"
+    ]
+  },
+  {
+    "capabilities": [
+      "TOOL-PROFILE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-PROFILE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DIST-TRAIN",
+      "GRAPH-TRACE",
+      "OPT-SCHED"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-PROFILE"
+    ]
+  },
+  {
+    "capabilities": [],
+    "framework": "pytorch",
+    "id": "pytorch:T-TEST",
+    "implementation_owner_verified": false,
+    "owner_revision": null,
+    "planned_owner": null,
+    "prerequisites": [],
+    "route_state": "ownership_unresolved",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-TEST"
+    ]
+  },
+  {
+    "capabilities": [],
+    "framework": "pytorch",
+    "id": "pytorch:T-BENCH",
+    "implementation_owner_verified": false,
+    "owner_revision": null,
+    "planned_owner": null,
+    "prerequisites": [],
+    "route_state": "ownership_unresolved",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-BENCH"
+    ]
+  },
+  {
+    "capabilities": [
+      "COMPAT-LEGACY"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-LEGACY",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-TRACE",
+      "INTEROP-TENSOR",
+      "NN-MODULE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-LEGACY"
+    ]
+  },
+  {
+    "capabilities": [
+      "TOOL-PROFILE"
+    ],
+    "framework": "pytorch",
+    "id": "pytorch:T-TOOLSTATE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DIST-TRAIN",
+      "GRAPH-TRACE",
+      "OPT-SCHED"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/pytorch/contracts.json",
+    "source_entry": [
+      "families",
+      "T-TOOLSTATE"
+    ]
+  },
+  {
+    "capabilities": [
+      "NUM-REP",
+      "NUM-PROMOTE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-DTYPES",
+    "implementation_owner_verified": false,
+    "owner_revision": "23c604725507726c090b5d34a724f119de1047a4",
+    "planned_owner": "eunomia",
+    "prerequisites": [
+      "NUM-REP"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      0
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-CREATE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-ARRAY-CREATE",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "INTEROP-DISPATCH",
+      "MEM-OWN",
+      "NUM-PROMOTE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      1
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-LAYOUT"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-ARRAY-LAYOUT",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-CREATE",
+      "CAP-PROOF",
+      "INTEROP-DISPATCH"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      2
+    ]
+  },
+  {
+    "capabilities": [
+      "ARR-INDEX"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-ARRAY-INDEX",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-LAYOUT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      3
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-CORE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-TENSOR-CORE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-LAYOUT",
+      "DEV-CORE",
+      "NUM-PROMOTE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      4
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-OPS"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-TENSOR-NUMERICS",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "ARR-REDUCE",
+      "DEV-DENSE",
+      "LA-DENSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      5
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-SPARSE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-STRUCTURED",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-MASK",
+      "DEV-SPARSE",
+      "LA-SPARSE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      6
+    ]
+  },
+  {
+    "capabilities": [
+      "TEN-RESOURCE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-STRING-RESOURCE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "ARR-TYPE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      7
+    ]
+  },
+  {
+    "capabilities": [
+      "LA-DENSE",
+      "LA-DECOMP"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-LINALG",
+    "implementation_owner_verified": false,
+    "owner_revision": "074ab891cbc399163539a2f72185754875c8e943",
+    "planned_owner": "leto",
+    "prerequisites": [
+      "ARR-LAYOUT",
+      "CPU-LANE",
+      "LA-DENSE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      8
+    ]
+  },
+  {
+    "capabilities": [
+      "LA-ITER"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-ITERATIVE",
+    "implementation_owner_verified": false,
+    "owner_revision": "7e8cace82ef36df5f2130fe7824966d5cadf6429",
+    "planned_owner": "athena",
+    "prerequisites": [
+      "LA-DECOMP",
+      "LA-SPARSE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      9
+    ]
+  },
+  {
+    "capabilities": [
+      "AD-REVERSE",
+      "AD-FORWARD",
+      "AD-HIGHER",
+      "AD-TRANSFORM"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-AUTODIFF",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-FORWARD",
+      "AD-HIGHER",
+      "AD-REVERSE",
+      "TEN-OPS"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      10
+    ]
+  },
+  {
+    "capabilities": [
+      "GRAPH-TRACE",
+      "GRAPH-COMPILE",
+      "GRAPH-EXPORT"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-GRAPH",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-TRANSFORM",
+      "DEV-COMPILE",
+      "GRAPH-COMPILE",
+      "GRAPH-TRACE",
+      "TEN-RESOURCE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      11
+    ]
+  },
+  {
+    "capabilities": [
+      "TR-FFT",
+      "TR-SPECTRAL"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-SPECTRAL",
+    "implementation_owner_verified": false,
+    "owner_revision": "3fe4c021a274c33efe21847cec5f7baf67a97d1f",
+    "planned_owner": "apollo",
+    "prerequisites": [
+      "EXEC-CPU",
+      "LA-DENSE",
+      "TR-FFT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      12
+    ]
+  },
+  {
+    "capabilities": [
+      "NN-BASIC",
+      "NN-LINEAR",
+      "NN-CONV",
+      "NN-NORM",
+      "NN-SEQUENCE",
+      "NN-MODULE",
+      "NN-INIT"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-NN",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-REVERSE",
+      "DEV-DENSE",
+      "GRAPH-EXPORT",
+      "NN-BASIC",
+      "NN-CONV",
+      "NN-LINEAR",
+      "NN-NORM",
+      "NN-SEQUENCE",
+      "RNG-DIST",
+      "TEN-OPS"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      13
+    ]
+  },
+  {
+    "capabilities": [
+      "OPT-UPDATE",
+      "OPT-SCHED",
+      "PREC-MIXED"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-OPTIMIZERS",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "AD-REVERSE",
+      "NN-MODULE",
+      "NUM-PROMOTE",
+      "OPT-UPDATE",
+      "RNG-DIST"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      14
+    ]
+  },
+  {
+    "capabilities": [
+      "EXEC-CPU"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-EXECUTION",
+    "implementation_owner_verified": false,
+    "owner_revision": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+    "planned_owner": "moirai",
+    "prerequisites": [
+      "LOC-PLACE",
+      "MEM-OWN"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      15
+    ]
+  },
+  {
+    "capabilities": [
+      "DATA-PIPE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-DATA",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "EXEC-CPU",
+      "IO-ARRAY",
+      "RNG-STREAM"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      16
+    ]
+  },
+  {
+    "capabilities": [
+      "RNG-STREAM",
+      "RNG-DIST"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-RANDOM",
+    "implementation_owner_verified": false,
+    "owner_revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+    "planned_owner": "tyche",
+    "prerequisites": [
+      "ARR-ELEMENT",
+      "EXEC-CPU",
+      "LA-DECOMP",
+      "NUM-REP",
+      "RNG-STREAM"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      17
+    ]
+  },
+  {
+    "capabilities": [
+      "DIST-COMMS"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-COLLECTIVES",
+    "implementation_owner_verified": false,
+    "owner_revision": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+    "planned_owner": "moirai",
+    "prerequisites": [
+      "DEV-CORE",
+      "EXEC-CPU"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      18
+    ]
+  },
+  {
+    "capabilities": [
+      "DIST-SHARD",
+      "DIST-TRAIN"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-DISTRIBUTED-TRAIN",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DIST-COMMS",
+      "DIST-SHARD",
+      "GRAPH-COMPILE",
+      "LOC-PLACE",
+      "OPT-SCHED",
+      "PREC-MIXED"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      19
+    ]
+  },
+  {
+    "capabilities": [
+      "DEV-CORE",
+      "DEV-COMPILE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-DEVICE",
+    "implementation_owner_verified": false,
+    "owner_revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+    "planned_owner": "hephaestus",
+    "prerequisites": [
+      "CAP-PROOF",
+      "DEV-DENSE",
+      "LOC-PLACE",
+      "MEM-OWN"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      20
+    ]
+  },
+  {
+    "capabilities": [
+      "IO-ARRAY"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-ARRAY-IO",
+    "implementation_owner_verified": false,
+    "owner_revision": "ef082711f3b6087b9d2214d14c2230fbdc79e620",
+    "planned_owner": "consus",
+    "prerequisites": [
+      "ARR-TYPE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      21
+    ]
+  },
+  {
+    "capabilities": [
+      "IO-CHECKPOINT"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-CHECKPOINT",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "IO-ARRAY",
+      "NN-MODULE",
+      "OPT-SCHED"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      22
+    ]
+  },
+  {
+    "capabilities": [
+      "GRAPH-EXPORT",
+      "DEPLOY-SERVE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-SAVEDMODEL",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DATA-PIPE",
+      "GRAPH-COMPILE",
+      "GRAPH-EXPORT",
+      "INTEROP-TENSOR"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      23
+    ]
+  },
+  {
+    "capabilities": [
+      "DEPLOY-SERVE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-MOBILE",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DATA-PIPE",
+      "GRAPH-EXPORT",
+      "INTEROP-TENSOR"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      24
+    ]
+  },
+  {
+    "capabilities": [
+      "DEPLOY-SERVE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-SERVING",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DATA-PIPE",
+      "GRAPH-EXPORT",
+      "INTEROP-TENSOR"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      25
+    ]
+  },
+  {
+    "capabilities": [
+      "DEPLOY-SERVE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-BROWSER",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DATA-PIPE",
+      "GRAPH-EXPORT",
+      "INTEROP-TENSOR"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      26
+    ]
+  },
+  {
+    "capabilities": [
+      "INTEROP-TENSOR"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-INTEROP",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-EXPORT",
+      "INTEROP-ARRAY",
+      "IO-CHECKPOINT"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      27
+    ]
+  },
+  {
+    "capabilities": [
+      "TOOL-PROFILE"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-TOOLING",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "DIST-TRAIN",
+      "GRAPH-TRACE",
+      "OPT-SCHED"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      28
+    ]
+  },
+  {
+    "capabilities": [],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-BENCHMARK",
+    "implementation_owner_verified": false,
+    "owner_revision": null,
+    "planned_owner": null,
+    "prerequisites": [],
+    "route_state": "ownership_unresolved",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      29
+    ]
+  },
+  {
+    "capabilities": [
+      "COMPAT-LEGACY"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-LEGACY",
+    "implementation_owner_verified": false,
+    "owner_revision": "57f7c4596884949e15815659544096b62c570d85",
+    "planned_owner": "coeus",
+    "prerequisites": [
+      "GRAPH-TRACE",
+      "INTEROP-TENSOR",
+      "NN-MODULE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      30
+    ]
+  },
+  {
+    "capabilities": [
+      "IO-ARRAY"
+    ],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-SCHEMAS",
+    "implementation_owner_verified": false,
+    "owner_revision": "ef082711f3b6087b9d2214d14c2230fbdc79e620",
+    "planned_owner": "consus",
+    "prerequisites": [
+      "ARR-TYPE",
+      "TEN-CORE"
+    ],
+    "route_state": "canonical_family_proposal",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      31
+    ]
+  },
+  {
+    "capabilities": [],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-SCOPE-UNRESOLVED",
+    "implementation_owner_verified": false,
+    "owner_revision": null,
+    "planned_owner": null,
+    "prerequisites": [],
+    "route_state": "ownership_unresolved",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      32
+    ]
+  },
+  {
+    "capabilities": [],
+    "framework": "tensorflow",
+    "id": "tensorflow:TF-PRIVATE-IMPLEMENTATION",
+    "implementation_owner_verified": false,
+    "owner_revision": null,
+    "planned_owner": null,
+    "prerequisites": [],
+    "route_state": "ownership_unresolved",
+    "semantic_definition_complete": false,
+    "signature_variants_and_effects": "Per-reference source detail; no shared-name equivalence",
+    "source_artifact": "reference/public-scope/tensorflow/contracts.json",
+    "source_entry": [
+      "families",
+      33
+    ]
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "records": [
+    {
+      "framework": "pytorch",
+      "symbol": "torch.Tensor.new_empty_strided",
+      "contract": "Tensor-new_empty_strided",
+      "reason": "No frozen candidate identity yet; retained as source-contract endpoint candidate, not excluded"
+    }
+  ],
+  "excluded_from_scope": false
+}

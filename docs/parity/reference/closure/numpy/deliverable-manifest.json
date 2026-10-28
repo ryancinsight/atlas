@@ -1,0 +1,85 @@
+{
+  "frozen_version": "2.5.4",
+  "frozen_revision": "a3d0ef1df045b858e68115001fdabc930bb3b68c",
+  "canonical_atlas_files_edited": false,
+  "numpy_imported_or_built": false,
+  "full_inventory_complete": false,
+  "source_files_hash_verified": 437,
+  "metadata_definition_status": {
+    "ndim": "source-only-specified-candidate-awaiting-independent-review",
+    "shape": "source-only-specified-candidate-awaiting-independent-review",
+    "size": "partial-reference-definedness-and-build-contract-open"
+  },
+  "artifacts": [
+    {
+      "path": "gap-dispositions.json",
+      "sha256": "ce6486033eea4df21f2975c2f3b9167969b0158b2d7c3de1fb497b8d0b4a77f8",
+      "bytes": 62499
+    },
+    {
+      "path": "static-candidates.json",
+      "sha256": "b87da6a65412d891ab7d50e80f032b8e6d971716a43806d3778b6b155effd7ab",
+      "bytes": 3381311
+    },
+    {
+      "path": "constructor-contracts.json",
+      "sha256": "3e24a1045e64578be8f281eb0be3a3e451d6e589dbe7c177b11355ac1fa24a45",
+      "bytes": 38296
+    },
+    {
+      "path": "metadata-contracts.json",
+      "sha256": "6ac531c7f8aa8025d78f3c1769bcd0bcdfa01e59f23b8b4b28a42d523ec7fb7f",
+      "bytes": 63231
+    },
+    {
+      "path": "metadata-checker-witnesses.json",
+      "sha256": "3956d573da31042b397ff96cf64348c87d55264e5c13b69d1086fc3cfcf9ceff",
+      "bytes": 4323
+    },
+    {
+      "path": "source-comparison-2.5.0-to-2.5.4.json",
+      "sha256": "5221a24807c4b2d559bf7e9142fb84e54519297856f1b1bbb4db8787a80a43b2",
+      "bytes": 620605
+    },
+    {
+      "path": "machine-assertions.json",
+      "sha256": "68ad057737270d8b24d26a8fad550bcbf1cda74a1b55fcaeeda243c9af68e8c1",
+      "bytes": 375
+    },
+    {
+      "path": "sources.json",
+      "sha256": "a24a88403a93f0114c35bb60df969a8d2c0ac843a202423b9cf8970d62d93b9d",
+      "bytes": 145951
+    },
+    {
+      "path": "tooling-sources.json",
+      "sha256": "a7a6473fa0421a8c5bb29a6636ec67b58ad89ad2906d5b6d85808d01f4e9a0c2",
+      "bytes": 1482
+    },
+    {
+      "path": "requested-sources.json",
+      "sha256": "7e6211d9b4d2a20e5e71ad249e0c756327e8ad9bc4d24b5f0708a34302171371",
+      "bytes": 20776
+    },
+    {
+      "path": "metadata_contracts.py",
+      "sha256": "e6f145f467ccf26f12802a7b13d2cf8c3102fb15a2b10d87ad168598cd6df50a",
+      "bytes": 31040
+    },
+    {
+      "path": "metadata_witnesses.py",
+      "sha256": "6420beccd63aa7af76126d063cca65c86ce02fd528900eb9bda2a7d892b812aa",
+      "bytes": 8266
+    },
+    {
+      "path": "verify_closure.py",
+      "sha256": "6a296b9183dd5491c669e5260aa3946cb25cf5c9b0958a16ec483e680041963b",
+      "bytes": 9228
+    },
+    {
+      "path": "README.md",
+      "sha256": "bb74eef85be85da68fd41264beba1224752da2d7563baef8e3ca817b4d29ee9f",
+      "bytes": 10184
+    }
+  ]
+}

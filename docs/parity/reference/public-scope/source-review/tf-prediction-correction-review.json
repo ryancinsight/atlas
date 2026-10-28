@@ -1,0 +1,80 @@
+{
+  "blocking_findings": [],
+  "independent_checks": {
+    "adversarial_rejections": 7,
+    "application_route_rows": 34,
+    "bounded_changed_rows": 520,
+    "changed_field_histogram": {
+      "application_workflow_profile_ref": 34,
+      "documentation": 486,
+      "family_id": 520,
+      "family_routing_basis": 520,
+      "family_routing_confidence": 520,
+      "implementation_owner": 17,
+      "implementation_owner_status": 17,
+      "ownership_correction_history": 34,
+      "planned_accountable_owner": 34,
+      "planned_capability": 34,
+      "private_exclusion_authorized": 486,
+      "publicness_review_ref": 486,
+      "publicness_status": 486,
+      "scope_class": 486,
+      "scope_confidence": 486,
+      "scope_correction_history": 486,
+      "scope_reasons": 486
+    },
+    "declaration_ids_retained": 24589,
+    "distinct_spellings_retained": 23379,
+    "frozen_earlier_artifacts_unchanged": 213,
+    "independent_future_specs_unrun": 11,
+    "input_artifacts_matched_original_locators": 14,
+    "manifest_artifacts_verified": 73,
+    "original_exception_rows_retained": 1992,
+    "other_whole_rows_byte_semantics_unchanged": 24069,
+    "pinned_source_blobs_verified_against_frozen_git_trees": 39,
+    "publicness_conflict_rows": 486,
+    "qualification_states_advanced": 0,
+    "replay_artifacts_byte_identical": 73,
+    "replay_manifest_identical": true,
+    "source_anchor_uses_verified": 120,
+    "source_profiles": {
+      "APP-PREDICTION-DECODE": 17,
+      "APP-PREPROCESS-CAFFE": 4,
+      "APP-PREPROCESS-IDENTITY": 4,
+      "APP-PREPROCESS-MODE-SELECTOR": 1,
+      "APP-PREPROCESS-TF": 7,
+      "APP-PREPROCESS-TORCH": 1
+    },
+    "static_assertions_passed": 10,
+    "unique_anchors_verified": 68,
+    "unresolved_exception_identities": 2345,
+    "unresolved_exception_rows": 2495
+  },
+  "prohibited_actions_executed": {
+    "canonical_provider_writes": false,
+    "framework_imports_builds": false,
+    "frozen_package_writes": false,
+    "network": false
+  },
+  "remaining_obligations": [
+    "All486 internal/public-golden conflicts remain publicness-unresolved with zero exclusions.",
+    "All2495 rows/2345 identities retain unresolved actual implementation owners; no ADR/codeowner approval.",
+    "All11 acceptance specs remain unrun; dtype/device/layout/mutation/gradient/error/cache/top/tie/NaN policies need exact contracts and executed evidence.",
+    "Broader unchanged lexical routes and full public denominator/source extraction remain unaudited.",
+    "Exact integrated canonical revision must rerun schema/count/link and required code review gates."
+  ],
+  "replay": {
+    "command": [
+      "/opt/homebrew/opt/python@3.14/bin/python3.14",
+      "/tmp/atlas-parity-final-source-review/tf-prediction-correction/replay_offline.py"
+    ],
+    "directory": "/tmp/atlas-parity-final-source-review/tf-prediction-correction",
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "{\"step\": \"build_routes.py\", \"result\": \"pass\"}\n{\"step\": \"build_correction.py\", \"result\": \"pass\"}\n{\"step\": \"machine_assertions.py\", \"result\": \"pass\"}\n{\"step\": \"finalize_handoff.py\", \"result\": \"pass\"}\n{\"manifest_sha256\": \"d77a5a48b659532b354c880d081369998a1a9278ea3439d7067bc8907922a2b4\", \"manifest\": \"/private/tmp/atlas-parity-final-source-review/tf-prediction-correction/manifest.json\"}\n"
+  },
+  "result": "accept_source_route_and_conservation_proposal",
+  "reviewed_manifest_sha256": "d77a5a48b659532b354c880d081369998a1a9278ea3439d7067bc8907922a2b4",
+  "reviewer": "provider_evidence_audit",
+  "scope_conclusion": "Accept exact source binding/profile and bounded correction proposal only. Coeus TEN-OPS proposed accountability, Leto ranking/array operations and Consus asset transport are supported planning boundaries. Actual ownership remains unresolved. Alias/source-view relations are not semantic equivalence."
+}

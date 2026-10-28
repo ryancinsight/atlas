@@ -1,0 +1,574 @@
+{
+  "artifacts": [
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/gap-dispositions.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "ce6486033eea4df21f2975c2f3b9167969b0158b2d7c3de1fb497b8d0b4a77f8"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/static-candidates.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "b87da6a65412d891ab7d50e80f032b8e6d971716a43806d3778b6b155effd7ab"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/constructor-contracts.json",
+      "public_surface_complete": false,
+      "role": "partial_semantic_contract",
+      "sha256": "3e24a1045e64578be8f281eb0be3a3e451d6e589dbe7c177b11355ac1fa24a45"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/machine-assertions.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "68ad057737270d8b24d26a8fad550bcbf1cda74a1b55fcaeeda243c9af68e8c1"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/sources.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "a24a88403a93f0114c35bb60df969a8d2c0ac843a202423b9cf8970d62d93b9d"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/requested-sources.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "7e6211d9b4d2a20e5e71ad249e0c756327e8ad9bc4d24b5f0708a34302171371"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/tooling-sources.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "a7a6473fa0421a8c5bb29a6636ec67b58ad89ad2906d5b6d85808d01f4e9a0c2"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/official-inventory-probes.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "82d42a78e3e92998cb1acb67ab0892947ace885f273ad91a18eebc6c11db943e"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/metadata-contracts.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "6ac531c7f8aa8025d78f3c1769bcd0bcdfa01e59f23b8b4b28a42d523ec7fb7f"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/deliverable-manifest.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "faadd0dd90283f8be308179a085cd646e32f9290f486bb738f7cd2686389895c"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/mirror-provenance.json",
+      "public_surface_complete": false,
+      "role": "supplemental_older_documentation_not_frozen_semantics",
+      "sha256": "48f0e10cde60c0459ded4a516ed24f93bfc96dc751d0511c375ee2c27da3c2e1"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/mirror-inventory-2.5.0.json",
+      "public_surface_complete": false,
+      "role": "supplemental_older_documentation_not_frozen_semantics",
+      "sha256": "e1394431091510753f6477f0e6c47e1500f5eb9223a4261a29b06f2fff5811c7"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax/autodoc-dispositions.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "21d1a29da8b74d8c10d05c04e6813b3caacae4401e5feafda61fbf1307bfb1e8"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax/namespace-audit.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "d0a392bd292d089955215f72f6d89d204b53f6c689f76b1b9860025706ccc680"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax/review-ready-additions.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "2fe2d177b8971c4d8e065321a7e9b2f30d8816919b75e7db7d34104fa11c4cab"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax/constructor-semantics.json",
+      "public_surface_complete": false,
+      "role": "partial_semantic_contract",
+      "sha256": "b2ac4deabe28c63363a68070574f57f959f3ffeb06ed81bdc70f31521e2af137"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax/counts.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "112902bcb42235d268e57a1cf8b56424ca456b3f725f7ccef0a8717feca8258c"
+    },
+    {
+      "framework": "torch",
+      "path": "reference/closure/torch/closure-summary.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "e526a9ef56bc02fab2dced1358748e1f24390ef9335827c5a24a0c56326db886"
+    },
+    {
+      "framework": "torch",
+      "path": "reference/closure/torch/input-manifest.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "c553824cb5dd5c7e782cf508ac4725535d98716393ba4ae6b05e0b83789fdbbf"
+    },
+    {
+      "framework": "torch",
+      "path": "reference/closure/torch/source-supplement.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "0f7769acf9159e9e41c421ee97cd6a43cf696978fcf35dc6b6d81f728fc96878"
+    },
+    {
+      "framework": "torch",
+      "path": "reference/closure/torch/new-source-candidates.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "03f72d0a976249ada3f7a2ebb94c3562f789789a462b34c3e7fb61bc5a25aacc"
+    },
+    {
+      "framework": "torch",
+      "path": "reference/closure/torch/constructor-contracts.json",
+      "public_surface_complete": false,
+      "role": "partial_semantic_contract",
+      "sha256": "779576b6d6ed3a3c59c62d22fc0b0f3f7512f8883bfbc7e072866841220d2b59"
+    },
+    {
+      "framework": "torch",
+      "path": "reference/closure/torch/verification.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "67eff507eb3198362a0900fd06bd065e2eb51a70bbd6ae0d3f2cd23e4027132f"
+    },
+    {
+      "framework": "torch",
+      "path": "reference/closure/torch/scope-summary.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "6c85c7eb547e84d7e06033e924fae95bced5bef4782d594cadbea163f7bfb9e9"
+    },
+    {
+      "framework": "tf",
+      "path": "reference/closure/tf/source-completeness-manifest.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "5339b3bc75ba047f7b3a9fcb9a9af3ca487e52bd62d23f3a9538965067688b96"
+    },
+    {
+      "framework": "tf",
+      "path": "reference/closure/tf/tensorflow-source-manifest.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "3bb8a830723a5530918a9fbb5c6736d9aabb2c5f643b7509b0e9c53108e10416"
+    },
+    {
+      "framework": "tf",
+      "path": "reference/closure/tf/keras-source-manifest.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "590245e7629eba74d56ff20c26afff8204db1c4925be5defe0ba96bd1b8a1148"
+    },
+    {
+      "framework": "tf",
+      "path": "reference/closure/tf/declaration-relations.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "602a9946f22a311fd2b565114926b7a65f78dd7a32893dd0644c4de1d7cd5b9c"
+    },
+    {
+      "framework": "tf",
+      "path": "reference/closure/tf/keras-reachable-exports.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "b4463b1b6d735e568b5b06f12e17c89963364621bb4244ecbcb43f0b7bded364"
+    },
+    {
+      "framework": "tf",
+      "path": "reference/closure/tf/keras-inherited-members.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "0684a113a2ac3ddfbc63249e80cb6528b1b19a034557e65e4500de8ecfdc8fc5"
+    },
+    {
+      "framework": "tf",
+      "path": "reference/closure/tf/constructor-contracts.json",
+      "public_surface_complete": false,
+      "role": "partial_semantic_contract",
+      "sha256": "e25ff4ecc68cd5635b9fb6d8c7763f4c224459b454f58564fced46a9e71d418c"
+    },
+    {
+      "framework": "tf",
+      "path": "reference/closure/tf/missing-export-candidates.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "e7464f4c0d25421326051be67ceb27a92567bf349830b54091b3f6dfeb989117"
+    },
+    {
+      "framework": "tf",
+      "path": "reference/closure/tf/live-doc-observation.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "fd385707ae8d3f6ebdc2fda37fa6a9eac444f4b2b6baaf17bb4b5139678027e0"
+    },
+    {
+      "framework": "tf",
+      "path": "reference/closure/tf/assertion-results.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "c7c22cb9af2e1a2b3d5ccfed74c5843c91ca20d08bd775aa7c28f21bf41ad084"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/source-comparison-2.5.0-to-2.5.4.json",
+      "public_surface_complete": false,
+      "role": "supplemental_older_documentation_not_frozen_semantics",
+      "sha256": "5221a24807c4b2d559bf7e9142fb84e54519297856f1b1bbb4db8787a80a43b2"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/source-v2.5.0-provenance.json",
+      "public_surface_complete": false,
+      "role": "supplemental_older_documentation_not_frozen_semantics",
+      "sha256": "2d946b8f1fbd0ba90fb433b52b7ef9c89bc26871dab56bb075c617984133a029"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy/metadata-checker-witnesses.json",
+      "public_surface_complete": false,
+      "role": "source_closure_evidence",
+      "sha256": "3956d573da31042b397ff96cf64348c87d55264e5c13b69d1086fc3cfcf9ceff"
+    },
+    {
+      "framework": "cross-framework",
+      "path": "reference/closure/unmatched-contract-endpoints.json",
+      "public_surface_complete": false,
+      "role": "unresolved_endpoint_candidates_retained",
+      "sha256": "27c2ee3a7608d11501784ecb6b4641cecdca3e907b277eb82b9294b137b66d41"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax-selection/selection-dispositions.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "8bef69241d643505a2bab19cc16cccb242d1105f4081b53f41ca475b772b7f6f"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax-selection/tooling-sources.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "ba5bbaff68be9f0ffcf59879cdf3091e0a7157d63e15f589b14ed5b74bbe837f"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax-selection/versioned-docs-access.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "4c9f61704d405cb09c5f6629db8bd1e5872c83f9642dcaafa5189dd5005b9571"
+    },
+    {
+      "framework": "jax",
+      "path": "reference/closure/jax-selection/sphinx-pypi.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "34acc3a045c37cdb604ea7437a4d5919a2f06777b42981aae3e04eeeb134cef2"
+    },
+    {
+      "framework": "pytorch",
+      "path": "reference/closure/torch-new-tensor/contract.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "ab23b5bd7e57d3d73864408873d8d651b19f5bd24556b3a4c5972e64f09a97d3"
+    },
+    {
+      "framework": "pytorch",
+      "path": "reference/closure/torch-new-tensor/acceptance-cases.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "03563decbaaf36923dbd50bc11f28d4cc0f6d872a17ecd56eeec902a954b2a5a"
+    },
+    {
+      "framework": "pytorch",
+      "path": "reference/closure/torch-new-tensor/sources.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "0df268d60158963b2de00032e67aaba0ed911b866b561bb0805c489f146d99d0"
+    },
+    {
+      "framework": "pytorch",
+      "path": "reference/closure/torch-new-tensor/verification.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "805f23b7bfe398d95ae359d9273822208f8a4dab96290764caa3c307ca2b5d11"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/artifact-provenance.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "1dcb66577b04c3fffd3b30edc187c88c0c17608b3eafc27156c35460b177e3e4"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/assertion-results.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "ebda2b9b9dce2a35134748914ee156402a6c2256c7d8b5f5e925b23278968ea1"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/git-source-verification.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "105a059cd25280d847558c3e1e0a6070090957342611a6b7daf0a7012e3c1d4e"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/manifest.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "6f78f46e7e4aee5383574804bc2c695910555f17fc59e0178c3d4b088d359181"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/official-doc-observations.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "5fd0506cc295450cbe13759c4adca583bc0f9d7cd7476e64675d88045d82324f"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/packaged-module-exports.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "f17ac9db5af1ba9b72b7900fef0c64404f58b97a1a908b15151984ef6f8fd99d"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/pypi-keras-3.15.1.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "eb34e1011c92ba64aa4bd8918a971cdf4fb0b8990f9848b3c9d265cec7669304"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/record-verification.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "b1258560299aae05676d769cede48800aa548bb3471aa0a1dd5f277a75b9a7de"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/saving-acceptance-specifications.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "182dd6d8c3887bbb9bc49ec77ac461fdfdb1b4c32e58e9b871884424f490abaa"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/saving-endpoint-resolution.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "af9f4fad15f3270692aef616729dee0319dd35fe4033e3a67fca8c870d693ffc"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/source-witnesses.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "9609549fcd35a484a3dd1f1fa48a7b85d5c80774d111cfe57b9d24851bf9122a"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/submodule-importers.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "a8ba3c82144d1bee82a7b3040cb5189b7be6d459fcfa8265fd76a2eae159392e"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/wheel-source-correspondence.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "589041d12e7f21f1cce16b1d963b31d736c5799af2043ad616d7cc84bde8c2b5"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/inputs/keras-tree.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "4ba66941cfd30b008418dab1162e98b6c6b709659d5f94cdb55332be1d9cafd0"
+    },
+    {
+      "framework": "tensorflow",
+      "path": "reference/closure/keras-saving/inputs/retained-endpoint-names.json",
+      "public_surface_complete": false,
+      "role": "bounded_source_disposition",
+      "sha256": "99e3da914975e6448b3aed1a4d0f12a7e5546ff21fa5c47421af130cbcf13b56"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/bounded-completeness.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "d01fbe7486cdaf69e8bf386ddcb5da875575dbedef9a4efb23c4101dd34f0efc"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/documentation-dispositions.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "d02797079afa4b1846a33cbe801256b0ac640bf0c658281ab3b6e8a2448ace71"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/handoff-manifest.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "55c5c5143f99a42cad243328de9c3a3d9a03d33b42f5530f837fc766df082a85"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/identity-input-comparison.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "c336ea659df34e462b7fd259efd587faa6cd482f829a64da527faa8a8e6b5e9a"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/remaining-scope.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "dde39acf663784c8ddff4614eeccab8115f8336f2fe1f87da2de953c8feae90e"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/requested-sources.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "15e37aead0f31fe54205fa7eca47f94cf4542a4d892ec06a6063fd4cfbf717fb"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/source-manifest.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "08617c225a85696c6f980bdea061cc84eb7aaa309a7be13e5720884b9356cb54"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/ufunc-bindings.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "8fb8d70201c1e62dd6f9534084be0b88344bf45fb4a79d83f9e669f25e943c9e"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/ufunc-expansions.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "6198d6bc2545e2d6f6053237546350622cc00a2c76bd5e476971578cada0d9cc"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/ufunc-members.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "145a16d60508232f5e23fdda8e8af27d2705b893cb94a182fea3eb366c562ec7"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/ufunc-objects.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "4c2c386915fda9cbf87c172a2d5045dc20f0f39203d7c2a12897b519099cdefe"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/verification-report.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "0218cae131e967919cace27d7e06598622f71b066ef15ef506ee969a36f16fef"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/inputs/manifest.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "5da68f0bd003eac1fec127d534d39eb7a0de9787e2123dfa1d036f90e4eef899"
+    },
+    {
+      "framework": "numpy",
+      "path": "reference/closure/numpy-ufunc/comparison-source/manifest.json",
+      "public_surface_complete": false,
+      "role": "bounded_generated_member_disposition",
+      "sha256": "1d9addd64319ba8d97c6443e9c1703e5de4cb366276427acb24513ed14666bd2"
+    }
+  ],
+  "baselines": {
+    "jax": {
+      "inventory_sha256": "ce7362f1540e4d60060768f5177feb34e3e37cb2e645edaaafe91634585d2c34",
+      "source_revision": "dc4af684446e65ee98eee8090e1ff6f8211473fb",
+      "version": "0.12.0.1"
+    },
+    "numpy": {
+      "inventory_sha256": "08ad3236974e650b76f33ecac6e80e7be41ae94daf7c6eb9c9a76c6b7c8eb2cd",
+      "source_revision": "a3d0ef1df045b858e68115001fdabc930bb3b68c",
+      "version": "2.5.4"
+    },
+    "pytorch": {
+      "inventory_sha256": "9b7339ea2c74a4b50cc676ce6684eb55ac2a96561f959b45da0206b14b79eea2",
+      "source_revision": "5c4886908584029761b579af026dcfb627c84070",
+      "version": "2.14.1"
+    },
+    "tensorflow": {
+      "inventory_sha256": "2c897d3e656483964fc733742a6d4d79de1851a222d88219f227116a8a80830b",
+      "source_revision": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+      "version": "2.21.0"
+    }
+  },
+  "binding_and_relation_candidates_are_capabilities": false,
+  "execution_verification": false,
+  "program_version": "2026-10-26.4",
+  "public_surface_complete": false,
+  "schema_version": 1,
+  "scope": "Source closure audits and partial semantic specifications; no source relation is automatic functional equivalence. Original snapshots remain immutable.",
+  "semantic_mapping_complete": false,
+  "source_disposition_counts": {
+    "jax_closed_false_positives": 90,
+    "jax_open_selection_or_partial_sets": 29,
+    "jax_original_gaps": 119,
+    "jax_partial_retained": 24,
+    "jax_rendered_selection_pending_sets": 5,
+    "jax_resolved_member_sets": 5,
+    "numpy_disposed": 65,
+    "numpy_original_gaps": 65
+  },
+  "unresolved_scope": [
+    "All per-framework public export/build/inheritance/prose dispositions not yet closed",
+    "Source aliases or same spelling are not proof of equal semantics",
+    "Constructor proposals retain explicit unclosed dtype/device/layout/gradient/compiler/error classes",
+    "No reference/Atlas runtime differential, device/performance/release evidence produced"
+  ]
+}

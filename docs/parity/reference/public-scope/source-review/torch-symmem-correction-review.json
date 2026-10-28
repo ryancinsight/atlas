@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "decision": "accept_source_routing_correction_and_unadmitted_gap_annex",
+  "blocking_findings": [],
+  "correction_manifest_sha256": "3e7607117563e6f8dd0b69d1bf679d2026e421153b5969dc4fb0a2b79b084cf3",
+  "original_manifest_sha256": "9ccda3094a2ae6948fc50824f5d56b75f922a86ad7201ffc49d7d8e088688f2b",
+  "original_and_correction_artifacts_unchanged": true,
+  "manifest_entries_verified": {
+    "original": 33,
+    "correction": 39
+  },
+  "independent_row_comparison": {
+    "identities": 9066,
+    "route_changed_rows": 10,
+    "other_rows_identical": 9056,
+    "visibility_and_signatures_unchanged": true,
+    "actual_owners_remain_unknown": 9066,
+    "changed_fields": [
+      "family_proposal",
+      "canonical_capability_proposal",
+      "accountable_owner_proposal",
+      "upstream_capability_prerequisites",
+      "family_proposal_basis",
+      "torch_specific_modifiers",
+      "required_coverage_axes_ref"
+    ]
+  },
+  "route_assessment": "All10 operators now participate in distributed_device via T-COMMS/DIST-COMMS. Moirai remains accountable proposal only, with explicit Hephaestus kernel/device and Mnemosyne allocation/lifetime supplier review. No whole-API ownership or implementation qualified.",
+  "hardware_and_stream_assessment": "Frozen per-op source anchors support single-stream-per-group signal-pad ordering, rank/group participation, split/offset/alignment, in-place/out state and per-op NVSHMEM/multimem/NVLink-SHARP requirements. Real hardware, dtype/layout/gradient/error matrices and runtime outcomes remain unrun; doctest skips cannot verify them.",
+  "annex": {
+    "names": 4,
+    "admitted": 0,
+    "identity_keys": null,
+    "source_citations_verified": true,
+    "actual_owners_unresolved": true,
+    "full_surface_closed": false
+  },
+  "verification": {
+    "source_assertions_passed": 26,
+    "tests_passed": 29,
+    "skipped": 0,
+    "disposable_replay_outputs_byte_identical": 14,
+    "framework_imports_builds_or_runtime": 0
+  },
+  "remaining_obligations": [
+    "Independent supplier/architecture/owner reviews for native collectives and memory/device seams",
+    "Exact per-operator signatures/domains/dtypes/layouts/gradients/errors and benchmark/hardware execution",
+    "Four prose candidates need explicit future identity/alias/signature/admission decisions",
+    "Full generated/native/C++/companion/public source extraction and all runtime/release gates remain open"
+  ],
+  "scope_limit": "Acceptance covers source/routing/provenance correction and planning proposals only; no implementation ADR, code owner, task takeover, runtime, performance, release or full parity approval."
+}

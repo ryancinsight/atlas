@@ -1,0 +1,36 @@
+{
+  "current_manifest_observed": "32081bb4e3fc831d876764af14be60acf427172f019b99c37add6d939d31c5af",
+  "findings": [
+    {
+      "artifact": "acceptance-cases.json",
+      "cases": [
+        "case:jax:at-add-duplicates",
+        "case:jax:at-set-duplicates-unspecified",
+        "case:jax:at-fixed-gather-payload-vjp",
+        "case:jax:at-unique-set-payload-grad"
+      ],
+      "id": "CORE-NJ-F1",
+      "problem": "Bare JSON list indices have no native-array encoding, while frozen JAX rejects top-level non-tuple sequences before the specified operation/gradient.",
+      "requested_correction": "Tag source operand/index construction, including dtype/shape, for every positive at case and add a distinct bare-list TypeError case.",
+      "reviewed_manifest": "32081bb4e3fc831d876764af14be60acf427172f019b99c37add6d939d31c5af",
+      "severity": "blocking_for_source_acceptance",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/numpy/indexing.py#L1537-L1558",
+      "status": "author_acknowledged_correction_pending"
+    },
+    {
+      "artifact": "contracts/numpy.json",
+      "endpoint": "core:numpy:numpy.ndarray.__setitem__",
+      "generator": "scripts/contracts_numpy.py final get/set loop",
+      "id": "CORE-NJ-F2",
+      "problem": "Setter endpoint repeats getter scalar/array-return and returned-view-lifetime assertions. Native basic selection geometry is shared, but setter effect/return contracts are separate. Broad scalar-result wording additionally lacks an object/managed-element caveat.",
+      "requested_correction": "Separate getter output/alias rules from setter selection/assignment effects. Keep unbound native setter return/error and object-result scope open or supply exact frozen source witnesses.",
+      "reviewed_manifest": "32081bb4e3fc831d876764af14be60acf427172f019b99c37add6d939d31c5af",
+      "severity": "blocking_for_source_acceptance",
+      "status": "author_acknowledged_correction_pending"
+    }
+  ],
+  "reviewed_manifest": "32081bb4e3fc831d876764af14be60acf427172f019b99c37add6d939d31c5af",
+  "reviewer": "provider_evidence_audit",
+  "runtime_frameworks_builds_network_provider_canonical_writes": 0,
+  "semantic_acceptance": "pending corrected manifest recheck"
+}

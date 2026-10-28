@@ -1,0 +1,382 @@
+{
+  "schema_version": 1,
+  "framework": "pytorch",
+  "version": "2.14.1",
+  "source_revision": "5c4886908584029761b579af026dcfb627c84070",
+  "case_count": 26,
+  "runtime_tests_executed": 0,
+  "cases": [
+    {
+      "id": "KW-LAYOUT",
+      "scope": "builtin parser",
+      "setup": "ordinary torch.Tensor receiver; overrides/modes disabled",
+      "call": "prototype.new_tensor([1], layout=torch.strided)",
+      "expected": "TypeError for unexpected layout keyword; do not treat explicit default as accepted",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/tools/autograd/templates/python_variable_methods.cpp#L953",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_arg_parser.cpp#L1619"
+      ]
+    },
+    {
+      "id": "KW-PIN",
+      "scope": "builtin parser",
+      "setup": "ordinary torch.Tensor receiver; overrides/modes disabled",
+      "call": "prototype.new_tensor([1], pin_memory=False)",
+      "expected": "TypeError for unexpected pin_memory keyword even when False",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/tools/autograd/templates/python_variable_methods.cpp#L953",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_arg_parser.cpp#L1619"
+      ]
+    },
+    {
+      "id": "KW-POSITIONAL",
+      "scope": "builtin parser",
+      "setup": "ordinary torch.Tensor receiver",
+      "call": "prototype.new_tensor([1], torch.float64)",
+      "expected": "Keyword-only dtype positional misuse rejects",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/tools/autograd/templates/python_variable_methods.cpp#L953",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_arg_parser.cpp#L1619"
+      ]
+    },
+    {
+      "id": "DTYPE-PROTOTYPE",
+      "scope": "dtype defaults",
+      "setup": "prototype int8; global default float64; data [1.75,-2.25]",
+      "call": "prototype.new_tensor(data)",
+      "expected": "dtype int8 and values [1,-2]; global default and data floating type do not replace receiver dtype",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_arg_parser.h#L791",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_scalars.h#L22"
+      ]
+    },
+    {
+      "id": "DTYPE-PYCLASS",
+      "scope": "accepted dtype forms",
+      "setup": "prototype float32; data [1,2]",
+      "call": "prototype.new_tensor(data, dtype=float)",
+      "expected": "float64 values [1,2]; Python float alias is Double, not global default",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_arg_parser.h#L791",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_scalars.h#L22"
+      ]
+    },
+    {
+      "id": "DEVICE-PROTOTYPE",
+      "scope": "device defaults",
+      "setup": "prototype on cuda:1; current device cuda:0; data Tensor on CPU",
+      "call": "prototype.new_tensor(data)",
+      "expected": "result cuda:1 and exact represented data; current device restored after call",
+      "required_hardware": "two CUDA devices",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504"
+      ]
+    },
+    {
+      "id": "DEVICE-OVERRIDE",
+      "scope": "device override",
+      "setup": "prototype on cuda:1; data Tensor cuda:0",
+      "call": "prototype.new_tensor(data, device=\"cpu\")",
+      "expected": "result CPU and correct represented values",
+      "required_hardware": "two CUDA devices plus CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504"
+      ]
+    },
+    {
+      "id": "COPY-TENSOR",
+      "scope": "Tensor copy/detach",
+      "setup": "source [2.,3.] with requires_grad=True; receiver float32",
+      "call": "y=prototype.new_tensor(source, requires_grad=True); loss=(y*y).sum(); loss.backward()",
+      "expected": "new leaf; y.grad=[4,6], source.grad is None; mutate y and verify source values unchanged; nonempty storage addresses differ",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/autograd/variable.h#L299",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/test/test_tensor_creation_ops.py#L2269"
+      ]
+    },
+    {
+      "id": "GRAD-DEFAULT",
+      "scope": "requires_grad default",
+      "setup": "prototype requires_grad=True; source floating Tensor",
+      "call": "prototype.new_tensor(source)",
+      "expected": "new leaf requires_grad False; no graph edge to prototype or source",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/autograd/variable.h#L299",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/test/test_tensor_creation_ops.py#L2269"
+      ]
+    },
+    {
+      "id": "GRAD-INTEGER",
+      "scope": "requires_grad error",
+      "setup": "prototype int64; data [1,2]",
+      "call": "prototype.new_tensor(data, requires_grad=True)",
+      "expected": "RuntimeError from differentiable dtype guard; no half-constructed returned value",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/autograd/variable.h#L299",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/test/test_tensor_creation_ops.py#L2269"
+      ]
+    },
+    {
+      "id": "COPY-NUMPY",
+      "scope": "ndarray copy",
+      "setup": "native-endian ndarray [5.]",
+      "call": "r=prototype.new_tensor(array); array[0]=7",
+      "expected": "r retains5; modifying r also cannot mutate original array; record NumPy build support",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_numpy.cpp#L14"
+      ]
+    },
+    {
+      "id": "NPY-NEGSTRIDE",
+      "scope": "ndarray errors",
+      "setup": "negative-stride ndarray from reversed slice",
+      "call": "prototype.new_tensor(array)",
+      "expected": "ValueError before copy; do not silently repair by copying to contiguous",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_numpy.cpp#L14"
+      ]
+    },
+    {
+      "id": "NPY-ENDIAN",
+      "scope": "ndarray errors",
+      "setup": "non-native-byte-order ndarray",
+      "call": "prototype.new_tensor(array)",
+      "expected": "ValueError before copy; do not silently byteswap",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_numpy.cpp#L14"
+      ]
+    },
+    {
+      "id": "LAYOUT-TENSOR",
+      "scope": "Tensor input layout",
+      "setup": "sparse COO input; ordinary dense float32 prototype; compatible target device",
+      "call": "prototype.new_tensor(sparse)",
+      "expected": "output retains sparse layout and dense-equivalent values; independent indices/values after requested copy",
+      "required_hardware": "backend with sparse copy support",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/TensorConversions.cpp#L232"
+      ]
+    },
+    {
+      "id": "STRIDE-DENSE",
+      "scope": "memory format",
+      "setup": "non-overlapping dense transposed input",
+      "call": "prototype.new_tensor(input)",
+      "expected": "copied storage and preserved admitted strides; full represented value equality",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/TensorConversions.cpp#L232"
+      ]
+    },
+    {
+      "id": "STRIDE-OVERLAP",
+      "scope": "memory format",
+      "setup": "expanded zero-stride/overlapping input",
+      "call": "prototype.new_tensor(input)",
+      "expected": "same logical values but infer_dense_strides copy policy; never assert universal stride preservation",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/TensorConversions.cpp#L232"
+      ]
+    },
+    {
+      "id": "STORAGE-ALIAS",
+      "scope": "copy contradiction",
+      "setup": "same-device, matching dtype TypedStorage/UntypedStorage from a nonempty tensor",
+      "call": "prototype.new_tensor(storage); mutate result",
+      "expected": "Determine whether underlying storage aliases as predicted by set_(storage)+matching to(copy=False); preserve observed outcome and reconcile always-copy documentation. No universal no-alias assertion is allowed.",
+      "required_hardware": "CPU",
+      "status": "source_counterexample_candidate_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L407",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/TensorConversions.cpp#L409"
+      ]
+    },
+    {
+      "id": "STORAGE-DTYPE",
+      "scope": "Storage error",
+      "setup": "typed float32 Storage; int64 receiver dtype",
+      "call": "prototype.new_tensor(storage)",
+      "expected": "RuntimeError for typed-storage dtype mismatch before conversion; record any deprecation warning separately",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L407",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/TensorConversions.cpp#L409"
+      ]
+    },
+    {
+      "id": "DLPACK-OBJECT",
+      "scope": "DLPack object",
+      "setup": "real producer with __dlpack__ and __dlpack_device__; known values and lifetime",
+      "call": "prototype.new_tensor(producer)",
+      "expected": "consume valid capsule then copy to target dtype/device; producer mutation cannot change result; preserve stream/lifetime rules",
+      "required_hardware": "matching producer/consumer device",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/utils/dlpack.py#L124"
+      ]
+    },
+    {
+      "id": "DLPACK-CAPSULE",
+      "scope": "DLPack boundary",
+      "setup": "raw DLPack capsule without __dlpack__ method",
+      "call": "prototype.new_tensor(capsule)",
+      "expected": "No dedicated capsule branch; record exact rejection rather than assuming torch.from_dlpack capsule support transfers to this API",
+      "required_hardware": "CPU",
+      "status": "boundary_behavior_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/utils/dlpack.py#L124"
+      ]
+    },
+    {
+      "id": "OVERRIDE-KEYWORDS",
+      "scope": "override routing",
+      "setup": "Tensor subclass/TorchFunction mode computes a real Tensor while recording incoming args/kwargs",
+      "call": "receiver.new_tensor(data, layout=torch.strided, pin_memory=False)",
+      "expected": "Override sees original kwargs before builtin parser; result contract belongs to extension; builtin unexpected-keyword claim must remain scoped",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/tools/autograd/templates/python_variable_methods.cpp#L953",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_arg_parser.cpp#L1619"
+      ]
+    },
+    {
+      "id": "WARNING-ERROR",
+      "scope": "error propagation",
+      "setup": "Tensor data; UserWarning promoted to error",
+      "call": "prototype.new_tensor(source)",
+      "expected": "UserWarning aborts before normal return; warning cannot be silently swallowed",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504"
+      ]
+    },
+    {
+      "id": "META-SHAPE",
+      "scope": "symbolic-only path",
+      "setup": "meta prototype and rectangular data",
+      "call": "prototype.new_tensor([[1,2],[3,4]])",
+      "expected": "meta result shape(2,2); no numerical execution/hardware credit",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504"
+      ]
+    },
+    {
+      "id": "RAGGED-SHAPE",
+      "scope": "sequence error",
+      "setup": "data [[1,2],[3]]",
+      "call": "prototype.new_tensor(data)",
+      "expected": "ValueError for expected sequence length; no padded/ragged coercion",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L87",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L202"
+      ]
+    },
+    {
+      "id": "CYCLIC-SHAPE",
+      "scope": "sequence error",
+      "setup": "first-element self-referential sequence",
+      "call": "prototype.new_tensor(data)",
+      "expected": "Trace type_inference=False: compute_sizes max128 guard, not infer_scalar_type self-reference check. Confirm exact error without hanging",
+      "required_hardware": "CPU",
+      "status": "boundary_behavior_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L87",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L202"
+      ]
+    },
+    {
+      "id": "LEGACY-DISTINCT",
+      "scope": "no constructor deduplication",
+      "setup": "source Tensor requires_grad True; list of integers",
+      "call": "torch.Tensor(source); torch.tensor(source); prototype.new_tensor(source)",
+      "expected": "Legacy Tensor alias/AD, torch.tensor copied/input-inferred leaf, new_tensor receiver-typed copied Tensor route; verify each value/storage/gradient separately",
+      "required_hardware": "CPU",
+      "status": "source_derived_unrun",
+      "execution_credit": "none; proposed acceptance case, no runtime test executed",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1504"
+      ]
+    }
+  ]
+}

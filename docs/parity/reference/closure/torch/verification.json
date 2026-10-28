@@ -1,0 +1,18 @@
+{
+  "source_integrity_files": 40,
+  "patch_commits": 5,
+  "patch_files": 15,
+  "docs_blobs_unchanged": 408,
+  "retained_source_and_schema_records": 3663,
+  "constructor_contract_proposals": 14,
+  "negative_mutations_rejected": [
+    "lost inherited method",
+    "lost schema",
+    "unsafe alias merge",
+    "dropped missing inventory target"
+  ],
+  "reference_runtime_imports": 0,
+  "reference_runtime_tests": 0,
+  "public_surface_complete": false,
+  "semantic_api_mapping_complete": false
+}

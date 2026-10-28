@@ -1,0 +1,419 @@
+[
+  {
+    "identity": "numpy@2.5.4|c:type|PyArrayMapIterObject|30a613e771f2c130",
+    "binding": {
+      "contract": "numpy:numpy-contract:scope-private-audit",
+      "identity_role": "source-API-contract-candidate",
+      "reference_id": "numpy@2.5.4|c:type|PyArrayMapIterObject|30a613e771f2c130",
+      "retained_obligation": true,
+      "signature_status": "exact-document-native-declaration; preserved-declaration/selector-view",
+      "source_artifact": "reference/public-scope/numpy/records.json",
+      "source_row": 435,
+      "visibility": "internal_source_candidate"
+    },
+    "reference": {
+      "framework": "numpy",
+      "version": "2.5.4",
+      "symbol": "PyArrayMapIterObject",
+      "kind": "c:type",
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1616",
+      "domain": "interoperability-serialization-deployment",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "doc/source/reference/c-api/types-and-structures.rst",
+          "line": 1616,
+          "kind": "c:type",
+          "declaration": "PyArrayMapIterObject",
+          "native_name": "PyArrayMapIterObject",
+          "scope_resolution": "global-declarator"
+        }
+      ]
+    },
+    "source_detail": {
+      "accountable_owner": "atlas",
+      "candidate_id": "numpy@2.5.4|c:type|PyArrayMapIterObject|30a613e771f2c130",
+      "candidate_role": "source-API-contract-candidate",
+      "classification": "private implementation declaration",
+      "classification_evidence": [
+        {
+          "declaration": "PyArrayMapIterObject",
+          "file_sha256": "3a2fb5c06094bc8ff804417f7030e02f8afac616a93a9edcf3a6bbf10ab1685b",
+          "kind": "c:type",
+          "line": 1616,
+          "line_text": ".. c:type:: PyArrayMapIterObject",
+          "path": "doc/source/reference/c-api/types-and-structures.rst",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1616"
+        },
+        {
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1599",
+          "statement": "not accessible directly from Python, and are not exposed to the C-API"
+        }
+      ],
+      "classification_rule": "PRIVATE-POSITIVE",
+      "confidence": "high-for-source-visibility;semantics-not-closed",
+      "contract_ids": [
+        "numpy-contract:scope-private-audit"
+      ],
+      "existing_semantic_mappings": [],
+      "history_retained": true,
+      "implementation_owner_resolved": false,
+      "input": "numpy.json",
+      "input_record_index": 435,
+      "new_semantic_closure_credit": false,
+      "original_record_sha256": "4880aafd901422f17661670bc44dc99f35e82eb6560e5b1655f5c94e2ca49211",
+      "owner_target_revision": "f60fef17286b8cfdacf9191b133dc975aa186787",
+      "ownership_confidence": "high-existing-capability-owner-and-source-context;not-semantic-closure",
+      "ownership_state": "existing-canonical-capability-owner-assigned",
+      "prerequisite_capabilities": [],
+      "primary_capability": "PARITY-VALIDATOR",
+      "primary_contract": "numpy-contract:scope-private-audit",
+      "public_denominator_eligible": false,
+      "recommended_accountable_owner": "atlas",
+      "reference_availability": "Source-admitted platform/build/version/extension availability remains to be materialized; documented presence is not universal runtime availability.",
+      "reference_id": "numpy@2.5.4|c:type|PyArrayMapIterObject|30a613e771f2c130",
+      "reference_sha256": "4880aafd901422f17661670bc44dc99f35e82eb6560e5b1655f5c94e2ca49211",
+      "remaining_execution_axes": [
+        "analytical/differential/performance/hardware/release qualification"
+      ],
+      "remaining_semantic_axes": [
+        "operation-specific valid/invalid signature variants and validation order",
+        "complete source-admitted dtype/device/layout/shape/gradient/effect coverage"
+      ],
+      "routing_evidence": {
+        "declaration_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1616",
+        "ownership_authority": {
+          "capability": "PARITY-VALIDATOR",
+          "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+          "input": "capabilities.json"
+        },
+        "section_context": [
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1430",
+            "title": "PyArray_Dims"
+          },
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1458",
+            "title": "PyArray_Chunk"
+          },
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1506",
+            "title": "PyArrayInterface"
+          },
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1596",
+            "title": "Internally used structures"
+          }
+        ]
+      },
+      "routing_rule": "explicit-private-section",
+      "routing_status": "existing-capability-owner-routed;operation-profile-review-required",
+      "runtime_or_implementation_credit": false,
+      "semantic_contract_basis": "reusable-source-schema-with-operation-parameters-open",
+      "signature_variant_links": [
+        {
+          "association": "same-preserved-candidate-occurrence",
+          "declaration": "PyArrayMapIterObject",
+          "kind": "exact-document-native-declaration",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1616",
+          "view_id": "numpy-native-signature:13ab821d8e2ebbd82093"
+        },
+        {
+          "kind": "preserved-declaration/selector-view",
+          "signature_extraction": "additional-exact-declaration-views-linked",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1616",
+          "view_id": "numpy-declaration-view:30a613e771f2c1306406"
+        }
+      ],
+      "source_relation": null,
+      "variant_parameters": {
+        "framework": "numpy",
+        "kind": "c:type",
+        "source_scope": "preserved declaration view;no semantic merge",
+        "symbol": "PyArrayMapIterObject",
+        "ufunc_object": null,
+        "version": "2.5.4"
+      },
+      "visibility": "private"
+    }
+  },
+  {
+    "identity": "numpy@2.5.4|c:var|PyArrayMapIter_Type|9dae0fed8c2dfd83",
+    "binding": {
+      "contract": "numpy:numpy-contract:scope-private-audit",
+      "identity_role": "source-API-contract-candidate",
+      "reference_id": "numpy@2.5.4|c:var|PyArrayMapIter_Type|9dae0fed8c2dfd83",
+      "retained_obligation": true,
+      "signature_status": "exact-document-native-declaration; preserved-declaration/selector-view",
+      "source_artifact": "reference/public-scope/numpy/records.json",
+      "source_row": 436,
+      "visibility": "internal_source_candidate"
+    },
+    "reference": {
+      "framework": "numpy",
+      "version": "2.5.4",
+      "symbol": "PyArrayMapIter_Type",
+      "kind": "c:var",
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1610",
+      "domain": "interoperability-serialization-deployment",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "doc/source/reference/c-api/types-and-structures.rst",
+          "line": 1610,
+          "kind": "c:var",
+          "declaration": "PyTypeObject PyArrayMapIter_Type",
+          "native_name": "PyArrayMapIter_Type",
+          "scope_resolution": "global-declarator"
+        }
+      ]
+    },
+    "source_detail": {
+      "accountable_owner": "atlas",
+      "candidate_id": "numpy@2.5.4|c:var|PyArrayMapIter_Type|9dae0fed8c2dfd83",
+      "candidate_role": "source-API-contract-candidate",
+      "classification": "private implementation declaration",
+      "classification_evidence": [
+        {
+          "declaration": "PyTypeObject PyArrayMapIter_Type",
+          "file_sha256": "3a2fb5c06094bc8ff804417f7030e02f8afac616a93a9edcf3a6bbf10ab1685b",
+          "kind": "c:var",
+          "line": 1610,
+          "line_text": ".. c:var:: PyTypeObject PyArrayMapIter_Type",
+          "path": "doc/source/reference/c-api/types-and-structures.rst",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1610"
+        },
+        {
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1599",
+          "statement": "not accessible directly from Python, and are not exposed to the C-API"
+        }
+      ],
+      "classification_rule": "PRIVATE-POSITIVE",
+      "confidence": "high-for-source-visibility;semantics-not-closed",
+      "contract_ids": [
+        "numpy-contract:scope-private-audit"
+      ],
+      "existing_semantic_mappings": [],
+      "history_retained": true,
+      "implementation_owner_resolved": false,
+      "input": "numpy.json",
+      "input_record_index": 436,
+      "new_semantic_closure_credit": false,
+      "original_record_sha256": "6b7472de32f0aaa3b7f879dae37fa90afce6b87a7a980661a9778fed391b7df1",
+      "owner_target_revision": "f60fef17286b8cfdacf9191b133dc975aa186787",
+      "ownership_confidence": "high-existing-capability-owner-and-source-context;not-semantic-closure",
+      "ownership_state": "existing-canonical-capability-owner-assigned",
+      "prerequisite_capabilities": [],
+      "primary_capability": "PARITY-VALIDATOR",
+      "primary_contract": "numpy-contract:scope-private-audit",
+      "public_denominator_eligible": false,
+      "recommended_accountable_owner": "atlas",
+      "reference_availability": "Source-admitted platform/build/version/extension availability remains to be materialized; documented presence is not universal runtime availability.",
+      "reference_id": "numpy@2.5.4|c:var|PyArrayMapIter_Type|9dae0fed8c2dfd83",
+      "reference_sha256": "6b7472de32f0aaa3b7f879dae37fa90afce6b87a7a980661a9778fed391b7df1",
+      "remaining_execution_axes": [
+        "analytical/differential/performance/hardware/release qualification"
+      ],
+      "remaining_semantic_axes": [
+        "operation-specific valid/invalid signature variants and validation order",
+        "complete source-admitted dtype/device/layout/shape/gradient/effect coverage"
+      ],
+      "routing_evidence": {
+        "declaration_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1610",
+        "ownership_authority": {
+          "capability": "PARITY-VALIDATOR",
+          "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+          "input": "capabilities.json"
+        },
+        "section_context": [
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1430",
+            "title": "PyArray_Dims"
+          },
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1458",
+            "title": "PyArray_Chunk"
+          },
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1506",
+            "title": "PyArrayInterface"
+          },
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1596",
+            "title": "Internally used structures"
+          }
+        ]
+      },
+      "routing_rule": "explicit-private-section",
+      "routing_status": "existing-capability-owner-routed;operation-profile-review-required",
+      "runtime_or_implementation_credit": false,
+      "semantic_contract_basis": "reusable-source-schema-with-operation-parameters-open",
+      "signature_variant_links": [
+        {
+          "association": "same-preserved-candidate-occurrence",
+          "declaration": "PyTypeObject PyArrayMapIter_Type",
+          "kind": "exact-document-native-declaration",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1610",
+          "view_id": "numpy-native-signature:33a27089b67292f7cfdc"
+        },
+        {
+          "kind": "preserved-declaration/selector-view",
+          "signature_extraction": "additional-exact-declaration-views-linked",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1610",
+          "view_id": "numpy-declaration-view:9dae0fed8c2dfd8362d1"
+        }
+      ],
+      "source_relation": null,
+      "variant_parameters": {
+        "framework": "numpy",
+        "kind": "c:var",
+        "source_scope": "preserved declaration view;no semantic merge",
+        "symbol": "PyArrayMapIter_Type",
+        "ufunc_object": null,
+        "version": "2.5.4"
+      },
+      "visibility": "private"
+    }
+  },
+  {
+    "identity": "numpy@2.5.4|c:type|PyUFunc_Loop1d|fdfa3e157c12fa7f",
+    "binding": {
+      "contract": "numpy:numpy-contract:scope-private-audit",
+      "identity_role": "source-API-contract-candidate",
+      "reference_id": "numpy@2.5.4|c:type|PyUFunc_Loop1d|fdfa3e157c12fa7f",
+      "retained_obligation": true,
+      "signature_status": "exact-document-native-declaration; preserved-declaration/selector-view",
+      "source_artifact": "reference/public-scope/numpy/records.json",
+      "source_row": 925,
+      "visibility": "internal_source_candidate"
+    },
+    "reference": {
+      "framework": "numpy",
+      "version": "2.5.4",
+      "symbol": "PyUFunc_Loop1d",
+      "kind": "c:type",
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1604",
+      "domain": "interoperability-serialization-deployment",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "doc/source/reference/c-api/types-and-structures.rst",
+          "line": 1604,
+          "kind": "c:type",
+          "declaration": "PyUFunc_Loop1d",
+          "native_name": "PyUFunc_Loop1d",
+          "scope_resolution": "global-declarator"
+        }
+      ]
+    },
+    "source_detail": {
+      "accountable_owner": "atlas",
+      "candidate_id": "numpy@2.5.4|c:type|PyUFunc_Loop1d|fdfa3e157c12fa7f",
+      "candidate_role": "source-API-contract-candidate",
+      "classification": "private implementation declaration",
+      "classification_evidence": [
+        {
+          "declaration": "PyUFunc_Loop1d",
+          "file_sha256": "3a2fb5c06094bc8ff804417f7030e02f8afac616a93a9edcf3a6bbf10ab1685b",
+          "kind": "c:type",
+          "line": 1604,
+          "line_text": ".. c:type:: PyUFunc_Loop1d",
+          "path": "doc/source/reference/c-api/types-and-structures.rst",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1604"
+        },
+        {
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1599",
+          "statement": "not accessible directly from Python, and are not exposed to the C-API"
+        }
+      ],
+      "classification_rule": "PRIVATE-POSITIVE",
+      "confidence": "high-for-source-visibility;semantics-not-closed",
+      "contract_ids": [
+        "numpy-contract:scope-private-audit"
+      ],
+      "existing_semantic_mappings": [],
+      "history_retained": true,
+      "implementation_owner_resolved": false,
+      "input": "numpy.json",
+      "input_record_index": 925,
+      "new_semantic_closure_credit": false,
+      "original_record_sha256": "c00551b8ed52be9a4048b5c22bf51b541190aa18e6ce7f6f7e7a16c7114a207f",
+      "owner_target_revision": "f60fef17286b8cfdacf9191b133dc975aa186787",
+      "ownership_confidence": "high-existing-capability-owner-and-source-context;not-semantic-closure",
+      "ownership_state": "existing-canonical-capability-owner-assigned",
+      "prerequisite_capabilities": [],
+      "primary_capability": "PARITY-VALIDATOR",
+      "primary_contract": "numpy-contract:scope-private-audit",
+      "public_denominator_eligible": false,
+      "recommended_accountable_owner": "atlas",
+      "reference_availability": "Source-admitted platform/build/version/extension availability remains to be materialized; documented presence is not universal runtime availability.",
+      "reference_id": "numpy@2.5.4|c:type|PyUFunc_Loop1d|fdfa3e157c12fa7f",
+      "reference_sha256": "c00551b8ed52be9a4048b5c22bf51b541190aa18e6ce7f6f7e7a16c7114a207f",
+      "remaining_execution_axes": [
+        "analytical/differential/performance/hardware/release qualification"
+      ],
+      "remaining_semantic_axes": [
+        "operation-specific valid/invalid signature variants and validation order",
+        "complete source-admitted dtype/device/layout/shape/gradient/effect coverage"
+      ],
+      "routing_evidence": {
+        "declaration_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1604",
+        "ownership_authority": {
+          "capability": "PARITY-VALIDATOR",
+          "contract_owner_role": "single-accountable-repository-routing;not-implementation-verification",
+          "input": "capabilities.json"
+        },
+        "section_context": [
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1430",
+            "title": "PyArray_Dims"
+          },
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1458",
+            "title": "PyArray_Chunk"
+          },
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1506",
+            "title": "PyArrayInterface"
+          },
+          {
+            "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1596",
+            "title": "Internally used structures"
+          }
+        ]
+      },
+      "routing_rule": "explicit-private-section",
+      "routing_status": "existing-capability-owner-routed;operation-profile-review-required",
+      "runtime_or_implementation_credit": false,
+      "semantic_contract_basis": "reusable-source-schema-with-operation-parameters-open",
+      "signature_variant_links": [
+        {
+          "association": "same-preserved-candidate-occurrence",
+          "declaration": "PyUFunc_Loop1d",
+          "kind": "exact-document-native-declaration",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1604",
+          "view_id": "numpy-native-signature:ada2d912128522dbbcc6"
+        },
+        {
+          "kind": "preserved-declaration/selector-view",
+          "signature_extraction": "additional-exact-declaration-views-linked",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/types-and-structures.rst#L1604",
+          "view_id": "numpy-declaration-view:fdfa3e157c12fa7fa0bf"
+        }
+      ],
+      "source_relation": null,
+      "variant_parameters": {
+        "framework": "numpy",
+        "kind": "c:type",
+        "source_scope": "preserved declaration view;no semantic merge",
+        "symbol": "PyUFunc_Loop1d",
+        "ufunc_object": null,
+        "version": "2.5.4"
+      },
+      "visibility": "private"
+    }
+  }
+]

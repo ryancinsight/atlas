@@ -1,0 +1,183 @@
+[
+  {
+    "url": "https://numpy.org/doc/2.5/objects.inv?raw=1",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "url": "https://numpy.org/doc/2.5.4/objects.inv",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "url": "https://numpy.org/doc/2.5/genindex.html",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "url": "https://numpy.org/doc/2.5/numpy-html.zip",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "url": "https://api.github.com/repos/numpy/numpy/releases/tags/v2.5.4",
+    "status": 200,
+    "size": 10770,
+    "sha256": "a5f3128198a6a5333fd12aed1c659bb1187a8b3e74b37db008010b0b0b516667",
+    "content_type": "application/json; charset=utf-8",
+    "assets": [
+      {
+        "name": "2.5.4-changelog.rst",
+        "url": "https://github.com/numpy/numpy/releases/download/v2.5.4/2.5.4-changelog.rst"
+      },
+      {
+        "name": "numpy-2.5.4.tar.gz",
+        "url": "https://github.com/numpy/numpy/releases/download/v2.5.4/numpy-2.5.4.tar.gz"
+      },
+      {
+        "name": "README.rst",
+        "url": "https://github.com/numpy/numpy/releases/download/v2.5.4/README.rst"
+      }
+    ]
+  },
+  {
+    "url": "https://api.github.com/repos/numpy/doc",
+    "full_name": "numpy/doc",
+    "default_branch": "main",
+    "description": "Home of NumPy user and reference documentation",
+    "size": 826133
+  },
+  {
+    "url": "https://api.github.com/repos/numpy/numpy.github.com",
+    "full_name": "numpy/numpy.github.com",
+    "default_branch": "main",
+    "description": "Auto-generated NumPy website. Since this is an auto-generated directory, do *not* submit pull requests against this repository. The actual sources are in https://github.com/numpy/numpy.org",
+    "size": 28489
+  },
+  {
+    "url": "https://numpy.org/doc/2.5/numpy-html.zip",
+    "web_result": "Official documentation index links this archive; web click rejects application/x-zip-compressed, while direct HTTP returned403. Exact2.5.4 provenance not yet established.",
+    "permanent_blocker": false
+  },
+  {
+    "url": "https://api.github.com/repos/numpy/doc/contents",
+    "paths": [
+      {
+        "name": ".buildinfo",
+        "type": "file"
+      },
+      {
+        "name": ".gitignore",
+        "type": "file"
+      },
+      {
+        "name": ".nojekyll",
+        "type": "file"
+      },
+      {
+        "name": "1.13",
+        "type": "dir"
+      },
+      {
+        "name": "1.14",
+        "type": "dir"
+      },
+      {
+        "name": "1.15",
+        "type": "dir"
+      },
+      {
+        "name": "1.16",
+        "type": "dir"
+      },
+      {
+        "name": "1.17",
+        "type": "dir"
+      },
+      {
+        "name": "1.18",
+        "type": "dir"
+      },
+      {
+        "name": "1.19",
+        "type": "dir"
+      },
+      {
+        "name": "1.20",
+        "type": "dir"
+      },
+      {
+        "name": "1.21",
+        "type": "dir"
+      },
+      {
+        "name": "1.22",
+        "type": "dir"
+      },
+      {
+        "name": "1.23",
+        "type": "dir"
+      },
+      {
+        "name": "1.24",
+        "type": "dir"
+      },
+      {
+        "name": "1.25",
+        "type": "dir"
+      },
+      {
+        "name": "1.26",
+        "type": "dir"
+      },
+      {
+        "name": "2.0",
+        "type": "dir"
+      },
+      {
+        "name": "2.1",
+        "type": "dir"
+      },
+      {
+        "name": "2.2",
+        "type": "dir"
+      },
+      {
+        "name": "2.3",
+        "type": "dir"
+      },
+      {
+        "name": "2.4",
+        "type": "dir"
+      },
+      {
+        "name": "2.5",
+        "type": "dir"
+      },
+      {
+        "name": "README.md",
+        "type": "file"
+      },
+      {
+        "name": "_downloads",
+        "type": "dir"
+      },
+      {
+        "name": "_sources",
+        "type": "dir"
+      },
+      {
+        "name": "_static",
+        "type": "dir"
+      },
+      {
+        "name": "index.html",
+        "type": "file"
+      },
+      {
+        "name": "stable",
+        "type": "symlink"
+      },
+      {
+        "name": "update.py",
+        "type": "file"
+      }
+    ]
+  }
+]

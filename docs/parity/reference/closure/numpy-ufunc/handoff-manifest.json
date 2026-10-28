@@ -1,0 +1,301 @@
+{
+  "schema_version": 1,
+  "framework": "numpy",
+  "version": "2.5.4",
+  "revision": "a3d0ef1df045b858e68115001fdabc930bb3b68c",
+  "purpose": "Separate bounded generated-member declaration table; never adds API-capability denominator or semantic/runtime evidence by itself.",
+  "replay": [
+    "python3 expand_ufuncs.py",
+    "python3 validate_expansion.py",
+    "python3 verify_handoff.py"
+  ],
+  "full_numpy_surface_complete": false,
+  "records_semantically_verified": 0,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 11242,
+      "sha256": "5f4eafbc0195608e3d352a03f417ada0065f75827174bc6a1aec2ff6623fb0cd"
+    },
+    {
+      "path": "bounded-completeness.json",
+      "bytes": 1900,
+      "sha256": "d01fbe7486cdaf69e8bf386ddcb5da875575dbedef9a4efb23c4101dd34f0efc"
+    },
+    {
+      "path": "comparison-source/manifest.json",
+      "bytes": 379,
+      "sha256": "1d9addd64319ba8d97c6443e9c1703e5de4cb366276427acb24513ed14666bd2"
+    },
+    {
+      "path": "comparison-source/ufunc_object-2.5.0.c",
+      "bytes": 231233,
+      "sha256": "442ba0df2484cb01fa5c5bedf7bf87b700e1e3b8718124e26bb047467a514a19"
+    },
+    {
+      "path": "documentation-dispositions.json",
+      "bytes": 333056,
+      "sha256": "d02797079afa4b1846a33cbe801256b0ac640bf0c658281ab3b6e8a2448ace71"
+    },
+    {
+      "path": "expand_ufuncs.py",
+      "bytes": 16793,
+      "sha256": "7bd6009f5258740a6b2286f1090602bad1d5e36ffe36b004141e0b4e05cc5a51"
+    },
+    {
+      "path": "fetch_sources.py",
+      "bytes": 1516,
+      "sha256": "451b85c77ef908ca4f61a0aff058ee1f55eda18a1d8bf0c29f5db8329196a267"
+    },
+    {
+      "path": "identity-input-comparison.json",
+      "bytes": 14321,
+      "sha256": "c336ea659df34e462b7fd259efd587faa6cd482f829a64da527faa8a8e6b5e9a"
+    },
+    {
+      "path": "inputs/frozen-original-inventory.json",
+      "bytes": 1524513,
+      "sha256": "08ad3236974e650b76f33ecac6e80e7be41ae94daf7c6eb9c9a76c6b7c8eb2cd"
+    },
+    {
+      "path": "inputs/manifest.json",
+      "bytes": 665,
+      "sha256": "5da68f0bd003eac1fec127d534d39eb7a0de9787e2123dfa1d036f90e4eef899"
+    },
+    {
+      "path": "inputs/official-inventory-2.5.0.json",
+      "bytes": 1309731,
+      "sha256": "e1394431091510753f6477f0e6c47e1500f5eb9223a4261a29b06f2fff5811c7"
+    },
+    {
+      "path": "inputs/original-generated-ufunc-rows.json",
+      "bytes": 108428,
+      "sha256": "73c0c3604025b633dd85cb4dbf3bc6e1891bd5e75a1fc597ffad3a055c8eb913"
+    },
+    {
+      "path": "inputs/source-tree-v2.5.0.json",
+      "bytes": 593264,
+      "sha256": "081a439ed29f4414b98bf4c542ce949dce653fb9c7e1b99ec5d75b69b273e5b7"
+    },
+    {
+      "path": "inputs/source-tree.json",
+      "bytes": 594390,
+      "sha256": "3fafe0b89018b61fc289a522ca66ea689a848576ca251a2b90ecb3de8087a49d"
+    },
+    {
+      "path": "remaining-scope.json",
+      "bytes": 1831,
+      "sha256": "dde39acf663784c8ddff4614eeccab8115f8336f2fe1f87da2de953c8feae90e"
+    },
+    {
+      "path": "requested-sources.json",
+      "bytes": 8321,
+      "sha256": "15e37aead0f31fe54205fa7eca47f94cf4542a4d892ec06a6063fd4cfbf717fb"
+    },
+    {
+      "path": "source-manifest.json",
+      "bytes": 9763,
+      "sha256": "08617c225a85696c6f980bdea061cc84eb7aaa309a7be13e5720884b9356cb54"
+    },
+    {
+      "path": "sources/doc/source/reference/c-api/generalized-ufuncs.rst",
+      "bytes": 16525,
+      "sha256": "97509244b5a6d2e34108284e51324421f3ee6ea54d7fcfb191733689efb8de51"
+    },
+    {
+      "path": "sources/doc/source/reference/c-api/ufunc.rst",
+      "bytes": 19281,
+      "sha256": "4d25e510a2bb583972199f5e18caf3174c46333397d889ac479a2bea13e17799"
+    },
+    {
+      "path": "sources/doc/source/reference/routines.bitwise.rst",
+      "bytes": 516,
+      "sha256": "8783efc394ba6411d93dd2e08ee0b67c2b484be8da2a037334d833731a317d77"
+    },
+    {
+      "path": "sources/doc/source/reference/routines.linalg.rst",
+      "bytes": 4625,
+      "sha256": "b7fad216e7e18de7883193aa1db2f7d8741b2b3ce1a30f88b9bf1e0003ed0f6e"
+    },
+    {
+      "path": "sources/doc/source/reference/routines.logic.rst",
+      "bytes": 822,
+      "sha256": "ebdb00ab7392cf379a76224c0f3d4352f37f043f8c4443433be5e0d5d48a1df7"
+    },
+    {
+      "path": "sources/doc/source/reference/routines.math.rst",
+      "bytes": 2207,
+      "sha256": "818701edcbe736d6f067b04123c9fc59dc2e93203ff4d02932a41c1b6bb82b68"
+    },
+    {
+      "path": "sources/doc/source/reference/routines.strings.rst",
+      "bytes": 1651,
+      "sha256": "9167ecd78cad4376e77fe47167cb47bd98c668d7f83779d1b2f638aaf56dac98"
+    },
+    {
+      "path": "sources/doc/source/reference/ufuncs.rst",
+      "bytes": 13654,
+      "sha256": "5d2ef99af16f40cb7a5037300a72a96c077d97b7ba1f5b1bffb58b4069bcbca3"
+    },
+    {
+      "path": "sources/doc/source/user/basics.ufuncs.rst",
+      "bytes": 14756,
+      "sha256": "d606ea5bf20727b5596c6d25dc35d683674b35cbd4d65024c6885e0c52e1c4be"
+    },
+    {
+      "path": "sources/numpy/__init__.py",
+      "bytes": 25220,
+      "sha256": "09295a80660f17925ae23765ce8cbd7ff7ceae968d5f2f89349f1cb74c0b9e11"
+    },
+    {
+      "path": "sources/numpy/__init__.pyi",
+      "bytes": 285616,
+      "sha256": "2d707eb1d54563c69bdac3b095be5e1e7de517b06b3c07c04815cc425c42eb8d"
+    },
+    {
+      "path": "sources/numpy/_core/__init__.py",
+      "bytes": 6662,
+      "sha256": "837ce8aec8693095d2e1c7c306d385d1785a50be97a009935c64cae04e3555d2"
+    },
+    {
+      "path": "sources/numpy/_core/_add_newdocs.py",
+      "bytes": 215165,
+      "sha256": "2fc06f2d919b16afc1e1f1abdb161bdce9eedafe3e07f127bb0f45b0841964c6"
+    },
+    {
+      "path": "sources/numpy/_core/_internal.py",
+      "bytes": 29401,
+      "sha256": "497f1ce325bcc6ffc2ccf013e2cdd2ff2e32c55106a0a07997213d45d6c777a0"
+    },
+    {
+      "path": "sources/numpy/_core/code_generators/generate_umath.py",
+      "bytes": 55081,
+      "sha256": "b924cc28bd1f6760ae0a670f2369f9f1bc2f102e7b1e886d3ab803541374e37d"
+    },
+    {
+      "path": "sources/numpy/_core/code_generators/generate_umath_doc.py",
+      "bytes": 1447,
+      "sha256": "c460e83fb86ad25a8485baa6d2ce0a1b0af7654d5c2ad7081063945cff4c6d93"
+    },
+    {
+      "path": "sources/numpy/_core/code_generators/ufunc_docstrings.py",
+      "bytes": 143110,
+      "sha256": "132af5a04b96af3a9e7cc30d17808d8e31cb263392abd23ec3bc004cb627660d"
+    },
+    {
+      "path": "sources/numpy/_core/defchararray.py",
+      "bytes": 38241,
+      "sha256": "a174cd2354ef6fd8851d51c6f5b43f3fc836a344d1a37fa9600060387858d395"
+    },
+    {
+      "path": "sources/numpy/_core/multiarray.py",
+      "bytes": 56885,
+      "sha256": "afd14181b927aa10800a0c5dab5f456f52e219726847dbef379e313419029d49"
+    },
+    {
+      "path": "sources/numpy/_core/numeric.py",
+      "bytes": 80583,
+      "sha256": "feb150554b4879d4df7bd0a4ab7b1a6b818de7ba994ed0c73583fee177533417"
+    },
+    {
+      "path": "sources/numpy/_core/src/multiarray/multiarraymodule.c",
+      "bytes": 161846,
+      "sha256": "1bfda5658c09101dd6557fcb6f235ed63b0f57cdf01b07fb9e3166a25f724c64"
+    },
+    {
+      "path": "sources/numpy/_core/src/umath/override.c",
+      "bytes": 13624,
+      "sha256": "bc8b655d12c71aa22177be9be86c742e9876e9659cb18607ab95a560f2ba176a"
+    },
+    {
+      "path": "sources/numpy/_core/src/umath/ufunc_object.c",
+      "bytes": 232938,
+      "sha256": "7526a7a9dd606beec78f6e9f687b65ce048555c8400659cb7dfab55cf9faf4ef"
+    },
+    {
+      "path": "sources/numpy/_core/src/umath/umathmodule.c",
+      "bytes": 8129,
+      "sha256": "666347ae33fdb79c89f1a855ea18f6a34f2edcd6f7a2f20e952cbab1c29779aa"
+    },
+    {
+      "path": "sources/numpy/_core/strings.py",
+      "bytes": 50588,
+      "sha256": "e1a4fc1fac89a947772a464d4b2a630be75347756e8d5edd00d8c33edc17c1fe"
+    },
+    {
+      "path": "sources/numpy/_core/umath.py",
+      "bytes": 2117,
+      "sha256": "fabc529bdfcc632ae82bcaaa5539494802757e5a52c492999e2ebfe10f396987"
+    },
+    {
+      "path": "sources/numpy/_globals.py",
+      "bytes": 4156,
+      "sha256": "fe13921c6f4a00bd12891da7d800f2a42f878c067d8ed881ddf0af3fbace3a36"
+    },
+    {
+      "path": "sources/numpy/_typing/_ufunc.pyi",
+      "bytes": 29281,
+      "sha256": "0230b6e895fd9a85599cbe460b6e84e6be4d59123097db0f495d14074936c66c"
+    },
+    {
+      "path": "sources/numpy/char/__init__.py",
+      "bytes": 828,
+      "sha256": "93ff0019e949b734526cfd53c96a25923f8445fdae6c91ec3d400363de3ce94a"
+    },
+    {
+      "path": "sources/numpy/strings/__init__.py",
+      "bytes": 83,
+      "sha256": "a36ef01d6f2319a51f6c3a294b2126603e918dea37dc0ce4181053816ae5187e"
+    },
+    {
+      "path": "test_ufunc_expansion.py",
+      "bytes": 7130,
+      "sha256": "829ac12b8d610e592b416896a70ae9cc4e7f60e01b04418ac04b8d43695ac4f8"
+    },
+    {
+      "path": "ufunc-bindings.json",
+      "bytes": 403941,
+      "sha256": "8fb8d70201c1e62dd6f9534084be0b88344bf45fb4a79d83f9e669f25e943c9e"
+    },
+    {
+      "path": "ufunc-expansions.json",
+      "bytes": 2522981,
+      "sha256": "6198d6bc2545e2d6f6053237546350622cc00a2c76bd5e476971578cada0d9cc"
+    },
+    {
+      "path": "ufunc-members.json",
+      "bytes": 21184,
+      "sha256": "145a16d60508232f5e23fdda8e8af27d2705b893cb94a182fea3eb366c562ec7"
+    },
+    {
+      "path": "ufunc-objects.json",
+      "bytes": 408638,
+      "sha256": "4c2c386915fda9cbf87c172a2d5045dc20f0f39203d7c2a12897b519099cdefe"
+    },
+    {
+      "path": "ufunc_sources.py",
+      "bytes": 17991,
+      "sha256": "5ee2f892b3117c8cd753a2caab36ab67c27acf347197b00a8cc3a096cd824e33"
+    },
+    {
+      "path": "ufunc_workflows.py",
+      "bytes": 11821,
+      "sha256": "2b5314dafbf4871c88da24c084770bdc4444b8387f2802e2357da45d5927a544"
+    },
+    {
+      "path": "validate_expansion.py",
+      "bytes": 12729,
+      "sha256": "030fc93829e680edde73341070c37b3e80a4617e7e9697b07fcf277d5d86d6bb"
+    },
+    {
+      "path": "verification-report.json",
+      "bytes": 680,
+      "sha256": "0218cae131e967919cace27d7e06598622f71b066ef15ef506ee969a36f16fef"
+    },
+    {
+      "path": "verify_handoff.py",
+      "bytes": 2663,
+      "sha256": "19b09a1f687b9941bad3af8a7e6897f3f157380f1955cc37bf4795f3f4145094"
+    }
+  ]
+}

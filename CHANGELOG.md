@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+- Integrate the independently reviewed TF conversion source boundary in parity
+  program 2026-10-26.12, with lossless selected captures, typed live owner/API
+  joins and input-sensitive rounding/cotangent controls. Preserve all 30 UNRUN
+  cases, ten open gaps, existing mappings and prior source-policy editions;
+  no package version, public scope or execution/release qualification changes.
+
+- Preserve the two independently accepted public-surface source packets in parity
+  program 2026-10-26.11 with lossless selected captures, 498 exact reference joins,
+  typed provenance/owner guards and portable witnesses. All classifications,
+  required functionality, mapping stages and runtime/release credit are unchanged;
+  no public-scope admission exemptions or package version changes. Reconcile the
+  user-approved SAME-PR #551 replacement while retaining historical ownership,
+  unqualified delivery gates and Leto heavy-slot ownership.
+
+- Add repaired Torch native dtype source definitions to parity program
+  2026-10-26.10, with lossless finite tables, typed source/owner/status guards
+  and input-sensitive complex/gradient analytical controls. All 66 framework
+  cases and 14 wider gaps remain open; prior framework captures stay unchanged.
+  Merge the NumPy selector repair and use its shared typed resolver for Torch
+  source-row identity checks without retaining a local compatibility alias.
+  Reject weakened conditional evidence/gap obligations and normalize malformed
+  scalar-access errors after independent canonical review; preserve source bytes.
+
+- Add the accepted NumPy native dtype source supplement to parity program
+  2026-10-26.9 with lossless source capture, independently reconstructed symbolic
+  relations, exact source/role guards and 47 unrun targets. Preserve JAX history,
+  existing API owners and mapping stages; no package version changes.
+
+- Define the versioned four-framework functional-parity program, release-pinned
+  candidate API inventories, provider evidence reconciliation, capability owners,
+  repository exit criteria and dependency-ordered work packages. Add the parity
+  traceability/evidence validator with rejection tests. Extraction and all
+  per-API semantic mappings remain incomplete; no package version changes.
+
 - Advance the Atlas gitlinks for the six members whose provider-cohort pull
   requests merged, and regenerate the stack overlay from the recorded stack.
   Tyche, RITK, Harmonia, Prometheus, Coeus and Kwavers move to their merged

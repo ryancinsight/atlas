@@ -1,0 +1,19 @@
+{
+  "positive_control": "PASS",
+  "mutated_mapping_id": "core-numpy-numpy-broadcast-shapes",
+  "mutated_test_ids": [
+    "nonexistent-core-case"
+  ],
+  "outcome": "ACCEPTED",
+  "counts": {
+    "partial_source_endpoints": 39,
+    "unrun_acceptance_cases": 125,
+    "distinct_unrun_source_programs": 118,
+    "reusable_laws": 9,
+    "analytical_witnesses": 8,
+    "wrong_value_probes_rejected": 8,
+    "provider_boundary_contracts": 12,
+    "framework_execution_credit": 0,
+    "whole_api_closure_credit": 0
+  }
+}

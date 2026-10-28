@@ -10,3 +10,11 @@
 .githooks/** text eol=lf
 # The owned hook source lives outside `.githooks/`; same shebang rule.
 scripts/git-hooks/** text eol=lf
+
+# Parity snapshots carry raw SHA-256 digests and require byte-stable checkouts.
+/docs/parity/** text eol=lf
+/scripts/atlas-parity.py text eol=lf
+/scripts/atlas_parity*.py text eol=lf
+/scripts/parity/** text eol=lf
+/scripts/tests/test_atlas_parity.py text eol=lf
+/scripts/tests/test_parity_reference_extractors.py text eol=lf

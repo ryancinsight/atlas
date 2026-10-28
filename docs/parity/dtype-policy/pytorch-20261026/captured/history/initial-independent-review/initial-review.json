@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "result": "CHANGES_REQUESTED_FOR_TWO_BOUNDED_DEFINITION_FINDINGS",
+  "packet": "/tmp/atlas-torch-dtype-native-closure-next",
+  "sealed_manifest_sha256": "697b0c7463ba3bff6935c48bbc73d24728e05843123d0587bf6e6b077314bd21",
+  "framework": "pytorch",
+  "version": "2.14.1",
+  "revision": "5c4886908584029761b579af026dcfb627c84070",
+  "review_scope": "Bounded source/provenance/finite-model/partial-contract review only; no framework or provider execution or qualification.",
+  "findings": [
+    {
+      "id": "F1-COMPLEX-FIXTURE-ENCODING",
+      "priority": "P2",
+      "blocking_this_definition_handoff": true,
+      "generator": "build_packet.py:348",
+      "data": "acceptance-cases.json records[id=ADD-COMPLEX-GRAD] fixture and expected",
+      "problem": "The positive scalar complex add/VJP fixture uses untagged arrays a=[1,2], b=[3,-1], alpha=[2,1], with result=[8,3]. No decoder contract declares these as real/imaginary scalar components. Literal lists can describe complex vectors and alpha is not a Number, so the fixture does not unambiguously denote the legal call whose arithmetic is claimed.",
+      "source_basis": [
+        "sources/torch/_refs/__init__.py:1232-1255 requires alpha NumberType and checks its Python type",
+        "sources/aten/src/ATen/native/BinaryOps.h:17-25 performs native Scalar alpha category checks",
+        "source-witnesses.json id=add-ad supports conjugate VJP convention separately from fixture decoding"
+      ],
+      "required_change": "Tag native tensor operands with type, dtype, rank/shape, data encoding and requires_grad; tag Python complex Number alpha explicitly; use unambiguous real/imag fields for expected scalar result and VJPs or define and validate a named decoder. Add input-sensitive analytical oracle/negative encoding checks. Preserve UNRUN status.",
+      "mathematical_check": "Given a=1+2i, b=3-i, alpha=2+i, exact z=8+3i and real-loss reverse VJPs are1+0i and2-i. The arithmetic is correct under that explicitly stated interpretation."
+    },
+    {
+      "id": "F2-AGGREGATE-SCOPE-CREDIT-COHERENCE",
+      "priority": "P2",
+      "blocking_this_definition_handoff": true,
+      "validator": "verify_packet.py validate() lines68-89 and174-177",
+      "generator": "build_packet.py:298,393,413",
+      "data": [
+        "counts.json counts.runtime_cases_executed",
+        "contracts.json status and definition_state",
+        "remaining-gaps.json bounded_completeness"
+      ],
+      "problem": "Per-record partial/UNRUN guards do not enforce authoritative aggregate count/status/completeness consistency. Six realistic metadata mutations are accepted while comparator cases remain UNRUN and contract records remain partial.",
+      "accepted_corruptions": [
+        "counts.runtime_cases_executed=66",
+        "contracts.status.definition=fully_specified",
+        "contracts.status.tested=passed",
+        "bounded_completeness.whole_public_api_semantics=true",
+        "bounded_completeness.whole_public_dtype_registry=true",
+        "bounded_completeness.full_transitive_native_closure=true"
+      ],
+      "required_change": "Derive and validate aggregate counts from actual records, enforce aggregate/per-record status and definition coherence, reject all full-surface/registry/native closure credit for this deliberately partial packet, and add the six corruption regressions. Keep actual implementation ownership unresolved.",
+      "reproducer": "mutation_audit.py and mutation-results.json in this review directory; mutations are in-memory and preserve the original packet bytes."
+    }
+  ],
+  "verified": {
+    "sealed_artifacts": 74,
+    "exact_source_git_blobs": 45,
+    "line_excerpts": 88,
+    "native_enum_identities": 47,
+    "core_lookup_cells": 196,
+    "promotion_pairs_independently_reconstructed": 2209,
+    "canCast_pairs_independently_reconstructed": 2209,
+    "author_positive_checks": 12,
+    "author_rejection_probes": 18,
+    "independent_realistic_metadata_probes": 12,
+    "independent_probes_rejected": 6,
+    "independent_probes_accepted_as_findings": 6,
+    "offline_derived_files_byte_identical": 11,
+    "original_packet_unchanged": true
+  },
+  "source_review_conclusions": [
+    "Equal enum tags precede mixed quantized/Bits/Float8/extended-unsigned rejection; Undefined is separately first. No raw invalid-enum exception behavior is invented.",
+    "Rank-zero/dimensioned/wrapped/default-dtype behavior matches the selected source composition; generated public registry/parser reachability remains open.",
+    "Storage/common/compute/accumulator/result distinctions are preserved. CPU sum's acc_type<scalar_t,true> call site is distinguished from generic CPU helper maps.",
+    "Tensor.to aliasing retains dtype/layout/device/copy/memory-format conditions. Selected source-local error orders do not claim one global dispatch error order.",
+    "Selected add/div/sum/AD declarations and CUDA/MPS branches remain partial. Integer trunc signed-minimum/-1 stays unresolved with no invented guard or value.",
+    "Coeus remains the existing public facade, Eunomia numeric-policy supplier, and actual implementation owners remain null. Finite native models are not public registry/kernel/runtime qualification."
+  ],
+  "limitations": [
+    "No PyTorch/NumPy/JAX/TensorFlow import, native/framework/provider build, runtime test, network/auth/GitHub action, canonical or provider write.",
+    "Source models cover a finite native enum graph and selected paths only; generated bindings, dtype registry, full kernel/layout/device/context/AD/error/performance/release coverage remain open.",
+    "Acquisition provenance is checked against saved source bytes and exact Git tree/path/blob receipts; no new remote or credential verification occurs.",
+    "Successor review must be bound to its new exact manifest and recheck both material repairs plus source/ID/status conservation."
+  ],
+  "reviewer_continuity": "Same independent reviewer will re-review the parent-authorized immutable successor after repair; original697b remains preserved."
+}

@@ -1,0 +1,375 @@
+{
+  "supersedes_routing_only_from_manifest": "9ccda3094a2ae6948fc50824f5d56b75f922a86ad7201ffc49d7d8e088688f2b",
+  "reference_version": "2.14.1",
+  "reference_revision": "5c4886908584029761b579af026dcfb627c84070",
+  "primary_identities": 9066,
+  "identities_removed": 0,
+  "visibility_changes": 0,
+  "route_changes": 10,
+  "changes": [
+    {
+      "identity_key": "pytorch@2.14.1:py:function:torch.ops.symm_mem.all_to_all_vdev",
+      "symbol": "torch.ops.symm_mem.all_to_all_vdev",
+      "scope_classification_unchanged": "documented_public_contract",
+      "before": {
+        "family": "T-INTEROP",
+        "capability": "INTEROP-TENSOR",
+        "owner_proposal": "coeus",
+        "workflow": "serialization_deployment"
+      },
+      "after": {
+        "family": "T-COMMS",
+        "capability": "DIST-COMMS",
+        "owner_proposal": "moirai",
+        "workflow": "distributed_device",
+        "actual_owner": null
+      },
+      "source_refs": [
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 708,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L708"
+        },
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 643,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
+        }
+      ],
+      "signature_and_identity_unchanged": true,
+      "semantic_status": "unmapped",
+      "runtime_status": "unrun"
+    },
+    {
+      "identity_key": "pytorch@2.14.1:py:function:torch.ops.symm_mem.all_to_all_vdev_2d",
+      "symbol": "torch.ops.symm_mem.all_to_all_vdev_2d",
+      "scope_classification_unchanged": "documented_public_contract",
+      "before": {
+        "family": "T-INTEROP",
+        "capability": "INTEROP-TENSOR",
+        "owner_proposal": "coeus",
+        "workflow": "serialization_deployment"
+      },
+      "after": {
+        "family": "T-COMMS",
+        "capability": "DIST-COMMS",
+        "owner_proposal": "moirai",
+        "workflow": "distributed_device",
+        "actual_owner": null
+      },
+      "source_refs": [
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 719,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L719"
+        },
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 643,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
+        }
+      ],
+      "signature_and_identity_unchanged": true,
+      "semantic_status": "unmapped",
+      "runtime_status": "unrun"
+    },
+    {
+      "identity_key": "pytorch@2.14.1:py:function:torch.ops.symm_mem.all_to_all_vdev_2d_offset",
+      "symbol": "torch.ops.symm_mem.all_to_all_vdev_2d_offset",
+      "scope_classification_unchanged": "documented_public_contract",
+      "before": {
+        "family": "T-INTEROP",
+        "capability": "INTEROP-TENSOR",
+        "owner_proposal": "coeus",
+        "workflow": "serialization_deployment"
+      },
+      "after": {
+        "family": "T-COMMS",
+        "capability": "DIST-COMMS",
+        "owner_proposal": "moirai",
+        "workflow": "distributed_device",
+        "actual_owner": null
+      },
+      "source_refs": [
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 754,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L754"
+        },
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 643,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
+        }
+      ],
+      "signature_and_identity_unchanged": true,
+      "semantic_status": "unmapped",
+      "runtime_status": "unrun"
+    },
+    {
+      "identity_key": "pytorch@2.14.1:py:function:torch.ops.symm_mem.multi_root_tile_reduce",
+      "symbol": "torch.ops.symm_mem.multi_root_tile_reduce",
+      "scope_classification_unchanged": "documented_public_contract",
+      "before": {
+        "family": "T-INTEROP",
+        "capability": "INTEROP-TENSOR",
+        "owner_proposal": "coeus",
+        "workflow": "serialization_deployment"
+      },
+      "after": {
+        "family": "T-COMMS",
+        "capability": "DIST-COMMS",
+        "owner_proposal": "moirai",
+        "workflow": "distributed_device",
+        "actual_owner": null
+      },
+      "source_refs": [
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 799,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L799"
+        },
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 643,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
+        }
+      ],
+      "signature_and_identity_unchanged": true,
+      "semantic_status": "unmapped",
+      "runtime_status": "unrun"
+    },
+    {
+      "identity_key": "pytorch@2.14.1:py:function:torch.ops.symm_mem.multimem_all_gather_out",
+      "symbol": "torch.ops.symm_mem.multimem_all_gather_out",
+      "scope_classification_unchanged": "documented_public_contract",
+      "before": {
+        "family": "T-INTEROP",
+        "capability": "INTEROP-TENSOR",
+        "owner_proposal": "coeus",
+        "workflow": "serialization_deployment"
+      },
+      "after": {
+        "family": "T-COMMS",
+        "capability": "DIST-COMMS",
+        "owner_proposal": "moirai",
+        "workflow": "distributed_device",
+        "actual_owner": null
+      },
+      "source_refs": [
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 655,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L655"
+        },
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 643,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
+        }
+      ],
+      "signature_and_identity_unchanged": true,
+      "semantic_status": "unmapped",
+      "runtime_status": "unrun"
+    },
+    {
+      "identity_key": "pytorch@2.14.1:py:function:torch.ops.symm_mem.multimem_all_reduce_",
+      "symbol": "torch.ops.symm_mem.multimem_all_reduce_",
+      "scope_classification_unchanged": "documented_public_contract",
+      "before": {
+        "family": "T-INTEROP",
+        "capability": "INTEROP-TENSOR",
+        "owner_proposal": "coeus",
+        "workflow": "serialization_deployment"
+      },
+      "after": {
+        "family": "T-COMMS",
+        "capability": "DIST-COMMS",
+        "owner_proposal": "moirai",
+        "workflow": "distributed_device",
+        "actual_owner": null
+      },
+      "source_refs": [
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 636,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L636"
+        },
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 643,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
+        }
+      ],
+      "signature_and_identity_unchanged": true,
+      "semantic_status": "unmapped",
+      "runtime_status": "unrun"
+    },
+    {
+      "identity_key": "pytorch@2.14.1:py:function:torch.ops.symm_mem.one_shot_all_reduce",
+      "symbol": "torch.ops.symm_mem.one_shot_all_reduce",
+      "scope_classification_unchanged": "documented_public_contract",
+      "before": {
+        "family": "T-INTEROP",
+        "capability": "INTEROP-TENSOR",
+        "owner_proposal": "coeus",
+        "workflow": "serialization_deployment"
+      },
+      "after": {
+        "family": "T-COMMS",
+        "capability": "DIST-COMMS",
+        "owner_proposal": "moirai",
+        "workflow": "distributed_device",
+        "actual_owner": null
+      },
+      "source_refs": [
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 668,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L668"
+        },
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 643,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
+        }
+      ],
+      "signature_and_identity_unchanged": true,
+      "semantic_status": "unmapped",
+      "runtime_status": "unrun"
+    },
+    {
+      "identity_key": "pytorch@2.14.1:py:function:torch.ops.symm_mem.one_shot_all_reduce_out",
+      "symbol": "torch.ops.symm_mem.one_shot_all_reduce_out",
+      "scope_classification_unchanged": "documented_public_contract",
+      "before": {
+        "family": "T-INTEROP",
+        "capability": "INTEROP-TENSOR",
+        "owner_proposal": "coeus",
+        "workflow": "serialization_deployment"
+      },
+      "after": {
+        "family": "T-COMMS",
+        "capability": "DIST-COMMS",
+        "owner_proposal": "moirai",
+        "workflow": "distributed_device",
+        "actual_owner": null
+      },
+      "source_refs": [
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 681,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L681"
+        },
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 643,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
+        }
+      ],
+      "signature_and_identity_unchanged": true,
+      "semantic_status": "unmapped",
+      "runtime_status": "unrun"
+    },
+    {
+      "identity_key": "pytorch@2.14.1:py:function:torch.ops.symm_mem.tile_reduce",
+      "symbol": "torch.ops.symm_mem.tile_reduce",
+      "scope_classification_unchanged": "documented_public_contract",
+      "before": {
+        "family": "T-INTEROP",
+        "capability": "INTEROP-TENSOR",
+        "owner_proposal": "coeus",
+        "workflow": "serialization_deployment"
+      },
+      "after": {
+        "family": "T-COMMS",
+        "capability": "DIST-COMMS",
+        "owner_proposal": "moirai",
+        "workflow": "distributed_device",
+        "actual_owner": null
+      },
+      "source_refs": [
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 774,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L774"
+        },
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 643,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
+        }
+      ],
+      "signature_and_identity_unchanged": true,
+      "semantic_status": "unmapped",
+      "runtime_status": "unrun"
+    },
+    {
+      "identity_key": "pytorch@2.14.1:py:function:torch.ops.symm_mem.two_shot_all_reduce_",
+      "symbol": "torch.ops.symm_mem.two_shot_all_reduce_",
+      "scope_classification_unchanged": "documented_public_contract",
+      "before": {
+        "family": "T-INTEROP",
+        "capability": "INTEROP-TENSOR",
+        "owner_proposal": "coeus",
+        "workflow": "serialization_deployment"
+      },
+      "after": {
+        "family": "T-COMMS",
+        "capability": "DIST-COMMS",
+        "owner_proposal": "moirai",
+        "workflow": "distributed_device",
+        "actual_owner": null
+      },
+      "source_refs": [
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 695,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L695"
+        },
+        {
+          "path": "docs/source/symmetric_memory.md",
+          "line": 643,
+          "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L643"
+        }
+      ],
+      "signature_and_identity_unchanged": true,
+      "semantic_status": "unmapped",
+      "runtime_status": "unrun"
+    }
+  ],
+  "reason": "These are ordered multi-rank/in-kernel collective and remote-memory operations; generic torch.ops registration is not their mathematical workflow.",
+  "source_refs": [
+    {
+      "path": "docs/source/symmetric_memory.md",
+      "line": 93,
+      "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L93"
+    },
+    {
+      "path": "docs/source/symmetric_memory.md",
+      "line": 96,
+      "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L96"
+    },
+    {
+      "path": "docs/source/symmetric_memory.md",
+      "line": 617,
+      "url": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/docs/source/symmetric_memory.md#L617"
+    }
+  ],
+  "required_supplier_reviews": {
+    "moirai": "Collective progress, rank/group order, completion/error/synchronization semantics; family accountable proposal only.",
+    "hephaestus": "Real GPU kernels, streams/signal pads, NVSHMEM/multimem/interconnect/dtype/layout capability; no CPU fallback.",
+    "mnemosyne": "Symmetric allocation, peer-buffer ownership/lifetimes and safe remote access."
+  },
+  "workflow_prerequisites": [
+    "MEM-OWN",
+    "LOC-PLACE",
+    "CAP-PROOF",
+    "DEV-CORE",
+    "EXEC-CPU",
+    "DIST-COMMS",
+    "DIST-SHARD"
+  ],
+  "definition_limit": "No full dtype/layout/gradient/error matrix, implementation owner or native hardware execution is qualified. Allocation/rendezvous APIs remain their existing distributed T-SHARD proposals; the collective seam requires explicit integrated review.",
+  "acceptance": "Derive exact rank-local/global allreduce/allgather/all-to-all/tile maps, split/offset/alignment and in-place/out effects; validate group participation/order and one-stream signal-pad ordering on required actual GPU/interconnect configurations. Materialize legal dtype/layout/gradient and failure domains before implementation. No doctest skip, debug simulation or host fallback is verification."
+}

@@ -1,0 +1,156 @@
+{
+  "acceptance_readiness_improvement": {
+    "case": "TORCH-VIEW-FLOATING-AD-BOUNDARY",
+    "resolution": "Floating grad-bearing input and floating dtype-view output isolate registered nondifferentiability; exact gradient rejection remains unrun.",
+    "status": "specified-not-run"
+  },
+  "access_or_delivery_actions": {
+    "canonical_or_provider_edits": 0,
+    "framework_imports_or_builds": 0,
+    "network_or_access_probes": 0,
+    "parent_PR_blocker_unchanged": "Atlas draft PR creation denied HTTP403 Resource not accessible by integration; no PR after readback; no retry or access-route change."
+  },
+  "author_checks_independently_replayed": {
+    "abstract_law_cases": 441,
+    "adverse_probes_rejected": 11,
+    "failed": 0,
+    "framework_runtime_cases": 0,
+    "passed": 8
+  },
+  "blocking_findings": [],
+  "checks": [
+    {
+      "detail": {
+        "current_artifacts_replayed_byte_identically": 61,
+        "manifest_byte_identical": true,
+        "original_artifacts_rehashed_unchanged": 52,
+        "original_manifest_unchanged": true
+      },
+      "id": "INDEPENDENT-001-exact-seal-replay-and-history",
+      "result": "pass"
+    },
+    {
+      "detail": {
+        "atlas_revision": "da03f4ea2b134539f4f26343510f0e41e8e43568",
+        "exact_git_input_objects": 3,
+        "existing_admitted_identities_joined": 20,
+        "new_denominator_identities": 0
+      },
+      "id": "INDEPENDENT-002-canonical-primary-identity-join",
+      "result": "pass"
+    },
+    {
+      "detail": {
+        "framework_source_counts": {
+          "pytorch": 13,
+          "tensorflow": 19
+        },
+        "full_source_receipts": 32,
+        "portable_line_witnesses": 58,
+        "pytorch_release_tree_membership": true,
+        "tensorflow_full_release_tree_independently_retrieved": false,
+        "tensorflow_golden_receipts_joined_to_canonical_primary": 3,
+        "tensorflow_pinned_prior_cache_receipt_membership": true
+      },
+      "id": "INDEPENDENT-003-pinned-source-bytes-lines-citations",
+      "result": "pass"
+    },
+    {
+      "detail": {
+        "actual_implementation_owners_resolved": 0,
+        "cases_unrun": 43,
+        "contracts_with_remaining_domains": 20,
+        "named_unclosed_source_paths": 11,
+        "partial_contracts": 20,
+        "whole_API_or_runtime_qualification": 0
+      },
+      "id": "INDEPENDENT-004-partial-scope-and-no-qualification-promotion",
+      "result": "pass"
+    },
+    {
+      "detail": {
+        "added_cases": [
+          "TORCH-TO-INCOMPATIBLE-FORMAT",
+          "TORCH-VIEW-FLOATING-AD-BOUNDARY"
+        ],
+        "changed_contracts": [
+          "pytorch-core-to",
+          "tensorflow-core-gradient"
+        ],
+        "changed_prior_cases": [
+          "TORCH-TO-FORCED-COPY",
+          "TORCH-TO-NOOP",
+          "TORCH-VIEW-STRIDE-REJECT"
+        ],
+        "unchanged_contracts": 18,
+        "unchanged_prior_cases": 38
+      },
+      "id": "INDEPENDENT-005-bounded-exact-before-after",
+      "result": "pass"
+    },
+    {
+      "detail": {
+        "checks": [
+          "nondegenerate_channels_last_strides",
+          "transposed_address_nonuniformity",
+          "binary32_rounding",
+          "bit_reinterpretation_example",
+          "repeated_index_VJP",
+          "zero_singleton_extent"
+        ],
+        "framework_runtime_executions": 0
+      },
+      "id": "INDEPENDENT-006-independent-analytical-regressions",
+      "result": "pass"
+    }
+  ],
+  "original_manifest_sha256": "80cfe34a3ca83c163ffdc6a6501cae72001df232a0033e7f0c5167912d7468c6",
+  "replay_copy": "/tmp/atlas-core-torch-tf-independent-review/replay-875d",
+  "resolved_findings": [
+    {
+      "finding_id": "TORCH-CORE-TO-ALIAS-001",
+      "resolution": "Native self-return guard now includes layout and Preserve-or-suggested memory format; incompatible channels_last case selects _to_copy.",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/TensorConversions.cpp#L409-L446"
+    },
+    {
+      "finding_id": "TF-CORE-TAPE-ORDER-001",
+      "resolution": "Target normalization/trainability logging precedes source flattening/normalization and packed-source rejection.",
+      "source": "https://github.com/tensorflow/tensorflow/blob/a481b10260dfdf833a1b16007eead49c1d7febf3/tensorflow/python/eager/backprop.py#L1027-L1055"
+    },
+    {
+      "finding_id": "TORCH-CORE-VIEW-LAYOUT-001",
+      "resolution": "Shape [3,2], strides [1,3] is explicitly transposed strided, not contiguous_format."
+    }
+  ],
+  "result": "accept_bounded_source_definition_only",
+  "reviewed_manifest_sha256": "875d1411199b7762da68d37ad9cc16b5df06a412fe733695d3914007a655457f",
+  "reviewed_packet": "/tmp/atlas-core-model-torch-tf",
+  "reviewer": "torch_closure",
+  "schema_version": 1,
+  "scope_limitations": [
+    "Acceptance covers a bounded partial source definition, exact admitted-ID joins, provenance, correction history and reproducibility only.",
+    "All 43 comparator analytical cases remain specified-not-run; no framework runtime import/build/execution occurred.",
+    "All 20 endpoints retain incomplete dtype/layout/device/error/AD domains and actual implementation ownership remains unresolved.",
+    "Eleven native/generated source paths remain unclosed; source-known condition lists do not prove delegated validation order.",
+    "TensorFlow blob membership is checked against the previously pinned cached source manifest; no new independent network tree retrieval occurred.",
+    "No whole-API, cross-framework equivalence, implementation, hardware, performance, release or 1.0 approval is granted."
+  ],
+  "semantic_review_scope": {
+    "axes": [
+      "dtype-promotion versus explicit casts",
+      "concrete zero/one broadcast versus unknown static shapes",
+      "rank and element count",
+      "view versus reshape alias/effect restrictions",
+      "advanced index read versus in-place update",
+      "functional scatter versus resource assignment",
+      "registered metadata/index/dtype-view differentiation boundaries",
+      "native-known order versus condition lists"
+    ],
+    "framework_specific_contracts_retained": true,
+    "partial_contract_records_inspected": 20,
+    "pytorch_endpoints": 10,
+    "tensorflow_endpoints": 10,
+    "unrun_case_records_inspected": 43
+  },
+  "stable_review_copy": "/tmp/atlas-core-torch-tf-independent-review/corrected-875d"
+}

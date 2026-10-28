@@ -1,0 +1,462 @@
+{
+  "configured_sphinx_range": ">=7.3.2,<8.0",
+  "compatible_releases_observed": [
+    "7.3.2",
+    "7.3.3",
+    "7.3.4",
+    "7.3.5",
+    "7.3.6",
+    "7.3.7",
+    "7.4.0",
+    "7.4.1",
+    "7.4.2",
+    "7.4.3",
+    "7.4.4",
+    "7.4.5",
+    "7.4.6",
+    "7.4.7"
+  ],
+  "actual_resolved_docs_build_version": "not recorded by frozen build configuration",
+  "sources": [
+    {
+      "url": "https://pypi.org/pypi/sphinx/json",
+      "path": "sphinx-pypi.json",
+      "sha256": "34acc3a045c37cdb604ea7437a4d5919a2f06777b42981aae3e04eeeb134cef2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.2/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.3.2/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673",
+      "sphinx_version": "7.3.2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.2/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.3.2/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.3.2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.2/sphinx/util/inspect.py",
+      "path": "tooling/7.3.2/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1",
+      "sphinx_version": "7.3.2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.2/sphinx/pycode/parser.py",
+      "path": "tooling/7.3.2/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.3.2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.3/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.3.3/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673",
+      "sphinx_version": "7.3.3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.3/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.3.3/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.3.3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.3/sphinx/util/inspect.py",
+      "path": "tooling/7.3.3/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1",
+      "sphinx_version": "7.3.3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.3/sphinx/pycode/parser.py",
+      "path": "tooling/7.3.3/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.3.3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.4/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.3.4/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673",
+      "sphinx_version": "7.3.4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.4/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.3.4/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.3.4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.4/sphinx/util/inspect.py",
+      "path": "tooling/7.3.4/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1",
+      "sphinx_version": "7.3.4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.4/sphinx/pycode/parser.py",
+      "path": "tooling/7.3.4/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.3.4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.5/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.3.5/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673",
+      "sphinx_version": "7.3.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.5/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.3.5/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.3.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.5/sphinx/util/inspect.py",
+      "path": "tooling/7.3.5/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1",
+      "sphinx_version": "7.3.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.5/sphinx/pycode/parser.py",
+      "path": "tooling/7.3.5/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.3.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.6/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.3.6/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673",
+      "sphinx_version": "7.3.6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.6/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.3.6/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.3.6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.6/sphinx/util/inspect.py",
+      "path": "tooling/7.3.6/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1",
+      "sphinx_version": "7.3.6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.6/sphinx/pycode/parser.py",
+      "path": "tooling/7.3.6/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.3.6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.7/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.3.7/sphinx/ext/autodoc/__init__.py",
+      "sha256": "f54396093b33c1672d4a4ec098349f52fb28ff8ca147b89c70dbf4ece63c3673",
+      "sphinx_version": "7.3.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.7/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.3.7/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.3.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.7/sphinx/util/inspect.py",
+      "path": "tooling/7.3.7/sphinx/util/inspect.py",
+      "sha256": "8409f174e7c4991d643ba905b73672ed4d378e8f6abfc6a6285b7bb9f7ec01f1",
+      "sphinx_version": "7.3.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.7/sphinx/pycode/parser.py",
+      "path": "tooling/7.3.7/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.3.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.0/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.4.0/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4",
+      "sphinx_version": "7.4.0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.0/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.4.0/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.4.0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.0/sphinx/util/inspect.py",
+      "path": "tooling/7.4.0/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2",
+      "sphinx_version": "7.4.0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.0/sphinx/pycode/parser.py",
+      "path": "tooling/7.4.0/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.4.0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.1/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.4.1/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4",
+      "sphinx_version": "7.4.1"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.1/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.4.1/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.4.1"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.1/sphinx/util/inspect.py",
+      "path": "tooling/7.4.1/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2",
+      "sphinx_version": "7.4.1"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.1/sphinx/pycode/parser.py",
+      "path": "tooling/7.4.1/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.4.1"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.2/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.4.2/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4",
+      "sphinx_version": "7.4.2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.2/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.4.2/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.4.2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.2/sphinx/util/inspect.py",
+      "path": "tooling/7.4.2/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2",
+      "sphinx_version": "7.4.2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.2/sphinx/pycode/parser.py",
+      "path": "tooling/7.4.2/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.4.2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.3/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.4.3/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4",
+      "sphinx_version": "7.4.3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.3/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.4.3/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.4.3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.3/sphinx/util/inspect.py",
+      "path": "tooling/7.4.3/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2",
+      "sphinx_version": "7.4.3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.3/sphinx/pycode/parser.py",
+      "path": "tooling/7.4.3/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.4.3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.4/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.4.4/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4",
+      "sphinx_version": "7.4.4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.4/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.4.4/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.4.4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.4/sphinx/util/inspect.py",
+      "path": "tooling/7.4.4/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2",
+      "sphinx_version": "7.4.4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.4/sphinx/pycode/parser.py",
+      "path": "tooling/7.4.4/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.4.4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.5/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.4.5/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4",
+      "sphinx_version": "7.4.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.5/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.4.5/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.4.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.5/sphinx/util/inspect.py",
+      "path": "tooling/7.4.5/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2",
+      "sphinx_version": "7.4.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.5/sphinx/pycode/parser.py",
+      "path": "tooling/7.4.5/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.4.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.6/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.4.6/sphinx/ext/autodoc/__init__.py",
+      "sha256": "68661200cc2e19842f203369dfae66ec333cdfdca19f8c2ef8d7ca10ace092d4",
+      "sphinx_version": "7.4.6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.6/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.4.6/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.4.6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.6/sphinx/util/inspect.py",
+      "path": "tooling/7.4.6/sphinx/util/inspect.py",
+      "sha256": "05d96d100fb49592a109c09adc3992ee4215ed77f92994ba77c54a7fab8b34c2",
+      "sphinx_version": "7.4.6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.6/sphinx/pycode/parser.py",
+      "path": "tooling/7.4.6/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.4.6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.7/sphinx/ext/autodoc/__init__.py",
+      "path": "tooling/7.4.7/sphinx/ext/autodoc/__init__.py",
+      "sha256": "b9ee242aa87a2a44bd5229ec9ccfcb77e5305ee2f49b4947e1846c44ed0adfbb",
+      "sphinx_version": "7.4.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.7/sphinx/ext/autodoc/importer.py",
+      "path": "tooling/7.4.7/sphinx/ext/autodoc/importer.py",
+      "sha256": "44cf1d2f87b775c5c8a284e0da0baf10172363377995a93cfd0ac63621e08c42",
+      "sphinx_version": "7.4.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.7/sphinx/util/inspect.py",
+      "path": "tooling/7.4.7/sphinx/util/inspect.py",
+      "sha256": "41fc857e0ecec03106f0f9efc5138e2405180d0149b4b81d0ea05ea7dd4c878c",
+      "sphinx_version": "7.4.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.7/sphinx/pycode/parser.py",
+      "path": "tooling/7.4.7/sphinx/pycode/parser.py",
+      "sha256": "e718b80ca5c44dc4aeb194c7e81cfc6b36f437295fda7da92379f51659f47dd1",
+      "sphinx_version": "7.4.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/python/cpython/v3.12.0/Lib/inspect.py",
+      "path": "tooling/cpython3.12.0/Lib/inspect.py",
+      "sha256": "2cc3b3e41032cd523110607a7d7cad966106e58d0a4dc5869b20185a097213ad"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/python/cpython/v3.12.0/Objects/descrobject.c",
+      "path": "tooling/cpython3.12.0/Objects/descrobject.c",
+      "sha256": "2dfd2289cc3114e892c3ae069698b7f6ba54ac0e80c9a6d11bef81c1dbc28aa3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.2/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.3.2/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.3.2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.3/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.3.3/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.3.3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.4/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.3.4/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.3.4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.5/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.3.5/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.3.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.6/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.3.6/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.3.6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.3.7/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.3.7/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.3.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.0/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.4.0/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.4.0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.1/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.4.1/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.4.1"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.2/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.4.2/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.4.2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.3/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.4.3/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.4.3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.4/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.4.4/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.4.4"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.5/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.4.5/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.4.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.6/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.4.6/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.4.6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/v7.4.7/sphinx/ext/napoleon/__init__.py",
+      "path": "tooling/7.4.7/sphinx/ext/napoleon/__init__.py",
+      "sha256": "9c61fb703a65f819c4c9e128465a64dbc5d0f97ef321d6130f121890fd33d05a",
+      "sphinx_version": "7.4.7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/python/cpython/v3.12.0/Objects/typeobject.c",
+      "path": "tooling/cpython3.12.0/Objects/typeobject.c",
+      "sha256": "401ed870bd11bc957ff5a6774067b93a55b37a85ff743734dd366b904db09f50"
+    }
+  ]
+}

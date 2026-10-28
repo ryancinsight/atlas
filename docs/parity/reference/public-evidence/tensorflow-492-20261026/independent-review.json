@@ -1,0 +1,220 @@
+{
+  "reviewed_packet": "/tmp/atlas-tf-publicness-492-next-bound",
+  "reviewed_manifest_sha256": "ac452a116143b668c2f40840022674649f214940c0fff9d14400e77566c023b4",
+  "input_atlas_revision": "20ae8d85f6c3aa6a6712e4f0b823b5f066bdc008",
+  "reference_versions": {
+    "tensorflow": "2.21.0",
+    "keras": "3.15.1"
+  },
+  "reference_revisions": {
+    "tensorflow": "a481b10260dfdf833a1b16007eead49c1d7febf3",
+    "keras": "250b42181ce9f37df68319d8f4753ec89a349a43"
+  },
+  "review_time_utc": "2026-10-26T17:32:25.924586+00:00",
+  "reviewer_role": "same independent reviewer of initial930d sixP2 guard findings",
+  "result": "accepted_bounded_source_and_guard_successor",
+  "findings": [],
+  "initial_review_sha256": "ab548b8fbd1ccbc9b65e1d67094ac6759666a66b2dbd7d0c458bffb48398f4c4",
+  "resolved_initial_findings": [
+    {
+      "id": "TF492-F1",
+      "result": "resolved",
+      "code": [
+        "projection_contract.py:39",
+        "projection_contract.py:58",
+        "derive_packet.py:41"
+      ],
+      "evidence": "Exact primary/index/reference/golden and actual public-or-inherited AST signatures bind both projections. Co-erased signature and co-repointed input index reject."
+    },
+    {
+      "id": "TF492-F2",
+      "result": "resolved",
+      "code": [
+        "projection_contract.py:47",
+        "derive_packet.py:139"
+      ],
+      "evidence": "Exact source-derived Keras expression/member/witness/context set is regenerated. Unrelated member, unrelated witness and duplicated context reject."
+    },
+    {
+      "id": "TF492-F3",
+      "result": "resolved",
+      "code": [
+        "projection_contract.py:29",
+        "projection_contract.py:55",
+        "validate_packet.py:214"
+      ],
+      "evidence": "All eight full typed projections/no-credit envelopes, rules, gaps, routes and executed source receipt are checked. Promoted owners, deleted or duplicate gaps, repointed privacy rules, false/extra runtime flags and self-approval reject."
+    },
+    {
+      "id": "TF492-F4",
+      "result": "resolved",
+      "code": [
+        "derive_packet.py:125",
+        "projection_contract.py:39"
+      ],
+      "evidence": "Workflow prerequisites are recomputed from independently anchored capability input and exact full projections checked. Removed edges and coordinated capability/capture changes reject."
+    },
+    {
+      "id": "TF492-F5",
+      "result": "resolved",
+      "code": [
+        "derive_packet.py:68",
+        "projection_contract.py:43"
+      ],
+      "evidence": "AST name/kind/class bases/signature/decorators are regenerated from exact selected source and checked in full typed members. Fabricated AST identity rejects."
+    },
+    {
+      "id": "TF492-F6",
+      "result": "resolved",
+      "code": [
+        "input_contract.py:33",
+        "input_contract.py:46",
+        "derive_packet.py:13"
+      ],
+      "evidence": "Producer and validator independently rederive492 original binding/source/index entries from normalized immutable canonical inputs. Impossible/bool/co-mutated indices and coordinated input/capture changes reject; valid reformat/reindex controls pass."
+    }
+  ],
+  "scope_assessment": {
+    "raw_ids_conserved": 492,
+    "private_base_identity_proposals": 6,
+    "required_operator_protocol_views": 5,
+    "required_namespace_grouping_views": 1,
+    "unresolved_publicness_rows": 480,
+    "public_facade_records_retained": 12,
+    "original_source_data_projections_changed": 0,
+    "source_blobs": 155,
+    "witnesses": 747,
+    "golden_source_files": 67,
+    "workflow_groups": 19,
+    "AST_bearing_rows": 281,
+    "unique_AST_definitions": 225,
+    "unclosed_member_selectors": 211,
+    "Keras_static_contexts": 24,
+    "Keras_context_files": 13,
+    "proposed_Coeus_routes": 405,
+    "route_exceptions": 87,
+    "actual_implementation_owners_resolved": 0,
+    "source_conclusion": "Exact pinned source supports the six literal internally-used SavedModelBuilder base identity proposals; required public v1 facade/member workflows retain distinct signatures and inherited save. The five operator/protocol hooks and namespace view stay required. No blanket privacy inference applies to the480 unresolved rows.",
+    "semantic_equivalence": "not asserted; subclass linkage does not equate public/internal assets or init arguments",
+    "canonical_admission_changes": 0,
+    "framework_executions": 0,
+    "runtime_qualification": false,
+    "released": false
+  },
+  "executed_checks": {
+    "manifest_and_full_file_set": 199,
+    "source_data_930d_byte_identical_projections": 8,
+    "independently_verified_input_semantic_anchors": 16,
+    "independently_verified_source_coordinates": 155,
+    "canonical_input_Git_objects_byte_verified": 11,
+    "offline_replay": "build; validate;25copied-cases;finalize;finalize--check: all pass;199 artifacts,manifest and external regression receipt reproduce byte-identically",
+    "source_accounting_checks": 8,
+    "in_memory_adverse_guards_rejected": 27,
+    "replayed_author_copied_cases": 25,
+    "author_case_rejections": 22,
+    "author_valid_controls": 3,
+    "original_independent_probes": 14,
+    "original_probe_mutations_rejected": 11,
+    "original_probe_valid_controls": 3,
+    "additional_independent_copied_cases": 14,
+    "additional_rejections": 12,
+    "additional_valid_controls": 2,
+    "framework_docs_import_blocking": "enforced in all20CLI invocations of additional copied cases; static import-declaration scan of all root scripts also passes",
+    "skips": 0,
+    "Python": "3.14.7"
+  },
+  "source_data_audit": {
+    "reviewed_manifest_sha256": "ac452a116143b668c2f40840022674649f214940c0fff9d14400e77566c023b4",
+    "source_data_checks": "pass; independent of packet validator",
+    "canonical_git_inputs_byte_identical": 11,
+    "raw_ids_conserved": 492,
+    "source_blobs": 155,
+    "source_line_witnesses": 747,
+    "golden_source_files": 67,
+    "ast_definition_rows": 281,
+    "unique_ast_definitions": 225,
+    "public_facade_views_bound_to_actual_primary_records": 12,
+    "keras_ast_contexts": 24,
+    "keras_ast_context_files": 13,
+    "workflow_groups": 19,
+    "proposal_owner_counts": {
+      "coeus": 405,
+      "unresolved": 87
+    },
+    "remaining_source_selectors": 211,
+    "remaining_publicness_rows": 480,
+    "proposed_categories": {
+      "publicness_unresolved": 480,
+      "internal_implementation_identity": 6,
+      "required_extension_namespace_grouping_view": 1,
+      "required_operator_extension_or_protocol_view": 5
+    },
+    "builder_source_signatures": {
+      "_SavedModelBuilder": {
+        "__init__": "self, export_dir",
+        "add_meta_graph": "self, tags, signature_def_map=None, assets_list=None, clear_devices=False, init_op=None, train_op=None, saver=None",
+        "add_meta_graph_and_variables": "self, sess, tags, signature_def_map=None, assets_list=None, clear_devices=False, init_op=None, train_op=None, strip_default_attrs=False, saver=None",
+        "save": "self, as_text=False, experimental_image_format=False, experimental_image_writer_options=None"
+      },
+      "SavedModelBuilder": {
+        "__init__": "self, export_dir",
+        "add_meta_graph": "self, tags, signature_def_map=None, assets_collection=None, legacy_init_op=None, clear_devices=False, main_op=None, strip_default_attrs=False, saver=None",
+        "add_meta_graph_and_variables": "self, sess, tags, signature_def_map=None, assets_collection=None, legacy_init_op=None, clear_devices=False, main_op=None, strip_default_attrs=False, saver=None"
+      }
+    },
+    "internal_proposal_scope": "literal implementation identity paths; no public-facade semantic equivalence or runtime discharge",
+    "source_semantics_note": "Public add_meta_graph and add_meta_graph_and_variables override base arguments and asset/init behavior; save is inherited. Those differences remain required, not discharged by subclass linkage.",
+    "framework_execution": 0,
+    "canonical_edits": 0
+  },
+  "snapshots_after_all_probes": [
+    {
+      "path": "/tmp/atlas-tf-publicness-492-next-bound",
+      "manifest_sha256": "ac452a116143b668c2f40840022674649f214940c0fff9d14400e77566c023b4",
+      "artifacts": 199,
+      "drift": []
+    },
+    {
+      "path": "/tmp/atlas-tf-publicness-492-next-guards",
+      "manifest_sha256": "930db776faabe15afb54ca9490bbc83ce147243829e4b5f9d449c4e8975a3191",
+      "artifacts": 190,
+      "drift": []
+    },
+    {
+      "path": "/tmp/atlas-tf-publicness-492-next",
+      "manifest_sha256": "dc0b0c204ecb1f463d1b4e175781afd1ad7cf8de796844dba6b5ed14298c9407",
+      "artifacts": 189,
+      "drift": []
+    },
+    {
+      "path": "/tmp/atlas-tf-publicness-492-independent-review/successor-ac452a11/replay",
+      "manifest_sha256": "ac452a116143b668c2f40840022674649f214940c0fff9d14400e77566c023b4",
+      "artifacts": 199,
+      "drift": []
+    },
+    {
+      "path": "/tmp/atlas-tf-publicness-492-independent-review/successor-ac452a11/attacks",
+      "manifest_sha256": "ac452a116143b668c2f40840022674649f214940c0fff9d14400e77566c023b4",
+      "artifacts": 199,
+      "drift": []
+    }
+  ],
+  "remaining_material_gaps": [
+    "480 publicness classifications remain unresolved",
+    "211 original inherited/generated/native effective-member selectors remain unclosed",
+    "Nineteen reusable groups are partial workflow definitions, not whole API semantic closure",
+    "15 retained operator acceptance specifications remain specified-not-run",
+    "No rendered release docs or external tensorflow_docs selector execution/importability proof",
+    "No provider implementation, device/hardware, numerical differential, performance or release evidence is generated"
+  ],
+  "scope_of_acceptance": "Only this exact source-only packet and its repaired guards are accepted. This is not approval of complete public inventory, complete per-API semantics, canonical admission migration, provider implementation ownership, runtime equivalence or release. Root owns independently reviewed future integration/admission changes.",
+  "restrictions_observed": {
+    "canonical_edits": 0,
+    "provider_edits": 0,
+    "original_packet_edits": 0,
+    "framework_imports_builds_or_execution": 0,
+    "network_source_acquisition_auth_or_GitHub_actions": 0,
+    "subdelegation": 0
+  },
+  "operational_blockers": []
+}
