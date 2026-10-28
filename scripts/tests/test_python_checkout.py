@@ -26,10 +26,10 @@ HOOK = r"""import json, os, pathlib, time
 folder = pathlib.Path(os.environ['MATERIALIZATION_BARRIER'])
 path = pathlib.Path.cwd()
 (folder / str(os.getpid())).write_text(json.dumps({'pid': os.getpid(), 'path': str(path)}))
+while not (folder / 'release').exists() and not (folder / path.name).exists():
+    time.sleep(0.02)
 if path.name == os.environ.get('MATERIALIZATION_FAIL', ''):
     raise SystemExit(42)
-while not (folder / 'release').exists():
-    time.sleep(0.02)
 """
 
 
@@ -161,7 +161,13 @@ class PythonCheckoutTests(unittest.TestCase):
                     self.assertEqual(self.git(member, "config", "--get", "remote.origin.promisor"), "true")
                     self.assertEqual(self.git(member, "config", "--get", "remote.origin.partialclonefilter"), "blob:none")
                     self.assertFalse((member / "new.txt").exists())
+                    future_blob = self.git(member, "rev-parse", tip + ":new.txt")
+                    local_objects = self.git(member, "cat-file", "--batch-all-objects",
+                                             "--batch-check=%(objectname)").splitlines()
+                    self.assertNotIn(future_blob, local_objects)
                     self.assertEqual(self.git(member, "show", tip + ":new.txt"), "later default branch")
+                    self.assertIn(future_blob, self.git(member, "cat-file", "--batch-all-objects",
+                                                       "--batch-check=%(objectname)").splitlines())
                     self.assertEqual((member / "old.txt").read_text(), "recorded pin\n")
                     self.assertFalse((member / "private/fixture/.git").exists())
 
@@ -169,7 +175,8 @@ class PythonCheckoutTests(unittest.TestCase):
         with self.fixture() as (folder, parent, _):
             barrier, env = self.barrier(folder)
             with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(process_tree.run, self.command(), cwd=parent, env=env, timeout=30)
+                future = executor.submit(subprocess.run, self.command(), cwd=parent, env=env,
+                                         capture_output=True, timeout=30)
                 try:
                     rows = self.wait_entered(barrier, 4)
                     self.assertEqual(len(rows), 4)
@@ -213,13 +220,89 @@ class PythonCheckoutTests(unittest.TestCase):
         with self.fixture() as (folder, parent, members):
             barrier, env = self.barrier(folder)
             env["MATERIALIZATION_FAIL"] = Path(members[0][1]).name
-            p = subprocess.run(self.command(), cwd=parent, env=env, capture_output=True, text=True, timeout=20)
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(subprocess.run, self.command(), cwd=parent, env=env,
+                                         capture_output=True, timeout=30)
+                try:
+                    rows = self.wait_entered(barrier, 4)
+                    (barrier / Path(members[0][1]).name).touch()
+                    result = future.result(timeout=12)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(b"failed", result.stderr)
+                    self.assertEqual(len(self.entered(barrier)), 4)
+                    self.assert_retired(rows)
+                finally:
+                    (barrier / "release").touch()
+
+    def test_serial_registration_failure_prevents_every_worker(self):
+        with self.fixture() as (_, parent, members):
+            self.git(parent, "config", "-f", ".gitmodules", "--unset",
+                     "submodule." + members[-1][0] + ".url")
+            self.git(parent, "add", ".gitmodules")
+            self.commit(parent, "missing final member URL")
+            p = subprocess.run(self.command(), cwd=parent, env=self.env,
+                               capture_output=True, text=True, timeout=20)
             self.assertNotEqual(p.returncode, 0)
-            self.assertIn("failed", p.stderr)
-            rows = self.entered(barrier)
-            self.assertTrue(rows)
-            self.assertLessEqual(len(rows), 4)
-            self.assert_retired(rows)
+            self.assertIn("No url found", p.stderr)
+            self.git(parent, "config", "--get", "submodule." + members[0][0] + ".url")
+            self.assertFalse((parent / ".git/modules").exists())
+            self.assertFalse(any((parent / path / ".git").exists() for _, path, _, _ in members))
+
+    def test_unavailable_recorded_pin_and_clone_source_fail_closed(self):
+        for problem in ("pin", "remote"):
+            with self.subTest(problem=problem), self.fixture() as (folder, parent, members):
+                name, path, _, _ = members[0]
+                if problem == "pin":
+                    self.git(parent, "update-index", "--cacheinfo", "160000," + "f" * 40 + "," + path)
+                else:
+                    self.git(parent, "config", "-f", ".gitmodules", "submodule." + name + ".url",
+                             (folder / "unavailable.git").as_uri())
+                    self.git(parent, "add", ".gitmodules")
+                self.commit(parent, "unavailable member " + problem)
+                p = subprocess.run(self.command(), cwd=parent, env=self.env,
+                                   capture_output=True, text=True, timeout=20)
+                self.assertNotEqual(p.returncode, 0)
+                self.assertIn("member " + path + " failed", p.stderr)
+
+    @unittest.skipUnless(os.name == "posix", "POSIX child-liveness regression")
+    def test_post_update_pin_mismatch_retires_workers_and_keeps_queue_stopped(self):
+        with self.fixture() as (folder, parent, members):
+            barrier, env = self.barrier(folder)
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(subprocess.run, self.command(), cwd=parent, env=env,
+                                         capture_output=True, timeout=30)
+                try:
+                    rows = self.wait_entered(barrier, 4)
+                    _, path, _, tip = members[0]
+                    self.git(parent / path, "update-ref", "HEAD", tip)
+                    (barrier / Path(path).name).touch()
+                    result = future.result(timeout=12)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(b"pin mismatch", result.stderr)
+                    self.assertEqual(len(self.entered(barrier)), 4)
+                    self.assert_retired(rows)
+                finally:
+                    (barrier / "release").touch()
+
+    @unittest.skipUnless(os.name == "posix", "POSIX deadline/liveness regression")
+    def test_pool_deadline_retires_all_owned_checkout_children(self):
+        with self.fixture() as (folder, parent, _):
+            barrier, env = self.barrier(folder)
+            command = [sys.executable, "-c", "import sys; sys.path.insert(0, 'scripts'); "
+                       "from pathlib import Path; from atlas_ci_members import materialize; "
+                       "materialize(Path.cwd(), 4, timeout=8)"]
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(subprocess.run, command, cwd=parent, env=env,
+                                         capture_output=True, timeout=25)
+                try:
+                    rows = self.wait_entered(barrier, 4)
+                    result = future.result(timeout=20)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(b"timed out after 8s", result.stderr)
+                    self.assertEqual(len(self.entered(barrier)), 4)
+                    self.assert_retired(rows)
+                finally:
+                    (barrier / "release").touch()
 
     @unittest.skipUnless(os.name == "posix", "POSIX SIGINT regression")
     def test_interrupt_retires_all_owned_checkout_children(self):
@@ -301,8 +384,8 @@ class PythonCheckoutTests(unittest.TestCase):
             with self.subTest(name=name), self.fixture() as (folder, parent, _):
                 barrier, env = self.barrier(folder)
                 with ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(process_tree.run, self.command(), cwd=parent,
-                                             env=env, timeout=30)
+                    future = executor.submit(subprocess.run, self.command(), cwd=parent,
+                                             env=env, capture_output=True, timeout=30)
                     try:
                         rows = self.wait_entered(barrier, 4)
                         changed = parent / ".gitmodules" if name == ".gitmodules" else parent / ".git" / name
@@ -321,8 +404,8 @@ class PythonCheckoutTests(unittest.TestCase):
             with self.subTest(kind=kind), self.fixture() as (folder, parent, members):
                 barrier, env = self.barrier(folder)
                 with ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(process_tree.run, self.command(), cwd=parent,
-                                             env=env, timeout=30)
+                    future = executor.submit(subprocess.run, self.command(), cwd=parent,
+                                             env=env, capture_output=True, timeout=30)
                     try:
                         rows = self.wait_entered(barrier, 4)
                         name, path, _, _ = members[-1]

@@ -14,7 +14,7 @@ import sys
 import tempfile
 import time
 
-from atlas_git_process import GitProcessError, clean_process_env, execute_process
+from atlas_git_process import GitProcessError, GitProcessResult, clean_process_env, execute_process
 
 
 @dataclass(frozen=True)
@@ -259,6 +259,15 @@ def _pool(root: Path, jobs: int) -> dict:
                     pass
 
 
+def materialize(root: Path, jobs: int, *, timeout: int = 480) -> GitProcessResult:
+    """Supervise the real worker pool; the CLI always uses the CI deadline."""
+    return execute_process(
+        [sys.executable, str(Path(__file__).resolve()), "--root", str(root),
+         "--jobs", str(jobs), "--owned-pool"],
+        cwd=root, timeout=timeout,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
@@ -270,11 +279,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.owned_pool:
             print(json.dumps(_pool(root, args.jobs), sort_keys=True))
             return 0
-        result = execute_process(
-            [sys.executable, str(Path(__file__).resolve()), "--root", str(root),
-             "--jobs", str(args.jobs), "--owned-pool"],
-            cwd=root, timeout=480,
-        )
+        result = materialize(root, args.jobs)
         sys.stdout.buffer.write(result.stdout)
         sys.stderr.buffer.write(result.stderr)
         return result.returncode
