@@ -6,7 +6,9 @@
   metadata and package enumeration. Preserve the export directory default and
   cast/compiler failure handling, and record the compiler selected from the
   actual execution directory. This prerequisite leaves #551's provider cohort,
-  hooks, pins, overlay, locks and required gates unchanged.
+  hooks, pins, overlay, locks and required gates unchanged. Materialize recorded
+  Python-CI members with parallel blobless clones and full history so checkout
+  does not consume the unchanged test-job budgets.
 
 - Integrate the independently reviewed TF conversion source boundary in parity
   program 2026-10-26.12, with lossless selected captures, typed live owner/API

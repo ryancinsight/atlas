@@ -5,7 +5,7 @@
 Risk: the published checker rejects the hook's `--command-cwd` before Cargo,
 and source identity probes the compiler at the source rather than execution
 directory. The compatible checker/identity prerequisite adds real Cargo CLI
-regressions and preserves legacy calls and failure exits. Delivery requires
+regressions and preserves legacy calls and failure exits; blobless parallel CI member setup preserves pins/history and test budgets. Delivery requires
 unchanged exact-head gates and independent review; #551's cohort remains held.
 
 ## Finding 2026-10-26: bounded provider checklists do not define four-framework parity

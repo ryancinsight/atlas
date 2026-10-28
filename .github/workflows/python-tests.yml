@@ -45,8 +45,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          submodules: recursive
+          submodules: false
           lfs: false
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Initialize direct Atlas members
+        shell: bash
+        # Keep the recorded pins and full commit history. Fetch historical
+        # blobs on demand instead of transferring every member's payload
+        # before pytest; four independent clones share the network wait.
+        run: git -c protocol.version=2 submodule update --init --force --no-recommend-shallow --filter=blob:none --jobs=4
 
       - name: Setup Python 3.11
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
@@ -100,9 +109,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          submodules: recursive
+          submodules: false
           lfs: false
           fetch-depth: 0
+          filter: blob:none
+
+      - name: Initialize direct Atlas members
+        shell: bash
+        # Match the fast tier's complete recorded graph without historical
+        # blob payloads or nested private fixture repositories.
+        run: git -c protocol.version=2 submodule update --init --force --no-recommend-shallow --filter=blob:none --jobs=4
 
       - name: Setup Python 3.11
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
