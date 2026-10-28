@@ -131,6 +131,12 @@ class PythonCheckoutTests(unittest.TestCase):
             for row in rows:
                 p = subprocess.run(["ps", "-p", str(row["pid"]), "-o", "stat="],
                                    capture_output=True, text=True)
+                self.assertFalse(p.stderr.strip(), "Cannot verify owned child retirement: " + p.stderr)
+                self.assertIn(p.returncode, (0, 1), "Unexpected child-liveness observation")
+                if p.returncode == 0:
+                    self.assertTrue(p.stdout.strip(), "Successful ps observation has no process status")
+                else:
+                    self.assertFalse(p.stdout.strip(), "Missing PID observation contains process output")
                 if p.returncode == 0 and p.stdout.strip() and not p.stdout.strip().startswith("Z"):
                     live.append(row["pid"])
             if not live:
