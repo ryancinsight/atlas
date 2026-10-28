@@ -674,6 +674,87 @@ def test_without_a_base_only_the_row_counts():
     assert gate.violations("m", tip, {}, ["core"], baseline(counts={"m": {"core": 9}})) == []
 
 
+def test_a_package_the_base_never_held_is_judged_by_its_row(tmp_path):
+    # A crate returning to the workspace: the base never had it, so its
+    # recorded debt is judged by its row rather than by a count of zero.
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/core"]\n')
+    (repo / "crates" / "core").mkdir(parents=True)
+    (repo / "crates" / "core" / "Cargo.toml").write_text(
+        '[package]\nname = "core"\nversion = "0.1.0"\n')
+    base = commit(repo, "base")
+    (repo / "crates" / "viewer").mkdir()
+    (repo / "crates" / "viewer" / "Cargo.toml").write_text(
+        '[package]\nname = "viewer"\nversion = "0.1.0"\n')
+    (repo / "Cargo.toml").write_text(
+        '[workspace]\nmembers = ["crates/core", "crates/viewer"]\n')
+    tip = commit(repo, "the crate returns")
+    rules = tmp_path / "baseline.json"
+    rules.write_text('{"sanctioned": {}, "counts": {"m": {"core": 1, "viewer": 9}}}')
+    sites_file = tmp_path / "sites.json"
+    gate.write_sites(sites_file, {site("viewer", "crates/viewer/src/lib.rs", 1)})
+
+    assert gate.main(["--baseline", str(rules), "check", "--member", "m",
+                      "--repo", str(repo), "--base", base, "--tip", tip,
+                      "--package", "viewer", "--sites", str(sites_file),
+                      "--base-package", "viewer"]) == 0
+
+
+def test_a_package_the_base_held_is_judged_by_its_base_count(tmp_path):
+    # A file of casts moved into a package the base had: the move adds no
+    # line, so the base count is what judges it.
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text(
+        '[workspace]\nmembers = ["crates/core", "crates/other"]\n')
+    for member in ("core", "other"):
+        (repo / "crates" / member).mkdir(parents=True)
+        (repo / "crates" / member / "Cargo.toml").write_text(
+            f'[package]\nname = "{member}"\nversion = "0.1.0"\n')
+    (repo / "crates" / "other" / "src").mkdir()
+    (repo / "crates" / "other" / "src" / "moved.rs").write_text(OLD)
+    base = commit(repo, "base")
+    (repo / "crates" / "core" / "src").mkdir()
+    git(repo, "mv", "crates/other/src/moved.rs", "crates/core/src/moved.rs")
+    tip = commit(repo, "the file moves")
+    rules = tmp_path / "baseline.json"
+    rules.write_text('{"sanctioned": {}, "counts": {"m": {"core": 9}}}')
+    sites_file = tmp_path / "sites.json"
+    gate.write_sites(sites_file, {site("core", "crates/core/src/moved.rs", 2)})
+
+    assert gate.main(["--baseline", str(rules), "check", "--member", "m",
+                      "--repo", str(repo), "--base", base, "--tip", tip,
+                      "--package", "core", "--sites", str(sites_file),
+                      "--base-package", "core"]) == 1
+
+
+def test_a_workspace_glob_member_is_read_at_the_base(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "crates" / "one").mkdir(parents=True)
+    (repo / "crates" / "one" / "Cargo.toml").write_text(
+        '[package]\nname = "one"\nversion = "0.1.0"\n')
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/*"]\n')
+    base = commit(repo, "base")
+    assert gate.base_workspace_packages(repo, base) == frozenset({"one"})
+
+
+def test_an_excluded_member_is_not_read_at_the_base(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "fuzz").mkdir()
+    (repo / "fuzz" / "Cargo.toml").write_text(
+        '[package]\nname = "fuzz"\nversion = "0.1.0"\n')
+    (repo / "Cargo.toml").write_text(
+        '[workspace]\nmembers = ["crates/core"]\nexclude = ["fuzz"]\n')
+    (repo / "crates" / "core").mkdir(parents=True)
+    (repo / "crates" / "core" / "Cargo.toml").write_text(
+        '[package]\nname = "core"\nversion = "0.1.0"\n')
+    base = commit(repo, "base")
+    assert gate.base_workspace_packages(repo, base) == frozenset({"core"})
+
+
 def test_the_base_count_excludes_sanctioned_modules():
     tip = {site("core", "src/a.rs", 1)}
     base = {site("core", "src/convert.rs", 1)}
