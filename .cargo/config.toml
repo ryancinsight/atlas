@@ -267,21 +267,29 @@ mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 [patch."https://github.com/ryancinsight/Moirai"]
 moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
+moirai-crypto = { path = "repos/moirai/moirai-crypto" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
+moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-pal = { path = "repos/moirai/moirai-pal" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
+moirai-quic = { path = "repos/moirai/moirai-quic" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
+moirai-transport = { path = "repos/moirai/moirai-transport" }
 moirai-webview = { path = "repos/moirai/moirai-webview" }
 
 [patch."https://github.com/ryancinsight/Moirai.git"]
 moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
+moirai-crypto = { path = "repos/moirai/moirai-crypto" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
+moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-pal = { path = "repos/moirai/moirai-pal" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
+moirai-quic = { path = "repos/moirai/moirai-quic" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
+moirai-transport = { path = "repos/moirai/moirai-transport" }
 moirai-webview = { path = "repos/moirai/moirai-webview" }
 
 [patch."https://github.com/ryancinsight/proteus"]

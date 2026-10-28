@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- Document Helios planning's linear-model unit contract: beamlet weights in
+  their caller unit (typically MU), influence entries in Gy/MU, and the
+  prescription in the same dose unit (Gy), with no conversion inside the
+  optimizer. The root tooling suite was also re-run with a 60 s per-test
+  timeout: it progresses steadily with no hang and no failure, but it is simply
+  long (~1.5 h at 2159 tests), so it remains a CI job rather than an
+  interactive gate.
+
+- Publish Aequitas' non-SI catalog (Bar, StandardAtmosphere,
+  PoundPerSquareInch, conventional mmHg, km/h, mph, knot, ft/s, Rankine) with
+  its 14 value-semantic tests; every consumer lock now pins `9dc2a9a`. That
+  removed the need for CFDrs' member-manifest path patch and made its
+  `--locked` build green. Gaia's in-flight `FaceSoupTable` refactor landed, so
+  its full workspace passes `--locked` too; `atlas-stack-overlay.py check`
+  reports **stack aligned**, and `atlas-aequitas-audit` reports **0** findings.
+  The full 28-member `--locked` gate is green: Coeus's last stale lock was
+  repaired, and Kwavers' ultrasound/shear-speed validation tests convert the
+  typed `lame_mu`/`lame_lambda`/`shear_wave_speed` accessors with `into_base()`
+  at the seam.
+
+- Advance the meta-repo 59 commits to origin (496 files), preserving the one
+  local commit and the three uncommitted doc edits: README and gap_audit
+  reapplied cleanly, CHANGELOG's single conflict kept both the upstream parity
+  entries and the session's entries. Regenerate the stack overlay so
+  `atlas-stack-overlay.py check` reports **stack aligned**; move Apollo/Athena's
+  Hephaestus edges to 0.28 and refresh the seven drifted locks (Apollo, Athena,
+  Consus, Gaia, Leto, Moirai, Tyche). Retire CFDrs' member-manifest Aequitas
+  path patch, which stripped the lock's git sources and made the lock
+  non-portable.
+
 - Integrate the independently reviewed TF conversion source boundary in parity
   program 2026-10-26.12, with lossless selected captures, typed live owner/API
   joins and input-sensitive rounding/cotangent controls. Preserve all 30 UNRUN
@@ -35,6 +65,135 @@
   repository exit criteria and dependency-ordered work packages. Add the parity
   traceability/evidence validator with rejection tests. Extraction and all
   per-API semantic mappings remain incomplete; no package version changes.
+
+- Move every recorded consumer onto the current provider cohort and finish the
+  Aequitas unit typing at the medium seam. Eunomia 0.11 reaches the thirteen
+  consumers still naming 0.10, and Moirai 0.11 reaches Apollo, CFDrs, Gaia,
+  Helios, Hephaestus, Kwavers and RITK. Metis leaves its Moirai 0.9 revision
+  pins for the 0.11 workspace (Consus 0.4, Gaia 0.6.10, Hermes 0.9.2, Eunomia
+  0.11) and passes `cargo check --workspace --all-targets`. Kwavers types its
+  last raw medium and coupling getters (`ElasticProperties`, `BubbleProperties`,
+  `DissolutionModel`, and the four coupling traits), returns `Pressure` from the
+  homogeneous stored-moduli accessors, and deletes `acoustic_diffusivity`, whose
+  three implementations disagreed dimensionally and which had no caller. The
+  overlay regenerates with the six missing Moirai leaves (crypto, http, quic and
+  transport, in both URL forms): `atlas-stack-overlay.py check` reports zero
+  requirement lag, and all 28 recorded members pass `cargo check --workspace
+  --all-targets` under it. `atlas-aequitas-units.py` reports zero untyped SI
+  getters and zero spanning requirement ranges; its eighteen remaining findings
+  are lock-level Aequitas rev skew, which the standalone lock sweep can close
+  only after the provider cohort is published.
+- Measure the Aequitas audit's subject from `.gitmodules`: a directory under
+  `repos/` that the stack does not record is local work, so `leoneuro-rs` no
+  longer reads as a 225-commit cohort outlier the pin contract does not cover.
+- Add a theorem-units pass over the law providers and a fourth audit class.
+  The audit now flags an accessor whose name claims a unit other than the
+  returned quantity's canonical one; the sweep found and fixed Helios's
+  `_mm`/`_mm_per_s` helical accessors, which returned metre-valued `Length`
+  and `Velocity` quantities under millimetre names. Physics review of the
+  Hyperion, Proteus, Ares, Prometheus, Asclepius, Horae, Helios, CFDrs and
+  Kwavers laws found three theorems whose declared unit or sign was wrong.
+  `helios_solver::deposit_ray_terma` conserves areal energy
+  (`w·(1−e^{−τ})`, J/m²) but returned `AbsorbedDose` (J/kg); it now returns
+  `EnergyPerArea`, with the missing mass-thickness/`μ_en/ρ` calibration
+  recorded in the Helios gap audit rather than silently assumed. CFDrs's Kunz
+  cavitation rate omitted the `½ ρ_l U_∞² t_∞` normalization, so the
+  expression is a pressure while `mass_transfer_rate` returned a
+  `MassDensityRate`; `CavitationModel::Kunz` now carries typed
+  `reference_velocity`/`reference_time` and its coefficients are dimensionless.
+  CFDrs's `EnergyEquationSolver::nusselt_number` omitted Fourier's sign, so a
+  wall hotter than the bulk returned a negative Nu and the test only checked
+  finiteness; it now evaluates `−L(∂T/∂y)|_wall/(T_wall−T_bulk)` and asserts
+  the canonical `Nu = 2`. CFDrs's VOF Young–Laplace theorem and
+  `surface_tension_coefficient` had no consumer; `VofSolver::surface_tension_force`
+  now exposes `−σ κ ∇α` [N/m³] for the coupled momentum stage. Kwavers'
+  `ThermalPropertyData` getters return the quantities they were
+  unwrapping, `ElectromagneticPropertyData` and `SkullAttenuation` return
+  typed wave speed/impedance/skin depth and attenuation coefficients, the
+  Pennes solver derives `ρc` through the typed getters, and Asclepius states
+  that `EquivalentExposure` is canonical seconds (conventional CEM43 =
+  value/60).
+- Advance 19 of 28 member locks to the published provider cohort. Resolving
+  with the stack overlay disabled is what makes the lock portable: an overlay
+  build rewrites first-party entries to local paths. Aequitas, Apollo, Consus,
+  Eunomia, Gaia, Hephaestus, Hermes, Horae, Iris, Leto, Melinoe, Mnemosyne,
+  Moirai, Themis, Harmonia, Proteus, Tyche and Prometheus now pin Aequitas
+  0.3.1, Eunomia 0.11, Leto 0.46.5, Moirai 0.11 and Hephaestus 0.27.1 at their
+  published revisions, with no path entries, and each passes `cargo check
+  --workspace --all-targets --locked` standalone. The audit's cohort-skew
+  findings fall from 18 to 9. The nine remaining consumers (CFDrs, Helios,
+  Hyperion, Ares, Metis, Asclepius, Coeus, Kwavers, Ritk) resolve through
+  Proteus/Gaia/Apollo/Coeus, whose published manifests still require Eunomia
+  0.10 or Moirai 0.10; those bumps exist only in the uncommitted local trees,
+  so a standalone resolve cannot see them yet.
+- **Fix the Isppa peak/RMS confusion in Kwavers.** The in-crate acoustic
+  fallback (`validate::kwavers_beam` and `experiment::acoustic`) fed a peak
+  amplitude to `acoustic_intensity_w_per_m2`, whose contract is RMS pressure,
+  so the reported FDA Track-3 spatial-peak intensity was double the physical
+  value. Both now use `p_peak²/(2Z₀)` through `isppa_w_per_m2(..., 1.0)`,
+  with a regression test against the analytical value. The thermal-index proxy
+  also gained its missing normalization: `TI = (P/P_ref)(α/α_ref)(f/f_ref)` with
+  IEC references 40 mW, 1 dB·cm⁻¹·MHz⁻¹, and 1 MHz, so it is dimensionless by
+  construction rather than depending on the caller's absorption units. Also
+  align Kwavers' `hephaestus-core`/`-wgpu`/`-cuda` edges to the published 0.28.0
+  cohort (the 0.27.0 pins no longer resolved), and add Hephaestus' lock to the
+  advanced set (20 of 28); once origin made its checkout a strict ancestor it
+  fast-forwarded to `72ffa057` and re-passed the same standalone check.
+- Correct the thin-walled vessel compliance theorem in CFDrs `cfd-1d`:
+  `VesselSegment::compliance` returned `3πR³L/(2Eh)` (the Olufsen tube law)
+  while `wave_speed` uses Moens–Korteweg `c² = Eh/(2ρR)`; the two disagree by
+  4/3. Compliance is now `2πR³L/(Eh)`, pinned by `C = A·L/(ρc²)` against the
+  segment's own wave speed. CFDrs' `hephaestus-wgpu` edge moves to the
+  published 0.28.0, and RITK, Asclepius and Ares fast-forwarded to their
+  tokio-advisory fixes.
+- Fix the k-ε / k-ω SST transport-unit mismatch in CFDrs `cfd-2d`.
+  `turbulent_viscosity` returns the dynamic `ρ·ν_t`, but the kinematic k/ε/ω
+  equations used it as `ν_t` beside a kinematic molecular viscosity, so
+  production, diffusion and the SST ω source/sink were `ρ` times too large (the
+  ω source/sink also carried an explicit `density`). Both updates now divide by
+  density once; SST keeps Menter's `ν + σ_kν_t` (σ < 1) and k-ε its
+  `ν + ν_t/σ_k` form. The SST F1/F2 blending also divided the already-kinematic
+  `ν` by density and carried a stray `density` in the F1 argument whose
+  `CD_kω` is kinematic (Menter's `ρ` cancels between them). The k-ω wall value
+  had the same defect — `60/y²` and `6/(β₁y²)` are `1/m²`, not `1/s`; both now
+  carry the kinematic viscosity, and `wall_omega` takes the friction velocity
+  instead of inventing `√(μ/(ρy))`. Tests pin both the density-invariance of
+  `update` and the kinematic F1/wall-omega formulas; 227 turbulence tests and
+  all 683 `cfd-2d` lib tests pass.
+  Helios also fast-forwarded to `2a34ce8` (tokio advisory plus the grid-length
+  boundary fix).
+- Resolve the nine remaining consumer locks by publishing the provider cohort.
+  The blocked defaults were Proteus/Tyche/Harmonia/Hyperion/Asclepius on
+  Eunomia 0.10, Apollo/Coeus/RITK on Moirai 0.10, and Gaia's published grid
+  builder missing the origin/spacing/decomposition parameters Kwavers needs.
+  Each was published from a clean worktree with its own standalone lock:
+  Proteus `c54e9e6`, Apollo `5802e91`, Coeus `5d1f22d3`, Harmonia `44f7f70`,
+  Hyperion `44def84`, Tyche `4e64d69`, RITK `6ecd7496`, Asclepius `3a0cda5`,
+  Gaia `ac1d7fc` (the peer's completed, uncommitted builder parameterization,
+  validated by its three grid tests). Coeus needed one test change: its
+  dependency-policy gate accepted only direct Atlas parents, and Moirai 0.11
+  reaches tokio through `quinn`, so the allowlist records that direct
+  dependent. Kwavers' six RITK edges moved from the pinned `12cedbff` to the
+  published HEAD, and Helios/Coeus Hephaestus edges to 0.28.0. Result: all nine
+  lock Aequitas `38c9c8521`, Eunomia 0.11, Moirai 0.11 with git sources and
+  pass `cargo check --workspace --all-targets --locked` standalone (CFDrs,
+  Helios, Kwavers, Asclepius, Ares, Hyperion, Metis, Coeus, RITK); the audit
+  now reports one finding, Hephaestus' deliberate ADR 0086 range, and zero
+  untyped getters.
+- Reach the v1-candidate gate: all 28 members pass `cargo check
+  --workspace --all-targets --locked` with the overlay absent at the published
+  cohort. Five locks that concurrent overlay builds had left stale or
+  path-rewritten (Consus, Gaia, Kwavers, RITK, Metis) were regenerated outside
+  the overlay and re-checked, and Hyperion fast-forwarded once its only local
+  difference proved to be a trailing blank line. Also document the 2-D energy
+  solver's units — temperature [K], `α = k/(ρc_p)` [m²/s], heat source [K/s]
+  (a physical `q'''` is supplied as `q'''/(ρc_p)`) — and the temporary
+  `Φ/(ρc_p)` viscous contribution.
+- Make the release-identity tests hermetic on a Windows `core.autocrlf=true`
+  checkout. Committed, packaged and pinned-commit bytes are compared modulo the
+  host's line-ending translation, and the fixture repository is pinned to raw
+  bytes, matching the Linux release runner. The module was the only failing
+  group in the tooling suite (46 setup errors, one assertion).
 
 - Advance the Atlas gitlinks for the six members whose provider-cohort pull
   requests merged, and regenerate the stack overlay from the recorded stack.
