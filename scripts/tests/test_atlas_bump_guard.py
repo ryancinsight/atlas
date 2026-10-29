@@ -229,6 +229,39 @@ class BumpGuardTestCase(unittest.TestCase):
         self.assertTrue(err.startswith("beta 0.2.0: bump required;"), err)
         self.assertFalse([url for url in registry.asked if "alpha" in url])
 
+    def test_nested_manifest_selects_the_callers_workspace(self) -> None:
+        nested_root = ROOT_MANIFEST.format(serde="1.0").replace(
+            '["crates/*"]', '["alpha"]')
+        self.base = self.commit({
+            "nested/Cargo.toml": nested_root,
+            "nested/alpha/Cargo.toml": ALPHA_MANIFEST.format(version="0.1.0"),
+            "nested/alpha/src/lib.rs": ALPHA_SOURCE,
+        })
+        self.commit({"nested/alpha/src/lib.rs": "pub fn one() -> u32 { 11 }\n"})
+
+        registry = self.registry()
+        status, out, err = self.run_guard(
+            registry, None, "--package", "alpha",
+            "--manifest-path", "nested/Cargo.toml")
+
+        self.assertEqual(status, 1)
+        self.assertEqual(out, "- `alpha` 0.1.0: published-drifted\n")
+        self.assertIn("alpha 0.1.0: bump required;", err)
+        self.assertEqual(
+            registry.asked[-1],
+            "https://static.crates.io/crates/alpha/alpha-0.1.0.crate",
+        )
+
+    def test_manifest_selection_cannot_leave_the_export(self) -> None:
+        for manifest in ("../Cargo.toml", "/Cargo.toml", "C:/Cargo.toml",
+                         "..\\Cargo.toml"):
+            with self.subTest(manifest=manifest):
+                status, out, err = self.run_guard(
+                    self.registry(), None, "--manifest-path", manifest)
+                self.assertEqual((status, out), (2, ""))
+                self.assertIn(
+                    "manifest selection must stay within the repository", err)
+
     def test_an_unexpected_error_exits_two_never_one(self) -> None:
         self.commit({"crates/alpha/src/lib.rs": "pub fn one() -> u32 { 11 }\n"})
         with mock.patch.object(guard.drift, "measure_crate", side_effect=KeyError("x")):

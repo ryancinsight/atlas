@@ -404,20 +404,27 @@ class Package:
         return (self.directory / "Cargo.toml").as_posix()
 
 
-def export_revision(label: str, repo: Path, revision: str, root: Path) -> dict:
+def export_revision(label: str, repo: Path, revision: str, root: Path,
+                    manifest_path: str = "Cargo.toml") -> dict:
     """Export commit `revision` of `repo` under `root`; its `cargo metadata --no-deps`.
 
-    The export is `git archive`, never the working tree. A revision without a root
-    `Cargo.toml` has no packages to read and fails the measurement.
+    The export is `git archive`, never the working tree. The selected manifest
+    stays within the export; missing or escaping selections fail the measurement.
     """
     try:
         tree = git_archive(repo, revision, timeout=GIT_TIMEOUT_SECONDS)
     except GitProcessError as error:
         raise MeasurementError(f"{label}: cannot archive {revision}: {error}") from error
     extract_archive(tree, root)
-    manifest = root / "Cargo.toml"
+    relative = PurePosixPath(manifest_path.replace("\\", "/"))
+    if (relative.is_absolute() or ".." in relative.parts
+            or (relative.parts and ":" in relative.parts[0])):
+        raise MeasurementError(f"{label}: manifest selection must stay within the repository")
+    manifest = (root / Path(*relative.parts)).resolve()
+    if not manifest.is_relative_to(root.resolve()):
+        raise MeasurementError(f"{label}: manifest selection escapes the exported revision")
     if not manifest.is_file():
-        raise MeasurementError(f"{label}: no root Cargo.toml at {revision}")
+        raise MeasurementError(f"{label}: no {relative.as_posix()} at {revision}")
     try:
         result = run_outside_the_overlay(
             ["metadata", "--no-deps", "--format-version", "1"], manifest=manifest

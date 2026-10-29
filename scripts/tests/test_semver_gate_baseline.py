@@ -112,6 +112,18 @@ class ReleaseJobWiringTests(unittest.TestCase):
                           for step in job["steps"]], RELEASE_STEPS)
 
 
+class PullRequestBumpGuardWiringTests(unittest.TestCase):
+    def test_caller_manifest_reaches_the_artifact_guard(self) -> None:
+        workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        step = next(
+            item for item in workflow["jobs"]["bump-guard"]["steps"]
+            if item.get("name") == "Fail a published crate changed without a version bump"
+        )
+        self.assertEqual(
+            step["env"]["MANIFEST_PATH"], "${{ inputs.manifest-path }}")
+        self.assertIn('--manifest-path "$MANIFEST_PATH"', step["run"])
+
+
 @unittest.skipUnless(shutil.which("bash"), "the gate step is a bash script")
 class BaselineSplitTests(unittest.TestCase):
     @classmethod
