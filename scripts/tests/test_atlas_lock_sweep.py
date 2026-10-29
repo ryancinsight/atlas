@@ -375,16 +375,17 @@ class RevisionRepositoryTests(unittest.TestCase):
             result = sweep.check_revision(root, "HEAD")
         self.assertTrue(any("selected object cannot be read" in problem for problem in result.problems))
 
+    def test_native_git_quoted_member_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            commit_meta(root, '[submodule "provider"]\npath = "repos/provider"\nurl = local\n', {})
+            self.assertEqual(sweep.committed_member_names(root, "HEAD"), {"provider"})
+
     def test_invalid_member_topologies_fail_closed(self) -> None:
-        quoted = (
-            '[submodule "repos/provider"]\n'
-            'path = "repos/provider"\nurl = local-provider\n'
-        )
         cases = (
             (gitmodules("provider"), {"provider": None}, ("provider",), "no independent object repository"),
             (gitmodules(".."), {}, (), "unsafe registered member name '..'"),
             ("", {}, (), "no registered members"),
-            (quoted, {}, (), "registered member projection is incomplete"),
             (gitmodules("provider") + '[submodule "outside"]\npath = ../outside\nurl = local\n', {"provider": None}, (),
              "unsupported submodule path '../outside'"),
             ('[submodule "x"]\npath = repos/provider/../outside\nurl = local\n', {}, (), "unsupported submodule path 'repos/provider/../outside'"),

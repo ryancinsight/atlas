@@ -252,9 +252,6 @@ def committed_member_names(repository: Path, selected: str) -> set[str]:
         identities.add(identity)
         names.add(name)
 
-    projected = registered_member_names(repository, selected)
-    if names != projected:
-        raise RuntimeError(f"registered member projection is incomplete at {selected}")
     return names
 
 
