@@ -683,7 +683,7 @@ def _seed_process_tree(stack: pathlib.Path) -> None:
     source = SCRIPT.parents[1]
     destination = stack / "scripts"
     destination.mkdir(parents=True, exist_ok=True)
-    for name in ("process_tree.py", "windows_process.py"):
+    for name in ("process_tree.py", "windows_process.py", "darwin_process.py"):
         target = destination / name
         if not target.exists():
             shutil.copy2(source / name, target)
