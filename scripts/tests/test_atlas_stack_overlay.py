@@ -352,7 +352,7 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "crates/missing.*without a manifest"):
             _overlay.load_package_facts(manifests)
 
-    def test_repeated_package_names_remain_complete_but_cannot_index(self) -> None:
+    def test_repeated_non_provider_names_remain_complete_and_unindexed(self) -> None:
         manifests = [
             (Path("repos/provider/one"), '[package]\nname = "shared"\nversion = "0.1.0"\n'),
             (Path("repos/provider/two"), '[package]\nname = "shared"\nversion = "9.9.9"\n'),
@@ -366,6 +366,18 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
             ],
         )
         self.assertEqual(_overlay.package_versions(facts)["shared"], frozenset({"0.1.0", "9.9.9"}))
+        self.assertEqual(_overlay.load_packages(manifests), {})
+
+    def test_repeated_provider_name_cannot_enter_unique_overlay_index(self) -> None:
+        manifests = [
+            (Path("repos/provider/one"), '[package]\nname = "shared"\nversion = "0.1.0"\n'),
+            (Path("repos/provider/two"), '[package]\nname = "shared"\nversion = "9.9.9"\n'),
+            (
+                Path("repos/consumer"),
+                '[dependencies]\nshared = { version = "0.1.0", '
+                'git = "https://github.com/ryancinsight/shared" }\n',
+            ),
+        ]
         with self.assertRaisesRegex(ValueError, "declared by both"):
             _overlay.load_packages(manifests)
 
