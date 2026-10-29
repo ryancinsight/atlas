@@ -540,6 +540,34 @@ def test_real_tcp_valid_framing_is_accepted_at_the_bound(identity, wire, body, l
         assert server.request_count == 1
 
 
+@pytest.mark.parametrize("grammar,line", [
+    ("status_line_state", b"HTTP/1.1 200 reason\r\n"),
+    ("field_line_state", b"X-Trace: value\t\r\n"),
+    ("field_line_state", b"\r\n"),
+    ("chunk_line_state", b"A ; x = \"a\\\"b\" ; y=z\r\n"),
+])
+def test_wire_grammars_classify_every_valid_line_prefix(identity, grammar, line):
+    parser = getattr(identity.registry_http, grammar)
+    for stop in range(len(line)):
+        assert parser(line[:stop]) is identity.registry_http.LineState.PREFIX, (grammar, stop)
+    assert parser(line) is identity.registry_http.LineState.COMPLETE
+
+
+@pytest.mark.parametrize("grammar,line", [
+    ("status_line_state", b"HTTP/1.1 200 reason\r\n"),
+    ("field_line_state", b"X-Trace: value\r\n"),
+    ("field_line_state", b"\r\n"),
+    ("chunk_line_state", b"A ; x = \"a\\\"b\" ; y=z\r\n"),
+])
+def test_wire_grammars_reject_invalid_bytes_at_every_parser_position(
+        identity, grammar, line):
+    parser = getattr(identity.registry_http, grammar)
+    for position in range(len(line) - 1):
+        changed = line[:position] + b"\x00" + line[position:]
+        assert parser(changed) is identity.registry_http.LineState.INVALID, (
+            grammar, position)
+
+
 @pytest.mark.parametrize("wire,body", [
     (b"HTTP/1.1 200 OK\r\nContent-Length: 2 \t\r\n\r\nok", b"ok"),
     (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\t \r\n\r\n"
@@ -580,6 +608,47 @@ def test_metadata_reader_never_consumes_past_its_aggregate_budget(identity):
     assert reader.bytes_read == identity.registry_http.REGISTRY_FRAMING_BYTES
 
 
+def strict_response(identity, wire):
+    stream = io.BytesIO(wire)
+
+    class Socket:
+        def makefile(self, *args):
+            return stream
+
+    response = identity.registry_http.StrictHTTPResponse(Socket())
+    response.begin()
+    return response, stream
+
+
+@pytest.mark.parametrize("chunks,bound", [
+    ((b"1;x=" + b"a" * 40000 + b"\r\na\r\n") * 2, "bytes"),
+    ((b"1;x=" + b"a" * 200 + b"\r\na\r\n") * 400, "lines"),
+], ids=["two-long-extensions", "many-extensions"])
+def test_chunk_metadata_consumes_only_the_shared_framing_budget(identity, chunks, bound):
+    wire = (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+            + chunks + b"0\r\n\r\n")
+    response, stream = strict_response(identity, wire)
+    with pytest.raises(identity.registry_http.RegistryFramingError, match="aggregate bound"):
+        response.read(401)
+    if bound == "bytes":
+        assert response._atlas_wire.bytes_read == identity.registry_http.REGISTRY_FRAMING_BYTES
+    else:
+        assert response._atlas_wire.lines_read == identity.registry_http.REGISTRY_FRAMING_LINES
+    assert stream.tell() <= identity.registry_http.REGISTRY_FRAMING_BYTES + 400
+
+
+def test_real_tcp_chunk_metadata_cannot_bypass_the_shared_budget(identity):
+    chunks = (b"1;x=" + b"a" * 40000 + b"\r\na\r\n") * 2
+    wire = (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+            + chunks + b"0\r\n\r\n")
+    policy = identity.RegistryPolicy(
+        reader=identity.read_url, sleep=lambda _delay: None, jitter=lambda _low, _high: 1.0)
+    with raw_http([wire]) as (url, server):
+        with pytest.raises(identity.IdentityError, match="aggregate bound"):
+            policy(url, 2)
+        assert server.request_count == 1
+
+
 def test_real_tcp_chunked_response_exceeding_the_bound_fails(identity):
     wire = (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
             b"2\r\nab\r\n0\r\n\r\n")
@@ -595,17 +664,25 @@ def test_real_tcp_chunked_response_exceeding_the_bound_fails(identity):
     (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\naXX0\r\n\r\n",
      "chunk data"),
     (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1;=invalid\r\na\r\n0\r\n\r\n",
-     "chunk extension"),
+     "chunk"),
     (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1;name=\"unterminated\r\na\r\n0\r\n\r\n",
-     "chunk extension"),
+     "chunk"),
     (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1 \t\r\na\r\n0\r\n\r\n",
-     "chunk extension"),
+     "chunk"),
     (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n0 \t\r\n\r\n",
-     "chunk extension"),
+     "chunk"),
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1;foo=@",
+     "chunk"),
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1;x=\x00",
+     "chunk"),
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1;x=\"\x00",
+     "chunk"),
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\naX",
+     "chunk data delimiter"),
     (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n0\r\nColonless\r\n\r\n",
-     "trailer name"),
+     "trailer"),
     (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n0\r\nBad Name: value\r\n\r\n",
-     "trailer name"),
+     "trailer"),
 ])
 def test_real_tcp_permanent_chunk_framing_is_not_retried(identity, wire, message):
     policy = identity.RegistryPolicy(
@@ -667,8 +744,12 @@ def test_real_tcp_metadata_eof_retries_without_accepting_absence(identity, first
 
 @pytest.mark.parametrize("first", [
     b"HTTP/1.1 20",
+    b"HTTP/1.1 200 OK\r",
     b"HTTP/1.1 200 OK\r\nContent-Len",
+    b"HTTP/1.1 200 OK\r\nX-A: foo\r",
+    b"HTTP/1.1 200 OK\r\nX-A: foo\r\n\r",
     b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r",
 ])
 def test_real_tcp_valid_framing_prefix_eof_is_retryable(identity, first):
     complete = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok"

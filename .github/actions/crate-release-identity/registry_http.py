@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import http.client
 import re
+from enum import Enum, auto
 from urllib.request import HTTPHandler, HTTPRedirectHandler, HTTPSHandler, build_opener
 
 REGISTRY_FRAMING_BYTES = http.client._MAXLINE
 REGISTRY_FRAMING_LINES = http.client._MAXHEADERS
-STATUS_LINE = re.compile(rb"HTTP/1\.[0-9] [0-9]{3} [\t\x20-\x7e\x80-\xff]*\r\n\Z")
 TOKEN_BYTES = frozenset(
     b"!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 )
@@ -28,46 +28,70 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+class LineState(Enum):
+    """Whether received bytes complete, can complete, or violate a line grammar."""
+
+    COMPLETE = auto()
+    PREFIX = auto()
+    INVALID = auto()
+
+
 class RegistryWireReader:
-    """Read response metadata under one aggregate wire budget."""
+    """Read every framing byte under one aggregate byte and line budget."""
 
     def __init__(self, stream):
         self.stream = stream
         self.bytes_read = 0
         self.lines_read = 0
 
-    def line(self, kind, valid_prefix):
+    def _capacity(self):
         if (self.bytes_read >= REGISTRY_FRAMING_BYTES
                 or self.lines_read >= REGISTRY_FRAMING_LINES):
-            raise RegistryFramingError("HTTP response metadata exceeds the aggregate bound")
-        remaining = REGISTRY_FRAMING_BYTES - self.bytes_read
+            raise RegistryFramingError("HTTP response framing exceeds the aggregate bound")
+        return REGISTRY_FRAMING_BYTES - self.bytes_read
+
+    def line(self, kind, grammar):
+        remaining = self._capacity()
         capacity = min(http.client._MAXLINE, remaining)
         line = self.stream.readline(capacity)
         if not line:
             raise RegistryBodyDisconnect(f"connection closed during HTTP {kind}")
         self.bytes_read += len(line)
         self.lines_read += 1
-        if not line.endswith(b"\r\n"):
-            if len(line) == capacity:
-                message = ("HTTP response metadata exceeds the aggregate bound"
-                           if capacity == remaining else f"HTTP {kind} exceeds the line bound")
-                raise RegistryFramingError(message)
-            if valid_prefix(line):
-                raise RegistryBodyDisconnect(f"connection closed during HTTP {kind}")
+        state = grammar(line)
+        if state is LineState.COMPLETE:
+            return line
+        if state is LineState.INVALID:
             raise RegistryFramingError(f"malformed HTTP {kind}")
-        return line
+        if len(line) == capacity:
+            message = ("HTTP response framing exceeds the aggregate bound"
+                       if capacity == remaining else f"HTTP {kind} exceeds the line bound")
+            raise RegistryFramingError(message)
+        raise RegistryBodyDisconnect(f"connection closed during HTTP {kind}")
+
+    def exact(self, expected, kind):
+        remaining = self._capacity()
+        capacity = min(len(expected), remaining)
+        value = self.stream.read(capacity)
+        self.bytes_read += len(value)
+        self.lines_read += 1
+        if value == expected:
+            return
+        if not expected.startswith(value):
+            raise RegistryFramingError(f"malformed HTTP {kind}")
+        if len(value) == capacity and capacity < len(expected):
+            raise RegistryFramingError("HTTP response framing exceeds the aggregate bound")
+        raise RegistryBodyDisconnect(f"connection closed during HTTP {kind}")
 
     def status(self):
-        line = self.line("status line", valid_status_prefix)
-        if not STATUS_LINE.fullmatch(line):
-            raise RegistryFramingError("malformed HTTP status line")
+        line = self.line("status line", status_line_state)
         version, status, reason = line[:-2].split(b" ", 2)
         return version, int(status), reason.decode("iso-8859-1")
 
     def fields(self, kind):
         fields = []
         while True:
-            line = self.line(kind, valid_field_prefix)
+            line = self.line(kind, field_line_state)
             if line == b"\r\n":
                 return tuple(fields)
             fields.append(validate_field_line(line, kind))
@@ -77,41 +101,73 @@ def valid_token(value):
     return bool(value) and all(byte in TOKEN_BYTES for byte in value)
 
 
-def valid_status_prefix(value):
-    """Return whether EOF interrupted a syntactically valid status prefix."""
+def _line_state(value, payload_parser):
+    """Apply one payload grammar and the shared exact CRLF grammar."""
+    if value.endswith(b"\r\n"):
+        payload = value[:-2]
+        if b"\r" in payload or b"\n" in payload:
+            return LineState.INVALID
+        state = payload_parser(payload)
+        return LineState.COMPLETE if state is LineState.COMPLETE else LineState.INVALID
+    if b"\r" in value or b"\n" in value:
+        if value.endswith(b"\r") and b"\r" not in value[:-1] and b"\n" not in value[:-1]:
+            return (LineState.PREFIX
+                    if payload_parser(value[:-1]) is LineState.COMPLETE
+                    else LineState.INVALID)
+        return LineState.INVALID
+    state = payload_parser(value)
+    return LineState.PREFIX if state is not LineState.INVALID else LineState.INVALID
+
+
+def _status_payload_state(value):
     literal = b"HTTP/1."
     if len(value) <= len(literal):
-        return literal.startswith(value)
+        return LineState.PREFIX if literal.startswith(value) else LineState.INVALID
     if not value.startswith(literal) or value[len(literal)] not in b"0123456789":
-        return False
+        return LineState.INVALID
     remainder = value[len(literal) + 1:]
     if not remainder:
-        return True
+        return LineState.PREFIX
     if remainder[:1] != b" ":
-        return False
+        return LineState.INVALID
     remainder = remainder[1:]
-    digits = 0
-    while digits < len(remainder) and remainder[digits] in b"0123456789":
-        digits += 1
-    if digits < min(3, len(remainder)):
-        return False
-    if len(remainder) <= 3:
-        return True
-    return (digits == 3 and remainder[3:4] == b" "
-            and all(byte == 9 or 32 <= byte <= 126 or byte >= 128
-                    for byte in remainder[4:]))
+    if len(remainder) < 3:
+        return (LineState.PREFIX if all(byte in b"0123456789" for byte in remainder)
+                else LineState.INVALID)
+    if not all(byte in b"0123456789" for byte in remainder[:3]):
+        return LineState.INVALID
+    if len(remainder) == 3:
+        return LineState.PREFIX
+    if remainder[3:4] != b" ":
+        return LineState.INVALID
+    if any(byte != 9 and not (32 <= byte <= 126 or byte >= 128)
+           for byte in remainder[4:]):
+        return LineState.INVALID
+    return LineState.COMPLETE
 
 
-def valid_field_prefix(value):
-    """Return whether EOF interrupted a syntactically valid field prefix."""
+def status_line_state(value):
+    """Recognize complete and completable RFC 9112 status lines."""
+    return _line_state(value, _status_payload_state)
+
+
+def _field_payload_state(value):
+    if not value:
+        return LineState.COMPLETE
     name, separator, field_value = value.partition(b":")
     if not valid_token(name):
-        return False
+        return LineState.INVALID
     if not separator:
-        return True
-    return all(byte != 13 and byte != 10 and
-               (byte == 9 or 32 <= byte <= 126 or byte >= 128)
-               for byte in field_value)
+        return LineState.PREFIX
+    if any(byte != 9 and not (32 <= byte <= 126 or byte >= 128)
+           for byte in field_value):
+        return LineState.INVALID
+    return LineState.COMPLETE
+
+
+def field_line_state(value):
+    """Recognize complete and completable RFC 9112 field lines."""
+    return _line_state(value, _field_payload_state)
 
 
 def validate_field_line(line, kind):
@@ -146,89 +202,93 @@ def message_from_fields(fields):
     return message
 
 
-def valid_quoted_string(value):
-    if len(value) < 2 or value[:1] != b'"' or value[-1:] != b'"':
-        return False
-    position = 1
-    end = len(value) - 1
-    while position < end:
+def _consume_bws(value, position):
+    while position < len(value) and value[position] in (9, 32):
+        position += 1
+    return position
+
+
+def _quoted_value_end(value, position):
+    position += 1
+    while position < len(value):
         byte = value[position]
+        if byte == 34:
+            return position + 1, LineState.COMPLETE
         if byte == 92:
             position += 1
-            if position == end:
-                return False
+            if position == len(value):
+                return position, LineState.PREFIX
             byte = value[position]
             if byte != 9 and not (32 <= byte <= 126 or byte >= 128):
-                return False
+                return position, LineState.INVALID
         elif byte != 9 and byte != 32 and not (byte == 33 or 35 <= byte <= 91
                                                  or 93 <= byte <= 126 or byte >= 128):
-            return False
+            return position, LineState.INVALID
         position += 1
-    return True
+    return position, LineState.PREFIX
 
 
-def valid_chunk_extensions(value):
-    """Validate RFC 9112 section 7.1.1 chunk-ext grammar."""
+def _chunk_payload_state(value):
+    if not value:
+        return LineState.PREFIX
     position = 0
-    while position < len(value):
-        while position < len(value) and value[position] in (9, 32):
-            position += 1
-        if position == len(value) or value[position] != 59:
-            return False
+    while position < len(value) and value[position] in b"0123456789ABCDEFabcdef":
         position += 1
-        while position < len(value) and value[position] in (9, 32):
-            position += 1
+    if position == 0:
+        return LineState.INVALID
+    if position == len(value):
+        return LineState.COMPLETE
+
+    while True:
+        separator_start = position
+        position = _consume_bws(value, position)
         if position == len(value):
-            return False
-        start = position
+            return (LineState.COMPLETE if position == separator_start
+                    else LineState.PREFIX)
+        if value[position] != 59:
+            return LineState.INVALID
+        position = _consume_bws(value, position + 1)
+        if position == len(value):
+            return LineState.PREFIX
+        name_start = position
         while position < len(value) and value[position] in TOKEN_BYTES:
             position += 1
-        if not valid_token(value[start:position]):
-            return False
+        if position == name_start:
+            return LineState.INVALID
         name_end = position
-        while position < len(value) and value[position] in (9, 32):
-            position += 1
+        position = _consume_bws(value, position)
         if position == len(value):
-            return position == name_end
-        if value[position] == 61:
-            position += 1
-            while position < len(value) and value[position] in (9, 32):
+            return (LineState.COMPLETE if position == name_end
+                    else LineState.PREFIX)
+        if value[position] == 59:
+            continue
+        if value[position] != 61:
+            return LineState.INVALID
+        position = _consume_bws(value, position + 1)
+        if position == len(value):
+            return LineState.PREFIX
+        if value[position] == 34:
+            position, state = _quoted_value_end(value, position)
+            if state is not LineState.COMPLETE:
+                return state
+        else:
+            value_start = position
+            while position < len(value) and value[position] in TOKEN_BYTES:
                 position += 1
-            if position == len(value):
-                return False
-            if value[position] == 34:
-                start = position
-                position += 1
-                while position < len(value):
-                    if value[position] == 92:
-                        position += 2
-                        continue
-                    position += 1
-                    if value[position - 1] == 34:
-                        break
-                if not valid_quoted_string(value[start:position]):
-                    return False
-            else:
-                start = position
-                while position < len(value) and value[position] in TOKEN_BYTES:
-                    position += 1
-                if not valid_token(value[start:position]):
-                    return False
-        elif value[position] != 59:
-            return False
-    return True
+            if position == value_start:
+                return LineState.INVALID
+        value_end = position
+        position = _consume_bws(value, position)
+        if position == len(value):
+            return (LineState.COMPLETE if position == value_end
+                    else LineState.PREFIX)
+        if value[position] != 59:
+            return LineState.INVALID
 
 
-def valid_chunk_size_prefix(value):
-    """Return whether EOF interrupted a syntactically valid chunk-size prefix."""
-    match = re.match(rb"[0-9A-Fa-f]+", value)
-    if match is None:
-        return False
-    remainder = value[match.end():]
-    if not remainder:
-        return True
-    stripped = remainder.lstrip(b" \t")
-    return not stripped or stripped.startswith(b";")
+def chunk_line_state(value):
+    """Recognize complete and completable RFC 9112 chunk-size lines."""
+    return _line_state(value, _chunk_payload_state)
 
 
 class StrictHTTPResponse(http.client.HTTPResponse):
@@ -270,31 +330,15 @@ class StrictHTTPResponse(http.client.HTTPResponse):
         self._atlas_wire = wire
 
     def _read_next_chunk_size(self):
-        line = self.fp.readline(http.client._MAXLINE)
-        if not line:
-            raise RegistryBodyDisconnect("connection closed before the next chunk size")
-        if not line.endswith(b"\r\n"):
-            self._close_conn()
-            if len(line) < http.client._MAXLINE and valid_chunk_size_prefix(line):
-                raise RegistryBodyDisconnect("connection closed during HTTP chunk size")
-            raise RegistryFramingError("malformed HTTP chunk size")
-        match = re.fullmatch(rb"([0-9A-Fa-f]+)(.*)", line[:-2])
-        if match is None:
-            self._close_conn()
-            raise RegistryFramingError("malformed HTTP chunk size")
-        size, extensions = match.groups()
-        if extensions and not valid_chunk_extensions(extensions):
-            self._close_conn()
-            raise RegistryFramingError("malformed HTTP chunk extension")
-        return int(size, 16)
+        line = self._atlas_wire.line("chunk size", chunk_line_state)
+        size = re.match(rb"[0-9A-Fa-f]+", line)
+        return int(size.group(), 16)
 
     def _get_chunk_left(self):
         chunk_left = self.chunk_left
         if not chunk_left:
             if chunk_left is not None:
-                if self._safe_read(2) != b"\r\n":
-                    self._close_conn()
-                    raise RegistryFramingError("chunk data lacks its CRLF delimiter")
+                self._atlas_wire.exact(b"\r\n", "chunk data delimiter")
             chunk_left = self._read_next_chunk_size()
             if chunk_left == 0:
                 self._read_and_discard_trailer()
@@ -305,7 +349,7 @@ class StrictHTTPResponse(http.client.HTTPResponse):
 
     def _read_and_discard_trailer(self):
         while True:
-            line = self._atlas_wire.line("trailer", valid_field_prefix)
+            line = self._atlas_wire.line("trailer", field_line_state)
             if line == b"\r\n":
                 return
             validate_field_line(line, "trailer")
