@@ -264,10 +264,96 @@ def source_identity(
     )
 
 
-def toolchain_identity(root: Path) -> str:
+def _command_selects_toolchain(command: Sequence[str]) -> str | None:
+    arguments = [str(argument) for argument in command]
+    if arguments[:1] == ["env"]:
+        while len(arguments) > 1 and "=" in arguments[1] and not arguments[1].startswith("-"):
+            arguments.pop(1)
+        arguments.pop(0)
+    for index, argument in enumerate(arguments):
+        if Path(argument).name.lower() in {"cargo", "cargo.exe"}:
+            following = arguments[index + 1 : index + 2]
+            if following and following[0].startswith("+"):
+                return following[0]
+            break
+    return None
+
+
+def _configured_rustc(
+    root: Path,
+    config_arguments: Sequence[str],
+    environment: Mapping[str, str],
+) -> str | None:
+    cargo = environment.get("CARGO", "cargo")
+    query = [cargo]
+    for argument in config_arguments:
+        query.extend(("--config", str(argument)))
+    query.extend(("-Z", "unstable-options", "config", "get", "--format=json"))
+    query_environment = dict(environment)
+    query_environment["RUSTC_BOOTSTRAP"] = "1"
     try:
         result = subprocess.run(
-            [os.environ.get("RUSTC", "rustc"), "--version", "--verbose"],
+            query,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60,
+            cwd=root,
+            env=query_environment,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise BuildIdentityError(f"cannot resolve Cargo compiler configuration: {error}") from error
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise BuildIdentityError(f"cannot resolve Cargo compiler configuration: {detail}")
+    try:
+        document = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise BuildIdentityError(f"Cargo config returned malformed JSON: {error}") from error
+    if not isinstance(document, dict):
+        raise BuildIdentityError("Cargo config did not return a table")
+    build = document.get("build", {})
+    if not isinstance(build, dict):
+        raise BuildIdentityError("Cargo config build must be a table")
+    compiler = build.get("rustc")
+    if compiler is not None and not isinstance(compiler, str):
+        raise BuildIdentityError("Cargo build.rustc must be a string")
+    return compiler
+
+
+def toolchain_identity(
+    root: Path,
+    environment: Mapping[str, str] | None = None,
+    config_arguments: Sequence[str] = (),
+    command: Sequence[str] = (),
+) -> str:
+    source = os.environ if environment is None else environment
+    compiler = source.get("RUSTC")
+    if compiler is None:
+        configured = _configured_rustc(root, config_arguments, source)
+        environment_compiler = source.get("CARGO_BUILD_RUSTC")
+        if (
+            configured is not None
+            and environment_compiler is not None
+            and configured != environment_compiler
+        ):
+            raise BuildIdentityError(
+                "cannot resolve conflicting Cargo build.rustc and "
+                "CARGO_BUILD_RUSTC compiler selections"
+            )
+        compiler = environment_compiler or configured
+    selected_toolchain = _command_selects_toolchain(command)
+    if selected_toolchain is not None and compiler is None:
+        raise BuildIdentityError(
+            f"cannot resolve compiler selected by Cargo argument {selected_toolchain}"
+        )
+    compiler = compiler or "rustc"
+    try:
+        result = subprocess.run(
+            [compiler, "--version", "--verbose"],
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -276,6 +362,7 @@ def toolchain_identity(root: Path) -> str:
             text=True,
             encoding="utf-8",
             errors="replace",
+            env=dict(source),
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise BuildIdentityError(f"cannot run rustc: {error}") from error
