@@ -68,6 +68,7 @@ def _load_sibling(module: str):
     return loaded
 
 
+_load_sibling("darwin_process")
 _load_sibling("windows_process")
 process_tree = _load_sibling("process_tree")
 

@@ -1025,9 +1025,11 @@ reconciliation; no cleanup/reset was performed by the bootstrap slice.
 The dimensioned-quantity seam has its own audit. It reports every member's
 Aequitas requirement and locked revision, how far that revision is behind the
 provider's default branch, the `from_base`/`into_base`/`Quantity` volume per
-member, every unit constructed through `from_unit::<U>`, and every public
+member, every unit constructed through `from_unit::<U>`, every public
 trait getter that returns a bare `f64` directly beneath a doc comment naming
-an SI unit:
+an SI unit, and every accessor whose name claims a unit other than the
+returned quantity's canonical one (for example a `_mm` method returning a
+metre-valued `Length`):
 
 ```sh
 python scripts/atlas-aequitas-units.py

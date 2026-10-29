@@ -369,7 +369,7 @@ class InterruptDeferralTests(unittest.TestCase):
         )
         self.addCleanup(signal.signal, signal.SIGINT, previous)
 
-        with process_tree._InterruptDeferral():
+        with process_tree._InterruptDeferral("process launch"):
             signal.raise_signal(signal.SIGINT)
             self.assertEqual(delivered, [])
 
@@ -381,7 +381,7 @@ class InterruptDeferralTests(unittest.TestCase):
         previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
         self.addCleanup(signal.signal, signal.SIGINT, previous)
 
-        with process_tree._InterruptDeferral():
+        with process_tree._InterruptDeferral("process launch"):
             signal.raise_signal(signal.SIGINT)
 
         self.assertEqual(signal.getsignal(signal.SIGINT), signal.SIG_IGN)
@@ -396,7 +396,7 @@ class InterruptDeferralTests(unittest.TestCase):
         self.addCleanup(signal.signal, signal.SIGINT, previous)
 
         with self.assertRaises(OSError) as raised:
-            with process_tree._InterruptDeferral():
+            with process_tree._InterruptDeferral("process launch"):
                 signal.raise_signal(signal.SIGINT)
                 raise OSError("launch failed")
 

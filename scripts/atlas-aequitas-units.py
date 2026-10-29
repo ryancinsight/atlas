@@ -8,7 +8,7 @@ which revision, whether that revision is the same one the rest of the stack
 resolves, and which public trait getters still hand back a bare ``f64`` while
 their doc comment names an SI unit.
 
-Three findings it exists to catch, each measured rather than inferred:
+Four findings it exists to catch, each measured rather than inferred:
 
 - **Cohort skew.** A member pinned one commit behind Aequitas' default branch
   builds fine on its own and is invisible in every other gate. The audit
@@ -21,6 +21,13 @@ Three findings it exists to catch, each measured rather than inferred:
   doc comment that names ``[Pa]`` or ``(m/s)`` is the exact site where the
   unit exists only in prose. Scanning for it is how the kwavers acoustic
   surface was finished, and it is the cheapest cross-member check available.
+- **Misleading unit suffixes.** An accessor named ``..._mm`` that returns a
+  canonical-SI ``Length`` tells the reader the value is millimetres when it is
+  metres. The type is right and the name is wrong, which is worse than either
+  alone: a caller who trusts the suffix is off by 1000. The check compares the
+  name's final scale token with the returned quantity alias' canonical unit; a
+  compound unit name (``..._m_per_s``) is not read at all, because reading its
+  last token would read ``s`` out of a velocity.
 
 Reporting-oriented by default: findings are reported, not turned into a
 synthetic failure. ``--strict`` exits non-zero when any finding exists, for
@@ -41,6 +48,8 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 REPOS = ROOT / "repos"
 PROVIDER = REPOS / "aequitas"
+GITMODULES = ROOT / ".gitmodules"
+MEMBER_PATH = re.compile(r"^\s*path\s*=\s*repos/(\S+)\s*$", re.MULTILINE)
 
 SI_UNIT = re.compile(
     r"\[(?:Pa|m/s|kg/m[^\]\s]*|W/m[^\]\s]*|Np(?:/m)?|m²|m\^2|Hz|W|J|K|A|V|C|Ω)\]"
@@ -49,6 +58,92 @@ SI_UNIT = re.compile(
 F64_GETTER = re.compile(r"^\s*(?:fn|pub fn)\s+(\w+)\s*\([^)]*\)\s*->\s*f64")
 TRAIT_START = re.compile(r"^\s*pub trait\s+(\w+)")
 FROM_UNIT = re.compile(r"from_unit::<(\w+)>")
+PUB_FN = re.compile(r"^\s*pub fn (\w+)\s*\(")
+
+# Quantity alias -> canonical (base-scale) unit token, for the suffix check.
+CANONICAL_UNIT = {
+    "Length": "m",
+    "Area": "m2",
+    "Volume": "m3",
+    "Mass": "kg",
+    "Time": "s",
+    "Velocity": "m/s",
+    "Acceleration": "m/s2",
+    "Pressure": "pa",
+    "Stress": "pa",
+    "Energy": "j",
+    "Power": "w",
+    "Force": "n",
+    "Frequency": "hz",
+    "Angle": "rad",
+    "ThermodynamicTemperature": "k",
+    "TemperatureDifference": "k",
+    "MassDensity": "kg/m3",
+    "AreaPerMass": "m2/kg",
+    "ReciprocalLength": "1/m",
+    "Intensity": "w/m2",
+    "VolumetricPowerDensity": "w/m3",
+    "AbsorbedDose": "gy",
+    "SpecificHeatCapacity": "j/(kg*k)",
+    "ThermalConductivity": "w/(m*k)",
+    "ThermalDiffusivity": "m2/s",
+    "DynamicViscosity": "pa*s",
+    "KinematicViscosity": "m2/s",
+    "ElectricalConductivity": "s/m",
+    "ElectricPotential": "v",
+    "ElectricCurrent": "a",
+    "Capacitance": "f",
+    "ElectricCharge": "c",
+    "AcousticImpedance": "pa*s/m",
+    "SurfaceTension": "n/m",
+    "MolarEnergy": "j/mol",
+    "MolarHeatCapacity": "j/(mol*k)",
+    "ReactionRate": "mol/(m3*s)",
+    "MolarConcentration": "mol/m3",
+    "EnergyPerArea": "j/m2",
+    "EnergyPerVolume": "j/m3",
+    "ReciprocalTime": "1/s",
+    "ReciprocalTemperature": "1/k",
+    "NumberDensity": "1/m3",
+    "VolumetricFlowRate": "m3/s",
+    "HydraulicResistance": "pa*s/m3",
+    "HydraulicInertance": "kg/m4",
+    "Compliance": "m3/pa",
+}
+
+# Final name token -> the unit scale it claims. A token absent here is not a
+# unit (``min`` is the minimum, not minutes).
+NAME_UNIT = {
+    "nm": "nm",
+    "um": "um",
+    "mm": "mm",
+    "cm": "cm",
+    "km": "km",
+    "m": "m",
+    "ns": "ns",
+    "us": "us",
+    "ms": "ms",
+    "s": "s",
+    "pa": "pa",
+    "kpa": "kpa",
+    "mpa": "mpa",
+    "gpa": "gpa",
+    "hz": "hz",
+    "khz": "khz",
+    "mhz": "mhz",
+    "rad": "rad",
+    "deg": "deg",
+    "j": "j",
+    "kj": "kj",
+    "mj": "mj",
+    "w": "w",
+    "kw": "kw",
+    "mw": "mw",
+    "v": "v",
+    "kv": "kv",
+    "a": "a",
+    "k": "k",
+}
 AEQUITAS_DEP = re.compile(
     r'^aequitas\s*=\s*\{([^}]*)\}|^aequitas\s*=\s*"([^"]+)"', re.MULTILINE
 )
@@ -70,6 +165,7 @@ class Member:
     quantities: int = 0
     units_constructed: Counter = field(default_factory=Counter)
     untyped_si_getters: list[str] = field(default_factory=list)
+    misleading_suffixes: list[str] = field(default_factory=list)
 
     @property
     def conversion_balance(self) -> int:
@@ -89,6 +185,7 @@ class Member:
             "quantities": self.quantities,
             "units_constructed": dict(self.units_constructed.most_common()),
             "untyped_si_getters": self.untyped_si_getters,
+            "misleading_suffixes": self.misleading_suffixes,
         }
 
 
@@ -195,6 +292,40 @@ def _untyped_si_getters(member: Path) -> list[str]:
     return findings
 
 
+def _misleading_suffixes(member: Path) -> list[str]:
+    """Accessors whose name claims a unit other than the returned quantity's.
+
+    Only `&self` methods are considered: a free function named `length_mm`
+    taking millimetres is a constructor, and its name is the input unit.
+
+    A compound unit in the name (`..._m_per_s`, `..._w_per_m2`) is not read at
+    all: the single-token table below carries scales, and reading the last
+    token of a compound unit would read `s` out of `m_per_s` and report a
+    velocity accessor whose name is correct.
+    """
+    findings: list[str] = []
+    for source in _sources(member):
+        lines = source.read_text(encoding="utf-8", errors="replace").splitlines()
+        for index, line in enumerate(lines):
+            match = PUB_FN.match(line)
+            if match is None or "&self" not in line:
+                continue
+            signature = " ".join(lines[index:index + 8])
+            returned = re.search(r"->\s*([A-Za-z_]\w*)", signature)
+            unit = CANONICAL_UNIT.get(returned.group(1)) if returned else None
+            if unit is None:
+                continue
+            name = match.group(1)
+            if "_" not in name or "_per_" in name:
+                continue
+            claimed = NAME_UNIT.get(name.rsplit("_", 1)[-1].lower())
+            if claimed is None or claimed == unit:
+                continue
+            rel = source.relative_to(member).as_posix()
+            findings.append(f"{rel}:{index + 1} {name} returns {unit}, name claims {claimed}")
+    return findings
+
+
 def scan(member: Path) -> Member:
     """Collect one member's Aequitas footprint."""
     record = Member(name=member.name)
@@ -208,7 +339,22 @@ def scan(member: Path) -> Member:
         record.quantities += text.count("Quantity<")
         record.units_constructed.update(FROM_UNIT.findall(text))
     record.untyped_si_getters = _untyped_si_getters(member)
+    record.misleading_suffixes = _misleading_suffixes(member)
     return record
+
+
+def registered_members() -> set[str]:
+    """The package set the stack records, from `.gitmodules`.
+
+    A directory under `repos/` that `.gitmodules` does not record is local work,
+    not a member. Measuring it would report a cohort outlier no pin can move and
+    no release gate covers, so the audit's subject is the recorded set. An
+    unreadable `.gitmodules` falls back to the directory scan.
+    """
+    try:
+        return set(MEMBER_PATH.findall(GITMODULES.read_text(encoding="utf-8", errors="replace")))
+    except OSError:
+        return set()
 
 
 def spanning_range(requirement: str | None) -> bool:
@@ -295,6 +441,8 @@ def report(records: list[Member], strict: bool, as_json: bool) -> int:
             findings.append(
                 f"untyped SI getter: {record.name} {getter} returns f64 beneath an SI unit"
             )
+        for suffix in record.misleading_suffixes:
+            findings.append(f"unit suffix: {record.name} {suffix}")
 
     if as_json:
         print(
@@ -345,9 +493,12 @@ def main() -> int:
     args = parser.parse_args()
 
     wanted = {name.strip() for name in args.members.split(",") if name.strip()}
+    registered = registered_members()
     records = []
     for member in sorted(path for path in REPOS.iterdir() if path.is_dir()):
         if wanted and member.name not in wanted:
+            continue
+        if registered and member.name not in registered:
             continue
         if not (member / "Cargo.toml").is_file() and not any(member.glob("crates/*/Cargo.toml")):
             continue

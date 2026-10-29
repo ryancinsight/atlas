@@ -651,6 +651,112 @@ class ProcessTreeTests(unittest.TestCase):
         _assert_lock_released(self, lock)
         _assert_process_inactive(self, process_id)
 
+    @unittest.skipUnless(sys.platform == "darwin", "Darwin's zombie-only group errno")
+    def test_cleanup_accepts_a_verified_zombie_only_group(self):
+        child = subprocess.Popen(
+            [sys.executable, "-c", "pass"],
+            start_new_session=True,
+            stdout=subprocess.PIPE,
+        )
+        self.addCleanup(child.stdout.close)
+        self.addCleanup(child.wait, HANG_GUARD_SECONDS)
+        self.addCleanup(child.kill)
+        self.assertEqual(child.stdout.read(), b"")
+        deadline = time.monotonic() + HANG_GUARD_SECONDS
+        while True:
+            observed = subprocess.run(
+                ["/bin/ps", "-p", str(child.pid), "-o", "stat="],
+                capture_output=True, text=True, check=True,
+                timeout=HANG_GUARD_SECONDS,
+            ).stdout.strip()
+            if observed.startswith("Z"):
+                break
+            self.assertLess(time.monotonic(), deadline, observed)
+        with self.assertRaises(PermissionError):
+            os.killpg(child.pid, signal.SIGKILL)
+        self.assertFalse(process_tree._posix_group_has_active_members(child.pid))
+        error = process_tree._terminate_process_tree(
+            child, None, process_tree._CleanupState()
+        )
+        self.assertIsNone(error)
+        self.assertEqual(child.returncode, 0)
+
+    def test_darwin_group_probe_uses_native_states_without_a_helper_launch(self):
+        for observed in process_tree.darwin_process.GroupState:
+            active = observed is not process_tree.darwin_process.GroupState.INACTIVE
+            with (
+                self.subTest(observed=observed),
+                patch.object(process_tree.sys, "platform", "darwin"),
+                patch.object(process_tree.subprocess, "Popen") as launch,
+                patch.object(
+                    process_tree.darwin_process, "group_state", return_value=observed,
+                ) as probe,
+            ):
+                self.assertEqual(process_tree._posix_group_has_active_members(42), active)
+                probe.assert_called_once_with(42)
+                launch.assert_not_called()
+
+    def test_darwin_snapshot_waits_only_for_transient_changes_within_its_deadline(self):
+        states = process_tree.darwin_process.GroupState
+        cases = (
+            ([states.CHANGING, states.INACTIVE], [0.0, 0.0, 0.0], states.INACTIVE, 1),
+            ([states.CHANGING, states.ACTIVE], [0.0, 0.0, 0.0], states.ACTIVE, 1),
+            ([states.CHANGING, states.UNKNOWN], [0.0, 0.0, 0.0], states.UNKNOWN, 1),
+            ([states.CHANGING], [0.0, 1.0], states.CHANGING, 0),
+            ([states.ACTIVE], [0.0], states.ACTIVE, 0),
+            ([states.UNKNOWN], [0.0], states.UNKNOWN, 0),
+        )
+        for readings, times, expected, sleeps in cases:
+            with (
+                self.subTest(readings=readings),
+                patch.object(process_tree.darwin_process, "group_state", side_effect=readings) as probe,
+                patch.object(process_tree.time, "monotonic", side_effect=times),
+                patch.object(process_tree.time, "sleep") as pause,
+                patch.object(process_tree.os, "killpg", create=True) as signal_group,
+                patch.object(process_tree.subprocess, "Popen") as launch,
+            ):
+                self.assertIs(process_tree._darwin_group_snapshot_before(42, 1.0), expected)
+                self.assertEqual(probe.call_count, len(readings))
+                self.assertEqual(pause.call_count, sleeps)
+                for call in pause.call_args_list:
+                    self.assertGreater(call.args[0], 0)
+                    self.assertLessEqual(call.args[0], process_tree.GROUP_POLL_SECONDS)
+                signal_group.assert_not_called()
+                launch.assert_not_called()
+
+    def test_darwin_snapshot_never_starts_an_observation_after_expiry(self):
+        states = process_tree.darwin_process.GroupState
+        for times, readings, expected_reads in (
+            ([1.0], [states.INACTIVE], 0),
+            ([0.0, 0.0, 1.0], [states.CHANGING, states.INACTIVE], 1),
+        ):
+            with (
+                self.subTest(times=times),
+                patch.object(process_tree.darwin_process, "group_state", side_effect=readings) as probe,
+                patch.object(process_tree.time, "monotonic", side_effect=times),
+                patch.object(process_tree.time, "sleep"),
+            ):
+                self.assertIs(
+                    process_tree._darwin_group_snapshot_before(42, 1.0), states.CHANGING,
+                )
+                self.assertEqual(probe.call_count, expected_reads)
+
+    @unittest.skipUnless(os.name == "posix", "POSIX group signalling")
+    def test_permission_denied_on_a_live_group_remains_a_cleanup_error(self):
+        child = subprocess.Popen(
+            [sys.executable, "-c", NEVER_ENDS], start_new_session=True,
+        )
+        self.addCleanup(child.wait, HANG_GUARD_SECONDS)
+        self.addCleanup(child.kill)
+        with patch.object(
+            process_tree.os, "killpg", side_effect=PermissionError("live group denied"),
+        ):
+            error = process_tree._terminate_process_tree(
+                child, None, process_tree._CleanupState()
+            )
+        self.assertIn("process-group kill failed: live group denied", error)
+        self.assertEqual(child.returncode, -signal.SIGKILL)
+
     def test_survivor_reaper_retires_a_holder_that_outlives_its_run(self):
         lock = self.descendant_lock("atlas-process-tree-reap-")
         holder = subprocess.Popen(
