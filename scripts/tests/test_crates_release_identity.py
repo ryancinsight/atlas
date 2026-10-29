@@ -134,7 +134,7 @@ def registry(identity, monkeypatch):
             raise HTTPError(request.full_url, status, "fixture", response.headers, response)
         return response
 
-    monkeypatch.setattr(identity, "build_opener", lambda *args: SimpleNamespace(open=open_response))
+    monkeypatch.setattr(identity.registry_http, "build_opener", lambda *args: SimpleNamespace(open=open_response))
     yield routes, requests, identity._read_url_once
     assert all(authorization is None for _, authorization in requests)
 
@@ -304,7 +304,7 @@ def test_sparse_index_reader_rejects_oversized_and_redirected_transport(identity
             return None
 
     response = OversizedResponse()
-    monkeypatch.setattr(identity, "build_opener",
+    monkeypatch.setattr(identity.registry_http, "build_opener",
                         lambda *args: SimpleNamespace(open=lambda *args, **kwargs: response))
     with pytest.raises(identity.IdentityError, match="exceeds identity bound"):
         identity.sparse_index_versions("atlas-identity-fixture", identity._read_url_once)
@@ -313,7 +313,7 @@ def test_sparse_index_reader_rejects_oversized_and_redirected_transport(identity
         raise HTTPError("https://index.crates.io/at/la/atlas-identity-fixture",
                         302, "redirect", SimpleNamespace(raw_items=lambda: ()), io.BytesIO())
 
-    monkeypatch.setattr(identity, "build_opener",
+    monkeypatch.setattr(identity.registry_http, "build_opener",
                         lambda *args: SimpleNamespace(open=redirect))
     with pytest.raises(identity.IdentityError, match="HTTP status 302"):
         identity.sparse_index_versions("atlas-identity-fixture", identity._read_url_once)
@@ -482,7 +482,7 @@ def test_truncated_http_body_cannot_be_classified_as_absent_version(identity, mo
 
     response = HTTPResponse(Wire())
     response.begin()
-    monkeypatch.setattr(identity, "build_opener", lambda *args: SimpleNamespace(open=lambda *args, **kwargs: response))
+    monkeypatch.setattr(identity.registry_http, "build_opener", lambda *args: SimpleNamespace(open=lambda *args, **kwargs: response))
     with pytest.raises(identity.IdentityError, match="incomplete"):
         identity._read_url_once("https://index.crates.io/at/la/atlas-identity-fixture", 4096)
 
@@ -518,7 +518,7 @@ def test_complete_http_framing_is_required_for_presence_and_absence(identity, mo
             raise HTTPError("https://registry.invalid", status, "fixture", response.headers, response)
         return response
 
-    monkeypatch.setattr(identity, "build_opener", lambda *args: SimpleNamespace(open=open_response))
+    monkeypatch.setattr(identity.registry_http, "build_opener", lambda *args: SimpleNamespace(open=open_response))
     if valid:
         assert identity._read_url_once("https://registry.invalid", 4096) == (status, body)
     else:
@@ -573,11 +573,11 @@ def test_metadata_reader_never_consumes_past_its_aggregate_budget(identity):
     first = b"X-First: " + b"a" * 39989 + b"\r\n"
     second = b"X-Second: " + b"b" * 39988 + b"\r\n"
     stream = io.BytesIO(first + second + b"\r\n")
-    reader = identity.RegistryWireReader(stream)
-    with pytest.raises(identity.RegistryFramingError, match="aggregate bound"):
+    reader = identity.registry_http.RegistryWireReader(stream)
+    with pytest.raises(identity.registry_http.RegistryFramingError, match="aggregate bound"):
         reader.fields("header")
-    assert stream.tell() == identity.REGISTRY_FRAMING_BYTES
-    assert reader.bytes_read == identity.REGISTRY_FRAMING_BYTES
+    assert stream.tell() == identity.registry_http.REGISTRY_FRAMING_BYTES
+    assert reader.bytes_read == identity.registry_http.REGISTRY_FRAMING_BYTES
 
 
 def test_real_tcp_chunked_response_exceeding_the_bound_fails(identity):
@@ -757,7 +757,7 @@ def test_dns_and_socket_failures_are_transient_without_string_matching(identity,
         calls.append((args, kwargs))
         raise failure
 
-    monkeypatch.setattr(identity, "build_opener",
+    monkeypatch.setattr(identity.registry_http, "build_opener",
                         lambda *args: SimpleNamespace(open=fail))
     policy = identity.RegistryPolicy(
         reader=identity._read_url_once, sleep=lambda _delay: None,
@@ -777,7 +777,7 @@ def test_tls_certificate_failure_is_permanent_with_cause(identity, monkeypatch, 
         calls.append((args, kwargs))
         raise failure
 
-    monkeypatch.setattr(identity, "build_opener",
+    monkeypatch.setattr(identity.registry_http, "build_opener",
                         lambda *args: SimpleNamespace(open=fail))
     policy = identity.RegistryPolicy(
         reader=identity._read_url_once, sleep=lambda _delay: None,
@@ -798,7 +798,7 @@ def test_tls_protocol_failure_is_permanent_with_cause(identity, monkeypatch, wra
         calls.append((args, kwargs))
         raise failure
 
-    monkeypatch.setattr(identity, "build_opener", lambda *args: SimpleNamespace(open=fail))
+    monkeypatch.setattr(identity.registry_http, "build_opener", lambda *args: SimpleNamespace(open=fail))
     policy = identity.RegistryPolicy(
         reader=identity._read_url_once, sleep=lambda _delay: None,
         jitter=lambda _low, _high: 1.0)
@@ -818,7 +818,7 @@ def test_tls_eof_is_a_retryable_transport_disconnect(identity, monkeypatch, wrap
         calls.append((args, kwargs))
         raise failure
 
-    monkeypatch.setattr(identity, "build_opener", lambda *args: SimpleNamespace(open=fail))
+    monkeypatch.setattr(identity.registry_http, "build_opener", lambda *args: SimpleNamespace(open=fail))
     policy = identity.RegistryPolicy(
         reader=identity._read_url_once, sleep=lambda _delay: None,
         jitter=lambda _low, _high: 1.0)
@@ -849,7 +849,7 @@ def test_injected_tls_body_read_failure_uses_typed_classification(
         def __exit__(self, *args):
             return None
 
-    monkeypatch.setattr(identity, "build_opener",
+    monkeypatch.setattr(identity.registry_http, "build_opener",
                         lambda *args: SimpleNamespace(open=lambda *args, **kwargs: FailingResponse()))
     policy = identity.RegistryPolicy(
         reader=identity._read_url_once, sleep=lambda _delay: None,
@@ -1023,6 +1023,7 @@ def test_workflow_uses_exact_helper_commit_and_correct_action_output(history):
                             "expected-commit": "${{ github.sha }}"}
     for path in (".github/actions/crate-release-identity/action.yml",
                  ".github/actions/crate-release-identity/release_identity.py",
+                 ".github/actions/crate-release-identity/registry_http.py",
                  "scripts/process_tree.py", "scripts/darwin_process.py",
                  "scripts/windows_process.py"):
         actual = subprocess.run(["git", "show", f"{match.group(1)}:{path}"], cwd=history,

@@ -201,6 +201,7 @@ class PendingWorkflowTests(unittest.TestCase):
                      ".github/actions/crates-pending/artifact_evidence.py",
                      ".github/actions/crates-pending/crates_pending.py",
                      ".github/actions/crate-release-identity/release_identity.py",
+                     ".github/actions/crate-release-identity/registry_http.py",
                      "scripts/process_tree.py", "scripts/darwin_process.py",
                      "scripts/windows_process.py",
                      ".github/workflows/semver-gate.yml"):
