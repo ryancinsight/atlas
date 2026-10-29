@@ -158,22 +158,22 @@ def test_consistent_exact_version_absence_permits_auth_and_upload(identity, sour
     assert download not in [path for path, _ in requests]
 
 
-def test_sparse_index_reader_preserves_bootstrap_and_strict_failure(identity, source):
-    package = source[2]
+def test_sparse_index_reader_preserves_bootstrap_and_strict_failure(identity):
+    name = "atlas-identity-fixture"
+    checksum = "f" * 64
     rows = b"\n".join((
-        json.dumps({"name": package.name, "vers": "0.1.1", "cksum": "0" * 64}).encode(),
-        json.dumps({"name": package.name, "vers": package.version,
-                    "cksum": package.checksum}).encode(),
+        json.dumps({"name": name, "vers": "0.1.1", "cksum": "0" * 64}).encode(),
+        json.dumps({"name": name, "vers": "0.1.2", "cksum": checksum}).encode(),
     ))
-    assert identity.sparse_index_versions(package.name, 200, rows) == {
+    assert identity.sparse_index_versions(name, 200, rows) == {
         "0.1.1": "0" * 64,
-        package.version: package.checksum,
+        "0.1.2": checksum,
     }
-    assert identity.sparse_index_versions(package.name, 404, b"") == {}
+    assert identity.sparse_index_versions(name, 404, b"") == {}
     with pytest.raises(identity.IdentityError, match="HTTP 503"):
-        identity.sparse_index_versions(package.name, 503, b"")
+        identity.sparse_index_versions(name, 503, b"")
     with pytest.raises(identity.IdentityError, match="empty registry index"):
-        identity.sparse_index_versions(package.name, 200, b"")
+        identity.sparse_index_versions(name, 200, b"")
 
 
 def test_identical_publication_skips_auth_and_upload_after_all_three_reads(identity, source, registry):
