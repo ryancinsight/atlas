@@ -562,6 +562,7 @@ class GateFixture:
         push_lines: str,
         extra_env: dict | None = None,
         cwd: pathlib.Path | None = None,
+        arguments: tuple[str, ...] = (),
     ) -> tuple:
         """Run the owned hook script in this fixture, or in `cwd`, a worktree
         of it; return (exit, stderr)."""
@@ -578,7 +579,7 @@ class GateFixture:
         # (Byte input also requires binary mode: `text=True` breaks the
         # writer thread and hangs waiting on stdin forever.)
         proc = subprocess.run(
-            ["bash", str(SCRIPT)],
+            ["bash", str(SCRIPT), *arguments],
             input=push_lines.encode("utf-8"),
             cwd=str(self.root if cwd is None else cwd),
             env=env,
@@ -660,6 +661,17 @@ def _seed_identity(stack: pathlib.Path) -> None:
         _write(identity, PASSTHROUGH_IDENTITY, executable=True)
 
 
+def _seed_process_tree(stack: pathlib.Path) -> None:
+    """Give fixture stacks the production bounded-process owner."""
+    source = SCRIPT.parents[1]
+    destination = stack / "scripts"
+    destination.mkdir(parents=True, exist_ok=True)
+    for name in ("process_tree.py", "windows_process.py"):
+        target = destination / name
+        if not target.exists():
+            shutil.copy2(source / name, target)
+
+
 def _stacked_fixture(temp: str, **options: object) -> "GateFixture":
     """A member at `<temp>/repos/member` of a stack that carries the scanner
     and lockfile checkers plus the command-running identity checker."""
@@ -680,6 +692,7 @@ def _publish_stack_scripts(
     _seed_scanner(stack)
     _seed_identity(stack)
     _seed_cast_gate(stack)
+    _seed_process_tree(stack)
     for name in omit:
         tool = stack / "scripts" / name
         if tool.exists():
@@ -1126,11 +1139,9 @@ class PackageMapperTestCase(unittest.TestCase):
             self.assertIn("gating solo", stderr)
             calls = (fixture.root / "calls.log").read_text(encoding="utf-8")
             self.assertIn("-p solo", calls)
-            self.assertTrue(
-                any(line.startswith("doc --no-deps ") and line.endswith(" --locked -p solo")
-                    for line in calls.splitlines()),
-                calls,
-            )
+            self.assertTrue(any(line.startswith("clippy ") for line in calls.splitlines()), calls)
+            self.assertTrue(any(line.startswith("nextest run ") for line in calls.splitlines()), calls)
+            self.assertFalse(any(line.startswith("doc ") for line in calls.splitlines()), calls)
 
     def _commit_paths_on_a_branch(self, fixture: "GateFixture", files: dict[str, str]) -> None:
         subprocess.run(
@@ -1344,7 +1355,7 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             calls = fixture.calls.read_text(encoding="utf-8").splitlines()
             self.assertTrue(any(line.startswith("clippy ") for line in calls), calls)
             self.assertTrue(any(line.startswith("nextest run ") for line in calls), calls)
-            self.assertTrue(any(line.startswith("doc ") for line in calls), calls)
+            self.assertFalse(any(line.startswith("doc ") for line in calls), calls)
 
     def test_root_build_inputs_gate_all_four_workspaces(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
@@ -1425,6 +1436,97 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             self.assertFalse(identity_log.exists())
 
 
+class PhaseOwnershipTestCase(unittest.TestCase):
+    """Git push and readiness own disjoint native build phases."""
+
+    def test_production_push_uses_the_committed_deadline_without_rustdoc(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-phase-") as temp:
+            fixture = _stacked_fixture(temp)
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            source = fixture.root / "crates" / "foo" / "src" / "lib.rs"
+            source.write_text("pub fn f() {}\n// changed\n", encoding="utf-8")
+            _commit_all(fixture.root, "source")
+            deadline_log = fixture.stack / "deadline.log"
+            _write(
+                fixture.stack / "scripts" / "process_tree.py",
+                "import pathlib, subprocess\n"
+                "class ProcessTreeTimeout(Exception):\n    pass\n"
+                "class ProcessTreeCleanupError(Exception):\n    pass\n"
+                "def run(command, *, input, timeout, env):\n"
+                f"    pathlib.Path({str(deadline_log)!r}).write_text(str(timeout))\n"
+                "    return subprocess.run(command, input=input, env=env, capture_output=True)\n",
+            )
+            _publish_stack_scripts(fixture.stack)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), arguments=("origin", "fixture")
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(deadline_log.read_text(encoding="utf-8"), "600")
+            stages = [
+                line.split()[0]
+                for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+                if line.split()[0] in {"clippy", "nextest", "doc"}
+            ]
+            self.assertEqual(stages, ["clippy", "nextest"])
+
+    def test_documentation_phase_runs_warning_denied_rustdoc(self) -> None:
+        """The public phase accepts valid links and rejects a broken link."""
+        cargo = shutil.which("cargo", path=os.environ.get("PATH"))
+        self.assertIsNotNone(cargo, "the Rust toolchain is required for this end-to-end test")
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-rustdoc-") as temp:
+            fixture = _stacked_fixture(temp)
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nresolver = "2"\nmembers = ["crates/foo"]\n',
+                encoding="utf-8",
+            )
+            source = fixture.root / "crates" / "foo" / "src" / "lib.rs"
+            source.write_text(
+                "pub struct PresentType;\n\n"
+                "/// Returns a [`PresentType`].\n"
+                "pub fn documented() -> PresentType { PresentType }\n",
+                encoding="utf-8",
+            )
+            subprocess.run(
+                [cargo, "generate-lockfile", "--manifest-path", str(fixture.root / "Cargo.toml")],
+                cwd=fixture.root,
+                check=True,
+                timeout=60,
+            )
+            _commit_all(fixture.root, "valid documentation")
+            valid = _git(fixture.root, "rev-parse", "HEAD")
+            base = _git(fixture.root, "rev-parse", "HEAD^")
+            environment = {
+                "CARGO": cargo,
+                "CARGO_TARGET_DIR": str(fixture.stack / "target"),
+                "PATH": os.environ.get("PATH", ""),
+            }
+
+            code, stderr = fixture.run_hook(
+                "", extra_env=environment, arguments=("documentation", valid, base)
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("documentation phase passed", stderr)
+
+            _git(fixture.root, "switch", "-q", "-c", "broken-doc-link")
+            source.write_text(
+                "/// Returns a [`MissingType`].\n"
+                "pub fn documented() {}\n",
+                encoding="utf-8",
+            )
+            _commit_all(fixture.root, "broken documentation")
+            broken = _git(fixture.root, "rev-parse", "HEAD")
+
+            code, stderr = fixture.run_hook(
+                "", extra_env=environment, arguments=("documentation", broken, valid)
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("unresolved link to `MissingType`", stderr)
+            self.assertIn("rustdoc fails for foo", stderr)
+            self.assertIn("bounded stage timings", stderr)
+
+
 class BlameClassifierTestCase(unittest.TestCase):
     """Failures inside the repo block; identity keeps environment failures unverified."""
 
@@ -1489,9 +1591,12 @@ class BlameClassifierTestCase(unittest.TestCase):
                 check=True,
             )
             fixture.set_cargo_behavior("fail-doc")
+            candidate = _git(fixture.root, "rev-parse", "feat")
+            base = _git(fixture.root, "rev-parse", "main")
             code, stderr = fixture.run_hook(
-                fixture.push_line_new_branch(),
+                "",
                 extra_env={"CARGO_FAIL_LOG": self.inside_log.format(root="@ROOT@")},
+                arguments=("documentation", candidate, base),
             )
             self.assertEqual(code, 1, stderr)
             self.assertIn("rustdoc fails for", stderr)
@@ -2448,7 +2553,8 @@ class LaneGateTestCase(unittest.TestCase):
 
     def _run_in_lane(self, fixture: GateFixture, lane: pathlib.Path,
                      extra_env: dict | None = None,
-                     target_directory: pathlib.Path | None = None) -> tuple:
+                     target_directory: pathlib.Path | None = None,
+                     phase: str = "push") -> tuple:
         # No SKIP_LOCKFILE_CHECK here: the lane's own commit touches only
         # crates/foo/src/lib.rs, so the range never touches Cargo.lock or
         # Cargo.toml and the lockfile section already self-skips on that
@@ -2467,9 +2573,15 @@ class LaneGateTestCase(unittest.TestCase):
         env.update(extra_env or {})
         _publish_stack_scripts(lane.parents[1])
         sha = _git(lane, "rev-parse", "HEAD")
+        arguments = () if phase == "push" else ("documentation", sha)
+        push_input = (
+            f"refs/heads/lane {sha} refs/heads/lane {ZERO}\n".encode("utf-8")
+            if phase == "push"
+            else b""
+        )
         proc = subprocess.run(
-            ["bash", str(SCRIPT)],
-            input=f"refs/heads/lane {sha} refs/heads/lane {ZERO}\n".encode("utf-8"),
+            ["bash", str(SCRIPT), *arguments],
+            input=push_input,
             cwd=str(lane),
             env=env,
             capture_output=True,
@@ -2535,15 +2647,13 @@ class LaneGateTestCase(unittest.TestCase):
         )
         cargo_calls = fixture.calls.read_text(encoding="utf-8").splitlines()
         stages = [line for line in cargo_calls if line.split()[0] in {"clippy", "nextest", "doc"}]
-        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest"])
         # The clippy stage runs through the cast gate, which builds the
         # selection beside the flags the stage always carried.
         self.assertIn("--all-targets --locked", stages[0])
         self.assertIn("-p foo", stages[0])
         self.assertIn("--locked --no-tests=pass -p foo", stages[1])
-        self.assertIn("--no-deps", stages[2])
         self.assertTrue(all("--manifest-path" in line for line in stages), stages)
-        self.assertEqual((fixture.root / "rustdoc-flags.log").read_text(), "-D warnings")
 
     def test_identity_clippy_failure_stops_before_tests_and_rustdoc(self) -> None:
         stack, fixture, lane = self._lane(overlay=True)
@@ -2560,14 +2670,15 @@ class LaneGateTestCase(unittest.TestCase):
         )
 
         self.assertEqual(code, 1, err)
+        calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.exists() else ""
         stages = [
-            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            line.split()[0] for line in calls.splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
         self.assertEqual(stages, ["clippy"])
         self.assertIn("clippy fails for", err)
 
-    def test_identity_rejects_a_source_mutation_after_the_sequence(self) -> None:
+    def test_documentation_rejects_a_source_mutation_after_the_sequence(self) -> None:
         stack, fixture, lane = self._lane(overlay=True)
         _install_real_identity(stack)
         fixture.set_cargo_behavior("mutate-source-on-doc")
@@ -2576,6 +2687,7 @@ class LaneGateTestCase(unittest.TestCase):
             lane,
             extra_env={"CARGO_MUTATE_SOURCE": "crates/foo/src/lib.rs"},
             target_directory=stack / "target",
+            phase="documentation",
         )
 
         self.assertEqual(code, 1, err)
@@ -2583,7 +2695,7 @@ class LaneGateTestCase(unittest.TestCase):
             line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
-        self.assertEqual(stages, ["clippy", "nextest", "doc"], err)
+        self.assertEqual(stages, ["doc"], err)
         self.assertIn("source identity blocked verification", err)
         self.assertIn("source tree changed while the build was running", err)
         records = list(
@@ -2629,7 +2741,7 @@ class LaneGateTestCase(unittest.TestCase):
         self.assertEqual(sorted(gated), ["bar", "foo"], repr(gating[0]))
         runs = log.read_text(encoding="utf-8").splitlines()
         # One identity run names every gated package and holds their leases
-        # across the complete clippy, tests, and rustdoc sequence.
+        # across the complete push-phase clippy and tests sequence.
         self.assertEqual(len(runs), 1, runs)
         self.assertEqual({frozenset(run.split()) for run in runs}, {frozenset({"'bar'", "'foo'"})})
 
@@ -2638,8 +2750,8 @@ class LaneGateTestCase(unittest.TestCase):
 
         Pushing a workspace `Cargo.toml` change gates every member, and the
         checker refused the PyO3 extension with "no artifact found" because
-        `cargo nextest run -p` has nothing to build for it. Its clippy and
-        rustdoc steps still run.
+        `cargo nextest run -p` has nothing to build for it. The push phase
+        still runs its clippy and any selected tests.
         """
         stack, fixture, lane = self._lane(overlay=True)
         _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
@@ -2668,7 +2780,7 @@ class LaneGateTestCase(unittest.TestCase):
             line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
-        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest"])
         for line in stages:
             values = line.split()
             self.assertEqual(
@@ -2676,8 +2788,8 @@ class LaneGateTestCase(unittest.TestCase):
                 ["foo", "bar"],
             )
 
-    def test_all_undocumented_packages_skip_only_rustdoc(self) -> None:
-        """Every gated package undocumented: the one identity run omits rustdoc."""
+    def test_documentation_skips_an_all_undocumented_selection(self) -> None:
+        """Every gated package undocumented: documentation runs no identity command."""
         stack, fixture, lane = self._lane(overlay=True)
         _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
         _write(
@@ -2698,24 +2810,27 @@ class LaneGateTestCase(unittest.TestCase):
             ["foo", "bar"], targets={"foo": [undocumented], "bar": [undocumented]},
         )
         fixture.set_workspace_packages(["foo", "bar"])
-        code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
+        code, err = self._run_in_lane(
+            fixture, lane, target_directory=stack / "target", phase="documentation"
+        )
         self.assertEqual(code, 0, err)
-        self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
+        self.assertFalse(log.exists())
+        calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.exists() else ""
         stages = [
-            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            line.split()[0] for line in calls.splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
-        self.assertEqual(stages, ["clippy", "nextest"])
+        self.assertEqual(stages, [])
         self.assertIn("rustdoc skipped for foo", err)
         self.assertIn("rustdoc skipped for bar", err)
 
-    def test_a_package_without_a_documented_target_skips_only_the_rustdoc_step(self) -> None:
+    def test_documentation_selects_only_packages_with_a_documented_target(self) -> None:
         """A bench-only package writes no rustdoc artifact, so its step is skipped.
 
         `cargo doc` documents lib and bin targets; a package of benches alone
         (moirai-benchmarks) or a `[lib] doc = false` one leaves the identity
         checker nothing to record and refused every push touching it. Its
-        other steps and every documented package still run.
+        documentation phase selects only the package that can emit an artifact.
         """
         stack, fixture, lane = self._lane(overlay=True)
         _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar", "crates/baz"]\n')
@@ -2743,21 +2858,24 @@ class LaneGateTestCase(unittest.TestCase):
             },
         )
         fixture.set_workspace_packages(["foo", "bar", "baz"])
-        code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
+        code, err = self._run_in_lane(
+            fixture, lane, target_directory=stack / "target", phase="documentation"
+        )
         self.assertEqual(code, 0, err)
         self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
         stages = [
             line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
-        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        self.assertEqual([line.split()[0] for line in stages], ["doc"])
         for line in stages:
             values = line.split()
             self.assertEqual(
                 [values[index + 1] for index, value in enumerate(values) if value == "-p"],
-                ["foo", "bar", "baz"],
+                ["foo"],
             )
         self.assertIn("rustdoc skipped for bar", err)
+        self.assertIn("rustdoc skipped for baz", err)
 
     def test_identity_rustdoc_failure_uses_the_pushed_export(self) -> None:
         """The identity checker receives the pushed export and exact Cargo argv."""
@@ -2769,7 +2887,9 @@ class LaneGateTestCase(unittest.TestCase):
         )
         fixture.set_cargo_behavior("fail-doc")
         env = {"CARGO_FAIL_LOG": self.inside_log.format(root="@ROOT@")}
-        code, err = self._run_in_lane(fixture, lane, extra_env=env)
+        code, err = self._run_in_lane(
+            fixture, lane, extra_env=env, phase="documentation"
+        )
         self.assertEqual(code, 1, err)
         self.assertIn("rustdoc fails for foo", err)
 
@@ -2796,7 +2916,7 @@ class LaneGateTestCase(unittest.TestCase):
             for line in fixture.calls.read_text(encoding="utf-8").splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
-        self.assertEqual([stage[0] for stage in stages], ["clippy", "nextest", "doc"])
+        self.assertEqual([stage[0] for stage in stages], ["doc"])
         manifest = argv[argv.index("--manifest") + 1]
         self.assertEqual(pathlib.Path(manifest).resolve(), exported / "Cargo.toml")
         self.assertEqual(
@@ -2910,6 +3030,7 @@ class DebtRatchetTestCase(unittest.TestCase):
         )
         _seed_scanner(stack)
         _seed_cast_gate(stack)
+        _seed_process_tree(stack)
         _git_init_repo(stack)
         _register_stack(stack)
         subprocess.run(
@@ -3216,10 +3337,11 @@ class PushedRevisionGateTestCase(unittest.TestCase):
             self.assertIn("gating foo", stderr)
             calls = fixture.calls.read_text(encoding="utf-8").splitlines()
             self.assertTrue(any(line.startswith("fmt --all --manifest-path") for line in calls), calls)
-            for step in ("clippy", "doc"):
+            for step in ("clippy", "nextest"):
                 matching = [line for line in calls if line.startswith(step)]
                 self.assertTrue(matching, calls)
                 self.assertTrue(all("-p foo" in line and "--locked" in line for line in matching), matching)
+            self.assertFalse(any(line.startswith("doc ") for line in calls), calls)
             # The steps read the pushed commit's lock, not the checkout's.
             committed = subprocess.run(
                 ["git", "-C", str(fixture.root), "show", f"{item}:Cargo.lock"],
@@ -4269,7 +4391,7 @@ class StackToolBaselineTestCase(unittest.TestCase):
                 line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
                 if line.split()[0] in {"clippy", "nextest", "doc"}
             ]
-            self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+            self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest"])
             for line in stages:
                 values = line.split()
                 self.assertEqual(

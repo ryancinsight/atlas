@@ -1172,8 +1172,8 @@ class HookInstallTestCase(unittest.TestCase):
                 "encoding='utf-8')\n"
                 f"raise SystemExit({exit_code})\n"
             ).encode()
-        owned = (Path(__file__).resolve().parent.parent.parent
-                 / "scripts" / "git-hooks" / "pre-push").read_bytes()
+        scripts_root = Path(__file__).resolve().parent.parent
+        owned = (scripts_root / "git-hooks" / "pre-push").read_bytes()
         self.publish(
             {"pre-push": owned},
             {
@@ -1182,6 +1182,8 @@ class HookInstallTestCase(unittest.TestCase):
                 "scripts/atlas_stack.py": b"ATLAS_STACK_ROOT = True\n",
                 "scripts/atlas-build-identity.py": b"raise SystemExit(0)\n",
                 "scripts/lockfile.py": b"raise SystemExit(0)\n",
+                "scripts/process_tree.py": (scripts_root / "process_tree.py").read_bytes(),
+                "scripts/windows_process.py": (scripts_root / "windows_process.py").read_bytes(),
             },
         )
         baseline = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
