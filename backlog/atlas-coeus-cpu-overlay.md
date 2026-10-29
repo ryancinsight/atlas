@@ -1,11 +1,11 @@
 <a id="atlas-coeus-cpu-overlay"></a>
-## ATLAS-COEUS-CPU-OVERLAY — Commit the stack overlay's coeus-cpu row [patch] — blocked
-- Outcome: the committed `.cargo/config.toml` overlay maps the Coeus git sources to `coeus-cpu` instead of the deleted `coeus-leto` path, so local stack builds resolve again.
-- Oracle: committed overlay contains `coeus-cpu = { path = "repos/coeus/crates/coeus-cpu" }` in both Coeus sections and no `coeus-leto`; `cargo check -p coeus-cpu --offline` passes with the overlay on.
-- priority: tightening
-- needs: qualify bounded concurrent CI worktree materialization within unchanged budgets (#580's compatible checker is published at11bbccfb), then reconcile closure with the existing Atlas #551 owner; retain the original index's blocked hold. Historical oracle claims below remain historical, not exact-current-revision verification (2026-10-26 parity audit).
-- scope: atlas `.cargo/config.toml` only.
-- **Delivered 2026-10-21:** the generator can now read the stack from the recorded pins rather than from the checkout. `python scripts/atlas-stack-overlay.py generate --pinned` reads every member's manifests from the gitlink commit `HEAD` records (`git ls-tree` plus `git cat-file --batch`, no checkout and no temporary tree), so a generation is reproducible from the recorded stack however any member is parked on a branch. `--tips` reads the same way from each member's fetched default branch, which measures the provider graph a gitlink advance would record. A failed `git ls-tree` now raises naming the member and the revision instead of yielding an empty file list, so a member cannot quietly leave the overlay behind a green generation.
-- **What that measured.** The generator drops a repository's rows when that repository's own workspace edges lag, so a generation taken from a checkout whose members sit behind their pins drops rows that are still functional — the 164-line drop this item recorded. Read from the pins, the generation is stable; read from the tips, it shows which rows the cohort advance restores.
-- **The oracle is met.** The committed overlay carries `coeus-cpu = { path = "repos/coeus/crates/coeus-cpu" }` in both Coeus sections and no `coeus-leto`; `consus-zip` appears in both Consus sections. The block holds 42 patch sections against the 22 the dead mapping left behind, and the dead mapping failed every cargo command beneath the stack root. The Coeus leg that released the quarantine is Coeus#616 (Hephaestus 0.27.0), merged with the atlas gitlink advance.
-- **The dangling-path test now reads the manifest set, not the filesystem.** A pinned or tips read describes the recorded stack, so a path the recorded stack carries is present even when the checkout behind it does not have it. Testing the filesystem there reported `repos/consus/crates/consus-zip` as dangling -- a path the generation is right to emit -- and would have failed the freshness check for a reason that has nothing to do with the committed block.
+## ATLAS-COEUS-CPU-OVERLAY — Repair generated overlay exports [patch] — todo
+- Outcome: generated patches omit deleted coeus-leto paths and root Cargo gates resolve exported revisions outside the development overlay.
+- Oracle: pinned generation is byte-exact and idempotent, reports no missing providers or freshness errors, contains no coeus-leto, and the normal candidate gate passes.
+- priority: correctness
+- needs: none
+- scope: .cargo/config.toml; member hook gitlinks; scripts/git-hooks/pre-push; scripts/atlas_build_inputs.py; scripts/atlas_cast_gate.py; scripts/atlas-lock-form.py; affected tests; ADR 0064.
+- Next step: deliver the generated configuration and matching export gate against the oracle.
+- Verification: configured focused Python tiers, real-Cargo export cases, native-owner boundary cases, normal root gate, and independent source/object review.
+- basis: 4f7824e1045380f81d9349923d1c48b12bef40bd
+- Links: [PR #551](https://github.com/ryancinsight/atlas/pull/551), [ADR 0064](../docs/adr/0064-shared-build-source-identity.md).
