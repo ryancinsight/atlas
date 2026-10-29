@@ -658,7 +658,7 @@ def main() -> int:
     parser.add_argument("--item", help="board item ID for the commits' Item: trailer")
     parser.add_argument("--open-prs", action="store_true", help="commit, push, and open one PR per consumer (default: dry run)")
     arguments = parser.parse_args()
-    if arguments.check_revision:
+    if arguments.check_revision is not None:
         if arguments.target or arguments.heads or arguments.members or arguments.item or arguments.open_prs:
             parser.error("--check-revision cannot be combined with sweep/update options")
         return print_revision_check(check_revision(ROOT, arguments.check_revision))
