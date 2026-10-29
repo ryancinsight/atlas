@@ -320,6 +320,7 @@ def check_revision(repository: Path, revision: str) -> RevisionCheck:
         if not locks:
             problems.append(f"{name}@{pin}: no committed Cargo.lock")
             continue
+        if "Cargo.lock" not in locks: problems.append(f"{name}@{pin}: no committed root Cargo.lock")
         for lock in locks:
             manifest = (PurePosixPath(lock).parent / "Cargo.toml").as_posix()
             if manifest not in texts:

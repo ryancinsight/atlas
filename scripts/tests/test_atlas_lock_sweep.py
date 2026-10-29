@@ -78,8 +78,8 @@ def gitmodules(*names: str) -> str:
 
 PROVIDER_MANIFEST = '[package]\nname = "provider"\nversion = "0.1.0"\n'
 PROVIDER_LOCK = 'version = 4\n\n[[package]]\nname = "provider"\nversion = "0.1.0"\n'
-CONSUMER_MANIFEST = (PROVIDER_MANIFEST.replace('name = "provider"', 'name = "consumer"')
-                     + '[dependencies]\nprovider = { git = "https://github.com/ryancinsight/provider" }\n')
+CONSUMER_MANIFEST = (PROVIDER_MANIFEST.replace('name = "provider"', 'name = "consumer"') +
+                     '[dependencies]\nprovider = { git = "https://github.com/ryancinsight/provider" }\n')
 
 
 LOCK = NL.join(
@@ -313,24 +313,21 @@ class RevisionRepositoryTests(unittest.TestCase):
 
     def fixture(self, root: Path, locked_version: str = "0.1.0", query: str = "",
                 provider_files: dict[str, str] | None = None,
-                package_name: str = "provider") -> tuple[str, str]:
+                package_name: str = "provider", root_lock: bool = True) -> tuple[str, str]:
         provider = root / "repos" / "provider"
-        provider_pin = commit_repository(provider, provider_files or {"Cargo.toml": PROVIDER_MANIFEST,
-                                                                      "Cargo.lock": PROVIDER_LOCK})
+        provider_files = provider_files or {"Cargo.toml": PROVIDER_MANIFEST, "Cargo.lock": PROVIDER_LOCK}
+        provider_pin = commit_repository(provider, provider_files)
         consumer = root / "repos" / "consumer"
         aligned_source = f"git+https://github.com/ryancinsight/provider{query}#{provider_pin}"
         aligned = package(package_name, locked_version, aligned_source)
         drift_source = f"git+https://github.com/ryancinsight/provider#{OLD}"
         drift = package(package_name, "0.1.0", drift_source)
-        consumer_pin = commit_repository(
-            consumer,
-            {
-                "Cargo.toml": CONSUMER_MANIFEST,
-                "Cargo.lock": PROVIDER_LOCK.replace('name = "provider"', 'name = "consumer"') + aligned,
-                "fuzz/Cargo.toml": CONSUMER_MANIFEST.replace("consumer", "consumer-fuzz"),
-                "fuzz/Cargo.lock": PROVIDER_LOCK.replace('name = "provider"', 'name = "consumer-fuzz"') + drift,
-            },
-        )
+        consumer_files = {"Cargo.toml": CONSUMER_MANIFEST,
+                          "Cargo.lock": PROVIDER_LOCK.replace('name = "provider"', 'name = "consumer"') + aligned,
+                          "fuzz/Cargo.toml": CONSUMER_MANIFEST.replace("consumer", "consumer-fuzz"),
+                          "fuzz/Cargo.lock": PROVIDER_LOCK.replace('name = "provider"', 'name = "consumer-fuzz"') + drift}
+        if not root_lock: consumer_files.pop("Cargo.lock")
+        consumer_pin = commit_repository(consumer, consumer_files)
         pins = {"provider": provider_pin, "consumer": consumer_pin}
         meta_pin = commit_meta(root, gitmodules("provider", "consumer"), pins)
         return provider_pin, meta_pin
@@ -343,9 +340,11 @@ class RevisionRepositoryTests(unittest.TestCase):
 
     def test_exact_revision_reads_every_nested_committed_lock(self) -> None:
         provider_pin, meta_pin, result = self.checked_fixture()
+        _, _, rootless = self.checked_fixture(root_lock=False)
         self.assertEqual((result.revision, result.locks), (meta_pin, 3))
         self.assertIn("consumer/Cargo.lock: aligned 1 first-party package(s)", result.reports)
         self.assertEqual(result.problems, (f"consumer/fuzz/Cargo.lock: provider locks provider@{OLD}; selected {provider_pin}",))
+        self.assertIn("no committed root Cargo.lock", "\n".join(rootless.problems))
 
     def test_exact_revision_checks_version_and_redacts_query(self) -> None:
         _, _, result = self.checked_fixture(locked_version="9.9.9", query="?token=SYNTHETIC_SECRET")
