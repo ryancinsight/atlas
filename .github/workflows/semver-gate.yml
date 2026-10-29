@@ -175,6 +175,7 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          MANIFEST_PATH: ${{ inputs.manifest-path }}
         run: |
           set -euo pipefail
           # Captured first: under pipefail, grep -q closing the pipe early
@@ -279,12 +280,13 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          MANIFEST_PATH: ${{ inputs.manifest-path }}
           PACKAGE: ${{ inputs.package }}
         run: |
           set -euo pipefail
           status=0
           python3 _atlas/scripts/atlas-bump-guard.py --repo . --base "$BASE" --head "$HEAD" \
-            --package "$PACKAGE" >"$RUNNER_TEMP/bump-guard.out" 2>"$RUNNER_TEMP/bump-guard.err" \
+            --package "$PACKAGE" --manifest-path "$MANIFEST_PATH" >"$RUNNER_TEMP/bump-guard.out" 2>"$RUNNER_TEMP/bump-guard.err" \
             || status=$?
           cat "$RUNNER_TEMP/bump-guard.out"
           cat "$RUNNER_TEMP/bump-guard.err" >&2
@@ -297,7 +299,7 @@ jobs:
               sed 's/^/    /' "$RUNNER_TEMP/bump-guard.err"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$status" -eq 1 ]; then
+          if [ "$status" -eq 3 ]; then
             echo "::notice::published artifact drift is informational until an explicit release"
             exit 0
           fi
@@ -324,10 +326,11 @@ jobs:
       - name: Block release when a published artifact drifted
         env:
           PACKAGE: ${{ inputs.package }}
+          MANIFEST_PATH: ${{ inputs.manifest-path }}
         run: |
           set -euo pipefail
           python3 _atlas/scripts/atlas-bump-guard.py --release --repo . --head HEAD \
-            --package "$PACKAGE"
+            --package "$PACKAGE" --manifest-path "$MANIFEST_PATH"
       - name: Select packages with a library target
         id: checkable
         env:

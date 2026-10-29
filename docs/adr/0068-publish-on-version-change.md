@@ -61,21 +61,14 @@ blocking check runs only when the caller declares release intent.
    Inspect any already-running publisher before adoption; changing the new
    commit's workflow does not retroactively constrain an older in-flight run.
 3. **Member callers.** Each member's `rust-release.yml` adds `push` (default branch) and a daily `schedule` to its triggers, and calls `crates-publish-pending.yml` from a job of its own. That job alone grants `contents: write`. The release-event and `workflow_dispatch` jobs keep calling `crates-publish.yml` unchanged, so the manual route and the dry-run route keep their permissions. Trusted publishers are keyed by the caller's filename, and on 2026-09-30 every sampled registration, ritk's included, named `rust-release.yml`. Adopting the new path therefore needs no registry change.
-4. **Release gates.** Before the release SemVer comparison, the shared gate
-   measures every package named by the caller at the checked-out release HEAD
-   against the `.crate` at its manifest version. It uses
-   `atlas-published-drift.py`'s `measure_crate`, including source, manifest, and
-   dependency requirements. `published-drifted` blocks the release;
-   `published-current`, `unpublished-version`, and `never-published` pass. An
-   unknown or duplicate package name, registry failure, malformed artifact, Git
-   error, or Cargo error fails closed. Selection does not depend on the release
-   commit's diff, so unchanged packages cannot evade the boundary.
-
-   The subsequent SemVer gate asks crates.io once per listed name, spaced one
-   second apart under the crawler policy. It checks the published subset, gives
-   a notice for each first publication, and fails on any other status. The pull
-   request artifact-drift job reports `published-drifted` as information while
-   preserving failures for malformed input and unavailable measurements.
+4. **Release gates.** Before SemVer, `atlas-published-drift.py`'s `measure_crate`
+   checks every named package at HEAD using the caller's manifest selection,
+   including unchanged packages. Published source, manifest, or dependency drift
+   blocks release; current artifacts and unpublished versions pass. Malformed
+   selection or artifacts and unavailable registry/Git/Cargo measurements fail
+   closed. PRs report only legitimate drift as information. The subsequent
+   SemVer comparison checks the published subset and notices first publication;
+   its registry queries remain spaced one second apart under crawler policy.
 
 ## Rejected alternatives
 
@@ -111,12 +104,9 @@ blocking check runs only when the caller declares release intent.
 
   Mutation sweeps over the action, the workflow wiring, the release job and the gate's request are recorded with their counts in the delivering PR (#408). Every listed variant fails a suite.
 - `scripts/tests/test_semver_gate_baseline.py` runs the gate's baseline step against stub `curl` and `sleep`, and pins the release job's wiring. The `curl` stub answers only the step's exact argument list (flags in order, the gate's User-Agent, one crates.io crate URL) and exits 99 on any other, so a malformed request cannot pass as a 404. Its seven stub cases cover a published subset, a single published crate, all first publications, a 503, a 403 and a 429, curl failing before any HTTP answer, and an empty list entry; all seven fail against the pre-fix gate.
-- `scripts/tests/test_atlas_bump_guard.py` drives pull-request and release modes
-  through real Git archives and Cargo metadata with a deterministic registry.
-  It proves unchanged named packages are still measured at release, published
-  drift blocks, current artifacts and unpublished versions pass, and registry
-  or selection failures remain errors. The workflow test fixes the release-step
-  order and the pull-request distinction between drift and measurement failure.
+- `scripts/tests/test_atlas_bump_guard.py` covers source comparison and package/
+  manifest selection through real Git/Cargo with a deterministic registry.
+  Workflow tests enforce release ordering and fail-closed result handling.
 - `scripts/tests/test_crates_publish_pending_workflow.py` parses the workflow for:
   - the default-branch condition;
   - the gate running ahead of publish;

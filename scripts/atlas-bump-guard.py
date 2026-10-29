@@ -1,49 +1,14 @@
 #!/usr/bin/env python3
-"""Compare selected crate source with the artifact at its manifest version.
+"""Compare selected source with the crate at its manifest version.
 
-A crate whose manifest version crates.io already carries reads as released, so a
-change to its source under that version never reaches consumers: the push-mode
-planner (ADR 0068) sees nothing pending, and dependents later fail `cargo publish`
-verification against the stale registry copy (ATLAS-PUB-011). Pull requests report
-that state without requiring release authority. An explicit release checks every
-named package and blocks before SemVer comparison or publication.
+Pull-request mode selects changed packages since the merge base; ``--release``
+selects all named packages at HEAD, including unchanged packages. ``--manifest-path``
+selects the same repository-relative workspace as the release caller. Package
+selection and measurement failures block both modes. ADR 0068 owns release policy.
 
-    python scripts/atlas-bump-guard.py --repo <member checkout> --base <rev> --head <rev>
-        [--package <name>[,<name>...]]
-    python scripts/atlas-bump-guard.py --release --repo <member checkout> --head <rev>
-        [--package <name>[,<name>...]]
-
-Pull-request selection contains only crates the pull request touches. The diff is
-read from the merge base of `--base` and `--head`, so a branch behind its base does
-not select crates the base moved. A publishable crate (`cargo metadata --no-deps` at
-the head, `publish` not `[]`) is touched when its `src/**` or its `Cargo.toml` differs
-from the merge base, or when its resolved normal or build dependency requirements
-differ. A `workspace = true` dependency therefore moves with the workspace root
-without its own manifest changing. A crate absent from the merge-base publishable
-set is touched. `--package` narrows this selection.
-
-Release selection contains every named publishable package at `--head`, even when
-the release commit changes none of its files. An unknown, duplicate, or
-nonpublishable name is malformed input and fails the measurement. With no
-`--package`, either mode considers every publishable package allowed by that mode.
-
-Decision, per selected crate, by `atlas-published-drift.py`'s `measure_crate` (one
-definition of the comparison): the head's `src/**`, `Cargo.toml`, and dependency
-requirements against the `.crate` crates.io holds at the head's manifest version.
-`published-drifted` returns the distinct artifact-drift status. The pull-request
-workflow renders it as an informational finding; the release workflow blocks it and
-requires an explicitly authorized version change. Every other status passes:
-`never-published` and `unpublished-version` have nothing to compare with,
-`published-current` matches, and `foreign-name` is another account's crate, which no
-bump of ours reconciles (ATLAS-PUB-003). Pull-request mode never charges pre-existing
-drift in an untouched crate to the current change.
-
-Every selected revision is read from `git archive`, never the working tree.
-
-Exit status: 0 no selected crate drifted; 1 a selected crate differs from the artifact
-at its indexed manifest version, and nothing else; 2 the measurement failed
-(registry, git, cargo, malformed selection, or any unexpected error). A registry
-outage is never read as current or unpublished, and a crash is never read as drift.
+Exit codes: 0 current/unpublished; 3 published artifact drift; 2 measurement or CLI
+failure. The PR workflow treats only 3 as information; release blocks every error.
+Python startup failures retain their ordinary nonzero code and cannot imply drift.
 """
 
 from __future__ import annotations
@@ -105,12 +70,12 @@ def describe(reading) -> str:
 
 def guard(repo: Path, base: str | None, head: str, fetch: drift.Fetch,
           owner: str = drift.DEFAULT_OWNER,
-          only: Sequence[str] = ()) -> tuple[list, list]:
+          only: Sequence[str] = (), manifest_path: str = "Cargo.toml") -> tuple[list, list]:
     """The selected crates' readings, and those whose published artifact drifted."""
     with tempfile.TemporaryDirectory(prefix="atlas-bump-guard-") as scratch:
         head_root = (Path(scratch) / "head").resolve()
         packages = drift.publishable_packages(
-            drift.export_revision("head", repo, head, head_root), head_root)
+            drift.export_revision("head", repo, head, head_root, manifest_path), head_root)
         if only:
             if len(only) != len(set(only)):
                 raise drift.MeasurementError("--package contains a duplicate name")
@@ -127,7 +92,7 @@ def guard(repo: Path, base: str | None, head: str, fetch: drift.Fetch,
             fork = git_output(repo, "merge-base", base, head)
             fork_root = (Path(scratch) / "fork").resolve()
             before = {p.name: p for p in drift.publishable_packages(
-                drift.export_revision("merge base", repo, fork, fork_root), fork_root)}
+                drift.export_revision("merge base", repo, fork, fork_root, manifest_path), fork_root)}
         readings = []
         for package in packages:
             if (before is not None
@@ -145,15 +110,20 @@ def parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
                         help="the member repository holding both revisions (default: cwd)")
     parser.add_argument("--base", help="the pull request's base revision")
     parser.add_argument("--head", required=True, help="the pull request's head revision")
+    parser.add_argument("--manifest-path", default="Cargo.toml",
+                        help="repository-relative manifest selected by the release caller")
     parser.add_argument("--release", action="store_true",
                         help="check every named package at head and block artifact drift")
-    parser.add_argument("--package", default="",
+    parser.add_argument("--package", default=None,
                         help="comma-separated crate names to check (default: every "
                              "publishable crate)")
     parser.add_argument("--owner", default=drift.DEFAULT_OWNER,
                         help="crates.io login that must own every indexed name "
                              "(default: %(default)s)")
     options = parser.parse_args(argv)
+    if options.package is not None and any(
+            not name.strip() for name in options.package.split(",")):
+        parser.error("--package contains an empty name")
     if options.release and options.base is not None:
         parser.error("--release and --base are mutually exclusive")
     if not options.release and options.base is None:
@@ -163,15 +133,16 @@ def parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None, fetch: drift.Fetch = drift.http_get) -> int:
     options = parse_arguments(argv)
-    only = tuple(name.strip() for name in options.package.split(",") if name.strip())
+    only = (() if options.package is None
+            else tuple(name.strip() for name in options.package.split(",")))
     try:
         readings, bumps = guard(options.repo, None if options.release else options.base,
                                 options.head, fetch,
-                                options.owner, only)
+                                options.owner, only, options.manifest_path)
     except (drift.RegistryError, drift.MeasurementError) as error:
         print(f"atlas-bump-guard: {error}", file=sys.stderr)
         return 2
-    except Exception:  # noqa: BLE001 - exit 1 means "bump required" and nothing else
+    except Exception:  # noqa: BLE001 - unexpected measurement failures remain blocking
         print("atlas-bump-guard: measurement failed unexpectedly", file=sys.stderr)
         traceback.print_exc()
         return 2
@@ -187,7 +158,7 @@ def main(argv: Sequence[str] | None = None, fetch: drift.Fetch = drift.http_get)
               f"{reading.version} and the source differs from it ({describe(reading)}); "
               "an explicitly authorized release requires a version change",
               file=sys.stderr)
-    return 1 if bumps else 0
+    return 3 if bumps else 0
 
 
 if __name__ == "__main__":
