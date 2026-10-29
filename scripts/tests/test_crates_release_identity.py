@@ -129,7 +129,7 @@ def registry(identity, monkeypatch):
         return response
 
     monkeypatch.setattr(identity, "build_opener", lambda *args: SimpleNamespace(open=open_response))
-    yield routes, requests, identity.read_url
+    yield routes, requests, identity._read_url_once
     assert all(authorization is None for _, authorization in requests)
 
 
@@ -154,7 +154,9 @@ def raw_http(responses):
                 index = self.server.request_count
                 self.server.request_count += 1
             response = responses[min(index, len(responses) - 1)]
-            if response:
+            if callable(response):
+                response(self.request)
+            elif response:
                 self.request.sendall(response)
 
     class Server(socketserver.ThreadingTCPServer):
@@ -298,7 +300,7 @@ def test_sparse_index_reader_rejects_oversized_and_redirected_transport(identity
     monkeypatch.setattr(identity, "build_opener",
                         lambda *args: SimpleNamespace(open=lambda *args, **kwargs: response))
     with pytest.raises(identity.IdentityError, match="exceeds identity bound"):
-        identity.sparse_index_versions("atlas-identity-fixture")
+        identity.sparse_index_versions("atlas-identity-fixture", identity._read_url_once)
 
     def redirect(*args, **kwargs):
         raise HTTPError("https://index.crates.io/at/la/atlas-identity-fixture",
@@ -307,7 +309,7 @@ def test_sparse_index_reader_rejects_oversized_and_redirected_transport(identity
     monkeypatch.setattr(identity, "build_opener",
                         lambda *args: SimpleNamespace(open=redirect))
     with pytest.raises(identity.IdentityError, match="HTTP status 302"):
-        identity.sparse_index_versions("atlas-identity-fixture")
+        identity.sparse_index_versions("atlas-identity-fixture", identity._read_url_once)
 
 
 def test_identical_publication_skips_auth_and_upload_after_all_three_reads(identity, source, registry):
@@ -475,7 +477,7 @@ def test_truncated_http_body_cannot_be_classified_as_absent_version(identity, mo
     response.begin()
     monkeypatch.setattr(identity, "build_opener", lambda *args: SimpleNamespace(open=lambda *args, **kwargs: response))
     with pytest.raises(identity.IdentityError, match="incomplete"):
-        identity.read_url("https://index.crates.io/at/la/atlas-identity-fixture", 4096)
+        identity._read_url_once("https://index.crates.io/at/la/atlas-identity-fixture", 4096)
 
 
 @pytest.mark.parametrize("status,headers,body,valid", [
@@ -511,10 +513,10 @@ def test_complete_http_framing_is_required_for_presence_and_absence(identity, mo
 
     monkeypatch.setattr(identity, "build_opener", lambda *args: SimpleNamespace(open=open_response))
     if valid:
-        assert identity.read_url("https://registry.invalid", 4096) == (status, body)
+        assert identity._read_url_once("https://registry.invalid", 4096) == (status, body)
     else:
         with pytest.raises(identity.IdentityError):
-            identity.read_url("https://registry.invalid", 4096)
+            identity._read_url_once("https://registry.invalid", 4096)
 
 
 @pytest.mark.parametrize("wire,body,limit", [
@@ -559,7 +561,8 @@ def test_real_tcp_malformed_status_is_typed_permanent_with_cause(identity):
     with raw_http([b"NOT AN HTTP STATUS\r\n\r\n"]) as (url, server):
         with pytest.raises(identity.IdentityError, match="malformed registry HTTP response") as raised:
             policy(url, 4096)
-        assert isinstance(raised.value.__cause__, identity.http.client.BadStatusLine)
+        assert isinstance(raised.value.__cause__, identity.RegistryWorkerError)
+        assert any(item["type"] == "BadStatusLine" for item in raised.value.__cause__.chain)
         assert server.request_count == 1
 
 
@@ -574,6 +577,24 @@ def test_real_tcp_transient_open_and_body_disconnects_retry(identity, first):
     with raw_http([first, complete]) as (url, server):
         assert policy(url, 4096) == (200, b"ok")
         assert server.request_count == 2
+
+
+def test_real_tcp_slow_drip_is_stopped_by_the_total_deadline(identity, monkeypatch):
+    release = threading.Event()
+
+    def drip(connection):
+        connection.sendall(
+            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n")
+        release.wait()
+
+    monkeypatch.setattr(identity, "REGISTRY_REQUEST_SECONDS", 1.0)
+    try:
+        with raw_http([drip]) as (url, server):
+            with pytest.raises(identity.RegistryTransportError, match="total deadline"):
+                identity.read_url(url, 4096)
+            assert server.request_count == 1
+    finally:
+        release.set()
 
 
 @pytest.mark.parametrize("decision,code", [("true", 0), ("false", 0), ("", 1), ("unknown", 1), ("True", 1), ("false\ntrue", 1)])

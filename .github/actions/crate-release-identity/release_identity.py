@@ -6,13 +6,16 @@ import argparse
 from dataclasses import dataclass
 import hashlib
 import http.client
+import importlib
 import io
 import json
 import os
 from pathlib import Path
 import random
 import re
+import struct
 import subprocess
+import sys
 import tarfile
 import tempfile
 import threading
@@ -23,6 +26,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import HTTPHandler, HTTPRedirectHandler, HTTPSHandler, Request, build_opener
 
 METADATA_LIMIT = 16 * 1024 * 1024
+REGISTRY_REQUEST_SECONDS = 30.0
 API_INTERVAL_SECONDS = 1.0
 API_PREFIX = "https://crates.io/api/"
 TRANSPORT_ATTEMPTS = 5
@@ -193,6 +197,15 @@ class RegistryBodyDisconnect(OSError):
     """The peer disconnected before a chunked response reached its terminator."""
 
 
+class RegistryWorkerError(RuntimeError):
+    """A bounded transport child reported a typed exception chain."""
+
+    def __init__(self, chain):
+        self.chain = tuple(chain)
+        summary = " -> ".join(f"{item['type']}: {item['message']}" for item in self.chain)
+        super().__init__(summary)
+
+
 class StrictHTTPResponse(http.client.HTTPResponse):
     """Retain stdlib HTTP parsing while requiring complete chunk boundaries.
 
@@ -248,7 +261,7 @@ class StrictHTTPSHandler(HTTPSHandler):
         return self.do_open(StrictHTTPSConnection, request, context=self._context)
 
 
-def read_url(url, limit):
+def _read_url_once(url, limit):
     """Read public registry data with bounded time/size and no authentication."""
     request = Request(url, headers={"User-Agent": "atlas-release-identity (https://github.com/ryancinsight/atlas)"})
     try:
@@ -286,6 +299,83 @@ def read_url(url, limit):
     if len(body) > limit:
         raise IdentityError(f"registry response exceeds identity bound: {url}")
     return response.status, body
+
+
+def _error_chain(error):
+    chain = []
+    current = error
+    while current is not None and len(chain) < 8:
+        chain.append({"type": type(current).__qualname__, "message": str(current)})
+        current = current.__cause__
+    return chain
+
+
+def _transport_worker(url, limit):
+    """Write one typed response for the bounded parent process."""
+    try:
+        status, body = _read_url_once(url, limit)
+    except RegistryTransportError as error:
+        payload = json.dumps({"message": str(error), "chain": _error_chain(error)}).encode()
+        sys.stdout.buffer.write(b"T" + payload)
+    except IdentityError as error:
+        payload = json.dumps({"message": str(error), "chain": _error_chain(error)}).encode()
+        sys.stdout.buffer.write(b"P" + payload)
+    else:
+        sys.stdout.buffer.write(b"S" + struct.pack("!H", status) + body)
+    return 0
+
+
+def _process_tree():
+    scripts = Path(__file__).resolve().parents[3] / "scripts"
+    if not (scripts / "process_tree.py").is_file():
+        raise IdentityError("bounded process-tree runner is absent from the action revision")
+    path = str(scripts)
+    sys.path.insert(0, path)
+    try:
+        return importlib.import_module("process_tree")
+    finally:
+        sys.path.remove(path)
+
+
+def read_url(url, limit):
+    """Read one registry response within an absolute process-tree deadline.
+
+    The child boundary covers interpreter startup, DNS, connect, headers, body,
+    and trailers. Socket timeouts alone cover only inactivity and cannot bound a
+    peer that keeps dripping bytes or an operating-system resolver call.
+    """
+    if type(limit) is not int or not 0 <= limit <= METADATA_LIMIT:
+        raise IdentityError("registry response limit is outside the identity bound")
+    command_line = [sys.executable, str(Path(__file__).resolve()),
+                    "--registry-transport", url, str(limit)]
+    try:
+        result = _process_tree().run(command_line, timeout=REGISTRY_REQUEST_SECONDS)
+    except subprocess.TimeoutExpired as error:
+        raise RegistryTransportError(
+            f"registry request exceeded its total deadline: {url}") from error
+    if result.returncode != 0:
+        cause = subprocess.CalledProcessError(
+            result.returncode, command_line, output=result.stdout, stderr=result.stderr)
+        raise IdentityError(f"registry transport worker failed: {url}") from cause
+    output = result.stdout
+    if len(output) >= 3 and output[:1] == b"S":
+        return struct.unpack("!H", output[1:3])[0], output[3:]
+    if output[:1] in (b"P", b"T"):
+        try:
+            payload = json.loads(output[1:].decode("utf-8"))
+            message = payload["message"]
+            chain = payload["chain"]
+            if (not isinstance(message, str) or not isinstance(chain, list)
+                    or any(not isinstance(item, dict) or set(item) != {"type", "message"}
+                           or not all(isinstance(item[key], str) for key in item)
+                           for item in chain)):
+                raise ValueError("invalid transport error schema")
+        except (KeyError, TypeError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
+            raise IdentityError("registry transport worker returned an invalid error") from error
+        cause = RegistryWorkerError(chain)
+        error_type = RegistryTransportError if output[:1] == b"T" else IdentityError
+        raise error_type(message) from cause
+    raise IdentityError("registry transport worker returned an invalid response")
 
 
 Fetch = Callable[[str, int], "tuple[int, bytes]"]
@@ -444,4 +534,8 @@ def main():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--registry-transport"]:
+        if len(sys.argv) != 4:
+            raise SystemExit("registry transport requires URL and response limit")
+        raise SystemExit(_transport_worker(sys.argv[2], int(sys.argv[3])))
     main()
