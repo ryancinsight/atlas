@@ -4,6 +4,9 @@ use std::path::{Path, PathBuf};
 
 use crate::error::Error;
 
+use super::View;
+use super::member::Member;
+use super::source::{ProviderId, path_provider};
 use super::toml::{dependency_specs_from_sections, section_flag, section_value, sections};
 
 #[derive(Debug, Clone)]
@@ -29,6 +32,8 @@ pub(crate) struct DependencySpec {
     pub(crate) git: Option<String>,
     pub(crate) workspace: bool,
     pub(crate) first_party_source: bool,
+    /// Retained when a workspace dependency is inherited by a nested crate.
+    pub(crate) declared_at: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,8 +63,11 @@ pub(crate) fn parse_manifest_content(text: &str, path: &Path, atlas_root: &Path)
         || package_version_raw.as_deref() == Some("workspace = true");
     let package_version = package_version_raw.filter(|value| value != "workspace = true");
     let workspace_version = section_value(&section, "workspace.package", "version");
-    let dependencies = dependency_specs_from_sections(&section, false);
-    let workspace_dependencies = dependency_specs_from_sections(&section, true);
+    let mut dependencies = dependency_specs_from_sections(&section, false);
+    let mut workspace_dependencies = dependency_specs_from_sections(&section, true);
+    for dependency in dependencies.iter_mut().chain(&mut workspace_dependencies) {
+        dependency.declared_at = Some(path.to_path_buf());
+    }
     let consumer = path
         .strip_prefix(atlas_root)
         .ok()
@@ -68,14 +76,18 @@ pub(crate) fn parse_manifest_content(text: &str, path: &Path, atlas_root: &Path)
             || String::from("unknown"),
             |c| c.as_os_str().to_string_lossy().into_owned(),
         );
-    let is_root = section.contains_key("workspace") || section.contains_key("workspace.package");
+    // TOML creates the parent workspace table implicitly for any child table.
+    let is_root = section
+        .keys()
+        .any(|name| name == "workspace" || name.starts_with("workspace."));
     ParsedManifest {
         consumer,
         display_path: path
             .strip_prefix(atlas_root)
             .unwrap_or(path)
             .display()
-            .to_string(),
+            .to_string()
+            .replace('\\', "/"),
         path: path.to_path_buf(),
         is_root,
         package_name,
@@ -96,38 +108,41 @@ pub(crate) fn parse_manifest_content(text: &str, path: &Path, atlas_root: &Path)
 /// identifies one package, so two versions of it there is a real defect.
 pub(crate) fn package_index(
     manifests: &[ParsedManifest],
-) -> Result<BTreeMap<(String, String), PackageVersion>, Error> {
-    let mut roots = BTreeMap::new();
-    for manifest in manifests {
-        if manifest.is_root {
-            if let Some(version) = manifest.workspace_version.as_deref() {
-                roots.insert(manifest.consumer.clone(), version.to_string());
-            }
-            if let (Some(name), Some(version)) = (
-                manifest.package_name.as_deref(),
-                manifest.package_version.as_deref(),
-            ) {
-                roots.insert(
-                    format!("{}::{name}", manifest.consumer),
-                    version.to_string(),
-                );
-            }
-        }
-    }
-    let mut index: BTreeMap<(String, String), PackageVersion> = BTreeMap::new();
+    members: &[Member],
+) -> Result<BTreeMap<(ProviderId, String), PackageVersion>, Error> {
+    let roots: BTreeMap<_, _> = manifests
+        .iter()
+        .filter(|manifest| manifest.is_root)
+        .filter_map(|manifest| {
+            Some((
+                manifest.path.parent()?.to_path_buf(),
+                manifest.workspace_version.clone(),
+            ))
+        })
+        .collect();
+    let mut index: BTreeMap<(ProviderId, String), PackageVersion> = BTreeMap::new();
     for manifest in manifests {
         let Some(name) = manifest.package_name.as_deref() else {
             continue;
         };
         let version = manifest.package_version.clone().or_else(|| {
             if manifest.package_version_workspace {
-                roots.get(&manifest.consumer).cloned()
+                workspace_root(manifest, &roots).cloned().flatten()
             } else {
                 None
             }
         });
         if let Some(version) = version {
-            let key = (manifest.consumer.clone(), name.to_string());
+            // Manifest paths identify their registered tree even when their
+            // contents came from an origin commit newer than the checkout.
+            let provider =
+                path_provider(&manifest.path, members, View::Remotes)?.ok_or_else(|| {
+                    Error::Manifest {
+                        path: manifest.display_path.clone(),
+                        message: String::from("package is outside registered providers"),
+                    }
+                })?;
+            let key = (provider, name.to_string());
             if let Some(existing) = index.get(&key) {
                 if existing.version != version {
                     return Err(Error::Manifest {
@@ -148,13 +163,20 @@ pub(crate) fn package_index(
 
 pub(crate) fn workspace_dependency_index(
     manifests: &[ParsedManifest],
-) -> BTreeMap<(String, String), DependencySpec> {
+) -> BTreeMap<PathBuf, BTreeMap<String, DependencySpec>> {
     let mut result = BTreeMap::new();
     for manifest in manifests {
-        if !manifest.workspace_dependencies.is_empty() {
-            for dep in &manifest.workspace_dependencies {
-                result.insert((manifest.consumer.clone(), dep.key.clone()), dep.clone());
-            }
+        if manifest.is_root
+            && let Some(directory) = manifest.path.parent()
+        {
+            result.insert(
+                directory.to_path_buf(),
+                manifest
+                    .workspace_dependencies
+                    .iter()
+                    .map(|dep| (dep.key.clone(), dep.clone()))
+                    .collect(),
+            );
         }
     }
     result
@@ -162,15 +184,15 @@ pub(crate) fn workspace_dependency_index(
 
 pub(crate) fn dependency_specs(
     manifest: &ParsedManifest,
-    workspace_deps: &BTreeMap<(String, String), DependencySpec>,
+    workspace_deps: &BTreeMap<PathBuf, BTreeMap<String, DependencySpec>>,
 ) -> Vec<DependencySpec> {
     manifest
         .dependencies
         .iter()
         .map(|dependency| {
             if dependency.workspace {
-                workspace_deps
-                    .get(&(manifest.consumer.clone(), dependency.key.clone()))
+                workspace_root(manifest, workspace_deps)
+                    .and_then(|dependencies| dependencies.get(&dependency.key))
                     .cloned()
                     .unwrap_or_else(|| dependency.clone())
             } else {
@@ -178,4 +200,15 @@ pub(crate) fn dependency_specs(
             }
         })
         .collect()
+}
+
+fn workspace_root<'a, T>(
+    manifest: &ParsedManifest,
+    workspaces: &'a BTreeMap<PathBuf, T>,
+) -> Option<&'a T> {
+    manifest
+        .path
+        .parent()?
+        .ancestors()
+        .find_map(|directory| workspaces.get(directory))
 }

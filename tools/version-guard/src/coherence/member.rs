@@ -6,12 +6,10 @@ use serde::Serialize;
 
 use crate::error::Error;
 
-use super::manifest::{DependencySpec, ParsedManifest};
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Member {
     pub(crate) path: PathBuf,
-    url: String,
+    pub(super) url: String,
 }
 
 pub(crate) fn registered_members(atlas_root: &Path) -> Result<Vec<Member>, Error> {
@@ -61,84 +59,13 @@ pub(crate) fn registered_members(atlas_root: &Path) -> Result<Vec<Member>, Error
     Ok(members)
 }
 
-/// The registered member a `git =` URL names, if any.
-///
-/// The comparison is by URL, so it needs no filesystem: a manifest read from a
-/// git tree resolves the same as one read from a working tree.
-pub(crate) fn member_for_git(git: &str, members: &[Member]) -> Option<String> {
-    let normalized = git.trim_end_matches(".git").to_ascii_lowercase();
-    members
-        .iter()
-        .find(|member| !member.url.is_empty() && member.url.to_ascii_lowercase() == normalized)
-        .map(member_name)
-}
-
-/// A member's name: the directory it is registered under.
-fn member_name(member: &Member) -> String {
-    member
-        .path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default()
-        .to_owned()
-}
-
-/// The registered member a first-party dependency names, if any.
-///
-/// A first-party dependency says which member it means: a `git =` URL names
-/// one, and a `path =` names a directory inside one. Two members may each
-/// declare a package with the same name -- every member carries an `xtask`,
-/// and its versions drift -- so the target member is what disambiguates a
-/// package name, not the name alone.
-pub(crate) fn first_party_member(
-    manifest: &ParsedManifest,
-    dependency: &DependencySpec,
-    members: &[Member],
-    resolve_paths: bool,
-) -> Option<String> {
-    if let Some(path) = dependency.path.as_deref() {
-        let base = if dependency.workspace {
-            members
-                .iter()
-                .find(|member| manifest.path.starts_with(&member.path))
-                .map_or_else(
-                    || manifest.path.parent(),
-                    |member| Some(member.path.as_path()),
-                )
-        } else {
-            manifest.path.parent()
-        }?;
-        let resolved = base.join(path);
-        return if resolve_paths {
-            let canonical = fs::canonicalize(&resolved).ok()?;
-            members
-                .iter()
-                .find(|member| {
-                    fs::canonicalize(&member.path).is_ok_and(|member_path| {
-                        canonical == member_path || canonical.starts_with(&member_path)
-                    })
-                })
-                .map(member_name)
-        } else {
-            members
-                .iter()
-                .find(|member| lexically_under(&member.path, &resolved))
-                .map(member_name)
-        };
-    }
-    dependency
-        .git
-        .as_deref()
-        .and_then(|git| member_for_git(git, members))
-}
-
 /// Fold `.` and `..` out of a path without touching the filesystem.
 ///
 /// `Path::canonicalize` is the wrong tool for a manifest read from a git tree:
 /// a crate added since the checkout has no on-disk directory to canonicalize,
 /// and a `..` that escapes the tree must not silently resolve to an unrelated
 /// directory that happens to exist.
-fn normalize_lexically(path: &Path) -> PathBuf {
+pub(super) fn normalize_lexically(path: &Path) -> PathBuf {
     let mut folded: Vec<Component> = Vec::new();
     for component in path.components() {
         match component {
@@ -160,6 +87,7 @@ fn normalize_lexically(path: &Path) -> PathBuf {
 }
 
 /// True when `candidate` resolves under `base` after lexical folding.
+#[cfg(test)]
 pub(crate) fn lexically_under(base: &Path, candidate: &Path) -> bool {
     normalize_lexically(candidate).starts_with(normalize_lexically(base))
 }

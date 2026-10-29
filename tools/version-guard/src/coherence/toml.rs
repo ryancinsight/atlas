@@ -123,6 +123,7 @@ pub(crate) fn dependency_specs_from_sections(
                 git,
                 workspace,
                 first_party_source,
+                declared_at: None,
             });
         }
     }
