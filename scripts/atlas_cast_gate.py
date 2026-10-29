@@ -512,16 +512,14 @@ def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
     return frozenset(packages)
 
 
-def revision_workspace_packages(
-        repo: pathlib.Path,
-        revision: str,
-) -> tuple[dict[str, str], dict[str, frozenset[str]]] | None:
-    """Manifest-to-workspace ownership and package names at `revision`.
+def isolated_workspace_package(repo: pathlib.Path, revision: str,
+                               descriptions: set[str]) -> str | None:
+    """The sole package owned by one structurally isolated workspace.
 
-    Explicit members seed each workspace. Path dependencies beneath its root are
-    followed recursively as Cargo's implicit members; exclusions and nearer nested
-    workspace roots stop that walk. Packages not claimed by a workspace are their
-    own standalone workspaces.
+    This deliberately proves only the fixture shape that needs the zero-cap
+    shortcut. Any explicit member, manifest below the workspace root, internal
+    path dependency, package workspace redirection, mixed root, or malformed
+    declaration is unknown and keeps the base compile.
     """
     try:
         texts = lockfile.tracked_texts(repo, staged=False, revision=revision)
@@ -532,103 +530,93 @@ def revision_workspace_packages(
         for path, text in texts.items()
         if PurePosixPath(path).name == "Cargo.toml"
     }
-    parsed: dict[str, dict] = {}
-    names: dict[str, str] = {}
-    roots: list[PurePosixPath] = []
-    for manifest, text in manifests.items():
-        try:
-            data = tomllib.loads(text)
-        except tomllib.TOMLDecodeError:
-            return None
-        parsed[manifest] = data
-        package = data.get("package")
-        if package is not None:
-            if not isinstance(package, dict) or not isinstance(package.get("name"), str):
-                return None
-            names[manifest] = package["name"]
-        workspace = data.get("workspace")
-        if workspace is None:
-            continue
-        if not isinstance(workspace, dict):
-            return None
-        for key in ("members", "exclude"):
-            entries = workspace.get(key, [])
-            if not (isinstance(entries, list)
-                    and all(isinstance(entry, str) for entry in entries)):
-                return None
-        roots.append(PurePosixPath(manifest).parent)
-
-    claims: dict[str, set[str]] = {manifest: set() for manifest in names}
-    packages: dict[str, frozenset[str]] = {}
-    for root in roots:
-        root_manifest = (root / "Cargo.toml").as_posix()
-        nested = [other for other in roots if other != root and root in other.parents]
-        selected = lockfile.workspace_selection(manifests, parsed, root, nested)
-        facts = lockfile.workspace_facts(manifests, root, nested)
-        if selected is None or facts.unreadable:
-            return None
-        # workspace_selection also exposes path dependencies that escape a
-        # nested workspace. They are real dependency facts, but Cargo does not
-        # measure an ancestor package as a member of the nested workspace.
-        contained = {
-            manifest
-            for manifest in selected
-            if (root == PurePosixPath(".")
-                or PurePosixPath(manifest).parent == root
-                or root in PurePosixPath(manifest).parent.parents)
-        }
-        packages[root_manifest] = frozenset(
-            names[manifest] for manifest in contained if manifest in names
-        )
-        for manifest in contained:
-            if manifest in claims:
-                claims[manifest].add(root_manifest)
-
-    owners: dict[str, str] = {}
-    for manifest, name in names.items():
-        if len(claims[manifest]) > 1:
-            return None
-        owner = next(iter(claims[manifest]), manifest)
-        owners[manifest] = owner
-        if owner == manifest:
-            packages[owner] = packages.get(owner, frozenset()) | {name}
-    for root in roots:
-        root_manifest = (root / "Cargo.toml").as_posix()
-        owners[root_manifest] = root_manifest
-    return owners, packages
-
-
-def affected_packages(repo: pathlib.Path, revision: str,
-                      descriptions: set[str]) -> frozenset[str] | None:
-    """Packages in every workspace touched by manifests or locks at `revision`."""
-    layout = revision_workspace_packages(repo, revision)
-    if layout is None:
-        return None
-    owners, packages = layout
-    affected: set[str] = set()
+    roots: set[str] = set()
     for path in descriptions:
-        manifest = path if path.endswith("Cargo.toml") else (
-            "Cargo.toml" if path == "Cargo.lock" else path[:-len("Cargo.lock")] + "Cargo.toml"
-        )
-        owner = owners.get(manifest)
-        if owner is None:
-            if git_file(repo, revision, path) is not None:
+        if path not in texts:
+            return None
+        name = PurePosixPath(path).name
+        if name == "Cargo.toml":
+            roots.add(path)
+        elif name == "Cargo.lock":
+            roots.add((PurePosixPath(path).parent / "Cargo.toml").as_posix())
+        else:
+            return None
+    if len(roots) != 1:
+        return None
+    root_manifest = next(iter(roots))
+    text = manifests.get(root_manifest)
+    if text is None:
+        return None
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return None
+    package = data.get("package")
+    workspace = data.get("workspace")
+    if not (isinstance(package, dict) and isinstance(package.get("name"), str)
+            and "workspace" not in package and isinstance(workspace, dict)):
+        return None
+
+    root = PurePosixPath(root_manifest).parent
+    for key in ("members", "exclude", "default-members"):
+        entries = workspace.get(key, [])
+        if not (isinstance(entries, list)
+                and all(isinstance(entry, str) for entry in entries)):
+            return None
+        if key == "exclude" and entries:
+            return None
+        if key != "exclude" and any(
+                lockfile.workspace_relative(root, entry) != root
+                for entry in entries):
+            return None
+
+    def inside(directory: PurePosixPath) -> bool:
+        return (root == PurePosixPath(".") or directory == root
+                or root in directory.parents)
+
+    if any(
+            manifest != root_manifest and inside(PurePosixPath(manifest).parent)
+            for manifest in manifests):
+        return None
+
+    for kind in lockfile.DEPENDENCY_KINDS:
+        if kind in data and not isinstance(data[kind], dict):
+            return None
+    dependencies = workspace.get("dependencies")
+    if dependencies is not None and not isinstance(dependencies, dict):
+        return None
+    targets = data.get("target")
+    if targets is not None:
+        if not isinstance(targets, dict):
+            return None
+        for target in targets.values():
+            if not isinstance(target, dict):
                 return None
-            continue
-        affected.update(packages.get(owner, frozenset()))
-    return frozenset(affected)
+            if any(kind in target and not isinstance(target[kind], dict)
+                   for kind in lockfile.DEPENDENCY_KINDS):
+                return None
+    for table in lockfile.dependency_tables(data):
+        for specification in table.values():
+            if not isinstance(specification, (str, dict)):
+                return None
+            if not isinstance(specification, dict) or "path" not in specification:
+                continue
+            path = specification["path"]
+            if not isinstance(path, str):
+                return None
+            if inside(lockfile.workspace_relative(root, path)):
+                return None
+    return package["name"]
 
 
 def affected_packages_have_zero_cap(repo: pathlib.Path, base: str, tip: str,
                                     descriptions: set[str], baseline: Baseline) -> bool:
     """Whether all packages in the changed workspace descriptions have cap zero."""
-    before = affected_packages(repo, base, descriptions)
-    after = affected_packages(repo, tip, descriptions)
+    before = isolated_workspace_package(repo, base, descriptions)
+    after = isolated_workspace_package(repo, tip, descriptions)
     if before is None or after is None:
         return False
-    packages = before | after
-    if not packages:
-        return False
+    packages = {before, after}
     nonzero = {
         package
         for rows in baseline.counts.values()
