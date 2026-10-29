@@ -223,11 +223,33 @@ class BumpGuardTestCase(unittest.TestCase):
         self.commit({"crates/alpha/src/lib.rs": "pub fn one() -> u32 { 11 }\n",
                      "crates/beta/src/lib.rs": "pub fn two() -> u32 { 222 }\n"})
         registry = self.registry()
-        status, out, err = self.run_guard(registry, None, "--package", " beta ,")
+        status, out, err = self.run_guard(registry, None, "--package", " beta ")
         self.assertEqual(status, 1)
         self.assertEqual(out, "- `beta` 0.2.0: published-drifted\n")
         self.assertTrue(err.startswith("beta 0.2.0: bump required;"), err)
         self.assertFalse([url for url in registry.asked if "alpha" in url])
+
+    def test_empty_selection_entries_are_cli_errors(self) -> None:
+        for selection in ("alpha,", ",alpha", "alpha,,beta", " , ", ""):
+            with self.subTest(selection=selection):
+                with contextlib.redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit) as error:
+                        guard.parse_arguments([
+                            "--base", "base", "--head", "HEAD",
+                            "--package", selection,
+                        ])
+                self.assertEqual(error.exception.code, 2)
+
+    def test_named_selection_must_be_unique_and_present(self) -> None:
+        for selection, message in (
+            ("alpha,alpha", "duplicate name"),
+            ("alpha,missing", "publishable package at head: missing"),
+        ):
+            with self.subTest(selection=selection):
+                status, out, err = self.run_guard(
+                    self.registry(), None, "--package", selection)
+                self.assertEqual((status, out), (2, ""))
+                self.assertIn(message, err)
 
     def test_nested_manifest_selects_the_callers_workspace(self) -> None:
         nested_root = ROOT_MANIFEST.format(serde="1.0").replace(
