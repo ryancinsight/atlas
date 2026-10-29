@@ -348,14 +348,30 @@ def package_versions(facts: tuple[PackageFact, ...]) -> dict[str, frozenset[str 
 def load_packages(
     manifests: list[tuple[Path, str]],
 ) -> dict[str, tuple[Path, str | None]]:
-    """Index package facts by unique name for overlay generation."""
-    packages: dict[str, tuple[Path, str | None]] = {}
+    """Index first-party provider packages by unique dependency name.
+
+    Workspace-local binaries such as ``xtask`` may legitimately repeat across
+    repositories and never participate in the overlay.  Keep those declarations
+    in :func:`load_package_facts`, but do not force an arbitrary path into the
+    provider index.  A repeated name that a first-party edge actually consumes
+    remains an unsupported ambiguity and fails explicitly.
+    """
+    provider_names = {
+        package for package, _url, _requirement, _manifest in collect_first_party_deps(manifests)
+    }
+    facts_by_name: dict[str, list[PackageFact]] = {}
     for fact in load_package_facts(manifests):
-        if fact.name in packages:
-            previous = packages[fact.name][0]
+        facts_by_name.setdefault(fact.name, []).append(fact)
+
+    packages: dict[str, tuple[Path, str | None]] = {}
+    for name, facts in facts_by_name.items():
+        if len(facts) > 1:
+            if name not in provider_names:
+                continue
             raise ValueError(
-                f"package {fact.name!r} is declared by both {previous} and {fact.path}"
+                f"package {name!r} is declared by both {facts[0].path} and {facts[1].path}"
             )
+        fact = facts[0]
         packages[fact.name] = (fact.path, fact.version)
     return packages
 
