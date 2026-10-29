@@ -1860,7 +1860,8 @@ if [ "$run_tests" = 1 ]; then
 fi
 if [ "$run_rustdoc" = 1 ]; then
   record_stage rustdoc
-  env RUSTDOCFLAGS="-D warnings" "$cargo_command" doc --no-deps --manifest-path "$manifest" --locked "$@" || exit $?
+  env -u CARGO_ENCODED_RUSTDOCFLAGS RUSTDOCFLAGS="-D warnings" \
+    "$cargo_command" doc --no-deps --manifest-path "$manifest" --locked "$@" || exit $?
   complete_stage rustdoc
 fi
 record_stage verification
@@ -2324,7 +2325,8 @@ fi
 if [ "$identity_enabled" -eq 0 ] \
   && { [ "$gate_phase" = "documentation" ] \
     || [ "$documentation_ownership" = "pre-push" ]; }; then
-  case "$(classify_gate_step "$gate_log" env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps $gate_specs)" in
+  case "$(classify_gate_step "$gate_log" env -u CARGO_ENCODED_RUSTDOCFLAGS \
+    RUSTDOCFLAGS="-D warnings" cargo doc --no-deps $gate_specs)" in
     ours)
       cat >&2 <<MESSAGE
 

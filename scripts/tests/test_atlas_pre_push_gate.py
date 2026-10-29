@@ -26,6 +26,8 @@ import tomllib
 import unittest
 import weakref
 
+import pytest
+
 from readonly_tree import clear_readonly_tree
 from identity_fixture import PASSTHROUGH_IDENTITY
 
@@ -54,6 +56,12 @@ def _write(path: pathlib.Path, text: str, executable: bool = False) -> None:
     path.write_text(text, encoding="utf-8")
     if executable:
         path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP)
+
+
+def _append_repository_config(path: pathlib.Path, text: str) -> None:
+    """Append deterministic fixture settings without another Git process."""
+    with path.open("a", encoding="utf-8", newline="\n") as stream:
+        stream.write(text)
 
 
 # Every external command the hook runs before and inside its lockfile section.
@@ -325,19 +333,11 @@ class GateFixture:
         # TemporaryDirectory removes it. Disable maintenance in both the
         # repository under test and its local bare remote; this changes no
         # gate behavior, only the fixture's lifetime semantics.
-        for repo in (root, root / "upstream.git"):
-            subprocess.run(
-                ["git", "-C", str(repo), "config", "gc.auto", "0"],
-                check=True,
-            )
-            subprocess.run(
-                ["git", "-C", str(repo), "config", "maintenance.auto", "false"],
-                check=True,
-            )
-        subprocess.run(
-            ["git", "-C", str(root / "upstream.git"), "config",
-             "receive.autogc", "false"],
-            check=True,
+        _append_repository_config(
+            root / "upstream.git" / "config",
+            "[gc]\n\tauto = 0\n"
+            "[maintenance]\n\tauto = false\n"
+            "[receive]\n\tautogc = false\n",
         )
         # The remote is bare, so it carries no `.git` entry for git to
         # recognise and skip: without this exclude a `git add -A` in a
@@ -784,13 +784,11 @@ def _install_real_identity(stack: pathlib.Path) -> None:
 
 def _git_init_repo(root: pathlib.Path) -> None:
     subprocess.run(["git", "init", "-q", "-b", "main", str(root)], check=True)
-    subprocess.run(
-        ["git", "-C", str(root), *_IDENT, "config", "user.email", "t@t"],
-        check=True,
-    )
-    subprocess.run(
-        ["git", "-C", str(root), *_IDENT, "config", "user.name", "t"],
-        check=True,
+    _append_repository_config(
+        root / ".git" / "config",
+        "[user]\n\temail = t@t\n\tname = t\n"
+        "[gc]\n\tauto = 0\n"
+        "[maintenance]\n\tauto = false\n",
     )
 
 
@@ -1572,6 +1570,7 @@ class PhaseOwnershipTestCase(unittest.TestCase):
             base = _git(fixture.root, "rev-parse", "HEAD^")
             environment = {
                 "CARGO": cargo,
+                "CARGO_ENCODED_RUSTDOCFLAGS": "-Awarnings",
                 "CARGO_TARGET_DIR": str(fixture.stack / "target"),
                 "PATH": os.environ.get("PATH", ""),
             }
@@ -4537,6 +4536,55 @@ def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
     )
 
 
+_BASE_FAILURE_CASES = (
+    ("gate error", "cast gate: could not run: no cargo metadata"),
+    ("gate error beside a compile error", COMPILE_ERROR + "\ncast gate: could not run: x"),
+    ("killed compiler", COMPILE_ERROR + "\nprocess didn't exit successfully: rustc (signal: 9, SIGKILL)"),
+    ("out of memory", "memory allocation of 4096 bytes failed\n" + COMPILE_ERROR),
+    ("crashed compiler", COMPILE_ERROR + "\n(exit code: 0xc0000005, STATUS_ACCESS_VIOLATION)"),
+    ("rustc errors without cargo's summary", "error[E0433]: failed to resolve"),
+    (
+        "a dependency outside the base's packages",
+        "error[E0433]: failed to resolve\n"
+        "error: could not compile `regdep` (lib) due to 1 previous error",
+    ),
+    (
+        "a dependency failing beside a local error",
+        "error[E0433]: failed to resolve\n  --> src/lib.rs:1:1\n"
+        "error: could not compile `regdep` (lib) due to 1 previous error",
+    ),
+    (
+        "a compiler killed on Windows",
+        COMPILE_ERROR
+        + "\n\nCaused by:\n  process didn't exit successfully: `rustc --crate-name foo` "
+        "(exit code: 1)",
+    ),
+    (
+        "a silent compiler",
+        "error: could not compile `foo` (lib)\n\nCaused by:\n  process didn't exit "
+        "successfully: `rustc --crate-name foo` (exit code: 101)",
+    ),
+    (
+        "an internal compiler error",
+        "thread 'rustc' panicked at compiler/rustc_middle/src/x.rs:1:1\n"
+        "error: the compiler unexpectedly stopped\n"
+        + COMPILE_ERROR,
+    ),
+    (
+        "an internal compiler error by name",
+        "error: internal compiler error: unexpected\n" + COMPILE_ERROR,
+    ),
+    (
+        "cargo's summary without a diagnostic count",
+        "error[E0433]: failed to resolve\nerror: could not compile `foo` (lib)",
+    ),
+    *(
+        (f"crate metadata {code}", f"error[{code}]: crate `a`\n" + COMPILE_ERROR)
+        for code in ("E0460", "E0461", "E0462", "E0463", "E0464", "E0514", "E0519", "E0786")
+    ),
+)
+
+
 class CastGateTestCase(unittest.TestCase):
     """The clippy step reports bare `as` casts, and the stack's gate judges them.
 
@@ -4798,47 +4846,6 @@ class CastGateTestCase(unittest.TestCase):
             self.assertNotIn("--base-sites", check)
             self.assertNotIn("--base-package", check)
 
-    def test_a_base_failure_other_than_a_compile_error_refuses(self) -> None:
-        cases = {
-            "gate error": "cast gate: could not run: no cargo metadata",
-            "gate error beside a compile error": COMPILE_ERROR + "\ncast gate: could not run: x",
-            "killed compiler": COMPILE_ERROR + "\nprocess didn't exit successfully: rustc (signal: 9, SIGKILL)",
-            "out of memory": "memory allocation of 4096 bytes failed\n" + COMPILE_ERROR,
-            "crashed compiler": COMPILE_ERROR + "\n(exit code: 0xc0000005, STATUS_ACCESS_VIOLATION)",
-            "rustc errors without cargo's summary": "error[E0433]: failed to resolve",
-            "a dependency outside the base's packages":
-                "error[E0433]: failed to resolve\nerror: could not compile `regdep` (lib) due to 1 previous error",
-            "a dependency failing beside a local error":
-                "error[E0433]: failed to resolve\n  --> src/lib.rs:1:1\n"
-                "error: could not compile `regdep` (lib) due to 1 previous error",
-            "a compiler killed on Windows": COMPILE_ERROR + "\n\nCaused by:\n  process didn't "
-                                           "exit successfully: `rustc --crate-name foo` (exit code: 1)",
-            "a silent compiler": "error: could not compile `foo` (lib)\n\nCaused by:\n  process "
-                                 "didn't exit successfully: `rustc --crate-name foo` (exit code: 101)",
-            "an internal compiler error": "thread 'rustc' panicked at compiler/rustc_middle/src/x.rs:1:1\n"
-                                          "error: the compiler unexpectedly stopped\n" + COMPILE_ERROR,
-            "an internal compiler error by name": "error: internal compiler error: unexpected\n"
-                                                  + COMPILE_ERROR,
-            "cargo's summary without a diagnostic count": "error[E0433]: failed to resolve\n"
-                                                          "error: could not compile `foo` (lib)",
-        }
-        for code in ("E0460", "E0461", "E0462", "E0463", "E0464", "E0514", "E0519", "E0786"):
-            cases[f"crate metadata {code}"] = f"error[{code}]: crate `a`\n" + COMPILE_ERROR
-        for name, says in cases.items():
-            with self.subTest(name), tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-                fixture, _, cast_log = self._member(temp, 0, base_exit=101, base_says=says)
-
-                code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
-
-                self.assertEqual(code, 1, stderr)
-                # Refused by the cast gate or, for a failure outside the
-                # export, by the broken-graph report; never left to the rows.
-                self.assertNotIn("held to their rows alone", stderr)
-                self.assertTrue("for a reason other than a compile error" in stderr
-                                or "the local dependency graph is broken" in stderr, stderr)
-                calls = cast_log.read_text(encoding="utf-8").splitlines()
-                self.assertEqual([call.split()[0] for call in calls], ["clippy"])
-
     def test_a_base_failing_on_a_denied_lint_leaves_the_rows_to_judge(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             lint = ("error: missing documentation for a function\n"
@@ -4977,3 +4984,45 @@ class CastGateTestCase(unittest.TestCase):
             # The workspace base did not compile; the fuzz crate, absent at
             # the base, is still held to zero there.
             self.assertEqual(compared, ["member-fuzz"])
+
+
+@pytest.mark.parametrize(
+    ("case_name", "diagnostic"),
+    _BASE_FAILURE_CASES,
+    ids=[name for name, _ in _BASE_FAILURE_CASES],
+)
+def test_a_base_failure_other_than_a_compile_error_refuses(
+    case_name: str,
+    diagnostic: str,
+    base_failure_fixture: tuple[GateFixture, pathlib.Path],
+) -> None:
+    """Each independent compiler-failure class receives one schedulable item."""
+    fixture, cast_log = base_failure_fixture
+    cast_log.unlink(missing_ok=True)
+    _write(
+        fixture.stack / "scripts" / "atlas_cast_gate.py",
+        _cast_gate_stub(cast_log, 0, base_exit=101, base_says=diagnostic),
+    )
+
+    code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+    assert code == 1, f"{case_name}: {stderr}"
+    assert "held to their rows alone" not in stderr, case_name
+    assert (
+        "for a reason other than a compile error" in stderr
+        or "the local dependency graph is broken" in stderr
+    ), f"{case_name}: {stderr}"
+    calls = cast_log.read_text(encoding="utf-8").splitlines()
+    assert [call.split()[0] for call in calls] == ["clippy"], case_name
+
+
+@pytest.fixture(scope="module")
+def base_failure_fixture(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> tuple[GateFixture, pathlib.Path]:
+    """Build one immutable Git candidate per worker for the diagnostic table."""
+    root = tmp_path_factory.mktemp("atlas-gate-base-failure")
+    fixture, _, cast_log = CastGateTestCase()._member(
+        str(root), 0, base_exit=101, base_says=_BASE_FAILURE_CASES[0][1]
+    )
+    return fixture, cast_log
