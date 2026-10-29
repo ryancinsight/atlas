@@ -179,7 +179,7 @@ jobs:
 
       - name: Verify exact release publication identity
         id: identity
-        uses: ryancinsight/atlas/.github/actions/crate-release-identity@36e2f1ecbe68345ea9c8c423247eedc38037224b
+        uses: ryancinsight/atlas/.github/actions/crate-release-identity@7c648d2d52629e2f5ccaca653077f1569c2a48cd
         with:
           package: ${{ needs.validate.outputs.package }}
           version: ${{ needs.validate.outputs.version }}
