@@ -47,7 +47,11 @@ def make_crate(name: str, version: str, files: dict[str, bytes]) -> bytes:
 
 
 def index_body(name: str, versions: list[str]) -> bytes:
-    return "".join(json.dumps({"name": name, "vers": v}) + "\n" for v in versions).encode()
+    checksum = "0" * 64
+    return "".join(
+        json.dumps({"name": name, "vers": version, "cksum": checksum}) + "\n"
+        for version in versions
+    ).encode()
 
 
 OWNERS_URL = "https://crates.io/api/v1/crates/{name}/owners"
@@ -230,6 +234,15 @@ class MeasureCrateTestCase(unittest.TestCase):
         registry = Registry({"demo": ["0.1.0"]}, status={"https://index.crates.io/de/mo/demo": 503})
         with self.assertRaisesRegex(tool.RegistryError, "HTTP 503 for demo"):
             tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
+
+    def test_oversized_index_metadata_fails_at_the_shared_bound(self) -> None:
+        limit = tool.crates_pending.METADATA_LIMIT
+
+        def oversized(_url: str) -> tuple[int, bytes]:
+            return 200, b"x" * (limit + 1)
+
+        with self.assertRaisesRegex(tool.RegistryError, f"response exceeds {limit} bytes"):
+            tool.index_versions("demo", oversized)
 
     def test_missing_crate_file_for_an_indexed_version_fails(self) -> None:
         self.write_tree(SOURCE)

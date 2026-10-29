@@ -198,24 +198,25 @@ def http_get(url: str, timeout: float = HTTP_TIMEOUT_SECONDS) -> tuple[int, byte
     raise AssertionError("unreachable: the last attempt returns or raises")
 
 
+def bounded_metadata(fetch: Fetch) -> Callable[[str, int], tuple[int, bytes]]:
+    """Adapt the scan transport to the shared metadata response bound."""
+    def bounded(url: str, limit: int) -> tuple[int, bytes]:
+        status, body = fetch(url)
+        if len(body) > limit:
+            raise RegistryError(f"{url}: response exceeds {limit} bytes")
+        return status, body
+
+    return bounded
+
+
 def index_versions(name: str, fetch: Fetch) -> list[str] | None:
     """Versions the index lists for `name`, or None when it was never published."""
-
-    def text(url: str) -> tuple[int, str]:
-        status, body = fetch(url)
-        return status, body.decode("utf-8")
-
-    return crates_pending.published_versions(name, text)
+    return crates_pending.published_versions(name, bounded_metadata(fetch))
 
 
 def crate_owners(name: str, fetch: Fetch) -> list[str]:
     """Logins the crates.io owners API lists for `name`; any answer but 200 fails."""
-
-    def text(url: str) -> tuple[int, str]:
-        status, body = fetch(url)
-        return status, body.decode("utf-8")
-
-    return crates_pending.owners(name, text)
+    return crates_pending.owners(name, bounded_metadata(fetch))
 
 
 def version_key(version: str) -> tuple:
