@@ -143,11 +143,7 @@ class RevisionCheck:
     locks: int
 
 
-@dataclass(frozen=True)
-class RevisionTarget:
-    revision: str
-    packages: dict[str, str | None]
-
+RevisionTarget = tuple[str, dict[str, frozenset[str | None]]]
 
 # --- pure functions (unit-tested) ---------------------------------------------
 
@@ -181,12 +177,12 @@ def revision_lock_findings(
     findings: list[str] = []
     if path_fixture:
         report = f"{label}: path fixture ({len(identities)} first-party Git identities)"
-        findings.extend(
-                f"{label}: path-unification required for {identity.name}: "
+        findings = [
+            f"{label}: path-unification required for {identity.name}: "
                 f"{identity.provider}@{identity.rev} cannot be judged against a gitlink while sibling "
                 "dependencies remain paths"
             for identity in identities
-        )
+        ]
         return report, findings
     for identity in identities:
         target = targets.get(identity.provider)
@@ -194,16 +190,17 @@ def revision_lock_findings(
             findings.append(f"{label}: {identity.name} uses unknown registered first-party "
                             f"identity {identity.provider}@{identity.rev}")
             continue
-        if identity.rev != target.revision:
+        if identity.rev != target[0]:
             findings.append(f"{label}: {identity.name} locks {identity.provider}@{identity.rev}; "
-                            f"selected {target.revision}")
-        version = target.packages.get(identity.name)
-        if version is None:
+                            f"selected {target[0]}")
+        versions = target[1].get(identity.name)
+        if versions is None:
             findings.append(f"{label}: selected {identity.provider} does not define "
                             f"package {identity.name} with a readable version")
-        elif identity.version != version:
+        elif identity.version not in versions:
+            declared = ", ".join(sorted(version or "<unreadable>" for version in versions))
             findings.append(f"{label}: {identity.name} locks version {identity.version}; "
-                            f"selected {identity.provider} manifest declares {version}")
+                            f"selected {identity.provider} manifests declare {declared}")
     state = "measured" if findings else "aligned"
     return f"{label}: {state} {len(identities)} first-party package(s)", findings
 
@@ -217,7 +214,7 @@ def committed_member_names(repository: Path, selected: str) -> set[str]:
         )
     except RuntimeError as error:
         raise RuntimeError(f"cannot parse .gitmodules at {selected}: {error}") from error
-    path_fields: dict[str, list[str]] = {}
+    fields: dict[str, dict[str, list[str]]] = {}
     for record in configuration.split("\0"):
         if not record:
             continue
@@ -228,21 +225,21 @@ def committed_member_names(repository: Path, selected: str) -> set[str]:
         if match is None:
             continue
         section, field = match.groups()
-        path_fields.setdefault(section, [])
-        if field.lower() == "path":
-            path_fields[section].append(value)
-    if not path_fields:
+        fields.setdefault(section, {}).setdefault(field.lower(), []).append(value)
+    if not fields:
         raise RuntimeError(f"no registered members in .gitmodules at {selected}")
 
     names: set[str] = set()
     identities: set[str] = set()
-    for section in sorted(path_fields):
-        values = path_fields[section]
-        if not values:
-            raise RuntimeError(f"submodule {section!r} has no path in .gitmodules at {selected}")
-        if len(values) != 1:
-            raise RuntimeError(f"submodule {section!r} has multiple paths in .gitmodules at {selected}")
-        path = values[0]
+    for section in sorted(fields):
+        for required in ("path", "url"):
+            values = fields[section].get(required, [])
+            if len(values) != 1 or not values[0]:
+                multiple = len(values) > 1
+                state, field = ("multiple", f"{required}s") if multiple else ("no", required)
+                raise RuntimeError(f"submodule {section!r} has {state} {field} "
+                                   f"in .gitmodules at {selected}")
+        path = fields[section]["path"][0]
         parts = path.split("/")
         if len(parts) != 2 or parts[0] != "repos":
             raise RuntimeError(f"unsupported submodule path {path!r} in .gitmodules at {selected}")
@@ -299,7 +296,7 @@ def check_revision(repository: Path, revision: str) -> RevisionCheck:
     reports, problems = [], []
     measured = 0
     selected_texts: dict[str, dict[str, str]] = {}
-    targets = {provider: RevisionTarget(pin, {}) for provider, (_, pin, _) in links.items()}
+    targets = {provider: (pin, {}) for provider, (_, pin, _) in links.items()}
     for provider in sorted(links):
         name, pin, member = links[provider]
         try:
@@ -310,8 +307,12 @@ def check_revision(repository: Path, revision: str) -> RevisionCheck:
         selected_texts[provider] = texts
         manifests = [(PurePosixPath(path).parent, text) for path, text in texts.items()
                      if path.endswith("Cargo.toml")]
-        packages = stack_overlay.load_packages(manifests)
-        targets[provider] = RevisionTarget(pin, {name: facts[1] for name, facts in packages.items()})
+        try:
+            facts = stack_overlay.load_package_facts(manifests)
+        except ValueError as error:
+            problems.append(f"{name}@{pin}: package facts cannot be read: {error}")
+            continue
+        targets[provider] = (pin, stack_overlay.package_versions(facts))
     for provider in sorted(selected_texts):
         name, pin, _ = links[provider]
         texts = selected_texts[provider]

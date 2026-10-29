@@ -258,22 +258,18 @@ class LockTests(unittest.TestCase):
 
 
 class RevisionIdentityTests(unittest.TestCase):
-    targets = {"hermes": sweep.RevisionTarget(NEW, {"hermes-simd": "0.5.0"}),
-               "mnemosyne": sweep.RevisionTarget(NEW, {"mnemosyne-memory": "0.8.0"})}
+    targets = {"hermes": (NEW, {"hermes-simd": frozenset({"0.5.0"})}), "mnemosyne": (NEW, {"mnemosyne-memory": frozenset({"0.8.0"})})}
 
     def finding(self, path: str, lock: str, fixture: bool = False):
         return sweep.revision_lock_findings("consumer", path, lock, self.targets, fixture)
 
     def test_drift_findings_preserve_path_revision_and_registration(self) -> None:
-        source = f"git+https://github.com/ryancinsight/hermes#{OLD}"
-        lock = "version = 4\n" + package("hermes-simd", "0.5.0", source)
+        lock = "version = 4\n" + package("hermes-simd", "0.5.0", f"git+https://github.com/ryancinsight/hermes#{OLD}")
         report, problems = self.finding("Cargo.lock", lock)
         expected = f"consumer/Cargo.lock: hermes-simd locks hermes@{OLD}; selected {NEW}"
         _, nested = self.finding("fuzz/Cargo.lock", lock)
         unknown = f"git+https://github.com/ryancinsight/not-registered#{NEW}"
-        _, unregistered = self.finding(
-            "Cargo.lock", "version = 4\n" + package("unknown", "0.1.0", unknown)
-        )
+        _, unregistered = self.finding("Cargo.lock", "version = 4\n" + package("unknown", "0.1.0", unknown))
         self.assertEqual((report, problems), ("consumer/Cargo.lock: measured 1 first-party package(s)", [expected]))
         self.assertTrue(nested[0].startswith("consumer/fuzz/Cargo.lock:"))
         self.assertIn("unknown registered first-party identity not-registered", unregistered[0])
@@ -296,8 +292,8 @@ class RevisionIdentityTests(unittest.TestCase):
     def test_structural_path_fixture_with_git_identity_requires_unification(self) -> None:
         source = f"git+https://github.com/ryancinsight/hermes#{NEW}"
         lock = "version = 4\n" + package("hermes-simd", "0.5.0", source)
-        manifest = ('[package]\nname = "fixture"\nversion = "0.1.0"\n'
-                    '[dependencies]\nsibling = { path = "../../sibling" }\n')
+        manifest = ('[package]\nname = "fixture"\nversion = "0.1.0"\n[dependencies]\n'
+                    'sibling = { path = "../../sibling" }\n')
         texts = {"Cargo.toml": manifest, "Cargo.lock": lock}
         standalone, exempt = sweep.lockfile.judge_locks(texts)
         self.assertEqual((standalone, exempt), ([], ["Cargo.lock"]))
@@ -315,16 +311,17 @@ class RevisionRepositoryTests(unittest.TestCase):
                 (root / "repos" / member).mkdir(parents=True)
             return sweep.check_revision(root, "HEAD")
 
-    def fixture(self, root: Path, locked_version: str = "0.1.0",
-                query: str = "") -> tuple[str, str]:
+    def fixture(self, root: Path, locked_version: str = "0.1.0", query: str = "",
+                provider_files: dict[str, str] | None = None,
+                package_name: str = "provider") -> tuple[str, str]:
         provider = root / "repos" / "provider"
-        provider_pin = commit_repository(provider, {"Cargo.toml": PROVIDER_MANIFEST,
-                                                     "Cargo.lock": PROVIDER_LOCK})
+        provider_pin = commit_repository(provider, provider_files or {"Cargo.toml": PROVIDER_MANIFEST,
+                                                                      "Cargo.lock": PROVIDER_LOCK})
         consumer = root / "repos" / "consumer"
         aligned_source = f"git+https://github.com/ryancinsight/provider{query}#{provider_pin}"
-        aligned = package("provider", locked_version, aligned_source)
+        aligned = package(package_name, locked_version, aligned_source)
         drift_source = f"git+https://github.com/ryancinsight/provider#{OLD}"
-        drift = package("provider", "0.1.0", drift_source)
+        drift = package(package_name, "0.1.0", drift_source)
         consumer_pin = commit_repository(
             consumer,
             {
@@ -338,41 +335,43 @@ class RevisionRepositoryTests(unittest.TestCase):
         meta_pin = commit_meta(root, gitmodules("provider", "consumer"), pins)
         return provider_pin, meta_pin
 
-    def test_exact_revision_reads_every_nested_committed_lock(self) -> None:
+    def checked_fixture(self, **arguments) -> tuple[str, str, sweep.RevisionCheck]:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            provider_pin, meta_pin = self.fixture(root)
-            result = sweep.check_revision(root, meta_pin)
+            provider, meta = self.fixture(root, **arguments)
+            return provider, meta, sweep.check_revision(root, meta)
+
+    def test_exact_revision_reads_every_nested_committed_lock(self) -> None:
+        provider_pin, meta_pin, result = self.checked_fixture()
         self.assertEqual((result.revision, result.locks), (meta_pin, 3))
         self.assertIn("consumer/Cargo.lock: aligned 1 first-party package(s)", result.reports)
-        expected = f"consumer/fuzz/Cargo.lock: provider locks provider@{OLD}; selected {provider_pin}"
-        self.assertEqual(result.problems, (expected,))
+        self.assertEqual(result.problems, (f"consumer/fuzz/Cargo.lock: provider locks provider@{OLD}; selected {provider_pin}",))
 
     def test_exact_revision_checks_version_and_redacts_query(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            _, meta_pin = self.fixture(root, locked_version="9.9.9",
-                                       query="?token=SYNTHETIC_SECRET")
-            result = sweep.check_revision(root, meta_pin)
+        _, _, result = self.checked_fixture(locked_version="9.9.9", query="?token=SYNTHETIC_SECRET")
         evidence = repr((result.reports, result.problems))
-        self.assertEqual(("locks version 9.9.9; selected provider manifest declares 0.1.0" in evidence,
+        self.assertEqual(("locks version 9.9.9; selected provider manifests declare 0.1.0" in evidence,
                           "SYNTHETIC_SECRET" in evidence), (True, False))
 
-    def test_lock_without_workspace_manifest_fails_closed(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            provider = root / "repos" / "provider"
-            pin = commit_repository(provider, {"Cargo.lock": "version = 4\n"})
-            meta = commit_meta(root, gitmodules("provider"), {"provider": pin})
-            result = sweep.check_revision(root, meta)
-        self.assertIn("workspace has no committed Cargo.toml", result.problems[0])
+    def test_provider_package_facts_fail_closed_without_dropping_duplicates(self) -> None:
+        missing = {"Cargo.toml": '[workspace]\nmembers = ["crates/missing"]\n',
+                   "Cargo.lock": "version = 4\n"}
+        duplicates = {"Cargo.toml": '[workspace]\nmembers = ["one", "two"]\n',
+                      "Cargo.lock": "version = 4\n",
+                      "one/Cargo.toml": PROVIDER_MANIFEST.replace("provider", "shared"),
+                      "two/Cargo.toml": PROVIDER_MANIFEST.replace("provider", "shared").replace("0.1.0", "9.9.9")}
+        _, _, missing_result = self.checked_fixture(provider_files=missing)
+        _, _, duplicate_result = self.checked_fixture(provider_files=duplicates, package_name="shared")
+        _, _, manifest_result = self.checked_fixture(provider_files={"Cargo.lock": "version = 4\n"})
+        self.assertIn("declares workspace member 'crates/missing'", repr(missing_result.problems))
+        self.assertNotIn("locks version", repr(duplicate_result.problems))
+        self.assertIn("workspace has no committed Cargo.toml", repr(manifest_result.problems))
 
     def test_unreadable_selected_member_object_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.fixture(root)
-            missing = "f" * 40
-            run_git(root, "update-index", "--cacheinfo", f"160000,{missing},repos/provider")
+            run_git(root, "update-index", "--cacheinfo", f"160000,{'f' * 40},repos/provider")
             run_git(root, "commit", "--quiet", "-m", "missing provider object")
             result = sweep.check_revision(root, "HEAD")
         self.assertTrue(any("selected object cannot be read" in problem for problem in result.problems))
@@ -387,12 +386,13 @@ class RevisionRepositoryTests(unittest.TestCase):
             (gitmodules(".."), {}, (), "unsafe registered member name '..'"),
             ("", {}, (), "no registered members"),
             (quoted, {}, (), "registered member projection is incomplete"),
-            (gitmodules("provider") + '[submodule "outside"]\npath = ../outside\n', {"provider": None}, (),
+            (gitmodules("provider") + '[submodule "outside"]\npath = ../outside\nurl = local\n', {"provider": None}, (),
              "unsupported submodule path '../outside'"),
-            ('[submodule "x"]\npath = repos/provider/../outside\n', {}, (), "unsupported submodule path 'repos/provider/../outside'"),
+            ('[submodule "x"]\npath = repos/provider/../outside\nurl = local\n', {}, (), "unsupported submodule path 'repos/provider/../outside'"),
             ('[submodule "missing"]\nurl = local\n', {}, (), "has no path"),
-            ('[submodule "x"]\npath = repos/provider\npath = repos/other\n', {}, (), "has multiple paths"),
-            (gitmodules("provider") + '[submodule "alias"]\npath = repos/provider\n', {}, (), "duplicate registered submodule path repos/provider"),
+            ('[submodule "missing"]\npath = repos/provider\n', {"provider": None}, (), "has no url"),
+            ('[submodule "x"]\npath = repos/provider\npath = repos/other\nurl = local\n', {}, (), "has multiple paths"),
+            (gitmodules("provider") + '[submodule "alias"]\npath = repos/provider\nurl = local\n', {}, (), "duplicate registered submodule path repos/provider"),
             ('[submodule "provider"\npath = repos/provider\n', {}, (), "cannot parse .gitmodules"),
             (gitmodules("provider"), {"provider": None, "aaa-extra": None}, (), "unregistered gitlink repos/aaa-extra"),
             (gitmodules("provider"), {"provider": None, "repos/nested/extra": None}, (), "unsupported gitlink repos/nested/extra"),
