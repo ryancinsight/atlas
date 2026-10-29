@@ -880,7 +880,7 @@ def test_workflow_uses_exact_helper_commit_and_correct_action_output(history):
     guard = next(step for step in steps if step.get("id") == "identity")
     match = re.fullmatch(r"ryancinsight/atlas/\.github/actions/crate-release-identity@([0-9a-f]{40})", guard["uses"])
     assert match is not None
-    assert match.group(1) == "496d18cb2d94c5dbcbfbe9ed394da7705773dc83"
+    assert match.group(1) == "1e020440221ed46648605c506fcc279932c4a44c"
     assert guard["with"] == {"package": "${{ needs.validate.outputs.package }}",
                             "version": "${{ needs.validate.outputs.version }}",
                             "expected-commit": "${{ github.sha }}"}
