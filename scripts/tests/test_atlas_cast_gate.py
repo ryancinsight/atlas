@@ -38,14 +38,29 @@ def baseline(sanctioned=None, counts=None):
     )
 
 
-def source_repository() -> pathlib.Path:
-    """Git object context for tests that inspect this script's shared target.
+def workspace_packages(manifest: pathlib.Path) -> set[str]:
+    """The real Cargo-selected package names for `manifest`."""
+    metadata = json.loads(subprocess.run(
+        ["cargo", "metadata", "--format-version", "1", "--no-deps",
+         "--manifest-path", str(manifest)], cwd=manifest.parent, env=GIT_ENV,
+        capture_output=True, check=True, text=True,
+    ).stdout)
+    members = set(metadata["workspace_members"])
+    return {package["name"] for package in metadata["packages"]
+            if package["id"] in members}
 
-    An immutable archive has no `.git` entry. Its caller can name the repository
-    and exact revision whose two loaded files it exported; byte comparison keeps
-    that context from substituting neighboring source while temporary test
-    repositories continue to use their own Git directories.
-    """
+
+def package_manifest(directory: pathlib.Path, name: str, extra: str = "") -> pathlib.Path:
+    """Write a minimal real Cargo package and return its manifest."""
+    (directory / "src").mkdir(parents=True)
+    manifest = directory / "Cargo.toml"
+    manifest.write_text(f'[package]\nname = "{name}"\nversion = "0.1.0"\n{extra}')
+    (directory / "src" / "lib.rs").write_text(f"pub fn {name.replace('-', '_')}() {{}}\n")
+    return manifest
+
+
+def source_repository() -> pathlib.Path:
+    """Verified Git object context for an immutable test export."""
     repository = pathlib.Path(os.environ.get("ATLAS_TEST_REPOSITORY", SCRIPT.parents[1]))
     revision = os.environ.get("ATLAS_TEST_REVISION")
     if revision is None:
@@ -885,15 +900,13 @@ def test_zero_caps_make_the_base_count_redundant(tmp_path, capsys):
     device = repo / "contracts" / "device" / "Cargo.toml"
     device.write_text(
         '[package]\nname = "device"\nversion = "0.1.0"\n'
-        '[workspace]\nmembers = ["."]\n'
-        '[dependencies]\nroot = { path = "../.." }\n')
+        '[workspace]\nmembers = ["."]\n')
     device_lock = repo / "contracts" / "device" / "Cargo.lock"
     device_lock.write_text("device lock\n")
     first = commit(repo, "base")
     device.write_text(
         '[package]\nname = "device"\nversion = "0.1.0"\n'
         '[workspace]\nmembers = ["."]\n'
-        '[dependencies]\nroot = { path = "../.." }\n'
         '[features]\ndefault = []\n')
     tip = commit(repo, "change standalone manifest")
     zero = baseline(counts={
@@ -951,40 +964,16 @@ def test_external_and_ignored_explicit_members_retain_base_compile(tmp_path):
     positive = repo / "positive"
     target_positive = workspace / "target" / "positive"
     (workspace / "src").mkdir(parents=True)
-    (positive / "src").mkdir(parents=True)
-    (target_positive / "src").mkdir(parents=True)
     root_manifest = workspace / "Cargo.toml"
     root_manifest.write_text(
         '[package]\nname = "root"\nversion = "0.1.0"\n'
         '[workspace]\nmembers = ["../positive", "target/positive"]\nresolver = "3"\n'
     )
     (workspace / "src" / "lib.rs").write_text("pub fn root() {}\n")
-    member_manifest = positive / "Cargo.toml"
-    member_manifest.write_text(
-        '[package]\nname = "positive"\nversion = "0.1.0"\n'
-        'workspace = "../workspace"\n'
-    )
-    (positive / "src" / "lib.rs").write_text("pub fn positive() {}\n")
-    (target_positive / "Cargo.toml").write_text(
-        '[package]\nname = "target-positive"\nversion = "0.1.0"\n'
-    )
-    (target_positive / "src" / "lib.rs").write_text("pub fn positive() {}\n")
+    member_manifest = package_manifest(positive, "positive", 'workspace = "../workspace"\n')
+    package_manifest(target_positive, "target-positive")
 
-    metadata = json.loads(subprocess.run(
-        ["cargo", "metadata", "--format-version", "1", "--no-deps",
-         "--manifest-path", str(root_manifest)],
-        cwd=repo,
-        env=GIT_ENV,
-        capture_output=True,
-        check=True,
-        text=True,
-    ).stdout)
-    workspace_members = set(metadata["workspace_members"])
-    assert {
-        package["name"]
-        for package in metadata["packages"]
-        if package["id"] in workspace_members
-    } == {"root", "positive", "target-positive"}
+    assert workspace_packages(root_manifest) == {"root", "positive", "target-positive"}
 
     first = commit(repo, "base")
     root_manifest.write_text(
@@ -992,21 +981,13 @@ def test_external_and_ignored_explicit_members_retain_base_compile(tmp_path):
     )
     tip = commit(repo, "change workspace manifest")
     reason = ["workspace/Cargo.toml changed"]
-    assert gate.base_triggers(
-        repo, first, tip, baseline(counts={
-            "member": {"root": 0, "positive": 1, "target-positive": 0}
-        })
-    ) == reason
-    assert gate.base_triggers(
-        repo, first, tip, baseline(counts={
-            "member": {"root": 0, "positive": 0, "target-positive": 1}
-        })
-    ) == reason
-    assert gate.base_triggers(
-        repo, first, tip, baseline(counts={
-            "member": {"root": 0, "positive": 0, "target-positive": 0}
-        })
-    ) == reason
+    for positive, target in ((1, 0), (0, 1), (0, 0)):
+        assert gate.base_triggers(
+            repo, first, tip, baseline(counts={
+                "member": {"root": 0, "positive": positive,
+                           "target-positive": target}
+            })
+        ) == reason
 
     member_manifest.write_text(
         '[package]\nname = "positive"\nversion = "0.1.0"\nworkspace = 7\n'
@@ -1015,6 +996,27 @@ def test_external_and_ignored_explicit_members_retain_base_compile(tmp_path):
     assert gate.base_triggers(repo, tip, malformed, baseline()) == [
         "positive/Cargo.toml changed"
     ]
+
+    dependency_workspace = repo / "dependency-workspace"
+    dependency = repo / "dependency"
+    dependency_manifest = package_manifest(
+        dependency_workspace, "dependency-root",
+        '[workspace]\nmembers = ["."]\n'
+        '[dependencies]\ndependency = { path = "../dependency" }\n'
+    )
+    package_manifest(dependency, "dependency", 'workspace = "../dependency-workspace"\n')
+    assert workspace_packages(dependency_manifest) == {"dependency-root", "dependency"}
+    dependency_base = commit(repo, "path dependency workspace")
+    dependency_manifest.write_text(
+        dependency_manifest.read_text() + '[workspace.metadata.test]\nvalue = 1\n'
+    )
+    dependency_tip = commit(repo, "change path dependency workspace")
+    reason = ["dependency-workspace/Cargo.toml changed"]
+    for count in (0, 1):
+        assert gate.base_triggers(
+            repo, dependency_base, dependency_tip,
+            baseline(counts={"member": {"dependency": count}}),
+        ) == reason
 
 
 def test_added_deleted_or_internal_workspace_retain_base_compile(tmp_path):
@@ -1041,32 +1043,13 @@ def test_added_deleted_or_internal_workspace_retain_base_compile(tmp_path):
     assert gate.base_triggers(repo, added, deleted, zero) == reason
 
     internal = repo / "internal"
-    (internal / "src").mkdir(parents=True)
-    (internal / "child" / "src").mkdir(parents=True)
-    internal_manifest = internal / "Cargo.toml"
-    internal_manifest.write_text(
-        '[package]\nname = "root"\nversion = "0.1.0"\n'
+    internal_manifest = package_manifest(
+        internal, "root",
         '[workspace]\nmembers = ["."]\n'
         '[dependencies]\nchild = { path = "child" }\n'
     )
-    (internal / "src" / "lib.rs").write_text("pub fn root() {}\n")
-    (internal / "child" / "Cargo.toml").write_text(
-        '[package]\nname = "child"\nversion = "0.1.0"\n'
-    )
-    (internal / "child" / "src" / "lib.rs").write_text("pub fn child() {}\n")
-    metadata = json.loads(subprocess.run(
-        ["cargo", "metadata", "--format-version", "1", "--no-deps",
-         "--manifest-path", str(internal_manifest)],
-        cwd=repo,
-        env=GIT_ENV,
-        capture_output=True,
-        check=True,
-        text=True,
-    ).stdout)
-    members = set(metadata["workspace_members"])
-    assert {
-        package["name"] for package in metadata["packages"] if package["id"] in members
-    } == {"root", "child"}
+    package_manifest(internal / "child", "child")
+    assert workspace_packages(internal_manifest) == {"root", "child"}
     internal_base = commit(repo, "internal workspace")
     internal_manifest.write_text(
         internal_manifest.read_text() + '[workspace.metadata.test]\nvalue = 1\n'
@@ -1081,26 +1064,20 @@ def test_added_deleted_or_internal_workspace_retain_base_compile(tmp_path):
 def test_positive_or_malformed_workspaces_retain_the_base_compile(tmp_path):
     repo = tmp_path / "repo"
     init(repo)
-    (repo / "crates" / "core").mkdir(parents=True)
     (repo / "nested").mkdir()
     (repo / "Cargo.toml").write_text(
         '[workspace]\nmembers = ["crates/core", "nested"]\n')
-    core = repo / "crates" / "core" / "Cargo.toml"
-    core.write_text('[package]\nname = "core"\nversion = "0.1.0"\n')
-    nested = repo / "nested" / "Cargo.toml"
-    nested.write_text('[package]\nname = "nested"\nversion = "0.1.0"\n')
+    core = package_manifest(repo / "crates" / "core", "core")
+    nested = package_manifest(repo / "nested", "nested")
     first = commit(repo, "base")
     core.write_text(
         '[package]\nname = "core"\nversion = "0.1.0"\n[features]\ndefault = []\n')
     tip = commit(repo, "change manifest")
     reason = ["crates/core/Cargo.toml changed"]
 
-    assert gate.base_triggers(
-        repo, first, tip, baseline(counts={"other-member": {"nested": 1}})
-    ) == reason
-    assert gate.base_triggers(
-        repo, first, tip, baseline(counts={"member": {"core": 0, "nested": 1}})
-    ) == reason
+    for counts in ({"other-member": {"nested": 1}},
+                   {"member": {"core": 0, "nested": 1}}):
+        assert gate.base_triggers(repo, first, tip, baseline(counts=counts)) == reason
 
     (repo / "orphan").mkdir()
     (repo / "orphan" / "Cargo.lock").write_text("lock without an owning manifest\n")

@@ -516,35 +516,29 @@ def isolated_workspace_package(repo: pathlib.Path, revision: str,
                                descriptions: set[str]) -> str | None:
     """The sole package owned by one structurally isolated workspace.
 
-    This deliberately proves only the fixture shape that needs the zero-cap
-    shortcut. Any explicit member, manifest below the workspace root, internal
-    path dependency, package workspace redirection, mixed root, or malformed
-    declaration is unknown and keeps the base compile.
+    Any member, nested manifest, path dependency, package workspace redirect,
+    mixed root, or malformed declaration is unknown and keeps the base compile.
     """
     try:
         texts = lockfile.tracked_texts(repo, staged=False, revision=revision)
     except lockfile.GitUnavailable:
         return None
-    manifests = {
-        path: text
-        for path, text in texts.items()
-        if PurePosixPath(path).name == "Cargo.toml"
-    }
     roots: set[str] = set()
     for path in descriptions:
         if path not in texts:
             return None
-        name = PurePosixPath(path).name
+        description = PurePosixPath(path)
+        name = description.name
         if name == "Cargo.toml":
             roots.add(path)
         elif name == "Cargo.lock":
-            roots.add((PurePosixPath(path).parent / "Cargo.toml").as_posix())
+            roots.add((description.parent / "Cargo.toml").as_posix())
         else:
             return None
     if len(roots) != 1:
         return None
     root_manifest = next(iter(roots))
-    text = manifests.get(root_manifest)
+    text = texts.get(root_manifest)
     if text is None:
         return None
     try:
@@ -563,20 +557,15 @@ def isolated_workspace_package(repo: pathlib.Path, revision: str,
         if not (isinstance(entries, list)
                 and all(isinstance(entry, str) for entry in entries)):
             return None
-        if key == "exclude" and entries:
-            return None
-        if key != "exclude" and any(
-                lockfile.workspace_relative(root, entry) != root
-                for entry in entries):
+        if (key == "exclude" and entries
+                or key != "exclude" and any(entry != "." for entry in entries)):
             return None
 
-    def inside(directory: PurePosixPath) -> bool:
-        return (root == PurePosixPath(".") or directory == root
-                or root in directory.parents)
-
+    prefix = "" if root == PurePosixPath(".") else f"{root.as_posix()}/"
     if any(
-            manifest != root_manifest and inside(PurePosixPath(manifest).parent)
-            for manifest in manifests):
+            path != root_manifest and path.startswith(prefix)
+            and PurePosixPath(path).name == "Cargo.toml"
+            for path in texts):
         return None
 
     for kind in lockfile.DEPENDENCY_KINDS:
@@ -599,12 +588,9 @@ def isolated_workspace_package(repo: pathlib.Path, revision: str,
         for specification in table.values():
             if not isinstance(specification, (str, dict)):
                 return None
-            if not isinstance(specification, dict) or "path" not in specification:
-                continue
-            path = specification["path"]
-            if not isinstance(path, str):
-                return None
-            if inside(lockfile.workspace_relative(root, path)):
+            # `package.workspace` may make any path dependency a member, so
+            # an unresolved dependency leaves single-package ownership unknown.
+            if isinstance(specification, dict) and "path" in specification:
                 return None
     return package["name"]
 
