@@ -24,6 +24,7 @@ PLAN_IF = ("github.event_name == 'schedule' || (github.event_name == 'push'\n"
 CHECKOUT = {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"persist-credentials": False}}
 TOOLCHAIN = {"uses": "dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4", "with": {"toolchain": "${{ inputs.rust-toolchain }}"}}
 PENDING = "ryancinsight/atlas/.github/actions/crates-pending"
+EXPECTED = {"expected-artifacts": "${{ inputs.expected-artifacts }}"}
 # Every step's wiring: which action or script it runs and every id, if, env, and with it carries.
 # Any change to how an input, output, token, or outcome flows between steps changes this table.
 EXPECTED_STEPS = {
@@ -36,17 +37,26 @@ EXPECTED_STEPS = {
                 "sudo apt-get install -y --no-install-recommends $APT_PACKAGES\n"},
         TOOLCHAIN,
         {"uses": PENDING, "id": "plan", "with": {"command": "plan", "owner": "${{ inputs.owner }}",
-                                                "cohort-json": "${{ inputs.cohort-json }}"}},
+                                                "cohort-json": "${{ inputs.cohort-json }}", **EXPECTED}},
     ],
     "publish": [
         CHECKOUT,
+        {"if": "inputs.apt-packages != ''", "env": {"APT_PACKAGES": "${{ inputs.apt-packages }}"},
+         "run": "sudo apt-get update\n"
+                "# Word splitting is the input's contract: a space-separated list.\n"
+                "# shellcheck disable=SC2086\n"
+                "sudo apt-get install -y --no-install-recommends $APT_PACKAGES\n"},
         TOOLCHAIN,
+        {"if": "inputs.expected-artifacts != ''", "uses": PENDING,
+         "with": {"command": "bind", "packages": "${{ needs.plan.outputs.packages }}",
+                  "cohort-json": "${{ inputs.cohort-json }}", **EXPECTED}},
         {"uses": "rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18", "id": "auth"},
         {"uses": PENDING, "id": "publish", "env": {"CARGO_REGISTRY_TOKEN": "${{ steps.auth.outputs.token }}"},
          "with": {"command": "publish", "packages": "${{ needs.plan.outputs.packages }}",
-                  "cohort-json": "${{ inputs.cohort-json }}"}},
+                  "cohort-json": "${{ inputs.cohort-json }}", **EXPECTED}},
         {"uses": PENDING, "if": "${{ !cancelled() && steps.auth.outcome == 'success' }}",
          "with": {"command": "tag", "packages": "${{ needs.plan.outputs.packages }}", "cohort-json": "${{ inputs.cohort-json }}",
+                  **EXPECTED,
                   "tag-prefix": "${{ inputs.tag-prefix }}", "publish-outcome": "${{ steps.publish.outcome }}"}},
     ],
 }
@@ -76,6 +86,7 @@ EXPECTED_INPUTS = {
     "tag-prefix": {"required": False, "default": "crate-", "type": "string"},
     "owner": {"required": False, "default": "ryancinsight", "type": "string"},
     "cohort-json": {"required": False, "default": "", "type": "string"},
+    "expected-artifacts": {"required": False, "default": "", "type": "string"},
     "apt-packages": {"required": False, "default": "", "type": "string"},
 }
 
@@ -145,6 +156,11 @@ class PendingWorkflowTests(unittest.TestCase):
         publish = self.step("publish", "Publish what is still pending")
         self.assertEqual(publish["env"]["CARGO_REGISTRY_TOKEN"], "${{ steps.auth.outputs.token }}")
         self.assertEqual(publish["with"]["command"], "publish")
+        bind = self.step("publish", "Bind the frozen package archives")
+        self.assertLess(self.jobs["publish"]["steps"].index(bind),
+                        self.jobs["publish"]["steps"].index(
+                            self.step("publish", "Request a short-lived crates.io token")))
+        self.assertEqual(bind["if"], "inputs.expected-artifacts != ''")
 
     def test_tagging_survives_a_partial_publish(self) -> None:
         tag = self.step("publish", "Tag a release for each published version")
@@ -152,14 +168,17 @@ class PendingWorkflowTests(unittest.TestCase):
         self.assertEqual(tag["with"], {
             "command": "tag", "packages": "${{ needs.plan.outputs.packages }}",
             "cohort-json": "${{ inputs.cohort-json }}",
+            **EXPECTED,
             "tag-prefix": "${{ inputs.tag-prefix }}", "publish-outcome": "${{ steps.publish.outcome }}"})
         self.assertEqual(self.step("publish", "Publish what is still pending")["id"], "publish")
 
     def test_plan_and_publish_receive_the_owner_and_the_planned_set(self) -> None:
         self.assertEqual(self.step("plan", "Select and verify the pending set")["with"],
-                         {"command": "plan", "owner": "${{ inputs.owner }}", "cohort-json": "${{ inputs.cohort-json }}"})
+                         {"command": "plan", "owner": "${{ inputs.owner }}",
+                          "cohort-json": "${{ inputs.cohort-json }}", **EXPECTED})
         self.assertEqual(self.step("publish", "Publish what is still pending")["with"],
-                         {"command": "publish", "packages": "${{ needs.plan.outputs.packages }}", "cohort-json": "${{ inputs.cohort-json }}"})
+                         {"command": "publish", "packages": "${{ needs.plan.outputs.packages }}",
+                          "cohort-json": "${{ inputs.cohort-json }}", **EXPECTED})
         self.assertEqual(self.jobs["plan"]["outputs"], {
             "packages": "${{ steps.plan.outputs.packages }}", "count": "${{ steps.plan.outputs.count }}"})
 
@@ -179,7 +198,12 @@ class PendingWorkflowTests(unittest.TestCase):
         if probe.returncode:
             self.skipTest(f"pinned revision {pin} is not in this checkout (an export or shallow clone)")
         for path in (".github/actions/crates-pending/action.yml",
+                     ".github/actions/crates-pending/artifact_evidence.py",
                      ".github/actions/crates-pending/crates_pending.py",
+                     ".github/actions/crate-release-identity/release_identity.py",
+                     ".github/actions/crate-release-identity/registry_http.py",
+                     "scripts/process_tree.py", "scripts/darwin_process.py",
+                     "scripts/windows_process.py",
                      ".github/workflows/semver-gate.yml"):
             pinned = subprocess.run(["git", "-C", str(ROOT), "show", f"{pin}:{path}"],
                                     check=True, capture_output=True).stdout
@@ -187,10 +211,15 @@ class PendingWorkflowTests(unittest.TestCase):
                              (ROOT / path).read_bytes().replace(b"\r\n", b"\n"), path)
 
     def test_system_packages_reach_the_compiling_plan_and_the_gate(self) -> None:
-        steps = [s.get("name") for s in self.jobs["plan"]["steps"]]
-        install = steps.index("Install system packages the build scripts need")
-        self.assertLess(install, steps.index("Select and verify the pending set"))
-        self.assertEqual(self.step("plan", steps[install])["if"], "inputs.apt-packages != ''")
+        for job, consumer in (("plan", "Select and verify the pending set"),
+                              ("publish", "Bind the frozen package archives")):
+            with self.subTest(job=job):
+                steps = [s.get("name") for s in self.jobs[job]["steps"]]
+                install = steps.index("Install system packages the build scripts need")
+                self.assertLess(install, steps.index(consumer))
+                self.assertEqual(self.step(job, steps[install])["if"], "inputs.apt-packages != ''")
+                self.assertEqual(self.step(job, steps[install])["env"],
+                                 {"APT_PACKAGES": "${{ inputs.apt-packages }}"})
         self.assertEqual(self.jobs["semver"]["with"]["apt-packages"], "${{ inputs.apt-packages }}")
 
     def test_the_release_path_workflow_gains_no_permission(self) -> None:

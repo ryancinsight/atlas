@@ -2,380 +2,149 @@
 
 - Status: Proposed
 - Date: 2026-07-28
-- Last audited: 2026-08-20
 - Class: `[arch]` `[patch]`
-- Revision 2026-08-20: the shared book gate must preserve Cargo artifact
-  metadata hashes; hashless first-match staging is invalid when the build graph
-  contains multiple versions of one crate (`ATLAS-BOOK-STAGING-2026-08-20`).
+- Revision 2026-10-29: crate publication can bind an independently reproduced
+  artifact manifest to the candidate, selected cohort, staged archive, registry
+  checksum, and tag gate. Cargo still packages the uploaded archive itself, so
+  only the post-upload registry checksum proves uploaded artifact identity.
 - Relates to: [ADR 0027](0027-provider-checkout-ssot.md),
-  [ADR 0024](0024-criterion-regression-gate.md),
-  [ADR 0011](0011-atlas-root-hygiene-ritual.md)
-
-Revision 2026-09-10: the shared wheel caller now admits explicit free-threaded
-CPython artifacts. Version-specific `cp3XXt` wheels and the Python 3.15
-`abi3t` wheel use the same checkout, pinned maturin action, installation smoke
-and provider-owned value tests as the GIL path. The free-threaded matrix is
-limited to glibc Linux, Windows and macOS because the official Python Alpine
-images do not currently provide matching `t` images; musl coverage remains in
-the ordinary CPython matrix. Release aggregation validates the additional
-artifact tags and counts only when a caller opts in. No registry credential or
-private key is introduced.
-
-Revision 2026-09-20: the wheel workflow adds a `verification` input for callers
-that need hosted build, installation, value-test, and wheel-tag evidence before
-a release is authorized. Validation mode reuses the complete matrix and
-metadata validator, derives one version across wheels and the source
-distribution, uploads a retained verification artifact, and skips GitHub
-Release attachment. The validator accepts compressed macOS universal2 tags that
-carry x86_64, arm64 and universal2 tokens together, while rejecting an
-incomplete single-architecture tag. The published-release path remains
-unchanged and still performs the release-tag identity check; no registry
-credential or private key is introduced.
-
-Revision 2026-09-20 (follow-up): aggregate validation reads `PKG-INFO` by
-listing the source archive and selecting its member with `awk`. This keeps the
-metadata check portable across GNU and BSD `tar`; wildcard extraction flags are
-not available on every runner. A missing member remains a hard validation
-failure, and the verification path still creates no release or registry
-upload.
+  [ADR 0024](0024-criterion-regression-gate.md)
 
 ## Context
 
-Three publication concerns exist across the stack: crates to crates.io, wheels to
-PyPI, and package books to GitHub Pages. Each is currently wired per repository,
-and the copies have started to diverge.
+Crates.io, Python Package Index (PyPI), and Pages publication repeat the same
+security and verification concerns across package repositories. Per-package
+workflow copies had diverged in toolchain, dependency checkout, documentation
+testing, and authentication behavior. Atlas already owns the provider graph and
+the immutable `atlas-ref` contract, so it is the common owner for these release
+pipelines.
 
-### Source audit (2026-07-28)
-
-**Crate publishing.** Seven packages carry `rust-release.yml`: `apollo`, `coeus`,
-`consus`, `hephaestus`, `kwavers`, `leto`, `moirai`. `ritk` carries the same
-concern under `release.yml`. Four of the seven are byte-identical at 142 lines
-(`coeus`, `hephaestus`, `leto`, `moirai`). The real variation is two dimensions:
-
-| Package | `RUST_TOOLCHAIN` | Atlas path dependencies |
-| --- | --- | --- |
-| `leto` | 1.95.0 | no |
-| `coeus`, `hephaestus`, `moirai` | 1.95.0 | no |
-| `apollo` | 1.97.0 | no |
-| `consus` | 1.97.1 | no |
-| `kwavers` | 1.97.1 | yes (12 extra lines) |
-
-Every other line — release-tag parsing, package-name validation, manifest-version
-agreement, `publish = false` rejection, the `--dry-run` content gate, the OIDC
-token request, and the publish call — is identical logic duplicated eight times.
-
-**Book publishing.** Twenty-five book-bearing registered members carry
-`book-pages.yml` and `docs/book/book.toml`. Nineteen callers enable the shared `mdbook-test`
-input, and Gaia's custom caller runs `mdbook test` directly. Five callers still
-omit an executable sample gate: `apollo`, `coeus`, `consus`, `hephaestus`, and
-`ritk`. Atlas's cross-book workflow builds all 25 books through its repository
-glob. The remaining substantive gaps are executable sample coverage in the
-five callers above, not root-gate registration for the existing books.
-
-**Wheel publishing.** Already consolidated: Atlas owns
-[`python-wheels.yml`](../../.github/workflows/python-wheels.yml) as a
-`workflow_call` workflow, and package `python-release.yml` files are thin callers
-pinned to an exact Atlas commit. This ADR generalizes that proven shape to the
-other two concerns rather than inventing one.
-
-The workflow also exposes opt-in version-specific free-threaded wheels for
-CPython 3.14t and newer, plus a Python 3.15 `abi3t` matrix. The latter requires
-the caller to pass Cargo features that activate PyO3's `abi3t` and
-`abi3t-py315` features; the workflow refuses an `abi3t` build without that
-explicit selection and validates the resulting wheel tags. This follows
-[PyO3's feature contract](https://pyo3.rs/main/features#abi3t) and keeps
-experimental 3.13t support available only through an explicit caller input.
-
-**Authentication.** Both registries already authenticate by OIDC trusted
-publishing — `rust-lang/crates-io-auth-action` for crates.io and
-`pypa/gh-action-pypi-publish` for PyPI — under `id-token: write` with an
-environment gate. No workflow in the stack reads a registry token from a secret.
-A PyPI API token was nonetheless added to the `pypi` environment; it is unused by
-the current workflows.
-
-**Book coverage.** All 25 active registered members have a book. The
-2026-08-20 committed-gitlink audit found zero missing book directories and five
-callers without any executable sample gate. Gaia is counted separately because
-its custom workflow runs `mdbook test docs/book` instead of the shared input.
+Package identity remains caller-owned. A caller selects its package, toolchain,
+registry project, documentation path, and Atlas revision. Atlas owns the shared
+validation, packaging, authentication boundary, and release ordering.
 
 ## Decision
 
-### 1. Atlas owns all three pipelines as reusable workflows
+### Shared workflows
 
-Publication logic lives once, in Atlas, as `workflow_call` workflows:
+Atlas provides these reusable workflows:
 
-| Concern | Atlas workflow | Status |
-| --- | --- | --- |
-| Wheel build, validation, attestation, release assets | `python-wheels.yml` | existing |
-| Crate publish | `crates-publish.yml` | added by this ADR |
-| Book build and Pages deploy | `book-pages.yml` | added by this ADR |
-
-Wheel *upload* stays in the caller as a short job after `python-wheels.yml`,
-because the PyPI project URL and environment are package identity, not shared
-logic. That split already exists and is retained.
-
-### 2. Package workflows are thin callers pinned to an exact Atlas commit
-
-A package workflow declares its triggers, its identity inputs, and the
-permissions the called workflow needs — nothing else. It pins Atlas by commit,
-matching the `atlas-ref` contract of ADR 0027, so a pipeline fix lands once in
-Atlas and each package adopts it by advancing one pin.
-
-Re-implementing pipeline logic in a package is a defect, not a local choice. This
-is the compatibility-soup rule applied to CI: the duplicate is deleted in the
-same change that adopts the shared workflow, never kept beside it.
-
-### 3. Variation is expressed as inputs, never as a forked copy
-
-The audit's two real crate-publishing dimensions become inputs
-(`rust-toolchain`, `atlas-ref`), and the book dimension becomes one input
-(`output-path`). A future divergence is an input or it is a defect; the third
-copy of a workflow is the signal that the seam was wrong, not that a copy was
-needed.
-
-### 4. Registry authentication stays tokenless
-
-Trusted publishing is the only sanctioned authentication path. Each package
-registers once, in the registry's own interface:
-
-crates.io, under the crate's **Settings → Trusted Publishing**:
-
-```text
-Repository owner:   ryancinsight
-Repository name:    <package repository>
-Workflow filename:  rust-release.yml
-Environment:        crates-io
-```
-
-PyPI, under the project's **Publishing → Trusted publisher**:
-
-```text
-Owner:              ryancinsight
-Repository name:    <package repository>
-Workflow name:      python-release.yml
-Environment:        pypi
-```
-
-The workflow filename registered is the **caller's** filename, not the Atlas
-reusable workflow's, because the OIDC claim carries the caller's identity. This
-is the most likely setup error: registering the Atlas filename rejects every
-publish.
-
-Registry verification 2026-07-28 (crates.io and PyPI documentation plus the
-crates.io API) establishes two constraints that decide the order of operations:
-
-| | crates.io | PyPI |
-| --- | --- | --- |
-| Trusted publishing can create a new package | **No** — the crate must already exist; the first publish requires an API token | **Yes** — a *pending publisher* under the account sidebar creates the project on first use |
-| Token lifetime | 30 minutes | short-lived, per publish |
-| Registration path | crate **Settings → Trusted Publishing** | project **Manage → Publishing**, or account sidebar when pending |
-
-crates.io therefore cannot bootstrap. The account `ryancinsight` (user id
-383645) has published exactly one crate, `imaginary-rs@0.1.0`; **no Atlas crate
-is published**. Each crate's first publish is a manual publish from the local
-Cargo credential store, after which its trusted publisher is registered and the
-pipeline owns every subsequent release. PyPI needs no such step.
-
-A pending PyPI publisher does not reserve the project name until it is used, so a
-name can still be lost between configuration and first publish.
-
-Two consequences follow. First, the `crates-io` and `pypi` GitHub environments
-hold no secrets; they exist to scope the OIDC claim and carry deployment
-protection rules. Second, the unused PyPI API token in the `pypi` environment is
-removed once a trusted-publishing release has succeeded — a long-lived registry
-token in CI is precisely the exposure trusted publishing exists to eliminate.
-Once a package's pipeline is proven, trusted-publishing-only enforcement is
-enabled in its registry settings.
-
-### 5. Every package publishes a book; the gate grows with it
-
-A book at `docs/book/` is required of every package, not only integrators. The
-book teaches its field from governing equations through numerical method to the
-crate's abstractions, with runnable worked examples. Rustdoc remains the
-item-contract layer; the two layers do not duplicate each other.
-
-The book is **workspace-level: one per repository, never one per crate.** A
-sub-crate contributes a chapter to its package's book. Per-crate books would
-fragment one field's theory across 173 crates and force every shared derivation
-to be restated, which is the duplication this stack exists to avoid; the
-consolidation rule applies to prose exactly as it does to code.
-
-All 25 book-bearing members join the Atlas cross-book dead-link and build gate
-([`docs.yml`](../../.github/workflows/docs.yml)) through its repository glob.
-The remaining board work is to make the five non-executable callers pass
-`mdbook-test` with their pinned toolchains; Leto requires a separate book
-authoring and caller-integration item.
-
-### 6. `mdbook test` is adopted per book, not flipped globally
-
-Book code samples must be tested so chapters cannot rot. Nineteen callers now
-run `mdbook test`: eighteen through the shared input and Gaia through its
-custom workflow. Five still omit it because their current samples are not yet
-proven compilable under the shared workflow. Enabling the remaining callers
-requires the same per-book evidence rather than a blind stack-wide flip.
-
-The committed-gitlink inventory is mechanically classified by
-`scripts/atlas-book-gate-audit.py --check`; `--require-gates` is the explicit
-closure check and remains red while the five tracked provider residuals are
-open.
-
-The shared workflow therefore exposes `mdbook-test`, defaulting to `false`. Each
-book flips it to `true` in the change that makes its samples compilable. The
-default is a staging mechanism with a per-book completion item, not an accepted
-end state; a book left at `false` after its samples compile is a defect.
-
-The package build's dependency artifacts are staged with their Cargo metadata
-hashes intact. The directory may contain multiple versions of one crate, and
-rustdoc must resolve the version recorded in the package rlib's metadata. A
-hashless filename chosen by directory order is not a valid dependency selector;
-it can pair a package with a different `rand_core` version and fail with
-`E0460` before any book example executes.
-
-### 7. Twelve crate names collide; the decision precedes the first publish
-
-crates.io has no namespaces, and publishable names are first-come. Checked
-2026-07-28 against the registry API:
-
-| Status | Package names |
+| Concern | Workflow |
 | --- | --- |
-| Available | `aequitas`, `asclepius`, `coeus`, `consus`, `eunomia`, `hephaestus`, `horae`, `iris`, `kwavers`, `leto`, `melinoe`, `ritk` |
-| Taken by unrelated owners | `apollo` (`0.0.2`), `athena` (`0.0.0`, owner `zakarumych`), `gaia` (`0.2.1`), `harmonia` (`0.1.0`, `sogh`), `helios` (`0.1.0`), `hermes` (`0.1.0`, `YeluriKetan`), `hyperion` (`0.2.1`, `patrickisgreene`), `mnemosyne` (`0.3.1`, `elde-n`), `moirai` (`0.8.5`, `PsichiX`), `proteus` (`0.5.0`, 367 550 downloads), `themis` (`0.14.0`), `tyche` (`0.3.1`, `Gawdl3y`) |
+| Crate release | `crates-publish.yml` |
+| Pending crate cohort release | `crates-publish-pending.yml` |
+| Python wheel build and verification | `python-wheels.yml` |
+| Book build and Pages deployment | `book-pages.yml` |
 
-Sub-crate names are mostly free (`apollo-fft`, `athena-core`, `coeus-core`,
-`hephaestus-core`, `hermes-simd`, `leto-ops`, `moirai-async`, `ritk-core`,
-`tyche-core`) but not universally — `mnemosyne-core` is taken.
+Callers pin the workflow to an exact Atlas commit and remain thin. Real
+variation is an input to the owning workflow; a package does not copy or fork
+the implementation. Package-specific release triggers and registry identities
+stay in the caller.
 
-This ADR does not decide the twelve names. A published crate name is permanent
-and the choice is a public-identity decision with several defensible answers, so
-it is recorded as an open decision (`ATLAS-PUB-006`) that gates the first publish
-of the affected packages and nothing else. Repository names, submodule paths,
-directory names, and internal crate paths are out of scope: this is a registry
-namespace question only, and the classical-name mapping in the stack README
-stands regardless.
+### Registry authentication and bootstrap
 
-The pipelines are unaffected — a caller passes a package name, so a rename is a
-manifest change, not a workflow change. Consequently ATLAS-PUB-001 and
-ATLAS-PUB-002 proceed independently of ATLAS-PUB-006.
+Registry automation uses OpenID Connect trusted publishing. Workflows do not
+read long-lived registry tokens. The caller's workflow filename and protected
+environment identify the trusted publisher because the identity token names the
+caller, not the reusable Atlas workflow.
 
-### 8. Pages action pins are a recorded gap, not an invented digest
+Crates.io requires a crate to exist before its trusted publisher can be
+registered. The first publish therefore uses the publisher's local Cargo
+credential store under separate release authority. Later publishes use the
+trusted publisher. PyPI may bootstrap through its pending-publisher flow.
+Registry project names are caller identity and must be resolved before the
+first publish; this ADR does not rename packages.
 
-The three first-party Pages actions (`configure-pages`, `upload-pages-artifact`,
-`deploy-pages`) are referenced by major-version tag in `book-pages.yml`, matching
-the 25 package callers. Commit-pinning them requires resolving each digest
-against its upstream repository; a digest that has not been resolved is
-fabricated evidence and must not be committed. The gap is tracked as
-`ATLAS-PUB-004`.
+### Crate release identity
+
+The ordinary crate workflow validates the requested package, version, clean
+candidate commit, manifest metadata, generated archive, and release identity
+before requesting credentials. A previously published version is accepted only
+when its registry archive is identical to the regenerated archive for the exact
+candidate.
+
+The pending workflow derives a dependency-ordered publishable cohort and
+supports partial-publish recovery. It freezes the ready set used by the publish
+job so a registry change cannot silently select a different upload set.
+
+The pending workflow also accepts an optional evidence manifest containing:
+
+- the exact candidate commit, installed Rust toolchain, native target, and the
+  semantic profile `cargo-package-verify`;
+- the ordered package-name and version cohort; and
+- a SHA-256 digest for every `<name>-<version>.crate` archive.
+
+A caller supplies this manifest only after two independent clean
+`cargo package --locked` builds agree. When evidence is present, Atlas rejects
+a different candidate, dirty checkout, toolchain or host, package identity,
+cohort order, ready set, archive digest, or registry re-filter.
+
+Before OpenID Connect authentication, the publish job reruns verified
+`cargo package --locked` for the frozen set and compares each staged archive
+with the expected digest. This proves the staged candidate bytes. It does not
+cryptographically constrain the later upload: `cargo publish` has no interface
+for uploading that prebuilt archive and packages the crate again.
+
+After upload, the sparse-index `cksum` must equal both the expected digest and
+the digest of the archive staged in the publish job. Tag creation occurs only
+after that equality holds. A mismatched archive can therefore reach the
+registry, but this workflow cannot create release-completion tags for it.
+Malformed or incomplete evidence and any source, selection, package, or index
+drift fail closed before tags. Callers that omit evidence retain the existing
+planner and recovery behavior without a weaker path for callers that opt in.
+
+### Python wheels
+
+Atlas builds the platform matrix, validates wheel and source-distribution
+metadata, installs each artifact, and runs the caller's value tests. The caller
+retains the short PyPI upload job because the PyPI project and protected
+environment are package identity. Validation-only runs retain artifacts and
+skip release attachment and upload. Free-threaded artifacts use the same source,
+installation checks, and metadata validation as the ordinary matrix.
+
+### Books and Pages
+
+Each repository publishes one workspace-level book. Rustdoc remains the API
+reference; the book owns tutorials and domain explanation. `book-pages.yml`
+builds and deploys the caller-selected output path. A caller enables
+`mdbook-test` only when its samples pass under the pinned toolchain, and keeping
+the gate disabled after that point is a defect. Package dependency artifacts
+retain their Cargo metadata hashes so rustdoc cannot select a different version
+by an ambiguous filename.
 
 ## Consequences
 
-- The first crates.io publish per crate stays manual by registry constraint, not
-  by choice. The pipeline owns every release after that one.
-- Twelve packages need a registry name decision before their first publish
-  (`ATLAS-PUB-006`). Nothing else in this ADR waits on it.
-
-- Eight duplicated crate-release workflows collapse to eight thin callers plus
-  one Atlas workflow; the 25 book callers share one Atlas workflow.
-- A pipeline defect is fixed once. Adoption is explicit and auditable: each
-  package's Atlas pin says which pipeline revision it runs.
-- Toolchain pins stay per package. The audit's 1.95.0/1.97.0/1.97.1 spread is
-  preserved as input values, so consolidation does not silently move any
-  package's toolchain.
-- `kwavers` keeps its path-dependency materialization through the `atlas-ref`
-  input rather than 12 extra lines in a forked copy.
-- Books gain a rot gate as each becomes testable, and the stack gains a stated
-  requirement that every package has a book.
-- No secret is introduced. The one existing registry token becomes removable.
-
-### Adoption ledger
-
-Migration is per package and independently verifiable. A row is done when the
-caller is pinned to Atlas, the duplicated logic is deleted, and one release or
-book build has succeeded through the shared pipeline.
-
-| Package | Crate publish | Book | Wheel |
-| --- | --- | --- | --- |
-| `aequitas` | when first published | present; test enabled | no binding workflow |
-| `apollo` | migrate (toolchain 1.97.0) | present; test pending | shared |
-| `asclepius` | when first published | present; test enabled | no binding workflow |
-| `athena` | when first published | present; test enabled | no binding workflow |
-| `CFDrs` | absent | present; test enabled | shared |
-| `coeus` | migrate (1.95.0) | present; test pending | shared |
-| `consus` | migrate (1.97.1) | present; test pending | shared |
-| `eunomia` | when first published | present; test enabled | no release workflow |
-| `gaia` | when first published | present; direct test command | no binding workflow |
-| `harmonia` | when first published | present; test enabled | no binding workflow |
-| `helios` | absent | present; test enabled | shared |
-| `hephaestus` | migrate (1.95.0) | present; test pending | shared |
-| `hermes` | when first published | present; test enabled | no binding workflow |
-| `horae` | when first published | present; test enabled | no binding workflow |
-| `hyperion` | when first published | present; test enabled | no binding workflow |
-| `iris` | when first published | present; test enabled | no binding workflow |
-| `kwavers` | migrate (1.97.1, `atlas-ref`) | present; test enabled | shared |
-| `melinoe` | when first published | present; test enabled | no binding workflow |
-| `mnemosyne` | when first published | present; test enabled | no binding workflow |
-| `moirai` | migrate (1.95.0) | present; test enabled | shared |
-| `proteus` | when first published | present; test enabled | no binding workflow |
-| `ritk` | migrate (from `release.yml`) | present; test pending | standalone `release.yml` |
-| `themis` | when first published | present; test enabled | no binding workflow |
-| `tyche` | when first published | present; test enabled | no binding workflow |
+- One Atlas fix updates each publication mechanism; callers adopt it by moving
+  one immutable pin.
+- Toolchain and package identity remain explicit caller inputs.
+- Registry credentials remain outside repository and workflow configuration.
+- Crate evidence supplies a fail-closed tag gate, not a pre-upload guarantee
+  that Cargo transmits a caller-supplied archive.
+- First-time crates.io bootstrap remains a separately authorized manual action.
 
 ## Alternatives rejected
 
-**Keep per-repository workflows.** The audit already shows divergence with no
-functional cause: four byte-identical copies, three toolchain values, and one
-copy carrying an extra concern inline. Every future fix would be applied eight
-times or, in practice, fewer than eight times.
+**Keep per-package workflow copies.** This preserves divergent authentication,
+ordering, and verification logic and requires every correction to land many
+times.
 
-**A shared workflow per package family.** Would produce two or three copies
-instead of eight, and reintroduces the same question at the next divergence. The
-input seam handles the real variation at one copy.
+**Create workflow copies per package family.** The same concern would still
+have multiple owners. Inputs express the actual package and toolchain variation.
 
-**A GitHub organization `.github` repository for shared workflows.** Would work
-for workflow reuse, but splits publication ownership away from Atlas, which
-already owns the provider graph, the `atlas-ref` contract, the composite
-checkout action, and the benchmark gate. Publication depends on the gitlink graph
-that Atlas owns; a second location would need its own pin to Atlas anyway.
+**Move workflows to a separate organization repository.** Publication depends
+on the provider graph and immutable Atlas revision contract already owned here.
+A second owner would add another pin without removing that dependency.
 
-**A long-lived registry token in a shared secret.** Rejected on the standing
-policy: trusted publishing exists to remove exactly this credential, and a shared
-token widens blast radius across 25 repositories.
+**Use long-lived registry secrets.** Trusted publishing provides narrower,
+short-lived identity bound to the caller and protected environment.
 
-**Enable `mdbook test` for every book immediately.** Rejected as a blind
-regression; no evidence exists that any current book's samples compile. Staged
-per book with a completion item instead.
-
-**Composite actions instead of reusable workflows.** A composite action cannot
-own job structure, environments, or per-job permissions, all of which the publish
-gate needs. `python-wheels.yml` already proves the reusable-workflow shape in
-this stack.
-
+**Claim the staged digest constrains Cargo's upload.** Cargo repackages during
+`cargo publish`; the supported enforcement point for uploaded identity is the
+registry checksum before any completion tag.
 ## Verification
 
-1. `crates-publish.yml` and `book-pages.yml` parse as valid `workflow_call`
-   workflows with the audited variation exposed as inputs — verified locally:
-   `crates-publish.yml` declares jobs `validate`/`publish` with `rust-toolchain`
-   required; `book-pages.yml` declares `build`/`deploy` with `output-path`
-   required.
-2. Every action reference in both workflows is either reused verbatim from an
-   existing stack workflow or carries the major-version tag already in use. No
-   commit digest is introduced that has not been resolved.
-3. Per migrated package: the duplicated workflow file is deleted in the adopting
-   change, and the resulting caller is under 40 lines.
-4. Per migrated package: one release publishes through the shared pipeline, and
-   the crate's `--dry-run` gate plus the semver gate run before the publish job.
-5. The `pypi` environment holds no secret after the first successful
-   trusted-publishing release.
-6. `docs.yml` builds every registered book, `ritk` included.
-7. A book that flips `mdbook-test` to `true` fails CI when a sample stops
-   compiling — verified by the flip commit, not asserted.
-
-## References
-
-- [ADR 0027](0027-provider-checkout-ssot.md) — the `atlas-ref` gitlink contract
-  the callers reuse.
-- [ADR 0024](0024-criterion-regression-gate.md) — the precedent for Atlas owning
-  a cross-package CI gate rather than duplicating package scripts.
-- [`python-wheels.yml`](../../.github/workflows/python-wheels.yml) — the existing
-  reusable-workflow shape this ADR generalizes.
-- [Publication](../../README.md#publication) and
-  [Documentation](../../README.md#documentation) — the stack-facing summary.
+Workflow tests parse each reusable workflow, assert least-privilege job order,
+and exercise package planning, archive identity, registry errors, and tag gates.
+Callers verify their exact Atlas pin, toolchain, package metadata, and protected
+environment. A release additionally requires the repository's publication and
+SemVer gates under separate release authority.

@@ -133,7 +133,8 @@ def parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: Sequence[str] | None = None, fetch: drift.Fetch = drift.http_get) -> int:
+def main(argv: Sequence[str] | None = None,
+         fetch: drift.Fetch = drift.crates_pending.REGISTRY_POLICY) -> int:
     options = parse_arguments(argv)
     only = tuple(name.strip() for name in options.package.split(",") if name.strip())
     try:

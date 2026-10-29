@@ -3,23 +3,27 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
+import inspect
 import json
 import contextlib
 import io
 import os
+import py_compile
 import shutil
 import stat
 import subprocess
 import sys
 import tempfile
 import unittest
-import urllib.error
 from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+ACTION = ROOT / ".github" / "actions" / "crates-pending"
 SPEC = importlib.util.spec_from_file_location(
-    "crates_pending", ROOT / ".github" / "actions" / "crates-pending" / "crates_pending.py")
+    "crates_pending", ACTION / "crates_pending.py")
+sys.path.insert(0, str(ACTION))
 cp = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = cp
@@ -28,25 +32,99 @@ SPEC.loader.exec_module(cp)
 OWNER = "ryancinsight"
 
 
+def test_action_loads_by_path_without_sibling_on_sys_path():
+    probe = """
+import importlib.util
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location("isolated_crates_pending", path)
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+result = module.published_versions("isolated-fixture", lambda _url, _limit: (404, b""))
+sys.stdout.write(json.dumps(result))
+"""
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", probe, str(ACTION / "crates_pending.py")],
+        capture_output=True, text=True, timeout=30, check=False)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "null"
+
+
+def stale_timestamp_cache(source: Path, alternate: bytes) -> bytes:
+    canonical = source.read_bytes()
+    assert len(alternate) == len(canonical)
+    timestamp = 1_700_000_000_000_000_000
+    source.write_bytes(alternate)
+    os.utime(source, ns=(timestamp, timestamp))
+    py_compile.compile(str(source), doraise=True)
+    source.write_bytes(canonical)
+    os.utime(source, ns=(timestamp, timestamp))
+    return canonical
+
+
+def copied_actions(tmp_path: Path) -> Path:
+    actions = tmp_path / ".github" / "actions"
+    shutil.copytree(ACTION, actions / "crates-pending")
+    shutil.copytree(ROOT / ".github/actions/crate-release-identity",
+                    actions / "crate-release-identity")
+    return actions
+
+
+def test_artifact_owner_ignores_cached_release_identity_bytecode(tmp_path):
+    actions = copied_actions(tmp_path)
+    source = actions / "crate-release-identity" / "release_identity.py"
+    canonical = source.read_bytes()
+    needle = b"METADATA_LIMIT = 16 * 1024 * 1024"
+    replacement_prefix = b"METADATA_LIMIT = 1"
+    replacement = replacement_prefix + b" " * (len(needle) - len(replacement_prefix))
+    assert len(replacement) == len(needle)
+    stale_timestamp_cache(source, canonical.replace(needle, replacement))
+    artifact = cp._load_source(actions / "crates-pending" / "artifact_evidence.py",
+                               "artifact_cache_probe")
+    assert artifact.METADATA_LIMIT == cp.METADATA_LIMIT
+
+
+def test_pending_owner_ignores_cached_artifact_bytecode(tmp_path):
+    actions = copied_actions(tmp_path)
+    source = actions / "crates-pending" / "artifact_evidence.py"
+    canonical = source.read_bytes()
+    alternate = canonical.replace(b'ARTIFACT_PROFILE = "cargo-package-verify"',
+                                  b'ARTIFACT_PROFILE = "rogue-package-verify"')
+    assert alternate != canonical
+    stale_timestamp_cache(source, alternate)
+    artifact = cp._load_source(source, "artifact_cache_probe")
+    assert artifact.ARTIFACT_PROFILE == "cargo-package-verify"
+
+
 class Registry:
     """Answers index and owners URLs from fixtures; records every URL asked."""
 
     def __init__(self, index: dict[str, list[str]], owners: dict[str, list[str]] | None = None,
                  status: dict[str, int] | None = None) -> None:
         self.index, self.owners, self.status, self.asked = index, owners or {}, status or {}, []
+        self.limits = []
 
-    def __call__(self, url: str) -> tuple[int, str]:
+    def __call__(self, url: str, limit: int) -> tuple[int, bytes]:
         self.asked.append(url)
+        self.limits.append(limit)
         if url in self.status:
-            return self.status[url], ""
+            return self.status[url], b""
         if url.startswith("https://index.crates.io/"):
             path = url.removeprefix("https://index.crates.io/")
             for name, versions in self.index.items():
                 if cp.index_path(name) == path:
-                    return 200, "".join(json.dumps({"name": name, "vers": v}) + "\n" for v in versions)
-            return 404, ""
+                    body = "".join(json.dumps({"name": name, "vers": version,
+                                               "cksum": "0" * 64}) + "\n"
+                                   for version in versions)
+                    return 200, body.encode()
+            return 404, b""
         name = url.removeprefix("https://crates.io/api/v1/crates/").removesuffix("/owners")
-        return 200, json.dumps({"users": [{"login": l} for l in self.owners.get(name, [OWNER])]})
+        return 200, json.dumps({"users": [{"login": login}
+                                           for login in self.owners.get(name, [OWNER])]}).encode()
 
 
 CARGO_CALL_LIMIT = 20
@@ -99,43 +177,87 @@ class IndexTests(unittest.TestCase):
                 cp.published_versions("alpha", registry)
 
 
-class HttpTests(unittest.TestCase):
-    def test_status_codes_pass_through_and_network_failure_raises(self) -> None:
-        def raising(error):
-            return mock.patch.object(cp.urllib.request, "urlopen", side_effect=error)
-        for code in (404, 503):
-            with raising(urllib.error.HTTPError("u", code, "m", {}, io.BytesIO())):
-                self.assertEqual(cp.http_get("https://index.crates.io/1/a"), (code, ""))
-        with raising(urllib.error.URLError("down")), self.assertRaises(cp.RegistryError):
-            cp.http_get("https://index.crates.io/1/a")
-        with raising(TimeoutError()), self.assertRaises(cp.RegistryError):
-            cp.http_get("https://index.crates.io/1/a")
+class SharedIndexReaderTests(unittest.TestCase):
+    def test_planning_uses_the_shared_bounded_reader_contract(self) -> None:
+        registry = Registry({"alpha": ["0.1.0"]})
+        self.assertEqual(cp.published_versions("alpha", registry), ["0.1.0"])
+        self.assertEqual(registry.limits, [cp.METADATA_LIMIT])
+        self.assertFalse(hasattr(cp, "http_get"))
 
-    def test_requests_carry_the_user_agent_and_a_deadline(self) -> None:
-        # crates.io's crawler policy requires an identifying User-Agent; the deadline bounds a hung socket.
-        response = mock.MagicMock(status=200)
-        response.read.return_value = b"{}"
-        response.__enter__.return_value = response
-        with mock.patch.object(cp.urllib.request, "urlopen", return_value=response) as urlopen:
-            self.assertEqual(cp.http_get("https://crates.io/api/v1/crates/a/owners"), (200, "{}"))
-        (request,), options = urlopen.call_args
-        self.assertEqual(request.full_url, "https://crates.io/api/v1/crates/a/owners")
-        self.assertEqual(request.get_header("User-agent"), cp.USER_AGENT)
-        self.assertEqual(cp.USER_AGENT, "atlas-crates-pending (github.com/ryancinsight/atlas)")
-        self.assertEqual(options, {"timeout": 30})
 
-    def test_a_503_index_answer_is_an_error_end_to_end(self) -> None:
-        error = urllib.error.HTTPError("u", 503, "m", {}, io.BytesIO())
-        with mock.patch.object(cp.urllib.request, "urlopen", side_effect=error), \
-                self.assertRaises(cp.RegistryError):
-            cp.published_versions("alpha")
+class RegistryPolicyTests(unittest.TestCase):
+    def test_registry_operations_share_one_policy_over_the_canonical_reader(self) -> None:
+        operations = (cp.published_versions, cp.published_checksum, cp.owners, cp.select, cp.verify,
+                      cp.still_pending, cp.command_plan, cp.command_bind,
+                      cp.command_publish, cp.indexed_after_publish, cp.command_tag)
+        for operation in operations:
+            with self.subTest(operation=operation.__name__):
+                default = inspect.signature(operation).parameters["fetch"].default
+                self.assertIs(default, cp.REGISTRY_POLICY)
+        self.assertIs(cp.REGISTRY_POLICY.reader, cp.read_url)
+
+    def test_a_second_api_request_waits_out_the_rest_of_the_interval(self) -> None:
+        throttle = cp.ApiThrottle(interval=1.0)
+        clock = iter([10.0, 10.25, 11.0])
+        slept: list[float] = []
+        with mock.patch.object(cp.time, "monotonic", side_effect=lambda: next(clock)), \
+                mock.patch.object(cp.time, "sleep", side_effect=slept.append):
+            throttle.wait()
+            throttle.wait()
+        self.assertEqual(slept, [0.75])
+
+    def test_only_api_attempts_use_the_processwide_throttle(self) -> None:
+        reader = mock.Mock(return_value=(200, b"{}"))
+        throttle = mock.Mock()
+        policy = cp.RegistryPolicy(reader=reader, throttle=throttle)
+        policy("https://index.crates.io/de/mo/demo", 32)
+        policy("https://static.crates.io/crates/demo/demo-0.1.0.crate", 32)
+        self.assertEqual(throttle.wait.call_count, 0)
+        policy("https://crates.io/api/v1/crates/demo/owners", 32)
+        self.assertEqual(throttle.wait.call_count, 1)
+
+    def test_api_pacing_precedes_the_canonical_read(self) -> None:
+        events: list[str] = []
+        reader = mock.Mock(side_effect=lambda _url, _limit: (events.append("read") or (200, b"{}")))
+        throttle = mock.Mock()
+        throttle.wait.side_effect = lambda: events.append("pace")
+        cp.RegistryPolicy(reader=reader, throttle=throttle)(
+            "https://crates.io/api/v1/crates/demo/owners", 32)
+        self.assertEqual(events, ["pace", "read"])
+
+    def test_only_typed_transport_failures_retry_with_doubling_backoff(self) -> None:
+        transient = cp.RegistryTransportError("reset")
+        reader = mock.Mock(side_effect=[transient, transient, (200, b"owners")])
+        slept: list[float] = []
+        policy = cp.RegistryPolicy(
+            reader=reader,
+            throttle=cp.ApiThrottle(interval=0.0),
+            sleep=slept.append,
+            jitter=lambda _low, _high: 1.0,
+        )
+        self.assertEqual(policy("https://x", 32), (200, b"owners"))
+        self.assertEqual(reader.call_count, 3)
+        self.assertEqual(slept, [2.0, 4.0])
+
+    def test_transport_exhaustion_preserves_the_last_failure_as_cause(self) -> None:
+        reader = mock.Mock(side_effect=cp.RegistryTransportError("reset"))
+        policy = cp.RegistryPolicy(
+            reader=reader,
+            throttle=cp.ApiThrottle(interval=0.0),
+            sleep=lambda _delay: None,
+            jitter=lambda _low, _high: 1.0,
+        )
+        with self.assertRaisesRegex(cp.RegistryTransportError, "after 5 attempts") as raised:
+            policy("https://x", 32)
+        self.assertIsInstance(raised.exception.__cause__, cp.RegistryTransportError)
+        self.assertEqual(reader.call_count, cp.TRANSPORT_ATTEMPTS)
 
 
 class SelectTests(unittest.TestCase):
     def test_selects_versions_absent_from_the_index_even_when_older_lines_follow(self) -> None:
         registry = Registry({"alpha": ["0.6.0", "0.7.0", "0.6.1"], "alpha-core": ["0.6.0"]})
         plan = cp.select({"packages": [pkg("alpha", "0.7.0"), pkg("alpha-core", "0.7.0")]},
-                         OWNER, registry, no_sleep)
+                         OWNER, registry)
         self.assertEqual(plan.pending, ["alpha-core"])
 
     def test_registry_scoping_and_first_publication(self) -> None:
@@ -143,7 +265,7 @@ class SelectTests(unittest.TestCase):
         plan = cp.select({"packages": [
             pkg("kept", "1.1.0"), pkg("listed", "1.1.0", ["crates-io"]),
             pkg("internal", "0.1.0", []), pkg("private", "0.1.0", ["my-registry"]),
-            pkg("fresh", "0.1.0")]}, OWNER, registry, no_sleep)
+            pkg("fresh", "0.1.0")]}, OWNER, registry)
         self.assertEqual(plan.pending, ["kept", "listed"])
         self.assertEqual(len(plan.notices), 1)
         self.assertIn("fresh has never been published", plan.notices[0])
@@ -151,17 +273,17 @@ class SelectTests(unittest.TestCase):
 
     def test_a_never_published_name_does_not_end_the_selection(self) -> None:
         registry = Registry({"kept": ["1.0.0"]})
-        plan = cp.select({"packages": [pkg("fresh", "0.1.0"), pkg("kept", "1.1.0")]}, OWNER, registry, no_sleep)
+        plan = cp.select({"packages": [pkg("fresh", "0.1.0"), pkg("kept", "1.1.0")]}, OWNER, registry)
         self.assertEqual(plan.pending, ["kept"])
 
     def test_selection_follows_the_expected_owner(self) -> None:
         registry = Registry({"a": ["0.1.0"]}, owners={"a": ["someone"]})
-        self.assertEqual(cp.select({"packages": [pkg("a", "0.2.0")]}, "someone", registry, no_sleep).pending, ["a"])
-        self.assertEqual(cp.select({"packages": [pkg("a", "0.2.0")]}, OWNER, registry, no_sleep).pending, [])
+        self.assertEqual(cp.select({"packages": [pkg("a", "0.2.0")]}, "someone", registry).pending, ["a"])
+        self.assertEqual(cp.select({"packages": [pkg("a", "0.2.0")]}, OWNER, registry).pending, [])
 
     def test_a_name_someone_else_owns_is_never_published(self) -> None:
         registry = Registry({"horae": ["0.1.1", "0.2.1"]}, owners={"horae": ["zhaohang1205"]})
-        plan = cp.select({"packages": [pkg("horae", "0.1.0")]}, OWNER, registry, no_sleep)
+        plan = cp.select({"packages": [pkg("horae", "0.1.0")]}, OWNER, registry)
         self.assertEqual(plan.pending, [])
         self.assertIn("owned by zhaohang1205, not ryancinsight", plan.warnings[0])
 
@@ -172,17 +294,36 @@ class SelectTests(unittest.TestCase):
                 registry = Registry({"bumped": ["1.0.0"]},
                                     status={"https://crates.io/api/v1/crates/bumped/owners": status})
                 with self.assertRaises(cp.RegistryError):
-                    cp.select({"packages": [pkg("bumped", "1.1.0")]}, OWNER, registry, no_sleep)
+                    cp.select({"packages": [pkg("bumped", "1.1.0")]}, OWNER, registry)
 
-    def test_owners_requests_follow_the_crawler_interval(self) -> None:
-        slept = []
-        cp.select({"packages": [pkg("a", "0.2.0"), pkg("b", "0.2.0")]}, OWNER,
-                  Registry({"a": ["0.1.0"], "b": ["0.1.0"]}), slept.append)
-        self.assertEqual(slept, [cp.API_INTERVAL_SECONDS, cp.API_INTERVAL_SECONDS])
+    def test_duplicate_owners_keys_cannot_replace_a_foreign_owner(self) -> None:
+        body = (b'{"users":[{"login":"foreign"}],'
+                b'"users":[{"login":"ryancinsight"}]}')
+        with self.assertRaisesRegex(cp.RegistryError, "duplicate JSON key: users"):
+            cp.owners("bumped", lambda _url, _limit: (200, body))
+
+    def test_owner_schema_requires_nonempty_string_logins(self) -> None:
+        bodies = [b'{}', b'{"users":{}}', b'{"users":[{}]}',
+                  b'{"users":[{"login":""}]}', b'{"users":[{"login":7}]}']
+        for body in bodies:
+            with self.subTest(body=body), \
+                    self.assertRaisesRegex(cp.RegistryError, "malformed crates.io owners response"):
+                cp.owners("bumped", lambda _url, _limit, value=body: (200, value))
+
+    def test_owner_schema_preserves_documented_extra_fields(self) -> None:
+        body = b'{"users":[{"login":"ryancinsight","id":7}],"meta":{"total":1}}'
+        self.assertEqual(cp.owners("bumped", lambda _url, _limit: (200, body)), [OWNER])
+
+    def test_owner_schema_rejects_duplicate_case_insensitive_logins(self) -> None:
+        for body in (b'{"users":[{"login":"ryancinsight"},{"login":"ryancinsight"}]}',
+                     b'{"users":[{"login":"RyanCInsight"},{"login":"ryancinsight"}]}'):
+            with self.subTest(body=body), \
+                    self.assertRaisesRegex(cp.RegistryError, "duplicate crates.io owner login"):
+                cp.owners("bumped", lambda _url, _limit, value=body: (200, value))
 
     def test_owners_are_asked_only_for_pending_names(self) -> None:
         registry = Registry({"current": ["1.0.0"], "bumped": ["1.0.0"]})
-        cp.select({"packages": [pkg("current", "1.0.0"), pkg("bumped", "1.1.0")]}, OWNER, registry, no_sleep)
+        cp.select({"packages": [pkg("current", "1.0.0"), pkg("bumped", "1.1.0")]}, OWNER, registry)
         self.assertEqual([u for u in registry.asked if "/owners" in u],
                          ["https://crates.io/api/v1/crates/bumped/owners"])
 
@@ -208,7 +349,7 @@ class VerifyTests(unittest.TestCase):
     def test_ready_checks_resolution_then_compiles(self) -> None:
         cargo = Cargo([])
         packages = [pkg("a", "0.2.0"), pkg("b", "0.2.0")]
-        self.assertEqual(cp.verify(["a", "b"], packages, OWNER, Registry({}), cargo, no_sleep), ["a", "b"])
+        self.assertEqual(cp.verify(["a", "b"], packages, OWNER, Registry({}), cargo), ["a", "b"])
         self.assertEqual(cargo.calls, [
             ["cargo", "package", "--locked", "--no-verify", "--package", "a", "--package", "b"],
             ["cargo", "package", "--locked", "--package", "a", "--package", "b"]])
@@ -217,7 +358,7 @@ class VerifyTests(unittest.TestCase):
         cargo = Cargo([], {RESOLVE: (101, MISSING.format("hermes-simd"))})
         registry = Registry({})
         packages = [pkg("leto-ops", "0.2.0", deps=("hermes-simd",))]
-        self.assertEqual(cp.verify(["leto-ops"], packages, OWNER, registry, cargo, no_sleep), [])
+        self.assertEqual(cp.verify(["leto-ops"], packages, OWNER, registry, cargo), [])
         self.assertEqual(len(cargo.calls), 1)
         self.assertEqual(registry.asked, ["https://crates.io/api/v1/crates/hermes-simd/owners"])
 
@@ -228,14 +369,12 @@ class VerifyTests(unittest.TestCase):
         dev["dependencies"] = [{"name": "c", "kind": "dev", "req": "^0.2.0"}]
         packages = [pkg("a", "0.2.0", deps=("serde",)), dev, pkg("c", "0.2.0", deps=("hermes-simd",))]
         cargo = Cargo([], {resolve("a", "b", "c"): (101, MISSING.format("hermes-simd"))})
-        slept: list[float] = []
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            ready = cp.verify(["a", "b", "c"], packages, OWNER, Registry({}), cargo, slept.append)
+            ready = cp.verify(["a", "b", "c"], packages, OWNER, Registry({}), cargo)
         self.assertEqual(ready, ["a"])
         self.assertEqual(cargo.calls, [list(resolve("a", "b", "c")), list(resolve("a")),
                                        ["cargo", "package", "--locked", "--package", "a"]])
-        self.assertEqual(slept, [1.0])
         self.assertIn("::notice::waiting for the required hermes-simd version to reach the index: b c",
                       stdout.getvalue())
 
@@ -255,7 +394,7 @@ class VerifyTests(unittest.TestCase):
                 packages = [needing, pkg("c", "0.2.0")]
                 cargo = Cargo([], {resolve("a", "c"): (101, MISSING.format("dep"))})
                 with contextlib.redirect_stdout(io.StringIO()):
-                    ready = cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo, no_sleep)
+                    ready = cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo)
                 self.assertEqual(ready, ["c"])
 
     def test_a_dev_dependency_without_a_version_holds_nothing_back(self) -> None:
@@ -266,7 +405,7 @@ class VerifyTests(unittest.TestCase):
         packages = [dev, pkg("c", "0.2.0", deps=("hermes-simd",))]
         cargo = Cargo([], {resolve("b", "c"): (101, MISSING.format("hermes-simd"))})
         with contextlib.redirect_stdout(io.StringIO()):
-            ready = cp.verify(["b", "c"], packages, OWNER, Registry({}), cargo, no_sleep)
+            ready = cp.verify(["b", "c"], packages, OWNER, Registry({}), cargo)
         self.assertEqual(ready, ["b"])
         self.assertEqual(cp.dependents(["b", "c"], packages, "hermes-simd"), ["c"])
 
@@ -285,30 +424,19 @@ class VerifyTests(unittest.TestCase):
         packages = [renamed, pkg("c", "0.2.0")]
         cargo = Cargo([], {resolve("a", "c"): (101, MISSING.format("moirai-runtime"))})
         with contextlib.redirect_stdout(io.StringIO()):
-            ready = cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo, no_sleep)
+            ready = cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo)
         self.assertEqual(ready, ["c"])
-
-    def test_the_wait_check_sleeps_before_its_owners_request(self) -> None:
-        packages = [pkg("a", "0.2.0", deps=("dep",)), pkg("c", "0.2.0")]
-        registry = Registry({})
-        asked_before_sleep: list[int] = []
-        cargo = Cargo([], {resolve("a", "c"): (101, MISSING.format("dep"))})
-        with contextlib.redirect_stdout(io.StringIO()):
-            cp.verify(["a", "c"], packages, OWNER, registry, cargo,
-                      lambda _: asked_before_sleep.append(len(registry.asked)))
-        self.assertEqual(asked_before_sleep, [0])
-        self.assertEqual(registry.asked, ["https://crates.io/api/v1/crates/dep/owners"])
 
     def test_each_missing_version_holds_back_only_its_dependents(self) -> None:
         packages = [pkg("a", "0.2.0", deps=("x",)), pkg("b", "0.2.0", deps=("y",)), pkg("c", "0.2.0")]
         cargo = Cargo([], {resolve("a", "b", "c"): (101, MISSING.format("x")),
                            resolve("b", "c"): (101, MISSING.format("y"))})
-        self.assertEqual(cp.verify(["a", "b", "c"], packages, OWNER, Registry({}), cargo, no_sleep), ["c"])
+        self.assertEqual(cp.verify(["a", "b", "c"], packages, OWNER, Registry({}), cargo), ["c"])
 
     def test_a_missing_version_no_pending_name_depends_on_fails(self) -> None:
         cargo = Cargo([], {RESOLVE: (101, MISSING.format("hermes-simd"))})
         with self.assertRaisesRegex(SystemExit, "hermes-simd, which no pending package depends on"):
-            cp.verify(["a"], [pkg("a", "0.2.0", deps=("serde",))], OWNER, Registry({}), cargo, no_sleep)
+            cp.verify(["a"], [pkg("a", "0.2.0", deps=("serde",))], OWNER, Registry({}), cargo)
 
     def test_a_foreign_crate_missing_version_holds_back_only_its_dependents(self) -> None:
         foreign = Registry({}, owners={"itoa": ["dtolnay"]})
@@ -316,7 +444,7 @@ class VerifyTests(unittest.TestCase):
         cargo = Cargo([], {resolve("a", "c"): (101, MISSING.format("itoa"))})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            ready = cp.verify(["a", "c"], packages, OWNER, foreign, cargo, no_sleep)
+            ready = cp.verify(["a", "c"], packages, OWNER, foreign, cargo)
         self.assertEqual(ready, ["c"])
         self.assertIn("::warning::itoa is owned by another crates.io account and the index lacks "
                       "the required version; held: a", stdout.getvalue())
@@ -327,7 +455,7 @@ class VerifyTests(unittest.TestCase):
         cargo = Cargo([], {resolve("a", "c"): (101, MISSING.format("a-core"))})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            ready = cp.verify(["a", "c"], packages, OWNER, registry, cargo, no_sleep)
+            ready = cp.verify(["a", "c"], packages, OWNER, registry, cargo)
         self.assertEqual(ready, ["c"])
         self.assertIn("::warning::no version of workspace member a-core on crates.io or in this run's "
                       "pending set satisfies the requirement on it; held: a", stdout.getvalue())
@@ -346,7 +474,7 @@ class VerifyTests(unittest.TestCase):
                 cargo = Cargo([], {resolve("a", "c"): (101, absent)})
                 stdout = io.StringIO()
                 with contextlib.redirect_stdout(stdout):
-                    ready = cp.verify(["a", "c"], packages, OWNER, registry, cargo, no_sleep)
+                    ready = cp.verify(["a", "c"], packages, OWNER, registry, cargo)
                 self.assertEqual(ready, ["c"])
                 self.assertIn("::warning::ritk-parcellation has never been published on crates.io; its "
                               "first publish needs an API token; held: a", stdout.getvalue())
@@ -360,7 +488,7 @@ class VerifyTests(unittest.TestCase):
                 stdout = io.StringIO()
                 with contextlib.redirect_stdout(stdout):
                     ready = cp.verify(["a", "c"], packages, owner, Registry({}, owners={"dep": ["someone"]}),
-                                      cargo, no_sleep)
+                                      cargo)
                 self.assertEqual(ready, ["c"])
                 self.assertIn(kind, stdout.getvalue())
 
@@ -370,7 +498,7 @@ class VerifyTests(unittest.TestCase):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             ready = cp.verify(["a", "c"], packages, OWNER, Registry({}, owners={"itoa": ["dtolnay"]}),
-                              cargo, no_sleep)
+                              cargo)
         self.assertEqual(ready, ["c"])
         self.assertIn("::warning::itoa is owned by another crates.io account and the index lacks "
                       "the required version; held: a", stdout.getvalue())
@@ -389,7 +517,7 @@ class VerifyTests(unittest.TestCase):
                     stdout = io.StringIO()
                     with contextlib.redirect_stdout(stdout):
                         ready = cp.verify(["a", "c"], packages, OWNER,
-                                          Registry({}, owners={name: ["another-account"]}), cargo, no_sleep)
+                                          Registry({}, owners={name: ["another-account"]}), cargo)
                     self.assertEqual(ready, ["c"])
                     self.assertIn(f"{name} ", stdout.getvalue())
 
@@ -401,7 +529,7 @@ class VerifyTests(unittest.TestCase):
                            resolve("c"): (101, MISSING.format("dep"))})
         with contextlib.redirect_stdout(io.StringIO()), \
                 self.assertRaisesRegex(SystemExit, "cargo names dep, which no pending package depends on"):
-            cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo, no_sleep)
+            cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo)
         self.assertEqual(len(cargo.calls), 2)
 
     def test_the_hold_back_follows_a_chain_to_its_end(self) -> None:
@@ -413,22 +541,22 @@ class VerifyTests(unittest.TestCase):
     def test_an_unrelated_error_quoting_a_requirement_is_not_a_wait(self) -> None:
         cargo = Cargo([], {RESOLVE: (101, 'error: invalid table key `serde = "1"` in manifest')})
         with self.assertRaisesRegex(SystemExit, "other than a missing dependency version"):
-            cp.verify(["a"], [pkg("a", "0.2.0", deps=("serde",))], OWNER, Registry({}), cargo, no_sleep)
+            cp.verify(["a"], [pkg("a", "0.2.0", deps=("serde",))], OWNER, Registry({}), cargo)
 
     def test_owners_outage_during_a_wait_fails(self) -> None:
         registry = Registry({}, status={"https://crates.io/api/v1/crates/hermes-simd/owners": 503})
         with self.assertRaises(cp.RegistryError):
             cp.verify(["a"], [pkg("a", "0.2.0", deps=("hermes-simd",))], OWNER, registry,
-                      Cargo([], {RESOLVE: (101, MISSING.format("hermes-simd"))}), no_sleep)
+                      Cargo([], {RESOLVE: (101, MISSING.format("hermes-simd"))}))
 
     def test_other_resolution_and_compile_failures_fail(self) -> None:
         packages = [pkg("a", "0.2.0")]
         with self.assertRaises(SystemExit):
             cp.verify(["a"], packages, OWNER, Registry({}),
-                      Cargo([], {RESOLVE: (101, "error: missing license")}), no_sleep)
+                      Cargo([], {RESOLVE: (101, "error: missing license")}))
         with self.assertRaises(SystemExit):
             cp.verify(["a"], packages, OWNER, Registry({}),
-                      Cargo([], {("cargo", "package", "--locked", "--package"): (101, "error[E0432]")}), no_sleep)
+                      Cargo([], {("cargo", "package", "--locked", "--package"): (101, "error[E0432]")}))
 
 
 class PolicyBoundTests(unittest.TestCase):
@@ -446,7 +574,7 @@ class PlanCommandTests(unittest.TestCase):
         for logins in (["a-co-owner", OWNER], [OWNER, "a-co-owner"]):
             with self.subTest(logins=logins):
                 registry = Registry({"a": ["0.1.0"]}, owners={"a": logins})
-                out = cp.command_plan(OWNER, registry, Cargo([pkg("a", "0.2.0")]), no_sleep)
+                out = cp.command_plan(OWNER, registry, Cargo([pkg("a", "0.2.0")]))
                 self.assertEqual(out, {"packages": "a", "count": "1"})
 
     def test_the_owner_input_decides_selection_and_waiting(self) -> None:
@@ -458,16 +586,15 @@ class PlanCommandTests(unittest.TestCase):
                       {resolve("a", "c"): (101, MISSING.format("dep"))})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            out = cp.command_plan("someone", registry, cargo, no_sleep)
+            out = cp.command_plan("someone", registry, cargo)
         self.assertEqual(out, {"packages": "c", "count": "1"})
         self.assertIn("::notice::waiting for the required dep version to reach the index: a",
                       stdout.getvalue())
-        self.assertEqual(cp.command_plan(OWNER, registry, Cargo([pkg("a", "0.2.0"), pkg("c", "0.2.0")]),
-                                         no_sleep), {"count": "0"})
+        self.assertEqual(cp.command_plan(OWNER, registry, Cargo([pkg("a", "0.2.0"), pkg("c", "0.2.0")])), {"count": "0"})
 
     def test_outputs_the_pending_set(self) -> None:
         cargo = Cargo([pkg("a", "0.2.0"), pkg("b", "0.2.0")])
-        out = cp.command_plan(OWNER, Registry({"a": ["0.1.0"], "b": ["0.1.0"]}), cargo, no_sleep)
+        out = cp.command_plan(OWNER, Registry({"a": ["0.1.0"], "b": ["0.1.0"]}), cargo)
         self.assertEqual(out, {"packages": "a,b", "count": "2"})
 
     def test_an_unpublishable_member_holds_back_only_its_dependents(self) -> None:
@@ -476,17 +603,17 @@ class PlanCommandTests(unittest.TestCase):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             out = cp.command_plan(OWNER, Registry({"a": ["0.1.0"], "a-internal": ["0.1.0"], "c": ["0.1.0"]}),
-                                  cargo, no_sleep)
+                                  cargo)
         self.assertEqual(out, {"packages": "c", "count": "1"})
         self.assertIn("::notice::pending packages (a) wait on a dependency", stdout.getvalue())
 
     def test_nothing_pending_or_waiting_is_count_zero(self) -> None:
-        self.assertEqual(cp.command_plan(OWNER, Registry({"a": ["0.1.0"]}), Cargo([pkg("a", "0.1.0")]), no_sleep),
+        self.assertEqual(cp.command_plan(OWNER, Registry({"a": ["0.1.0"]}), Cargo([pkg("a", "0.1.0")])),
                          {"count": "0"})
         waiting = Cargo([pkg("a", "0.2.0", deps=("hermes-simd",))], {RESOLVE: (101, MISSING.format("hermes-simd"))})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            self.assertEqual(cp.command_plan(OWNER, Registry({"a": ["0.1.0"]}), waiting, no_sleep), {"count": "0"})
+            self.assertEqual(cp.command_plan(OWNER, Registry({"a": ["0.1.0"]}), waiting), {"count": "0"})
         self.assertIn("::notice::pending packages (a) wait on a dependency version not yet on crates.io",
                       stdout.getvalue())
 
@@ -495,7 +622,7 @@ class PlanCommandTests(unittest.TestCase):
                       {resolve("a", "b"): (101, MISSING.format("hermes-simd"))})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            out = cp.command_plan(OWNER, Registry({"a": ["0.1.0"], "b": ["0.1.0"]}), cargo, no_sleep)
+            out = cp.command_plan(OWNER, Registry({"a": ["0.1.0"], "b": ["0.1.0"]}), cargo)
         self.assertEqual(out, {"packages": "a", "count": "1"})
         self.assertIn("::notice::pending packages (b) wait on a dependency version not yet on crates.io",
                       stdout.getvalue())
@@ -504,7 +631,7 @@ class PlanCommandTests(unittest.TestCase):
         registry = Registry({"horae": ["0.2.1"]}, owners={"horae": ["zhaohang1205"]})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            out = cp.command_plan(OWNER, registry, Cargo([pkg("horae", "0.3.0"), pkg("fresh", "0.1.0")]), no_sleep)
+            out = cp.command_plan(OWNER, registry, Cargo([pkg("horae", "0.3.0"), pkg("fresh", "0.1.0")]))
         self.assertEqual(out, {"count": "0"})
         lines = stdout.getvalue().splitlines()
         self.assertIn("::warning::horae on crates.io is owned by zhaohang1205, not ryancinsight; "
@@ -541,12 +668,16 @@ class Index:
     def __init__(self, before: list[str], after: list[str], reads_until_visible: int | None) -> None:
         self.before, self.after, self.left = before, after, reads_until_visible
 
-    def __call__(self, url: str) -> tuple[int, str]:
+    def __call__(self, url: str, limit: int) -> tuple[int, bytes]:
         visible = self.left is not None and self.left <= 0
         if self.left is not None:
             self.left -= 1
         versions = self.after if visible else self.before
-        return 200, "".join(json.dumps({"vers": v}) + "\n" for v in versions)
+        name = url.rsplit("/", 1)[1]
+        body = "".join(json.dumps({"name": name, "vers": version,
+                                   "cksum": "0" * 64}) + "\n"
+                       for version in versions)
+        return 200, body.encode()
 
 
 class TagTests(unittest.TestCase):
@@ -581,8 +712,8 @@ class TagTests(unittest.TestCase):
         cargo = Cargo([pkg("a", "0.2.0"), pkg("b", "0.2.0")], {("gh", "release", "view"): (1, "not found")})
         index = {"a": Index(["0.1.0"], ["0.2.0"], 1), "b": Index(["0.1.0"], [], None)}
 
-        def fetch(url: str) -> tuple[int, str]:
-            return index[url.rsplit("/", 1)[1]](url)
+        def fetch(url: str, limit: int) -> tuple[int, bytes]:
+            return index[url.rsplit("/", 1)[1]](url, limit)
 
         with self.assertRaisesRegex(SystemExit, "missing from the index: b$"):
             cp.command_tag(["a", "b"], "crate-", "abc", "o/r", True, fetch, cargo, no_sleep)
@@ -617,7 +748,7 @@ class TagTests(unittest.TestCase):
                 outage = Registry({"a": ["0.1.0"]}, status={"https://index.crates.io/1/a": status})
                 cargo = Cargo([pkg("a", "0.2.0")])
                 with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(cp.RegistryError):
-                    cp.command_plan(OWNER, outage, cargo, no_sleep)
+                    cp.command_plan(OWNER, outage, cargo)
                 with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(cp.RegistryError):
                     cp.command_publish(["a"], outage, cargo)
                 self.assertFalse(any(c[:2] in (["cargo", "package"], ["cargo", "publish"]) for c in cargo.calls))
@@ -626,6 +757,243 @@ class TagTests(unittest.TestCase):
         registry = Registry({}, status={"https://index.crates.io/1/a": 500})
         with self.assertRaises(cp.RegistryError):
             cp.command_tag(["a"], "crate-", "abc", "o/r", False, registry, Cargo([pkg("a", "0.2.0")]), no_sleep)
+
+
+class WorkspaceRunner:
+    """Run real Git, rustc, metadata, and packaging in a tiny clean workspace."""
+
+    def __init__(self, root: Path) -> None:
+        self.root, self.calls = root, []
+
+    def __call__(self, argv: list[str]) -> subprocess.CompletedProcess:
+        self.calls.append(argv)
+        if argv[:2] == ["cargo", "publish"]:
+            return subprocess.CompletedProcess(argv, 0, "packaged for upload", "")
+        if argv[:3] == ["gh", "release", "view"]:
+            return subprocess.CompletedProcess(argv, 1, "", "release not found")
+        if argv[:3] == ["gh", "release", "create"]:
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        return subprocess.run(argv, cwd=self.root, capture_output=True, text=True, timeout=120)
+
+
+class ChecksumRegistry:
+    """Serve API, sparse-index, and archive identities with exact checksums."""
+
+    def __init__(self, records: dict[str, list[tuple[str, str]]], *,
+                 archives: dict[str, bytes] | None = None,
+                 missing_archives: set[str] | None = None) -> None:
+        self.records = records
+        self.archives = archives or {}
+        self.missing_archives = missing_archives or set()
+        self.asked = []
+
+    def __call__(self, url: str, limit: int) -> tuple[int, bytes]:
+        self.asked.append(url)
+        if url.startswith("https://static.crates.io/crates/"):
+            filename = url.rsplit("/", 1)[-1]
+            if filename in self.missing_archives or filename not in self.archives:
+                return 404, b""
+            return 200, self.archives[filename]
+        if url.startswith("https://crates.io/api/v1/crates/") and not url.endswith("/owners"):
+            identity = url.removeprefix("https://crates.io/api/v1/crates/")
+            name, version = identity.rsplit("/", 1)
+            checksum = next((digest for candidate, digest in self.records.get(name, [])
+                             if candidate == version), None)
+            if checksum is None:
+                return 404, b""
+            return 200, json.dumps({"version": {
+                "crate": name, "num": version, "checksum": checksum}}).encode()
+        if not url.startswith("https://index.crates.io/"):
+            name = url.removeprefix("https://crates.io/api/v1/crates/").removesuffix("/owners")
+            return 200, json.dumps({"users": [{"login": OWNER}], "name": name}).encode()
+        path = url.removeprefix("https://index.crates.io/")
+        for name, records in self.records.items():
+            if cp.index_path(name) == path:
+                body = "".join(json.dumps({"name": name, "vers": version,
+                                           "cksum": digest}) + "\n"
+                               for version, digest in records)
+                return 200, body.encode()
+        return 404, b""
+
+
+class ArtifactBindingTests(unittest.TestCase):
+    """Real Cargo archives bind planning, publication, index checksums, and tags."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.temporary = tempfile.TemporaryDirectory()
+        cls.root = Path(cls.temporary.name)
+        (cls.root / ".gitignore").write_text("/target/\n", encoding="utf-8")
+        (cls.root / "Cargo.toml").write_text(
+            "[workspace]\nmembers = [\"evidence-a\", \"evidence-b\"]\nresolver = \"3\"\n",
+            encoding="utf-8")
+        for name in ("evidence-a", "evidence-b"):
+            package = cls.root / name
+            (package / "src").mkdir(parents=True)
+            (package / "Cargo.toml").write_text(
+                f"[package]\nname = \"{name}\"\nversion = \"0.2.0\"\n"
+                "edition = \"2024\"\nlicense = \"MIT\"\n",
+                encoding="utf-8")
+            (package / "src" / "lib.rs").write_text(
+                "#![forbid(unsafe_code)]\n\n/// Return a fixture value.\npub const fn value() -> u8 { 7 }\n",
+                encoding="utf-8")
+        subprocess.run(["git", "init", "-b", "main"], cwd=cls.root, check=True,
+                       capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "fixture@example.invalid"], cwd=cls.root, check=True)
+        subprocess.run(["git", "config", "user.name", "Fixture"], cwd=cls.root, check=True)
+        subprocess.run(["cargo", "generate-lockfile"], cwd=cls.root, check=True,
+                       capture_output=True, text=True, timeout=120)
+        subprocess.run(["git", "add", ".gitignore", "Cargo.toml", "Cargo.lock",
+                        "evidence-a/Cargo.toml", "evidence-a/src/lib.rs",
+                        "evidence-b/Cargo.toml", "evidence-b/src/lib.rs"],
+                       cwd=cls.root, check=True)
+        subprocess.run(["git", "commit", "-m", "fixture: add packages"], cwd=cls.root,
+                       check=True, capture_output=True, text=True)
+        cls.runner = WorkspaceRunner(cls.root)
+        cls.candidate = subprocess.run(["git", "rev-parse", "HEAD"], cwd=cls.root,
+                                       check=True, capture_output=True, text=True).stdout.strip()
+        rustc_result = cls.runner(["rustc", "-Vv"])
+        rustc_result.check_returncode()
+        rustc = rustc_result.stdout
+        fields = dict(line.split(": ", 1) for line in rustc.splitlines() if ": " in line)
+        subprocess.run(["cargo", "package", "--locked", "-p", "evidence-a", "-p", "evidence-b"],
+                       cwd=cls.root, check=True, capture_output=True, text=True, timeout=120)
+        cls.names = ["evidence-a", "evidence-b"]
+        cls.target = Path(os.environ.get("CARGO_TARGET_DIR", cls.root / "target"))
+        artifacts = {}
+        cls.archives = {}
+        for name in cls.names:
+            archive = cls.target / "package" / f"{name}-0.2.0.crate"
+            content = archive.read_bytes()
+            cls.archives[archive.name] = content
+            artifacts[archive.name] = hashlib.sha256(content).hexdigest()
+        cls.manifest_value = {
+            "context": {"candidate": cls.candidate, "toolchain": fields["release"],
+                        "target": fields["host"], "profile": cp.ARTIFACT_PROFILE},
+            "cohort": [{"name": name, "version": "0.2.0"} for name in cls.names],
+            "artifacts": artifacts,
+        }
+        cls.expected = cp.parse_expected_artifacts(json.dumps(cls.manifest_value))
+        old = "0" * 64
+        cls.pending = ChecksumRegistry({name: [("0.1.0", old)] for name in cls.names})
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.temporary.cleanup()
+
+    def test_real_verified_archives_bind_before_authentication(self) -> None:
+        cp.command_bind(self.names, self.pending, self.runner,
+                        expected=self.expected, candidate=self.candidate)
+        self.assertIn(["cargo", "package", "--locked", "--package", "evidence-a",
+                       "--package", "evidence-b"], self.runner.calls)
+
+    def test_changed_archive_bytes_and_wrong_candidate_fail_closed(self) -> None:
+        archive = self.target / "package" / "evidence-a-0.2.0.crate"
+        original = archive.read_bytes()
+        try:
+            archive.write_bytes(original + b"changed")
+            with self.assertRaisesRegex(SystemExit, "checksum differs"):
+                cp.verify_expected_artifacts(self.expected, self.names,
+                                             cp.metadata(self.runner), self.candidate,
+                                             self.runner, package=False)
+        finally:
+            archive.write_bytes(original)
+        with self.assertRaisesRegex(SystemExit, "candidate differs"):
+            cp.verify_expected_artifacts(self.expected, self.names, cp.metadata(self.runner),
+                                         "f" * 40, self.runner, package=False)
+
+    def test_malformed_hash_incomplete_manifest_and_wrong_identity_reject(self) -> None:
+        mutations = []
+        malformed = json.loads(json.dumps(self.manifest_value))
+        malformed["artifacts"]["evidence-a-0.2.0.crate"] = "xyz"
+        mutations.append((malformed, "archive map"))
+        incomplete = json.loads(json.dumps(self.manifest_value))
+        incomplete["artifacts"].pop("evidence-b-0.2.0.crate")
+        mutations.append((incomplete, "archive map"))
+        missing = json.loads(json.dumps(self.manifest_value))
+        missing["cohort"][1]["name"] = "missing-package"
+        missing["artifacts"]["missing-package-0.2.0.crate"] = missing["artifacts"].pop(
+            "evidence-b-0.2.0.crate")
+        wrong_version = json.loads(json.dumps(self.manifest_value))
+        wrong_version["cohort"][1]["version"] = "0.3.0"
+        wrong_version["artifacts"]["evidence-b-0.3.0.crate"] = wrong_version["artifacts"].pop(
+            "evidence-b-0.2.0.crate")
+        for value, message in mutations:
+            with self.subTest(message=message), self.assertRaisesRegex(SystemExit, message):
+                cp.parse_expected_artifacts(json.dumps(value))
+        for value in (missing, wrong_version):
+            expected = cp.parse_expected_artifacts(json.dumps(value))
+            with self.subTest(value=value), self.assertRaisesRegex(SystemExit, "cohort differs"):
+                cp.verify_expected_artifacts(expected, self.names, cp.metadata(self.runner),
+                                             self.candidate, self.runner, package=False)
+
+    def test_registry_refilter_and_upload_set_drift_reject(self) -> None:
+        current = ChecksumRegistry({
+            "evidence-a": [("0.2.0", self.expected.artifacts["evidence-a-0.2.0.crate"])],
+            "evidence-b": [("0.1.0", "0" * 64)],
+        })
+        with self.assertRaisesRegex(SystemExit, "replan before authentication"):
+            cp.command_bind(self.names, current, self.runner,
+                            expected=self.expected, candidate=self.candidate)
+        with self.assertRaisesRegex(SystemExit, "replan instead of refiltering"):
+            cp.command_publish(self.names, current, self.runner,
+                               expected=self.expected, candidate=self.candidate)
+
+    def test_publish_uses_the_frozen_set_without_real_upload(self) -> None:
+        before = len(self.runner.calls)
+        cp.command_publish(self.names, self.pending, self.runner,
+                           expected=self.expected, candidate=self.candidate)
+        publish = [call for call in self.runner.calls[before:] if call[:2] == ["cargo", "publish"]]
+        self.assertEqual(publish, [["cargo", "publish", "--locked", "--no-verify",
+                                    "--package", "evidence-a", "--package", "evidence-b"]])
+
+    def test_index_checksum_matches_expected_and_packaged_bytes_before_tags(self) -> None:
+        indexed = ChecksumRegistry({
+            name: [("0.2.0", self.expected.artifacts[f"{name}-0.2.0.crate"])]
+            for name in self.names
+        }, archives=self.archives)
+        before = len(self.runner.calls)
+        cp.command_tag(self.names, "crate-", self.candidate, "o/r", True,
+                       indexed, self.runner, no_sleep,
+                       expected=self.expected, candidate=self.candidate)
+        created = [call for call in self.runner.calls[before:] if call[:3] == ["gh", "release", "create"]]
+        self.assertEqual([call[3] for call in created],
+                         ["crate-evidence-a-v0.2.0", "crate-evidence-b-v0.2.0"])
+        for name in self.names:
+            self.assertIn(f"https://crates.io/api/v1/crates/{name}/0.2.0", indexed.asked)
+            self.assertIn(
+                f"https://static.crates.io/crates/{name}/{name}-0.2.0.crate", indexed.asked)
+        wrong = ChecksumRegistry({
+            "evidence-a": [("0.2.0", "f" * 64)],
+            "evidence-b": [("0.2.0", self.expected.artifacts["evidence-b-0.2.0.crate"])],
+        }, archives=self.archives)
+        before = len(self.runner.calls)
+        with self.assertRaisesRegex(SystemExit, "published archive could not be verified"):
+            cp.command_tag(self.names, "crate-", self.candidate, "o/r", True,
+                           wrong, self.runner, no_sleep,
+                           expected=self.expected, candidate=self.candidate)
+        self.assertFalse(any(call[:3] == ["gh", "release", "create"]
+                             for call in self.runner.calls[before:]))
+
+    def test_missing_or_changed_registry_archive_blocks_every_tag(self) -> None:
+        records = {
+            name: [("0.2.0", self.expected.artifacts[f"{name}-0.2.0.crate"])]
+            for name in self.names
+        }
+        missing = ChecksumRegistry(
+            records, archives=self.archives, missing_archives={"evidence-a-0.2.0.crate"})
+        changed = dict(self.archives)
+        changed["evidence-a-0.2.0.crate"] += b"changed registry bytes"
+        wrong = ChecksumRegistry(records, archives=changed)
+        for registry in (missing, wrong):
+            before = len(self.runner.calls)
+            with self.subTest(registry=registry), \
+                    self.assertRaisesRegex(SystemExit, "published archive could not be verified"):
+                cp.command_tag(self.names, "crate-", self.candidate, "o/r", True,
+                               registry, self.runner, no_sleep,
+                               expected=self.expected, candidate=self.candidate)
+            self.assertFalse(any(call[:3] == ["gh", "release", "create"]
+                                 for call in self.runner.calls[before:]))
 
 
 class EntryPointTests(unittest.TestCase):
@@ -665,10 +1033,9 @@ class ProcessTests(unittest.TestCase):
             "metadata": (lambda: cp.command_publish(["a"], Registry({"a": ["0.1.0"]}),
                                                     KilledMetadata(packages)), "cargo metadata failed"),
             "resolve": (lambda: cp.verify(["a"], packages, OWNER, Registry({}),
-                                          Cargo([], {RESOLVE: killed}), no_sleep), "other than a missing"),
+                                          Cargo([], {RESOLVE: killed})), "other than a missing"),
             "verify": (lambda: cp.verify(["a"], packages, OWNER, Registry({}),
-                                         Cargo([], {("cargo", "package", "--locked", "--package"): killed}),
-                                         no_sleep), "verification failed"),
+                                         Cargo([], {("cargo", "package", "--locked", "--package"): killed})), "verification failed"),
             "publish": (lambda: cp.command_publish(["a"], Registry({"a": ["0.1.0"]}),
                                                    Cargo(packages, {("cargo", "publish"): killed})),
                         "cargo publish failed"),
@@ -720,6 +1087,14 @@ class ArgumentTests(unittest.TestCase):
                 mock.patch.object(cp, "write_outputs"):
             cp.main(self.built("plan", "--owner", "someone"))
         plan.assert_called_once_with("someone")
+        expected = cp.ExpectedArtifacts(cp.ArtifactContext("a" * 40, "1.97.0", "host", cp.ARTIFACT_PROFILE), (), {})
+        encoded = json.dumps({"context": {"candidate": "a" * 40, "toolchain": "1.97.0",
+                                           "target": "host", "profile": cp.ARTIFACT_PROFILE},
+                              "cohort": [], "artifacts": {}})
+        with mock.patch.object(cp, "command_bind") as bind:
+            cp.main(self.built("bind", "a", "--expected-artifacts", encoded,
+                               "--candidate", "a" * 40))
+        bind.assert_called_once_with(["a"], expected=expected, candidate="a" * 40)
         with mock.patch.object(cp, "command_publish") as publish:
             cp.main(self.built("publish", "a"))
         publish.assert_called_once_with(["a"])
@@ -730,7 +1105,8 @@ class ArgumentTests(unittest.TestCase):
 
     def test_every_required_argument_is_required(self) -> None:
         tag = ["tag", "a", "--prefix", "crate-", "--sha", "abc", "--repo", "o/r", "--publish-outcome", "success"]
-        cases = {"no command": [], "plan without --owner": ["plan"]}
+        cases = {"no command": [], "plan without --owner": ["plan"],
+                 "bind without evidence": ["bind", "a"]}
         for flag in ("--prefix", "--sha", "--repo", "--publish-outcome"):
             at = tag.index(flag)
             cases[f"tag without {flag}"] = tag[:at] + tag[at + 2:]
@@ -744,7 +1120,7 @@ class ArgumentTests(unittest.TestCase):
     def test_help_describes_the_tool(self) -> None:
         with contextlib.redirect_stdout(io.StringIO()) as stdout, self.assertRaises(SystemExit):
             cp.main(["--help"])
-        self.assertIn("Select, publish, and tag workspace crates whose manifest version is not on crates.io.",
+        self.assertIn("Select, bind, publish, and tag workspace crates whose version is absent from crates.io.",
                       " ".join(stdout.getvalue().split()))
 
     def test_the_script_runs_main(self) -> None:
@@ -787,6 +1163,7 @@ class ActionScriptTests(unittest.TestCase):
                        STUB_EXIT=str(exit_code), COMMAND=command, GITHUB_ACTION_PATH="/action",
                        GITHUB_SHA="sha-value", GITHUB_REPOSITORY="owner/repo",
                        PACKAGES=inputs.get("packages", ""), OWNER=inputs.get("owner", ""), COHORT_JSON=inputs.get("cohort_json", ""),
+                       EXPECTED_ARTIFACTS=inputs.get("expected_artifacts", ""),
                        TAG_PREFIX=inputs.get("tag_prefix", ""), PUBLISH_OUTCOME=inputs.get("publish_outcome", ""))
             proc = subprocess.run(["bash", script], env=env, capture_output=True, text=True)
             argv_file = os.path.join(tmp, "argv")
@@ -801,13 +1178,16 @@ class ActionScriptTests(unittest.TestCase):
                          (0, ["/action/crates_pending.py", "plan", "--owner", "someone"]))
         self.assertEqual(self.run_action("publish", packages="a,b"),
                          (0, ["/action/crates_pending.py", "publish", "a,b"]))
+        self.assertEqual(self.run_action("bind", packages="a,b", expected_artifacts="{}"),
+                         (0, ["/action/crates_pending.py", "bind", "a,b", "--expected-artifacts", "{}",
+                              "--candidate", "sha-value"]))
         self.assertEqual(
             self.run_action("tag", packages="a,b", tag_prefix="crate-", publish_outcome="failure"),
             (0, ["/action/crates_pending.py", "tag", "a,b", "--prefix", "crate-", "--sha", "sha-value",
                  "--repo", "owner/repo", "--publish-outcome", "failure"]))
 
     def test_a_failing_command_fails_the_step(self) -> None:
-        for command in ("plan", "publish", "tag"):
+        for command in ("plan", "bind", "publish", "tag"):
             self.assertEqual(self.run_action(command, exit_code=3, owner="o")[0], 3, command)
         self.assertNotEqual(self.run_action("unknown")[0], 0)
 
@@ -819,6 +1199,7 @@ class ActionScriptTests(unittest.TestCase):
             "command": {"required": True},
             "packages": {"required": False, "default": ""},
             "owner": {"required": False, "default": "ryancinsight"}, "cohort-json": {"required": False, "default": ""},
+            "expected-artifacts": {"required": False, "default": ""},
             "tag-prefix": {"required": False, "default": "crate-"},
             "publish-outcome": {"required": False, "default": ""}})
         self.assertEqual(strip(action["outputs"]), {
@@ -831,7 +1212,8 @@ class ActionScriptTests(unittest.TestCase):
     def test_the_step_maps_its_environment_from_the_inputs(self) -> None:
         self.assertEqual(self.step["env"], {
             "COMMAND": "${{ inputs.command }}", "PACKAGES": "${{ inputs.packages }}",
-            "OWNER": "${{ inputs.owner }}", "COHORT_JSON": "${{ inputs.cohort-json }}", "TAG_PREFIX": "${{ inputs.tag-prefix }}",
+            "OWNER": "${{ inputs.owner }}", "COHORT_JSON": "${{ inputs.cohort-json }}",
+            "EXPECTED_ARTIFACTS": "${{ inputs.expected-artifacts }}", "TAG_PREFIX": "${{ inputs.tag-prefix }}",
             "PUBLISH_OUTCOME": "${{ inputs.publish-outcome }}", "GH_TOKEN": "${{ github.token }}"})
 
 

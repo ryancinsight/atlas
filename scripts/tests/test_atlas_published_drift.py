@@ -12,7 +12,9 @@ stand in for remote URLs, which is what `ls-remote` reads) and a real
 from __future__ import annotations
 
 import contextlib
+import http.server
 import importlib.util
+import inspect
 import io
 import json
 import os
@@ -20,8 +22,8 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import unittest
-import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -47,7 +49,11 @@ def make_crate(name: str, version: str, files: dict[str, bytes]) -> bytes:
 
 
 def index_body(name: str, versions: list[str]) -> bytes:
-    return "".join(json.dumps({"name": name, "vers": v}) + "\n" for v in versions).encode()
+    checksum = "0" * 64
+    return "".join(
+        json.dumps({"name": name, "vers": version, "cksum": checksum}) + "\n"
+        for version in versions
+    ).encode()
 
 
 OWNERS_URL = "https://crates.io/api/v1/crates/{name}/owners"
@@ -63,10 +69,12 @@ class Registry:
                  status: dict[str, int] | None = None,
                  owners: dict[str, list[str]] | None = None) -> None:
         self.index, self.crates, self.status, self.asked = index, crates or {}, status or {}, []
+        self.limits = []
         self.owners = {name: [tool.DEFAULT_OWNER] for name in index} | (owners or {})
 
-    def __call__(self, url: str) -> tuple[int, bytes]:
+    def __call__(self, url: str, limit: int) -> tuple[int, bytes]:
         self.asked.append(url)
+        self.limits.append(limit)
         if url in self.status:
             return self.status[url], b""
         for name, logins in self.owners.items():
@@ -172,6 +180,7 @@ class MeasureCrateTestCase(unittest.TestCase):
         self.assertIsNone(reading.drift)
         self.assertIsNone(reading.latest_published)
         self.assertEqual(registry.asked, ["https://index.crates.io/de/mo/demo"])
+        self.assertEqual(registry.limits, [tool.crates_pending.METADATA_LIMIT])
 
     def test_version_absent_from_the_index_is_unpublished_and_names_the_latest(self) -> None:
         self.write_tree(SOURCE)
@@ -218,6 +227,11 @@ class MeasureCrateTestCase(unittest.TestCase):
             OWNERS_URL.format(name="demo"),
             tool.CRATE_URL.format(name="demo", version="0.1.0"),
         ])
+        self.assertEqual(registry.limits, [
+            tool.crates_pending.METADATA_LIMIT,
+            tool.crates_pending.METADATA_LIMIT,
+            tool.CRATE_ARCHIVE_LIMIT,
+        ])
 
     def test_owners_outage_fails_instead_of_reading_as_owned(self) -> None:
         self.write_tree(SOURCE)
@@ -251,74 +265,139 @@ class MeasureCrateTestCase(unittest.TestCase):
             tool.measure_crate("demo", "0.1.0", "Cargo.toml", self.package, [], registry)
 
 
-class HttpTestCase(unittest.TestCase):
-    def test_request_carries_only_the_tool_user_agent(self) -> None:
-        response = mock.MagicMock()
-        response.__enter__.return_value = response
-        response.status = 200
-        response.read.return_value = b"body"
-        with mock.patch.object(tool.urllib.request, "urlopen", return_value=response) as opened:
-            self.assertEqual(tool.http_get("https://index.crates.io/de/mo/demo"), (200, b"body"))
-        request = opened.call_args.args[0]
-        self.assertEqual(request.full_url, "https://index.crates.io/de/mo/demo")
-        self.assertEqual(request.headers,
-                         {"User-agent": "atlas-published-drift (github.com/ryancinsight/atlas)"})
+class RegistryTransportTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        self.target_requests = 0
+        self.requests: dict[str, int] = {}
+        case = self
 
-    def test_http_error_status_is_an_answer_and_is_not_retried(self) -> None:
-        not_found = urllib.error.HTTPError("u", 404, "Not Found", {}, None)
-        with mock.patch.object(tool.urllib.request, "urlopen", side_effect=not_found) as opened, \
-                mock.patch.object(tool.time, "sleep") as slept:
-            self.assertEqual(tool.http_get("https://x"), (404, b""))
-        self.assertEqual((opened.call_count, slept.call_count), (1, 0))
+        class Handler(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
 
-    def test_transport_failure_retries_with_doubling_backoff_then_is_an_error(self) -> None:
-        with mock.patch.object(tool.urllib.request, "urlopen",
-                               side_effect=urllib.error.URLError("refused")) as opened, \
-                mock.patch.object(tool.time, "sleep") as slept, \
-                mock.patch.object(tool.random, "uniform", return_value=1.0):
-            with self.assertRaisesRegex(tool.RegistryError, r"refused.*after 5 attempts"):
-                tool.http_get("https://x")
-        self.assertEqual(opened.call_count, 5)
-        self.assertEqual([call.args[0] for call in slept.call_args_list], [2.0, 4.0, 8.0, 16.0])
+            def do_GET(self) -> None:  # noqa: N802 - stdlib handler contract
+                case.requests[self.path] = case.requests.get(self.path, 0) + 1
+                if self.path == "/redirect":
+                    self.send_response(302)
+                    self.send_header("Location", "/target")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                if self.path == "/target":
+                    case.target_requests += 1
+                    body = b"followed"
+                    self.send_response(200)
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                if self.path == "/oversized":
+                    body = b"x" * 4096
+                    self.send_response(200)
+                    self.send_header("Transfer-Encoding", "chunked")
+                    self.end_headers()
+                    try:
+                        self.wfile.write(f"{len(body):X}\r\n".encode() + body + b"\r\n0\r\n\r\n")
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass
+                    return
+                if self.path == "/disconnect-once":
+                    if case.requests[self.path] == 1:
+                        self.close_connection = True
+                        self.connection.close()
+                        return
+                    body = b"recovered"
+                    self.send_response(200)
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                if self.path == "/body-disconnect":
+                    self.send_response(200)
+                    self.send_header("Transfer-Encoding", "chunked")
+                    self.end_headers()
+                    self.wfile.write(b"40\r\nshort")
+                    self.wfile.flush()
+                    self.close_connection = True
+                    self.connection.close()
+                    return
+                if self.path == "/truncated":
+                    self.send_response(200)
+                    self.send_header("Content-Length", "64")
+                    self.end_headers()
+                    self.wfile.write(b"short")
+                    self.wfile.flush()
+                    self.close_connection = True
+                    self.connection.close()
+                    return
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
 
-    def test_a_reset_connection_that_recovers_returns_the_answer(self) -> None:
-        response = mock.MagicMock()
-        response.__enter__.return_value = response
-        response.status = 200
-        response.read.return_value = b"owners"
-        reset = ConnectionResetError(10054, "forcibly closed")
-        with mock.patch.object(tool.urllib.request, "urlopen",
-                               side_effect=[reset, reset, response]) as opened, \
-                mock.patch.object(tool.time, "sleep") as slept:
-            self.assertEqual(tool.http_get("https://x"), (200, b"owners"))
-        self.assertEqual((opened.call_count, slept.call_count), (3, 2))
+            def log_message(self, _format: str, *_args: object) -> None:
+                pass
 
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server.daemon_threads = True
+        self.thread = threading.Thread(target=self.server.serve_forever)
+        self.thread.start()
+        self.addCleanup(self.stop_server)
 
-class ThrottleTestCase(unittest.TestCase):
-    def test_a_second_api_request_waits_out_the_rest_of_the_interval(self) -> None:
-        throttle = tool.ApiThrottle(interval=1.0)
-        clock = iter([10.0, 10.25, 11.0])
+    def stop_server(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=5)
+        self.assertFalse(self.thread.is_alive())
+
+    def url(self, path: str) -> str:
+        host, port = self.server.server_address
+        return f"http://{host}:{port}{path}"
+
+    def policy(self, slept: list[float] | None = None) -> "tool.crates_pending.RegistryPolicy":
+        delays = [] if slept is None else slept
+        return tool.crates_pending.RegistryPolicy(
+            reader=tool.crates_pending.read_url,
+            throttle=tool.crates_pending.ApiThrottle(interval=0.0),
+            sleep=delays.append,
+            jitter=lambda _low, _high: 1.0,
+        )
+
+    def test_default_policy_uses_the_canonical_bounded_reader(self) -> None:
+        default = inspect.signature(tool.main).parameters["fetch"].default
+        self.assertIs(default, tool.crates_pending.REGISTRY_POLICY)
+        self.assertIs(default.reader, tool.crates_pending.read_url)
+
+    def test_redirect_is_rejected_without_contacting_its_target(self) -> None:
+        with self.assertRaisesRegex(tool.IdentityError, "registry HTTP status 302"):
+            self.policy()(self.url("/redirect"), 32)
+        self.assertEqual(self.target_requests, 0)
+        self.assertEqual(self.requests["/redirect"], 1)
+
+    def test_chunked_response_is_stopped_at_the_caller_bound(self) -> None:
+        with self.assertRaisesRegex(tool.IdentityError, "response exceeds identity bound"):
+            self.policy()(self.url("/oversized"), 32)
+        self.assertEqual(self.requests["/oversized"], 1)
+
+    def test_open_disconnect_retries_then_returns_the_bounded_response(self) -> None:
         slept: list[float] = []
-        with mock.patch.object(tool.time, "monotonic", side_effect=lambda: next(clock)), \
-                mock.patch.object(tool.time, "sleep", side_effect=slept.append):
-            throttle.wait()
-            throttle.wait()
-        self.assertEqual(slept, [0.75])
+        self.assertEqual(
+            self.policy(slept)(self.url("/disconnect-once"), 32),
+            (200, b"recovered"),
+        )
+        self.assertEqual(self.requests["/disconnect-once"], 2)
+        self.assertEqual(slept, [tool.crates_pending.TRANSPORT_BACKOFF_SECONDS])
 
-    def test_only_api_urls_pass_through_the_throttle(self) -> None:
-        response = mock.MagicMock()
-        response.__enter__.return_value = response
-        response.status = 200
-        response.read.return_value = b"{}"
-        with mock.patch.object(tool.urllib.request, "urlopen", return_value=response), \
-                mock.patch.object(tool.API_THROTTLE, "wait") as wait:
-            tool.http_get("https://index.crates.io/de/mo/demo")
-            tool.http_get("https://static.crates.io/crates/demo/demo-0.1.0.crate")
-            self.assertEqual(wait.call_count, 0)
-            tool.http_get("https://crates.io/api/v1/crates/demo/owners")
-            self.assertEqual(wait.call_count, 1)
+    def test_body_disconnect_is_a_typed_transport_failure_with_its_cause(self) -> None:
+        with self.assertRaises(tool.crates_pending.RegistryTransportError) as raised:
+            tool.crates_pending.read_url(self.url("/body-disconnect"), 128)
+        self.assertIsNotNone(raised.exception.__cause__)
+        self.assertIn("registry response failed", str(raised.exception))
 
-
+    def test_truncated_content_length_retries_as_transport_loss(self) -> None:
+        with self.assertRaisesRegex(tool.crates_pending.RegistryTransportError,
+                                    "incomplete registry HTTP body.*after 5 attempts"):
+            self.policy()(self.url("/truncated"), 128)
+        self.assertEqual(self.requests["/truncated"],
+                         tool.crates_pending.TRANSPORT_ATTEMPTS)
 def package(name: str, dependencies: list[dict]) -> dict:
     return {"name": name, "dependencies": dependencies}
 

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Select, publish, and tag workspace crates whose manifest version is not on crates.io.
+"""Select, bind, publish, and tag workspace crates whose version is absent from crates.io.
 
 Commands, run from the member's workspace root:
 
     plan                    select the pending set, check it resolves and verifies; write
                             `packages` and `count` to $GITHUB_OUTPUT
+    bind PACKAGES           repackage the frozen evidence-bound set before authentication
     publish PACKAGES        re-check the set against the index, then `cargo publish` what is
                             still pending in one dependency-ordered invocation
     tag PACKAGES            create `<prefix><package>-v<version>` releases for the versions
@@ -17,18 +18,57 @@ error: an outage must never read as "nothing to publish" or "never published".
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable
 
-USER_AGENT = "atlas-crates-pending (github.com/ryancinsight/atlas)"
+def _load_source(source, role):
+    source = source.resolve()
+    token = object()
+    name = f"_atlas_crates_pending_{role}_{id(_load_source):x}_{id(token):x}"
+    spec = importlib.util.spec_from_file_location(name, source)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load the crates-pending {role} owner")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        code = compile(source.read_bytes(), str(source), "exec", dont_inherit=True)
+        exec(code, module.__dict__)
+    finally:
+        sys.modules.pop(name, None)
+    return module
+
+
+_EVIDENCE_PATH = Path(__file__).with_name("artifact_evidence.py")
+_EVIDENCE = _load_source(_EVIDENCE_PATH, "artifact_evidence")
+
+ARTIFACT_PROFILE = _EVIDENCE.ARTIFACT_PROFILE
+ArtifactContext = _EVIDENCE.ArtifactContext
+ExpectedArtifacts = _EVIDENCE.ExpectedArtifacts
+API_INTERVAL_SECONDS = _EVIDENCE.API_INTERVAL_SECONDS
+TRANSPORT_ATTEMPTS = _EVIDENCE.TRANSPORT_ATTEMPTS
+TRANSPORT_BACKOFF_SECONDS = _EVIDENCE.TRANSPORT_BACKOFF_SECONDS
+ApiThrottle = _EVIDENCE.ApiThrottle
+RegistryPolicy = _EVIDENCE.RegistryPolicy
+REGISTRY_POLICY = _EVIDENCE.REGISTRY_POLICY
+IdentityError = _EVIDENCE.IdentityError
+RegistryTransportError = _EVIDENCE.RegistryTransportError
+METADATA_LIMIT = _EVIDENCE.METADATA_LIMIT
+index_path = _EVIDENCE.index_path
+parse_expected_artifacts = _EVIDENCE.parse_expected_artifacts
+published_checksum = _EVIDENCE.published_checksum
+read_url = _EVIDENCE.read_url
+sparse_index_versions = _EVIDENCE.sparse_index_versions
+verify_expected_artifacts = _EVIDENCE.verify_expected_artifacts
+validate_artifact_context = _EVIDENCE.validate_context
+
 WAIT_MARKER = "failed to select a version for the requirement"
 # cargo: failed to select a version for the requirement `hermes-simd = "^0.7.0"`
 MISSING_REQUIREMENT = re.compile(WAIT_MARKER + r" `([A-Za-z0-9_-]+) = ")
@@ -38,8 +78,6 @@ MISSING_REQUIREMENT = re.compile(WAIT_MARKER + r" `([A-Za-z0-9_-]+) = ")
 UNSATISFIED_REQUIREMENT = re.compile(r"failed to select a version for `([A-Za-z0-9_-]+)`")
 # cargo, for a name the index has no entry for at all: no matching package named `ritk-x` found
 NEVER_PUBLISHED = re.compile(r"no matching package named `([A-Za-z0-9_-]+)` found")
-# crates.io's crawler policy: at most one API request per second.
-API_INTERVAL_SECONDS = 1.0
 # cargo publish waits 60 s (its default `publish.timeout`) for the last uploads to reach the
 # index, then warns and exits 0. Tagging waits up to five minutes more before a missing version
 # counts as lost: a red run is recoverable by re-running it, a green one without the release is not.
@@ -51,45 +89,39 @@ class RegistryError(RuntimeError):
     """The registry gave no usable answer (outage, rate limit, unexpected status)."""
 
 
-def index_path(name: str) -> str:
-    """Sparse-index path of a crate name (https://doc.rust-lang.org/cargo/reference/registry-index.html)."""
-    n = name.lower()
-    if len(n) <= 2:
-        return f"{len(n)}/{n}"
-    if len(n) == 3:
-        return f"3/{n[0]}/{n}"
-    return f"{n[:2]}/{n[2:4]}/{n}"
+Fetch = Callable[[str, int], "tuple[int, bytes]"]
 
 
-def http_get(url: str) -> tuple[int, str]:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return response.status, response.read().decode("utf-8")
-    except urllib.error.HTTPError as error:
-        return error.code, ""
-    except (urllib.error.URLError, TimeoutError) as error:
-        raise RegistryError(f"{url}: {error}") from error
-
-
-Fetch = Callable[[str], "tuple[int, str]"]
-
-
-def published_versions(name: str, fetch: Fetch = http_get) -> list[str] | None:
+def published_versions(name: str, fetch: Fetch = REGISTRY_POLICY) -> list[str] | None:
     """Versions on the index, or None when the name has never been published."""
-    status, body = fetch(f"https://index.crates.io/{index_path(name)}")
-    if status == 404:
-        return None
-    if status != 200:
-        raise RegistryError(f"crates.io index returned HTTP {status} for {name}")
-    return [json.loads(line)["vers"] for line in body.splitlines() if line.strip()]
+    try:
+        versions = sparse_index_versions(name, fetch)
+    except IdentityError as error:
+        raise RegistryError(str(error)) from error
+    return None if versions is None else list(versions)
 
 
-def owners(name: str, fetch: Fetch = http_get) -> list[str]:
-    status, body = fetch(f"https://crates.io/api/v1/crates/{name}/owners")
+def owners(name: str, fetch: Fetch = REGISTRY_POLICY) -> list[str]:
+    try:
+        status, body = fetch(f"https://crates.io/api/v1/crates/{name}/owners", METADATA_LIMIT)
+    except IdentityError as error:
+        raise RegistryError(str(error)) from error
     if status != 200:
         raise RegistryError(f"crates.io owners API returned HTTP {status} for {name}")
-    return [user["login"] for user in json.loads(body)["users"]]
+    try:
+        response = _EVIDENCE.parse_json(body)
+        users = response.get("users") if isinstance(response, dict) else None
+        if (not isinstance(users, list)
+                or any(not isinstance(user, dict)
+                       or not isinstance(user.get("login"), str) or not user["login"]
+                       for user in users)):
+            raise IdentityError("malformed crates.io owners response")
+        logins = [user["login"] for user in users]
+        if len({login.casefold() for login in logins}) != len(logins):
+            raise IdentityError("duplicate crates.io owner login")
+        return logins
+    except (IdentityError, KeyError, TypeError, ValueError) as error:
+        raise RegistryError(f"malformed crates.io owners response for {name}: {error}") from error
 
 
 def publishable(package: dict) -> bool:
@@ -142,8 +174,7 @@ class Plan:
     warnings: list[str] = field(default_factory=list)
 
 
-def select(metadata: dict, owner: str, fetch: Fetch = http_get,
-           sleep: Callable[[float], None] = time.sleep) -> Plan:
+def select(metadata: dict, owner: str, fetch: Fetch = REGISTRY_POLICY) -> Plan:
     """Publishable packages whose version is absent from an index the expected owner controls."""
     plan = Plan()
     for package in metadata["packages"]:
@@ -158,7 +189,6 @@ def select(metadata: dict, owner: str, fetch: Fetch = http_get,
             continue
         if version in versions:
             continue
-        sleep(API_INTERVAL_SECONDS)
         logins = owners(name, fetch)
         if owner not in logins:
             plan.warnings.append(
@@ -201,8 +231,8 @@ def dependents(names: list[str], packages: list[dict], dependency: str) -> list[
     return [name for name in names if name in held]
 
 
-def verify(names: list[str], packages: list[dict], owner: str, fetch: Fetch = http_get,
-           runner: Run = run, sleep: Callable[[float], None] = time.sleep) -> list[str]:
+def verify(names: list[str], packages: list[dict], owner: str, fetch: Fetch = REGISTRY_POLICY,
+           runner: Run = run) -> list[str]:
     """The names ready to publish: every one whose dependencies all resolve on crates.io.
 
     Resolution is checked first without compiling, so a wait costs no build. A name waits only
@@ -238,7 +268,6 @@ def verify(names: list[str], packages: list[dict], owner: str, fetch: Fetch = ht
             print(f"::warning::no version of workspace member {dependency} on crates.io or in "
                   f"this run's pending set satisfies the requirement on it; held: {held}")
         else:
-            sleep(API_INTERVAL_SECONDS)
             if owner in owners(dependency, fetch):
                 print(f"::notice::waiting for the required {dependency} version to reach the "
                       f"index: {held}")
@@ -263,7 +292,8 @@ def metadata(runner: Run = run) -> dict:
     return json.loads(result.stdout)
 
 
-def still_pending(names: list[str], versions: dict[str, str], fetch: Fetch = http_get) -> list[str]:
+def still_pending(names: list[str], versions: dict[str, str],
+                  fetch: Fetch = REGISTRY_POLICY) -> list[str]:
     return [name for name in names if versions[name] not in (published_versions(name, fetch) or [])]
 
 
@@ -273,37 +303,65 @@ def write_outputs(values: dict[str, str]) -> None:
             out.write(f"{key}={value}\n")
 
 
-def command_plan(owner: str, fetch: Fetch = http_get, runner: Run = run,
-                 sleep: Callable[[float], None] = time.sleep, *,
-                 cohort: dict[str, str] | None = None) -> dict[str, str]:
-    if cohort == {}:
+def command_plan(owner: str, fetch: Fetch = REGISTRY_POLICY, runner: Run = run, *,
+                 cohort: dict[str, str] | None = None,
+                 expected: ExpectedArtifacts | None = None,
+                 candidate: str = "") -> dict[str, str]:
+    if cohort == {} and expected is None:
         return {"count": "0"}
     workspace = metadata(runner)
+    if expected is not None:
+        validate_artifact_context(expected, candidate, runner)
     selected = cohort_packages(workspace["packages"], cohort)
-    plan = select({"packages": selected}, owner, fetch, sleep)
+    plan = select({"packages": selected}, owner, fetch)
     for notice in plan.notices:
         print(f"::notice::{notice}")
     for warning in plan.warnings:
         print(f"::warning::{warning}")
     if not plan.pending:
+        if expected is not None:
+            verify_expected_artifacts(expected, [], workspace, candidate, runner, package=False)
         return {"count": "0"}
-    ready = verify(plan.pending, workspace["packages"], owner, fetch, runner, sleep)
+    ready = verify(plan.pending, workspace["packages"], owner, fetch, runner)
     held = [name for name in plan.pending if name not in ready]
     if held:
         print(f"::notice::pending packages ({' '.join(held)}) wait on a dependency "
               "version not yet on crates.io; the next push or schedule retries")
     if not ready:
+        if expected is not None:
+            verify_expected_artifacts(expected, [], workspace, candidate, runner, package=False)
         return {"count": "0"}
+    if expected is not None:
+        verify_expected_artifacts(expected, ready, workspace, candidate, runner, package=False)
     print(f"::notice::publishing {','.join(ready)}")
     return {"packages": ",".join(ready), "count": str(len(ready))}
 
 
-def command_publish(names: list[str], fetch: Fetch = http_get, runner: Run = run, *,
-                    cohort: dict[str, str] | None = None) -> None:
-    packages = metadata(runner)["packages"]
+def command_bind(names: list[str], fetch: Fetch = REGISTRY_POLICY, runner: Run = run, *,
+                 cohort: dict[str, str] | None = None,
+                 expected: ExpectedArtifacts, candidate: str) -> None:
+    """Repackage and bind the frozen set before registry authentication."""
+    workspace = metadata(runner)
+    cohort_packages(workspace["packages"], cohort, names)
+    versions = {package["name"]: package["version"] for package in workspace["packages"]}
+    if still_pending(names, versions, fetch) != names:
+        raise SystemExit("registry state changed after planning; replan before authentication")
+    verify_expected_artifacts(expected, names, workspace, candidate, runner, package=True)
+
+
+def command_publish(names: list[str], fetch: Fetch = REGISTRY_POLICY, runner: Run = run, *,
+                    cohort: dict[str, str] | None = None,
+                    expected: ExpectedArtifacts | None = None,
+                    candidate: str = "") -> None:
+    workspace = metadata(runner)
+    packages = workspace["packages"]
     cohort_packages(packages, cohort, names)
     versions = {p["name"]: p["version"] for p in packages}
     remaining = still_pending(names, versions, fetch)
+    if expected is not None:
+        verify_expected_artifacts(expected, names, workspace, candidate, runner, package=False)
+        if remaining != names:
+            raise SystemExit("registry state changed after artifact binding; replan instead of refiltering")
     if not remaining:
         print("::notice::every planned version is already on crates.io")
         return
@@ -316,7 +374,7 @@ def command_publish(names: list[str], fetch: Fetch = http_get, runner: Run = run
 
 
 def indexed_after_publish(names: list[str], versions: dict[str, str], published: bool,
-                          fetch: Fetch = http_get,
+                          fetch: Fetch = REGISTRY_POLICY,
                           sleep: Callable[[float], None] = time.sleep) -> list[str]:
     """Planned names whose version the index holds.
 
@@ -337,13 +395,32 @@ def indexed_after_publish(names: list[str], versions: dict[str, str], published:
 
 
 def command_tag(names: list[str], prefix: str, sha: str, repo: str, published: bool,
-                fetch: Fetch = http_get, runner: Run = run,
+                fetch: Fetch = REGISTRY_POLICY, runner: Run = run,
                 sleep: Callable[[float], None] = time.sleep, *,
-                cohort: dict[str, str] | None = None) -> None:
-    packages = metadata(runner)["packages"]
+                cohort: dict[str, str] | None = None,
+                expected: ExpectedArtifacts | None = None,
+                candidate: str = "") -> None:
+    workspace = metadata(runner)
+    packages = workspace["packages"]
     cohort_packages(packages, cohort, names)
     versions = {p["name"]: p["version"] for p in packages}
-    for name in indexed_after_publish(names, versions, published, fetch, sleep):
+    if expected is not None:
+        if candidate != sha:
+            raise SystemExit("tag target differs from expected-artifacts candidate")
+        verify_expected_artifacts(expected, names, workspace, candidate, runner, package=False)
+    indexed = indexed_after_publish(names, versions, published, fetch, sleep)
+    if expected is not None:
+        for name in indexed:
+            filename = f"{name}-{versions[name]}.crate"
+            try:
+                checksum = published_checksum(name, versions[name], fetch)
+            except IdentityError as error:
+                raise SystemExit(
+                    f"crates.io published archive could not be verified: {filename}: {error}") from error
+            if checksum != expected.artifacts[filename]:
+                raise SystemExit(
+                    f"crates.io published archive checksum differs from expected archive: {filename}")
+    for name in indexed:
         version = versions[name]
         tag = f"{prefix}{name}-v{version}"
         if runner(["gh", "release", "view", tag, "--repo", repo]).returncode == 0:
@@ -365,6 +442,8 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     plan = sub.add_parser("plan")
     plan.add_argument("--owner", required=True)
+    bind = sub.add_parser("bind")
+    bind.add_argument("packages")
     publish = sub.add_parser("publish")
     publish.add_argument("packages")
     tag = sub.add_parser("tag")
@@ -374,12 +453,24 @@ def main(argv: list[str] | None = None) -> int:
     tag.add_argument("--repo", required=True)
     tag.add_argument("--publish-outcome", required=True,
                      help="outcome of the publish step: success means every version must be indexed")
-    for command in (plan, publish, tag):
+    for command in (plan, bind, publish, tag):
         command.add_argument("--cohort-json", help="Exact package/version JSON object; {} publishes nothing")
+        command.add_argument("--expected-artifacts", help="Independent package archive evidence JSON")
+        command.add_argument("--candidate", help="Exact GitHub candidate SHA for artifact evidence")
     args = parser.parse_args(argv)
     scope = {} if args.cohort_json is None else {"cohort": parse_cohort(args.cohort_json)}
+    if args.expected_artifacts is not None:
+        if args.candidate is None:
+            parser.error("--candidate is required with --expected-artifacts")
+        scope.update(expected=parse_expected_artifacts(args.expected_artifacts), candidate=args.candidate)
+    elif args.candidate is not None:
+        parser.error("--candidate requires --expected-artifacts")
     if args.command == "plan":
         write_outputs(command_plan(args.owner, **scope))
+    elif args.command == "bind":
+        if "expected" not in scope:
+            parser.error("--expected-artifacts and --candidate are required for bind")
+        command_bind(args.packages.split(","), **scope)
     elif args.command == "publish":
         command_publish(args.packages.split(","), **scope)
     else:
