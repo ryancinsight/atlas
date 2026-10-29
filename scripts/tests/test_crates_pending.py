@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import contextlib
 import io
@@ -18,8 +19,10 @@ from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+ACTION = ROOT / ".github" / "actions" / "crates-pending"
 SPEC = importlib.util.spec_from_file_location(
-    "crates_pending", ROOT / ".github" / "actions" / "crates-pending" / "crates_pending.py")
+    "crates_pending", ACTION / "crates_pending.py")
+sys.path.insert(0, str(ACTION))
 cp = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = cp
@@ -628,6 +631,191 @@ class TagTests(unittest.TestCase):
             cp.command_tag(["a"], "crate-", "abc", "o/r", False, registry, Cargo([pkg("a", "0.2.0")]), no_sleep)
 
 
+class WorkspaceRunner:
+    """Run real Git, rustc, metadata, and packaging in a tiny clean workspace."""
+
+    def __init__(self, root: Path) -> None:
+        self.root, self.calls = root, []
+
+    def __call__(self, argv: list[str]) -> subprocess.CompletedProcess:
+        self.calls.append(argv)
+        if argv[:2] == ["cargo", "publish"]:
+            return subprocess.CompletedProcess(argv, 0, "packaged for upload", "")
+        if argv[:3] == ["gh", "release", "view"]:
+            return subprocess.CompletedProcess(argv, 1, "", "release not found")
+        if argv[:3] == ["gh", "release", "create"]:
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        return subprocess.run(argv, cwd=self.root, capture_output=True, text=True, timeout=120)
+
+
+class ChecksumRegistry:
+    """Serve sparse-index rows with exact archive checksums."""
+
+    def __init__(self, records: dict[str, list[tuple[str, str]]]) -> None:
+        self.records = records
+
+    def __call__(self, url: str) -> tuple[int, str]:
+        if not url.startswith("https://index.crates.io/"):
+            name = url.removeprefix("https://crates.io/api/v1/crates/").removesuffix("/owners")
+            return 200, json.dumps({"users": [{"login": OWNER}], "name": name})
+        path = url.removeprefix("https://index.crates.io/")
+        for name, records in self.records.items():
+            if cp.index_path(name) == path:
+                return 200, "".join(json.dumps({"name": name, "vers": version, "cksum": digest}) + "\n"
+                                    for version, digest in records)
+        return 404, ""
+
+
+class ArtifactBindingTests(unittest.TestCase):
+    """Real Cargo archives bind planning, publication, index checksums, and tags."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.temporary = tempfile.TemporaryDirectory()
+        cls.root = Path(cls.temporary.name)
+        (cls.root / ".gitignore").write_text("/target/\n", encoding="utf-8")
+        (cls.root / "Cargo.toml").write_text(
+            "[workspace]\nmembers = [\"evidence-a\", \"evidence-b\"]\nresolver = \"3\"\n",
+            encoding="utf-8")
+        for name in ("evidence-a", "evidence-b"):
+            package = cls.root / name
+            (package / "src").mkdir(parents=True)
+            (package / "Cargo.toml").write_text(
+                f"[package]\nname = \"{name}\"\nversion = \"0.2.0\"\n"
+                "edition = \"2024\"\nlicense = \"MIT\"\n",
+                encoding="utf-8")
+            (package / "src" / "lib.rs").write_text(
+                "#![forbid(unsafe_code)]\n\n/// Return a fixture value.\npub const fn value() -> u8 { 7 }\n",
+                encoding="utf-8")
+        subprocess.run(["git", "init", "-b", "main"], cwd=cls.root, check=True,
+                       capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "fixture@example.invalid"], cwd=cls.root, check=True)
+        subprocess.run(["git", "config", "user.name", "Fixture"], cwd=cls.root, check=True)
+        subprocess.run(["cargo", "generate-lockfile"], cwd=cls.root, check=True,
+                       capture_output=True, text=True, timeout=120)
+        subprocess.run(["git", "add", ".gitignore", "Cargo.toml", "Cargo.lock",
+                        "evidence-a/Cargo.toml", "evidence-a/src/lib.rs",
+                        "evidence-b/Cargo.toml", "evidence-b/src/lib.rs"],
+                       cwd=cls.root, check=True)
+        subprocess.run(["git", "commit", "-m", "fixture: add packages"], cwd=cls.root,
+                       check=True, capture_output=True, text=True)
+        cls.runner = WorkspaceRunner(cls.root)
+        cls.candidate = subprocess.run(["git", "rev-parse", "HEAD"], cwd=cls.root,
+                                       check=True, capture_output=True, text=True).stdout.strip()
+        rustc = subprocess.run(["rustc", "-Vv"], check=True, capture_output=True, text=True).stdout
+        fields = dict(line.split(": ", 1) for line in rustc.splitlines() if ": " in line)
+        subprocess.run(["cargo", "package", "--locked", "-p", "evidence-a", "-p", "evidence-b"],
+                       cwd=cls.root, check=True, capture_output=True, text=True, timeout=120)
+        cls.names = ["evidence-a", "evidence-b"]
+        artifacts = {}
+        for name in cls.names:
+            archive = cls.root / "target" / "package" / f"{name}-0.2.0.crate"
+            artifacts[archive.name] = hashlib.sha256(archive.read_bytes()).hexdigest()
+        cls.manifest_value = {
+            "context": {"candidate": cls.candidate, "toolchain": fields["release"],
+                        "target": fields["host"], "profile": cp.ARTIFACT_PROFILE},
+            "cohort": [{"name": name, "version": "0.2.0"} for name in cls.names],
+            "artifacts": artifacts,
+        }
+        cls.expected = cp.parse_expected_artifacts(json.dumps(cls.manifest_value))
+        old = "0" * 64
+        cls.pending = ChecksumRegistry({name: [("0.1.0", old)] for name in cls.names})
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.temporary.cleanup()
+
+    def test_real_verified_archives_bind_before_authentication(self) -> None:
+        cp.command_bind(self.names, self.pending, self.runner,
+                        expected=self.expected, candidate=self.candidate)
+        self.assertIn(["cargo", "package", "--locked", "--package", "evidence-a",
+                       "--package", "evidence-b"], self.runner.calls)
+
+    def test_changed_archive_bytes_and_wrong_candidate_fail_closed(self) -> None:
+        archive = self.root / "target" / "package" / "evidence-a-0.2.0.crate"
+        original = archive.read_bytes()
+        try:
+            archive.write_bytes(original + b"changed")
+            with self.assertRaisesRegex(SystemExit, "checksum differs"):
+                cp.verify_expected_artifacts(self.expected, self.names,
+                                             cp.metadata(self.runner), self.candidate,
+                                             self.runner, package=False)
+        finally:
+            archive.write_bytes(original)
+        with self.assertRaisesRegex(SystemExit, "candidate differs"):
+            cp.verify_expected_artifacts(self.expected, self.names, cp.metadata(self.runner),
+                                         "f" * 40, self.runner, package=False)
+
+    def test_malformed_hash_incomplete_manifest_and_wrong_identity_reject(self) -> None:
+        mutations = []
+        malformed = json.loads(json.dumps(self.manifest_value))
+        malformed["artifacts"]["evidence-a-0.2.0.crate"] = "xyz"
+        mutations.append((malformed, "archive map"))
+        incomplete = json.loads(json.dumps(self.manifest_value))
+        incomplete["artifacts"].pop("evidence-b-0.2.0.crate")
+        mutations.append((incomplete, "archive map"))
+        missing = json.loads(json.dumps(self.manifest_value))
+        missing["cohort"][1]["name"] = "missing-package"
+        missing["artifacts"]["missing-package-0.2.0.crate"] = missing["artifacts"].pop(
+            "evidence-b-0.2.0.crate")
+        wrong_version = json.loads(json.dumps(self.manifest_value))
+        wrong_version["cohort"][1]["version"] = "0.3.0"
+        wrong_version["artifacts"]["evidence-b-0.3.0.crate"] = wrong_version["artifacts"].pop(
+            "evidence-b-0.2.0.crate")
+        for value, message in mutations:
+            with self.subTest(message=message), self.assertRaisesRegex(SystemExit, message):
+                cp.parse_expected_artifacts(json.dumps(value))
+        for value in (missing, wrong_version):
+            expected = cp.parse_expected_artifacts(json.dumps(value))
+            with self.subTest(value=value), self.assertRaisesRegex(SystemExit, "cohort differs"):
+                cp.verify_expected_artifacts(expected, self.names, cp.metadata(self.runner),
+                                             self.candidate, self.runner, package=False)
+
+    def test_registry_refilter_and_upload_set_drift_reject(self) -> None:
+        current = ChecksumRegistry({
+            "evidence-a": [("0.2.0", self.expected.artifacts["evidence-a-0.2.0.crate"])],
+            "evidence-b": [("0.1.0", "0" * 64)],
+        })
+        with self.assertRaisesRegex(SystemExit, "replan before authentication"):
+            cp.command_bind(self.names, current, self.runner,
+                            expected=self.expected, candidate=self.candidate)
+        with self.assertRaisesRegex(SystemExit, "replan instead of refiltering"):
+            cp.command_publish(self.names, current, self.runner,
+                               expected=self.expected, candidate=self.candidate)
+
+    def test_publish_uses_the_frozen_set_without_real_upload(self) -> None:
+        before = len(self.runner.calls)
+        cp.command_publish(self.names, self.pending, self.runner,
+                           expected=self.expected, candidate=self.candidate)
+        publish = [call for call in self.runner.calls[before:] if call[:2] == ["cargo", "publish"]]
+        self.assertEqual(publish, [["cargo", "publish", "--locked", "--no-verify",
+                                    "--package", "evidence-a", "--package", "evidence-b"]])
+
+    def test_index_checksum_matches_expected_and_packaged_bytes_before_tags(self) -> None:
+        indexed = ChecksumRegistry({
+            name: [("0.2.0", self.expected.artifacts[f"{name}-0.2.0.crate"])]
+            for name in self.names
+        })
+        before = len(self.runner.calls)
+        cp.command_tag(self.names, "crate-", self.candidate, "o/r", True,
+                       indexed, self.runner, no_sleep,
+                       expected=self.expected, candidate=self.candidate)
+        created = [call for call in self.runner.calls[before:] if call[:3] == ["gh", "release", "create"]]
+        self.assertEqual([call[3] for call in created],
+                         ["crate-evidence-a-v0.2.0", "crate-evidence-b-v0.2.0"])
+        wrong = ChecksumRegistry({
+            "evidence-a": [("0.2.0", "f" * 64)],
+            "evidence-b": [("0.2.0", self.expected.artifacts["evidence-b-0.2.0.crate"])],
+        })
+        before = len(self.runner.calls)
+        with self.assertRaisesRegex(SystemExit, "index checksum differs"):
+            cp.command_tag(self.names, "crate-", self.candidate, "o/r", True,
+                           wrong, self.runner, no_sleep,
+                           expected=self.expected, candidate=self.candidate)
+        self.assertFalse(any(call[:3] == ["gh", "release", "create"]
+                             for call in self.runner.calls[before:]))
+
+
 class EntryPointTests(unittest.TestCase):
     def test_plan_writes_its_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -720,6 +908,14 @@ class ArgumentTests(unittest.TestCase):
                 mock.patch.object(cp, "write_outputs"):
             cp.main(self.built("plan", "--owner", "someone"))
         plan.assert_called_once_with("someone")
+        expected = cp.ExpectedArtifacts(cp.ArtifactContext("a" * 40, "1.97.0", "host", cp.ARTIFACT_PROFILE), (), {})
+        encoded = json.dumps({"context": {"candidate": "a" * 40, "toolchain": "1.97.0",
+                                           "target": "host", "profile": cp.ARTIFACT_PROFILE},
+                              "cohort": [], "artifacts": {}})
+        with mock.patch.object(cp, "command_bind") as bind:
+            cp.main(self.built("bind", "a", "--expected-artifacts", encoded,
+                               "--candidate", "a" * 40))
+        bind.assert_called_once_with(["a"], expected=expected, candidate="a" * 40)
         with mock.patch.object(cp, "command_publish") as publish:
             cp.main(self.built("publish", "a"))
         publish.assert_called_once_with(["a"])
@@ -730,7 +926,8 @@ class ArgumentTests(unittest.TestCase):
 
     def test_every_required_argument_is_required(self) -> None:
         tag = ["tag", "a", "--prefix", "crate-", "--sha", "abc", "--repo", "o/r", "--publish-outcome", "success"]
-        cases = {"no command": [], "plan without --owner": ["plan"]}
+        cases = {"no command": [], "plan without --owner": ["plan"],
+                 "bind without evidence": ["bind", "a"]}
         for flag in ("--prefix", "--sha", "--repo", "--publish-outcome"):
             at = tag.index(flag)
             cases[f"tag without {flag}"] = tag[:at] + tag[at + 2:]
@@ -744,7 +941,7 @@ class ArgumentTests(unittest.TestCase):
     def test_help_describes_the_tool(self) -> None:
         with contextlib.redirect_stdout(io.StringIO()) as stdout, self.assertRaises(SystemExit):
             cp.main(["--help"])
-        self.assertIn("Select, publish, and tag workspace crates whose manifest version is not on crates.io.",
+        self.assertIn("Select, bind, publish, and tag workspace crates whose version is absent from crates.io.",
                       " ".join(stdout.getvalue().split()))
 
     def test_the_script_runs_main(self) -> None:
@@ -787,6 +984,7 @@ class ActionScriptTests(unittest.TestCase):
                        STUB_EXIT=str(exit_code), COMMAND=command, GITHUB_ACTION_PATH="/action",
                        GITHUB_SHA="sha-value", GITHUB_REPOSITORY="owner/repo",
                        PACKAGES=inputs.get("packages", ""), OWNER=inputs.get("owner", ""), COHORT_JSON=inputs.get("cohort_json", ""),
+                       EXPECTED_ARTIFACTS=inputs.get("expected_artifacts", ""),
                        TAG_PREFIX=inputs.get("tag_prefix", ""), PUBLISH_OUTCOME=inputs.get("publish_outcome", ""))
             proc = subprocess.run(["bash", script], env=env, capture_output=True, text=True)
             argv_file = os.path.join(tmp, "argv")
@@ -801,13 +999,16 @@ class ActionScriptTests(unittest.TestCase):
                          (0, ["/action/crates_pending.py", "plan", "--owner", "someone"]))
         self.assertEqual(self.run_action("publish", packages="a,b"),
                          (0, ["/action/crates_pending.py", "publish", "a,b"]))
+        self.assertEqual(self.run_action("bind", packages="a,b", expected_artifacts="{}"),
+                         (0, ["/action/crates_pending.py", "bind", "a,b", "--expected-artifacts", "{}",
+                              "--candidate", "sha-value"]))
         self.assertEqual(
             self.run_action("tag", packages="a,b", tag_prefix="crate-", publish_outcome="failure"),
             (0, ["/action/crates_pending.py", "tag", "a,b", "--prefix", "crate-", "--sha", "sha-value",
                  "--repo", "owner/repo", "--publish-outcome", "failure"]))
 
     def test_a_failing_command_fails_the_step(self) -> None:
-        for command in ("plan", "publish", "tag"):
+        for command in ("plan", "bind", "publish", "tag"):
             self.assertEqual(self.run_action(command, exit_code=3, owner="o")[0], 3, command)
         self.assertNotEqual(self.run_action("unknown")[0], 0)
 
@@ -819,6 +1020,7 @@ class ActionScriptTests(unittest.TestCase):
             "command": {"required": True},
             "packages": {"required": False, "default": ""},
             "owner": {"required": False, "default": "ryancinsight"}, "cohort-json": {"required": False, "default": ""},
+            "expected-artifacts": {"required": False, "default": ""},
             "tag-prefix": {"required": False, "default": "crate-"},
             "publish-outcome": {"required": False, "default": ""}})
         self.assertEqual(strip(action["outputs"]), {
@@ -831,7 +1033,8 @@ class ActionScriptTests(unittest.TestCase):
     def test_the_step_maps_its_environment_from_the_inputs(self) -> None:
         self.assertEqual(self.step["env"], {
             "COMMAND": "${{ inputs.command }}", "PACKAGES": "${{ inputs.packages }}",
-            "OWNER": "${{ inputs.owner }}", "COHORT_JSON": "${{ inputs.cohort-json }}", "TAG_PREFIX": "${{ inputs.tag-prefix }}",
+            "OWNER": "${{ inputs.owner }}", "COHORT_JSON": "${{ inputs.cohort-json }}",
+            "EXPECTED_ARTIFACTS": "${{ inputs.expected-artifacts }}", "TAG_PREFIX": "${{ inputs.tag-prefix }}",
             "PUBLISH_OUTCOME": "${{ inputs.publish-outcome }}", "GH_TOKEN": "${{ github.token }}"})
 
 

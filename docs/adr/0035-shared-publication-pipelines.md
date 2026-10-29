@@ -11,6 +11,12 @@
   [ADR 0024](0024-criterion-regression-gate.md),
   [ADR 0011](0011-atlas-root-hygiene-ritual.md)
 
+Revision 2026-10-29: version-change publishing accepts an optional package
+evidence manifest produced by two independent clean `cargo package --locked`
+builds. The pending planner, pre-authentication package build, upload set,
+crates.io index checksum, and release tags bind to one exact candidate and
+cohort. Existing callers that omit evidence retain their current behavior.
+
 Revision 2026-09-10: the shared wheel caller now admits explicit free-threaded
 CPython artifacts. Version-specific `cp3XXt` wheels and the Python 3.15
 `abi3t` wheel use the same checkout, pinned maturin action, installation smoke
@@ -265,6 +271,31 @@ the 25 package callers. Commit-pinning them requires resolving each digest
 against its upstream repository; a digest that has not been resolved is
 fabricated evidence and must not be committed. The gap is tracked as
 `ATLAS-PUB-004`.
+
+### 9. Opt-in crate evidence binds the version-change upload
+
+The pending publisher accepts one optional JSON manifest with a context
+(`candidate`, installed Rust `toolchain`, native `target`, and the semantic
+profile `cargo-package-verify`), an ordered package/version cohort, and a
+SHA-256 digest for every `<name>-<version>.crate` archive. A caller produces
+the manifest only after two independent clean package builds agree.
+
+When the manifest is present, Atlas rejects a different GitHub candidate,
+dirty checkout, Rust host, package identity, ready-set order, archive digest,
+or registry re-filter. The publish job reruns verified
+`cargo package --locked` for the frozen set before requesting an OpenID
+Connect token. `cargo publish` still performs Cargo's own packaging and upload;
+Cargo has no interface that uploads a caller-supplied prebuilt archive. The
+pre-upload digest guarantee therefore follows from identical immutable inputs
+and independently reproduced package bytes rather than a Cargo expected-hash
+parameter. After upload, the sparse-index `cksum` must equal both the expected
+digest and the archive generated in the publish job before any release tag is
+created.
+
+Malformed or incomplete evidence and any selection, source, package, or index
+drift fail closed. Omitting the manifest invokes the existing planner and
+partial-publish recovery unchanged; this preserves callers that have not yet
+adopted independent artifact evidence.
 
 ## Consequences
 

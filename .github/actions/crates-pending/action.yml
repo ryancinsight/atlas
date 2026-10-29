@@ -1,9 +1,9 @@
 name: Crates pending publication
-description: Plan, publish, or tag workspace crates whose manifest version is not on crates.io
+description: Plan, bind, publish, or tag workspace crates whose manifest version is not on crates.io
 
 inputs:
   command:
-    description: plan, publish, or tag
+    description: plan, bind, publish, or tag
     required: true
   packages:
     description: Comma-separated package set (publish and tag)
@@ -15,6 +15,10 @@ inputs:
     default: ryancinsight
   cohort-json:
     description: Exact package/version JSON object; omit for legacy selection, use {} to select nothing
+    required: false
+    default: ""
+  expected-artifacts:
+    description: Independent package evidence JSON; omit to retain legacy publication behavior
     required: false
     default: ""
   tag-prefix:
@@ -45,6 +49,7 @@ runs:
         PACKAGES: ${{ inputs.packages }}
         OWNER: ${{ inputs.owner }}
         COHORT_JSON: ${{ inputs.cohort-json }}
+        EXPECTED_ARTIFACTS: ${{ inputs.expected-artifacts }}
         TAG_PREFIX: ${{ inputs.tag-prefix }}
         PUBLISH_OUTCOME: ${{ inputs.publish-outcome }}
         GH_TOKEN: ${{ github.token }}
@@ -55,8 +60,12 @@ runs:
         if [[ -n "${COHORT_JSON:-}" ]]; then
           set -- --cohort-json "$COHORT_JSON"
         fi
+        if [[ -n "${EXPECTED_ARTIFACTS:-}" ]]; then
+          set -- "$@" --expected-artifacts "$EXPECTED_ARTIFACTS" --candidate "$GITHUB_SHA"
+        fi
         case "$COMMAND" in
           plan) python3 "$script" plan --owner "$OWNER" "$@" ;;
+          bind) python3 "$script" bind "$PACKAGES" "$@" ;;
           publish) python3 "$script" publish "$PACKAGES" "$@" ;;
           tag) python3 "$script" tag "$PACKAGES" --prefix "$TAG_PREFIX" --sha "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY" --publish-outcome "$PUBLISH_OUTCOME" "$@" ;;
           *) echo "unknown command: $COMMAND" >&2; exit 2 ;;
