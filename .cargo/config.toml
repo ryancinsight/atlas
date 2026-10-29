@@ -132,6 +132,14 @@ asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
 asclepius = { path = "repos/asclepius/crates/asclepius" }
 asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
 
+[patch."https://github.com/ryancinsight/athena"]
+athena-core = { path = "repos/athena/crates/athena-core" }
+athena-leto = { path = "repos/athena/crates/athena-leto" }
+
+[patch."https://github.com/ryancinsight/athena.git"]
+athena-core = { path = "repos/athena/crates/athena-core" }
+athena-leto = { path = "repos/athena/crates/athena-leto" }
+
 [patch."https://github.com/ryancinsight/Coeus"]
 coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
 coeus-core = { path = "repos/coeus/crates/coeus-core" }
@@ -242,16 +250,6 @@ melinoe = { path = "repos/melinoe" }
 [patch."https://github.com/ryancinsight/melinoe.git"]
 melinoe = { path = "repos/melinoe" }
 
-[patch."https://github.com/ryancinsight/metis"]
-metis-platform = { path = "repos/metis/crates/metis-platform" }
-metis-ui-lang = { path = "repos/metis/crates/metis-ui-lang" }
-metis-web = { path = "repos/metis/crates/metis-web" }
-
-[patch."https://github.com/ryancinsight/metis.git"]
-metis-platform = { path = "repos/metis/crates/metis-platform" }
-metis-ui-lang = { path = "repos/metis/crates/metis-ui-lang" }
-metis-web = { path = "repos/metis/crates/metis-web" }
-
 [patch."https://github.com/ryancinsight/Mnemosyne"]
 mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
 mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
@@ -269,27 +267,21 @@ mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 [patch."https://github.com/ryancinsight/Moirai"]
 moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
-moirai-crypto = { path = "repos/moirai/moirai-crypto" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
-moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-pal = { path = "repos/moirai/moirai-pal" }
-moirai-quic = { path = "repos/moirai/moirai-quic" }
+moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
-moirai-transport = { path = "repos/moirai/moirai-transport" }
 moirai-webview = { path = "repos/moirai/moirai-webview" }
 
 [patch."https://github.com/ryancinsight/Moirai.git"]
 moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
-moirai-crypto = { path = "repos/moirai/moirai-crypto" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
-moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-pal = { path = "repos/moirai/moirai-pal" }
-moirai-quic = { path = "repos/moirai/moirai-quic" }
+moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
-moirai-transport = { path = "repos/moirai/moirai-transport" }
 moirai-webview = { path = "repos/moirai/moirai-webview" }
 
 [patch."https://github.com/ryancinsight/proteus"]

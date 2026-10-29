@@ -79,6 +79,7 @@ repos/kwavers/crates/kwavers-medium/src/absorption/relaxation_fit.rs:943:28  # k
 repos/kwavers/crates/kwavers-mesh/src/tetrahedral/mesh.rs:27:20  # kwavers
 repos/kwavers/crates/kwavers-physics/src/acoustics/bubble_dynamics/bubble_field/core/model.rs:55:25  # kwavers
 repos/kwavers/crates/kwavers-physics/src/acoustics/bubble_dynamics/bubble_field/core/model.rs:56:30  # kwavers
+repos/kwavers/crates/kwavers-physics/src/acoustics/imaging/modalities/ultrasound/frequency_domain_fwi.rs:422:25  # kwavers
 repos/kwavers/crates/kwavers-physics/src/analytical/inverse.rs:388:18  # kwavers
 repos/kwavers/crates/kwavers-physics/src/analytical/inverse.rs:430:16  # kwavers
 repos/kwavers/crates/kwavers-physics/src/analytical/photoacoustics.rs:324:40  # kwavers

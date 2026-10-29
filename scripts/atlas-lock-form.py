@@ -296,8 +296,8 @@ HOOK_MODE = "100755"
 # names its own branch opens a second request carrying a different revision of
 # the same file. Thirteen members carried exactly that pair on 2026-09-21.
 PUBLISH_BRANCH = "ci/sync-stack-hooks"
-# Ordinary Git plumbing gets a short deadline. A push that executes the
-# committed pre-push gate uses the gate's existing Cargo deadline instead.
+# A push may run the committed 60-second hook gate; the remainder covers Git
+# transport and process-tree teardown without leaving an unbounded member.
 GIT_DEADLINE_SECONDS = 90
 # Hosting calls do not run member code and use the ordinary test slow bound.
 HOSTING_DEADLINE_SECONDS = 30
@@ -329,7 +329,6 @@ def git_result(
     *args: str,
     stdin: bytes | None = None,
     index: Path | None = None,
-    timeout: int | None = None,
 ) -> GitProcessResult:
     """Run bounded git in `repo` with the inherited repository selection removed.
 
@@ -341,8 +340,7 @@ def git_result(
 
     `index` points git at a private index file, so a commit can be built from a
     member's fetched default without reading or touching its working tree or
-    its real index -- which may belong to a peer mid-edit. `timeout` overrides
-    the ordinary Git deadline for an operation that executes a committed gate.
+    its real index -- which may belong to a peer mid-edit.
     """
     env = clean_process_env()
     if index is not None:
@@ -353,7 +351,7 @@ def git_result(
             tuple(args),
             stdin=stdin,
             env=env,
-            timeout=GIT_DEADLINE_SECONDS if timeout is None else timeout,
+            timeout=GIT_DEADLINE_SECONDS,
         )
     except GitProcessError as error:
         raise RuntimeError(str(error)) from error
@@ -364,7 +362,6 @@ def git_bytes(
     *args: str,
     stdin: bytes | None = None,
     index: Path | None = None,
-    timeout: int | None = None,
 ) -> bytes:
     """Run bounded git in `repo`; raise with git's message on failure.
 
@@ -372,7 +369,7 @@ def git_bytes(
     member's fetched default without reading or touching its working tree or
     its real index -- which may belong to a peer mid-edit.
     """
-    result = git_result(repo, *args, stdin=stdin, index=index, timeout=timeout)
+    result = git_result(repo, *args, stdin=stdin, index=index)
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(f"git {' '.join(args)} in {repo.name}: {detail}")
@@ -384,10 +381,9 @@ def git_in(
     *args: str,
     stdin: bytes | None = None,
     index: Path | None = None,
-    timeout: int | None = None,
 ) -> str:
     """Run bounded git and decode its output as replacement-tolerant UTF-8."""
-    return git_bytes(repo, *args, stdin=stdin, index=index, timeout=timeout).decode(
+    return git_bytes(repo, *args, stdin=stdin, index=index).decode(
         "utf-8", errors="replace"
     ).strip()
 
@@ -561,7 +557,6 @@ def push_hook_branch(
             f"--force-with-lease={ref}:{expected}",
             "origin",
             f"{commit}:{ref}",
-            timeout=lockfile.CARGO_DEADLINE_SECONDS,
         )
 
 
@@ -649,15 +644,8 @@ def hook_publish_message(source: str, retired: list[str], item: str | None) -> s
             + ", ".join(f"`{path}`" for path in retired)
             + ", which the hooks no longer read.\n"
         )
-    trailers = []
     if item is not None:
-        trailers.append(f"Item: {item}")
-    for harness, variable in (("codex", "CODEX_THREAD_ID"), ("claude", "CLAUDE_CODE_SESSION_ID")):
-        if session := os.environ.get(variable):
-            trailers.append(f"Agent: {harness}:{session}")
-            break
-    if trailers:
-        message += "\n" + "\n".join(trailers) + "\n"
+        message += f"\nItem: {item}\n"
     return message
 
 
