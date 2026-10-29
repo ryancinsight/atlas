@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -341,6 +342,68 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
                 packages = _overlay.load_packages(manifests)
 
             self.assertEqual(packages["provider"], (Path("repos/provider"), "1.2.3"))
+
+    def test_package_workspace_selects_version_outside_nearest_ancestor(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-workspace-") as root_text:
+            root = Path(root_text)
+            outer = root / "outer" / "Cargo.toml"
+            selected = root / "selected" / "Cargo.toml"
+            member = root / "outer" / "member" / "Cargo.toml"
+            source = member.parent / "src" / "lib.rs"
+            source.parent.mkdir(parents=True)
+            outer.write_text(
+                '[workspace]\nmembers = []\n\n[workspace.package]\nversion = "1.0.0"\n',
+                encoding="utf-8",
+            )
+            selected.parent.mkdir()
+            selected.write_text(
+                '[workspace]\nresolver = "3"\nmembers = ["../outer/member"]\n\n'
+                '[workspace.package]\nversion = "2.0.0"\n',
+                encoding="utf-8",
+            )
+            member.write_text(
+                '[package]\nname = "selected-member"\nversion.workspace = true\n'
+                'edition = "2024"\nworkspace = "../../selected"\n',
+                encoding="utf-8",
+            )
+            source.write_text("pub fn selected_version() {}\n", encoding="utf-8")
+
+            metadata = subprocess.run(
+                [
+                    "cargo",
+                    "metadata",
+                    "--no-deps",
+                    "--format-version",
+                    "1",
+                    "--manifest-path",
+                    str(selected),
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=30,
+            )
+            self.assertEqual(metadata.returncode, 0, metadata.stderr)
+            cargo_packages = json.loads(metadata.stdout)["packages"]
+            self.assertEqual(
+                [(package["name"], package["version"]) for package in cargo_packages],
+                [("selected-member", "2.0.0")],
+            )
+
+            manifests = [
+                (Path("repos/provider/outer"), outer.read_text(encoding="utf-8")),
+                (Path("repos/provider/selected"), selected.read_text(encoding="utf-8")),
+                (
+                    Path("repos/provider/outer/member"),
+                    member.read_text(encoding="utf-8"),
+                ),
+            ]
+            facts = _overlay.load_package_facts(manifests)
+            self.assertEqual(
+                [(fact.name, fact.version) for fact in facts],
+                [("selected-member", "2.0.0")],
+            )
 
     def test_declared_workspace_member_requires_a_manifest(self) -> None:
         manifests = [

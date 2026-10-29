@@ -322,15 +322,24 @@ def load_package_facts(manifests: list[tuple[Path, str]]) -> tuple[PackageFact, 
         version = pkg.get("version")
         if isinstance(version, dict) and version.get("workspace"):
             version = None
-            best_root = None
-            best_depth = -1
-            for root, ver in workspace_versions.items():
-                if root == rel or root in rel.parents:
-                    depth = len(root.parts)
-                    if depth > best_depth:
-                        best_depth = depth
-                        best_root = root
-                        version = ver
+            selected_workspace = pkg.get("workspace")
+            if selected_workspace is not None and not isinstance(selected_workspace, str):
+                raise ValueError(f"{rel / 'Cargo.toml'} has unreadable package.workspace")
+            if isinstance(selected_workspace, str):
+                selected_root = Path(
+                    lockfile.workspace_relative(
+                        PurePosixPath(rel.as_posix()), selected_workspace
+                    ).as_posix()
+                )
+                version = workspace_versions.get(selected_root)
+            else:
+                best_depth = -1
+                for root, inherited_version in workspace_versions.items():
+                    if root == rel or root in rel.parents:
+                        depth = len(root.parts)
+                        if depth > best_depth:
+                            best_depth = depth
+                            version = inherited_version
         if not isinstance(version, str):
             version = None
         facts.append(PackageFact(pkg["name"], rel, version))
