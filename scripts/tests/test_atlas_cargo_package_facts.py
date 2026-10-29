@@ -1,0 +1,194 @@
+"""Real Cargo/Git regressions for immutable native package facts."""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+SCRIPTS = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SCRIPTS))
+
+from atlas_cargo_package_facts import (  # noqa: E402
+    PackageFactError,
+    SelectedRepository,
+    load_selected,
+)
+
+
+class NativeFactsFixture:
+    """A Cargo-valid selected cohort with Git, path, and inherited edges."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.repos = root / "origins" / "repos"
+        self.repos.mkdir(parents=True)
+        self.environment = dict(os.environ)
+        cargo_home = root / "cargo-home"
+        cargo_home.mkdir()
+        (cargo_home / "config.toml").write_text(
+            "[net]\ngit-fetch-with-cli = true\n", encoding="utf-8"
+        )
+        self.environment["CARGO_HOME"] = str(cargo_home)
+        self.environment["GIT_CONFIG_NOSYSTEM"] = "1"
+        self.gitconfig = root / "gitconfig"
+        self.environment["GIT_CONFIG_GLOBAL"] = str(self.gitconfig)
+        self.gitconfig.write_text("", encoding="utf-8")
+        self._create_path_provider()
+        self._create_provider()
+        provider_uri = (self.repos / "provider").as_uri()
+        self.gitconfig.write_text(
+            f'[url "{provider_uri}"]\n\tinsteadOf = https://github.com/ryancinsight/provider\n',
+            encoding="utf-8",
+        )
+        self._create_consumer("consumer", "native-provider")
+        self._create_cross_member()
+
+    def run(self, command: list[str], cwd: Path) -> str:
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            env=self.environment,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            check=False,
+        )
+        if result.returncode:
+            raise AssertionError(f"{' '.join(command)} failed:\n{result.stderr}")
+        return result.stdout.strip()
+
+    def package(self, root: Path, name: str, extra: str = "") -> None:
+        (root / "src").mkdir(parents=True)
+        (root / "Cargo.toml").write_text(
+            f'[package]\nname = "{name}"\nversion = "0.1.0"\nedition = "2024"\n{extra}',
+            encoding="utf-8",
+        )
+        (root / "src" / "lib.rs").write_text(
+            "pub fn identity(value: u32) -> u32 { value }\n", encoding="utf-8"
+        )
+
+    def commit(self, repo: Path, *, locked: bool = True) -> str:
+        if locked:
+            self.run(["cargo", "generate-lockfile"], repo)
+        self.run(["git", "init", "--quiet"], repo)
+        self.run(["git", "config", "user.name", "Native facts fixture"], repo)
+        self.run(["git", "config", "user.email", "fixture@example.invalid"], repo)
+        self.run(["git", "add", "--all"], repo)
+        self.run(["git", "commit", "--quiet", "-m", "Add fixture"], repo)
+        return self.run(["git", "rev-parse", "HEAD"], repo)
+
+    def _create_path_provider(self) -> None:
+        root = self.repos / "path-provider"
+        self.package(root, "path-provider")
+        self.commit(root)
+
+    def _create_provider(self) -> None:
+        root = self.repos / "provider"
+        (root / "included").mkdir(parents=True)
+        (root / "excluded").mkdir()
+        (root / "Cargo.toml").write_text(
+            '[workspace]\nmembers = ["included"]\nexclude = ["excluded"]\nresolver = "3"\n',
+            encoding="utf-8",
+        )
+        self.package(root / "included", "native-provider")
+        self.package(root / "excluded", "excluded-provider")
+        self.commit(root)
+
+    def _create_consumer(self, member: str, package: str) -> None:
+        root = self.repos / member
+        dependency = (
+            f'{{ package = "{package}", git = "https://github.com/ryancinsight/provider", '
+            'version = "^0.1" }'
+        )
+        (root / "crate").mkdir(parents=True)
+        (root / "Cargo.toml").write_text(
+            '[workspace]\nmembers = ["crate"]\nresolver = "3"\n[workspace.dependencies]\n'
+            + "\n".join(f"{alias} = {dependency}" for alias in ("normal", "development", "build", "targeted"))
+            + "\n",
+            encoding="utf-8",
+        )
+        self.package(
+            root / "crate",
+            f"{member}-crate",
+            "[dependencies]\nnormal = { workspace = true }\n"
+            "[dev-dependencies]\ndevelopment = { workspace = true }\n"
+            "[build-dependencies]\nbuild = { workspace = true }\n"
+            "[target.'cfg(unix)'.dependencies]\ntargeted = { workspace = true }\n",
+        )
+        self.commit(root)
+
+    def _create_cross_member(self) -> None:
+        root = self.repos / "cross-member"
+        self.package(root, "cross-member", '[dependencies]\npath-provider = { path = "../path-provider" }\n')
+        self.commit(root)
+
+    def selections(self, *names: str) -> dict[str, SelectedRepository]:
+        return {
+            name: SelectedRepository(
+                self.repos / name,
+                self.run(["git", "rev-parse", "HEAD"], self.repos / name),
+            )
+            for name in names
+        }
+
+class NativePackageFactTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.temporary = tempfile.TemporaryDirectory()
+        cls.root = Path(cls.temporary.name)
+        cls.fixture = NativeFactsFixture(cls.root)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.temporary.cleanup()
+
+    def test_cargo_owns_inheritance_kinds_targets_and_paths(self) -> None:
+        names = ("provider", "consumer", "path-provider", "cross-member")
+        destination = self.root / "selected"
+
+        catalog = load_selected(self.fixture.selections(*names), destination)
+
+        self.assertEqual(set(catalog.providers), {"native-provider"})
+        consumer = next(package for package in catalog.packages if package.name == "consumer-crate")
+        self.assertEqual(
+            {(dependency.rename, dependency.kind, dependency.target) for dependency in consumer.dependencies},
+            {
+                ("normal", None, None),
+                ("development", "dev", None),
+                ("build", "build", None),
+                ("targeted", None, "cfg(unix)"),
+            },
+        )
+        cross = next(package for package in catalog.packages if package.name == "cross-member")
+        self.assertEqual((cross.dependencies[0].package, cross.dependencies[0].source), ("path-provider", None))
+        self.assertFalse(any(destination.rglob("target")))
+
+    def test_consumed_excluded_or_duplicate_provider_fails_closed(self) -> None:
+        self.fixture._create_consumer("excluded-consumer", "excluded-provider")
+        with self.assertRaisesRegex(PackageFactError, "excluded-provider.*0 selected providers"):
+            load_selected(
+                self.fixture.selections("provider", "excluded-consumer"),
+                self.root / "missing-selected",
+            )
+
+        duplicate = self.fixture.repos / "duplicate"
+        self.fixture.package(duplicate, "native-provider")
+        self.fixture.commit(duplicate)
+        with self.assertRaisesRegex(PackageFactError, "native-provider.*2 selected providers"):
+            load_selected(
+                self.fixture.selections("provider", "consumer", "duplicate"),
+                self.root / "duplicate-selected",
+            )
+
+    def test_every_selected_member_requires_its_root_lock(self) -> None:
+        unlocked = self.fixture.repos / "unlocked"
+        self.fixture.package(unlocked, "unlocked")
+        self.fixture.commit(unlocked, locked=False)
+        with self.assertRaisesRegex(PackageFactError, "root lock"):
+            load_selected(self.fixture.selections("unlocked"), self.root / "unlocked-selected")
