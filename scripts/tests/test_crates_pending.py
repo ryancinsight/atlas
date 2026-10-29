@@ -805,7 +805,9 @@ class ArtifactBindingTests(unittest.TestCase):
         cls.runner = WorkspaceRunner(cls.root)
         cls.candidate = subprocess.run(["git", "rev-parse", "HEAD"], cwd=cls.root,
                                        check=True, capture_output=True, text=True).stdout.strip()
-        rustc = subprocess.run(["rustc", "-Vv"], check=True, capture_output=True, text=True).stdout
+        rustc_result = cls.runner(["rustc", "-Vv"])
+        rustc_result.check_returncode()
+        rustc = rustc_result.stdout
         fields = dict(line.split(": ", 1) for line in rustc.splitlines() if ": " in line)
         subprocess.run(["cargo", "package", "--locked", "-p", "evidence-a", "-p", "evidence-b"],
                        cwd=cls.root, check=True, capture_output=True, text=True, timeout=120)
