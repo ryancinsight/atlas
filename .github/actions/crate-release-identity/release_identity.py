@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import random
 import re
+import ssl
 import struct
 import subprocess
 import sys
@@ -38,6 +39,8 @@ PRERELEASE = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
 VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
                      + rf"(?:-{PRERELEASE}(?:\.{PRERELEASE})*)?"
                      + r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\Z")
+STATUS_LINE = re.compile(rb"HTTP/1\.[0-9] [0-9]{3} [\t\x20-\x7e\x80-\xff]*\r\n\Z")
+TOKEN_BYTES = frozenset(b"!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 
 
 class IdentityError(ValueError):
@@ -206,16 +209,156 @@ class RegistryWorkerError(RuntimeError):
         super().__init__(summary)
 
 
-class StrictHTTPResponse(http.client.HTTPResponse):
-    """Retain stdlib HTTP parsing while requiring complete chunk boundaries.
+class HeaderCapture:
+    """Record response-head lines while the stdlib owns socket buffering."""
 
-    ``HTTPResponse`` deliberately accepts end-of-file in place of the empty
-    line that terminates chunk trailers, and maps both a missing next chunk and
-    a malformed chunk size to ``IncompleteRead``. Registry identity needs to
-    distinguish transient disconnects from permanent framing errors, so these
-    two narrow extension points preserve that information before ``read``
-    closes the response stream.
+    def __init__(self, stream):
+        self.stream = stream
+        self.lines = []
+
+    def readline(self, *args, **kwargs):
+        line = self.stream.readline(*args, **kwargs)
+        self.lines.append(line)
+        return line
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+
+
+def valid_token(value):
+    return bool(value) and all(byte in TOKEN_BYTES for byte in value)
+
+
+def validate_field_line(line, kind):
+    """Validate RFC 9112 section 5 field-line syntax without normalization."""
+    if not line.endswith(b"\r\n"):
+        raise RegistryFramingError(f"{kind} lacks its CRLF terminator")
+    field = line[:-2]
+    name, separator, value = field.partition(b":")
+    if not separator or not valid_token(name):
+        raise RegistryFramingError(f"malformed HTTP {kind} name")
+    if any(byte != 9 and (byte < 32 or byte == 127) for byte in value):
+        raise RegistryFramingError(f"malformed HTTP {kind} value")
+    return name.lower(), value.strip(b" \t")
+
+
+def validate_response_head(lines):
+    """Validate every captured status/header block and return final fields."""
+    position = 0
+    while True:
+        if position >= len(lines) or not STATUS_LINE.fullmatch(lines[position]):
+            raise RegistryFramingError("malformed HTTP status line")
+        version, status_bytes, _reason = lines[position].split(b" ", 2)
+        status = int(status_bytes)
+        position += 1
+        fields = []
+        while True:
+            if position >= len(lines):
+                raise RegistryFramingError("HTTP header section lacks the final CRLF")
+            line = lines[position]
+            position += 1
+            if line == b"\r\n":
+                break
+            fields.append(validate_field_line(line, "header"))
+        if status != http.client.CONTINUE:
+            if position != len(lines):
+                raise RegistryFramingError("unexpected bytes after HTTP header section")
+            if version == b"HTTP/1.0" and any(name == b"transfer-encoding"
+                                                for name, _value in fields):
+                raise RegistryFramingError("HTTP/1.0 response uses Transfer-Encoding")
+            return tuple(fields)
+
+
+def valid_quoted_string(value):
+    if len(value) < 2 or value[:1] != b'"' or value[-1:] != b'"':
+        return False
+    position = 1
+    end = len(value) - 1
+    while position < end:
+        byte = value[position]
+        if byte == 92:
+            position += 1
+            if position == end:
+                return False
+            byte = value[position]
+            if byte != 9 and not (32 <= byte <= 126 or byte >= 128):
+                return False
+        elif byte != 9 and byte != 32 and not (byte == 33 or 35 <= byte <= 91
+                                                 or 93 <= byte <= 126 or byte >= 128):
+            return False
+        position += 1
+    return True
+
+
+def valid_chunk_extensions(value):
+    """Validate RFC 9112 section 7.1.1 chunk-ext grammar."""
+    position = 0
+    while position < len(value):
+        while position < len(value) and value[position] in (9, 32):
+            position += 1
+        if position == len(value) or value[position] != 59:
+            return False
+        position += 1
+        while position < len(value) and value[position] in (9, 32):
+            position += 1
+        start = position
+        while position < len(value) and value[position] in TOKEN_BYTES:
+            position += 1
+        if not valid_token(value[start:position]):
+            return False
+        whitespace = position
+        while position < len(value) and value[position] in (9, 32):
+            position += 1
+        if position < len(value) and value[position] == 61:
+            position += 1
+            while position < len(value) and value[position] in (9, 32):
+                position += 1
+            if position == len(value):
+                return False
+            if value[position] == 34:
+                start = position
+                position += 1
+                while position < len(value):
+                    if value[position] == 92:
+                        position += 2
+                        continue
+                    position += 1
+                    if value[position - 1] == 34:
+                        break
+                if not valid_quoted_string(value[start:position]):
+                    return False
+            else:
+                start = position
+                while position < len(value) and value[position] in TOKEN_BYTES:
+                    position += 1
+                if not valid_token(value[start:position]):
+                    return False
+        elif position != whitespace:
+            return False
+    return True
+
+
+class StrictHTTPResponse(http.client.HTTPResponse):
+    """Retain stdlib connection handling with strict RFC 9112 framing.
+
+    ``HTTPConnection.response_class`` is the stdlib extension point. The base
+    response parser is intentionally lenient about status/header syntax, chunk
+    delimiters, extensions, and trailers. Capturing the bytes it consumes lets
+    this subclass reject ambiguous framing while retaining the standard TLS,
+    proxy, buffering, and connection lifecycle.
     """
+
+    def begin(self):
+        if self.headers is not None:
+            return
+        capture = HeaderCapture(self.fp)
+        self.fp = capture
+        try:
+            super().begin()
+        finally:
+            if self.fp is capture:
+                self.fp = capture.stream
+        self.atlas_fields = validate_response_head(capture.lines)
 
     def _read_next_chunk_size(self):
         line = self.fp.readline(http.client._MAXLINE + 1)
@@ -226,11 +369,29 @@ class StrictHTTPResponse(http.client.HTTPResponse):
         if not line.endswith(b"\r\n"):
             self._close_conn()
             raise RegistryFramingError("chunk size lacks its CRLF terminator")
-        size = line[:-2].split(b";", 1)[0]
+        size, separator, extensions = line[:-2].partition(b";")
         if not re.fullmatch(rb"[0-9A-Fa-f]+", size):
             self._close_conn()
             raise RegistryFramingError("malformed HTTP chunk size")
+        if separator and not valid_chunk_extensions(separator + extensions):
+            self._close_conn()
+            raise RegistryFramingError("malformed HTTP chunk extension")
         return int(size, 16)
+
+    def _get_chunk_left(self):
+        chunk_left = self.chunk_left
+        if not chunk_left:
+            if chunk_left is not None:
+                if self._safe_read(2) != b"\r\n":
+                    self._close_conn()
+                    raise RegistryFramingError("chunk data lacks its CRLF delimiter")
+            chunk_left = self._read_next_chunk_size()
+            if chunk_left == 0:
+                self._read_and_discard_trailer()
+                self._close_conn()
+                chunk_left = None
+            self.chunk_left = chunk_left
+        return chunk_left
 
     def _read_and_discard_trailer(self):
         while True:
@@ -241,6 +402,7 @@ class StrictHTTPResponse(http.client.HTTPResponse):
                 raise RegistryFramingError("chunk trailers lack the final CRLF terminator")
             if line == b"\r\n":
                 return
+            validate_field_line(line, "trailer")
 
 
 class StrictHTTPConnection(http.client.HTTPConnection):
@@ -268,14 +430,26 @@ def _read_url_once(url, limit):
         response = build_opener(NoRedirect(), StrictHTTPHandler(), StrictHTTPSHandler()).open(
             request, timeout=30)
     except HTTPError as error:
+        if error.code == 429 or 500 <= error.code <= 599:
+            error.close()
+            raise RegistryTransportError(
+                f"transient registry HTTP status {error.code}: {url}") from error
         if error.code != 404:
+            error.close()
             raise IdentityError(f"registry HTTP status {error.code}: {url}") from error
         response = error
     except http.client.RemoteDisconnected as error:
         raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
     except http.client.HTTPException as error:
         raise IdentityError(f"malformed registry HTTP response: {url}: {error}") from error
-    except (URLError, TimeoutError, OSError) as error:
+    except ssl.SSLCertVerificationError as error:
+        raise IdentityError(f"registry TLS certificate verification failed: {url}") from error
+    except URLError as error:
+        if isinstance(error.reason, ssl.SSLCertVerificationError):
+            raise IdentityError(
+                f"registry TLS certificate verification failed: {url}") from error
+        raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
+    except (TimeoutError, OSError) as error:
         raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
     with response:
         if response.status not in (200, 404):
@@ -286,6 +460,8 @@ def _read_url_once(url, limit):
                 or len(transfers) > 1 or (lengths and transfers)
                 or (transfers and transfers[0].lower() != "chunked")):
             raise IdentityError("malformed or inconsistent registry HTTP framing")
+        if lengths and int(lengths[0]) > limit:
+            raise IdentityError(f"registry response exceeds identity bound: {url}")
         try:
             body = response.read(limit + 1)
         except RegistryFramingError as error:
@@ -294,10 +470,10 @@ def _read_url_once(url, limit):
             raise RegistryTransportError(f"registry response failed: {url}: {error}") from error
         except http.client.HTTPException as error:
             raise IdentityError(f"malformed registry HTTP framing: {url}: {error}") from error
+        if len(body) > limit:
+            raise IdentityError(f"registry response exceeds identity bound: {url}")
         if lengths and len(body) != int(lengths[0]):
-            raise IdentityError("incomplete registry HTTP body")
-    if len(body) > limit:
-        raise IdentityError(f"registry response exceeds identity bound: {url}")
+            raise RegistryTransportError("incomplete registry HTTP body")
     return response.status, body
 
 
@@ -346,7 +522,7 @@ def read_url(url, limit):
     """
     if type(limit) is not int or not 0 <= limit <= METADATA_LIMIT:
         raise IdentityError("registry response limit is outside the identity bound")
-    command_line = [sys.executable, str(Path(__file__).resolve()),
+    command_line = [sys.executable, "-I", str(Path(__file__).resolve()),
                     "--registry-transport", url, str(limit)]
     try:
         result = _process_tree().run(command_line, timeout=REGISTRY_REQUEST_SECONDS)
@@ -359,7 +535,11 @@ def read_url(url, limit):
         raise IdentityError(f"registry transport worker failed: {url}") from cause
     output = result.stdout
     if len(output) >= 3 and output[:1] == b"S":
-        return struct.unpack("!H", output[1:3])[0], output[3:]
+        status = struct.unpack("!H", output[1:3])[0]
+        body = output[3:]
+        if status not in (200, 404) or len(body) > limit:
+            raise IdentityError("registry transport worker returned an invalid success response")
+        return status, body
     if output[:1] in (b"P", b"T"):
         try:
             payload = json.loads(output[1:].decode("utf-8"))
