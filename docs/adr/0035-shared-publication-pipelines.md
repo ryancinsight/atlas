@@ -285,12 +285,15 @@ dirty checkout, Rust host, package identity, ready-set order, archive digest,
 or registry re-filter. The publish job reruns verified
 `cargo package --locked` for the frozen set before requesting an OpenID
 Connect token. `cargo publish` still performs Cargo's own packaging and upload;
-Cargo has no interface that uploads a caller-supplied prebuilt archive. The
-pre-upload digest guarantee therefore follows from identical immutable inputs
-and independently reproduced package bytes rather than a Cargo expected-hash
-parameter. After upload, the sparse-index `cksum` must equal both the expected
+Cargo has no interface that uploads a caller-supplied prebuilt archive. Before
+authentication, Atlas verifies that the archive staged from the frozen inputs
+matches the independently reproduced expected digest. This comparison is
+evidence about those staged inputs, not a cryptographic constraint on the new
+archive that Cargo packages and uploads. The identity of the uploaded archive
+is enforced after upload: the sparse-index `cksum` must equal both the expected
 digest and the archive generated in the publish job before any release tag is
-created.
+created. A mismatched upload can therefore reach the registry, but it cannot
+produce release-completion tags through this workflow.
 
 Malformed or incomplete evidence and any selection, source, package, or index
 drift fail closed. Omitting the manifest invokes the existing planner and
