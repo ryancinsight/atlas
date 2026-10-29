@@ -2271,10 +2271,22 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual((code, value["status"]), (2, "missing"))
 
     def test_toolchain_identity_runs_in_the_source_root(self) -> None:
-        completed = subprocess.CompletedProcess(["rustc"], 0, "rustc 1.95.0\n", "")
-        with patch.object(build_source.subprocess, "run", return_value=completed) as run:
-            self.assertEqual(build_source.toolchain_identity(self.root), "rustc 1.95.0")
-        self.assertEqual(run.call_args.kwargs["cwd"], self.root)
+        def command_result(command, **_kwargs):
+            if "config" in command:
+                return subprocess.CompletedProcess(command, 0, "{}\n", "")
+            return subprocess.CompletedProcess(command, 0, "rustc 1.95.0\n", "")
+
+        with patch.object(build_source.subprocess, "run", side_effect=command_result) as run:
+            self.assertEqual(
+                build_source.toolchain_identity(self.root, {}), "rustc 1.95.0"
+            )
+        self.assertEqual(
+            [call.kwargs["cwd"] for call in run.call_args_list],
+            [self.root, self.root],
+        )
+        self.assertEqual(
+            run.call_args_list[-1].args[0], ["rustc", "--version", "--verbose"]
+        )
 
     def test_command_cwd_is_used_without_changing_record_scope(self) -> None:
         init_repo(self.root, "fn main() {}\n")
