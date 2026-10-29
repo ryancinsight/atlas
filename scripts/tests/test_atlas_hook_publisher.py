@@ -42,6 +42,69 @@ class HookBranchPushTestCase(unittest.TestCase):
         self._git(repo, "commit", "-q", "-m", value)
         return self._git(repo, "rev-parse", "HEAD")
 
+    def test_corrected_publication_extends_hook_only_branch(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-base-") as temp:
+            repo = Path(temp)
+            base = self._commit_after_init(repo)
+            self._git(repo, "switch", "-q", "-c", "publication", base)
+            hook = repo / ".githooks" / "pre-push"
+            hook.parent.mkdir()
+            hook.write_bytes(b"old\n")
+            self._git(repo, "add", ".githooks/pre-push")
+            self._git(repo, "commit", "-q", "-m", "old hook")
+            published = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "switch", "-q", "main")
+            default = self._commit(repo, "default advance")
+            self._git(
+                repo,
+                "update-ref",
+                "refs/remotes/origin/ci/sync-stack-hooks",
+                published,
+            )
+
+            selected = _lock_form.hook_publication_base(
+                repo, default, [("pre-push", b"new\n")], ()
+            )
+            candidate = _lock_form.hook_commit(
+                repo, selected, [("pre-push", b"new\n")], "corrected hook\n"
+            )
+
+            self.assertEqual(selected, published)
+            self.assertEqual(self._git(repo, "rev-parse", f"{candidate}^"), published)
+            self.assertEqual(
+                self._git(repo, "show", f"{candidate}:.githooks/pre-push"), "new"
+            )
+
+    def test_corrected_publication_refuses_non_hook_branch_work(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-base-unique-") as temp:
+            repo = Path(temp)
+            base = self._commit_after_init(repo)
+            self._git(repo, "switch", "-q", "-c", "publication", base)
+            hook = repo / ".githooks" / "pre-push"
+            hook.parent.mkdir()
+            hook.write_bytes(b"old\n")
+            (repo / "unique.txt").write_text("preserve\n", encoding="utf-8")
+            self._git(repo, "add", ".githooks/pre-push", "unique.txt")
+            self._git(repo, "commit", "-q", "-m", "unique work")
+            published = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "switch", "-q", "main")
+            default = self._commit(repo, "default advance")
+            self._git(
+                repo,
+                "update-ref",
+                "refs/remotes/origin/ci/sync-stack-hooks",
+                published,
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "unique.txt"):
+                _lock_form.hook_publication_base(
+                    repo, default, [("pre-push", b"new\n")], ()
+                )
+
+    def _commit_after_init(self, repo: Path) -> str:
+        self._git(repo, "init", "-q", "-b", "main")
+        return self._commit(repo, "base")
+
     def test_push_uses_absent_and_ancestral_remote_tip_leases(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-lease-") as temp:
             root = Path(temp)
@@ -497,6 +560,11 @@ class RetiredPathTestCase(unittest.TestCase):
                 patch.object(_lock_form, "member_scope", return_value=("alpha",)),
                 patch.object(_lock_form, "git_in", side_effect=lambda *_args: next(git_results)),
                 patch.object(_lock_form, "committed_hooks", return_value=self.HOOK),
+                patch.object(
+                    _lock_form,
+                    "hook_publication_base",
+                    side_effect=lambda _repo, default, *_args: default,
+                ),
                 patch.object(_lock_form, "hook_commit", return_value="built") as hook_commit,
                 redirect_stdout(io.StringIO()),
             ):
@@ -608,6 +676,11 @@ class PublisherScopeTestCase(unittest.TestCase):
                 patch.object(
                     _lock_form, "hook_commit", return_value="built"
                 ) as hook_commit,
+                patch.object(
+                    _lock_form,
+                    "hook_publication_base",
+                    side_effect=lambda _repo, default, *_args: default,
+                ),
                 patch.object(_lock_form, "push_hook_branch") as push_hook_branch,
                 patch.object(
                     _lock_form, "pull_request_for", return_value=("url", True)
@@ -684,6 +757,11 @@ class PublisherScopeTestCase(unittest.TestCase):
                     _lock_form, "git_in", side_effect=lambda *_args: next(git_results)
                 ),
                 patch.object(_lock_form, "committed_hooks", return_value=hook_bytes),
+                patch.object(
+                    _lock_form,
+                    "hook_publication_base",
+                    side_effect=lambda _repo, default, *_args: default,
+                ),
                 patch.object(_lock_form, "hook_commit", return_value="built"),
                 patch.object(_lock_form, "push_hook_branch"),
                 patch.object(
@@ -822,6 +900,11 @@ class PublisherScopeTestCase(unittest.TestCase):
                         patch.object(
                             _lock_form, "committed_hooks",
                             return_value=[("pre-push", b"#!/bin/sh\nexit 0\n")],
+                        ),
+                        patch.object(
+                            _lock_form,
+                            "hook_publication_base",
+                            side_effect=lambda _repo, default, *_args: default,
                         ),
                         patch.object(_lock_form, "hook_commit", return_value="commit"),
                         patch.object(_lock_form, "push_hook_branch"),

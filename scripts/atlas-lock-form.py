@@ -477,6 +477,48 @@ def hook_commit(
     return git_in(repo, "commit-tree", tree, "-p", base, stdin=message.encode("utf-8"))
 
 
+def hook_publication_base(
+    repo: Path,
+    default: str,
+    hooks: list[tuple[str, bytes]],
+    retired: tuple[str, ...],
+) -> str:
+    """Select the fetched default or a safe prior publication head.
+
+    Re-publishing a corrected source must advance the fixed publication branch
+    instead of replacing its generated commit. The branch is safe to extend
+    only when its entire side of the divergence from the current default
+    changes files this publication owns.
+    """
+    publication = f"refs/remotes/origin/{PUBLISH_BRANCH}"
+    try:
+        head = git_in(repo, "rev-parse", "--verify", f"{publication}^{{commit}}")
+    except RuntimeError:
+        return default
+    try:
+        git_in(repo, "merge-base", "--is-ancestor", head, default)
+    except RuntimeError:
+        pass
+    else:
+        return default
+    owned = {f"{MEMBER_HOOK_COPY}/{name}" for name, _ in hooks}
+    owned.update(retired)
+    changed = set(
+        filter(
+            None,
+            git_in(
+                repo, "diff", "--name-only", f"{default}...{head}", "--"
+            ).splitlines(),
+        )
+    )
+    unexpected = sorted(changed - owned)
+    if unexpected:
+        raise RuntimeError(
+            f"{publication} carries non-publication paths: {', '.join(unexpected)}"
+        )
+    return head
+
+
 def push_hook_branch(
     repo: Path,
     commit: str,
@@ -745,9 +787,13 @@ def cmd_publish_hooks(args) -> int:
         try:
             git_in(repo, "fetch", "-q", "origin")
             default = git_in(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+            default_commit = git_in(repo, "rev-parse", default)
+            base = hook_publication_base(
+                repo, default_commit, hooks, tuple(retired)
+            )
             commit = hook_commit(
                 repo,
-                git_in(repo, "rev-parse", default),
+                base,
                 hooks,
                 message,
                 retired=tuple(retired),
