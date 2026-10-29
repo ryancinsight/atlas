@@ -391,14 +391,14 @@ def _finish_interrupted_cleanup(
                 )
 
 
-def _darwin_group_snapshot_before(process_group: int, deadline: float):
+def _darwin_group_snapshot_before(process_group: int, deadline: float) -> darwin_process.GroupState:
     """Observe changing membership while the unreaped launcher pins the group.
 
     Only ESRCH or a changed list permits another read. Permission failures and
     unavailable/incomplete views return UNKNOWN immediately. No signal repeats
     and the caller's existing cleanup deadline is never extended.
     """
-    while True:
+    while time.monotonic() < deadline:
         observed = darwin_process.group_state(process_group)
         if observed is not darwin_process.GroupState.CHANGING:
             return observed
@@ -406,6 +406,7 @@ def _darwin_group_snapshot_before(process_group: int, deadline: float):
         if remaining <= 0:
             return observed
         time.sleep(min(GROUP_POLL_SECONDS, remaining))
+    return darwin_process.GroupState.CHANGING
 
 
 def _posix_group_has_active_members(process_group: int) -> bool:

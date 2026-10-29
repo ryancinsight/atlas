@@ -115,7 +115,8 @@ The mechanisms:
   (`ESRCH`) or changed membership permits a fresh snapshot within the existing
   cleanup deadline. Each snapshot still requires the complete stable proof;
   live states, denied reads and unavailable or incomplete inspection fail
-  immediately. No destructive signal repeats during this observation.
+  immediately. Expiry is checked before every observation, including after a
+  pause; no destructive signal repeats during this observation.
 - Optional input is delivered concurrently with deadline observation, so pipe
   backpressure cannot delay timeout or cleanup; status and byte-exact standard
   streams remain command results.

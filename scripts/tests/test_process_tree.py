@@ -699,12 +699,12 @@ class ProcessTreeTests(unittest.TestCase):
     def test_darwin_snapshot_waits_only_for_transient_changes_within_its_deadline(self):
         states = process_tree.darwin_process.GroupState
         cases = (
-            ([states.CHANGING, states.INACTIVE], [0.0], states.INACTIVE, 1),
-            ([states.CHANGING, states.ACTIVE], [0.0], states.ACTIVE, 1),
-            ([states.CHANGING, states.UNKNOWN], [0.0], states.UNKNOWN, 1),
-            ([states.CHANGING], [1.0], states.CHANGING, 0),
-            ([states.ACTIVE], [], states.ACTIVE, 0),
-            ([states.UNKNOWN], [], states.UNKNOWN, 0),
+            ([states.CHANGING, states.INACTIVE], [0.0, 0.0, 0.0], states.INACTIVE, 1),
+            ([states.CHANGING, states.ACTIVE], [0.0, 0.0, 0.0], states.ACTIVE, 1),
+            ([states.CHANGING, states.UNKNOWN], [0.0, 0.0, 0.0], states.UNKNOWN, 1),
+            ([states.CHANGING], [0.0, 1.0], states.CHANGING, 0),
+            ([states.ACTIVE], [0.0], states.ACTIVE, 0),
+            ([states.UNKNOWN], [0.0], states.UNKNOWN, 0),
         )
         for readings, times, expected, sleeps in cases:
             with (
@@ -723,6 +723,23 @@ class ProcessTreeTests(unittest.TestCase):
                     self.assertLessEqual(call.args[0], process_tree.GROUP_POLL_SECONDS)
                 signal_group.assert_not_called()
                 launch.assert_not_called()
+
+    def test_darwin_snapshot_never_starts_an_observation_after_expiry(self):
+        states = process_tree.darwin_process.GroupState
+        for times, readings, expected_reads in (
+            ([1.0], [states.INACTIVE], 0),
+            ([0.0, 0.0, 1.0], [states.CHANGING, states.INACTIVE], 1),
+        ):
+            with (
+                self.subTest(times=times),
+                patch.object(process_tree.darwin_process, "group_state", side_effect=readings) as probe,
+                patch.object(process_tree.time, "monotonic", side_effect=times),
+                patch.object(process_tree.time, "sleep"),
+            ):
+                self.assertIs(
+                    process_tree._darwin_group_snapshot_before(42, 1.0), states.CHANGING,
+                )
+                self.assertEqual(probe.call_count, expected_reads)
 
     @unittest.skipUnless(os.name == "posix", "POSIX group signalling")
     def test_permission_denied_on_a_live_group_remains_a_cleanup_error(self):
