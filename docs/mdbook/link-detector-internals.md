@@ -168,14 +168,11 @@ Usage:
 # --strict-placeholder re-elevates them without double-counting.
 ``````
 
-## Fence boundary contract
+## Regression evidence
 
-A closing fence allows zero to three leading ASCII spaces, the opener's
-character repeated at least as many times, then only ASCII spaces or tabs.
-Four-space, tab or Unicode indentation keeps the apparent closing fence inside
-the example. Stripping arbitrary whitespace closes such examples too early:
-example links and headings become visible, and real destinations after the
-actual closing fence can disappear from validation.
+Stripping arbitrary whitespace closes some examples too early: example links
+and headings become visible, and real destinations after the actual closing
+fence can disappear from validation.
 
 [The boundary regressions](../../scripts/tests/test_mdbook_fence_boundaries.py)
 cover these cases, CRLF, valid fence controls and real missing-file failures.
