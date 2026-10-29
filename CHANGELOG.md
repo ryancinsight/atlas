@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Catch a quantity accessor whose name claims a unit the returned value does
+  not carry: the Aequitas audit compares the final scale token of a public
+  getter's name with the canonical unit of the quantity it returns, so an
+  accessor named `..._mm` that returns a metre-valued `Length` is reported.
+  Compound unit names (`..._m_per_s`) are not read as a single scale, and the
+  audit's subject is the member set `.gitmodules` records, so a local directory
+  under `repos/` is no longer measured as a cohort outlier.
+
+- Keep the crate release-identity tests hermetic on a Windows host: the
+  fixture repository pins `core.autocrlf=false` and the committed-content
+  comparison normalizes line endings, so the byte-identity proof no longer
+  fails on the host's line-ending translation alone.
+
 - Materialize CI member worktrees concurrently after serial registration, not
   only their initial clones. Freeze committed pins/mappings, reject existing
   or overlapping destinations, preserve root state, and retire owned children
