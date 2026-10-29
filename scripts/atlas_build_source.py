@@ -346,9 +346,10 @@ def toolchain_identity(
             )
         compiler = environment_compiler or configured
     selected_toolchain = _command_selects_toolchain(command)
-    if selected_toolchain is not None and compiler is None:
+    if selected_toolchain is not None:
         raise BuildIdentityError(
-            f"cannot resolve compiler selected by Cargo argument {selected_toolchain}"
+            f"cannot resolve compiler selected by Cargo argument {selected_toolchain}; "
+            "configured compiler names may be rustup proxies"
         )
     compiler = compiler or "rustc"
     try:

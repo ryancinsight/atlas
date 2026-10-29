@@ -81,6 +81,36 @@ def _inline_environment(command: Sequence[str]) -> dict[str, str]:
     return values
 
 
+def _reject_fuzz_env_options(command: Sequence[str]) -> None:
+    """Reject `env` option forms whose child environment is not normalized."""
+    arguments = [str(argument) for argument in command]
+    if arguments[:1] != ["env"]:
+        return
+    for argument in arguments[1:]:
+        if "=" in argument and not argument.startswith("-"):
+            continue
+        if argument.startswith("-"):
+            raise BuildIdentityError(
+                "cannot normalize env options while adding cfg(fuzzing): " + argument
+            )
+        break
+
+
+def _has_inline_string_rustflags(command: Sequence[str]) -> bool:
+    """Whether an inline Cargo config replaces build rustflags with a string."""
+    for argument in _config_arguments(command):
+        if "=" not in argument:
+            continue
+        try:
+            document = tomllib.loads(argument)
+        except tomllib.TOMLDecodeError:
+            continue
+        build = document.get("build", {})
+        if isinstance(build, dict) and isinstance(build.get("rustflags"), str):
+            return True
+    return False
+
+
 def _cargo_fuzz_manifest(manifest: Path) -> bool:
     """Whether the exact manifest declares Cargo's fuzz-package metadata."""
     try:
@@ -231,6 +261,7 @@ def effective_compiler_environment(
     effective.update(_inline_environment(command))
     if manifest is None or not _cargo_fuzz_manifest(_canonical(manifest, strict=True)):
         return effective
+    _reject_fuzz_env_options(command)
     encoded = effective.get("CARGO_ENCODED_RUSTFLAGS")
     if encoded is not None:
         tokens = encoded.split(_ENCODED_SEPARATOR) if encoded else []
@@ -245,6 +276,11 @@ def effective_compiler_environment(
     tokens = _configured_rustflags(execution_root, command, effective)
     configured = effective.get("CARGO_BUILD_RUSTFLAGS")
     if configured is not None:
+        if _has_inline_string_rustflags(command):
+            raise BuildIdentityError(
+                "cannot combine CARGO_BUILD_RUSTFLAGS with an inline string "
+                "build.rustflags while adding cfg(fuzzing)"
+            )
         if not _has_fuzz_cfg(configured.split()):
             effective["CARGO_BUILD_RUSTFLAGS"] = (
                 f"{configured} {' '.join(_FUZZ_CFG)}".strip()

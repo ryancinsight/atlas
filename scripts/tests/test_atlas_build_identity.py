@@ -2801,6 +2801,20 @@ class BuildIdentityTestCase(unittest.TestCase):
                     self.root, {}, command=["cargo", "+1.95.0", "check"]
                 )
 
+    def test_cargo_toolchain_argument_with_rustup_proxy_fails_closed(self) -> None:
+        compilers = ["rustc"]
+        installed = shutil.which("rustc")
+        if installed is not None:
+            compilers.append(installed)
+        for compiler in compilers:
+            with self.subTest(compiler=compiler):
+                with self.assertRaisesRegex(BuildIdentityError, "rustup proxies"):
+                    build_source.toolchain_identity(
+                        self.root,
+                        {"RUSTC": compiler},
+                        command=["cargo", "+1.95.0", "check"],
+                    )
+
     def test_toolchain_identity_uses_the_cargo_execution_directory(self) -> None:
         init_repo(self.root, "fn main() {}\n")
         execution = self.base / "execution"
@@ -4372,6 +4386,57 @@ class EffectiveFuzzEnvironmentTestCase(unittest.TestCase):
                 command_cwd=self.root,
             )[0]
         self.assertEqual(result.status, "rebuilt")
+
+    def test_cargo_build_and_string_command_config_flags_fail_closed(self) -> None:
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        with (
+            patch.dict(os.environ, environment, clear=True),
+            self.assertRaisesRegex(BuildIdentityError, "inline string build.rustflags"),
+        ):
+            identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "cargo",
+                    "--config",
+                    'build.rustflags="--cfg command_marker"',
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )
+
+    @unittest.skipUnless(shutil.which("env"), "needs env")
+    def test_inline_env_options_fail_before_the_child_runs(self) -> None:
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            self.assertRaisesRegex(BuildIdentityError, "cannot normalize env options"),
+        ):
+            identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "env",
+                    "-u",
+                    "CARGO_ENCODED_RUSTFLAGS",
+                    "RUSTFLAGS=--cfg original",
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )
 
     @unittest.skipUnless(shutil.which("env"), "needs env")
     def test_inline_rustflags_reach_the_fuzz_build(self) -> None:
