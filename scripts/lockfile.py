@@ -590,6 +590,30 @@ def violations(
     return found
 
 
+def consumed_dependency_violations(
+    lock_text: str, consumed_git_dependencies: Iterable[GitDependency]
+) -> list[str]:
+    """Find consumed Git package identities absent from the lock.
+
+    This lexical completeness rule proves only that a record carries each
+    consumed package name. [`violations`] separately checks a declared Git
+    package's source form. Native ``cargo metadata --locked`` remains the
+    authority for URL, requirement, feature, and target resolution; the
+    development-overlay owner separately checks selected versions against
+    manifest requirements.
+    """
+    try:
+        packages = locked_package_records(lock_text)
+    except ValueError:
+        return []
+    locked = {package["name"] for package in packages}
+    consumed = {dependency.package for dependency in consumed_git_dependencies}
+    return [
+        f"`{name}` consumed as a Git dependency but absent from the lock"
+        for name in sorted(consumed - locked)
+    ]
+
+
 def package_dependency_tables(manifest: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
     """Every dependency table attached to a package, including target tables."""
     for kind in DEPENDENCY_KINDS:
@@ -931,7 +955,11 @@ def judge_locks(
         if facts.fixture:
             exempt.append(lock)
             continue
-        for problem in violations(texts[lock], facts.local, facts.git_dependencies):
+        problems_for_lock = violations(texts[lock], facts.local, facts.git_dependencies)
+        problems_for_lock.extend(
+            consumed_dependency_violations(texts[lock], facts.consumed_git_dependencies)
+        )
+        for problem in problems_for_lock:
             problems.append(f"{lock}: {problem}")
         for manifest in facts.unreadable:
             problems.append(f"{lock}: {manifest} does not parse, so the lock cannot be judged")
