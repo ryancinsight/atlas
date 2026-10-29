@@ -277,14 +277,37 @@ class RevisionRepositoryTests(unittest.TestCase):
             '[submodule "repos/provider"]\n'
             'path = "repos/provider"\nurl = local-provider\n'
         )
+        mixed_outside = gitmodules("provider") + (
+            '[submodule "outside"]\npath = ../outside\nurl = local-outside\n'
+        )
+        traversal = (
+            '[submodule "traversal"]\npath = repos/provider/../outside\nurl = local-outside\n'
+        )
+        missing_path = '[submodule "missing"]\nurl = local-missing\n'
+        duplicate_field = (
+            '[submodule "provider"]\npath = repos/provider\n'
+            'path = repos/other\nurl = local-provider\n'
+        )
+        duplicate_path = gitmodules("provider") + (
+            '[submodule "alias"]\npath = repos/provider\nurl = local-alias\n'
+        )
+        malformed = '[submodule "provider"\npath = repos/provider\n'
         cases = (
             (gitmodules("provider"), {"provider": None}, ("provider",),
              "no independent object repository"),
             (gitmodules(".."), {}, (), "unsafe registered member name '..'"),
-            ("", {}, (), "no registered members parsed"),
-            (quoted, {}, (), "no registered members parsed"),
+            ("", {}, (), "no registered members"),
+            (quoted, {}, (), "registered member projection is incomplete"),
+            (mixed_outside, {"provider": None}, (), "unsupported submodule path '../outside'"),
+            (traversal, {}, (), "unsupported submodule path 'repos/provider/../outside'"),
+            (missing_path, {}, (), "has no path"),
+            (duplicate_field, {}, (), "has multiple paths"),
+            (duplicate_path, {}, (), "duplicate registered submodule path repos/provider"),
+            (malformed, {}, (), "cannot parse .gitmodules"),
             (gitmodules("provider"), {"provider": None, "aaa-extra": None}, (),
              "unregistered gitlink repos/aaa-extra"),
+            (gitmodules("provider"), {"provider": None, "nested/extra": None}, (),
+             "unsupported gitlink repos/nested/extra"),
         )
         for modules, pins, plain_members, diagnostic in cases:
             with self.subTest(diagnostic=diagnostic):

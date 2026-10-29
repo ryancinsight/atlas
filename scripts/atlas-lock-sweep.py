@@ -233,26 +233,86 @@ def revision_lock_findings(
     return f"{label}: {state} {len(identities)} first-party package(s)", findings
 
 
+def committed_member_names(repository: Path, selected: str) -> set[str]:
+    """Read every submodule path from one committed `.gitmodules`."""
+    try:
+        configuration = git(
+            repository,
+            "config",
+            "--no-includes",
+            "--blob",
+            f"{selected}:.gitmodules",
+            "--null",
+            "--list",
+        )
+    except RuntimeError as error:
+        raise RuntimeError(f"cannot parse .gitmodules at {selected}: {error}") from error
+    sections: set[str] = set()
+    path_fields: dict[str, list[str]] = {}
+    for record in configuration.split("\0"):
+        if not record:
+            continue
+        key, separator, value = record.partition("\n")
+        if not separator:
+            raise RuntimeError(f"unreadable Git config record in .gitmodules at {selected}")
+        match = re.fullmatch(r"submodule\.(.+)\.([^.]+)", key, re.IGNORECASE)
+        if match is None:
+            continue
+        section, field = match.groups()
+        sections.add(section)
+        if field.lower() == "path":
+            path_fields.setdefault(section, []).append(value)
+    if not sections:
+        raise RuntimeError(f"no registered members in .gitmodules at {selected}")
+    missing = sorted(sections - path_fields.keys())
+    if missing:
+        raise RuntimeError(f"submodule {missing[0]!r} has no path in .gitmodules at {selected}")
+
+    names: set[str] = set()
+    identities: set[str] = set()
+    for section in sorted(path_fields):
+        values = path_fields[section]
+        if len(values) != 1:
+            raise RuntimeError(f"submodule {section!r} has multiple paths in .gitmodules at {selected}")
+        path = values[0]
+        parts = path.split("/")
+        if len(parts) != 2 or parts[0] != "repos":
+            raise RuntimeError(f"unsupported submodule path {path!r} in .gitmodules at {selected}")
+        name = parts[1]
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name):
+            raise RuntimeError(f"unsafe registered member name {name!r}")
+        identity = name.lower()
+        if identity in identities:
+            raise RuntimeError(f"duplicate registered submodule path repos/{name} at {selected}")
+        identities.add(identity)
+        names.add(name)
+
+    projected = registered_member_names(repository, selected)
+    if names != projected:
+        raise RuntimeError(f"registered member projection is incomplete at {selected}")
+    return names
+
+
 def selected_gitlinks(repository: Path, revision: str) -> tuple[str, dict[str, tuple[str, str, Path]]]:
     """Resolve one meta revision and its complete registered gitlink set."""
     selected = git(repository, "rev-parse", "--verify", f"{revision}^{{commit}}").strip()
-    names = registered_member_names(repository, selected)
-    if not names:
-        raise RuntimeError(f"no registered members parsed from .gitmodules at {selected}")
+    names = committed_member_names(repository, selected)
     unsafe = sorted(name for name in names if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name))
     if unsafe:
         raise RuntimeError(f"unsafe registered member name {unsafe[0]!r}")
     paths = {name.lower(): repository / "repos" / name for name in names}
     links: dict[str, tuple[str, str, Path]] = {}
-    for line in git(repository, "ls-tree", selected, "--", "repos/").splitlines():
+    for line in git(repository, "ls-tree", "-r", selected, "--", "repos/").splitlines():
         metadata, _, path = line.partition("\t")
         fields = metadata.split()
         parts = path.split("/")
-        if len(fields) != 3 or len(parts) != 2 or parts[0] != "repos":
+        if len(fields) != 3:
             continue
-        name = parts[1]
         if fields[0] != "160000" or fields[1] != "commit":
             continue
+        if len(parts) != 2 or parts[0] != "repos":
+            raise RuntimeError(f"unsupported gitlink {path} at {selected}")
+        name = parts[1]
         if name not in names:
             raise RuntimeError(f"unregistered gitlink repos/{name} at {selected}")
         local = paths.get(name.lower())
