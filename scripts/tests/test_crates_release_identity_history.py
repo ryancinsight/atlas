@@ -15,7 +15,7 @@ def run(args, cwd):
 
 
 HISTORY = {"b553c42da72dcdeb2bb2644c60759dc465fb329a": (".github/workflows/crates-publish.yml",),
-           "b54ac7c115326c863fa54252ca0486bf06239a66": (".github/actions/crate-release-identity/action.yml",
+           "496d18cb2d94c5dbcbfbe9ed394da7705773dc83": (".github/actions/crate-release-identity/action.yml",
                                                        ".github/actions/crate-release-identity/release_identity.py")}
 
 
