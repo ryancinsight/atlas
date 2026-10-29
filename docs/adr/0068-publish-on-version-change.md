@@ -19,11 +19,9 @@ The same audit found a defect in `semver-gate.yml`. Its release gate asked crate
 
 ## Decision
 
-An explicitly authorized version change that merges to the default branch
-triggers its own publication. Development merge authority does not authorize a
-version change, tag, or publication. A pull request may therefore report source
-drift from the artifact at its manifest version without requiring a bump; the
-blocking check runs only when the caller declares release intent.
+Only an explicitly authorized version change merged to the default branch
+triggers publication. Development merge authority grants no version, tag, or
+publication authority. Pull requests inform on artifact drift; releases block.
 
 1. **Shared action `crates-pending`** (`.github/actions/crates-pending`, Python standard library only). It holds all the selection, verification, publish, and tag logic once:
    - `plan` selects each publishable package whose manifest version is missing from the sparse index and whose crates.io owners include `owner`.
@@ -61,14 +59,12 @@ blocking check runs only when the caller declares release intent.
    Inspect any already-running publisher before adoption; changing the new
    commit's workflow does not retroactively constrain an older in-flight run.
 3. **Member callers.** Each member's `rust-release.yml` adds `push` (default branch) and a daily `schedule` to its triggers, and calls `crates-publish-pending.yml` from a job of its own. That job alone grants `contents: write`. The release-event and `workflow_dispatch` jobs keep calling `crates-publish.yml` unchanged, so the manual route and the dry-run route keep their permissions. Trusted publishers are keyed by the caller's filename, and on 2026-09-30 every sampled registration, ritk's included, named `rust-release.yml`. Adopting the new path therefore needs no registry change.
-4. **Release gates.** Before SemVer, `atlas-published-drift.py`'s `measure_crate`
-   checks every named package at HEAD using the caller's manifest selection,
-   including unchanged packages. Published source, manifest, or dependency drift
-   blocks release; current artifacts and unpublished versions pass. Malformed
-   selection or artifacts and unavailable registry/Git/Cargo measurements fail
-   closed. PRs report only legitimate drift as information. The subsequent
-   SemVer comparison checks the published subset and notices first publication;
-   its registry queries remain spaced one second apart under crawler policy.
+4. **Release gates.** Before SemVer, `measure_crate` checks every named package at
+   HEAD, including unchanged packages. Published source, manifest, or dependency
+   drift blocks; current and unpublished artifacts pass. Malformed inputs and
+   unavailable registry, Git, or Cargo measurements fail closed. PRs inform only
+   on legitimate drift. SemVer then checks the published subset and notices first
+   publication; registry queries retain the crawler policy's one-second spacing.
 
 ## Rejected alternatives
 
@@ -80,14 +76,11 @@ blocking check runs only when the caller declares release intent.
 
 ## Consequences
 
-- An authorized version-changing merge executes the prior release decision; the
-  automatic workflow does not grant release authority. Release review happens
-  before that manifest change merges.
+- An authorized version-changing merge executes a prior release decision; the
+  automatic workflow grants no authority. Review precedes the manifest change.
 - Cross-repository order converges without coordination. A consumer bumped before its provider waits, and publishes on the first run after the provider's version is indexed. The daily schedule bounds that delay when no push arrives.
 - First publishes stay manual: one API-token publish per new name, after which the trusted publisher applies (ATLAS-PUB-003).
-- Source changed under an unchanged, already-published version remains visible
-  during development and blocks an explicit release until its authorized
-  version change.
+- Unversioned artifact drift remains visible in development and blocks release.
 - Publishing several packages in one `cargo publish` needs cargo 1.90 or later. Every member pins a toolchain above that floor, and a caller's `rust-toolchain` input must stay there.
 - Python wheels still publish from release events. Moving them to the same trigger is a separate decision.
 
@@ -104,9 +97,8 @@ blocking check runs only when the caller declares release intent.
 
   Mutation sweeps over the action, the workflow wiring, the release job and the gate's request are recorded with their counts in the delivering PR (#408). Every listed variant fails a suite.
 - `scripts/tests/test_semver_gate_baseline.py` runs the gate's baseline step against stub `curl` and `sleep`, and pins the release job's wiring. The `curl` stub answers only the step's exact argument list (flags in order, the gate's User-Agent, one crates.io crate URL) and exits 99 on any other, so a malformed request cannot pass as a 404. Its seven stub cases cover a published subset, a single published crate, all first publications, a 503, a 403 and a 429, curl failing before any HTTP answer, and an empty list entry; all seven fail against the pre-fix gate.
-- `scripts/tests/test_atlas_bump_guard.py` covers source comparison and package/
-  manifest selection through real Git/Cargo with a deterministic registry.
-  Workflow tests enforce release ordering and fail-closed result handling.
+- `scripts/tests/test_atlas_bump_guard.py` uses real Git/Cargo for comparison and
+  selection; workflow tests enforce release order and fail-closed results.
 - `scripts/tests/test_crates_publish_pending_workflow.py` parses the workflow for:
   - the default-branch condition;
   - the gate running ahead of publish;

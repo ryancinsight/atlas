@@ -74,25 +74,34 @@ def guard(repo: Path, base: str | None, head: str, fetch: drift.Fetch,
     """The selected crates' readings, and those whose published artifact drifted."""
     with tempfile.TemporaryDirectory(prefix="atlas-bump-guard-") as scratch:
         head_root = (Path(scratch) / "head").resolve()
-        packages = drift.publishable_packages(
-            drift.export_revision("head", repo, head, head_root, manifest_path), head_root)
+        head_metadata = drift.export_revision(
+            "head", repo, head, head_root, manifest_path)
+        all_packages = drift.workspace_packages(head_metadata, head_root)
+        packages = drift.publishable_packages(head_metadata, head_root)
         if only:
             if len(only) != len(set(only)):
                 raise drift.MeasurementError("--package contains a duplicate name")
-            by_name = {package.name: package for package in packages}
-            missing = [name for name in only if name not in by_name]
+            all_names = {package.name for package in all_packages}
+            missing = [name for name in only if name not in all_names]
             if missing:
                 raise drift.MeasurementError(
-                    "--package does not name a publishable package at head: "
+                    "--package does not name a package at head: "
                     + ", ".join(missing))
-            packages = [by_name[name] for name in only]
+            publishable_by_name = {package.name: package for package in packages}
+            packages = [publishable_by_name[name] for name in only
+                        if name in publishable_by_name]
         before = None
         fork = None
         if base is not None:
             fork = git_output(repo, "merge-base", base, head)
             fork_root = (Path(scratch) / "fork").resolve()
-            before = {p.name: p for p in drift.publishable_packages(
-                drift.export_revision("merge base", repo, fork, fork_root, manifest_path), fork_root)}
+            fork_metadata = drift.export_revision(
+                "merge base", repo, fork, fork_root, manifest_path,
+                missing_manifest_is_empty=True)
+            before = ({} if fork_metadata is None else {
+                package.name: package
+                for package in drift.publishable_packages(fork_metadata, fork_root)
+            })
         readings = []
         for package in packages:
             if (before is not None

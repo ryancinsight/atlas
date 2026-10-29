@@ -91,12 +91,10 @@
 # the stale registry copy (ATLAS-PUB-011). The `bump-guard` job runs Atlas's
 # `scripts/atlas-bump-guard.py` over the crates in `package` that the pull
 # request touches, diffed from the merge base, so a member calling this
-# workflow once per crate queries each crate once. Legitimate artifact drift
-# is reported without requiring a version change during development; malformed
-# input and registry failures still fail the job. The release job checks every
-# named package at HEAD, regardless of the release commit's diff, and blocks
-# drift before the SemVer comparison. This is not the SemVer verdict above: it
-# asks whether anything changed under a published version, not how much.
+# workflow once per crate queries each crate once. PR drift is informational;
+# malformed input and registry failures still fail. A release checks every
+# named package at HEAD and blocks drift before SemVer, regardless of its diff.
+# This asks whether a published artifact changed, not the API change class.
 #
 # Inputs:
 #   package         - crate name(s), comma-separated (required)

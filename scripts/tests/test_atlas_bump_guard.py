@@ -31,6 +31,7 @@ ROOT_MANIFEST = ('[workspace]\nresolver = "2"\nmembers = ["crates/*"]\n'
 ALPHA_MANIFEST = ('[package]\nname = "alpha"\nversion = "{version}"\nedition = "2021"\n'
                   '[dependencies]\nserde = {{ workspace = true }}\n')
 GAMMA_MANIFEST = '[package]\nname = "gamma"\nversion = "0.1.0"\nedition = "2021"\n'
+PRIVATE_GAMMA_MANIFEST = GAMMA_MANIFEST + 'publish = false\n'
 BETA_MANIFEST = '[package]\nname = "beta"\nversion = "0.2.0"\nedition = "2021"\n'
 ALPHA_SOURCE = "pub fn one() -> u32 { 1 }\n"
 BETA_SOURCE = "pub fn two() -> u32 { 2 }\n"
@@ -256,13 +257,31 @@ class BumpGuardTestCase(unittest.TestCase):
     def test_named_selection_must_be_unique_and_present(self) -> None:
         for selection, message in (
             ("alpha,alpha", "duplicate name"),
-            ("alpha,missing", "publishable package at head: missing"),
+            ("alpha,missing", "package at head: missing"),
         ):
             with self.subTest(selection=selection):
                 status, out, err = self.run_guard(
                     self.registry(), None, "--package", selection)
                 self.assertEqual((status, out), (2, ""))
                 self.assertIn(message, err)
+
+    def test_named_nonpublishable_package_is_known_and_skips_registry(self) -> None:
+        self.commit({
+            "crates/gamma/Cargo.toml": PRIVATE_GAMMA_MANIFEST,
+            "crates/gamma/src/lib.rs": "pub fn three() -> u32 { 3 }\n",
+        })
+        cases = (
+            (self.run_guard, (None, "--package", "gamma"),
+             "No publishable crate's source, manifest, or dependency requirements changed.\n"),
+            (self.run_release, ("--package", "gamma"),
+             "No selected publishable package has a published artifact to update.\n"),
+        )
+        for runner, arguments, expected in cases:
+            with self.subTest(mode=runner.__name__):
+                registry = self.registry()
+                status, out, err = runner(registry, *arguments)
+                self.assertEqual((status, out, err), (0, expected, ""))
+                self.assertEqual(registry.asked, [])
 
     def test_nested_manifest_selects_the_callers_workspace(self) -> None:
         nested_root = ROOT_MANIFEST.format(serde="1.0").replace(
@@ -292,11 +311,48 @@ class BumpGuardTestCase(unittest.TestCase):
                      "nested/alpha/Cargo.toml": GAMMA_MANIFEST.replace("gamma", "alpha"),
                      "nested/alpha/src/lib.rs": "pub fn one() -> u32 { 99 }\n"})
         registry = self.registry()
-        status, out, err = self.run_release(registry, "--package", "alpha",
-                                            "--manifest-path", "nested/Cargo.toml")
+        status, out, err = self.run_release(
+            registry, "--package", "alpha", "--manifest-path", "nested/Cargo.toml")
         self.assertEqual((status, out), (3, "- `alpha` 0.1.0: published-drifted\n"))
         self.assertIn("alpha 0.1.0: release blocked;", err)
-        self.assertEqual(registry.asked[-1], "https://static.crates.io/crates/alpha/alpha-0.1.0.crate")
+        self.assertEqual(registry.asked[-1],
+                         "https://static.crates.io/crates/alpha/alpha-0.1.0.crate")
+
+    def test_nested_workspace_introduced_at_head_has_an_empty_baseline(self) -> None:
+        self.commit({
+            "nested/Cargo.toml": ROOT_MANIFEST.format(serde="1.0").replace(
+                '["crates/*"]', '["alpha"]'),
+            "nested/alpha/Cargo.toml": ALPHA_MANIFEST.format(version="0.1.0"),
+            "nested/alpha/src/lib.rs": ALPHA_SOURCE,
+        })
+
+        registry = self.registry()
+        status, out, err = self.run_guard(
+            registry, None, "--package", "alpha",
+            "--manifest-path", "nested/Cargo.toml")
+
+        self.assertEqual((status, err), (0, ""))
+        self.assertEqual(out, "- `alpha` 0.1.0: published-current\n")
+        self.assertEqual(
+            registry.asked[-1],
+            "https://static.crates.io/crates/alpha/alpha-0.1.0.crate",
+        )
+
+    def test_malformed_existing_nested_baseline_remains_an_error(self) -> None:
+        self.base = self.commit({"nested/Cargo.toml": "[workspace\n"})
+        self.commit({
+            "nested/Cargo.toml": ROOT_MANIFEST.format(serde="1.0").replace(
+                '["crates/*"]', '["alpha"]'),
+            "nested/alpha/Cargo.toml": ALPHA_MANIFEST.format(version="0.1.0"),
+            "nested/alpha/src/lib.rs": ALPHA_SOURCE,
+        })
+
+        status, out, err = self.run_guard(
+            self.registry(), None, "--package", "alpha",
+            "--manifest-path", "nested/Cargo.toml")
+
+        self.assertEqual((status, out), (2, ""))
+        self.assertIn("cargo metadata failed", err)
 
     def test_manifest_selection_cannot_leave_the_export(self) -> None:
         for release in (False, True):
@@ -332,30 +388,19 @@ class BumpGuardTestCase(unittest.TestCase):
         self.assertIn("alpha", asked)
         self.assertIn("beta", asked)
 
-    def test_release_passes_a_current_published_artifact(self) -> None:
-        status, out, err = self.run_release(
-            self.registry(), "--package", "alpha")
-        self.assertEqual(
-            (status, out, err),
-            (0, "- `alpha` 0.1.0: published-current\n", ""),
+    def test_release_passes_non_drifted_artifacts(self) -> None:
+        cases = (
+            (self.registry(), "- `alpha` 0.1.0: published-current\n"),
+            (Registry({"beta": ["0.2.0"]}, {("beta", "0.2.0"): published_beta()}),
+             "- `alpha` 0.1.0: never-published\n"),
         )
-
-    def test_release_passes_an_unpublished_version(self) -> None:
+        for registry, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(self.run_release(registry, "--package", "alpha"),
+                                 (0, expected, ""))
         self.commit({"crates/alpha/Cargo.toml": ALPHA_MANIFEST.format(version="0.1.1")})
-        status, out, err = self.run_release(
-            self.registry(), "--package", "alpha")
-        self.assertEqual(
-            (status, out, err),
-            (0, "- `alpha` 0.1.1: unpublished-version\n", ""),
-        )
-
-    def test_release_passes_a_never_published_package(self) -> None:
-        registry = Registry({"beta": ["0.2.0"]}, {("beta", "0.2.0"): published_beta()})
-        status, out, err = self.run_release(registry, "--package", "alpha")
-        self.assertEqual(
-            (status, out, err),
-            (0, "- `alpha` 0.1.0: never-published\n", ""),
-        )
+        self.assertEqual(self.run_release(self.registry(), "--package", "alpha"),
+                         (0, "- `alpha` 0.1.1: unpublished-version\n", ""))
 
     def test_release_registry_failure_remains_a_measurement_error(self) -> None:
         url = guard.drift.CRATE_URL.format(name="alpha", version="0.1.0")
@@ -368,7 +413,7 @@ class BumpGuardTestCase(unittest.TestCase):
         status, out, err = self.run_release(
             self.registry(), "--package", "alpha,missing")
         self.assertEqual((status, out), (2, ""))
-        self.assertIn("does not name a publishable package at head: missing", err)
+        self.assertIn("does not name a package at head: missing", err)
 
     def test_an_unexpected_error_exits_two_never_one(self) -> None:
         self.commit({"crates/alpha/src/lib.rs": "pub fn one() -> u32 { 11 }\n"})
