@@ -156,7 +156,6 @@ class DependencyTablesTestCase(unittest.TestCase):
             "[dependencies]": "regular",
             "[dev-dependencies]": "development",
             "[build-dependencies]": "build",
-            "[workspace.dependencies]": "shared",
             "[target.'cfg(unix)'.dependencies]": "unix",
             "[target.'cfg(unix)'.dev-dependencies]": "unixdev",
             "[target.'cfg(unix)'.build-dependencies]": "unixbuild",
@@ -165,6 +164,76 @@ class DependencyTablesTestCase(unittest.TestCase):
             with self.subTest(header):
                 manifest = f'[package]\nname = "m"\nversion = "0.1.0"\n\n{header}\n{name} = {git}\n'
                 self.assertEqual(self.declared(manifest), {name})
+
+    def test_only_consumed_workspace_dependencies_are_read(self) -> None:
+        manifest = textwrap.dedent(
+            """\
+            [workspace]
+            members = ["member"]
+
+            [workspace.dependencies]
+            used = { package = "real", version = "^1", git = "https://github.com/ryancinsight/p" }
+            idle = { git = "https://github.com/ryancinsight/idle" }
+
+            [package]
+            name = "root"
+            version = "0.1.0"
+            """
+        )
+        member = textwrap.dedent(
+            """\
+            [package]
+            name = "member"
+            version = "0.1.0"
+
+            [target.'cfg(unix)'.build-dependencies]
+            used = { workspace = true }
+            """
+        )
+        facts = lockfile.workspace_facts(
+            {"Cargo.toml": manifest, "member/Cargo.toml": member}, ROOT_WORKSPACE, []
+        )
+        self.assertEqual(facts.git_dependencies, {"real"})
+        self.assertEqual(
+            facts.consumed_git_dependencies,
+            (
+                lockfile.GitDependency(
+                    "real", "https://github.com/ryancinsight/p", "^1", "member/Cargo.toml"
+                ),
+            ),
+        )
+
+    def test_missing_inherited_dependency_fails_closed(self) -> None:
+        manifest = textwrap.dedent(
+            """\
+            [workspace]
+            members = ["member"]
+
+            [package]
+            name = "root"
+            version = "0.1.0"
+            """
+        )
+        member = textwrap.dedent(
+            """\
+            [package]
+            name = "member"
+            version = "0.1.0"
+
+            [dependencies]
+            absent = { workspace = true }
+            """
+        )
+        problems, _ = lockfile.judge_locks(
+            {
+                "Cargo.toml": manifest,
+                "member/Cargo.toml": member,
+                "Cargo.lock": STANDALONE,
+            }
+        )
+        self.assertIn(
+            "Cargo.lock: workspace dependency 'absent' is missing or unreadable", problems
+        )
 
     def test_a_renamed_dependency_is_declared_under_its_package_name(self) -> None:
         manifest = (
