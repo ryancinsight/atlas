@@ -40,6 +40,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -477,6 +478,48 @@ def hook_commit(
     return git_in(repo, "commit-tree", tree, "-p", base, stdin=message.encode("utf-8"))
 
 
+def hook_publication_base(
+    repo: Path,
+    default: str,
+    hooks: list[tuple[str, bytes]],
+    retired: tuple[str, ...],
+) -> str:
+    """Select the fetched default or a safe prior publication head.
+
+    Re-publishing a corrected source must advance the fixed publication branch
+    instead of replacing its generated commit. The branch is safe to extend
+    only when its entire side of the divergence from the current default
+    changes files this publication owns.
+    """
+    publication = f"refs/remotes/origin/{PUBLISH_BRANCH}"
+    try:
+        head = git_in(repo, "rev-parse", "--verify", f"{publication}^{{commit}}")
+    except RuntimeError:
+        return default
+    try:
+        git_in(repo, "merge-base", "--is-ancestor", head, default)
+    except RuntimeError:
+        pass
+    else:
+        return default
+    owned = {f"{MEMBER_HOOK_COPY}/{name}" for name, _ in hooks}
+    owned.update(retired)
+    changed = set(
+        filter(
+            None,
+            git_in(
+                repo, "diff", "--name-only", f"{default}...{head}", "--"
+            ).splitlines(),
+        )
+    )
+    unexpected = sorted(changed - owned)
+    if unexpected:
+        raise RuntimeError(
+            f"{publication} carries non-publication paths: {', '.join(unexpected)}"
+        )
+    return head
+
+
 def push_hook_branch(
     repo: Path,
     commit: str,
@@ -628,10 +671,23 @@ def enqueue_pull_request(repo: Path, url: str) -> None:
     hosting_in(repo, "pr", "merge", url, "--merge", "--auto")
 
 
-def hook_publish_message(source: str, retired: list[str], item: str | None) -> str:
+AGENT_ID = re.compile(
+    r"[A-Za-z][A-Za-z0-9_-]*:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+    r"[0-9a-f]{4}-[0-9a-f]{12}(?:/[1-9][0-9]*)?"
+)
+
+
+def hook_publish_message(
+    source: str,
+    retired: list[str],
+    item: str | None,
+    agent: str | None = None,
+) -> str:
     """Build the commit and pull-request message for one hook publication."""
     if not valid_board_item(item):
         raise ValueError(f"invalid board item ID: {item!r}")
+    if agent is not None and AGENT_ID.fullmatch(agent) is None:
+        raise ValueError(f"invalid agent ID: {agent!r}")
     subject = "ci: Sync the stack-owned git hooks"
     message = (
         f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
@@ -646,6 +702,9 @@ def hook_publish_message(source: str, retired: list[str], item: str | None) -> s
         )
     if item is not None:
         message += f"\nItem: {item}\n"
+    if agent is not None:
+        message += f"Integrator: {agent}\n"
+        message += f"Agent: {agent}\n"
     return message
 
 
@@ -668,6 +727,10 @@ def cmd_publish_hooks(args) -> int:
     item = getattr(args, "item", None)
     if not valid_board_item(item):
         print("invalid item: expected a board item ID", file=sys.stderr)
+        return 2
+    agent = getattr(args, "agent", None)
+    if agent is not None and AGENT_ID.fullmatch(agent) is None:
+        print("invalid agent: expected <harness>:<UUID>", file=sys.stderr)
         return 2
     members = member_scope(args.members)
     if members is None:
@@ -716,7 +779,7 @@ def cmd_publish_hooks(args) -> int:
         return 2
     source = git_in(ROOT, "rev-parse", "--short", source_commit)
     subject = "ci: Sync the stack-owned git hooks"
-    message = hook_publish_message(source, retired, item)
+    message = hook_publish_message(source, retired, item, agent)
     failures = 0
     for member in members:
         repo = REPOS / member
@@ -725,9 +788,13 @@ def cmd_publish_hooks(args) -> int:
         try:
             git_in(repo, "fetch", "-q", "origin")
             default = git_in(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+            default_commit = git_in(repo, "rev-parse", default)
+            base = hook_publication_base(
+                repo, default_commit, hooks, tuple(retired)
+            )
             commit = hook_commit(
                 repo,
-                git_in(repo, "rev-parse", default),
+                base,
                 hooks,
                 message,
                 retired=tuple(retired),
@@ -799,6 +866,31 @@ GIT_HOOK_NAMES = frozenset({
 # the hook's environment (`git -C <atlas>` would not), and drop the
 # variables that would still redirect them to another object store; the
 # hook itself runs with the environment git gave it.
+PRE_PUSH_SHIM_BOOTSTRAP = """if [ "${{1:-}}" != "--atlas-shim-bounded" ]; then
+  export ATLAS_SHIM_CALLER_OPTIONS="$__atlas_shim_options"
+  __atlas_shim_runtime={runtime}
+  __atlas_shim_python=""
+  if [ -f "$__atlas_shim_runtime/python" ]; then
+    IFS= read -r __atlas_shim_python < "$__atlas_shim_runtime/python" || true
+  fi
+  __atlas_shim_supervisor="$__atlas_shim_runtime/pre_push_gate.py"
+  if [ -z "$__atlas_shim_python" ] || [ ! -f "$__atlas_shim_supervisor" ]; then
+    echo "atlas hooks: the installed process-tree bootstrap is unavailable; rerun scripts/atlas-lock-form.py install-hooks" >&2
+    exit 1
+  fi
+  __atlas_shim_phase=push
+  [ "${{1:-}}" = documentation ] && __atlas_shim_phase=documentation
+  exec "$__atlas_shim_python" -I "$__atlas_shim_supervisor" \
+    shim "$__atlas_shim_phase" "${{BASH_SOURCE[0]}}" "$@"
+fi
+shift
+__atlas_shim_options="${{ATLAS_SHIM_CALLER_OPTIONS:-$__atlas_shim_options}}"
+export ATLAS_GATE_BOUNDED=1
+unset ATLAS_SHIM_CALLER_OPTIONS
+unset __atlas_shim_runtime __atlas_shim_python __atlas_shim_supervisor __atlas_shim_phase
+"""
+
+
 HOOK_SHIM = """#!/usr/bin/env bash
 # Written by `scripts/atlas-lock-form.py install-hooks`; rerun it instead of
 # editing. Runs the owned `{name}` hook as committed at the Atlas
@@ -812,6 +904,7 @@ HOOK_SHIM = """#!/usr/bin/env bash
 # the hook altered. A caller's xtrace is off inside the shim, so the shim's
 # own commands never reach the hook's stderr, and back on for the exec.
 {{ __atlas_shim_options=":$SHELLOPTS:"; set +x; }} 2>/dev/null
+{bootstrap}
 set -euo pipefail
 __atlas_shim_git={git_dir}
 __atlas_shim_lookup() {{
@@ -927,6 +1020,39 @@ def write_hook_shims(atlas: Path) -> Path:
     git_dir = common_git_dir(atlas)
     shims = git_dir / "atlas-hooks"
     shims.mkdir(parents=True, exist_ok=True)
+    # A source-keyed directory makes the runner family one immutable unit. An
+    # interrupted install cannot leave a live shim importing a mixture of old
+    # and new process-owner modules.
+    runtime = shims / "pre-push-runtime" / commit
+    runtime_existed = runtime.is_dir()
+    runtime.mkdir(parents=True, exist_ok=True)
+    try:
+        for name in (
+            "pre_push_gate.py",
+            "process_tree.py",
+            "windows_process.py",
+            "darwin_process.py",
+        ):
+            _replace_shim(
+                runtime / name,
+                git_bytes(
+                    atlas,
+                    "--no-replace-objects",
+                    "cat-file",
+                    "blob",
+                    f"{commit}:scripts/{name}",
+                ),
+            )
+        _replace_shim(
+            runtime / "python", Path(sys.executable).resolve().as_posix().encode()
+        )
+    except (OSError, RuntimeError):
+        if not runtime_existed:
+            if runtime.exists():
+                shutil.rmtree(runtime)
+            if next(runtime.parent.iterdir(), None) is None:
+                runtime.parent.rmdir()
+        raise
     # Read as the shim reads it: replace refs ignored.
     listing = git_in(
         atlas, "--no-replace-objects", "ls-tree", "--name-only", f"{commit}:scripts/git-hooks"
@@ -942,10 +1068,18 @@ def write_hook_shims(atlas: Path) -> Path:
                 f"{HOOK_SOURCE_REF} has no scripts/git-hooks/{stale}"
             )
     for name in sorted(names):
+        bootstrap = ""
+        if name == "pre-push":
+            bootstrap = PRE_PUSH_SHIM_BOOTSTRAP.format(
+                runtime=_shell_word(runtime.as_posix())
+            )
         _replace_shim(
             shims / name,
             HOOK_SHIM.format(
-                name=name, ref=HOOK_SOURCE_REF, git_dir=_shell_word(git_dir.as_posix())
+                name=name,
+                ref=HOOK_SOURCE_REF,
+                git_dir=_shell_word(git_dir.as_posix()),
+                bootstrap=bootstrap,
             ).encode(),
         )
     return shims
@@ -1118,6 +1252,11 @@ def main() -> int:
         "--item",
         metavar="ID",
         help="append an Item trailer to each generated member commit",
+    )
+    publish.add_argument(
+        "--agent",
+        metavar="ID",
+        help="append an Agent trailer to each generated member commit",
     )
     publish.add_argument(
         "--draft",

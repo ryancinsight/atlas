@@ -15,16 +15,20 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import shlex
 import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
 import threading
 import time
 import tomllib
 import unittest
 import weakref
+
+import pytest
 
 from readonly_tree import clear_readonly_tree
 from identity_fixture import PASSTHROUGH_IDENTITY
@@ -54,6 +58,12 @@ def _write(path: pathlib.Path, text: str, executable: bool = False) -> None:
     path.write_text(text, encoding="utf-8")
     if executable:
         path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP)
+
+
+def _append_repository_config(path: pathlib.Path, text: str) -> None:
+    """Append deterministic fixture settings without another Git process."""
+    with path.open("a", encoding="utf-8", newline="\n") as stream:
+        stream.write(text)
 
 
 # Every external command the hook runs before and inside its lockfile section.
@@ -209,6 +219,7 @@ class GateFixture:
         root: pathlib.Path,
         layout: str = "crates",
         default_branch: str = "main",
+        documentation_phase: str | None = "pre-merge",
     ) -> None:
         self.root = root
         self.bin = root / "bin"
@@ -236,8 +247,20 @@ class GateFixture:
         # or logging a call stays fixture plumbing instead of looking like
         # content a test commit might carry.
         _write(root / ".git" / "info" / "exclude", _FIXTURE_EXCLUDES)
+        # The phase-ownership cases cover absent, opted-in, and invalid
+        # metadata. Other fixtures exercise the common guards with a valid
+        # pre-merge candidate so they do not repeat an unrelated Rustdoc
+        # subprocess in every scenario.
+        documentation_metadata = (
+            "\n[workspace.metadata.atlas]\n"
+            f'documentation-phase = "{documentation_phase}"\n'
+            if documentation_phase is not None else ""
+        )
         if layout == "crates":
-            _write(root / "Cargo.toml", '[workspace]\nmembers = ["crates/foo"]\n')
+            _write(
+                root / "Cargo.toml",
+                '[workspace]\nmembers = ["crates/foo"]\n' + documentation_metadata,
+            )
             _write(
                 root / "crates" / "foo" / "Cargo.toml",
                 '[package]\nname = "foo"\nversion = "0.1.0"\nedition = "2021"\n',
@@ -246,7 +269,9 @@ class GateFixture:
         elif layout == "single":
             _write(
                 root / "Cargo.toml",
-                '[package]\nname = "solo"\nversion = "0.1.0"\nedition = "2021"\n',
+                '[package]\nname = "solo"\nversion = "0.1.0"\nedition = "2021"\n'
+                "\n[workspace]\n"
+                + documentation_metadata,
             )
             _write(root / "src" / "lib.rs", "pub fn f() {}\n")
         elif layout == "meta":
@@ -259,7 +284,9 @@ class GateFixture:
                 workspace = root / "tools" / directory
                 _write(
                     workspace / "Cargo.toml",
-                    f'[package]\nname = "{directory}"\nversion = "0.1.0"\nedition = "2024"\n',
+                    f'[package]\nname = "{directory}"\nversion = "0.1.0"\nedition = "2024"\n'
+                    "\n[workspace]\n"
+                    + documentation_metadata,
                 )
                 _write(workspace / "Cargo.lock", "# lock\n")
                 _write(workspace / "src" / "lib.rs", "pub fn f() {}\n")
@@ -308,19 +335,11 @@ class GateFixture:
         # TemporaryDirectory removes it. Disable maintenance in both the
         # repository under test and its local bare remote; this changes no
         # gate behavior, only the fixture's lifetime semantics.
-        for repo in (root, root / "upstream.git"):
-            subprocess.run(
-                ["git", "-C", str(repo), "config", "gc.auto", "0"],
-                check=True,
-            )
-            subprocess.run(
-                ["git", "-C", str(repo), "config", "maintenance.auto", "false"],
-                check=True,
-            )
-        subprocess.run(
-            ["git", "-C", str(root / "upstream.git"), "config",
-             "receive.autogc", "false"],
-            check=True,
+        _append_repository_config(
+            root / "upstream.git" / "config",
+            "[gc]\n\tauto = 0\n"
+            "[maintenance]\n\tauto = false\n"
+            "[receive]\n\tautogc = false\n",
         )
         # The remote is bare, so it carries no `.git` entry for git to
         # recognise and skip: without this exclude a `git add -A` in a
@@ -562,6 +581,7 @@ class GateFixture:
         push_lines: str,
         extra_env: dict | None = None,
         cwd: pathlib.Path | None = None,
+        arguments: tuple[str, ...] = (),
     ) -> tuple:
         """Run the owned hook script in this fixture, or in `cwd`, a worktree
         of it; return (exit, stderr)."""
@@ -570,6 +590,8 @@ class GateFixture:
         env["CARGO"] = str(self.cargo_launcher)
         env["TMPDIR"] = self.tmp.as_posix()
         env["LOCKFILE_CALLS_LOG"] = str(self.lockfile_calls)
+        env["ATLAS_PRE_PUSH_RUNTIME"] = str(self.stack / "scripts")
+        env["ATLAS_PRE_PUSH_PYTHON"] = sys.executable
         if extra_env:
             env.update(extra_env)
         # Bytes, not text: on Windows a text-mode pipe translates `\n` to
@@ -578,7 +600,7 @@ class GateFixture:
         # (Byte input also requires binary mode: `text=True` breaks the
         # writer thread and hangs waiting on stdin forever.)
         proc = subprocess.run(
-            ["bash", str(SCRIPT)],
+            ["bash", str(SCRIPT), *arguments],
             input=push_lines.encode("utf-8"),
             cwd=str(self.root if cwd is None else cwd),
             env=env,
@@ -660,6 +682,22 @@ def _seed_identity(stack: pathlib.Path) -> None:
         _write(identity, PASSTHROUGH_IDENTITY, executable=True)
 
 
+def _seed_process_tree(stack: pathlib.Path) -> None:
+    """Give fixture stacks the production bounded-process owner."""
+    source = SCRIPT.parents[1]
+    destination = stack / "scripts"
+    destination.mkdir(parents=True, exist_ok=True)
+    for name in (
+        "pre_push_gate.py",
+        "process_tree.py",
+        "windows_process.py",
+        "darwin_process.py",
+    ):
+        target = destination / name
+        if not target.exists():
+            shutil.copy2(source / name, target)
+
+
 def _stacked_fixture(temp: str, **options: object) -> "GateFixture":
     """A member at `<temp>/repos/member` of a stack that carries the scanner
     and lockfile checkers plus the command-running identity checker."""
@@ -680,6 +718,7 @@ def _publish_stack_scripts(
     _seed_scanner(stack)
     _seed_identity(stack)
     _seed_cast_gate(stack)
+    _seed_process_tree(stack)
     for name in omit:
         tool = stack / "scripts" / name
         if tool.exists():
@@ -708,6 +747,19 @@ def _recording_tool(log: pathlib.Path, exit_code: int) -> str:
         f"with pathlib.Path({str(log)!r}).open('a', encoding='utf-8') as stream:\n"
         "    stream.write(' '.join([__file__, *sys.argv[1:]]) + '\\n')\n"
         f"sys.exit({exit_code})\n"
+    )
+
+
+def _recording_process_tree(deadline_log: pathlib.Path) -> str:
+    """A process-tree owner that records each requested wall deadline."""
+    return (
+        "import pathlib, subprocess\n"
+        "class ProcessTreeTimeout(Exception):\n    pass\n"
+        "class ProcessTreeCleanupError(Exception):\n    pass\n"
+        "def run(command, *, input=None, timeout, env=None):\n"
+        f"    with pathlib.Path({str(deadline_log)!r}).open('a', encoding='utf-8') as stream:\n"
+        "        stream.write(f'{timeout}\\n')\n"
+        "    return subprocess.run(command, input=input, env=env, capture_output=True)\n"
     )
 
 
@@ -754,13 +806,11 @@ def _install_real_identity(stack: pathlib.Path) -> None:
 
 def _git_init_repo(root: pathlib.Path) -> None:
     subprocess.run(["git", "init", "-q", "-b", "main", str(root)], check=True)
-    subprocess.run(
-        ["git", "-C", str(root), *_IDENT, "config", "user.email", "t@t"],
-        check=True,
-    )
-    subprocess.run(
-        ["git", "-C", str(root), *_IDENT, "config", "user.name", "t"],
-        check=True,
+    _append_repository_config(
+        root / ".git" / "config",
+        "[user]\n\temail = t@t\n\tname = t\n"
+        "[gc]\n\tauto = 0\n"
+        "[maintenance]\n\tauto = false\n",
     )
 
 
@@ -1126,11 +1176,9 @@ class PackageMapperTestCase(unittest.TestCase):
             self.assertIn("gating solo", stderr)
             calls = (fixture.root / "calls.log").read_text(encoding="utf-8")
             self.assertIn("-p solo", calls)
-            self.assertTrue(
-                any(line.startswith("doc --no-deps ") and line.endswith(" --locked -p solo")
-                    for line in calls.splitlines()),
-                calls,
-            )
+            self.assertTrue(any(line.startswith("clippy ") for line in calls.splitlines()), calls)
+            self.assertTrue(any(line.startswith("nextest run ") for line in calls.splitlines()), calls)
+            self.assertFalse(any(line.startswith("doc ") for line in calls.splitlines()), calls)
 
     def _commit_paths_on_a_branch(self, fixture: "GateFixture", files: dict[str, str]) -> None:
         subprocess.run(
@@ -1344,7 +1392,7 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             calls = fixture.calls.read_text(encoding="utf-8").splitlines()
             self.assertTrue(any(line.startswith("clippy ") for line in calls), calls)
             self.assertTrue(any(line.startswith("nextest run ") for line in calls), calls)
-            self.assertTrue(any(line.startswith("doc ") for line in calls), calls)
+            self.assertFalse(any(line.startswith("doc ") for line in calls), calls)
 
     def test_root_build_inputs_gate_all_four_workspaces(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
@@ -1380,7 +1428,7 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
                 {"CARGO_FAIL_LOG": "error: failed\n  --> @ROOT@/src/lib.rs:1:1"},
             )
 
-            self.assertEqual(code, 1)
+            self.assertEqual(code, 1, stderr)
             self.assertIn("clippy fails for tool", stderr)
             invocations = [json.loads(line) for line in identity_log.read_text(encoding="utf-8").splitlines()]
             self.assertEqual(len(invocations), 2)
@@ -1423,6 +1471,236 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             self.assertEqual(code, 1, stderr)
             self.assertIn("cargo metadata could not establish testable packages", stderr)
             self.assertFalse(identity_log.exists())
+
+
+class PhaseOwnershipTestCase(unittest.TestCase):
+    """Git push and readiness own disjoint native build phases."""
+
+    def test_production_push_uses_the_committed_deadline_without_rustdoc(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-phase-") as temp:
+            fixture = _stacked_fixture(temp)
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nmembers = ["crates/foo"]\n\n'
+                '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n',
+                encoding="utf-8",
+            )
+            source = fixture.root / "crates" / "foo" / "src" / "lib.rs"
+            source.write_text("pub fn f() {}\n// changed\n", encoding="utf-8")
+            _commit_all(fixture.root, "source")
+            deadline_log = fixture.stack / "deadline.log"
+            _write(
+                fixture.stack / "scripts" / "process_tree.py",
+                _recording_process_tree(deadline_log),
+            )
+            _publish_stack_scripts(fixture.stack)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), arguments=("origin", "fixture")
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(
+                deadline_log.read_text(encoding="utf-8").splitlines(), ["600"]
+            )
+            stages = [
+                line.split()[0]
+                for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+                if line.split()[0] in {"clippy", "nextest", "doc"}
+            ]
+            self.assertEqual(stages, ["clippy", "nextest"])
+            metadata_calls = (
+                fixture.root / "metadata-calls.log"
+            ).read_text(encoding="utf-8").splitlines()
+            workspace_reads = [
+                line for line in metadata_calls
+                if line.startswith("metadata --no-deps --format-version 1")
+            ]
+            self.assertEqual(len(workspace_reads), 1, metadata_calls)
+
+            # Peer dirt opts the checkout into pre-merge, but the pushed
+            # candidate has no metadata and therefore remains pre-push.
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nmembers = ["crates/foo"]\n', encoding="utf-8"
+            )
+            _commit_all(fixture.root, "default documentation phase")
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nmembers = ["crates/foo"]\n\n'
+                '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n',
+                encoding="utf-8",
+            )
+            fixture.calls.unlink(missing_ok=True)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), arguments=("origin", "fixture")
+            )
+
+            self.assertEqual(code, 0, stderr)
+            stages = [
+                line.split()[0]
+                for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+                if line.split()[0] in {"clippy", "nextest", "doc"}
+            ]
+            self.assertEqual(stages, ["clippy", "nextest", "doc"])
+
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nmembers = ["crates/foo"]\n\n'
+                '[workspace.metadata.atlas]\ndocumentation-phase = "later"\n',
+                encoding="utf-8",
+            )
+            _commit_all(fixture.root, "invalid documentation phase")
+            fixture.calls.unlink(missing_ok=True)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), arguments=("origin", "fixture")
+            )
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn(
+                "documentation-phase must be 'pre-push' or 'pre-merge'", stderr
+            )
+            self.assertIn("invalid documentation phase in Cargo.toml", stderr)
+
+    def test_multi_ref_push_shares_one_committed_deadline(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-phase-") as temp:
+            fixture = _stacked_fixture(temp)
+            source = fixture.root / "crates" / "foo" / "src" / "lib.rs"
+            _git(fixture.root, "switch", "-q", "-c", "first")
+            source.write_text("pub fn first() {}\n", encoding="utf-8")
+            _commit_all(fixture.root, "first")
+            _git(fixture.root, "switch", "-q", "-c", "second", "main")
+            source.write_text("pub fn second() {}\n", encoding="utf-8")
+            _commit_all(fixture.root, "second")
+            _git(fixture.root, "switch", "-q", "first")
+            deadline_log = fixture.stack / "deadline.log"
+            _write(
+                fixture.stack / "scripts" / "process_tree.py",
+                _recording_process_tree(deadline_log),
+            )
+            _publish_stack_scripts(fixture.stack)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("first")
+                + fixture.push_line_new_branch("second"),
+                arguments=("origin", "fixture"),
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(
+                deadline_log.read_text(encoding="utf-8").splitlines(), ["600"]
+            )
+            self.assertIn("pre-push: judging refs/heads/first", stderr)
+            self.assertIn("pre-push: judging refs/heads/second", stderr)
+            stages = [
+                line.split()[0]
+                for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+                if line.split()[0] in {"clippy", "nextest", "doc"}
+            ]
+            self.assertEqual(
+                stages,
+                ["clippy", "nextest", "clippy", "nextest"],
+            )
+
+    def test_missing_bootstrap_refuses_before_a_fetched_rescue_helper(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-bootstrap-") as temp:
+            fixture = _stacked_fixture(temp)
+            marker = fixture.stack / "rescue-ran"
+            _write(
+                fixture.stack / "scripts" / "git-hooks" / "rescue-push",
+                f"#!/usr/bin/env bash\nprintf ran > {shlex.quote(marker.as_posix())}\n",
+                executable=True,
+            )
+            _publish_stack_scripts(fixture.stack)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("main"),
+                extra_env={
+                    "ATLAS_PRE_PUSH_RUNTIME": "",
+                    "ATLAS_PRE_PUSH_PYTHON": "",
+                },
+                arguments=("origin", "fixture"),
+            )
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("installed process-tree bootstrap is unavailable", stderr)
+            self.assertFalse(marker.exists())
+
+    def test_documentation_phase_runs_warning_denied_rustdoc(self) -> None:
+        """Default push and the public phase reject warning-level doc defects."""
+        cargo = shutil.which("cargo", path=os.environ.get("PATH"))
+        self.assertIsNotNone(cargo, "the Rust toolchain is required for this end-to-end test")
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-rustdoc-") as temp:
+            fixture = _stacked_fixture(temp)
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nresolver = "2"\nmembers = ["crates/foo"]\n',
+                encoding="utf-8",
+            )
+            fixture.set_workspace_packages(["foo"])
+            source = fixture.root / "crates" / "foo" / "src" / "lib.rs"
+            source.write_text(
+                "pub struct PresentType;\n\n"
+                "/// Returns a [`PresentType`].\n"
+                "pub fn documented() -> PresentType {\n"
+                "    PresentType\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            subprocess.run(
+                [cargo, "generate-lockfile", "--manifest-path", str(fixture.root / "Cargo.toml")],
+                cwd=fixture.root,
+                check=True,
+                timeout=60,
+            )
+            _commit_all(fixture.root, "valid documentation")
+            valid = _git(fixture.root, "rev-parse", "HEAD")
+            base = _git(fixture.root, "rev-parse", "HEAD^")
+            environment = {
+                "CARGO": cargo,
+                "CARGO_ENCODED_RUSTDOCFLAGS": "-Awarnings",
+                "CARGO_TARGET_DIR": str(fixture.stack / "target"),
+                "PATH": os.environ.get("PATH", ""),
+            }
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("main"),
+                extra_env=environment,
+                arguments=("origin", "fixture"),
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("rustdoc completed", stderr)
+
+            code, stderr = fixture.run_hook(
+                "", extra_env=environment, arguments=("documentation", valid, base)
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("documentation phase passed", stderr)
+
+            _git(fixture.root, "switch", "-q", "-c", "broken-doc-link")
+            source.write_text(
+                "/// Returns a [`MissingType`].\n"
+                "pub fn documented() {}\n",
+                encoding="utf-8",
+            )
+            _commit_all(fixture.root, "broken documentation")
+            broken = _git(fixture.root, "rev-parse", "HEAD")
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("broken-doc-link"),
+                extra_env=environment,
+                arguments=("origin", "fixture"),
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("unresolved link to `MissingType`", stderr)
+            self.assertIn("rustdoc fails for foo", stderr)
+            self.assertIn("rustdoc started", stderr)
+
+            code, stderr = fixture.run_hook(
+                "", extra_env=environment, arguments=("documentation", broken, valid)
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("unresolved link to `MissingType`", stderr)
+            self.assertIn("rustdoc fails for foo", stderr)
+            self.assertIn("bounded stage timings", stderr)
 
 
 class BlameClassifierTestCase(unittest.TestCase):
@@ -1489,9 +1767,12 @@ class BlameClassifierTestCase(unittest.TestCase):
                 check=True,
             )
             fixture.set_cargo_behavior("fail-doc")
+            candidate = _git(fixture.root, "rev-parse", "feat")
+            base = _git(fixture.root, "rev-parse", "main")
             code, stderr = fixture.run_hook(
-                fixture.push_line_new_branch(),
+                "",
                 extra_env={"CARGO_FAIL_LOG": self.inside_log.format(root="@ROOT@")},
+                arguments=("documentation", candidate, base),
             )
             self.assertEqual(code, 1, stderr)
             self.assertIn("rustdoc fails for", stderr)
@@ -2448,7 +2729,8 @@ class LaneGateTestCase(unittest.TestCase):
 
     def _run_in_lane(self, fixture: GateFixture, lane: pathlib.Path,
                      extra_env: dict | None = None,
-                     target_directory: pathlib.Path | None = None) -> tuple:
+                     target_directory: pathlib.Path | None = None,
+                     phase: str = "push") -> tuple:
         # No SKIP_LOCKFILE_CHECK here: the lane's own commit touches only
         # crates/foo/src/lib.rs, so the range never touches Cargo.lock or
         # Cargo.toml and the lockfile section already self-skips on that
@@ -2463,13 +2745,21 @@ class LaneGateTestCase(unittest.TestCase):
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
         env["CARGO"] = str(fixture.cargo_launcher)
         env["TMPDIR"] = fixture.tmp.as_posix()
+        env["ATLAS_PRE_PUSH_RUNTIME"] = str(fixture.stack / "scripts")
+        env["ATLAS_PRE_PUSH_PYTHON"] = sys.executable
         env.pop("CARGO_TARGET_DIR", None)
         env.update(extra_env or {})
         _publish_stack_scripts(lane.parents[1])
         sha = _git(lane, "rev-parse", "HEAD")
+        arguments = () if phase == "push" else ("documentation", sha)
+        push_input = (
+            f"refs/heads/lane {sha} refs/heads/lane {ZERO}\n".encode("utf-8")
+            if phase == "push"
+            else b""
+        )
         proc = subprocess.run(
-            ["bash", str(SCRIPT)],
-            input=f"refs/heads/lane {sha} refs/heads/lane {ZERO}\n".encode("utf-8"),
+            ["bash", str(SCRIPT), *arguments],
+            input=push_input,
             cwd=str(lane),
             env=env,
             capture_output=True,
@@ -2535,15 +2825,13 @@ class LaneGateTestCase(unittest.TestCase):
         )
         cargo_calls = fixture.calls.read_text(encoding="utf-8").splitlines()
         stages = [line for line in cargo_calls if line.split()[0] in {"clippy", "nextest", "doc"}]
-        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest"])
         # The clippy stage runs through the cast gate, which builds the
         # selection beside the flags the stage always carried.
         self.assertIn("--all-targets --locked", stages[0])
         self.assertIn("-p foo", stages[0])
         self.assertIn("--locked --no-tests=pass -p foo", stages[1])
-        self.assertIn("--no-deps", stages[2])
         self.assertTrue(all("--manifest-path" in line for line in stages), stages)
-        self.assertEqual((fixture.root / "rustdoc-flags.log").read_text(), "-D warnings")
 
     def test_identity_clippy_failure_stops_before_tests_and_rustdoc(self) -> None:
         stack, fixture, lane = self._lane(overlay=True)
@@ -2560,14 +2848,15 @@ class LaneGateTestCase(unittest.TestCase):
         )
 
         self.assertEqual(code, 1, err)
+        calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.exists() else ""
         stages = [
-            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            line.split()[0] for line in calls.splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
         self.assertEqual(stages, ["clippy"])
         self.assertIn("clippy fails for", err)
 
-    def test_identity_rejects_a_source_mutation_after_the_sequence(self) -> None:
+    def test_documentation_rejects_a_source_mutation_after_the_sequence(self) -> None:
         stack, fixture, lane = self._lane(overlay=True)
         _install_real_identity(stack)
         fixture.set_cargo_behavior("mutate-source-on-doc")
@@ -2576,6 +2865,7 @@ class LaneGateTestCase(unittest.TestCase):
             lane,
             extra_env={"CARGO_MUTATE_SOURCE": "crates/foo/src/lib.rs"},
             target_directory=stack / "target",
+            phase="documentation",
         )
 
         self.assertEqual(code, 1, err)
@@ -2583,7 +2873,7 @@ class LaneGateTestCase(unittest.TestCase):
             line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
-        self.assertEqual(stages, ["clippy", "nextest", "doc"], err)
+        self.assertEqual(stages, ["doc"], err)
         self.assertIn("source identity blocked verification", err)
         self.assertIn("source tree changed while the build was running", err)
         records = list(
@@ -2600,7 +2890,11 @@ class LaneGateTestCase(unittest.TestCase):
         identity checker found no package of that name (helios#112).
         """
         stack, fixture, lane = self._lane(overlay=True)
-        _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
+        _write(
+            lane / "Cargo.toml",
+            '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n\n'
+            '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n',
+        )
         _write(
             lane / "crates" / "bar" / "Cargo.toml",
             '[package]\nname = "bar"\nversion = "0.1.0"\nedition = "2021"\n',
@@ -2629,7 +2923,7 @@ class LaneGateTestCase(unittest.TestCase):
         self.assertEqual(sorted(gated), ["bar", "foo"], repr(gating[0]))
         runs = log.read_text(encoding="utf-8").splitlines()
         # One identity run names every gated package and holds their leases
-        # across the complete clippy, tests, and rustdoc sequence.
+        # across the complete push-phase clippy and tests sequence.
         self.assertEqual(len(runs), 1, runs)
         self.assertEqual({frozenset(run.split()) for run in runs}, {frozenset({"'bar'", "'foo'"})})
 
@@ -2638,11 +2932,15 @@ class LaneGateTestCase(unittest.TestCase):
 
         Pushing a workspace `Cargo.toml` change gates every member, and the
         checker refused the PyO3 extension with "no artifact found" because
-        `cargo nextest run -p` has nothing to build for it. Its clippy and
-        rustdoc steps still run.
+        `cargo nextest run -p` has nothing to build for it. The push phase
+        still runs its clippy and any selected tests.
         """
         stack, fixture, lane = self._lane(overlay=True)
-        _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
+        _write(
+            lane / "Cargo.toml",
+            '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n\n'
+            '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n',
+        )
         _write(
             lane / "crates" / "bar" / "Cargo.toml",
             '[package]\nname = "bar"\nversion = "0.1.0"\nedition = "2021"\n',
@@ -2668,7 +2966,7 @@ class LaneGateTestCase(unittest.TestCase):
             line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
-        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest"])
         for line in stages:
             values = line.split()
             self.assertEqual(
@@ -2676,8 +2974,8 @@ class LaneGateTestCase(unittest.TestCase):
                 ["foo", "bar"],
             )
 
-    def test_all_undocumented_packages_skip_only_rustdoc(self) -> None:
-        """Every gated package undocumented: the one identity run omits rustdoc."""
+    def test_documentation_skips_an_all_undocumented_selection(self) -> None:
+        """Every gated package undocumented: documentation runs no identity command."""
         stack, fixture, lane = self._lane(overlay=True)
         _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
         _write(
@@ -2698,24 +2996,27 @@ class LaneGateTestCase(unittest.TestCase):
             ["foo", "bar"], targets={"foo": [undocumented], "bar": [undocumented]},
         )
         fixture.set_workspace_packages(["foo", "bar"])
-        code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
+        code, err = self._run_in_lane(
+            fixture, lane, target_directory=stack / "target", phase="documentation"
+        )
         self.assertEqual(code, 0, err)
-        self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
+        self.assertFalse(log.exists())
+        calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.exists() else ""
         stages = [
-            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+            line.split()[0] for line in calls.splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
-        self.assertEqual(stages, ["clippy", "nextest"])
+        self.assertEqual(stages, [])
         self.assertIn("rustdoc skipped for foo", err)
         self.assertIn("rustdoc skipped for bar", err)
 
-    def test_a_package_without_a_documented_target_skips_only_the_rustdoc_step(self) -> None:
+    def test_documentation_selects_only_packages_with_a_documented_target(self) -> None:
         """A bench-only package writes no rustdoc artifact, so its step is skipped.
 
         `cargo doc` documents lib and bin targets; a package of benches alone
         (moirai-benchmarks) or a `[lib] doc = false` one leaves the identity
         checker nothing to record and refused every push touching it. Its
-        other steps and every documented package still run.
+        documentation phase selects only the package that can emit an artifact.
         """
         stack, fixture, lane = self._lane(overlay=True)
         _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar", "crates/baz"]\n')
@@ -2743,21 +3044,24 @@ class LaneGateTestCase(unittest.TestCase):
             },
         )
         fixture.set_workspace_packages(["foo", "bar", "baz"])
-        code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
+        code, err = self._run_in_lane(
+            fixture, lane, target_directory=stack / "target", phase="documentation"
+        )
         self.assertEqual(code, 0, err)
         self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
         stages = [
             line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
-        self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+        self.assertEqual([line.split()[0] for line in stages], ["doc"])
         for line in stages:
             values = line.split()
             self.assertEqual(
                 [values[index + 1] for index, value in enumerate(values) if value == "-p"],
-                ["foo", "bar", "baz"],
+                ["foo"],
             )
         self.assertIn("rustdoc skipped for bar", err)
+        self.assertIn("rustdoc skipped for baz", err)
 
     def test_identity_rustdoc_failure_uses_the_pushed_export(self) -> None:
         """The identity checker receives the pushed export and exact Cargo argv."""
@@ -2769,7 +3073,9 @@ class LaneGateTestCase(unittest.TestCase):
         )
         fixture.set_cargo_behavior("fail-doc")
         env = {"CARGO_FAIL_LOG": self.inside_log.format(root="@ROOT@")}
-        code, err = self._run_in_lane(fixture, lane, extra_env=env)
+        code, err = self._run_in_lane(
+            fixture, lane, extra_env=env, phase="documentation"
+        )
         self.assertEqual(code, 1, err)
         self.assertIn("rustdoc fails for foo", err)
 
@@ -2796,7 +3102,7 @@ class LaneGateTestCase(unittest.TestCase):
             for line in fixture.calls.read_text(encoding="utf-8").splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
         ]
-        self.assertEqual([stage[0] for stage in stages], ["clippy", "nextest", "doc"])
+        self.assertEqual([stage[0] for stage in stages], ["doc"])
         manifest = argv[argv.index("--manifest") + 1]
         self.assertEqual(pathlib.Path(manifest).resolve(), exported / "Cargo.toml")
         self.assertEqual(
@@ -2910,6 +3216,7 @@ class DebtRatchetTestCase(unittest.TestCase):
         )
         _seed_scanner(stack)
         _seed_cast_gate(stack)
+        _seed_process_tree(stack)
         _git_init_repo(stack)
         _register_stack(stack)
         subprocess.run(
@@ -3077,6 +3384,8 @@ class DebtRatchetTestCase(unittest.TestCase):
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
         env["TMPDIR"] = fixture.tmp.as_posix()
+        env["ATLAS_PRE_PUSH_RUNTIME"] = str(fixture.stack / "scripts")
+        env["ATLAS_PRE_PUSH_PYTHON"] = sys.executable
         # The fixture's package metadata names the main tree, so the compile
         # gate is out of scope; the ratchet precedes it and this variable does
         # not skip it.
@@ -3216,10 +3525,11 @@ class PushedRevisionGateTestCase(unittest.TestCase):
             self.assertIn("gating foo", stderr)
             calls = fixture.calls.read_text(encoding="utf-8").splitlines()
             self.assertTrue(any(line.startswith("fmt --all --manifest-path") for line in calls), calls)
-            for step in ("clippy", "doc"):
+            for step in ("clippy", "nextest"):
                 matching = [line for line in calls if line.startswith(step)]
                 self.assertTrue(matching, calls)
                 self.assertTrue(all("-p foo" in line and "--locked" in line for line in matching), matching)
+            self.assertFalse(any(line.startswith("doc ") for line in calls), calls)
             # The steps read the pushed commit's lock, not the checkout's.
             committed = subprocess.run(
                 ["git", "-C", str(fixture.root), "show", f"{item}:Cargo.lock"],
@@ -4269,7 +4579,7 @@ class StackToolBaselineTestCase(unittest.TestCase):
                 line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
                 if line.split()[0] in {"clippy", "nextest", "doc"}
             ]
-            self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+            self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest"])
             for line in stages:
                 values = line.split()
                 self.assertEqual(
@@ -4303,7 +4613,8 @@ COMPILE_ERROR = ("error[E0433]: failed to resolve: use of undeclared crate or mo
 
 def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
                     base_exit: int | None = None, base_says: str | None = None,
-                    triggers: str = "a/src/x.rs -> foo/src/x.rs", triggers_exit: int = 0) -> str:
+                    triggers: str = "a/src/x.rs -> foo/src/x.rs", triggers_exit: int = 0,
+                    evidence_log: pathlib.Path | None = None) -> str:
     """A stack cast gate that logs each call but `base-triggers`; `clippy`
     records no sites.
 
@@ -4314,6 +4625,13 @@ def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
     base_exit = clippy_exit if base_exit is None else base_exit
     gate_error = "cast gate: could not run: no cargo metadata"
     base_says = gate_error if base_says is None else base_says
+    record_evidence = ""
+    if evidence_log is not None:
+        record_evidence = (
+            "    if base:\n"
+            f"        pathlib.Path({str(evidence_log)!r}).write_text("
+            f"{base_says!r}, encoding='utf-8')\n"
+        )
     return (
         "#!/usr/bin/env python3\n"
         "import pathlib, sys\n"
@@ -4326,12 +4644,62 @@ def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
         "if argv[0] == 'clippy':\n"
         "    pathlib.Path(argv[argv.index('--sites') + 1]).write_text('[]')\n"
         "    base = '--present-only' in argv\n"
+        f"{record_evidence}"
         f"    status = {base_exit} if base else {clippy_exit}\n"
         "    if status:\n"
         f"        print({base_says!r} if base else {gate_error!r}, file=sys.stderr)\n"
         "    sys.exit(status)\n"
         f"sys.exit({check_exit})\n"
     )
+
+
+_BASE_FAILURE_CASES = (
+    ("gate error", "cast gate: could not run: no cargo metadata"),
+    ("gate error beside a compile error", COMPILE_ERROR + "\ncast gate: could not run: x"),
+    ("killed compiler", COMPILE_ERROR + "\nprocess didn't exit successfully: rustc (signal: 9, SIGKILL)"),
+    ("out of memory", "memory allocation of 4096 bytes failed\n" + COMPILE_ERROR),
+    ("crashed compiler", COMPILE_ERROR + "\n(exit code: 0xc0000005, STATUS_ACCESS_VIOLATION)"),
+    ("rustc errors without cargo's summary", "error[E0433]: failed to resolve"),
+    (
+        "a dependency outside the base's packages",
+        "error[E0433]: failed to resolve\n"
+        "error: could not compile `regdep` (lib) due to 1 previous error",
+    ),
+    (
+        "a dependency failing beside a local error",
+        "error[E0433]: failed to resolve\n  --> src/lib.rs:1:1\n"
+        "error: could not compile `regdep` (lib) due to 1 previous error",
+    ),
+    (
+        "a compiler killed on Windows",
+        COMPILE_ERROR
+        + "\n\nCaused by:\n  process didn't exit successfully: `rustc --crate-name foo` "
+        "(exit code: 1)",
+    ),
+    (
+        "a silent compiler",
+        "error: could not compile `foo` (lib)\n\nCaused by:\n  process didn't exit "
+        "successfully: `rustc --crate-name foo` (exit code: 101)",
+    ),
+    (
+        "an internal compiler error",
+        "thread 'rustc' panicked at compiler/rustc_middle/src/x.rs:1:1\n"
+        "error: the compiler unexpectedly stopped\n"
+        + COMPILE_ERROR,
+    ),
+    (
+        "an internal compiler error by name",
+        "error: internal compiler error: unexpected\n" + COMPILE_ERROR,
+    ),
+    (
+        "cargo's summary without a diagnostic count",
+        "error[E0433]: failed to resolve\nerror: could not compile `foo` (lib)",
+    ),
+    *(
+        (f"crate metadata {code}", f"error[{code}]: crate `a`\n" + COMPILE_ERROR)
+        for code in ("E0460", "E0461", "E0462", "E0463", "E0464", "E0514", "E0519", "E0786")
+    ),
+)
 
 
 class CastGateTestCase(unittest.TestCase):
@@ -4595,47 +4963,6 @@ class CastGateTestCase(unittest.TestCase):
             self.assertNotIn("--base-sites", check)
             self.assertNotIn("--base-package", check)
 
-    def test_a_base_failure_other_than_a_compile_error_refuses(self) -> None:
-        cases = {
-            "gate error": "cast gate: could not run: no cargo metadata",
-            "gate error beside a compile error": COMPILE_ERROR + "\ncast gate: could not run: x",
-            "killed compiler": COMPILE_ERROR + "\nprocess didn't exit successfully: rustc (signal: 9, SIGKILL)",
-            "out of memory": "memory allocation of 4096 bytes failed\n" + COMPILE_ERROR,
-            "crashed compiler": COMPILE_ERROR + "\n(exit code: 0xc0000005, STATUS_ACCESS_VIOLATION)",
-            "rustc errors without cargo's summary": "error[E0433]: failed to resolve",
-            "a dependency outside the base's packages":
-                "error[E0433]: failed to resolve\nerror: could not compile `regdep` (lib) due to 1 previous error",
-            "a dependency failing beside a local error":
-                "error[E0433]: failed to resolve\n  --> src/lib.rs:1:1\n"
-                "error: could not compile `regdep` (lib) due to 1 previous error",
-            "a compiler killed on Windows": COMPILE_ERROR + "\n\nCaused by:\n  process didn't "
-                                           "exit successfully: `rustc --crate-name foo` (exit code: 1)",
-            "a silent compiler": "error: could not compile `foo` (lib)\n\nCaused by:\n  process "
-                                 "didn't exit successfully: `rustc --crate-name foo` (exit code: 101)",
-            "an internal compiler error": "thread 'rustc' panicked at compiler/rustc_middle/src/x.rs:1:1\n"
-                                          "error: the compiler unexpectedly stopped\n" + COMPILE_ERROR,
-            "an internal compiler error by name": "error: internal compiler error: unexpected\n"
-                                                  + COMPILE_ERROR,
-            "cargo's summary without a diagnostic count": "error[E0433]: failed to resolve\n"
-                                                          "error: could not compile `foo` (lib)",
-        }
-        for code in ("E0460", "E0461", "E0462", "E0463", "E0464", "E0514", "E0519", "E0786"):
-            cases[f"crate metadata {code}"] = f"error[{code}]: crate `a`\n" + COMPILE_ERROR
-        for name, says in cases.items():
-            with self.subTest(name), tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-                fixture, _, cast_log = self._member(temp, 0, base_exit=101, base_says=says)
-
-                code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
-
-                self.assertEqual(code, 1, stderr)
-                # Refused by the cast gate or, for a failure outside the
-                # export, by the broken-graph report; never left to the rows.
-                self.assertNotIn("held to their rows alone", stderr)
-                self.assertTrue("for a reason other than a compile error" in stderr
-                                or "the local dependency graph is broken" in stderr, stderr)
-                calls = cast_log.read_text(encoding="utf-8").splitlines()
-                self.assertEqual([call.split()[0] for call in calls], ["clippy"])
-
     def test_a_base_failing_on_a_denied_lint_leaves_the_rows_to_judge(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             lint = ("error: missing documentation for a function\n"
@@ -4774,3 +5101,63 @@ class CastGateTestCase(unittest.TestCase):
             # The workspace base did not compile; the fuzz crate, absent at
             # the base, is still held to zero there.
             self.assertEqual(compared, ["member-fuzz"])
+
+
+@pytest.mark.parametrize(
+    ("case_name", "diagnostic"),
+    _BASE_FAILURE_CASES,
+    ids=[name for name, _ in _BASE_FAILURE_CASES],
+)
+def test_a_base_failure_other_than_a_compile_error_refuses(
+    case_name: str,
+    diagnostic: str,
+    base_failure_fixture: GateFixture,
+) -> None:
+    """Each independent compiler-failure class receives one schedulable item."""
+    fixture = base_failure_fixture
+    cast_log = fixture.stack / f"cast-{case_name}.log"
+    evidence_log = fixture.stack / f"diagnostic-{case_name}.log"
+    cast_log.unlink(missing_ok=True)
+    evidence_log.unlink(missing_ok=True)
+    source = _cast_gate_stub(
+        cast_log,
+        0,
+        base_exit=101,
+        base_says=diagnostic,
+        evidence_log=evidence_log,
+    )
+    _write(
+        fixture.stack / "scripts" / "atlas_cast_gate.py",
+        source,
+    )
+    _publish_stack_scripts(fixture.stack)
+    published = _git(
+        fixture.stack,
+        "show",
+        "refs/remotes/origin/main:scripts/atlas_cast_gate.py",
+    )
+
+    code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+    assert published == source.rstrip(), case_name
+    assert code == 1, f"{case_name}: {stderr}"
+    assert "held to their rows alone" not in stderr, case_name
+    assert (
+        "for a reason other than a compile error" in stderr
+        or "the local dependency graph is broken" in stderr
+    ), f"{case_name}: {stderr}"
+    assert evidence_log.read_text(encoding="utf-8") == diagnostic, case_name
+    calls = cast_log.read_text(encoding="utf-8").splitlines()
+    assert [call.split()[0] for call in calls] == ["clippy"], case_name
+
+
+@pytest.fixture(scope="module")
+def base_failure_fixture(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> GateFixture:
+    """Build one reusable Git candidate per worker for the diagnostic table."""
+    root = tmp_path_factory.mktemp("atlas-gate-base-failure")
+    fixture, _, _ = CastGateTestCase()._member(
+        str(root), 0, base_exit=101, base_says=_BASE_FAILURE_CASES[0][1]
+    )
+    return fixture
