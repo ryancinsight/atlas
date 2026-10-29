@@ -200,6 +200,9 @@ class PendingWorkflowTests(unittest.TestCase):
         for path in (".github/actions/crates-pending/action.yml",
                      ".github/actions/crates-pending/artifact_evidence.py",
                      ".github/actions/crates-pending/crates_pending.py",
+                     ".github/actions/crate-release-identity/release_identity.py",
+                     "scripts/process_tree.py", "scripts/darwin_process.py",
+                     "scripts/windows_process.py",
                      ".github/workflows/semver-gate.yml"):
             pinned = subprocess.run(["git", "-C", str(ROOT), "show", f"{pin}:{path}"],
                                     check=True, capture_output=True).stdout

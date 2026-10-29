@@ -177,7 +177,8 @@ def raw_http(responses):
 
 
 def test_publication_queries_share_the_registry_policy(identity):
-    for operation in (identity.sparse_index_versions, identity.publish_required):
+    for operation in (identity.sparse_index_versions, identity.published_checksum,
+                      identity.publish_required):
         assert inspect.signature(operation).parameters["fetch"].default is identity.REGISTRY_POLICY
     assert identity.REGISTRY_POLICY.reader is identity.read_url
 
@@ -632,8 +633,10 @@ def test_workflow_uses_exact_helper_commit_and_correct_action_output(history):
     assert guard["with"] == {"package": "${{ needs.validate.outputs.package }}",
                             "version": "${{ needs.validate.outputs.version }}",
                             "expected-commit": "${{ github.sha }}"}
-    for name in ("action.yml", "release_identity.py"):
-        path = ".github/actions/crate-release-identity/" + name
+    for path in (".github/actions/crate-release-identity/action.yml",
+                 ".github/actions/crate-release-identity/release_identity.py",
+                 "scripts/process_tree.py", "scripts/darwin_process.py",
+                 "scripts/windows_process.py"):
         actual = subprocess.run(["git", "show", f"{match.group(1)}:{path}"], cwd=history,
                                 capture_output=True, check=True, timeout=5).stdout
         # A Windows checkout with `core.autocrlf=true` holds CRLF while the
