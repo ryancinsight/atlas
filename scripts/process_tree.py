@@ -231,7 +231,7 @@ class ProcessTreeTimeout(subprocess.TimeoutExpired):
 
 
 class ProcessTreeOutputLimit(RuntimeError):
-    """A command exceeded an explicitly requested captured-output bound."""
+    """A command exceeded an output bound after bounded process-tree cleanup."""
 
     def __init__(
         self,
@@ -249,6 +249,12 @@ class ProcessTreeOutputLimit(RuntimeError):
         self.stdout = stdout
         self.stderr = stderr
         self.cleanup_error = cleanup_error
+
+    def __str__(self) -> str:
+        message = super().__str__()
+        if self.cleanup_error is None:
+            return message
+        return f"{message}; process-tree cleanup failed: {self.cleanup_error}"
 
 
 class _InterruptDeferral:
@@ -858,6 +864,8 @@ def run(
                 captured_stdout,
                 captured_stderr,
                 cleanup_error,
+            ) from (
+                None if cleanup_error is None else ProcessTreeCleanupError(cleanup_error)
             )
         if timed_out:
             raise ProcessTreeTimeout(

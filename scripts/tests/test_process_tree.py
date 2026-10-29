@@ -244,6 +244,34 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(raised.exception.stdout, b"x" * 7)
         self.assertEqual(raised.exception.stderr, b"")
 
+    def test_output_limit_preserves_a_failure_reported_after_real_cleanup(self):
+        command = (
+            "import os, threading; os.write(1, b'x' * 8); "
+            "threading.Event().wait()"
+        )
+        original_cleanup = process_tree._terminate_process_tree
+
+        def cleanup_then_report(*args, **kwargs):
+            self.assertIsNone(original_cleanup(*args, **kwargs))
+            return "injected cleanup failure"
+
+        with (
+            patch.object(process_tree, "_terminate_process_tree", cleanup_then_report),
+            self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised,
+        ):
+            process_tree.run(
+                [sys.executable, "-c", command],
+                timeout=HANG_GUARD_SECONDS,
+                stdout_limit=7,
+            )
+
+        self.assertEqual(raised.exception.stdout, b"x" * 7)
+        self.assertEqual(raised.exception.cleanup_error, "injected cleanup failure")
+        self.assertIn("process-tree cleanup failed: injected cleanup failure",
+                      str(raised.exception))
+        self.assertIsInstance(raised.exception.__cause__, process_tree.ProcessTreeCleanupError)
+        self.assertEqual(raised.exception.__cause__.cleanup_error, "injected cleanup failure")
+
     def test_stderr_limit_is_independent_and_default_behavior_is_unchanged(self):
         command = "import sys; sys.stderr.buffer.write(b'abcdef')"
 
