@@ -96,21 +96,6 @@ def _reject_fuzz_env_options(command: Sequence[str]) -> None:
         break
 
 
-def _has_inline_string_rustflags(command: Sequence[str]) -> bool:
-    """Whether an inline Cargo config replaces build rustflags with a string."""
-    for argument in _config_arguments(command):
-        if "=" not in argument:
-            continue
-        try:
-            document = tomllib.loads(argument)
-        except tomllib.TOMLDecodeError:
-            continue
-        build = document.get("build", {})
-        if isinstance(build, dict) and isinstance(build.get("rustflags"), str):
-            return True
-    return False
-
-
 def _cargo_fuzz_manifest(manifest: Path) -> bool:
     """Whether the exact manifest declares Cargo's fuzz-package metadata."""
     try:
@@ -175,29 +160,33 @@ def _configured_rustflags(
     cargo = environment.get("CARGO", "cargo")
     query_environment = dict(environment)
     query_environment["RUSTC_BOOTSTRAP"] = "1"
-    query = [cargo]
+    query_prefix = [cargo]
     for argument in _config_arguments(command):
-        query.extend(("--config", argument))
-    query.extend(("-Z", "unstable-options", "config", "get", "--format=json"))
+        query_prefix.extend(("--config", argument))
+
+    def query(arguments: Sequence[str]) -> str:
+        try:
+            result = subprocess.run(
+                [*query_prefix, *arguments],
+                cwd=execution_root,
+                env=query_environment,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=60,
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            raise BuildIdentityError(f"cannot resolve Cargo rustflags: {error}") from error
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip()
+            raise BuildIdentityError(f"cannot resolve Cargo rustflags: {detail}")
+        return result.stdout
+
+    output = query(("-Z", "unstable-options", "config", "get", "--format=json"))
     try:
-        result = subprocess.run(
-            query,
-            cwd=execution_root,
-            env=query_environment,
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=60,
-        )
-    except (OSError, subprocess.SubprocessError) as error:
-        raise BuildIdentityError(f"cannot resolve Cargo rustflags: {error}") from error
-    if result.returncode != 0:
-        detail = result.stderr.strip() or result.stdout.strip()
-        raise BuildIdentityError(f"cannot resolve Cargo rustflags: {detail}")
-    try:
-        document = json.loads(result.stdout)
+        document = json.loads(output)
     except json.JSONDecodeError as error:
         raise BuildIdentityError(f"Cargo config returned malformed JSON: {error}") from error
     if not isinstance(document, dict):
@@ -220,7 +209,23 @@ def _configured_rustflags(
     if not isinstance(build, dict):
         raise BuildIdentityError("Cargo config build must be a table")
     value = build.get("rustflags")
-    return [] if value is None else _rustflag_tokens(value, "Cargo build.rustflags")
+    if value is None and "CARGO_BUILD_RUSTFLAGS" not in environment:
+        return []
+    resolved = query(
+        (
+            "-Z",
+            "unstable-options",
+            "config",
+            "get",
+            "build.rustflags",
+            "--format=json-value",
+        )
+    )
+    try:
+        value = json.loads(resolved)
+    except json.JSONDecodeError as error:
+        raise BuildIdentityError(f"Cargo rustflags returned malformed JSON: {error}") from error
+    return _rustflag_tokens(value, "Cargo build.rustflags")
 
 
 def effective_compiler_command(
@@ -274,18 +279,6 @@ def effective_compiler_environment(
             effective["RUSTFLAGS"] = f"{rustflags} {' '.join(_FUZZ_CFG)}".strip()
         return effective
     tokens = _configured_rustflags(execution_root, command, effective)
-    configured = effective.get("CARGO_BUILD_RUSTFLAGS")
-    if configured is not None:
-        if _has_inline_string_rustflags(command):
-            raise BuildIdentityError(
-                "cannot combine CARGO_BUILD_RUSTFLAGS with an inline string "
-                "build.rustflags while adding cfg(fuzzing)"
-            )
-        if not _has_fuzz_cfg(configured.split()):
-            effective["CARGO_BUILD_RUSTFLAGS"] = (
-                f"{configured} {' '.join(_FUZZ_CFG)}".strip()
-            )
-        return effective
     if not _has_fuzz_cfg(tokens):
         tokens.extend(_FUZZ_CFG)
     effective["CARGO_ENCODED_RUSTFLAGS"] = _ENCODED_SEPARATOR.join(tokens)

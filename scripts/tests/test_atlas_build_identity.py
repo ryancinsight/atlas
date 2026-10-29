@@ -4387,14 +4387,21 @@ class EffectiveFuzzEnvironmentTestCase(unittest.TestCase):
             )[0]
         self.assertEqual(result.status, "rebuilt")
 
-    def test_cargo_build_and_string_command_config_flags_fail_closed(self) -> None:
+    def test_cargo_build_and_string_command_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(command_marker))]\ncompile_error!("missing command cfg");\n'
+            '#[cfg(environment_marker)]\ncompile_error!("environment cfg was not replaced");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require string config flags")
         environment = dict(self.environment)
         environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
-        with (
-            patch.dict(os.environ, environment, clear=True),
-            self.assertRaisesRegex(BuildIdentityError, "inline string build.rustflags"),
-        ):
-            identity.run_build(
+        with patch.dict(os.environ, environment, clear=True):
+            result = identity.run_build(
                 self.root,
                 self.root / "Cargo.toml",
                 ("fuzz-probe",),
@@ -4410,7 +4417,52 @@ class EffectiveFuzzEnvironmentTestCase(unittest.TestCase):
                     "--offline",
                 ],
                 command_cwd=self.root,
-            )
+            )[0]
+        self.assertEqual(result.status, "rebuilt")
+
+    def test_cargo_build_and_file_string_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(file_marker))]\ncompile_error!("missing file cfg");\n'
+            '#[cfg(environment_marker)]\ncompile_error!("environment cfg was not replaced");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require file config flags")
+        config = self.base / "string-flags.toml"
+        config.write_text(
+            '[build]\nrustflags = "--cfg file_marker"\n', encoding="utf-8"
+        )
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        arguments = (
+            str(config),
+            f"include=[{json.dumps(config.as_posix())}]",
+        )
+        for argument in arguments:
+            with self.subTest(argument=argument), patch.dict(
+                os.environ, environment, clear=True
+            ):
+                result = identity.run_build(
+                    self.root,
+                    self.root / "Cargo.toml",
+                    ("fuzz-probe",),
+                    self.target,
+                    [
+                        "cargo",
+                        "--config",
+                        argument,
+                        "check",
+                        "--workspace",
+                        "--all-targets",
+                        "--locked",
+                        "--offline",
+                    ],
+                    command_cwd=self.root,
+                )[0]
+            self.assertEqual(result.status, "rebuilt")
 
     @unittest.skipUnless(shutil.which("env"), "needs env")
     def test_inline_env_options_fail_before_the_child_runs(self) -> None:
