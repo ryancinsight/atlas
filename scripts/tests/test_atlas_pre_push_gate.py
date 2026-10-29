@@ -741,6 +741,19 @@ def _recording_tool(log: pathlib.Path, exit_code: int) -> str:
     )
 
 
+def _recording_process_tree(deadline_log: pathlib.Path) -> str:
+    """A process-tree owner that records each requested wall deadline."""
+    return (
+        "import pathlib, subprocess\n"
+        "class ProcessTreeTimeout(Exception):\n    pass\n"
+        "class ProcessTreeCleanupError(Exception):\n    pass\n"
+        "def run(command, *, input, timeout, env):\n"
+        f"    with pathlib.Path({str(deadline_log)!r}).open('a', encoding='utf-8') as stream:\n"
+        "        stream.write(f'{timeout}\\n')\n"
+        "    return subprocess.run(command, input=input, env=env, capture_output=True)\n"
+    )
+
+
 def _recording_passthrough_identity(log: pathlib.Path) -> str:
     """Record one checker invocation, then run its command with fixture tools."""
     return (
@@ -1469,12 +1482,7 @@ class PhaseOwnershipTestCase(unittest.TestCase):
             deadline_log = fixture.stack / "deadline.log"
             _write(
                 fixture.stack / "scripts" / "process_tree.py",
-                "import pathlib, subprocess\n"
-                "class ProcessTreeTimeout(Exception):\n    pass\n"
-                "class ProcessTreeCleanupError(Exception):\n    pass\n"
-                "def run(command, *, input, timeout, env):\n"
-                f"    pathlib.Path({str(deadline_log)!r}).write_text(str(timeout))\n"
-                "    return subprocess.run(command, input=input, env=env, capture_output=True)\n",
+                _recording_process_tree(deadline_log),
             )
             _publish_stack_scripts(fixture.stack)
 
@@ -1483,7 +1491,9 @@ class PhaseOwnershipTestCase(unittest.TestCase):
             )
 
             self.assertEqual(code, 0, stderr)
-            self.assertEqual(deadline_log.read_text(encoding="utf-8"), "600")
+            self.assertEqual(
+                deadline_log.read_text(encoding="utf-8").splitlines(), ["600"]
+            )
             stages = [
                 line.split()[0]
                 for line in fixture.calls.read_text(encoding="utf-8").splitlines()
@@ -1541,6 +1551,46 @@ class PhaseOwnershipTestCase(unittest.TestCase):
                 "documentation-phase must be 'pre-push' or 'pre-merge'", stderr
             )
             self.assertIn("invalid documentation phase in Cargo.toml", stderr)
+
+    def test_multi_ref_push_shares_one_committed_deadline(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-phase-") as temp:
+            fixture = _stacked_fixture(temp)
+            source = fixture.root / "crates" / "foo" / "src" / "lib.rs"
+            _git(fixture.root, "switch", "-q", "-c", "first")
+            source.write_text("pub fn first() {}\n", encoding="utf-8")
+            _commit_all(fixture.root, "first")
+            _git(fixture.root, "switch", "-q", "-c", "second", "main")
+            source.write_text("pub fn second() {}\n", encoding="utf-8")
+            _commit_all(fixture.root, "second")
+            _git(fixture.root, "switch", "-q", "first")
+            deadline_log = fixture.stack / "deadline.log"
+            _write(
+                fixture.stack / "scripts" / "process_tree.py",
+                _recording_process_tree(deadline_log),
+            )
+            _publish_stack_scripts(fixture.stack)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("first")
+                + fixture.push_line_new_branch("second"),
+                arguments=("origin", "fixture"),
+            )
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(
+                deadline_log.read_text(encoding="utf-8").splitlines(), ["600"]
+            )
+            self.assertIn("pre-push: judging refs/heads/first", stderr)
+            self.assertIn("pre-push: judging refs/heads/second", stderr)
+            stages = [
+                line.split()[0]
+                for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+                if line.split()[0] in {"clippy", "nextest", "doc"}
+            ]
+            self.assertEqual(
+                stages,
+                ["clippy", "nextest", "clippy", "nextest"],
+            )
 
     def test_documentation_phase_runs_warning_denied_rustdoc(self) -> None:
         """The public phase accepts valid links and rejects a broken link."""
@@ -4505,7 +4555,8 @@ COMPILE_ERROR = ("error[E0433]: failed to resolve: use of undeclared crate or mo
 
 def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
                     base_exit: int | None = None, base_says: str | None = None,
-                    triggers: str = "a/src/x.rs -> foo/src/x.rs", triggers_exit: int = 0) -> str:
+                    triggers: str = "a/src/x.rs -> foo/src/x.rs", triggers_exit: int = 0,
+                    evidence_log: pathlib.Path | None = None) -> str:
     """A stack cast gate that logs each call but `base-triggers`; `clippy`
     records no sites.
 
@@ -4516,6 +4567,13 @@ def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
     base_exit = clippy_exit if base_exit is None else base_exit
     gate_error = "cast gate: could not run: no cargo metadata"
     base_says = gate_error if base_says is None else base_says
+    record_evidence = ""
+    if evidence_log is not None:
+        record_evidence = (
+            "    if base:\n"
+            f"        pathlib.Path({str(evidence_log)!r}).write_text("
+            f"{base_says!r}, encoding='utf-8')\n"
+        )
     return (
         "#!/usr/bin/env python3\n"
         "import pathlib, sys\n"
@@ -4528,6 +4586,7 @@ def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
         "if argv[0] == 'clippy':\n"
         "    pathlib.Path(argv[argv.index('--sites') + 1]).write_text('[]')\n"
         "    base = '--present-only' in argv\n"
+        f"{record_evidence}"
         f"    status = {base_exit} if base else {clippy_exit}\n"
         "    if status:\n"
         f"        print({base_says!r} if base else {gate_error!r}, file=sys.stderr)\n"
@@ -4994,24 +5053,42 @@ class CastGateTestCase(unittest.TestCase):
 def test_a_base_failure_other_than_a_compile_error_refuses(
     case_name: str,
     diagnostic: str,
-    base_failure_fixture: tuple[GateFixture, pathlib.Path],
+    base_failure_fixture: GateFixture,
 ) -> None:
     """Each independent compiler-failure class receives one schedulable item."""
-    fixture, cast_log = base_failure_fixture
+    fixture = base_failure_fixture
+    cast_log = fixture.stack / f"cast-{case_name}.log"
+    evidence_log = fixture.stack / f"diagnostic-{case_name}.log"
     cast_log.unlink(missing_ok=True)
+    evidence_log.unlink(missing_ok=True)
+    source = _cast_gate_stub(
+        cast_log,
+        0,
+        base_exit=101,
+        base_says=diagnostic,
+        evidence_log=evidence_log,
+    )
     _write(
         fixture.stack / "scripts" / "atlas_cast_gate.py",
-        _cast_gate_stub(cast_log, 0, base_exit=101, base_says=diagnostic),
+        source,
+    )
+    _publish_stack_scripts(fixture.stack)
+    published = _git(
+        fixture.stack,
+        "show",
+        "refs/remotes/origin/main:scripts/atlas_cast_gate.py",
     )
 
     code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
 
+    assert published == source.rstrip(), case_name
     assert code == 1, f"{case_name}: {stderr}"
     assert "held to their rows alone" not in stderr, case_name
     assert (
         "for a reason other than a compile error" in stderr
         or "the local dependency graph is broken" in stderr
     ), f"{case_name}: {stderr}"
+    assert evidence_log.read_text(encoding="utf-8") == diagnostic, case_name
     calls = cast_log.read_text(encoding="utf-8").splitlines()
     assert [call.split()[0] for call in calls] == ["clippy"], case_name
 
@@ -5019,10 +5096,10 @@ def test_a_base_failure_other_than_a_compile_error_refuses(
 @pytest.fixture(scope="module")
 def base_failure_fixture(
     tmp_path_factory: pytest.TempPathFactory,
-) -> tuple[GateFixture, pathlib.Path]:
-    """Build one immutable Git candidate per worker for the diagnostic table."""
+) -> GateFixture:
+    """Build one reusable Git candidate per worker for the diagnostic table."""
     root = tmp_path_factory.mktemp("atlas-gate-base-failure")
-    fixture, _, cast_log = CastGateTestCase()._member(
+    fixture, _, _ = CastGateTestCase()._member(
         str(root), 0, base_exit=101, base_says=_BASE_FAILURE_CASES[0][1]
     )
-    return fixture, cast_log
+    return fixture
