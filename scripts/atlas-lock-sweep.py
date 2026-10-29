@@ -66,7 +66,7 @@ import sys
 import tarfile
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -74,7 +74,11 @@ sys.path.insert(0, str(SCRIPTS))
 
 import lockfile  # noqa: E402  (overlay-free cargo runner; shared, not copied)
 from atlas_pull_request import open_pull_request  # noqa: E402
-from atlas_stack import ROOT, git, registered_member_names, registered_members  # noqa: E402
+from atlas_stack import (  # noqa: E402
+    ROOT, git, load_sibling, registered_member_names, registered_members,
+)
+
+stack_overlay = load_sibling("atlas_stack_overlay", SCRIPTS / "atlas-stack-overlay.py")
 
 LOG_ROOT = ROOT / "output" / "lock-sweep"
 # A pushed member branch runs the member's whole pre-push gate, which can queue
@@ -133,12 +137,16 @@ class Outcome:
 
 @dataclass(frozen=True)
 class RevisionCheck:
-    """Deterministic evidence for every lock selected by a meta revision."""
-
     revision: str
     reports: tuple[str, ...]
     problems: tuple[str, ...]
     locks: int
+
+
+@dataclass(frozen=True)
+class RevisionTarget:
+    revision: str
+    packages: dict[str, str | None]
 
 
 # --- pure functions (unit-tested) ---------------------------------------------
@@ -161,7 +169,7 @@ def revision_lock_findings(
     member: str,
     lock: str,
     lock_text: str,
-    targets: dict[str, str],
+    targets: dict[str, RevisionTarget],
     path_fixture: bool,
 ) -> tuple[str, list[str]]:
     """Report one measured lock and every source identity mismatch it contains."""
@@ -173,26 +181,29 @@ def revision_lock_findings(
     findings: list[str] = []
     if path_fixture:
         report = f"{label}: path fixture ({len(identities)} first-party Git identities)"
-        for identity in identities:
-            findings.append(
+        findings.extend(
                 f"{label}: path-unification required for {identity.name}: "
-                f"git+{identity.url}#{identity.rev} cannot be judged against a gitlink while sibling "
+                f"{identity.provider}@{identity.rev} cannot be judged against a gitlink while sibling "
                 "dependencies remain paths"
-            )
+            for identity in identities
+        )
         return report, findings
     for identity in identities:
         target = targets.get(identity.provider)
-        source = f"git+{identity.url}#{identity.rev}"
         if target is None:
-            findings.append(
-                f"{label}: {identity.name} uses unknown registered first-party "
-                f"identity {identity.provider}: {source}"
-            )
-        elif identity.rev != target:
-            findings.append(
-                f"{label}: {identity.name} locks {identity.provider}@{identity.rev}; "
-                f"selected {target}; source {source}"
-            )
+            findings.append(f"{label}: {identity.name} uses unknown registered first-party "
+                            f"identity {identity.provider}@{identity.rev}")
+            continue
+        if identity.rev != target.revision:
+            findings.append(f"{label}: {identity.name} locks {identity.provider}@{identity.rev}; "
+                            f"selected {target.revision}")
+        version = target.packages.get(identity.name)
+        if version is None:
+            findings.append(f"{label}: selected {identity.provider} does not define "
+                            f"package {identity.name} with a readable version")
+        elif identity.version != version:
+            findings.append(f"{label}: {identity.name} locks version {identity.version}; "
+                            f"selected {identity.provider} manifest declares {version}")
     state = "measured" if findings else "aligned"
     return f"{label}: {state} {len(identities)} first-party package(s)", findings
 
@@ -206,7 +217,6 @@ def committed_member_names(repository: Path, selected: str) -> set[str]:
         )
     except RuntimeError as error:
         raise RuntimeError(f"cannot parse .gitmodules at {selected}: {error}") from error
-    sections: set[str] = set()
     path_fields: dict[str, list[str]] = {}
     for record in configuration.split("\0"):
         if not record:
@@ -218,19 +228,18 @@ def committed_member_names(repository: Path, selected: str) -> set[str]:
         if match is None:
             continue
         section, field = match.groups()
-        sections.add(section)
+        path_fields.setdefault(section, [])
         if field.lower() == "path":
-            path_fields.setdefault(section, []).append(value)
-    if not sections:
+            path_fields[section].append(value)
+    if not path_fields:
         raise RuntimeError(f"no registered members in .gitmodules at {selected}")
-    missing = sorted(sections - path_fields.keys())
-    if missing:
-        raise RuntimeError(f"submodule {missing[0]!r} has no path in .gitmodules at {selected}")
 
     names: set[str] = set()
     identities: set[str] = set()
     for section in sorted(path_fields):
         values = path_fields[section]
+        if not values:
+            raise RuntimeError(f"submodule {section!r} has no path in .gitmodules at {selected}")
         if len(values) != 1:
             raise RuntimeError(f"submodule {section!r} has multiple paths in .gitmodules at {selected}")
         path = values[0]
@@ -256,29 +265,24 @@ def selected_gitlinks(repository: Path, revision: str) -> tuple[str, dict[str, t
     """Resolve one meta revision and its complete registered gitlink set."""
     selected = git(repository, "rev-parse", "--verify", f"{revision}^{{commit}}").strip()
     names = committed_member_names(repository, selected)
-    paths = {name.lower(): repository / "repos" / name for name in names}
     links: dict[str, tuple[str, str, Path]] = {}
-    for line in git(repository, "ls-tree", "-r", selected, "--", "repos/").splitlines():
+    for line in git(repository, "ls-tree", "-r", selected).splitlines():
         metadata, _, path = line.partition("\t")
         fields = metadata.split()
+        if len(fields) != 3 or fields[:2] != ["160000", "commit"]:
+            continue
         parts = path.split("/")
-        if len(fields) != 3:
-            continue
-        if fields[0] != "160000" or fields[1] != "commit":
-            continue
         if len(parts) != 2 or parts[0] != "repos":
             raise RuntimeError(f"unsupported gitlink {path} at {selected}")
         name = parts[1]
         if name not in names:
             raise RuntimeError(f"unregistered gitlink repos/{name} at {selected}")
-        local = paths.get(name.lower())
-        if local is None or not local.is_dir():
+        local = repository / path
+        if not local.is_dir():
             raise RuntimeError(f"registered member {name} has no local object repository")
         top_level = Path(git(local, "rev-parse", "--show-toplevel").strip()).resolve()
         if top_level != local.resolve():
             raise RuntimeError(f"registered member {name} has no independent object repository")
-        if name.lower() in links:
-            raise RuntimeError(f"registered identity {name} is duplicated by case")
         links[name.lower()] = (name, fields[2], local)
     missing = sorted(name for name in names if name.lower() not in links)
     if missing:
@@ -292,10 +296,10 @@ def check_revision(repository: Path, revision: str) -> RevisionCheck:
         selected, links = selected_gitlinks(repository, revision)
     except (RuntimeError, lockfile.GitUnavailable) as error:
         return RevisionCheck("unresolved", (), (f"meta revision {revision}: {error}",), 0)
-    targets = {provider: pin for provider, (_, pin, _) in links.items()}
-    reports: list[str] = []
-    problems: list[str] = []
+    reports, problems = [], []
     measured = 0
+    selected_texts: dict[str, dict[str, str]] = {}
+    targets = {provider: RevisionTarget(pin, {}) for provider, (_, pin, _) in links.items()}
     for provider in sorted(links):
         name, pin, member = links[provider]
         try:
@@ -303,10 +307,22 @@ def check_revision(repository: Path, revision: str) -> RevisionCheck:
         except lockfile.GitUnavailable as error:
             problems.append(f"{name}@{pin}: selected object cannot be read: {error}")
             continue
+        selected_texts[provider] = texts
+        manifests = [(PurePosixPath(path).parent, text) for path, text in texts.items()
+                     if path.endswith("Cargo.toml")]
+        packages = stack_overlay.load_packages(manifests)
+        targets[provider] = RevisionTarget(pin, {name: facts[1] for name, facts in packages.items()})
+    for provider in sorted(selected_texts):
+        name, pin, _ = links[provider]
+        texts = selected_texts[provider]
         locks = sorted(path for path in texts if Path(path).name == "Cargo.lock")
         if not locks:
             problems.append(f"{name}@{pin}: no committed Cargo.lock")
             continue
+        for lock in locks:
+            manifest = (PurePosixPath(lock).parent / "Cargo.toml").as_posix()
+            if manifest not in texts:
+                problems.append(f"{name}/{lock}: workspace has no committed Cargo.toml")
         standalone, fixtures = lockfile.judge_locks(texts, locks)
         problems.extend(f"{name}/{problem}" for problem in standalone)
         fixture_set = set(fixtures)
