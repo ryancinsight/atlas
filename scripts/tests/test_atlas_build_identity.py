@@ -2746,7 +2746,10 @@ class BuildIdentityTestCase(unittest.TestCase):
         effective = build_inputs.effective_compiler_environment(
             manifest,
             self.root,
-            environment={"CARGO_HOME": str(self.base / "cargo-home")},
+            environment={
+                "CARGO_HOME": str(self.base / "cargo-home"),
+                "PATH": os.environ["PATH"],
+            },
         )
         self.assertEqual(
             effective["CARGO_ENCODED_RUSTFLAGS"].split("\x1f"),
@@ -2774,6 +2777,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 environment={
                     "CARGO_BUILD_RUSTFLAGS": "--cfg environment",
                     "CARGO_HOME": str(self.base / "cargo-home"),
+                    "PATH": os.environ["PATH"],
                 },
             )
 

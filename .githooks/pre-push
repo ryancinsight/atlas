@@ -592,7 +592,7 @@ refspec_gate() {
 # no sanctioned path. The checker comes from the pushed revision, as above; a
 # push with no base has nothing to hold it to.
 cast_baseline_gate() {
-    local tip="$1" python_bin candidate
+    local tip="$1" python_bin candidate checker_dir
     [ -n "$gate_base" ] || return 0
     python_bin="${PYTHON:-}"
     if [ -z "$python_bin" ]; then
@@ -607,9 +607,23 @@ cast_baseline_gate() {
     if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas_cast_gate.py" 2>/dev/null; then
         return 0
     fi
-    git -C "$atlas_root" show "$tip:scripts/atlas_cast_gate.py" \
-        | "$python_bin" - ratchet --repo "$atlas_root" --base "$gate_base" --tip "$tip" \
-        || { echo "pre-push: BLOCKED -- the push raises scripts/cast-baseline.json, or the ratchet could not read it." >&2; return 1; }
+    checker_dir="$(mktemp -d "$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir)/atlas-cast-checker.XXXXXX")" || {
+        echo "pre-push: BLOCKED -- could not create a directory for the cast checker." >&2
+        return 1
+    }
+    if ! git -C "$atlas_root" archive "$tip" scripts | tar -x -C "$checker_dir" \
+        || [ ! -f "$checker_dir/scripts/atlas_cast_gate.py" ]; then
+        rm -rf "$checker_dir"
+        echo "pre-push: BLOCKED -- could not extract the cast checker at ${tip:0:12}." >&2
+        return 1
+    fi
+    if ! "$python_bin" "$checker_dir/scripts/atlas_cast_gate.py" \
+            ratchet --repo "$atlas_root" --base "$gate_base" --tip "$tip"; then
+        rm -rf "$checker_dir"
+        echo "pre-push: BLOCKED -- the push raises scripts/cast-baseline.json, or the ratchet could not read it." >&2
+        return 1
+    fi
+    rm -rf "$checker_dir"
     return 0
 }
 
