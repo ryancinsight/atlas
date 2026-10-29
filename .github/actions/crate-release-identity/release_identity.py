@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 import hashlib
-from http.client import HTTPException
+import http.client
 import io
 import json
 import os
@@ -20,7 +20,7 @@ import time
 import tomllib
 from typing import Callable
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPHandler, HTTPRedirectHandler, HTTPSHandler, Request, build_opener
 
 METADATA_LIMIT = 16 * 1024 * 1024
 API_INTERVAL_SECONDS = 1.0
@@ -55,6 +55,14 @@ def unique_object(pairs):
 
 
 def parse_json(data):
+    if isinstance(data, bytes):
+        try:
+            data = data.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise IdentityError("registry JSON is not strict UTF-8") from error
+    elif not isinstance(data, str):
+        raise IdentityError("registry JSON must be text or UTF-8 bytes")
+
     def invalid_constant(value):
         raise IdentityError(f"invalid JSON constant: {value}")
     return json.loads(data, object_pairs_hook=unique_object, parse_constant=invalid_constant)
@@ -177,15 +185,83 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+class RegistryFramingError(http.client.HTTPException):
+    """A syntactically invalid HTTP response cannot be retried as transport loss."""
+
+
+class RegistryBodyDisconnect(OSError):
+    """The peer disconnected before a chunked response reached its terminator."""
+
+
+class StrictHTTPResponse(http.client.HTTPResponse):
+    """Retain stdlib HTTP parsing while requiring complete chunk boundaries.
+
+    ``HTTPResponse`` deliberately accepts end-of-file in place of the empty
+    line that terminates chunk trailers, and maps both a missing next chunk and
+    a malformed chunk size to ``IncompleteRead``. Registry identity needs to
+    distinguish transient disconnects from permanent framing errors, so these
+    two narrow extension points preserve that information before ``read``
+    closes the response stream.
+    """
+
+    def _read_next_chunk_size(self):
+        line = self.fp.readline(http.client._MAXLINE + 1)
+        if len(line) > http.client._MAXLINE:
+            raise http.client.LineTooLong("chunk size")
+        if not line:
+            raise RegistryBodyDisconnect("connection closed before the next chunk size")
+        if not line.endswith(b"\r\n"):
+            self._close_conn()
+            raise RegistryFramingError("chunk size lacks its CRLF terminator")
+        size = line[:-2].split(b";", 1)[0]
+        if not re.fullmatch(rb"[0-9A-Fa-f]+", size):
+            self._close_conn()
+            raise RegistryFramingError("malformed HTTP chunk size")
+        return int(size, 16)
+
+    def _read_and_discard_trailer(self):
+        while True:
+            line = self.fp.readline(http.client._MAXLINE + 1)
+            if len(line) > http.client._MAXLINE:
+                raise http.client.LineTooLong("trailer line")
+            if not line or not line.endswith(b"\r\n"):
+                raise RegistryFramingError("chunk trailers lack the final CRLF terminator")
+            if line == b"\r\n":
+                return
+
+
+class StrictHTTPConnection(http.client.HTTPConnection):
+    response_class = StrictHTTPResponse
+
+
+class StrictHTTPSConnection(http.client.HTTPSConnection):
+    response_class = StrictHTTPResponse
+
+
+class StrictHTTPHandler(HTTPHandler):
+    def http_open(self, request):
+        return self.do_open(StrictHTTPConnection, request)
+
+
+class StrictHTTPSHandler(HTTPSHandler):
+    def https_open(self, request):
+        return self.do_open(StrictHTTPSConnection, request, context=self._context)
+
+
 def read_url(url, limit):
     """Read public registry data with bounded time/size and no authentication."""
     request = Request(url, headers={"User-Agent": "atlas-release-identity (https://github.com/ryancinsight/atlas)"})
     try:
-        response = build_opener(NoRedirect()).open(request, timeout=30)
+        response = build_opener(NoRedirect(), StrictHTTPHandler(), StrictHTTPSHandler()).open(
+            request, timeout=30)
     except HTTPError as error:
         if error.code != 404:
             raise IdentityError(f"registry HTTP status {error.code}: {url}") from error
         response = error
+    except http.client.RemoteDisconnected as error:
+        raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
+    except http.client.HTTPException as error:
+        raise IdentityError(f"malformed registry HTTP response: {url}: {error}") from error
     except (URLError, TimeoutError, OSError) as error:
         raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
     with response:
@@ -199,8 +275,12 @@ def read_url(url, limit):
             raise IdentityError("malformed or inconsistent registry HTTP framing")
         try:
             body = response.read(limit + 1)
-        except (OSError, HTTPException) as error:
+        except RegistryFramingError as error:
+            raise IdentityError(f"malformed registry HTTP framing: {url}: {error}") from error
+        except (RegistryBodyDisconnect, http.client.IncompleteRead, OSError) as error:
             raise RegistryTransportError(f"registry response failed: {url}: {error}") from error
+        except http.client.HTTPException as error:
+            raise IdentityError(f"malformed registry HTTP framing: {url}: {error}") from error
         if lengths and len(body) != int(lengths[0]):
             raise IdentityError("incomplete registry HTTP body")
     if len(body) > limit:
@@ -300,24 +380,50 @@ def sparse_index_versions(name, fetch=REGISTRY_POLICY):
     return versions
 
 
-def publish_required(package, fetch=REGISTRY_POLICY):
-    """Only consistent absence publishes; complete identity equality skips."""
-    api_status, api_body = fetch(f"https://crates.io/api/v1/crates/{package.name}/{package.version}", METADATA_LIMIT)
+def _registry_release_checksum(name, version, fetch=REGISTRY_POLICY):
+    """Return a checksum only when the API and sparse index identify one release."""
+    if not NAME.fullmatch(name) or not VERSION.fullmatch(version):
+        raise IdentityError("invalid registry package identity")
+    api_status, api_body = fetch(
+        f"https://crates.io/api/v1/crates/{name}/{version}", METADATA_LIMIT)
     if api_status not in (200, 404):
         raise IdentityError("registry lookup did not return 200 or 404")
-    versions = sparse_index_versions(package.name, fetch)
-    checksum = None if versions is None else versions.get(package.version)
+    versions = sparse_index_versions(name, fetch)
+    checksum = None if versions is None else versions.get(version)
     if api_status == 404:
         if checksum is not None:
             raise IdentityError("registry API absence conflicts with the index")
-        return True
-    record = parse_json(api_body)["version"]
-    if (record.get("crate") != package.name or record.get("num") != package.version
+        return None
+    response = parse_json(api_body)
+    record = response.get("version") if isinstance(response, dict) else None
+    if (not isinstance(record, dict) or record.get("crate") != name or record.get("num") != version
             or versions is None or checksum is None or record.get("checksum") != checksum):
         raise IdentityError("registry API and index release identities disagree")
+    return checksum
+
+
+def published_checksum(name, version, fetch=REGISTRY_POLICY):
+    """Hash the registry archive after the API and index agree on its identity."""
+    checksum = _registry_release_checksum(name, version, fetch)
+    if checksum is None:
+        raise IdentityError(f"registry lacks {name}@{version}")
+    status, archive = fetch(
+        f"https://static.crates.io/crates/{name}/{name}-{version}.crate", METADATA_LIMIT)
+    if status != 200 or hashlib.sha256(archive).hexdigest() != checksum:
+        raise IdentityError("published archive checksum differs from registry identity")
+    return checksum
+
+
+def publish_required(package, fetch=REGISTRY_POLICY):
+    """Only consistent absence publishes; complete identity equality skips."""
+    checksum = _registry_release_checksum(package.name, package.version, fetch)
+    if checksum is None:
+        return True
     if checksum != package.checksum:
         raise IdentityError("published archive checksum differs from this exact release")
-    status, published = fetch(f"https://static.crates.io/crates/{package.name}/{package.name}-{package.version}.crate", len(package.archive))
+    status, published = fetch(
+        f"https://static.crates.io/crates/{package.name}/{package.name}-{package.version}.crate",
+        METADATA_LIMIT)
     if status != 200 or hashlib.sha256(published).hexdigest() != checksum or published != package.archive:
         raise IdentityError("published archive bytes do not verify the release identity")
     return False

@@ -28,9 +28,12 @@ import io
 import json
 import os
 import re
+import socketserver
 import subprocess
 import sys
 import tarfile
+import threading
+from contextlib import contextmanager
 from urllib.parse import urlsplit
 
 import pytest
@@ -136,6 +139,41 @@ def paths(package, identity):
             f"/crates/{package.name}/{package.name}-{package.version}.crate")
 
 
+@contextmanager
+def raw_http(responses):
+    """Serve exact response octets over TCP and count accepted requests."""
+    class Handler(socketserver.BaseRequestHandler):
+        def handle(self):
+            request = b""
+            while b"\r\n\r\n" not in request:
+                block = self.request.recv(4096)
+                if not block:
+                    return
+                request += block
+            with self.server.response_lock:
+                index = self.server.request_count
+                self.server.request_count += 1
+            response = responses[min(index, len(responses) - 1)]
+            if response:
+                self.request.sendall(response)
+
+    class Server(socketserver.ThreadingTCPServer):
+        allow_reuse_address = True
+        daemon_threads = True
+
+    server = Server(("127.0.0.1", 0), Handler)
+    server.request_count = 0
+    server.response_lock = threading.Lock()
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}/registry", server
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
 def test_publication_queries_share_the_registry_policy(identity):
     for operation in (identity.sparse_index_versions, identity.publish_required):
         assert inspect.signature(operation).parameters["fetch"].default is identity.REGISTRY_POLICY
@@ -230,6 +268,13 @@ def test_sparse_index_reader_preserves_bootstrap_and_strict_failure(identity):
         identity.sparse_index_versions(name, answer(200, b""))
     with pytest.raises(identity.IdentityError, match="malformed"):
         identity.sparse_index_versions(name, answer(200, b"not JSON"))
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-32"])
+def test_registry_json_rejects_bom_selected_non_utf8_encodings(identity, encoding):
+    payload = json.dumps({"version": {"crate": "fixture"}}).encode(encoding)
+    with pytest.raises(identity.IdentityError, match="strict UTF-8"):
+        identity.parse_json(payload)
 
 
 def test_sparse_index_reader_rejects_oversized_and_redirected_transport(identity, monkeypatch):
@@ -470,6 +515,65 @@ def test_complete_http_framing_is_required_for_presence_and_absence(identity, mo
     else:
         with pytest.raises(identity.IdentityError):
             identity.read_url("https://registry.invalid", 4096)
+
+
+@pytest.mark.parametrize("wire,body,limit", [
+    (b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\na", b"a", 1),
+    (b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nclose", b"close", 5),
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n0\r\n\r\n", b"a", 1),
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n0\r\nX-Trace: yes\r\n\r\n", b"a", 1),
+])
+def test_real_tcp_valid_framing_is_accepted_at_the_bound(identity, wire, body, limit):
+    with raw_http([wire]) as (url, server):
+        assert identity.read_url(url, limit) == (200, body)
+        assert server.request_count == 1
+
+
+def test_real_tcp_chunked_response_exceeding_the_bound_fails(identity):
+    wire = (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+            b"2\r\nab\r\n0\r\n\r\n")
+    with raw_http([wire]) as (url, server):
+        with pytest.raises(identity.IdentityError, match="exceeds identity bound"):
+            identity.read_url(url, 1)
+        assert server.request_count == 1
+
+
+@pytest.mark.parametrize("wire,message", [
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n0\r\n",
+     "final CRLF"),
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\nX\r\na\r\n0\r\n\r\n",
+     "chunk size"),
+])
+def test_real_tcp_permanent_chunk_framing_is_not_retried(identity, wire, message):
+    policy = identity.RegistryPolicy(
+        reader=identity.read_url, sleep=lambda _delay: None, jitter=lambda _low, _high: 1.0)
+    with raw_http([wire]) as (url, server):
+        with pytest.raises(identity.IdentityError, match=message):
+            policy(url, 4096)
+        assert server.request_count == 1
+
+
+def test_real_tcp_malformed_status_is_typed_permanent_with_cause(identity):
+    policy = identity.RegistryPolicy(
+        reader=identity.read_url, sleep=lambda _delay: None, jitter=lambda _low, _high: 1.0)
+    with raw_http([b"NOT AN HTTP STATUS\r\n\r\n"]) as (url, server):
+        with pytest.raises(identity.IdentityError, match="malformed registry HTTP response") as raised:
+            policy(url, 4096)
+        assert isinstance(raised.value.__cause__, identity.http.client.BadStatusLine)
+        assert server.request_count == 1
+
+
+@pytest.mark.parametrize("first", [
+    b"",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n",
+])
+def test_real_tcp_transient_open_and_body_disconnects_retry(identity, first):
+    complete = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok"
+    policy = identity.RegistryPolicy(
+        reader=identity.read_url, sleep=lambda _delay: None, jitter=lambda _low, _high: 1.0)
+    with raw_http([first, complete]) as (url, server):
+        assert policy(url, 4096) == (200, b"ok")
+        assert server.request_count == 2
 
 
 @pytest.mark.parametrize("decision,code", [("true", 0), ("false", 0), ("", 1), ("unknown", 1), ("True", 1), ("false\ntrue", 1)])

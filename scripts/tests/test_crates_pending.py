@@ -140,7 +140,7 @@ class SharedIndexReaderTests(unittest.TestCase):
 
 class RegistryPolicyTests(unittest.TestCase):
     def test_registry_operations_share_one_policy_over_the_canonical_reader(self) -> None:
-        operations = (cp.published_versions, cp.owners, cp.select, cp.verify,
+        operations = (cp.published_versions, cp.published_checksum, cp.owners, cp.select, cp.verify,
                       cp.still_pending, cp.command_plan, cp.command_bind,
                       cp.command_publish, cp.indexed_after_publish, cp.command_tag)
         for operation in operations:
@@ -266,6 +266,13 @@ class SelectTests(unittest.TestCase):
     def test_owner_schema_preserves_documented_extra_fields(self) -> None:
         body = b'{"users":[{"login":"ryancinsight","id":7}],"meta":{"total":1}}'
         self.assertEqual(cp.owners("bumped", lambda _url, _limit: (200, body)), [OWNER])
+
+    def test_owner_schema_rejects_duplicate_case_insensitive_logins(self) -> None:
+        for body in (b'{"users":[{"login":"ryancinsight"},{"login":"ryancinsight"}]}',
+                     b'{"users":[{"login":"RyanCInsight"},{"login":"ryancinsight"}]}'):
+            with self.subTest(body=body), \
+                    self.assertRaisesRegex(cp.RegistryError, "duplicate crates.io owner login"):
+                cp.owners("bumped", lambda _url, _limit, value=body: (200, value))
 
     def test_owners_are_asked_only_for_pending_names(self) -> None:
         registry = Registry({"current": ["1.0.0"], "bumped": ["1.0.0"]})
@@ -723,12 +730,32 @@ class WorkspaceRunner:
 
 
 class ChecksumRegistry:
-    """Serve sparse-index rows with exact archive checksums."""
+    """Serve API, sparse-index, and archive identities with exact checksums."""
 
-    def __init__(self, records: dict[str, list[tuple[str, str]]]) -> None:
+    def __init__(self, records: dict[str, list[tuple[str, str]]], *,
+                 archives: dict[str, bytes] | None = None,
+                 missing_archives: set[str] | None = None) -> None:
         self.records = records
+        self.archives = archives or {}
+        self.missing_archives = missing_archives or set()
+        self.asked = []
 
     def __call__(self, url: str, limit: int) -> tuple[int, bytes]:
+        self.asked.append(url)
+        if url.startswith("https://static.crates.io/crates/"):
+            filename = url.rsplit("/", 1)[-1]
+            if filename in self.missing_archives or filename not in self.archives:
+                return 404, b""
+            return 200, self.archives[filename]
+        if url.startswith("https://crates.io/api/v1/crates/") and not url.endswith("/owners"):
+            identity = url.removeprefix("https://crates.io/api/v1/crates/")
+            name, version = identity.rsplit("/", 1)
+            checksum = next((digest for candidate, digest in self.records.get(name, [])
+                             if candidate == version), None)
+            if checksum is None:
+                return 404, b""
+            return 200, json.dumps({"version": {
+                "crate": name, "num": version, "checksum": checksum}}).encode()
         if not url.startswith("https://index.crates.io/"):
             name = url.removeprefix("https://crates.io/api/v1/crates/").removesuffix("/owners")
             return 200, json.dumps({"users": [{"login": OWNER}], "name": name}).encode()
@@ -784,9 +811,12 @@ class ArtifactBindingTests(unittest.TestCase):
                        cwd=cls.root, check=True, capture_output=True, text=True, timeout=120)
         cls.names = ["evidence-a", "evidence-b"]
         artifacts = {}
+        cls.archives = {}
         for name in cls.names:
             archive = cls.root / "target" / "package" / f"{name}-0.2.0.crate"
-            artifacts[archive.name] = hashlib.sha256(archive.read_bytes()).hexdigest()
+            content = archive.read_bytes()
+            cls.archives[archive.name] = content
+            artifacts[archive.name] = hashlib.sha256(content).hexdigest()
         cls.manifest_value = {
             "context": {"candidate": cls.candidate, "toolchain": fields["release"],
                         "target": fields["host"], "profile": cp.ARTIFACT_PROFILE},
@@ -871,7 +901,7 @@ class ArtifactBindingTests(unittest.TestCase):
         indexed = ChecksumRegistry({
             name: [("0.2.0", self.expected.artifacts[f"{name}-0.2.0.crate"])]
             for name in self.names
-        })
+        }, archives=self.archives)
         before = len(self.runner.calls)
         cp.command_tag(self.names, "crate-", self.candidate, "o/r", True,
                        indexed, self.runner, no_sleep,
@@ -879,17 +909,41 @@ class ArtifactBindingTests(unittest.TestCase):
         created = [call for call in self.runner.calls[before:] if call[:3] == ["gh", "release", "create"]]
         self.assertEqual([call[3] for call in created],
                          ["crate-evidence-a-v0.2.0", "crate-evidence-b-v0.2.0"])
+        for name in self.names:
+            self.assertIn(f"https://crates.io/api/v1/crates/{name}/0.2.0", indexed.asked)
+            self.assertIn(
+                f"https://static.crates.io/crates/{name}/{name}-0.2.0.crate", indexed.asked)
         wrong = ChecksumRegistry({
             "evidence-a": [("0.2.0", "f" * 64)],
             "evidence-b": [("0.2.0", self.expected.artifacts["evidence-b-0.2.0.crate"])],
-        })
+        }, archives=self.archives)
         before = len(self.runner.calls)
-        with self.assertRaisesRegex(SystemExit, "index checksum differs"):
+        with self.assertRaisesRegex(SystemExit, "published archive could not be verified"):
             cp.command_tag(self.names, "crate-", self.candidate, "o/r", True,
                            wrong, self.runner, no_sleep,
                            expected=self.expected, candidate=self.candidate)
         self.assertFalse(any(call[:3] == ["gh", "release", "create"]
                              for call in self.runner.calls[before:]))
+
+    def test_missing_or_changed_registry_archive_blocks_every_tag(self) -> None:
+        records = {
+            name: [("0.2.0", self.expected.artifacts[f"{name}-0.2.0.crate"])]
+            for name in self.names
+        }
+        missing = ChecksumRegistry(
+            records, archives=self.archives, missing_archives={"evidence-a-0.2.0.crate"})
+        changed = dict(self.archives)
+        changed["evidence-a-0.2.0.crate"] += b"changed registry bytes"
+        wrong = ChecksumRegistry(records, archives=changed)
+        for registry in (missing, wrong):
+            before = len(self.runner.calls)
+            with self.subTest(registry=registry), \
+                    self.assertRaisesRegex(SystemExit, "published archive could not be verified"):
+                cp.command_tag(self.names, "crate-", self.candidate, "o/r", True,
+                               registry, self.runner, no_sleep,
+                               expected=self.expected, candidate=self.candidate)
+            self.assertFalse(any(call[:3] == ["gh", "release", "create"]
+                                 for call in self.runner.calls[before:]))
 
 
 class EntryPointTests(unittest.TestCase):

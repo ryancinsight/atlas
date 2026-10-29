@@ -105,7 +105,10 @@ def owners(name: str, fetch: Fetch = REGISTRY_POLICY) -> list[str]:
                        or not isinstance(user.get("login"), str) or not user["login"]
                        for user in users)):
             raise IdentityError("malformed crates.io owners response")
-        return [user["login"] for user in users]
+        logins = [user["login"] for user in users]
+        if len({login.casefold() for login in logins}) != len(logins):
+            raise IdentityError("duplicate crates.io owner login")
+        return logins
     except (IdentityError, KeyError, TypeError, ValueError) as error:
         raise RegistryError(f"malformed crates.io owners response for {name}: {error}") from error
 
@@ -398,8 +401,14 @@ def command_tag(names: list[str], prefix: str, sha: str, repo: str, published: b
     if expected is not None:
         for name in indexed:
             filename = f"{name}-{versions[name]}.crate"
-            if published_checksum(name, versions[name], fetch) != expected.artifacts[filename]:
-                raise SystemExit(f"crates.io index checksum differs from expected archive: {filename}")
+            try:
+                checksum = published_checksum(name, versions[name], fetch)
+            except IdentityError as error:
+                raise SystemExit(
+                    f"crates.io published archive could not be verified: {filename}: {error}") from error
+            if checksum != expected.artifacts[filename]:
+                raise SystemExit(
+                    f"crates.io published archive checksum differs from expected archive: {filename}")
     for name in indexed:
         version = versions[name]
         tag = f"{prefix}{name}-v{version}"

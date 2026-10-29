@@ -31,6 +31,7 @@ index_path = _IDENTITY.index_path
 parse_json = _IDENTITY.parse_json
 read_url = _IDENTITY.read_url
 sparse_index_versions = _IDENTITY.sparse_index_versions
+published_checksum = _IDENTITY.published_checksum
 
 ARTIFACT_PROFILE = "cargo-package-verify"
 
@@ -167,13 +168,3 @@ def verify_expected_artifacts(expected: ExpectedArtifacts, names: list[str],
     validate_context(expected, candidate, runner)
 
 
-def published_checksum(name: str, version: str, fetch: Fetch) -> str:
-    """Return one exact sparse-index checksum, rejecting ambiguous records."""
-    try:
-        versions = sparse_index_versions(name, fetch)
-    except IdentityError as error:
-        raise ValueError(str(error)) from error
-    checksum = None if versions is None else versions.get(version)
-    if checksum is None:
-        raise ValueError(f"crates.io index lacks one valid checksum for {name}@{version}")
-    return checksum
