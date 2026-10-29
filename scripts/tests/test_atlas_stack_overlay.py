@@ -415,6 +415,56 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "crates/missing.*without a manifest"):
             _overlay.load_package_facts(manifests)
 
+    def test_local_path_dependency_manifests_form_a_complete_closure(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-paths-") as root_text:
+            root = Path(root_text)
+            contents = {
+                "Cargo.toml": (
+                    '[workspace]\nresolver = "3"\nmembers = ["crates/app"]\n\n'
+                    '[workspace.dependencies]\nshared = { path = "crates/shared" }\n'
+                ),
+                "crates/app/Cargo.toml": (
+                    '[package]\nname = "app"\nversion = "0.1.0"\nedition = "2024"\n'
+                    '[dependencies]\ndirect = { path = "../direct" }\n'
+                    '[build-dependencies]\nbuild = { path = "../build" }\n'
+                    '[dev-dependencies]\ndev = { path = "../dev" }\n'
+                    "[target.'cfg(windows)'.dependencies]\nshared = { workspace = true }\n"
+                ),
+            }
+            for name in ("direct", "build", "dev", "shared"):
+                contents[f"crates/{name}/Cargo.toml"] = (
+                    f'[package]\nname = "{name}"\nversion = "0.1.0"\nedition = "2024"\n'
+                )
+                contents[f"crates/{name}/src/lib.rs"] = f"pub fn {name}() {{}}\n"
+            contents["crates/app/src/lib.rs"] = "pub fn app() {}\n"
+            for name, text in contents.items():
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding="utf-8")
+
+            metadata = subprocess.run(
+                ["cargo", "metadata", "--no-deps", "--format-version", "1",
+                 "--manifest-path", str(root / "Cargo.toml")],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+            )
+            self.assertEqual(metadata.returncode, 0, metadata.stderr)
+            cargo_names = sorted(package["name"] for package in json.loads(metadata.stdout)["packages"])
+            self.assertEqual(cargo_names, ["app", "build", "dev", "direct", "shared"])
+
+            manifests = [
+                (Path(name).parent, text)
+                for name, text in contents.items()
+                if name.endswith("Cargo.toml")
+            ]
+            facts = _overlay.load_package_facts(manifests)
+            self.assertEqual(sorted(fact.name for fact in facts), cargo_names)
+            for missing in ("direct", "build", "dev", "shared"):
+                incomplete = [item for item in manifests if item[0] != Path("crates") / missing]
+                with self.subTest(missing=missing), self.assertRaisesRegex(
+                    ValueError, rf"dependency '{missing}'.*without crates/{missing}/Cargo.toml"
+                ):
+                    _overlay.load_package_facts(incomplete)
+
     def test_repeated_non_provider_names_remain_complete_and_unindexed(self) -> None:
         manifests = [
             (Path("repos/provider/one"), '[package]\nname = "shared"\nversion = "0.1.0"\n'),
