@@ -74,11 +74,9 @@ SCRIPT_CHECKOUT = REPOSITORY
 LOCKFILE = REPOSITORY / "Cargo.lock"
 MANIFEST = REPOSITORY / "Cargo.toml"
 
-# One `[[package]]` source line for a first-party repository, captured whole so
-# the revision and the URL spelling both take part in the identity comparison.
-FIRST_PARTY_PACKAGE_SOURCE = re.compile(
-    r'^source = "(git\+https://github\.com/ryancinsight/[^"]+)"', re.M
-)
+# A first-party source retains the revision and URL spelling because both take
+# part in provider-identity comparison.
+FIRST_PARTY_GIT = "git+https://github.com/ryancinsight/"
 
 # A member records how many first-party providers its graph currently resolves
 # through more than one source, as a single integer beside its lock. The file is
@@ -364,6 +362,40 @@ def check() -> int:
     return check_provider_identity()
 
 
+def locked_package_records(lock_text: str) -> list[Mapping[str, object]]:
+    """Return structurally readable package records from one Cargo lock.
+
+    Cargo owns the semantic grammars of package names, versions, and source
+    URLs. This boundary validates only the fields consumers must read without
+    ambiguity; callers interpret source identities for their own domain.
+    """
+    try:
+        data = tomllib.loads(lock_text)
+    except tomllib.TOMLDecodeError as error:
+        raise ValueError(f"unparseable lock: {error}") from error
+
+    packages = data.get("package", [])
+    if not isinstance(packages, list):
+        raise ValueError("lock package collection is not an array")
+
+    records: list[Mapping[str, object]] = []
+    for index, package in enumerate(packages):
+        if not isinstance(package, dict):
+            raise ValueError(f"lock package {index} is not a table")
+        for field in ("name", "version"):
+            value = package.get(field)
+            if not isinstance(value, str) or not value:
+                raise ValueError(
+                    f"lock package {index} has missing, empty, or non-string {field}"
+                )
+        if "source" in package:
+            source = package["source"]
+            if not isinstance(source, str) or not source:
+                raise ValueError(f"lock package {index} has empty or non-string source")
+        records.append(package)
+    return records
+
+
 def provider_identities(lock_text: str) -> dict[str, set[str]]:
     """Map each first-party repository to the distinct sources it resolves through.
 
@@ -371,7 +403,10 @@ def provider_identities(lock_text: str) -> dict[str, set[str]]:
     repository count as the fork they are rather than as two providers.
     """
     identities: dict[str, set[str]] = {}
-    for source in FIRST_PARTY_PACKAGE_SOURCE.findall(lock_text):
+    for package in locked_package_records(lock_text):
+        source = package.get("source")
+        if not isinstance(source, str) or not source.startswith(FIRST_PARTY_GIT):
+            continue
         base = source.split("#", 1)[0]
         repository = base.split("?", 1)[0].removesuffix(".git").lower()
         identities.setdefault(repository, set()).add(base)
@@ -522,9 +557,9 @@ def violations(
     quantified over what the lock resolves, never over a count of `git+` lines.
     """
     try:
-        data = tomllib.loads(lock_text)
-    except tomllib.TOMLDecodeError as error:
-        return [f"unparseable lock: {error}"]
+        packages = locked_package_records(lock_text)
+    except ValueError as error:
+        return [str(error)]
 
     found: list[str] = []
     unused = lock_text.count(PATCH_UNUSED)
@@ -532,7 +567,7 @@ def violations(
         found.append(f"{unused} {PATCH_UNUSED} table(s): overlay residue")
 
     sources: dict[str, list[str | None]] = {}
-    for package in data.get("package", []):
+    for package in packages:
         sources.setdefault(package.get("name"), []).append(package.get("source"))
 
     for name in sorted(set(git_dependencies) - set(local)):
