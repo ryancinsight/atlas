@@ -75,17 +75,17 @@ jobs:
           import process_tree
 
           try:
-              result = process_tree.run(sys.argv[1:], timeout=600)
+              result = process_tree.run(
+                  sys.argv[1:],
+                  timeout=600,
+                  output_mode=process_tree.OutputMode.INHERIT,
+              )
           except process_tree.ProcessTreeTimeout as error:
-              sys.stdout.buffer.write(error.stdout or b"")
-              sys.stderr.buffer.write(error.stderr or b"")
               print(str(error), file=sys.stderr)
               raise SystemExit(124) from error
           except process_tree.ProcessTreeCleanupError as error:
               print(str(error), file=sys.stderr)
               raise SystemExit(1) from error
-          sys.stdout.buffer.write(result.stdout)
-          sys.stderr.buffer.write(result.stderr)
           raise SystemExit(result.returncode)
           PY
 
@@ -160,16 +160,16 @@ jobs:
           import process_tree
 
           try:
-              result = process_tree.run(sys.argv[1:], timeout=600)
+              result = process_tree.run(
+                  sys.argv[1:],
+                  timeout=600,
+                  output_mode=process_tree.OutputMode.INHERIT,
+              )
           except process_tree.ProcessTreeTimeout as error:
-              sys.stdout.buffer.write(error.stdout or b"")
-              sys.stderr.buffer.write(error.stderr or b"")
               print(str(error), file=sys.stderr)
               raise SystemExit(124) from error
           except process_tree.ProcessTreeCleanupError as error:
               print(str(error), file=sys.stderr)
               raise SystemExit(1) from error
-          sys.stdout.buffer.write(result.stdout)
-          sys.stderr.buffer.write(result.stderr)
           raise SystemExit(result.returncode)
           PY

@@ -34,7 +34,7 @@ class AtlasWorkflowGateTests(unittest.TestCase):
             for step in job.get("steps", [])
         )
         self.assertNotIn("-m pytest", conformance_runs)
-        self.assertEqual(self.python_text.count("process_tree.run(sys.argv[1:], timeout=600)"), 2)
+        self.assertEqual(self.python_text.count("output_mode=process_tree.OutputMode.INHERIT"), 2)
 
     def test_fast_and_slow_selectors_are_preserved_and_bounded(self) -> None:
         expected = {
@@ -51,10 +51,10 @@ class AtlasWorkflowGateTests(unittest.TestCase):
                 step_name = "Run pytest (fast)" if job_name == "pytest-fast" else "Run pytest (slow)"
                 step = next(item for item in jobs[job_name]["steps"] if item["name"] == step_name)
                 self.assertIn(command, step["run"])
-                self.assertIn("process_tree.run(sys.argv[1:], timeout=600)", step["run"])
+                self.assertIn("timeout=600", step["run"])
+                self.assertIn("output_mode=process_tree.OutputMode.INHERIT", step["run"])
                 self.assertIn("raise SystemExit(result.returncode)", step["run"])
-                self.assertIn("sys.stdout.buffer.write", step["run"])
-                self.assertIn("sys.stderr.buffer.write", step["run"])
+                self.assertNotIn("buffer.write", step["run"])
 
     def test_conformance_calls_script_suite_once(self) -> None:
         jobs = self.conformance["jobs"]
