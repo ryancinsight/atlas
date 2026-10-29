@@ -59,6 +59,10 @@ RELEASE_JOB = {
 # A `continue-on-error` on the job or any step, or a changed condition, changes this table.
 RELEASE_STEPS = [
     {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"fetch-depth": 0}},
+    {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+     "with": {"repository": "ryancinsight/atlas", "ref": "${{ inputs.atlas-ref }}",
+              "path": "_atlas", "persist-credentials": False}},
+    {"env": {"PACKAGE": "${{ inputs.package }}"}},
     {"id": "checkable",
      "env": {"PACKAGE": "${{ inputs.package }}", "MANIFEST": "${{ inputs.manifest-path }}"}},
     {"if": "inputs.apt-packages != ''"},
@@ -110,6 +114,34 @@ class ReleaseJobWiringTests(unittest.TestCase):
         self.assertEqual({k: v for k, v in job.items() if k not in ("name", "steps")}, RELEASE_JOB)
         self.assertEqual([{k: v for k, v in step.items() if k not in ("name", "run")}
                           for step in job["steps"]], RELEASE_STEPS)
+
+    def test_artifact_drift_blocks_before_semver(self) -> None:
+        steps = job_steps("semver-release")
+        drift = next(step for step in steps
+                     if step.get("name") == "Block release when a published artifact drifted")
+        self.assertIn("atlas-bump-guard.py --release", drift["run"])
+        self.assertIn('--head HEAD', drift["run"])
+        self.assertIn('--package "$PACKAGE"', drift["run"])
+        self.assertNotIn("continue-on-error", drift)
+        self.assertLess(steps.index(drift), next(
+            index for index, step in enumerate(steps) if step.get("id") == "semver"))
+
+
+def job_steps(name: str) -> list[dict]:
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    return workflow["jobs"][name]["steps"]
+
+
+class PullRequestArtifactDriftWiringTests(unittest.TestCase):
+    def test_only_a_legitimate_drift_result_is_informational(self) -> None:
+        job = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["bump-guard"]
+        step = next(item for item in job["steps"]
+                    if item.get("name") == "Report published artifact drift")
+        self.assertNotIn("continue-on-error", job)
+        self.assertNotIn("continue-on-error", step)
+        self.assertIn('if [ "$status" -eq 1 ]; then', step["run"])
+        self.assertIn("exit 0", step["run"])
+        self.assertTrue(step["run"].rstrip().endswith('exit "$status"'))
 
 
 @unittest.skipUnless(shutil.which("bash"), "the gate step is a bash script")

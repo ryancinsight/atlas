@@ -84,22 +84,19 @@
 # still blocks the release: that is a verdict, or a current tree that does
 # not compile, and neither is this case.
 #
-# Unbumped published source (why one pull-request job fails rather than
-# informs): a change to a crate's source under a version crates.io already
+# Published artifact drift (why pull requests inform and releases block): a
+# change to a crate's source under a version crates.io already
 # carries never reaches consumers. The push-mode planner sees nothing
 # pending, and dependents later fail `cargo publish` verification against
 # the stale registry copy (ATLAS-PUB-011). The `bump-guard` job runs Atlas's
 # `scripts/atlas-bump-guard.py` over the crates in `package` that the pull
 # request touches, diffed from the merge base, so a member calling this
-# workflow once per crate queries each crate once. It fails, naming each
-# crate with "bump required", when a touched crate's source, manifest, or
-# dependency requirements differ from the `.crate` published at its manifest
-# version. A failing job blocks a merge only where the member requires it:
-# the caller job, or an aggregate that `needs:` it, must be a required check.
-# Drift in crates the pull request does not touch never fails it, so a
-# member's pre-existing drift is released by its own bump PR, not charged to
-# unrelated work. This is not the semver verdict above: it asks whether
-# anything changed under a published version, not how much.
+# workflow once per crate queries each crate once. Legitimate artifact drift
+# is reported without requiring a version change during development; malformed
+# input and registry failures still fail the job. The release job checks every
+# named package at HEAD, regardless of the release commit's diff, and blocks
+# drift before the SemVer comparison. This is not the SemVer verdict above: it
+# asks whether anything changed under a published version, not how much.
 #
 # Inputs:
 #   package         - crate name(s), comma-separated (required)
@@ -107,7 +104,7 @@
 #   rust-toolchain  - toolchain for semver-checks (default "stable")
 #   baseline-source - release baseline: "registry" (default; the latest
 #                     published version) or "tag" (the previous release tag)
-#   atlas-ref       - Atlas revision whose scripts the bump guard runs
+#   atlas-ref       - Atlas revision whose scripts the artifact guard runs
 #                     (default: Atlas's default branch)
 
 name: SemVer gate (shared)
@@ -146,7 +143,7 @@ on:
         type: string
         default: ""
       atlas-ref:
-        description: Atlas revision whose scripts/atlas-bump-guard.py the bump guard runs; empty means Atlas's default branch
+        description: Atlas revision whose scripts/atlas-bump-guard.py the artifact guard runs; empty means Atlas's default branch
         required: false
         type: string
         default: ""
@@ -278,7 +275,7 @@ jobs:
           ref: ${{ inputs.atlas-ref }}
           path: _atlas
           persist-credentials: false
-      - name: Fail a published crate changed without a version bump
+      - name: Report published artifact drift
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
@@ -300,6 +297,10 @@ jobs:
               sed 's/^/    /' "$RUNNER_TEMP/bump-guard.err"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -eq 1 ]; then
+            echo "::notice::published artifact drift is informational until an explicit release"
+            exit 0
+          fi
           exit "$status"
 
   semver-release:
@@ -314,6 +315,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          ref: ${{ inputs.atlas-ref }}
+          path: _atlas
+          persist-credentials: false
+      - name: Block release when a published artifact drifted
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          python3 _atlas/scripts/atlas-bump-guard.py --release --repo . --head HEAD \
+            --package "$PACKAGE"
       - name: Select packages with a library target
         id: checkable
         env:

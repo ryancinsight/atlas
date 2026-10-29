@@ -97,6 +97,14 @@ class BumpGuardTestCase(unittest.TestCase):
                                  "--head", head, *extra], registry)
         return status, out.getvalue(), err.getvalue()
 
+    def run_release(self, registry: Registry, *extra: str) -> tuple[int, str, str]:
+        head = git(self.repo, "rev-parse", "HEAD")
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            status = guard.main(["--release", "--repo", str(self.repo), "--head", head,
+                                 *extra], registry)
+        return status, out.getvalue(), err.getvalue()
+
     @staticmethod
     def registry(alpha: bytes | None = None, **overrides) -> Registry:
         return Registry({"alpha": ["0.1.0"], "beta": ["0.2.0"]},
@@ -108,8 +116,10 @@ class BumpGuardTestCase(unittest.TestCase):
         status, out, err = self.run_guard(self.registry())
         self.assertEqual(status, 1)
         self.assertEqual(out, "- `alpha` 0.1.0: published-drifted\n")
-        self.assertEqual(err, "alpha 0.1.0: bump required; crates.io already carries 0.1.0 "
-                              "and the source differs from it (changed src/lib.rs)\n")
+        self.assertEqual(err, "alpha 0.1.0: release artifact drift; crates.io already "
+                              "carries 0.1.0 and the source differs from it (changed "
+                              "src/lib.rs); an explicitly authorized release requires a "
+                              "version change\n")
 
     def test_a_source_change_with_the_version_moved_passes(self) -> None:
         self.commit({"crates/alpha/src/lib.rs": "pub fn one() -> u32 { 11 }\n",
@@ -150,9 +160,10 @@ class BumpGuardTestCase(unittest.TestCase):
         status, out, err = self.run_guard(self.registry())
         self.assertEqual(status, 1)
         self.assertEqual(out, "- `alpha` 0.1.0: published-drifted\n")
-        self.assertEqual(err, "alpha 0.1.0: bump required; crates.io already carries 0.1.0 "
-                              "and the source differs from it (dependency requirements "
-                              "serde: req 1.0 -> ^1.1)\n")
+        self.assertEqual(err, "alpha 0.1.0: release artifact drift; crates.io already "
+                              "carries 0.1.0 and the source differs from it (dependency "
+                              "requirements serde: req 1.0 -> ^1.1); an explicitly "
+                              "authorized release requires a version change\n")
 
     def test_a_pull_request_without_crate_changes_asks_nothing(self) -> None:
         self.commit({"README.md": "docs\n"})
@@ -176,8 +187,10 @@ class BumpGuardTestCase(unittest.TestCase):
         status, out, err = self.run_guard(self.registry())
         self.assertEqual(status, 1)
         self.assertEqual(out, "- `alpha` 0.1.0: published-drifted\n")
-        self.assertEqual(err, "alpha 0.1.0: bump required; crates.io already carries 0.1.0 "
-                              "and the source differs from it (changed Cargo.toml, src/lib.rs)\n")
+        self.assertEqual(err, "alpha 0.1.0: release artifact drift; crates.io already "
+                              "carries 0.1.0 and the source differs from it (changed "
+                              "Cargo.toml, src/lib.rs); an explicitly authorized release "
+                              "requires a version change\n")
 
     def test_a_requirement_the_base_moved_after_the_fork_does_not_select_the_crate(self) -> None:
         # alpha's source has drifted from crates.io since before the fork. After the fork
@@ -202,8 +215,10 @@ class BumpGuardTestCase(unittest.TestCase):
         status, out, err = self.run_guard(self.registry())
         self.assertEqual(status, 1)
         self.assertEqual(out, "- `alpha` 0.1.0: published-drifted\n")
-        self.assertEqual(err, "alpha 0.1.0: bump required; crates.io already carries 0.1.0 "
-                              "and the source differs from it (changed Cargo.toml)\n")
+        self.assertEqual(err, "alpha 0.1.0: release artifact drift; crates.io already "
+                              "carries 0.1.0 and the source differs from it (changed "
+                              "Cargo.toml); an explicitly authorized release requires a "
+                              "version change\n")
 
     def test_a_crate_that_joins_the_workspace_unchanged_is_measured(self) -> None:
         # gamma's files exist at the merge base, outside the workspace; the pull request
@@ -226,8 +241,65 @@ class BumpGuardTestCase(unittest.TestCase):
         status, out, err = self.run_guard(registry, None, "--package", " beta ,")
         self.assertEqual(status, 1)
         self.assertEqual(out, "- `beta` 0.2.0: published-drifted\n")
-        self.assertTrue(err.startswith("beta 0.2.0: bump required;"), err)
+        self.assertTrue(err.startswith("beta 0.2.0: release artifact drift;"), err)
         self.assertFalse([url for url in registry.asked if "alpha" in url])
+
+    def test_release_checks_an_unchanged_named_package_and_blocks_drift(self) -> None:
+        status, out, err = self.run_release(
+            self.registry(), "--package", "beta")
+        self.assertEqual(status, 1)
+        self.assertEqual(out, "- `beta` 0.2.0: published-drifted\n")
+        self.assertIn("beta 0.2.0: release blocked;", err)
+
+    def test_release_measures_every_named_package_in_caller_order(self) -> None:
+        registry = self.registry()
+        status, out, err = self.run_release(
+            registry, "--package", "alpha,beta")
+        self.assertEqual(status, 1)
+        self.assertEqual(out, "- `alpha` 0.1.0: published-current\n"
+                              "- `beta` 0.2.0: published-drifted\n")
+        self.assertIn("beta 0.2.0: release blocked;", err)
+        asked = "\n".join(registry.asked)
+        self.assertIn("alpha", asked)
+        self.assertIn("beta", asked)
+
+    def test_release_passes_a_current_published_artifact(self) -> None:
+        status, out, err = self.run_release(
+            self.registry(), "--package", "alpha")
+        self.assertEqual(
+            (status, out, err),
+            (0, "- `alpha` 0.1.0: published-current\n", ""),
+        )
+
+    def test_release_passes_an_unpublished_version(self) -> None:
+        self.commit({"crates/alpha/Cargo.toml": ALPHA_MANIFEST.format(version="0.1.1")})
+        status, out, err = self.run_release(
+            self.registry(), "--package", "alpha")
+        self.assertEqual(
+            (status, out, err),
+            (0, "- `alpha` 0.1.1: unpublished-version\n", ""),
+        )
+
+    def test_release_passes_a_never_published_package(self) -> None:
+        registry = Registry({"beta": ["0.2.0"]}, {("beta", "0.2.0"): published_beta()})
+        status, out, err = self.run_release(registry, "--package", "alpha")
+        self.assertEqual(
+            (status, out, err),
+            (0, "- `alpha` 0.1.0: never-published\n", ""),
+        )
+
+    def test_release_registry_failure_remains_a_measurement_error(self) -> None:
+        url = guard.drift.CRATE_URL.format(name="alpha", version="0.1.0")
+        status, out, err = self.run_release(
+            self.registry(status={url: 503}), "--package", "alpha")
+        self.assertEqual((status, out), (2, ""))
+        self.assertIn("HTTP 503 for alpha 0.1.0", err)
+
+    def test_release_rejects_a_named_package_absent_at_head(self) -> None:
+        status, out, err = self.run_release(
+            self.registry(), "--package", "alpha,missing")
+        self.assertEqual((status, out), (2, ""))
+        self.assertIn("does not name a publishable package at head: missing", err)
 
     def test_an_unexpected_error_exits_two_never_one(self) -> None:
         self.commit({"crates/alpha/src/lib.rs": "pub fn one() -> u32 { 11 }\n"})
