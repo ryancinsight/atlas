@@ -1192,6 +1192,7 @@ class HookInstallTestCase(unittest.TestCase):
                 "scripts/lockfile.py": b"raise SystemExit(0)\n",
                 "scripts/process_tree.py": (scripts_root / "process_tree.py").read_bytes(),
                 "scripts/windows_process.py": (scripts_root / "windows_process.py").read_bytes(),
+                "scripts/darwin_process.py": (scripts_root / "darwin_process.py").read_bytes(),
             },
         )
         baseline = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
