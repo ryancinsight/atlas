@@ -1,5 +1,13 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-10-28: parallel clones leave CI member checkout serial
+
+Risk: member checkout consumes the fast job's unchanged ten-minute budget;
+`git submodule update --jobs` overlaps clones but not worktree materialization.
+The bounded CI helper freezes every committed direct pin and complete mapping,
+registers serially, then updates four disjoint fresh destinations with root-state
+and error/child-lifetime checks. Closure requires exact-head review and unchanged gates; #551's cohort remains held.
+
 ## Finding 2026-10-26: bounded provider checklists do not define four-framework parity
 
 Risk: displacement tables, Coeus's implemented-family manifest and Leto's seeded matrix can appear complete while public comparator APIs, compiler/device/distributed variants and external performance remain unmapped. [The versioned program](docs/parity/README.md) retains source-linked candidates, explicit extraction gaps, separate evidence stages and provider ownership. Source audit corrects stale Coeus constructors/gradchecks and Leto's 28/28 headline without crediting unrun tests. The [JAX dtype policy](docs/parity/dtype-policy/README.md) adds finite symbolic joins and source/case/owner validation while retaining unrun acceptance and unresolved companion artifacts. The NumPy native dtype supplement preserves 78 receipts / 129 functions / 131 spans, 576 symbolic cells and 47 unrun targets, including unresolved temporal quotient and unregistered native-interop prerequisites, with no denominator or mapping-stage credit. Repaired Torch source definitions retain 66 UNRUN cases / 14 gaps and separate actual API ownership, facade proposal and numeric supplier; no mapping or runtime promotion. Independent canonical review adds exact package evidence/gap guards and typed scalar error normalization; same-reviewer final-head assessment remains pending. The [accepted public-evidence capture](docs/parity/reference/public-evidence/README.md) makes reviewed TF 492 and JAX/Torch six source facts durable with separate live owner joins; all 498 unresolved classifications and three uncertified NumPy internal proposals remain requirements, with no gate or stage relief. The [TF conversion capture](docs/parity/core-tensor/tf-conversion-20261026/README.md) retains 30 UNRUN cases / ten open gaps with ordered rounding and cotangent-range guards; its primary API stays unmapped, live owner joins are separate from frozen context, and native behavior remains unqualified. Owner: ATLAS-FULL-PARITY-001. Closure requires complete extraction/semantic classes, reviewed scope decisions and exact-revision qualification; no version bump occurs here.

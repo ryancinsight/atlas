@@ -139,6 +139,36 @@ def test_a_standalone_manifest_is_linted_in_place(tmp_path):
     assert "--workspace" in command and "-p" not in command
 
 
+def test_cargo_directory_keeps_the_exported_overlay_out_of_resolution(tmp_path, monkeypatch):
+    from atlas_target_dir import shared_target_for
+
+    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    export = tmp_path / "export"
+    execution = tmp_path / "execution"
+    execution.mkdir()
+    (export / "src").mkdir(parents=True)
+    (export / ".cargo").mkdir()
+    (export / "Cargo.toml").write_text(
+        '[package]\nname = "overlay-probe"\nversion = "0.1.0"\nedition = "2024"\n'
+    )
+    (export / "src" / "lib.rs").write_text("pub fn answer() -> usize { 42 }\n")
+    (export / "Cargo.lock").write_text(
+        'version = 4\n[[package]]\nname = "overlay-probe"\nversion = "0.1.0"\n'
+    )
+    config = (
+        '[patch."https://github.com/ryancinsight/coeus"]\n'
+        'coeus-leto = { path = "repos/coeus/crates/coeus-leto" }\n'
+    )
+    (export / ".cargo" / "config.toml").write_text(config)
+
+    space = gate.workspace(export, command_cwd=execution)
+
+    assert set(space.names().values()) == {"overlay-probe"}
+    assert space.root == export
+    assert gate.run_clippy(export, ["overlay-probe"], command_cwd=execution) == (0, set())
+    assert (export / ".cargo" / "config.toml").read_text() == config
+
+
 def test_a_cargo_fuzz_crate_builds_with_the_fuzzing_cfg(monkeypatch):
     fuzz = [{"id": "f", "name": "f", "metadata": {"cargo-fuzz": True}}]
     plain = [{"id": "p", "name": "p", "metadata": None}, {"id": "q", "name": "q"}]
@@ -148,6 +178,61 @@ def test_a_cargo_fuzz_crate_builds_with_the_fuzzing_cfg(monkeypatch):
     monkeypatch.delenv("RUSTFLAGS")
     assert gate.clippy_environment(fuzz)["RUSTFLAGS"] == "--cfg fuzzing"
     assert "RUSTFLAGS" not in gate.clippy_environment(plain)
+
+
+@pytest.mark.parametrize("command", ["clippy", "measure"])
+@pytest.mark.parametrize("compiles", [True, False])
+def test_cli_uses_the_command_directory_for_every_cargo_step(tmp_path, monkeypatch, capsys,
+                                                           command, compiles):
+    from atlas_target_dir import shared_target_for
+
+    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    export = (tmp_path / "export").resolve()
+    execution = (tmp_path / "execution").resolve()
+    execution.mkdir()
+    (export / "src").mkdir(parents=True)
+    (export / ".cargo").mkdir()
+    (export / "Cargo.toml").write_text(
+        '[package]\nname = "cwd-probe"\nversion = "0.1.0"\nedition = "2024"\n'
+    )
+    (export / "src" / "lib.rs").write_text(
+        "pub fn widen(value: u8) -> usize { value as usize }\n"
+        if compiles else "pub fn broken() -> usize { missing }\n"
+    )
+    (export / "Cargo.lock").write_text(
+        'version = 4\n[[package]]\nname = "cwd-probe"\nversion = "0.1.0"\n'
+    )
+    config = (
+        '[patch."https://github.com/ryancinsight/coeus"]\n'
+        'coeus-leto = { path = "repos/coeus/crates/coeus-leto" }\n'
+    )
+    (export / ".cargo" / "config.toml").write_text(config)
+    args = [command, "--export", str(export), "--command-cwd", str(execution)]
+    if command == "clippy":
+        sites_file = tmp_path / "sites.json"
+        packages_file = tmp_path / "packages.txt"
+        # Exercise both extra metadata calls, as well as run_clippy's call.
+        args += ["--sites", str(sites_file), "--present-only", "-p", "cwd-probe",
+                 "--packages-out", str(packages_file)]
+    else:
+        args += ["--member", "fixture"]
+
+    expected_status = 0 if compiles else (101 if command == "clippy" else 2)
+    assert gate.main(args) == expected_status
+
+    if command == "clippy":
+        found = gate.read_sites(sites_file)
+        expected = {
+            ("cwd-probe", "src/lib.rs", 1),
+        } if compiles else set()
+        assert {(s.package, s.path, s.line) for s in found} == expected
+        assert len(found) == len(expected)
+        assert packages_file.read_bytes() == b"cwd-probe\n"
+    elif not compiles:
+        assert "clippy did not complete (exit 101)" in capsys.readouterr().err
+    else:
+        assert json.loads(capsys.readouterr().out) == {"fixture": {"cwd-probe": 1}}
+    assert (export / ".cargo" / "config.toml").read_text() == config
 
 
 def test_clippy_runs_a_fuzz_manifest_and_names_its_packages(tmp_path, monkeypatch):
@@ -587,6 +672,87 @@ def test_a_count_equal_to_its_base_passes():
 def test_without_a_base_only_the_row_counts():
     tip = {site("core", "src/a.rs", 1), site("core", "src/a.rs", 2)}
     assert gate.violations("m", tip, {}, ["core"], baseline(counts={"m": {"core": 9}})) == []
+
+
+def test_a_package_the_base_never_held_is_judged_by_its_row(tmp_path):
+    # A crate returning to the workspace: the base never had it, so its
+    # recorded debt is judged by its row rather than by a count of zero.
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/core"]\n')
+    (repo / "crates" / "core").mkdir(parents=True)
+    (repo / "crates" / "core" / "Cargo.toml").write_text(
+        '[package]\nname = "core"\nversion = "0.1.0"\n')
+    base = commit(repo, "base")
+    (repo / "crates" / "viewer").mkdir()
+    (repo / "crates" / "viewer" / "Cargo.toml").write_text(
+        '[package]\nname = "viewer"\nversion = "0.1.0"\n')
+    (repo / "Cargo.toml").write_text(
+        '[workspace]\nmembers = ["crates/core", "crates/viewer"]\n')
+    tip = commit(repo, "the crate returns")
+    rules = tmp_path / "baseline.json"
+    rules.write_text('{"sanctioned": {}, "counts": {"m": {"core": 1, "viewer": 9}}}')
+    sites_file = tmp_path / "sites.json"
+    gate.write_sites(sites_file, {site("viewer", "crates/viewer/src/lib.rs", 1)})
+
+    assert gate.main(["--baseline", str(rules), "check", "--member", "m",
+                      "--repo", str(repo), "--base", base, "--tip", tip,
+                      "--package", "viewer", "--sites", str(sites_file),
+                      "--base-package", "viewer"]) == 0
+
+
+def test_a_package_the_base_held_is_judged_by_its_base_count(tmp_path):
+    # A file of casts moved into a package the base had: the move adds no
+    # line, so the base count is what judges it.
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text(
+        '[workspace]\nmembers = ["crates/core", "crates/other"]\n')
+    for member in ("core", "other"):
+        (repo / "crates" / member).mkdir(parents=True)
+        (repo / "crates" / member / "Cargo.toml").write_text(
+            f'[package]\nname = "{member}"\nversion = "0.1.0"\n')
+    (repo / "crates" / "other" / "src").mkdir()
+    (repo / "crates" / "other" / "src" / "moved.rs").write_text(OLD)
+    base = commit(repo, "base")
+    (repo / "crates" / "core" / "src").mkdir()
+    git(repo, "mv", "crates/other/src/moved.rs", "crates/core/src/moved.rs")
+    tip = commit(repo, "the file moves")
+    rules = tmp_path / "baseline.json"
+    rules.write_text('{"sanctioned": {}, "counts": {"m": {"core": 9}}}')
+    sites_file = tmp_path / "sites.json"
+    gate.write_sites(sites_file, {site("core", "crates/core/src/moved.rs", 2)})
+
+    assert gate.main(["--baseline", str(rules), "check", "--member", "m",
+                      "--repo", str(repo), "--base", base, "--tip", tip,
+                      "--package", "core", "--sites", str(sites_file),
+                      "--base-package", "core"]) == 1
+
+
+def test_a_workspace_glob_member_is_read_at_the_base(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "crates" / "one").mkdir(parents=True)
+    (repo / "crates" / "one" / "Cargo.toml").write_text(
+        '[package]\nname = "one"\nversion = "0.1.0"\n')
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/*"]\n')
+    base = commit(repo, "base")
+    assert gate.base_workspace_packages(repo, base) == frozenset({"one"})
+
+
+def test_an_excluded_member_is_not_read_at_the_base(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "fuzz").mkdir()
+    (repo / "fuzz" / "Cargo.toml").write_text(
+        '[package]\nname = "fuzz"\nversion = "0.1.0"\n')
+    (repo / "Cargo.toml").write_text(
+        '[workspace]\nmembers = ["crates/core"]\nexclude = ["fuzz"]\n')
+    (repo / "crates" / "core").mkdir(parents=True)
+    (repo / "crates" / "core" / "Cargo.toml").write_text(
+        '[package]\nname = "core"\nversion = "0.1.0"\n')
+    base = commit(repo, "base")
+    assert gate.base_workspace_packages(repo, base) == frozenset({"core"})
 
 
 def test_the_base_count_excludes_sanctioned_modules():

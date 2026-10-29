@@ -31,6 +31,19 @@
   Consus, Gaia, Leto, Moirai, Tyche). Retire CFDrs' member-manifest Aequitas
   path patch, which stripped the lock's git sources and made the lock
   non-portable.
+- Materialize CI member worktrees concurrently after serial registration, not
+  only their initial clones. Freeze committed pins/mappings, reject existing
+  or overlapping destinations, preserve root state, and retire owned children
+  on failure/interruption through the existing process-tree supervisor. Retain
+  all Python tests, timeouts, full member history and blob filtering.
+
+- Fix the shared cast checker's optional `--command-cwd` interface for Clippy,
+  metadata and package enumeration. Preserve the export directory default and
+  cast/compiler failure handling, and record the compiler selected from the
+  actual execution directory. This prerequisite leaves #551's provider cohort,
+  hooks, pins, overlay, locks and required gates unchanged. Materialize recorded
+  Python-CI members with parallel blobless clones and full history so checkout
+  does not consume the unchanged test-job budgets.
 
 - Integrate the independently reviewed TF conversion source boundary in parity
   program 2026-10-26.12, with lossless selected captures, typed live owner/API

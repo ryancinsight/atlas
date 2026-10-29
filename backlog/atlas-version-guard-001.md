@@ -1,6 +1,6 @@
 <a id="atlas-version-guard-001"></a>
 ## ATLAS-VERSION-GUARD-001 — Manifest-version guard and stack coherence check [patch] — todo
-- policy: git_discipline + architecture_scoping pin discipline. Incident `87ab265` (hermes) silently reverted a release version, stranding integrators ~10 hours — the motivating case for this guard.
+- policy: git_discipline + architecture_scoping pin discipline. Incident `87ab265` (hermes) silently reverted a release version, stranding integrators ~10 hours — the motivating case for this guard. The coherence index keys packages by the registration that owns their manifest: a name-only index rejects independent repository-local `xtask` versions and lets a dependency fall back to another provider's same-named package.
 - outcome: a per-repo CI guard on undeclared version/dependency changes plus a stack coherence check on first-party requirements, wired into member CI.
-- next (sub-delivery 2, todo): wire the guard into each allowlisted member's CI on PRs/pushes touching its `*.toml`.
-- acceptance: `87ab265` replay fails the guard; coherence check passes on current stack, fails on an injected backward-version fixture.
+- next (sub-delivery 2, todo): wire the guard into each allowlisted member's CI on PRs/pushes touching its `*.toml`. The provider-identity correction lands with this item, which stays todo; PR #551's overlay and lock drift and PR #559's overlay target keep their own ownership.
+- acceptance: `87ab265` replay fails the guard; coherence check passes on current stack, fails on an injected backward-version fixture. Provider identity: the most specific registered root owns a path, equal-depth registrations that disagree fail closed, a workspace-inherited dependency resolves against its declaring workspace, and a package absent from its own source never falls back to another provider — the contract and its regression suite are in `../tools/version-guard/README.md`.
