@@ -27,6 +27,7 @@ import inspect
 import io
 import json
 import os
+import py_compile
 import re
 import socket
 import socketserver
@@ -608,6 +609,32 @@ def test_metadata_reader_never_consumes_past_its_aggregate_budget(identity):
     assert reader.bytes_read == identity.registry_http.REGISTRY_FRAMING_BYTES
 
 
+@pytest.mark.parametrize("line,prior", [
+    (b"Content-Length: 2 \t\r\n", ()),
+    (b"Transfer-Encoding: ChUnKeD\t \r\n", ()),
+    (b"Content-Length: 2\r\n", ((b"x-trace", b"yes"),)),
+])
+def test_framing_field_parser_accepts_every_valid_prefix(identity, line, prior):
+    state = identity.registry_http.LineState
+    for length in range(len(line)):
+        assert identity.registry_http.field_line_state(line[:length], prior) is state.PREFIX
+    assert identity.registry_http.field_line_state(line, prior) is state.COMPLETE
+
+
+@pytest.mark.parametrize("line,prior", [
+    (b"Content-Length: invalid", ()),
+    (b"Content-Length: 2x", ()),
+    (b"Content-Length: 3", ((b"content-length", b"2"),)),
+    (b"Transfer-Encoding: chu", ((b"content-length", b"2"),)),
+    (b"Transfer-Encoding: gzip", ()),
+    (b"Transfer-Encoding: chunked", ((b"transfer-encoding", b"chunked"),)),
+])
+def test_framing_field_parser_rejects_semantically_impossible_prefixes(identity, line, prior):
+    invalid = identity.registry_http.LineState.INVALID
+    assert identity.registry_http.field_line_state(line, prior) is invalid
+    assert identity.registry_http.field_line_state(line + b"\r\n", prior) is invalid
+
+
 def strict_response(identity, wire):
     stream = io.BytesIO(wire)
 
@@ -725,6 +752,22 @@ def test_real_tcp_malformed_headers_are_permanent(identity, header):
         reader=identity.read_url, sleep=lambda _delay: None, jitter=lambda _low, _high: 1.0)
     with raw_http([wire]) as (url, server):
         with pytest.raises(identity.IdentityError):
+            policy(url, 4096)
+        assert server.request_count == 1
+
+
+@pytest.mark.parametrize("header", [
+    b"Content-Length: invalid",
+    b"Content-Length: 2\r\nContent-Length: 3",
+    b"Content-Length: 2\r\nTransfer-Encoding: chunked",
+    b"Transfer-Encoding: gzip",
+])
+def test_real_tcp_semantically_invalid_header_eof_is_permanent(identity, header):
+    wire = b"HTTP/1.1 200 OK\r\n" + header
+    policy = identity.RegistryPolicy(
+        reader=identity.read_url, sleep=lambda _delay: None, jitter=lambda _low, _high: 1.0)
+    with raw_http([wire]) as (url, server):
+        with pytest.raises(identity.IdentityError, match="framing"):
             policy(url, 4096)
         assert server.request_count == 1
 
@@ -977,6 +1020,40 @@ def test_transport_parent_does_not_trust_cached_process_tree_module(identity, mo
     with raw_http([wire]) as (url, server):
         assert identity.read_url(url, 2) == (200, b"ok")
         assert server.request_count == 1
+
+
+def stale_timestamp_cache(source, alternate):
+    canonical = source.read_bytes()
+    assert len(alternate) == len(canonical)
+    timestamp = 1_700_000_000_000_000_000
+    source.write_bytes(alternate)
+    os.utime(source, ns=(timestamp, timestamp))
+    py_compile.compile(str(source), doraise=True)
+    source.write_bytes(canonical)
+    os.utime(source, ns=(timestamp, timestamp))
+    return canonical
+
+
+def test_exact_module_loader_ignores_timestamp_valid_bytecode(identity, tmp_path):
+    source = tmp_path / "cached_owner.py"
+    source.write_bytes(b"VALUE = 'canonical'\n")
+    stale_timestamp_cache(source, b"VALUE = 'forged!!!'\n")
+    assert identity._load_exact_module(source, "cache_probe").VALUE == "canonical"
+
+
+def test_registry_http_loader_executes_restored_source_not_bytecode(identity, tmp_path):
+    source = tmp_path / "registry_http.py"
+    canonical = (ROOT / ".github/actions/crate-release-identity/registry_http.py").read_bytes()
+    needle = b"REGISTRY_FRAMING_BYTES = http.client._MAXLINE"
+    replacement_prefix = b"REGISTRY_FRAMING_BYTES = 1"
+    replacement = replacement_prefix + b" " * (len(needle) - len(replacement_prefix))
+    assert len(replacement) == len(needle)
+    alternate = canonical.replace(needle, replacement)
+    assert alternate != canonical
+    source.write_bytes(canonical)
+    stale_timestamp_cache(source, alternate)
+    loaded = identity._load_exact_module(source, "registry_http_cache_probe")
+    assert loaded.REGISTRY_FRAMING_BYTES == identity.registry_http.REGISTRY_FRAMING_BYTES
 
 
 def test_parallel_transport_loaders_use_exact_per_invocation_modules(identity, monkeypatch):

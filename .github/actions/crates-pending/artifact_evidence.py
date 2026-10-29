@@ -10,13 +10,25 @@ import subprocess
 import sys
 from typing import Callable
 
+def _load_source(source, role):
+    source = source.resolve()
+    token = object()
+    name = f"_atlas_crates_pending_{role}_{id(_load_source):x}_{id(token):x}"
+    spec = importlib.util.spec_from_file_location(name, source)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load the shared {role} owner")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        code = compile(source.read_bytes(), str(source), "exec", dont_inherit=True)
+        exec(code, module.__dict__)
+    finally:
+        sys.modules.pop(name, None)
+    return module
+
+
 _COMMON = Path(__file__).resolve().parents[1] / "crate-release-identity" / "release_identity.py"
-_SPEC = importlib.util.spec_from_file_location("crate_release_identity", _COMMON)
-if _SPEC is None or _SPEC.loader is None:
-    raise RuntimeError("cannot load the shared crate release identity owner")
-_IDENTITY = importlib.util.module_from_spec(_SPEC)
-sys.modules[_SPEC.name] = _IDENTITY
-_SPEC.loader.exec_module(_IDENTITY)
+_IDENTITY = _load_source(_COMMON, "crate_release_identity")
 COMMIT, PACKAGE_NAME, SHA256 = _IDENTITY.COMMIT, _IDENTITY.NAME, _IDENTITY.SHA256
 METADATA_LIMIT = _IDENTITY.METADATA_LIMIT
 API_INTERVAL_SECONDS = _IDENTITY.API_INTERVAL_SECONDS

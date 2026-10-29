@@ -91,7 +91,10 @@ class RegistryWireReader:
     def fields(self, kind):
         fields = []
         while True:
-            line = self.line(kind, field_line_state)
+            def grammar(value):
+                return field_line_state(value, fields)
+
+            line = self.line(kind, grammar)
             if line == b"\r\n":
                 return tuple(fields)
             fields.append(validate_field_line(line, kind))
@@ -151,7 +154,36 @@ def status_line_state(value):
     return _line_state(value, _status_payload_state)
 
 
-def _field_payload_state(value):
+def _content_length_state(value):
+    position = _consume_bws(value, 0)
+    if position == len(value):
+        return LineState.PREFIX
+    digits = position
+    while position < len(value) and value[position] in b"0123456789":
+        position += 1
+    if position == digits:
+        return LineState.INVALID
+    position = _consume_bws(value, position)
+    return LineState.COMPLETE if position == len(value) else LineState.INVALID
+
+
+def _transfer_encoding_state(value):
+    position = _consume_bws(value, 0)
+    coding = b"chunked"
+    remainder = value[position:]
+    prefix = remainder[:len(coding)].lower()
+    if not coding.startswith(prefix):
+        return LineState.INVALID
+    if len(remainder) < len(coding):
+        return LineState.PREFIX
+    if prefix != coding:
+        return LineState.INVALID
+    position += len(coding)
+    position = _consume_bws(value, position)
+    return LineState.COMPLETE if position == len(value) else LineState.INVALID
+
+
+def _field_payload_state(value, prior_fields):
     if not value:
         return LineState.COMPLETE
     name, separator, field_value = value.partition(b":")
@@ -162,12 +194,22 @@ def _field_payload_state(value):
     if any(byte != 9 and not (32 <= byte <= 126 or byte >= 128)
            for byte in field_value):
         return LineState.INVALID
+    normalized = name.lower()
+    prior_names = {prior_name for prior_name, _prior_value in prior_fields}
+    if normalized == b"content-length":
+        if b"content-length" in prior_names or b"transfer-encoding" in prior_names:
+            return LineState.INVALID
+        return _content_length_state(field_value)
+    if normalized == b"transfer-encoding":
+        if b"content-length" in prior_names or b"transfer-encoding" in prior_names:
+            return LineState.INVALID
+        return _transfer_encoding_state(field_value)
     return LineState.COMPLETE
 
 
-def field_line_state(value):
+def field_line_state(value, prior_fields=()):
     """Recognize complete and completable RFC 9112 field lines."""
-    return _line_state(value, _field_payload_state)
+    return _line_state(value, lambda payload: _field_payload_state(payload, prior_fields))
 
 
 def validate_field_line(line, kind):

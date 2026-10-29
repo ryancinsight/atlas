@@ -68,7 +68,8 @@ def _load_exact_module(source, role):
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     try:
-        spec.loader.exec_module(module)
+        code = compile(source.read_bytes(), str(source), "exec", dont_inherit=True)
+        exec(code, module.__dict__)
     finally:
         sys.modules.pop(name, None)
     if Path(module.__file__).resolve() != source:

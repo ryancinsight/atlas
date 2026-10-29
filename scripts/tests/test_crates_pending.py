@@ -9,6 +9,7 @@ import json
 import contextlib
 import io
 import os
+import py_compile
 import shutil
 import stat
 import subprocess
@@ -51,6 +52,52 @@ sys.stdout.write(json.dumps(result))
         capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode == 0, result.stderr
     assert result.stdout == "null"
+
+
+def stale_timestamp_cache(source: Path, alternate: bytes) -> bytes:
+    canonical = source.read_bytes()
+    assert len(alternate) == len(canonical)
+    timestamp = 1_700_000_000_000_000_000
+    source.write_bytes(alternate)
+    os.utime(source, ns=(timestamp, timestamp))
+    py_compile.compile(str(source), doraise=True)
+    source.write_bytes(canonical)
+    os.utime(source, ns=(timestamp, timestamp))
+    return canonical
+
+
+def copied_actions(tmp_path: Path) -> Path:
+    actions = tmp_path / ".github" / "actions"
+    shutil.copytree(ACTION, actions / "crates-pending")
+    shutil.copytree(ROOT / ".github/actions/crate-release-identity",
+                    actions / "crate-release-identity")
+    return actions
+
+
+def test_artifact_owner_ignores_cached_release_identity_bytecode(tmp_path):
+    actions = copied_actions(tmp_path)
+    source = actions / "crate-release-identity" / "release_identity.py"
+    canonical = source.read_bytes()
+    needle = b"METADATA_LIMIT = 16 * 1024 * 1024"
+    replacement_prefix = b"METADATA_LIMIT = 1"
+    replacement = replacement_prefix + b" " * (len(needle) - len(replacement_prefix))
+    assert len(replacement) == len(needle)
+    stale_timestamp_cache(source, canonical.replace(needle, replacement))
+    artifact = cp._load_source(actions / "crates-pending" / "artifact_evidence.py",
+                               "artifact_cache_probe")
+    assert artifact.METADATA_LIMIT == cp.METADATA_LIMIT
+
+
+def test_pending_owner_ignores_cached_artifact_bytecode(tmp_path):
+    actions = copied_actions(tmp_path)
+    source = actions / "crates-pending" / "artifact_evidence.py"
+    canonical = source.read_bytes()
+    alternate = canonical.replace(b'ARTIFACT_PROFILE = "cargo-package-verify"',
+                                  b'ARTIFACT_PROFILE = "rogue-package-verify"')
+    assert alternate != canonical
+    stale_timestamp_cache(source, alternate)
+    artifact = cp._load_source(source, "artifact_cache_probe")
+    assert artifact.ARTIFACT_PROFILE == "cargo-package-verify"
 
 
 class Registry:

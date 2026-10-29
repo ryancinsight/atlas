@@ -29,14 +29,25 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+def _load_source(source, role):
+    source = source.resolve()
+    token = object()
+    name = f"_atlas_crates_pending_{role}_{id(_load_source):x}_{id(token):x}"
+    spec = importlib.util.spec_from_file_location(name, source)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load the crates-pending {role} owner")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        code = compile(source.read_bytes(), str(source), "exec", dont_inherit=True)
+        exec(code, module.__dict__)
+    finally:
+        sys.modules.pop(name, None)
+    return module
+
+
 _EVIDENCE_PATH = Path(__file__).with_name("artifact_evidence.py")
-_EVIDENCE_SPEC = importlib.util.spec_from_file_location(
-    "atlas_crates_pending_artifact_evidence", _EVIDENCE_PATH)
-if _EVIDENCE_SPEC is None or _EVIDENCE_SPEC.loader is None:
-    raise RuntimeError("cannot load the crates-pending artifact evidence owner")
-_EVIDENCE = importlib.util.module_from_spec(_EVIDENCE_SPEC)
-sys.modules[_EVIDENCE_SPEC.name] = _EVIDENCE
-_EVIDENCE_SPEC.loader.exec_module(_EVIDENCE)
+_EVIDENCE = _load_source(_EVIDENCE_PATH, "artifact_evidence")
 
 ARTIFACT_PROFILE = _EVIDENCE.ARTIFACT_PROFILE
 ArtifactContext = _EVIDENCE.ArtifactContext
