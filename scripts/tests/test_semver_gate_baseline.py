@@ -173,6 +173,7 @@ class PullRequestArtifactDriftWiringTests(unittest.TestCase):
                            "RUNNER_TEMP": root.as_posix(),
                            "GITHUB_STEP_SUMMARY": (root / "summary").as_posix(),
                            "ATLAS_TEST_PYTHON": Path(sys.executable).as_posix()}
+            environment.pop("PYTHONPATH", None)
             execution = subprocess.run(
                 ["bash", "-c", 'python3() { "$ATLAS_TEST_PYTHON" "$@"; }\n' + step["run"]],
                 cwd=root, env=environment, capture_output=True, text=True, timeout=60)
