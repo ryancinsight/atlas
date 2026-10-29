@@ -5,5 +5,5 @@
 - Oracle: a test launches a tree (parent plus grandchild sleeping past the limit) from each shell; at the limit no process of the tree survives, the exit reports the limit and the stage, and a memory ceiling breach kills the tree. A listing finds a run past its limit by its tag.
 - priority: correctness
 - needs: none (builds on the process-tree owner in ryancinsight/atlas#396)
-- scope: scripts/process_tree.py, scripts/windows_process.py, a new runner entry under scripts/, scripts/tests/
-- Next step: land #396, then add the runner CLI over `process_tree` with the tag store under the shared target's `.atlas/`.
+- scope: scripts/process_tree.py, scripts/windows_process.py, scripts/darwin_process.py, isolated scanner/rescue runtime exports, a new runner entry under scripts/, scripts/tests/
+- Next step: qualify the Darwin inactive-group proof and readonly fixture cleanup under ADR 0067, then add the runner CLI over `process_tree` with the tag store under the shared target's `.atlas/`.

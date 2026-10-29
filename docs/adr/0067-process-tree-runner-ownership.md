@@ -100,6 +100,29 @@ The mechanisms:
 - Timeout and cleanup each have finite budgets; a `KeyboardInterrupt` before
   destructive cleanup completes is retried while ownership remains held, and
   any other exception raised by cleanup propagates unchanged.
+- Darwin group-state inspection uses [darwin_process.py](../../scripts/darwin_process.py)
+  and the system libproc ABI in process. XNU excludes zombies from `killpg`
+  targets and can return EPERM for a zombie-only group. Accept that response
+  only after a complete, stable list contains no executable member: every
+  listed PID must have full short-BSD information with the same PID/group and
+  `SZOMB` state, followed by an unchanged group list. The PID lookup explicitly
+  includes zombies. Errors, incomplete buffers, changing membership and live
+  states remain active and preserve cleanup failures. No `ps` subprocess may
+  extend the launch window or restart an interrupted cleanup. These semantics
+  follow Apple's [libproc interface](https://github.com/apple-oss-distributions/xnu/blob/main/libsyscall/wrappers/libproc/libproc.c)
+  and [XNU process inspection](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/proc_info.c).
+  While the unreaped launcher still pins the group identity, a disappeared PID
+  (`ESRCH`) or changed membership permits a fresh snapshot within the existing
+  cleanup deadline. Each snapshot still requires the complete stable proof;
+  live states, denied reads and unavailable or incomplete inspection fail
+  immediately. Expiry is checked before every observation, including after a
+  pause; no destructive signal repeats during this observation.
+- Cleanup state durably records a returned termination request, any pending
+  Darwin proof, and confirmed failures. Request/proof outcomes commit under
+  the existing SIGINT deferral before delivering that interrupt. An interrupt
+  inside an unconfirmed syscall permits safe-owned retry; an interrupted proof
+  resumes without another group signal. Waiting and post-reap observations
+  retain prior failures and the original deadline, including deadline expiry.
 - Optional input is delivered concurrently with deadline observation, so pipe
   backpressure cannot delay timeout or cleanup; status and byte-exact standard
   streams remain command results.
