@@ -13,27 +13,57 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 
 import process_tree
 import yaml
+from checkout_barrier import publish_marker
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/python-tests.yml"
-DEPENDENCIES = ("atlas_ci_members.py", "atlas_git_process.py", "process_tree.py", "windows_process.py")
-HOOK = r"""import json, os, pathlib, time
-folder = pathlib.Path(os.environ['MATERIALIZATION_BARRIER'])
-path = pathlib.Path.cwd()
-(folder / str(os.getpid())).write_text(json.dumps({'pid': os.getpid(), 'path': str(path)}))
-while not (folder / 'release').exists() and not (folder / path.name).exists():
-    time.sleep(0.02)
-if path.name == os.environ.get('MATERIALIZATION_FAIL', ''):
-    raise SystemExit(42)
-"""
+DEPENDENCIES = ("atlas_ci_members.py", "atlas_git_process.py", "process_tree.py",
+                "darwin_process.py", "windows_process.py")
+HOOK = Path(__file__).with_name("checkout_barrier.py").read_text()
 
 
 class PythonCheckoutTests(unittest.TestCase):
+    def test_barrier_publishes_only_complete_packets_and_rejects_malformed_markers(self):
+        writing, resume = threading.Event(), threading.Event()
+
+        class PausedRecord(dict):
+            def items(self):
+                for index, item in enumerate(super().items()):
+                    if index == 1:
+                        writing.set()
+                        if not resume.wait(5):
+                            raise TimeoutError("barrier publisher was not released")
+                    yield item
+
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            worktree = folder / "worktree"
+            worktree.mkdir()
+            record = PausedRecord(pid=os.getpid(), path=str(worktree))
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(publish_marker, folder, record)
+                try:
+                    self.assertTrue(writing.wait(5), "publisher did not start its packet")
+                    self.assertEqual(self.entered(folder), [])
+                finally:
+                    resume.set()
+                future.result(timeout=5)
+            self.assertEqual(self.entered(folder), [dict(record)])
+            self.assertEqual(sorted(p.name for p in folder.iterdir()), [str(os.getpid()), "worktree"])
+            with self.assertRaises(TypeError):
+                publish_marker(folder, {"pid": os.getpid(), "path": object()})
+            self.assertEqual(self.entered(folder), [dict(record)])
+            self.assertEqual(sorted(p.name for p in folder.iterdir()), [str(os.getpid()), "worktree"])
+            (folder / str(os.getpid())).write_text("{")
+            with self.assertRaises(json.JSONDecodeError):
+                self.entered(folder)
+
     def git(self, root: Path, *args: str) -> str:
         result = subprocess.run(["git", "-C", str(root), *args], env=self.env,
                                 capture_output=True, text=True)

@@ -65,9 +65,9 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
@@ -77,7 +77,6 @@ from atlas_pull_request import open_pull_request  # noqa: E402
 from atlas_stack import ROOT, git, registered_member_names, registered_members  # noqa: E402
 
 LOG_ROOT = ROOT / "output" / "lock-sweep"
-FIRST_PARTY_GIT = "git+https://github.com/ryancinsight/"
 # A pushed member branch runs the member's whole pre-push gate, which can queue
 # on the shared build-identity lease (900 s) before it builds.
 PUSH_TIMEOUT_SECONDS = 3000
@@ -158,41 +157,6 @@ def provider_repo_name(url: str) -> str:
     return normalize_repo_url(url).rsplit("/", 1)[-1]
 
 
-def locked_packages(lock_text: str) -> list[LockedPackage]:
-    """Parse every first-party Git package, including queried sources."""
-    try:
-        parsed = tomllib.loads(lock_text)
-    except tomllib.TOMLDecodeError as error:
-        raise ValueError(f"Cargo.lock does not parse: {error}") from error
-    packages = parsed.get("package")
-    if not isinstance(packages, list):
-        raise ValueError("Cargo.lock has no package array")
-    locked: list[LockedPackage] = []
-    for package in packages:
-        if not isinstance(package, dict) or not isinstance(package.get("source"), str):
-            continue
-        source = package["source"]
-        if not source.lower().startswith(FIRST_PARTY_GIT):
-            continue
-        name = package.get("name")
-        version = package.get("version")
-        location, separator, revision = source[4:].rpartition("#")
-        if (
-            not isinstance(name, str)
-            or not isinstance(version, str)
-            or not separator
-            or not re.fullmatch(r"[0-9a-fA-F]{40}", revision)
-        ):
-            raise ValueError(f"unreadable first-party source identity {source}")
-        locked.append(LockedPackage(name, version, location, revision.lower()))
-    return locked
-
-
-def first_party_packages(lock_text: str) -> list[LockedPackage]:
-    """First-party packages update mode may move: explicit query pins excluded."""
-    return [package for package in locked_packages(lock_text) if "?" not in package.url]
-
-
 def revision_lock_findings(
     member: str,
     lock: str,
@@ -237,13 +201,8 @@ def committed_member_names(repository: Path, selected: str) -> set[str]:
     """Read every submodule path from one committed `.gitmodules`."""
     try:
         configuration = git(
-            repository,
-            "config",
-            "--no-includes",
-            "--blob",
-            f"{selected}:.gitmodules",
-            "--null",
-            "--list",
+            repository, "config", "--no-includes", "--blob",
+            f"{selected}:.gitmodules", "--null", "--list",
         )
     except RuntimeError as error:
         raise RuntimeError(f"cannot parse .gitmodules at {selected}: {error}") from error
@@ -297,9 +256,6 @@ def selected_gitlinks(repository: Path, revision: str) -> tuple[str, dict[str, t
     """Resolve one meta revision and its complete registered gitlink set."""
     selected = git(repository, "rev-parse", "--verify", f"{revision}^{{commit}}").strip()
     names = committed_member_names(repository, selected)
-    unsafe = sorted(name for name in names if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name))
-    if unsafe:
-        raise RuntimeError(f"unsafe registered member name {unsafe[0]!r}")
     paths = {name.lower(): repository / "repos" / name for name in names}
     links: dict[str, tuple[str, str, Path]] = {}
     for line in git(repository, "ls-tree", "-r", selected, "--", "repos/").splitlines():
@@ -373,8 +329,78 @@ def print_revision_check(result: RevisionCheck) -> int:
         print(f"COHERENCE VIOLATION: {problem}", file=sys.stderr)
     print(f"checked {result.locks} committed lock(s)")
     return 1 if result.problems else 0
+def supported_first_party_location(location: str, package_index: int) -> bool:
+    """Whether a Git location has the supported first-party authority and path."""
+    try:
+        parsed = urlsplit(location)
+    except ValueError:
+        return False
+    if (parsed.hostname or "").lower() != "github.com":
+        return False
+
+    owner = next((component for component in parsed.path.split("/") if component), None)
+    if owner is None or unquote(owner).lower() != "ryancinsight":
+        return False
+    if any(ord(character) < 0x20 or ord(character) == 0x7F for character in location):
+        raise ValueError(
+            f"lock package {package_index} has unreadable first-party Git source identity"
+        )
+    if owner.lower() != "ryancinsight":
+        raise ValueError(
+            f"lock package {package_index} has unsupported first-party Git source path"
+        )
+    if parsed.scheme.lower() != "https" or parsed.username is not None or parsed.password is not None:
+        raise ValueError(
+            f"lock package {package_index} has unsupported first-party Git source authority"
+        )
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError(
+            f"lock package {package_index} has unreadable first-party Git source authority"
+        ) from error
+    if port not in (None, 443):
+        raise ValueError(
+            f"lock package {package_index} has unsupported first-party Git source authority"
+        )
+    if not re.fullmatch(
+        r"/ryancinsight/[A-Za-z0-9][A-Za-z0-9._-]*/?",
+        parsed.path,
+        re.IGNORECASE | re.ASCII,
+    ):
+        raise ValueError(
+            f"lock package {package_index} has unreadable first-party Git source identity"
+        )
+    return True
 
 
+def locked_packages(lock_text: str) -> list[LockedPackage]:
+    """Read every complete Git identity in the supported first-party namespace."""
+    locked: list[LockedPackage] = []
+    for index, package in enumerate(lockfile.locked_package_records(lock_text)):
+        source = package.get("source")
+        if not isinstance(source, str):
+            continue
+        if not source.lower().startswith("git+"):
+            continue
+        payload = source[4:]
+        location, separator, revision = payload.rpartition("#")
+        candidate = location if separator else payload
+        if not supported_first_party_location(candidate, index):
+            continue
+        if not separator or "#" in location or not re.fullmatch(r"[0-9a-fA-F]{40}", revision):
+            raise ValueError(
+                f"lock package {index} has unreadable first-party Git source identity"
+            )
+        locked.append(
+            LockedPackage(package["name"], package["version"], location, revision.lower())
+        )
+    return locked
+
+
+def first_party_packages(lock_text: str) -> list[LockedPackage]:
+    """First-party packages update mode may move: explicit query pins excluded."""
+    return [package for package in locked_packages(lock_text) if "?" not in package.url]
 def stale_packages(lock_text: str, targets: dict[str, str]) -> tuple[LockedPackage, ...]:
     """The first-party entries whose provider is a target they are not at."""
     return tuple(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import errno
+from contextlib import nullcontext
 import pathlib
 import sys
 import threading
@@ -75,6 +76,29 @@ class InterruptedCleanupTests(unittest.TestCase):
 
         self.assertIs(raised.exception, defect)
         self.assertEqual(terminate.call_count, 1)
+
+    def test_deferred_signal_keeps_an_existing_cleanup_defect_primary(self):
+        defect = ValueError("confirmed cleanup defect")
+        handler = unittest.mock.Mock(side_effect=KeyboardInterrupt())
+        with (
+            patch.object(process_tree.signal, "getsignal", return_value=handler),
+            patch.object(process_tree.signal, "signal") as install,
+        ):
+            try:
+                with process_tree._InterruptDeferral("cleanup request"):
+                    capture = install.call_args.args[1]
+                    capture(process_tree.signal.SIGINT, None)
+                    raise defect
+            except KeyboardInterrupt:
+                self.fail("deferred interrupt replaced the cleanup defect")
+            except ValueError as raised:
+                self.assertIs(raised, defect)
+                self.assertEqual(str(raised), "confirmed cleanup defect")
+                self.assertIn("SIGINT received during cleanup request was superseded", raised.__notes__)
+            else:
+                self.fail("cleanup defect was swallowed")
+        handler.assert_not_called()
+        self.assertIs(install.call_args.args[1], handler)
 
     def test_run_surfaces_cleanup_defect_instead_of_hanging(self):
         class Launcher:
@@ -173,6 +197,113 @@ class CleanupFailureReportingTests(unittest.TestCase):
         self.assertIsNone(raised.exception.cleanup_error)
         self.assertNotIn("cleanup", str(raised.exception))
         self.assertIsNone(raised.exception.__cause__)
+
+
+class CleanupPhaseStateTests(unittest.TestCase):
+    """Confirmed outcomes survive interruption without replaying requests."""
+
+    def exercise(self, phase=None, observed="UNKNOWN", platform="darwin"):
+        state = process_tree._CleanupState(deadline=1.0)
+        calls = dict(signal=0, proof=0, wait=0, membership=0)
+        clock = [0.0]
+        owner = self
+
+        class Launcher:
+            pid = 2_147_483_000
+            returncode = None
+
+            def kill(self):
+                owner.assertFalse(state.launcher_reaped)
+
+            def wait(self, timeout):
+                calls["wait"] += 1
+                owner.assertLessEqual(calls["wait"], 2)
+                if phase == "wait" and calls["wait"] == 1:
+                    raise KeyboardInterrupt()
+                self.returncode = 0
+                return 0
+
+        def signal_group(pid, signum):
+            self.assertEqual((pid, signum), (Launcher.pid, process_tree.signal.SIGKILL))
+            self.assertFalse(state.launcher_reaped)
+            calls["signal"] += 1
+            self.assertLessEqual(calls["signal"], 2)
+            if phase == "syscall":
+                if calls["signal"] == 1:
+                    raise KeyboardInterrupt()
+                return
+            raise PermissionError(errno.EPERM, "controlled EPERM")
+
+        def proof(pid, deadline):
+            self.assertEqual((pid, deadline), (Launcher.pid, 1.0))
+            self.assertFalse(state.launcher_reaped)
+            calls["proof"] += 1
+            self.assertLessEqual(calls["proof"], 2)
+            if phase in ("proof", "proof_deadline") and calls["proof"] == 1:
+                if phase == "proof_deadline":
+                    clock[0] = 1.0
+                raise KeyboardInterrupt()
+            result = "INACTIVE" if phase == "proof" else observed
+            return getattr(process_tree.darwin_process.GroupState, result)
+
+        def membership(pid):
+            self.assertEqual(pid, Launcher.pid)
+            self.assertTrue(state.launcher_reaped)
+            calls["membership"] += 1
+            if phase == "postreap" and calls["membership"] == 1:
+                raise KeyboardInterrupt()
+            return False
+
+        with (
+            patch.object(process_tree.sys, "platform", platform),
+            patch.object(process_tree, "_InterruptDeferral", return_value=nullcontext()),
+            patch.object(process_tree.time, "monotonic", side_effect=lambda: clock[0]),
+            patch.object(process_tree.time, "sleep", side_effect=AssertionError("no sleep")),
+            patch.object(process_tree.os, "killpg", side_effect=signal_group, create=True),
+            patch.object(process_tree, "_darwin_group_snapshot_before", side_effect=proof),
+            patch.object(process_tree, "_posix_group_has_active_members", side_effect=membership),
+            patch.object(process_tree.windows_process, "terminate_job", return_value="controlled job failure"),
+            patch.object(process_tree.subprocess, "Popen", side_effect=AssertionError("no launch")),
+            patch.object(process_tree.darwin_process, "_libproc", side_effect=AssertionError("no native")),
+        ):
+            error = process_tree._finish_interrupted_cleanup(Launcher(), 1, state)
+        self.assertEqual(state.deadline, 1.0)
+        return error, calls, state
+
+    def test_confirmed_request_and_failures_survive_interrupted_phases(self):
+        cases = (
+            ("syscall", "UNKNOWN", "darwin", None, 2),
+            ("proof", "UNKNOWN", "darwin", None, 1),
+            (None, "UNKNOWN", "darwin", "unknown", 1),
+            ("wait", "UNKNOWN", "darwin", "unknown", 1),
+            ("wait", "ACTIVE", "darwin", "active", 1),
+            ("postreap", "UNKNOWN", "darwin", "unknown", 1),
+            ("wait", "UNKNOWN", "linux", "controlled EPERM", 1),
+            ("wait", "UNKNOWN", "win32", "controlled job failure", 0),
+        )
+        for phase, observed, platform, failure, expected_signals in cases:
+            with self.subTest(phase=phase, observed=observed, platform=platform):
+                error, calls, state = self.exercise(phase, observed, platform)
+                if failure is None:
+                    self.assertIsNone(error)
+                else:
+                    self.assertIsNotNone(error)
+                    self.assertIn(failure, error)
+                self.assertEqual(calls["signal"], expected_signals)
+                if phase == "proof":
+                    self.assertEqual(calls["proof"], 2)
+                self.assertTrue(state.termination_issued)
+                self.assertTrue(state.launcher_reaped)
+
+    def test_deadline_interrupt_keeps_the_confirmed_failure_without_another_request(self):
+        error, calls, state = self.exercise("proof_deadline")
+        self.assertIn("controlled EPERM", error)
+        self.assertIn("bounded deadline (1 interruptions)", error)
+        self.assertEqual(calls["signal"], 1)
+        self.assertEqual(calls["proof"], 1)
+        self.assertFalse(state.launcher_reaped)
+        self.assertEqual(state.failure, error)
+        self.assertIsNone(state.pending_permission)
 
 
 class _GatedStream:

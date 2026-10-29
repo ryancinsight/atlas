@@ -43,9 +43,8 @@ def package(name: str, version: str, source: str | None) -> str:
 
 
 def run_git(repository: Path, *arguments: str) -> str:
-    return subprocess.run(
-        ["git", "-C", str(repository), *arguments], check=True, capture_output=True, text=True
-    ).stdout.strip()
+    command = ["git", "-C", str(repository), *arguments]
+    return subprocess.run(command, check=True, capture_output=True, text=True).stdout.strip()
 
 
 def commit_repository(repository: Path, files: dict[str, str]) -> str:
@@ -94,7 +93,10 @@ LOCK = NL.join(
 
 class UrlTests(unittest.TestCase):
     def test_provider_name_ignores_suffix_case_and_trailing_slash(self) -> None:
-        for url in ("https://github.com/ryancinsight/Mnemosyne.git", "https://github.com/ryancinsight/mnemosyne/"):
+        for url in (
+            "https://github.com/ryancinsight/Mnemosyne.GIT?branch=main",
+            "https://github.com/ryancinsight/mnemosyne/",
+        ):
             self.assertEqual(sweep.provider_repo_name(url), "mnemosyne")
 
 
@@ -121,6 +123,132 @@ class LockTests(unittest.TestCase):
             },
         )
 
+    def test_query_pins_are_parsed_but_excluded_from_update_mode(self) -> None:
+        source = f"git+https://GitHub.com/RyAnCiNsIgHt/Leto.GIT?tag=v1#{NEW}"
+        lock = "version = 4\n" + package("pinned", "1.0.0", source)
+        self.assertEqual(sweep.locked_packages(lock)[0].provider, "leto")
+        self.assertEqual(sweep.first_party_packages(lock), [])
+
+    def test_default_https_port_preserves_the_exact_identity_tuple(self) -> None:
+        location = "https://GitHub.com:443/RyAnCiNsIgHt/Leto.GIT?branch=main"
+        lock = "version = 4\n" + package("leto-ops", "0.9.0", f"git+{location}#{NEW}")
+        identity = sweep.locked_packages(lock)[0]
+        self.assertEqual(
+            (identity.name, identity.version, identity.url, identity.rev, identity.provider),
+            ("leto-ops", "0.9.0", location, NEW, "leto"),
+        )
+
+    def test_missing_source_is_a_valid_local_package(self) -> None:
+        lock = "version = 4\n" + package("local", "1.0.0", None)
+        self.assertEqual(sweep.locked_packages(lock), [])
+
+    def test_malformed_first_party_identity_fails_closed(self) -> None:
+        malformed = (
+            "git+https://github.com/ryancinsight/hermes#not-a-commit",
+            "git+https://github.com/ryancinsight/hermes",
+        )
+        for source in malformed:
+            with self.subTest(source=source), self.assertRaisesRegex(
+                ValueError, "unreadable first-party Git source identity"
+            ):
+                sweep.first_party_packages(
+                    "version = 4\n" + package("hermes-simd", "0.5.0", source)
+                )
+
+    def test_first_party_path_shape_matrix(self) -> None:
+        for path in ("/ryancinsight/leto", "/RyAnCiNsIgHt/Leto.GIT/"):
+            source = f"git+https://github.com{path}#{OLD}"
+            lock = "version = 4\n" + package("leto-ops", "0.9.0", source)
+            with self.subTest(path=path):
+                self.assertEqual(sweep.locked_packages(lock)[0].provider, "leto")
+
+        malformed = (
+            "/ryancinsight",
+            "/ryancinsight//leto",
+            "//ryancinsight/leto",
+            "/ryancinsight/leto//",
+            "/ryancinsight/leto/extra",
+            "/ryancinsight/./leto",
+            "/ryancinsight/../leto",
+            "/%72yancinsight/leto",
+            "/ryancinsight/Kwavers",
+        )
+        for path in malformed:
+            source = f"git+https://github.com{path}#{OLD}"
+            lock = "version = 4\n" + package("leto-ops", "0.9.0", source)
+            with self.subTest(path=path), self.assertRaisesRegex(
+                ValueError, "first-party Git source (?:identity|path)"
+            ) as error:
+                sweep.locked_packages(lock)
+            self.assertNotIn(source, str(error.exception))
+
+    def test_first_party_identity_rejects_raw_controls(self) -> None:
+        locations = (
+            r"ht\ntps://github.com/ryancinsight/leto",
+            r"https://git\rhub.com/ryancinsight/leto",
+            r"https://github.com/ryan\tcinsight/leto",
+            r"https://github.com/ryancinsight/le\nto",
+            r"\u0000https://github.com/ryancinsight/leto",
+        )
+        for location in locations:
+            source = f"git+{location}#{OLD}"
+            lock = "version = 4\n" + package("leto-ops", "0.9.0", source)
+            with self.subTest(location=location), self.assertRaisesRegex(
+                ValueError, "unreadable first-party Git source identity"
+            ) as error:
+                sweep.locked_packages(lock)
+            self.assertNotIn(source, str(error.exception))
+
+    def test_unsupported_first_party_transport_fails_without_echoing_source(self) -> None:
+        for source in (
+            f"git+ssh://git@github.com/ryancinsight/hermes#{OLD}",
+            f"git+http://github.com/ryancinsight/hermes#{OLD}",
+        ):
+            lock = "version = 4\n" + package("hermes-simd", "0.5.0", source)
+            with self.subTest(source=source), self.assertRaisesRegex(
+                ValueError, "unsupported first-party Git source authority"
+            ) as error:
+                sweep.locked_packages(lock)
+            self.assertNotIn(source, str(error.exception))
+
+    def test_nondefault_or_malformed_first_party_port_fails_redacted(self) -> None:
+        for port in ("444", "not-a-port"):
+            source = f"git+https://github.com:{port}/ryancinsight/hermes#{OLD}"
+            lock = "version = 4\n" + package("hermes-simd", "0.5.0", source)
+            with self.subTest(port=port), self.assertRaisesRegex(
+                ValueError, "first-party Git source authority"
+            ) as error:
+                sweep.locked_packages(lock)
+            self.assertNotIn(source, str(error.exception))
+
+    def test_similar_hosts_and_owners_are_not_first_party(self) -> None:
+        lock = "version = 4\n" + "".join(
+            (
+                package("host", "cargo-owned", f"git+https://github.com.evil/ryancinsight/x#{OLD}"),
+                package("owner", "cargo-owned", f"git+https://github.com/ryancinsight.evil/x#{OLD}"),
+                package(
+                    "path",
+                    "cargo-owned",
+                    f"git+https://example.invalid/github.com/ryancinsight/tool#{OLD}",
+                ),
+            )
+        )
+        self.assertEqual(sweep.locked_packages(lock), [])
+
+    def test_third_party_source_payloads_are_opaque(self) -> None:
+        lock = "version = 4\n" + "".join(
+            (
+                package("registry", "cargo-owned", "registry+https://exa mple.invalid/index"),
+                package("other", "also-cargo-owned", f"git+https://example.invalid/other#{OLD}"),
+            )
+        )
+        self.assertEqual(sweep.locked_packages(lock), [])
+
+    def test_unknown_first_party_provider_is_preserved_for_caller_diagnosis(self) -> None:
+        source = f"git+https://github.com/ryancinsight/not-registered#{OLD}"
+        lock = "version = 4\n" + package("unknown", "1.0.0", source)
+        self.assertEqual(sweep.locked_packages(lock)[0].provider, "not-registered")
+
 
 class RevisionIdentityTests(unittest.TestCase):
     targets = {"hermes": NEW, "mnemosyne": NEW}
@@ -128,13 +256,11 @@ class RevisionIdentityTests(unittest.TestCase):
     def finding(self, path: str, lock: str, fixture: bool = False):
         return sweep.revision_lock_findings("consumer", path, lock, self.targets, fixture)
 
-    def test_same_version_source_drift_reports_exact_path_and_revisions(self) -> None:
+    def test_drift_findings_preserve_path_revision_and_registration(self) -> None:
+        source = f"git+https://github.com/ryancinsight/hermes#{OLD}"
+        lock = "version = 4\n" + package("hermes-simd", "0.5.0", source)
         report, problems = self.finding(
-            "Cargo.lock",
-            "version = 4\n" + package(
-                "hermes-simd", "0.5.0",
-                f"git+https://github.com/ryancinsight/hermes#{OLD}",
-            ),
+            "Cargo.lock", lock,
         )
         self.assertEqual(report, "consumer/Cargo.lock: measured 1 first-party package(s)")
         expected = (
@@ -142,13 +268,13 @@ class RevisionIdentityTests(unittest.TestCase):
             f"source git+https://github.com/ryancinsight/hermes#{OLD}"
         )
         self.assertEqual(problems, [expected])
-
-    def test_nested_fuzz_lock_path_is_not_collapsed_to_the_root(self) -> None:
-        source = f"git+https://github.com/ryancinsight/hermes#{OLD}"
-        _, problems = self.finding(
-            "fuzz/Cargo.lock", "version = 4\n" + package("hermes-simd", "0.5.0", source)
+        _, nested = self.finding("fuzz/Cargo.lock", lock)
+        self.assertTrue(nested[0].startswith("consumer/fuzz/Cargo.lock:"))
+        unknown = f"git+https://github.com/ryancinsight/not-registered#{NEW}"
+        _, unregistered = self.finding(
+            "Cargo.lock", "version = 4\n" + package("unknown", "0.1.0", unknown)
         )
-        self.assertTrue(problems[0].startswith("consumer/fuzz/Cargo.lock:"))
+        self.assertIn("unknown registered first-party identity not-registered", unregistered[0])
 
     def test_queried_alias_and_url_case_resolve_to_the_registered_provider(self) -> None:
         for query in (f"rev={OLD}", "branch=main", "tag=v0.8.0"):
@@ -192,14 +318,6 @@ class RevisionIdentityTests(unittest.TestCase):
         self.assertEqual(report, "consumer/Cargo.lock: path fixture (1 first-party Git identities)")
         self.assertIn("path-unification required for hermes-simd", problems[0])
 
-    def test_unknown_first_party_repository_fails_closed(self) -> None:
-        source = f"git+https://github.com/ryancinsight/not-registered#{NEW}"
-        _, problems = self.finding(
-            "Cargo.lock", "version = 4\n" + package("unknown", "0.1.0", source)
-        )
-        self.assertIn("unknown registered first-party identity not-registered", problems[0])
-
-
 class RevisionRepositoryTests(unittest.TestCase):
     def check_meta(
         self, modules: str, pins: dict[str, str | None],
@@ -212,7 +330,7 @@ class RevisionRepositoryTests(unittest.TestCase):
                 (root / "repos" / member).mkdir(parents=True)
             return sweep.check_revision(root, "HEAD")
 
-    def fixture(self, root: Path) -> tuple[Path, str, str]:
+    def fixture(self, root: Path) -> tuple[str, str]:
         provider = root / "repos" / "provider"
         provider_pin = commit_repository(
             provider,
@@ -243,12 +361,12 @@ class RevisionRepositoryTests(unittest.TestCase):
         )
         pins = {"provider": provider_pin, "consumer": consumer_pin}
         meta_pin = commit_meta(root, gitmodules("provider", "consumer"), pins)
-        return provider, provider_pin, meta_pin
+        return provider_pin, meta_pin
 
     def test_exact_revision_reads_every_nested_committed_lock(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            _, provider_pin, meta_pin = self.fixture(root)
+            provider_pin, meta_pin = self.fixture(root)
             result = sweep.check_revision(root, meta_pin)
         self.assertEqual(result.revision, meta_pin)
         self.assertEqual(result.locks, 3)
@@ -265,7 +383,7 @@ class RevisionRepositoryTests(unittest.TestCase):
     def test_unreadable_selected_member_object_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            _, _, _ = self.fixture(root)
+            self.fixture(root)
             missing = "f" * 40
             run_git(root, "update-index", "--cacheinfo", f"160000,{missing},repos/provider")
             run_git(root, "commit", "--quiet", "-m", "missing provider object")
@@ -277,33 +395,23 @@ class RevisionRepositoryTests(unittest.TestCase):
             '[submodule "repos/provider"]\n'
             'path = "repos/provider"\nurl = local-provider\n'
         )
-        mixed_outside = gitmodules("provider") + (
-            '[submodule "outside"]\npath = ../outside\nurl = local-outside\n'
-        )
-        traversal = (
-            '[submodule "traversal"]\npath = repos/provider/../outside\nurl = local-outside\n'
-        )
-        missing_path = '[submodule "missing"]\nurl = local-missing\n'
-        duplicate_field = (
-            '[submodule "provider"]\npath = repos/provider\n'
-            'path = repos/other\nurl = local-provider\n'
-        )
-        duplicate_path = gitmodules("provider") + (
-            '[submodule "alias"]\npath = repos/provider\nurl = local-alias\n'
-        )
-        malformed = '[submodule "provider"\npath = repos/provider\n'
         cases = (
             (gitmodules("provider"), {"provider": None}, ("provider",),
              "no independent object repository"),
             (gitmodules(".."), {}, (), "unsafe registered member name '..'"),
             ("", {}, (), "no registered members"),
             (quoted, {}, (), "registered member projection is incomplete"),
-            (mixed_outside, {"provider": None}, (), "unsupported submodule path '../outside'"),
-            (traversal, {}, (), "unsupported submodule path 'repos/provider/../outside'"),
-            (missing_path, {}, (), "has no path"),
-            (duplicate_field, {}, (), "has multiple paths"),
-            (duplicate_path, {}, (), "duplicate registered submodule path repos/provider"),
-            (malformed, {}, (), "cannot parse .gitmodules"),
+            (gitmodules("provider") + '[submodule "outside"]\npath = ../outside\n',
+             {"provider": None}, (), "unsupported submodule path '../outside'"),
+            ('[submodule "x"]\npath = repos/provider/../outside\n', {}, (),
+             "unsupported submodule path 'repos/provider/../outside'"),
+            ('[submodule "missing"]\nurl = local\n', {}, (), "has no path"),
+            ('[submodule "x"]\npath = repos/provider\npath = repos/other\n', {}, (),
+             "has multiple paths"),
+            (gitmodules("provider") + '[submodule "alias"]\npath = repos/provider\n',
+             {}, (), "duplicate registered submodule path repos/provider"),
+            ('[submodule "provider"\npath = repos/provider\n', {}, (),
+             "cannot parse .gitmodules"),
             (gitmodules("provider"), {"provider": None, "aaa-extra": None}, (),
              "unregistered gitlink repos/aaa-extra"),
             (gitmodules("provider"), {"provider": None, "nested/extra": None}, (),

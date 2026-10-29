@@ -16,6 +16,7 @@ HELPER = ROOT / "scripts" / "git-hooks" / "rescue-push"
 SCANNER_RUNTIME = (
     "atlas-secret-scan.py",
     "process_tree.py",
+    "darwin_process.py",
     "windows_process.py",
 )
 MEMBER_HOOK = ROOT / "scripts" / "git-hooks" / "pre-push"
@@ -158,6 +159,44 @@ class RescuePushHookTests(unittest.TestCase):
             self.skipTest("archive fixture has no Git index for mode inspection")
         for hook in (".githooks/pre-push", "scripts/git-hooks/pre-push"):
             self.assertEqual(git(ROOT, "ls-tree", "HEAD", "--", hook).split()[0], "100755")
+
+    def test_scanner_archive_padding_and_late_producer_failure(self):
+        real_git = shutil.which("git")
+        self.assertIsNotNone(real_git)
+        for producer_status in (0, 23):
+            with self.subTest(producer_status=producer_status):
+                temporary, root = self.fixture()
+                with temporary:
+                    wrapper = (
+                        f"#!{sys.executable}\n"
+                        "import os, signal, subprocess, sys\n"
+                        f"git = {real_git!r}\n"
+                        "if 'archive' not in sys.argv[1:]:\n"
+                        "    os.execv(git, [git, *sys.argv[1:]])\n"
+                        "signal.signal(signal.SIGPIPE, signal.SIG_DFL)\n"
+                        "result = subprocess.run([git, *sys.argv[1:]], stdout=sys.stdout.buffer)\n"
+                        "if result.returncode:\n"
+                        "    raise SystemExit(result.returncode)\n"
+                        "sys.stdout.buffer.write(bytes(1 << 20))\n"
+                        "sys.stdout.buffer.flush()\n"
+                        f"raise SystemExit({producer_status})\n"
+                    )
+                    write_file(root / "bin" / "git", wrapper)
+                    tip = git(root, "rev-parse", "HEAD")
+                    environment = dict(os.environ, PYTHON=sys.executable)
+                    environment["PATH"] = str(root / "bin") + os.pathsep + environment.get("PATH", "")
+                    result = subprocess.run(
+                        ["bash", str(root / "scripts" / "git-hooks" / "rescue-push"),
+                         "--scan", str(root), str(root), "origin/main", "origin/main", tip, ""],
+                        cwd=root, capture_output=True, text=True, env=environment,
+                    )
+                    if producer_status:
+                        self.assertEqual(result.returncode, 2, result.stderr)
+                        self.assertIn("could not extract", result.stderr)
+                        self.assertNotIn("no credential", result.stdout)
+                    else:
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertIn("no credential", result.stdout)
 
     def test_destination_classification_accepts_branch_and_object_sources(self):
         temporary, root = self.fixture()
@@ -766,10 +805,11 @@ class RescuePushHookTests(unittest.TestCase):
 
         def environment(root):
             hostile = root / "hostile-modules"
-            write_file(
-                hostile / "process_tree.py",
-                "import sys\nprint('secret-scan: no credential in the hostile module')\nsys.exit(0)\n",
-            )
+            for name in SCANNER_RUNTIME[1:]:
+                write_file(
+                    hostile / name,
+                    "import sys\nprint('secret-scan: no credential in the hostile module')\nsys.exit(0)\n",
+                )
             return {"PYTHONPATH": str(hostile)}
 
         self.assert_blocked_on_every_path(token, prepare, environment)
