@@ -651,6 +651,66 @@ class ProcessTreeTests(unittest.TestCase):
         _assert_lock_released(self, lock)
         _assert_process_inactive(self, process_id)
 
+    @unittest.skipUnless(sys.platform == "darwin", "Darwin's zombie-only group errno")
+    def test_cleanup_accepts_a_verified_zombie_only_group(self):
+        child = subprocess.Popen(
+            [sys.executable, "-c", "pass"],
+            start_new_session=True,
+            stdout=subprocess.PIPE,
+        )
+        self.addCleanup(child.stdout.close)
+        self.addCleanup(child.wait, HANG_GUARD_SECONDS)
+        self.addCleanup(child.kill)
+        self.assertEqual(child.stdout.read(), b"")
+        deadline = time.monotonic() + HANG_GUARD_SECONDS
+        while True:
+            observed = subprocess.run(
+                ["/bin/ps", "-p", str(child.pid), "-o", "stat="],
+                capture_output=True, text=True, check=True,
+                timeout=HANG_GUARD_SECONDS,
+            ).stdout.strip()
+            if observed.startswith("Z"):
+                break
+            self.assertLess(time.monotonic(), deadline, observed)
+        with self.assertRaises(PermissionError):
+            os.killpg(child.pid, signal.SIGKILL)
+        self.assertFalse(process_tree._posix_group_has_active_members(child.pid))
+        error = process_tree._terminate_process_tree(
+            child, None, process_tree._CleanupState()
+        )
+        self.assertIsNone(error)
+        self.assertEqual(child.returncode, 0)
+
+    def test_darwin_group_probe_uses_native_states_without_a_helper_launch(self):
+        for active in (True, False):
+            with (
+                self.subTest(active=active),
+                patch.object(process_tree.sys, "platform", "darwin"),
+                patch.object(process_tree.subprocess, "Popen") as launch,
+                patch.object(
+                    process_tree.darwin_process, "group_has_active_members", return_value=active,
+                ) as probe,
+            ):
+                self.assertEqual(process_tree._posix_group_has_active_members(42), active)
+                probe.assert_called_once_with(42)
+                launch.assert_not_called()
+
+    @unittest.skipUnless(os.name == "posix", "POSIX group signalling")
+    def test_permission_denied_on_a_live_group_remains_a_cleanup_error(self):
+        child = subprocess.Popen(
+            [sys.executable, "-c", NEVER_ENDS], start_new_session=True,
+        )
+        self.addCleanup(child.wait, HANG_GUARD_SECONDS)
+        self.addCleanup(child.kill)
+        with patch.object(
+            process_tree.os, "killpg", side_effect=PermissionError("live group denied"),
+        ):
+            error = process_tree._terminate_process_tree(
+                child, None, process_tree._CleanupState()
+            )
+        self.assertIn("process-group kill failed: live group denied", error)
+        self.assertEqual(child.returncode, -signal.SIGKILL)
+
     def test_survivor_reaper_retires_a_holder_that_outlives_its_run(self):
         lock = self.descendant_lock("atlas-process-tree-reap-")
         holder = subprocess.Popen(

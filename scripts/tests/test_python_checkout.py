@@ -21,7 +21,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/python-tests.yml"
-DEPENDENCIES = ("atlas_ci_members.py", "atlas_git_process.py", "process_tree.py", "windows_process.py")
+DEPENDENCIES = ("atlas_ci_members.py", "atlas_git_process.py", "process_tree.py",
+                "darwin_process.py", "windows_process.py")
 HOOK = r"""import json, os, pathlib, time
 folder = pathlib.Path(os.environ['MATERIALIZATION_BARRIER'])
 path = pathlib.Path.cwd()

@@ -37,6 +37,7 @@ run_secret_scan() {
     sources=(
         scripts/atlas-secret-scan.py
         scripts/process_tree.py
+        scripts/darwin_process.py
         scripts/windows_process.py
     )
     for source in "${sources[@]}"; do
@@ -81,8 +82,12 @@ run_secret_scan() {
             return 2
         }
     fi
+    # Finish the producer before extraction: BSD tar may stop reading valid
+    # trailing padding before a pipe producer finishes writing it. Both stages
+    # must succeed before any trusted scanner code runs.
     if ! git -C "$stack_root" archive "$scanner_ref" -- "${sources[@]}" \
-        | tar -x -C "$scanner_temp"; then
+        > "$scanner_temp/source.tar" \
+        || ! tar -xf "$scanner_temp/source.tar" -C "$scanner_temp"; then
         echo "pre-push: BLOCKED -- could not extract the trusted credential scanner." >&2
         return 2
     fi

@@ -62,6 +62,7 @@ import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+import darwin_process
 import windows_process
 
 # Longest the runner spends retiring a tree and collecting its launcher. The
@@ -322,6 +323,13 @@ def _terminate_process_tree(
                 os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+            except PermissionError as caught:
+                # XNU skips zombies when signalling a group and can report
+                # EPERM when they are its only members. Only an independently
+                # verified inactive group satisfies cleanup; live or unknown
+                # membership retains the permission failure.
+                if sys.platform != "darwin" or _posix_group_has_active_members(process.pid):
+                    error = f"process-group kill failed: {caught}"
             except OSError as caught:
                 error = f"process-group kill failed: {caught}"
         state.termination_issued = True
@@ -380,7 +388,13 @@ def _finish_interrupted_cleanup(
 
 
 def _posix_group_has_active_members(process_group: int) -> bool:
-    """Report executable group members while treating Linux zombies as inactive."""
+    """Report executable members; an unreadable process view stays active.
+
+    XNU's ``killpg1`` filters ``SZOMB`` before counting permitted targets,
+    so a zombie-only group can report EPERM, including for signal zero:
+    https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c
+    Darwin therefore needs the actual process-state view, as Linux does.
+    """
     if sys.platform.startswith("linux") and os.path.isdir("/proc"):
         with os.scandir("/proc") as entries:
             for entry in entries:
@@ -399,6 +413,8 @@ def _posix_group_has_active_members(process_group: int) -> bool:
                     if int(fields[2]) == process_group and active:
                         return True
         return False
+    if sys.platform == "darwin":
+        return darwin_process.group_has_active_members(process_group)
     try:
         os.killpg(process_group, 0)
     except ProcessLookupError:

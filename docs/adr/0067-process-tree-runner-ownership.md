@@ -100,6 +100,17 @@ The mechanisms:
 - Timeout and cleanup each have finite budgets; a `KeyboardInterrupt` before
   destructive cleanup completes is retried while ownership remains held, and
   any other exception raised by cleanup propagates unchanged.
+- Darwin group-state inspection uses [darwin_process.py](../../scripts/darwin_process.py)
+  and the system libproc ABI in process. XNU excludes zombies from `killpg`
+  targets and can return EPERM for a zombie-only group. Accept that response
+  only after a complete, stable list contains no executable member: every
+  listed PID must have full short-BSD information with the same PID/group and
+  `SZOMB` state, followed by an unchanged group list. The PID lookup explicitly
+  includes zombies. Errors, incomplete buffers, changing membership and live
+  states remain active and preserve cleanup failures. No `ps` subprocess may
+  extend the launch window or restart an interrupted cleanup. These semantics
+  follow Apple's [libproc interface](https://github.com/apple-oss-distributions/xnu/blob/main/libsyscall/wrappers/libproc/libproc.c)
+  and [XNU process inspection](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/proc_info.c).
 - Optional input is delivered concurrently with deadline observation, so pipe
   backpressure cannot delay timeout or cleanup; status and byte-exact standard
   streams remain command results.

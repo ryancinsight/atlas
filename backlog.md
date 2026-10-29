@@ -12,6 +12,7 @@
 <a id="atlas-book-caller-pins-2026-08-20"></a>- [ATLAS-BOOK-CALLER-PINS-2026-08-20](backlog/atlas-book-caller-pins-2026-08-20.md) — Repin provider mdBook callers [patch] — todo
 <a id="atlas-book-figure-closure-2026-08-21"></a>- [ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21](backlog/atlas-book-figure-closure-2026-08-21.md) — Restore generated validation figures [patch] — todo
 <a id="atlas-bounded-runner"></a>- [ATLAS-BOUNDED-RUNNER](backlog/atlas-bounded-runner.md) — Launch every agent process through one bounded runner [patch] — todo
+<a id="atlas-darwin-inactive-group"></a>- [ATLAS-DARWIN-INACTIVE-GROUP](backlog/atlas-darwin-inactive-group.md) — Prove Darwin process-group inactivity before accepting cleanup EPERM [patch] — todo
 <a id="atlas-branch-inventory-001"></a>- [ATLAS-BRANCH-INVENTORY-001](backlog/atlas-branch-inventory-001.md) — Burn down stack branch inventories [git-hygiene] [patch] — todo
 <a id="atlas-cfdrs-athena-migration-001"></a>- [ATLAS-CFDRS-ATHENA-MIGRATION-001](backlog/atlas-cfdrs-athena-migration-001.md) — Stage B: CFDrs to Athena [major] [arch] — todo
 <a id="atlas-cfdrs-chain-ladder-001"></a>- [ATLAS-CFDRS-CHAIN-LADDER-001](backlog/atlas-cfdrs-chain-ladder-001.md) — Consolidate the two tiered ladders [patch] — blocked
