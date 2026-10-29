@@ -30,7 +30,7 @@ Ownership: for a name the index has, the crates.io owners API
 stack crate's published form: it is reported `foreign-name` and never compared with the
 source, since no version bump can reconcile them; the crate needs a registry name of its
 own (ADR 0037 section 3). A name the index lacks is not asked about, and owners requests
-are spaced one second apart (crates.io's crawler policy).
+occur only after the index proves that the name exists.
 
 Comparison: the `.crate` at the manifest version comes from static.crates.io; its
 `src/**` and `Cargo.toml.orig` are compared by SHA-256 with `src/**` and `Cargo.toml`
@@ -53,9 +53,8 @@ difference, or a dependency present on one side only, is drift and is reported w
 sides (scripts/atlas_crate_requirements.py).
 
 An index 404 is "never published". Every other non-200 answer, an owners API answer
-other than 200, and a network error that outlasts its retries (five attempts, backoff
-doubling from two seconds) fail the tool: an outage is never read as "not drifted" or as
-"owned".
+other than 200, and any redirect, framing, size, or network failure fail the tool:
+an outage is never read as "not drifted" or as "owned".
 
 Exit status: 0 every crate measured and none drifted or foreign-named; 1 a published
 crate drifted or a name belongs to another account; 2 the measurement failed (registry,
@@ -72,17 +71,11 @@ from __future__ import annotations
 import argparse
 import gzip
 import hashlib
-import http.client
 import io
 import json
-import random
 import sys
 import tarfile
 import tempfile
-import threading
-import time
-import urllib.error
-import urllib.request
 import zlib
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
@@ -119,16 +112,12 @@ crates_pending = load_sibling(
 pin_drift = load_sibling("atlas_pin_drift", SCRIPTS / "atlas-pin-drift.py")
 
 RegistryError = crates_pending.RegistryError
+IdentityError = crates_pending.IdentityError
 
-USER_AGENT = "atlas-published-drift (github.com/ryancinsight/atlas)"
 DEFAULT_OWNER = "ryancinsight"
-API_PREFIX = "https://crates.io/api/"
-# A GET is idempotent and crates.io's edge resets a share of connections: a transport
-# failure retries with exponential backoff and jitter, then fails the tool.
-TRANSPORT_ATTEMPTS = 5
-TRANSPORT_BACKOFF_SECONDS = 2.0
 CRATE_URL = "https://static.crates.io/crates/{name}/{name}-{version}.crate"
-HTTP_TIMEOUT_SECONDS = 120.0
+# Use one finite ceiling for metadata and compressed archive responses.
+CRATE_ARCHIVE_LIMIT = crates_pending.METADATA_LIMIT
 GIT_TIMEOUT_SECONDS = 300
 DEFAULT_JOBS = 4
 # Private ref a missing default tip is fetched into: never a remote-tracking ref
@@ -143,80 +132,21 @@ PUBLISHED_DRIFTED = "published-drifted"
 STATUSES = (NEVER_PUBLISHED, FOREIGN_NAME, UNPUBLISHED_VERSION, PUBLISHED_CURRENT,
             PUBLISHED_DRIFTED)
 
-Fetch = Callable[[str], "tuple[int, bytes]"]
+Fetch = Callable[[str, int], "tuple[int, bytes]"]
 
 
 class MeasurementError(RuntimeError):
     """Git or cargo could not give the answer the measurement needs."""
 
 
-class ApiThrottle:
-    """Spaces `crates.io/api` requests one interval apart across threads.
-
-    crates.io's crawler policy allows one API request per second; the index and
-    static hosts carry no such limit. The lock is held through the wait so that
-    concurrent members queue instead of bursting.
-    """
-
-    def __init__(self, interval: float = crates_pending.API_INTERVAL_SECONDS) -> None:
-        self.interval = interval
-        self._lock = threading.Lock()
-        self._last: float | None = None
-
-    def wait(self) -> None:
-        with self._lock:
-            if self._last is not None:
-                remaining = self._last + self.interval - time.monotonic()
-                if remaining > 0:
-                    time.sleep(remaining)
-            self._last = time.monotonic()
-
-
-API_THROTTLE = ApiThrottle()
-
-
-def http_get(url: str, timeout: float = HTTP_TIMEOUT_SECONDS) -> tuple[int, bytes]:
-    """GET with the tool's User-Agent and no other identifying header.
-
-    A non-2xx status is returned, not raised: the index's 404 is an answer, and a status
-    is never retried. A transport failure retries `TRANSPORT_ATTEMPTS` times in all, then
-    raises `RegistryError`. Every `crates.io/api` attempt is throttled.
-    """
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    for attempt in range(1, TRANSPORT_ATTEMPTS + 1):
-        if url.startswith(API_PREFIX):
-            API_THROTTLE.wait()
-        try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                return response.status, response.read()
-        except urllib.error.HTTPError as error:
-            return error.code, b""
-        except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
-            if attempt == TRANSPORT_ATTEMPTS:
-                raise RegistryError(f"{url}: {error} (after {attempt} attempts)") from error
-            time.sleep(TRANSPORT_BACKOFF_SECONDS * 2 ** (attempt - 1) * random.uniform(0.5, 1.0))
-    raise AssertionError("unreachable: the last attempt returns or raises")
-
-
-def bounded_metadata(fetch: Fetch) -> Callable[[str, int], tuple[int, bytes]]:
-    """Adapt the scan transport to the shared metadata response bound."""
-    def bounded(url: str, limit: int) -> tuple[int, bytes]:
-        status, body = fetch(url)
-        if len(body) > limit:
-            raise RegistryError(f"{url}: response exceeds {limit} bytes")
-        return status, body
-
-    return bounded
-
-
 def index_versions(name: str, fetch: Fetch) -> list[str] | None:
     """Versions the index lists for `name`, or None when it was never published."""
-    return crates_pending.published_versions(name, bounded_metadata(fetch))
+    return crates_pending.published_versions(name, fetch)
 
 
 def crate_owners(name: str, fetch: Fetch) -> list[str]:
     """Logins the crates.io owners API lists for `name`; any answer but 200 fails."""
-    return crates_pending.owners(name, bounded_metadata(fetch))
+    return crates_pending.owners(name, fetch)
 
 
 def version_key(version: str) -> tuple:
@@ -369,7 +299,10 @@ def measure_crate(name: str, version: str, manifest: str, package_dir: Path,
     if version not in versions:
         return CrateReading(name, version, manifest, UNPUBLISHED_VERSION, latest)
     url = CRATE_URL.format(name=name, version=version)
-    status, body = fetch(url)
+    try:
+        status, body = fetch(url, CRATE_ARCHIVE_LIMIT)
+    except IdentityError as error:
+        raise RegistryError(str(error)) from error
     if status != 200:
         raise RegistryError(
             f"static.crates.io returned HTTP {status} for {name} {version}, "
@@ -630,7 +563,7 @@ def parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: Sequence[str] | None = None, fetch: Fetch = http_get) -> int:
+def main(argv: Sequence[str] | None = None, fetch: Fetch = crates_pending.read_url) -> int:
     options = parse_arguments(argv)
     try:
         atlas_tip, readings = measure_stack(

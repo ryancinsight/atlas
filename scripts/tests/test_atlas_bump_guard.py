@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib.util
+import inspect
 import io
 import os
 import sys
@@ -55,6 +56,10 @@ def published_beta(source: str = BETA_SOURCE) -> bytes:
 
 class BumpGuardTestCase(unittest.TestCase):
     """A member pull request: `base` is the merge target, `head` the pull request."""
+
+    def test_default_transport_is_the_canonical_bounded_reader(self) -> None:
+        default = inspect.signature(guard.main).parameters["fetch"].default
+        self.assertIs(default, guard.drift.crates_pending.read_url)
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="atlas-bump-guard-test-")
