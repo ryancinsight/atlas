@@ -507,12 +507,6 @@ class RootHookGuardTests(unittest.TestCase):
                            check=True, capture_output=True, timeout=30)
             shutil.copyfile(ROOT / "scripts" / "atlas_cast_gate.py",
                             repo / "scripts" / "atlas_cast_gate.py")
-            for source in (ROOT / "scripts").glob("atlas_build_*.py"):
-                shutil.copyfile(source, repo / "scripts" / source.name)
-            shutil.copyfile(
-                ROOT / "scripts" / "atlas_claim_log.py",
-                repo / "scripts" / "atlas_claim_log.py",
-            )
             base = commit(3)
             fell = commit(2)
             rose = commit(4)
@@ -525,8 +519,7 @@ class RootHookGuardTests(unittest.TestCase):
                     env=dict(environment, PYTHON=sys.executable), capture_output=True,
                     text=True, encoding="utf-8", timeout=60)
 
-            lowered = run(base, fell)
-            self.assertEqual(lowered.returncode, 0, lowered.stderr)
+            self.assertEqual(run(base, fell).returncode, 0)
             refused = run(fell, rose)
             self.assertEqual(refused.returncode, 1, refused.stderr)
             self.assertIn("m/a rises from 2 to 4", refused.stderr)

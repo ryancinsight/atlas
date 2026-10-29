@@ -79,8 +79,6 @@ import tomllib
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 
-from atlas_build_inputs import effective_compiler_environment
-
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
@@ -157,6 +155,8 @@ def workspace(export: pathlib.Path, config: pathlib.Path | None = None,
 
     Omission runs Cargo from the export, preserving the legacy invocation.
     """
+    from atlas_build_inputs import effective_compiler_environment
+
     directory = command_cwd or export
     manifest_path = export / manifest
     cargo_command = cargo(config)
