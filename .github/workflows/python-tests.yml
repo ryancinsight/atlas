@@ -1,43 +1,13 @@
 name: Python script tests
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      # The tools under test live in scripts/*.py; a fix there must re-run
-      # the tests that cover it (09064d28 fixed a red test and produced no run).
-      - 'scripts/*.py'
-      - 'scripts/tests/**'
-      - 'scripts/.benchmarks/**'
-      - 'scripts/generate_book_figures/**'
-      - 'scripts/requirements-test.txt'
-      - '.github/workflows/python-tests.yml'
-  push:
-    branches: [main]
-    paths:
-      # The tools under test live in scripts/*.py; a fix there must re-run
-      # the tests that cover it (09064d28 fixed a red test and produced no run).
-      - 'scripts/*.py'
-      - 'scripts/tests/**'
-      - 'scripts/.benchmarks/**'
-      - 'scripts/generate_book_figures/**'
-      - 'scripts/requirements-test.txt'
-      - '.github/workflows/python-tests.yml'
-
-concurrency:
-  # Pull requests share one group per ref and cancel superseded runs. Default-
-  # branch runs get one group per commit: GitHub always supersedes a *pending*
-  # run in a shared group whatever `cancel-in-progress` says, so under runner
-  # starvation every push cancelled the previous merge's verification.
-  group: python-tests-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  workflow_call:
 
 permissions:
   contents: read
 
 jobs:
   pytest-fast:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Run pytest (fast)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -97,10 +67,29 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
-          python -m pytest -v -p xdist.plugin -m "not slow" -n auto --maxprocesses=8 --max-worker-restart=0 --dist=worksteal
+          python - python -m pytest -v -p xdist.plugin -m "not slow" -n auto --maxprocesses=8 --max-worker-restart=0 --dist=worksteal <<'PY'
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path("scripts").resolve()))
+          import process_tree
+
+          try:
+              result = process_tree.run(sys.argv[1:], timeout=600)
+          except process_tree.ProcessTreeTimeout as error:
+              sys.stdout.buffer.write(error.stdout or b"")
+              sys.stderr.buffer.write(error.stderr or b"")
+              print(str(error), file=sys.stderr)
+              raise SystemExit(124) from error
+          except process_tree.ProcessTreeCleanupError as error:
+              print(str(error), file=sys.stderr)
+              raise SystemExit(1) from error
+          sys.stdout.buffer.write(result.stdout)
+          sys.stderr.buffer.write(result.stderr)
+          raise SystemExit(result.returncode)
+          PY
 
   pytest-slow:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Run pytest (slow)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -163,4 +152,24 @@ jobs:
 
       - name: Run pytest (slow)
         run: |
-          python -m pytest -v -m slow
+          python - python -m pytest -v -m slow <<'PY'
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path("scripts").resolve()))
+          import process_tree
+
+          try:
+              result = process_tree.run(sys.argv[1:], timeout=600)
+          except process_tree.ProcessTreeTimeout as error:
+              sys.stdout.buffer.write(error.stdout or b"")
+              sys.stderr.buffer.write(error.stderr or b"")
+              print(str(error), file=sys.stderr)
+              raise SystemExit(124) from error
+          except process_tree.ProcessTreeCleanupError as error:
+              print(str(error), file=sys.stderr)
+              raise SystemExit(1) from error
+          sys.stdout.buffer.write(result.stdout)
+          sys.stderr.buffer.write(result.stderr)
+          raise SystemExit(result.returncode)
+          PY
