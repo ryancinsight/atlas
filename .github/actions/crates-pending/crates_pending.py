@@ -24,8 +24,6 @@ import re
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -33,14 +31,17 @@ from artifact_evidence import (
     ARTIFACT_PROFILE,
     ArtifactContext,
     ExpectedArtifacts,
+    IdentityError,
+    METADATA_LIMIT,
     index_path,
     parse_expected_artifacts,
     published_checksum,
+    read_url,
+    sparse_index_versions,
     verify_expected_artifacts,
     validate_context as validate_artifact_context,
 )
 
-USER_AGENT = "atlas-crates-pending (github.com/ryancinsight/atlas)"
 WAIT_MARKER = "failed to select a version for the requirement"
 # cargo: failed to select a version for the requirement `hermes-simd = "^0.7.0"`
 MISSING_REQUIREMENT = re.compile(WAIT_MARKER + r" `([A-Za-z0-9_-]+) = ")
@@ -63,32 +64,23 @@ class RegistryError(RuntimeError):
     """The registry gave no usable answer (outage, rate limit, unexpected status)."""
 
 
-def http_get(url: str) -> tuple[int, str]:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return response.status, response.read().decode("utf-8")
-    except urllib.error.HTTPError as error:
-        return error.code, ""
-    except (urllib.error.URLError, TimeoutError) as error:
-        raise RegistryError(f"{url}: {error}") from error
+Fetch = Callable[[str, int], "tuple[int, bytes]"]
 
 
-Fetch = Callable[[str], "tuple[int, str]"]
-
-
-def published_versions(name: str, fetch: Fetch = http_get) -> list[str] | None:
+def published_versions(name: str, fetch: Fetch = read_url) -> list[str] | None:
     """Versions on the index, or None when the name has never been published."""
-    status, body = fetch(f"https://index.crates.io/{index_path(name)}")
-    if status == 404:
-        return None
-    if status != 200:
-        raise RegistryError(f"crates.io index returned HTTP {status} for {name}")
-    return [json.loads(line)["vers"] for line in body.splitlines() if line.strip()]
+    try:
+        versions = sparse_index_versions(name, fetch)
+    except IdentityError as error:
+        raise RegistryError(str(error)) from error
+    return None if versions is None else list(versions)
 
 
-def owners(name: str, fetch: Fetch = http_get) -> list[str]:
-    status, body = fetch(f"https://crates.io/api/v1/crates/{name}/owners")
+def owners(name: str, fetch: Fetch = read_url) -> list[str]:
+    try:
+        status, body = fetch(f"https://crates.io/api/v1/crates/{name}/owners", METADATA_LIMIT)
+    except IdentityError as error:
+        raise RegistryError(str(error)) from error
     if status != 200:
         raise RegistryError(f"crates.io owners API returned HTTP {status} for {name}")
     return [user["login"] for user in json.loads(body)["users"]]
@@ -144,7 +136,7 @@ class Plan:
     warnings: list[str] = field(default_factory=list)
 
 
-def select(metadata: dict, owner: str, fetch: Fetch = http_get,
+def select(metadata: dict, owner: str, fetch: Fetch = read_url,
            sleep: Callable[[float], None] = time.sleep) -> Plan:
     """Publishable packages whose version is absent from an index the expected owner controls."""
     plan = Plan()
@@ -203,7 +195,7 @@ def dependents(names: list[str], packages: list[dict], dependency: str) -> list[
     return [name for name in names if name in held]
 
 
-def verify(names: list[str], packages: list[dict], owner: str, fetch: Fetch = http_get,
+def verify(names: list[str], packages: list[dict], owner: str, fetch: Fetch = read_url,
            runner: Run = run, sleep: Callable[[float], None] = time.sleep) -> list[str]:
     """The names ready to publish: every one whose dependencies all resolve on crates.io.
 
@@ -265,7 +257,7 @@ def metadata(runner: Run = run) -> dict:
     return json.loads(result.stdout)
 
 
-def still_pending(names: list[str], versions: dict[str, str], fetch: Fetch = http_get) -> list[str]:
+def still_pending(names: list[str], versions: dict[str, str], fetch: Fetch = read_url) -> list[str]:
     return [name for name in names if versions[name] not in (published_versions(name, fetch) or [])]
 
 
@@ -275,7 +267,7 @@ def write_outputs(values: dict[str, str]) -> None:
             out.write(f"{key}={value}\n")
 
 
-def command_plan(owner: str, fetch: Fetch = http_get, runner: Run = run,
+def command_plan(owner: str, fetch: Fetch = read_url, runner: Run = run,
                  sleep: Callable[[float], None] = time.sleep, *,
                  cohort: dict[str, str] | None = None,
                  expected: ExpectedArtifacts | None = None,
@@ -310,7 +302,7 @@ def command_plan(owner: str, fetch: Fetch = http_get, runner: Run = run,
     return {"packages": ",".join(ready), "count": str(len(ready))}
 
 
-def command_bind(names: list[str], fetch: Fetch = http_get, runner: Run = run, *,
+def command_bind(names: list[str], fetch: Fetch = read_url, runner: Run = run, *,
                  cohort: dict[str, str] | None = None,
                  expected: ExpectedArtifacts, candidate: str) -> None:
     """Repackage and bind the frozen set before registry authentication."""
@@ -322,7 +314,7 @@ def command_bind(names: list[str], fetch: Fetch = http_get, runner: Run = run, *
     verify_expected_artifacts(expected, names, workspace, candidate, runner, package=True)
 
 
-def command_publish(names: list[str], fetch: Fetch = http_get, runner: Run = run, *,
+def command_publish(names: list[str], fetch: Fetch = read_url, runner: Run = run, *,
                     cohort: dict[str, str] | None = None,
                     expected: ExpectedArtifacts | None = None,
                     candidate: str = "") -> None:
@@ -347,7 +339,7 @@ def command_publish(names: list[str], fetch: Fetch = http_get, runner: Run = run
 
 
 def indexed_after_publish(names: list[str], versions: dict[str, str], published: bool,
-                          fetch: Fetch = http_get,
+                          fetch: Fetch = read_url,
                           sleep: Callable[[float], None] = time.sleep) -> list[str]:
     """Planned names whose version the index holds.
 
@@ -368,7 +360,7 @@ def indexed_after_publish(names: list[str], versions: dict[str, str], published:
 
 
 def command_tag(names: list[str], prefix: str, sha: str, repo: str, published: bool,
-                fetch: Fetch = http_get, runner: Run = run,
+                fetch: Fetch = read_url, runner: Run = run,
                 sleep: Callable[[float], None] = time.sleep, *,
                 cohort: dict[str, str] | None = None,
                 expected: ExpectedArtifacts | None = None,

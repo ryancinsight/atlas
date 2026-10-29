@@ -14,7 +14,7 @@ import subprocess
 import tarfile
 import tempfile
 import tomllib
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 METADATA_LIMIT = 16 * 1024 * 1024
@@ -173,6 +173,8 @@ def read_url(url, limit):
         if error.code != 404:
             raise IdentityError(f"registry HTTP status {error.code}: {url}") from error
         response = error
+    except (URLError, TimeoutError) as error:
+        raise IdentityError(f"registry request failed: {url}: {error}") from error
     with response:
         if response.status not in (200, 404):
             raise IdentityError(f"registry HTTP status {response.status}: {url}")
@@ -199,10 +201,11 @@ def index_path(name):
     return f"{name[:2]}/{name[2:4]}/{name}"
 
 
-def sparse_index_versions(name, status, body):
-    """Read every validated version checksum from one sparse-index response."""
+def sparse_index_versions(name, fetch=read_url):
+    """Read every validated version checksum through the bounded sparse-index transport."""
+    status, body = fetch(f"https://index.crates.io/{index_path(name)}", METADATA_LIMIT)
     if status == 404:
-        return {}
+        return None
     if status != 200:
         raise IdentityError(f"crates.io index returned HTTP {status} for {name}")
     if not body.strip():
@@ -230,18 +233,17 @@ def sparse_index_versions(name, status, body):
 def publish_required(package, fetch=read_url):
     """Only consistent absence publishes; complete identity equality skips."""
     api_status, api_body = fetch(f"https://crates.io/api/v1/crates/{package.name}/{package.version}", METADATA_LIMIT)
-    index_status, index_body = fetch(f"https://index.crates.io/{index_path(package.name)}", METADATA_LIMIT)
-    if api_status not in (200, 404) or index_status not in (200, 404):
+    if api_status not in (200, 404):
         raise IdentityError("registry lookup did not return 200 or 404")
-    versions = sparse_index_versions(package.name, index_status, index_body)
-    checksum = versions.get(package.version)
+    versions = sparse_index_versions(package.name, fetch)
+    checksum = None if versions is None else versions.get(package.version)
     if api_status == 404:
         if checksum is not None:
             raise IdentityError("registry API absence conflicts with the index")
         return True
     record = parse_json(api_body)["version"]
     if (record.get("crate") != package.name or record.get("num") != package.version
-            or checksum is None or record.get("checksum") != checksum):
+            or versions is None or checksum is None or record.get("checksum") != checksum):
         raise IdentityError("registry API and index release identities disagree")
     if checksum != package.checksum:
         raise IdentityError("published archive checksum differs from this exact release")

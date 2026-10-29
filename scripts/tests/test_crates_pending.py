@@ -14,7 +14,6 @@ import subprocess
 import sys
 import tempfile
 import unittest
-import urllib.error
 from unittest import mock
 from pathlib import Path
 
@@ -37,19 +36,25 @@ class Registry:
     def __init__(self, index: dict[str, list[str]], owners: dict[str, list[str]] | None = None,
                  status: dict[str, int] | None = None) -> None:
         self.index, self.owners, self.status, self.asked = index, owners or {}, status or {}, []
+        self.limits = []
 
-    def __call__(self, url: str) -> tuple[int, str]:
+    def __call__(self, url: str, limit: int) -> tuple[int, bytes]:
         self.asked.append(url)
+        self.limits.append(limit)
         if url in self.status:
-            return self.status[url], ""
+            return self.status[url], b""
         if url.startswith("https://index.crates.io/"):
             path = url.removeprefix("https://index.crates.io/")
             for name, versions in self.index.items():
                 if cp.index_path(name) == path:
-                    return 200, "".join(json.dumps({"name": name, "vers": v}) + "\n" for v in versions)
-            return 404, ""
+                    body = "".join(json.dumps({"name": name, "vers": version,
+                                               "cksum": "0" * 64}) + "\n"
+                                   for version in versions)
+                    return 200, body.encode()
+            return 404, b""
         name = url.removeprefix("https://crates.io/api/v1/crates/").removesuffix("/owners")
-        return 200, json.dumps({"users": [{"login": l} for l in self.owners.get(name, [OWNER])]})
+        return 200, json.dumps({"users": [{"login": login}
+                                           for login in self.owners.get(name, [OWNER])]}).encode()
 
 
 CARGO_CALL_LIMIT = 20
@@ -102,36 +107,12 @@ class IndexTests(unittest.TestCase):
                 cp.published_versions("alpha", registry)
 
 
-class HttpTests(unittest.TestCase):
-    def test_status_codes_pass_through_and_network_failure_raises(self) -> None:
-        def raising(error):
-            return mock.patch.object(cp.urllib.request, "urlopen", side_effect=error)
-        for code in (404, 503):
-            with raising(urllib.error.HTTPError("u", code, "m", {}, io.BytesIO())):
-                self.assertEqual(cp.http_get("https://index.crates.io/1/a"), (code, ""))
-        with raising(urllib.error.URLError("down")), self.assertRaises(cp.RegistryError):
-            cp.http_get("https://index.crates.io/1/a")
-        with raising(TimeoutError()), self.assertRaises(cp.RegistryError):
-            cp.http_get("https://index.crates.io/1/a")
-
-    def test_requests_carry_the_user_agent_and_a_deadline(self) -> None:
-        # crates.io's crawler policy requires an identifying User-Agent; the deadline bounds a hung socket.
-        response = mock.MagicMock(status=200)
-        response.read.return_value = b"{}"
-        response.__enter__.return_value = response
-        with mock.patch.object(cp.urllib.request, "urlopen", return_value=response) as urlopen:
-            self.assertEqual(cp.http_get("https://crates.io/api/v1/crates/a/owners"), (200, "{}"))
-        (request,), options = urlopen.call_args
-        self.assertEqual(request.full_url, "https://crates.io/api/v1/crates/a/owners")
-        self.assertEqual(request.get_header("User-agent"), cp.USER_AGENT)
-        self.assertEqual(cp.USER_AGENT, "atlas-crates-pending (github.com/ryancinsight/atlas)")
-        self.assertEqual(options, {"timeout": 30})
-
-    def test_a_503_index_answer_is_an_error_end_to_end(self) -> None:
-        error = urllib.error.HTTPError("u", 503, "m", {}, io.BytesIO())
-        with mock.patch.object(cp.urllib.request, "urlopen", side_effect=error), \
-                self.assertRaises(cp.RegistryError):
-            cp.published_versions("alpha")
+class SharedIndexReaderTests(unittest.TestCase):
+    def test_planning_uses_the_shared_bounded_reader_contract(self) -> None:
+        registry = Registry({"alpha": ["0.1.0"]})
+        self.assertEqual(cp.published_versions("alpha", registry), ["0.1.0"])
+        self.assertEqual(registry.limits, [cp.METADATA_LIMIT])
+        self.assertFalse(hasattr(cp, "http_get"))
 
 
 class SelectTests(unittest.TestCase):
@@ -544,12 +525,16 @@ class Index:
     def __init__(self, before: list[str], after: list[str], reads_until_visible: int | None) -> None:
         self.before, self.after, self.left = before, after, reads_until_visible
 
-    def __call__(self, url: str) -> tuple[int, str]:
+    def __call__(self, url: str, limit: int) -> tuple[int, bytes]:
         visible = self.left is not None and self.left <= 0
         if self.left is not None:
             self.left -= 1
         versions = self.after if visible else self.before
-        return 200, "".join(json.dumps({"vers": v}) + "\n" for v in versions)
+        name = url.rsplit("/", 1)[1]
+        body = "".join(json.dumps({"name": name, "vers": version,
+                                   "cksum": "0" * 64}) + "\n"
+                       for version in versions)
+        return 200, body.encode()
 
 
 class TagTests(unittest.TestCase):
@@ -584,8 +569,8 @@ class TagTests(unittest.TestCase):
         cargo = Cargo([pkg("a", "0.2.0"), pkg("b", "0.2.0")], {("gh", "release", "view"): (1, "not found")})
         index = {"a": Index(["0.1.0"], ["0.2.0"], 1), "b": Index(["0.1.0"], [], None)}
 
-        def fetch(url: str) -> tuple[int, str]:
-            return index[url.rsplit("/", 1)[1]](url)
+        def fetch(url: str, limit: int) -> tuple[int, bytes]:
+            return index[url.rsplit("/", 1)[1]](url, limit)
 
         with self.assertRaisesRegex(SystemExit, "missing from the index: b$"):
             cp.command_tag(["a", "b"], "crate-", "abc", "o/r", True, fetch, cargo, no_sleep)
@@ -654,16 +639,18 @@ class ChecksumRegistry:
     def __init__(self, records: dict[str, list[tuple[str, str]]]) -> None:
         self.records = records
 
-    def __call__(self, url: str) -> tuple[int, str]:
+    def __call__(self, url: str, limit: int) -> tuple[int, bytes]:
         if not url.startswith("https://index.crates.io/"):
             name = url.removeprefix("https://crates.io/api/v1/crates/").removesuffix("/owners")
-            return 200, json.dumps({"users": [{"login": OWNER}], "name": name})
+            return 200, json.dumps({"users": [{"login": OWNER}], "name": name}).encode()
         path = url.removeprefix("https://index.crates.io/")
         for name, records in self.records.items():
             if cp.index_path(name) == path:
-                return 200, "".join(json.dumps({"name": name, "vers": version, "cksum": digest}) + "\n"
-                                    for version, digest in records)
-        return 404, ""
+                body = "".join(json.dumps({"name": name, "vers": version,
+                                           "cksum": digest}) + "\n"
+                               for version, digest in records)
+                return 200, body.encode()
+        return 404, b""
 
 
 class ArtifactBindingTests(unittest.TestCase):

@@ -18,15 +18,17 @@ _IDENTITY = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = _IDENTITY
 _SPEC.loader.exec_module(_IDENTITY)
 COMMIT, PACKAGE_NAME, SHA256 = _IDENTITY.COMMIT, _IDENTITY.NAME, _IDENTITY.SHA256
+METADATA_LIMIT = _IDENTITY.METADATA_LIMIT
 IdentityError = _IDENTITY.IdentityError
 index_path = _IDENTITY.index_path
 parse_json = _IDENTITY.parse_json
+read_url = _IDENTITY.read_url
 sparse_index_versions = _IDENTITY.sparse_index_versions
 
 ARTIFACT_PROFILE = "cargo-package-verify"
 
 Run = Callable[[list[str]], "subprocess.CompletedProcess[str]"]
-Fetch = Callable[[str], "tuple[int, str]"]
+Fetch = Callable[[str, int], "tuple[int, bytes]"]
 
 
 @dataclass(frozen=True)
@@ -160,12 +162,11 @@ def verify_expected_artifacts(expected: ExpectedArtifacts, names: list[str],
 
 def published_checksum(name: str, version: str, fetch: Fetch) -> str:
     """Return one exact sparse-index checksum, rejecting ambiguous records."""
-    status, body = fetch(f"https://index.crates.io/{index_path(name)}")
     try:
-        versions = sparse_index_versions(name, status, body)
+        versions = sparse_index_versions(name, fetch)
     except IdentityError as error:
         raise ValueError(str(error)) from error
-    checksum = versions.get(version)
+    checksum = None if versions is None else versions.get(version)
     if checksum is None:
         raise ValueError(f"crates.io index lacks one valid checksum for {name}@{version}")
     return checksum

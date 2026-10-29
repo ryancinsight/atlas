@@ -165,15 +165,57 @@ def test_sparse_index_reader_preserves_bootstrap_and_strict_failure(identity):
         json.dumps({"name": name, "vers": "0.1.1", "cksum": "0" * 64}).encode(),
         json.dumps({"name": name, "vers": "0.1.2", "cksum": checksum}).encode(),
     ))
-    assert identity.sparse_index_versions(name, 200, rows) == {
+    def answer(status, body):
+        def fetch(url, limit):
+            assert url == "https://index.crates.io/at/la/atlas-identity-fixture"
+            assert limit == identity.METADATA_LIMIT
+            return status, body
+        return fetch
+
+    assert identity.sparse_index_versions(name, answer(200, rows)) == {
         "0.1.1": "0" * 64,
         "0.1.2": checksum,
     }
-    assert identity.sparse_index_versions(name, 404, b"") == {}
+    assert identity.sparse_index_versions(name, answer(404, b"")) is None
     with pytest.raises(identity.IdentityError, match="HTTP 503"):
-        identity.sparse_index_versions(name, 503, b"")
+        identity.sparse_index_versions(name, answer(503, b""))
     with pytest.raises(identity.IdentityError, match="empty registry index"):
-        identity.sparse_index_versions(name, 200, b"")
+        identity.sparse_index_versions(name, answer(200, b""))
+    with pytest.raises(identity.IdentityError, match="malformed"):
+        identity.sparse_index_versions(name, answer(200, b"not JSON"))
+
+
+def test_sparse_index_reader_rejects_oversized_and_redirected_transport(identity, monkeypatch):
+    from types import SimpleNamespace
+    from urllib.error import HTTPError
+
+    class OversizedResponse:
+        status = 200
+        headers = SimpleNamespace(get_all=lambda name, default: default)
+
+        def read(self, limit):
+            return b"x" * limit
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+    response = OversizedResponse()
+    monkeypatch.setattr(identity, "build_opener",
+                        lambda *args: SimpleNamespace(open=lambda *args, **kwargs: response))
+    with pytest.raises(identity.IdentityError, match="exceeds identity bound"):
+        identity.sparse_index_versions("atlas-identity-fixture")
+
+    def redirect(*args, **kwargs):
+        raise HTTPError("https://index.crates.io/at/la/atlas-identity-fixture",
+                        302, "redirect", {}, None)
+
+    monkeypatch.setattr(identity, "build_opener",
+                        lambda *args: SimpleNamespace(open=redirect))
+    with pytest.raises(identity.IdentityError, match="HTTP status 302"):
+        identity.sparse_index_versions("atlas-identity-fixture")
 
 
 def test_identical_publication_skips_auth_and_upload_after_all_three_reads(identity, source, registry):
