@@ -31,6 +31,7 @@ ROOT_MANIFEST = ('[workspace]\nresolver = "2"\nmembers = ["crates/*"]\n'
 ALPHA_MANIFEST = ('[package]\nname = "alpha"\nversion = "{version}"\nedition = "2021"\n'
                   '[dependencies]\nserde = {{ workspace = true }}\n')
 GAMMA_MANIFEST = '[package]\nname = "gamma"\nversion = "0.1.0"\nedition = "2021"\n'
+PRIVATE_GAMMA_MANIFEST = GAMMA_MANIFEST + 'publish = false\n'
 BETA_MANIFEST = '[package]\nname = "beta"\nversion = "0.2.0"\nedition = "2021"\n'
 ALPHA_SOURCE = "pub fn one() -> u32 { 1 }\n"
 BETA_SOURCE = "pub fn two() -> u32 { 2 }\n"
@@ -243,13 +244,30 @@ class BumpGuardTestCase(unittest.TestCase):
     def test_named_selection_must_be_unique_and_present(self) -> None:
         for selection, message in (
             ("alpha,alpha", "duplicate name"),
-            ("alpha,missing", "publishable package at head: missing"),
+            ("alpha,missing", "package at head: missing"),
         ):
             with self.subTest(selection=selection):
                 status, out, err = self.run_guard(
                     self.registry(), None, "--package", selection)
                 self.assertEqual((status, out), (2, ""))
                 self.assertIn(message, err)
+
+    def test_named_nonpublishable_package_is_known_and_skips_registry(self) -> None:
+        self.commit({
+            "crates/gamma/Cargo.toml": PRIVATE_GAMMA_MANIFEST,
+            "crates/gamma/src/lib.rs": "pub fn three() -> u32 { 3 }\n",
+        })
+        registry = self.registry()
+
+        status, out, err = self.run_guard(
+            registry, None, "--package", "gamma")
+
+        self.assertEqual((status, err), (0, ""))
+        self.assertEqual(
+            out,
+            "No publishable crate's source, manifest, or dependency requirements changed.\n",
+        )
+        self.assertEqual(registry.asked, [])
 
     def test_nested_manifest_selects_the_callers_workspace(self) -> None:
         nested_root = ROOT_MANIFEST.format(serde="1.0").replace(
@@ -273,6 +291,42 @@ class BumpGuardTestCase(unittest.TestCase):
             registry.asked[-1],
             "https://static.crates.io/crates/alpha/alpha-0.1.0.crate",
         )
+
+    def test_nested_workspace_introduced_at_head_has_an_empty_baseline(self) -> None:
+        self.commit({
+            "nested/Cargo.toml": ROOT_MANIFEST.format(serde="1.0").replace(
+                '["crates/*"]', '["alpha"]'),
+            "nested/alpha/Cargo.toml": ALPHA_MANIFEST.format(version="0.1.0"),
+            "nested/alpha/src/lib.rs": ALPHA_SOURCE,
+        })
+
+        registry = self.registry()
+        status, out, err = self.run_guard(
+            registry, None, "--package", "alpha",
+            "--manifest-path", "nested/Cargo.toml")
+
+        self.assertEqual((status, err), (0, ""))
+        self.assertEqual(out, "- `alpha` 0.1.0: published-current\n")
+        self.assertEqual(
+            registry.asked[-1],
+            "https://static.crates.io/crates/alpha/alpha-0.1.0.crate",
+        )
+
+    def test_malformed_existing_nested_baseline_remains_an_error(self) -> None:
+        self.base = self.commit({"nested/Cargo.toml": "[workspace\n"})
+        self.commit({
+            "nested/Cargo.toml": ROOT_MANIFEST.format(serde="1.0").replace(
+                '["crates/*"]', '["alpha"]'),
+            "nested/alpha/Cargo.toml": ALPHA_MANIFEST.format(version="0.1.0"),
+            "nested/alpha/src/lib.rs": ALPHA_SOURCE,
+        })
+
+        status, out, err = self.run_guard(
+            self.registry(), None, "--package", "alpha",
+            "--manifest-path", "nested/Cargo.toml")
+
+        self.assertEqual((status, out), (2, ""))
+        self.assertIn("cargo metadata failed", err)
 
     def test_manifest_selection_cannot_leave_the_export(self) -> None:
         for manifest in ("../Cargo.toml", "/Cargo.toml", "C:/Cargo.toml",

@@ -392,7 +392,7 @@ class MemberReading:
 
 @dataclass(frozen=True)
 class Package:
-    """One publishable package of an exported revision."""
+    """One package of an exported revision."""
 
     name: str
     version: str
@@ -405,11 +405,13 @@ class Package:
 
 
 def export_revision(label: str, repo: Path, revision: str, root: Path,
-                    manifest_path: str = "Cargo.toml") -> dict:
+                    manifest_path: str = "Cargo.toml",
+                    missing_manifest_is_empty: bool = False) -> dict | None:
     """Export commit `revision` of `repo` under `root`; its `cargo metadata --no-deps`.
 
     The export is `git archive`, never the working tree. The selected manifest
-    stays within the export; missing or escaping selections fail the measurement.
+    stays within the export. An absent selection fails unless the caller is
+    comparing with a revision from before that selected workspace existed.
     """
     try:
         tree = git_archive(repo, revision, timeout=GIT_TIMEOUT_SECONDS)
@@ -424,6 +426,8 @@ def export_revision(label: str, repo: Path, revision: str, root: Path,
     if not manifest.is_relative_to(root.resolve()):
         raise MeasurementError(f"{label}: manifest selection escapes the exported revision")
     if not manifest.is_file():
+        if missing_manifest_is_empty:
+            return None
         raise MeasurementError(f"{label}: no {relative.as_posix()} at {revision}")
     try:
         result = run_outside_the_overlay(
@@ -441,16 +445,25 @@ def export_revision(label: str, repo: Path, revision: str, root: Path,
     return json.loads(result.stdout)
 
 
-def publishable_packages(metadata: dict, root: Path) -> list[Package]:
-    """The publishable packages of an export at `root`, by name."""
+def workspace_packages(metadata: dict, root: Path) -> list[Package]:
+    """Every package selected by an exported workspace, ordered by name."""
     packages = []
-    for package in sorted(filter(crates_pending.publishable, metadata["packages"]),
-                          key=lambda p: p["name"]):
+    for package in sorted(metadata["packages"], key=lambda p: p["name"]):
         directory = Path(package["manifest_path"]).resolve().parent.relative_to(root)
         packages.append(Package(package["name"], package["version"],
                                 PurePosixPath(directory.as_posix()),
                                 tuple(package["dependencies"])))
     return packages
+
+
+def publishable_packages(metadata: dict, root: Path) -> list[Package]:
+    """The publishable packages of an export at `root`, by name."""
+    publishable = {
+        package["name"] for package in metadata["packages"]
+        if crates_pending.publishable(package)
+    }
+    return [package for package in workspace_packages(metadata, root)
+            if package.name in publishable]
 
 
 def measure_member(name: str, repo: Path, branch: str, revision: str,
