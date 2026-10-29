@@ -42,6 +42,7 @@ REGISTRY_ERROR_TEXT = 1024
 REGISTRY_ERROR_TYPE_TEXT = 128
 REGISTRY_ERROR_PROTOCOL_BYTES = 16 * 1024
 REGISTRY_STDERR_BYTES = 4 * 1024
+JSON_NESTING_DEPTH = 32
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\Z")
@@ -80,9 +81,32 @@ def parse_json(data):
     elif not isinstance(data, str):
         raise IdentityError("registry JSON must be text or UTF-8 bytes")
 
+    depth = 0
+    quoted = False
+    escaped = False
+    for character in data:
+        if quoted:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                quoted = False
+        elif character == '"':
+            quoted = True
+        elif character in "[{":
+            depth += 1
+            if depth > JSON_NESTING_DEPTH:
+                raise IdentityError("registry JSON nesting exceeds the identity bound")
+        elif character in "]}":
+            depth -= 1
+
     def invalid_constant(value):
         raise IdentityError(f"invalid JSON constant: {value}")
-    return json.loads(data, object_pairs_hook=unique_object, parse_constant=invalid_constant)
+    try:
+        return json.loads(data, object_pairs_hook=unique_object, parse_constant=invalid_constant)
+    except RecursionError as error:
+        raise IdentityError("registry JSON nesting exceeds the identity bound") from error
 
 
 def command(args, cwd):
@@ -227,21 +251,29 @@ class RegistryWireReader:
         self.bytes_read = 0
         self.lines_read = 0
 
-    def line(self, kind):
-        line = self.stream.readline(http.client._MAXLINE + 1)
-        if len(line) > http.client._MAXLINE:
-            raise RegistryFramingError(f"HTTP {kind} exceeds the line bound")
+    def line(self, kind, valid_prefix):
+        if (self.bytes_read >= REGISTRY_FRAMING_BYTES
+                or self.lines_read >= REGISTRY_FRAMING_LINES):
+            raise RegistryFramingError("HTTP response metadata exceeds the aggregate bound")
+        remaining = REGISTRY_FRAMING_BYTES - self.bytes_read
+        capacity = min(http.client._MAXLINE, remaining)
+        line = self.stream.readline(capacity)
         if not line:
             raise RegistryBodyDisconnect(f"connection closed during HTTP {kind}")
         self.bytes_read += len(line)
         self.lines_read += 1
-        if (self.bytes_read > REGISTRY_FRAMING_BYTES
-                or self.lines_read > REGISTRY_FRAMING_LINES):
-            raise RegistryFramingError("HTTP response metadata exceeds the aggregate bound")
+        if not line.endswith(b"\r\n"):
+            if len(line) == capacity:
+                message = ("HTTP response metadata exceeds the aggregate bound"
+                           if capacity == remaining else f"HTTP {kind} exceeds the line bound")
+                raise RegistryFramingError(message)
+            if valid_prefix(line):
+                raise RegistryBodyDisconnect(f"connection closed during HTTP {kind}")
+            raise RegistryFramingError(f"malformed HTTP {kind}")
         return line
 
     def status(self):
-        line = self.line("status line")
+        line = self.line("status line", valid_status_prefix)
         if not STATUS_LINE.fullmatch(line):
             raise RegistryFramingError("malformed HTTP status line")
         version, status, reason = line[:-2].split(b" ", 2)
@@ -250,7 +282,7 @@ class RegistryWireReader:
     def fields(self, kind):
         fields = []
         while True:
-            line = self.line(kind)
+            line = self.line(kind, valid_field_prefix)
             if line == b"\r\n":
                 return tuple(fields)
             fields.append(validate_field_line(line, kind))
@@ -258,6 +290,43 @@ class RegistryWireReader:
 
 def valid_token(value):
     return bool(value) and all(byte in TOKEN_BYTES for byte in value)
+
+
+def valid_status_prefix(value):
+    """Return whether EOF interrupted a syntactically valid status prefix."""
+    literal = b"HTTP/1."
+    if len(value) <= len(literal):
+        return literal.startswith(value)
+    if not value.startswith(literal) or value[len(literal)] not in b"0123456789":
+        return False
+    remainder = value[len(literal) + 1:]
+    if not remainder:
+        return True
+    if remainder[:1] != b" ":
+        return False
+    remainder = remainder[1:]
+    digits = 0
+    while digits < len(remainder) and remainder[digits] in b"0123456789":
+        digits += 1
+    if digits < min(3, len(remainder)):
+        return False
+    if len(remainder) <= 3:
+        return True
+    return (digits == 3 and remainder[3:4] == b" "
+            and all(byte == 9 or 32 <= byte <= 126 or byte >= 128
+                    for byte in remainder[4:]))
+
+
+def valid_field_prefix(value):
+    """Return whether EOF interrupted a syntactically valid field prefix."""
+    name, separator, field_value = value.partition(b":")
+    if not valid_token(name):
+        return False
+    if not separator:
+        return True
+    return all(byte != 13 and byte != 10 and
+               (byte == 9 or 32 <= byte <= 126 or byte >= 128)
+               for byte in field_value)
 
 
 def validate_field_line(line, kind):
@@ -411,15 +480,15 @@ class StrictHTTPResponse(http.client.HTTPResponse):
         self._atlas_wire = wire
 
     def _read_next_chunk_size(self):
-        line = self.fp.readline(http.client._MAXLINE + 1)
-        if len(line) > http.client._MAXLINE:
-            raise http.client.LineTooLong("chunk size")
+        line = self.fp.readline(http.client._MAXLINE)
         if not line:
             raise RegistryBodyDisconnect("connection closed before the next chunk size")
         if not line.endswith(b"\r\n"):
             self._close_conn()
-            raise RegistryFramingError("chunk size lacks its CRLF terminator")
-        match = re.fullmatch(rb"([0-9A-Fa-f]+)[ \t]*(.*)", line[:-2])
+            if len(line) < http.client._MAXLINE and valid_chunk_size_prefix(line):
+                raise RegistryBodyDisconnect("connection closed during HTTP chunk size")
+            raise RegistryFramingError("malformed HTTP chunk size")
+        match = re.fullmatch(rb"([0-9A-Fa-f]+)(.*)", line[:-2])
         if match is None:
             self._close_conn()
             raise RegistryFramingError("malformed HTTP chunk size")
@@ -446,7 +515,7 @@ class StrictHTTPResponse(http.client.HTTPResponse):
 
     def _read_and_discard_trailer(self):
         while True:
-            line = self._atlas_wire.line("trailer")
+            line = self._atlas_wire.line("trailer", valid_field_prefix)
             if line == b"\r\n":
                 return
             validate_field_line(line, "trailer")
@@ -470,69 +539,73 @@ class StrictHTTPSHandler(HTTPSHandler):
         return self.do_open(StrictHTTPSConnection, request, context=self._context)
 
 
+def valid_chunk_size_prefix(value):
+    """Return whether EOF interrupted a syntactically valid chunk-size prefix."""
+    match = re.match(rb"[0-9A-Fa-f]+", value)
+    if match is None:
+        return False
+    remainder = value[match.end():]
+    if not remainder:
+        return True
+    stripped = remainder.lstrip(b" \t")
+    return not stripped or stripped.startswith(b";")
+
+
+def _raise_registry_io(error, url):
+    """Classify one typed registry transport or framing failure."""
+    reason = error.reason if isinstance(error, URLError) else error
+    if isinstance(reason, ssl.SSLCertVerificationError):
+        raise IdentityError(f"registry TLS certificate verification failed: {url}") from error
+    if isinstance(reason, ssl.SSLEOFError):
+        raise RegistryTransportError(f"registry response failed: {url}: {reason}") from error
+    if isinstance(reason, ssl.SSLError):
+        raise IdentityError(f"registry TLS protocol failed: {url}") from error
+    if isinstance(reason, RegistryFramingError):
+        raise IdentityError(
+            f"malformed registry HTTP response framing: {url}: {reason}") from error
+    if isinstance(reason, (RegistryBodyDisconnect, http.client.IncompleteRead,
+                           http.client.RemoteDisconnected, TimeoutError, OSError)):
+        raise RegistryTransportError(f"registry response failed: {url}: {reason}") from error
+    if isinstance(reason, http.client.HTTPException):
+        raise IdentityError(f"malformed registry HTTP response: {url}: {reason}") from error
+    if isinstance(error, URLError):
+        raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
+    raise error
+
+
 def _read_url_once(url, limit):
     """Read public registry data with bounded time/size and no authentication."""
     request = Request(url, headers={"User-Agent": "atlas-release-identity (https://github.com/ryancinsight/atlas)"})
     try:
-        response = build_opener(NoRedirect(), StrictHTTPHandler(), StrictHTTPSHandler()).open(
-            request, timeout=30)
-    except HTTPError as error:
-        if error.code == 429 or 500 <= error.code <= 599:
-            error.close()
-            raise RegistryTransportError(
-                f"transient registry HTTP status {error.code}: {url}") from error
-        if error.code != 404:
-            error.close()
-            raise IdentityError(f"registry HTTP status {error.code}: {url}") from error
-        response = error
-    except (http.client.RemoteDisconnected, ssl.SSLEOFError) as error:
-        raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
-    except http.client.HTTPException as error:
-        raise IdentityError(f"malformed registry HTTP response: {url}: {error}") from error
-    except ssl.SSLCertVerificationError as error:
-        raise IdentityError(f"registry TLS certificate verification failed: {url}") from error
-    except ssl.SSLError as error:
-        raise IdentityError(f"registry TLS protocol failed: {url}") from error
-    except URLError as error:
-        if isinstance(error.reason, ssl.SSLCertVerificationError):
-            raise IdentityError(
-                f"registry TLS certificate verification failed: {url}") from error
-        if isinstance(error.reason, ssl.SSLEOFError):
-            raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
-        if isinstance(error.reason, ssl.SSLError):
-            raise IdentityError(f"registry TLS protocol failed: {url}") from error
-        raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
-    except (TimeoutError, OSError) as error:
-        raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
-    with response:
-        fields = getattr(response, "atlas_fields", None)
-        if fields is None:
-            fields = tuple((name.lower().encode("ascii"), value.strip(" \t").encode("iso-8859-1"))
-                           for name, value in response.headers.raw_items())
         try:
+            response = build_opener(NoRedirect(), StrictHTTPHandler(), StrictHTTPSHandler()).open(
+                request, timeout=30)
+        except HTTPError as error:
+            response = error
+        with response:
+            fields = getattr(response, "atlas_fields", None)
+            if fields is None:
+                fields = tuple(
+                    (name.lower().encode("ascii"), value.strip(" \t").encode("iso-8859-1"))
+                    for name, value in response.headers.raw_items())
             length, _chunked = framing_fields(fields)
-        except RegistryFramingError as error:
-            raise IdentityError(str(error)) from error
-        if response.status == 429 or 500 <= response.status <= 599:
-            raise RegistryTransportError(
-                f"transient registry HTTP status {response.status}: {url}")
-        if response.status not in (200, 404):
-            raise IdentityError(f"registry HTTP status {response.status}: {url}")
-        if length is not None and length > limit:
-            raise IdentityError(f"registry response exceeds identity bound: {url}")
-        try:
+            if length is not None and length > limit:
+                raise IdentityError(f"registry response exceeds identity bound: {url}")
             body = response.read(limit + 1)
-        except RegistryFramingError as error:
-            raise IdentityError(f"malformed registry HTTP framing: {url}: {error}") from error
-        except (RegistryBodyDisconnect, http.client.IncompleteRead, OSError) as error:
-            raise RegistryTransportError(f"registry response failed: {url}: {error}") from error
-        except http.client.HTTPException as error:
-            raise IdentityError(f"malformed registry HTTP framing: {url}: {error}") from error
-        if len(body) > limit:
-            raise IdentityError(f"registry response exceeds identity bound: {url}")
-        if length is not None and len(body) != length:
-            raise RegistryTransportError("incomplete registry HTTP body")
-    return response.status, body
+            if len(body) > limit:
+                raise IdentityError(f"registry response exceeds identity bound: {url}")
+            if length is not None and len(body) != length:
+                raise RegistryTransportError("incomplete registry HTTP body")
+            status = response.status
+    except IdentityError:
+        raise
+    except (URLError, TimeoutError, OSError, http.client.HTTPException) as error:
+        _raise_registry_io(error, url)
+    if status == 429 or 500 <= status <= 599:
+        raise RegistryTransportError(f"transient registry HTTP status {status}: {url}")
+    if status not in (200, 404):
+        raise IdentityError(f"registry HTTP status {status}: {url}")
+    return status, body
 
 
 def _diagnostic_text(value):
@@ -578,7 +651,8 @@ def _process_tree():
     source = (scripts / "process_tree.py").resolve()
     if not source.is_file():
         raise IdentityError("bounded process-tree runner is absent from the action revision")
-    name = "_atlas_release_process_tree"
+    token = object()
+    name = f"_atlas_release_process_tree_{id(_process_tree):x}_{id(token):x}"
     spec = importlib.util.spec_from_file_location(name, source)
     if spec is None or spec.loader is None:
         raise IdentityError("bounded process-tree runner cannot be loaded")

@@ -68,7 +68,8 @@ from dataclasses import dataclass
 def _load_sibling(name: str):
     """Load one exact runner dependency without trusting ``sys.modules``."""
     source = pathlib.Path(__file__).resolve().with_name(f"{name}.py")
-    private_name = f"_atlas_process_tree_{name}"
+    token = object()
+    private_name = f"_atlas_process_tree_{name}_{id(_load_sibling):x}_{id(token):x}"
     spec = importlib.util.spec_from_file_location(private_name, source)
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load process-tree dependency: {source}")
