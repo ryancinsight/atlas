@@ -288,6 +288,7 @@ def load_package_facts(manifests: list[tuple[Path, str]]) -> tuple[PackageFact, 
     """Parse every package declaration without collapsing repeated names."""
     parsed: list[tuple[Path, dict[str, object]]] = []
     workspace_versions: dict[Path, str] = {}
+    workspace_tables: dict[Path, dict[str, object]] = {}
     for rel, text in manifests:
         try:
             data = tomllib.loads(text)
@@ -296,6 +297,8 @@ def load_package_facts(manifests: list[tuple[Path, str]]) -> tuple[PackageFact, 
         parsed.append((rel, data))
         workspace = data.get("workspace")
         ws = workspace.get("package", {}) if isinstance(workspace, dict) else {}
+        if isinstance(workspace, dict):
+            workspace_tables[rel] = workspace
         if "version" in ws:
             workspace_versions[rel] = ws["version"]
 
@@ -314,6 +317,60 @@ def load_package_facts(manifests: list[tuple[Path, str]]) -> tuple[PackageFact, 
                     f"{rel / 'Cargo.toml'} declares workspace member {member!r} without a manifest"
                 )
 
+    def selected_workspace(rel: Path, data: dict[str, object]) -> Path | None:
+        package = data.get("package")
+        explicit = package.get("workspace") if isinstance(package, dict) else None
+        if explicit is not None:
+            if not isinstance(explicit, str):
+                raise ValueError(f"{rel / 'Cargo.toml'} has unreadable package.workspace")
+            root = Path(
+                lockfile.workspace_relative(
+                    PurePosixPath(rel.as_posix()), explicit
+                ).as_posix()
+            )
+            if root not in workspace_tables:
+                raise ValueError(
+                    f"{rel / 'Cargo.toml'} selects workspace {explicit!r} without a manifest"
+                )
+            return root
+        roots = [root for root in workspace_tables if root == rel or root in rel.parents]
+        return max(roots, key=lambda root: len(root.parts), default=None)
+
+    selected_workspaces = {rel: selected_workspace(rel, data) for rel, data in parsed}
+    for rel, data in parsed:
+        workspace_root = selected_workspaces[rel]
+        workspace_dependencies = (
+            workspace_tables[workspace_root].get("dependencies", {})
+            if workspace_root is not None
+            else {}
+        )
+        for table in lockfile.dependency_tables(data):
+            for dependency, spec in table.items():
+                if not isinstance(spec, dict):
+                    continue
+                declaring_root = rel
+                resolved = spec
+                if spec.get("workspace") is True and isinstance(workspace_dependencies, dict):
+                    inherited = workspace_dependencies.get(dependency)
+                    if not isinstance(inherited, dict):
+                        continue
+                    declaring_root = workspace_root
+                    resolved = inherited
+                path = resolved.get("path")
+                if not isinstance(path, str):
+                    continue
+                target = lockfile.workspace_relative(
+                    PurePosixPath(declaring_root.as_posix()), path
+                )
+                if target in directories or lockfile.escapes_repository(
+                    PurePosixPath((declaring_root / "Cargo.toml").as_posix()), path
+                ):
+                    continue
+                raise ValueError(
+                    f"{rel / 'Cargo.toml'} declares path dependency {dependency!r} "
+                    f"without {target / 'Cargo.toml'}"
+                )
+
     facts: list[PackageFact] = []
     for rel, data in parsed:
         pkg = data.get("package")
@@ -322,24 +379,9 @@ def load_package_facts(manifests: list[tuple[Path, str]]) -> tuple[PackageFact, 
         version = pkg.get("version")
         if isinstance(version, dict) and version.get("workspace"):
             version = None
-            selected_workspace = pkg.get("workspace")
-            if selected_workspace is not None and not isinstance(selected_workspace, str):
-                raise ValueError(f"{rel / 'Cargo.toml'} has unreadable package.workspace")
-            if isinstance(selected_workspace, str):
-                selected_root = Path(
-                    lockfile.workspace_relative(
-                        PurePosixPath(rel.as_posix()), selected_workspace
-                    ).as_posix()
-                )
-                version = workspace_versions.get(selected_root)
-            else:
-                best_depth = -1
-                for root, inherited_version in workspace_versions.items():
-                    if root == rel or root in rel.parents:
-                        depth = len(root.parts)
-                        if depth > best_depth:
-                            best_depth = depth
-                            version = inherited_version
+            workspace_root = selected_workspaces[rel]
+            if workspace_root is not None:
+                version = workspace_versions.get(workspace_root)
         if not isinstance(version, str):
             version = None
         facts.append(PackageFact(pkg["name"], rel, version))
