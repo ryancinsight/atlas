@@ -65,6 +65,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -73,14 +74,13 @@ sys.path.insert(0, str(SCRIPTS))
 
 import lockfile  # noqa: E402  (overlay-free cargo runner; shared, not copied)
 from atlas_pull_request import open_pull_request  # noqa: E402
-from atlas_stack import ROOT, git, registered_members  # noqa: E402
+from atlas_stack import ROOT, git, registered_member_names, registered_members  # noqa: E402
 
 LOG_ROOT = ROOT / "output" / "lock-sweep"
 FIRST_PARTY_GIT = "git+https://github.com/ryancinsight/"
 # A pushed member branch runs the member's whole pre-push gate, which can queue
 # on the shared build-identity lease (900 s) before it builds.
 PUSH_TIMEOUT_SECONDS = 3000
-SOURCE_LINE = re.compile(r'^source = "(?P<source>[^"]+)"$', re.M)
 
 
 @dataclass(frozen=True)
@@ -132,12 +132,25 @@ class Outcome:
     ok: bool
 
 
+@dataclass(frozen=True)
+class RevisionCheck:
+    """Deterministic evidence for every lock selected by a meta revision."""
+
+    revision: str
+    reports: tuple[str, ...]
+    problems: tuple[str, ...]
+    locks: int
+
+
 # --- pure functions (unit-tested) ---------------------------------------------
 
 
 def normalize_repo_url(url: str) -> str:
-    """Canonical form for a first-party GitHub URL: lower-case, no `.git`."""
-    return url.rstrip("/").removesuffix(".git").lower()
+    """Canonical provider URL: lower-case, without query or `.git`."""
+    base = url.split("?", 1)[0].rstrip("/")
+    if base.lower().endswith(".git"):
+        base = base[:-4]
+    return base.lower()
 
 
 def provider_repo_name(url: str) -> str:
@@ -145,24 +158,161 @@ def provider_repo_name(url: str) -> str:
     return normalize_repo_url(url).rsplit("/", 1)[-1]
 
 
-def first_party_packages(lock_text: str) -> list[LockedPackage]:
-    """Every lock entry resolved through an unpinned first-party git source.
+def locked_packages(lock_text: str) -> list[LockedPackage]:
+    """Parse every first-party Git package, including queried sources."""
+    try:
+        parsed = tomllib.loads(lock_text)
+    except tomllib.TOMLDecodeError as error:
+        raise ValueError(f"Cargo.lock does not parse: {error}") from error
+    packages = parsed.get("package")
+    if not isinstance(packages, list):
+        raise ValueError("Cargo.lock has no package array")
+    locked: list[LockedPackage] = []
+    for package in packages:
+        if not isinstance(package, dict) or not isinstance(package.get("source"), str):
+            continue
+        source = package["source"]
+        if not source.lower().startswith(FIRST_PARTY_GIT):
+            continue
+        name = package.get("name")
+        version = package.get("version")
+        location, separator, revision = source[4:].rpartition("#")
+        if (
+            not isinstance(name, str)
+            or not isinstance(version, str)
+            or not separator
+            or not re.fullmatch(r"[0-9a-fA-F]{40}", revision)
+        ):
+            raise ValueError(f"unreadable first-party source identity {source}")
+        locked.append(LockedPackage(name, version, location, revision.lower()))
+    return locked
 
-    A source carrying a query (`?rev=`, `?branch=`, `?tag=`) is a pin the
-    manifest states; advancing it is a manifest change, not a lock sweep."""
-    packages = []
-    for block in lock_text.split("[[package]]")[1:]:
-        source = SOURCE_LINE.search(block)
-        if not source or not source.group("source").startswith(FIRST_PARTY_GIT):
+
+def first_party_packages(lock_text: str) -> list[LockedPackage]:
+    """First-party packages update mode may move: explicit query pins excluded."""
+    return [package for package in locked_packages(lock_text) if "?" not in package.url]
+
+
+def revision_lock_findings(
+    member: str,
+    lock: str,
+    lock_text: str,
+    targets: dict[str, str],
+    path_fixture: bool,
+) -> tuple[str, list[str]]:
+    """Report one measured lock and every source identity mismatch it contains."""
+    label = f"{member}/{lock}"
+    try:
+        identities = locked_packages(lock_text)
+    except ValueError as error:
+        return f"{label}: measured 0 first-party package(s)", [f"{label}: {error}"]
+    findings: list[str] = []
+    if path_fixture:
+        report = f"{label}: path fixture ({len(identities)} first-party Git identities)"
+        for identity in identities:
+            findings.append(
+                f"{label}: path-unification required for {identity.name}: "
+                f"git+{identity.url}#{identity.rev} cannot be judged against a gitlink while sibling "
+                "dependencies remain paths"
+            )
+        return report, findings
+    for identity in identities:
+        target = targets.get(identity.provider)
+        source = f"git+{identity.url}#{identity.rev}"
+        if target is None:
+            findings.append(
+                f"{label}: {identity.name} uses unknown registered first-party "
+                f"identity {identity.provider}: {source}"
+            )
+        elif identity.rev != target:
+            findings.append(
+                f"{label}: {identity.name} locks {identity.provider}@{identity.rev}; "
+                f"selected {target}; source {source}"
+            )
+    state = "measured" if findings else "aligned"
+    return f"{label}: {state} {len(identities)} first-party package(s)", findings
+
+
+def selected_gitlinks(repository: Path, revision: str) -> tuple[str, dict[str, tuple[str, str, Path]]]:
+    """Resolve one meta revision and its complete registered gitlink set."""
+    selected = git(repository, "rev-parse", "--verify", f"{revision}^{{commit}}").strip()
+    names = registered_member_names(repository, selected)
+    if not names:
+        raise RuntimeError(f"no registered members parsed from .gitmodules at {selected}")
+    unsafe = sorted(name for name in names if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name))
+    if unsafe:
+        raise RuntimeError(f"unsafe registered member name {unsafe[0]!r}")
+    paths = {name.lower(): repository / "repos" / name for name in names}
+    links: dict[str, tuple[str, str, Path]] = {}
+    for line in git(repository, "ls-tree", selected, "--", "repos/").splitlines():
+        metadata, _, path = line.partition("\t")
+        fields = metadata.split()
+        parts = path.split("/")
+        if len(fields) != 3 or len(parts) != 2 or parts[0] != "repos":
             continue
-        location, _, rev = source.group("source").removeprefix("git+").partition("#")
-        if "?" in location or not rev:
+        name = parts[1]
+        if fields[0] != "160000" or fields[1] != "commit":
             continue
-        name = re.search(r'^name = "([^"]+)"$', block, re.M)
-        version = re.search(r'^version = "([^"]+)"$', block, re.M)
-        if name and version:
-            packages.append(LockedPackage(name.group(1), version.group(1), location, rev))
-    return packages
+        if name not in names:
+            raise RuntimeError(f"unregistered gitlink repos/{name} at {selected}")
+        local = paths.get(name.lower())
+        if local is None or not local.is_dir():
+            raise RuntimeError(f"registered member {name} has no local object repository")
+        top_level = Path(git(local, "rev-parse", "--show-toplevel").strip()).resolve()
+        if top_level != local.resolve():
+            raise RuntimeError(f"registered member {name} has no independent object repository")
+        if name.lower() in links:
+            raise RuntimeError(f"registered identity {name} is duplicated by case")
+        links[name.lower()] = (name, fields[2], local)
+    missing = sorted(name for name in names if name.lower() not in links)
+    if missing:
+        raise RuntimeError(f"registered member {missing[0]} has no gitlink at {selected}")
+    return selected, links
+
+
+def check_revision(repository: Path, revision: str) -> RevisionCheck:
+    """Judge every committed member lock against one exact meta revision."""
+    try:
+        selected, links = selected_gitlinks(repository, revision)
+    except (RuntimeError, lockfile.GitUnavailable) as error:
+        return RevisionCheck("unresolved", (), (f"meta revision {revision}: {error}",), 0)
+    targets = {provider: pin for provider, (_, pin, _) in links.items()}
+    reports: list[str] = []
+    problems: list[str] = []
+    measured = 0
+    for provider in sorted(links):
+        name, pin, member = links[provider]
+        try:
+            texts = lockfile.tracked_texts(member, staged=False, revision=pin)
+        except lockfile.GitUnavailable as error:
+            problems.append(f"{name}@{pin}: selected object cannot be read: {error}")
+            continue
+        locks = sorted(path for path in texts if Path(path).name == "Cargo.lock")
+        if not locks:
+            problems.append(f"{name}@{pin}: no committed Cargo.lock")
+            continue
+        standalone, fixtures = lockfile.judge_locks(texts, locks)
+        problems.extend(f"{name}/{problem}" for problem in standalone)
+        fixture_set = set(fixtures)
+        for lock in locks:
+            report, findings = revision_lock_findings(
+                name, lock, texts[lock], targets, lock in fixture_set
+            )
+            reports.append(report)
+            problems.extend(findings)
+            measured += 1
+    return RevisionCheck(selected, tuple(reports), tuple(sorted(set(problems))), measured)
+
+
+def print_revision_check(result: RevisionCheck) -> int:
+    """Print revision evidence in stable member/lock order."""
+    print(f"selected meta revision: {result.revision}")
+    for report in result.reports:
+        print(report)
+    for problem in result.problems:
+        print(f"COHERENCE VIOLATION: {problem}", file=sys.stderr)
+    print(f"checked {result.locks} committed lock(s)")
+    return 1 if result.problems else 0
 
 
 def stale_packages(lock_text: str, targets: dict[str, str]) -> tuple[LockedPackage, ...]:
@@ -500,10 +650,18 @@ def main() -> int:
         "--heads", action="store_true",
         help="target every registered provider's fetched default-branch head (printed before any change)",
     )
+    parser.add_argument(
+        "--check-revision", metavar="META_REF",
+        help="read-only check of every committed member lock at an exact meta revision",
+    )
     parser.add_argument("--members", help="comma-separated member names to restrict the sweep to")
     parser.add_argument("--item", help="board item ID for the commits' Item: trailer")
     parser.add_argument("--open-prs", action="store_true", help="commit, push, and open one PR per consumer (default: dry run)")
     arguments = parser.parse_args()
+    if arguments.check_revision:
+        if arguments.target or arguments.heads or arguments.members or arguments.item or arguments.open_prs:
+            parser.error("--check-revision cannot be combined with sweep/update options")
+        return print_revision_check(check_revision(ROOT, arguments.check_revision))
     if not arguments.target and not arguments.heads:
         parser.error("name the merges: --target PROVIDER=REV (repeatable) or --heads")
 
