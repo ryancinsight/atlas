@@ -30,6 +30,28 @@ SPEC.loader.exec_module(cp)
 OWNER = "ryancinsight"
 
 
+def test_action_loads_by_path_without_sibling_on_sys_path():
+    probe = """
+import importlib.util
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location("isolated_crates_pending", path)
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+result = module.published_versions("isolated-fixture", lambda _url, _limit: (404, b""))
+sys.stdout.write(json.dumps(result))
+"""
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", probe, str(ACTION / "crates_pending.py")],
+        capture_output=True, text=True, timeout=30, check=False)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "null"
+
+
 class Registry:
     """Answers index and owners URLs from fixtures; records every URL asked."""
 

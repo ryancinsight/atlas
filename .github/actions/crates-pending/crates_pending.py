@@ -18,6 +18,7 @@ error: an outage must never read as "nothing to publish" or "never published".
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -25,22 +26,30 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable
 
-from artifact_evidence import (
-    ARTIFACT_PROFILE,
-    ArtifactContext,
-    ExpectedArtifacts,
-    IdentityError,
-    METADATA_LIMIT,
-    index_path,
-    parse_expected_artifacts,
-    published_checksum,
-    read_url,
-    sparse_index_versions,
-    verify_expected_artifacts,
-    validate_context as validate_artifact_context,
-)
+_EVIDENCE_PATH = Path(__file__).with_name("artifact_evidence.py")
+_EVIDENCE_SPEC = importlib.util.spec_from_file_location(
+    "atlas_crates_pending_artifact_evidence", _EVIDENCE_PATH)
+if _EVIDENCE_SPEC is None or _EVIDENCE_SPEC.loader is None:
+    raise RuntimeError("cannot load the crates-pending artifact evidence owner")
+_EVIDENCE = importlib.util.module_from_spec(_EVIDENCE_SPEC)
+sys.modules[_EVIDENCE_SPEC.name] = _EVIDENCE
+_EVIDENCE_SPEC.loader.exec_module(_EVIDENCE)
+
+ARTIFACT_PROFILE = _EVIDENCE.ARTIFACT_PROFILE
+ArtifactContext = _EVIDENCE.ArtifactContext
+ExpectedArtifacts = _EVIDENCE.ExpectedArtifacts
+IdentityError = _EVIDENCE.IdentityError
+METADATA_LIMIT = _EVIDENCE.METADATA_LIMIT
+index_path = _EVIDENCE.index_path
+parse_expected_artifacts = _EVIDENCE.parse_expected_artifacts
+published_checksum = _EVIDENCE.published_checksum
+read_url = _EVIDENCE.read_url
+sparse_index_versions = _EVIDENCE.sparse_index_versions
+verify_expected_artifacts = _EVIDENCE.verify_expected_artifacts
+validate_artifact_context = _EVIDENCE.validate_context
 
 WAIT_MARKER = "failed to select a version for the requirement"
 # cargo: failed to select a version for the requirement `hermes-simd = "^0.7.0"`
