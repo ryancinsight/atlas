@@ -15,10 +15,12 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import shlex
 import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -588,6 +590,8 @@ class GateFixture:
         env["CARGO"] = str(self.cargo_launcher)
         env["TMPDIR"] = self.tmp.as_posix()
         env["LOCKFILE_CALLS_LOG"] = str(self.lockfile_calls)
+        env["ATLAS_PRE_PUSH_RUNTIME"] = str(self.stack / "scripts")
+        env["ATLAS_PRE_PUSH_PYTHON"] = sys.executable
         if extra_env:
             env.update(extra_env)
         # Bytes, not text: on Windows a text-mode pipe translates `\n` to
@@ -683,7 +687,12 @@ def _seed_process_tree(stack: pathlib.Path) -> None:
     source = SCRIPT.parents[1]
     destination = stack / "scripts"
     destination.mkdir(parents=True, exist_ok=True)
-    for name in ("process_tree.py", "windows_process.py", "darwin_process.py"):
+    for name in (
+        "pre_push_gate.py",
+        "process_tree.py",
+        "windows_process.py",
+        "darwin_process.py",
+    ):
         target = destination / name
         if not target.exists():
             shutil.copy2(source / name, target)
@@ -747,7 +756,7 @@ def _recording_process_tree(deadline_log: pathlib.Path) -> str:
         "import pathlib, subprocess\n"
         "class ProcessTreeTimeout(Exception):\n    pass\n"
         "class ProcessTreeCleanupError(Exception):\n    pass\n"
-        "def run(command, *, input, timeout, env):\n"
+        "def run(command, *, input=None, timeout, env=None):\n"
         f"    with pathlib.Path({str(deadline_log)!r}).open('a', encoding='utf-8') as stream:\n"
         "        stream.write(f'{timeout}\\n')\n"
         "    return subprocess.run(command, input=input, env=env, capture_output=True)\n"
@@ -1419,7 +1428,7 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
                 {"CARGO_FAIL_LOG": "error: failed\n  --> @ROOT@/src/lib.rs:1:1"},
             )
 
-            self.assertEqual(code, 1)
+            self.assertEqual(code, 1, stderr)
             self.assertIn("clippy fails for tool", stderr)
             invocations = [json.loads(line) for line in identity_log.read_text(encoding="utf-8").splitlines()]
             self.assertEqual(len(invocations), 2)
@@ -1592,8 +1601,32 @@ class PhaseOwnershipTestCase(unittest.TestCase):
                 ["clippy", "nextest", "clippy", "nextest"],
             )
 
+    def test_missing_bootstrap_refuses_before_a_fetched_rescue_helper(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-bootstrap-") as temp:
+            fixture = _stacked_fixture(temp)
+            marker = fixture.stack / "rescue-ran"
+            _write(
+                fixture.stack / "scripts" / "git-hooks" / "rescue-push",
+                f"#!/usr/bin/env bash\nprintf ran > {shlex.quote(marker.as_posix())}\n",
+                executable=True,
+            )
+            _publish_stack_scripts(fixture.stack)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("main"),
+                extra_env={
+                    "ATLAS_PRE_PUSH_RUNTIME": "",
+                    "ATLAS_PRE_PUSH_PYTHON": "",
+                },
+                arguments=("origin", "fixture"),
+            )
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("installed process-tree bootstrap is unavailable", stderr)
+            self.assertFalse(marker.exists())
+
     def test_documentation_phase_runs_warning_denied_rustdoc(self) -> None:
-        """The public phase accepts valid links and rejects a broken link."""
+        """Default push and the public phase reject warning-level doc defects."""
         cargo = shutil.which("cargo", path=os.environ.get("PATH"))
         self.assertIsNotNone(cargo, "the Rust toolchain is required for this end-to-end test")
         with tempfile.TemporaryDirectory(prefix="atlas-gate-rustdoc-") as temp:
@@ -1602,11 +1635,14 @@ class PhaseOwnershipTestCase(unittest.TestCase):
                 '[workspace]\nresolver = "2"\nmembers = ["crates/foo"]\n',
                 encoding="utf-8",
             )
+            fixture.set_workspace_packages(["foo"])
             source = fixture.root / "crates" / "foo" / "src" / "lib.rs"
             source.write_text(
                 "pub struct PresentType;\n\n"
                 "/// Returns a [`PresentType`].\n"
-                "pub fn documented() -> PresentType { PresentType }\n",
+                "pub fn documented() -> PresentType {\n"
+                "    PresentType\n"
+                "}\n",
                 encoding="utf-8",
             )
             subprocess.run(
@@ -1626,6 +1662,14 @@ class PhaseOwnershipTestCase(unittest.TestCase):
             }
 
             code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("main"),
+                extra_env=environment,
+                arguments=("origin", "fixture"),
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("rustdoc completed", stderr)
+
+            code, stderr = fixture.run_hook(
                 "", extra_env=environment, arguments=("documentation", valid, base)
             )
             self.assertEqual(code, 0, stderr)
@@ -1639,6 +1683,16 @@ class PhaseOwnershipTestCase(unittest.TestCase):
             )
             _commit_all(fixture.root, "broken documentation")
             broken = _git(fixture.root, "rev-parse", "HEAD")
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("broken-doc-link"),
+                extra_env=environment,
+                arguments=("origin", "fixture"),
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("unresolved link to `MissingType`", stderr)
+            self.assertIn("rustdoc fails for foo", stderr)
+            self.assertIn("rustdoc started", stderr)
 
             code, stderr = fixture.run_hook(
                 "", extra_env=environment, arguments=("documentation", broken, valid)
@@ -2691,6 +2745,8 @@ class LaneGateTestCase(unittest.TestCase):
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
         env["CARGO"] = str(fixture.cargo_launcher)
         env["TMPDIR"] = fixture.tmp.as_posix()
+        env["ATLAS_PRE_PUSH_RUNTIME"] = str(fixture.stack / "scripts")
+        env["ATLAS_PRE_PUSH_PYTHON"] = sys.executable
         env.pop("CARGO_TARGET_DIR", None)
         env.update(extra_env or {})
         _publish_stack_scripts(lane.parents[1])
@@ -3328,6 +3384,8 @@ class DebtRatchetTestCase(unittest.TestCase):
         env = dict(os.environ)
         env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
         env["TMPDIR"] = fixture.tmp.as_posix()
+        env["ATLAS_PRE_PUSH_RUNTIME"] = str(fixture.stack / "scripts")
+        env["ATLAS_PRE_PUSH_PYTHON"] = sys.executable
         # The fixture's package metadata names the main tree, so the compile
         # gate is out of scope; the ratchet precedes it and this variable does
         # not skip it.

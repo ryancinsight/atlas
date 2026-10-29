@@ -103,6 +103,8 @@ class HookBranchPushTestCase(unittest.TestCase):
 
     def _commit_after_init(self, repo: Path) -> str:
         self._git(repo, "init", "-q", "-b", "main")
+        self._git(repo, "config", "user.email", "t@t")
+        self._git(repo, "config", "user.name", "t")
         return self._commit(repo, "base")
 
     def test_push_uses_absent_and_ancestral_remote_tip_leases(self) -> None:

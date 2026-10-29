@@ -485,6 +485,16 @@ class HookInstallTestCase(unittest.TestCase):
             f"scripts/git-hooks/{name}": ("100755", content)
             for name, content in hooks.items()
         }
+        for name in (
+            "pre_push_gate.py",
+            "process_tree.py",
+            "windows_process.py",
+            "darwin_process.py",
+        ):
+            entries[f"scripts/{name}"] = (
+                "100644",
+                (SCRIPT.parent / name).read_bytes(),
+            )
         entries.update(
             {path: ("100644", content) for path, content in (files or {}).items()}
         )
@@ -547,6 +557,12 @@ class HookInstallTestCase(unittest.TestCase):
         common = self.git(self.atlas, "rev-parse", "--path-format=absolute", "--git-common-dir")
         return Path(common) / "atlas-hooks"
 
+    def runtime_dir(self, shims: Path) -> Path:
+        source = self.git(
+            self.atlas, "show-ref", "--verify", "--hash", "refs/remotes/origin/main"
+        )
+        return shims / "pre-push-runtime" / source
+
     def test_members_run_origin_main_hooks_and_custom_paths_stay(self) -> None:
         self.publish({
             "pre-push": owned_hook("owned-1"),
@@ -577,7 +593,29 @@ class HookInstallTestCase(unittest.TestCase):
              "running": shims.as_posix(), "custom": "D:/elsewhere/hooks"},
         )
         # Git runs no `rescue-push`, so it gets no shim.
-        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["pre-commit", "pre-push"])
+        self.assertEqual(
+            sorted(p.name for p in shims.iterdir()),
+            ["pre-commit", "pre-push", "pre-push-runtime"],
+        )
+        runtime = self.runtime_dir(shims)
+        self.assertEqual(
+            sorted(path.name for path in runtime.iterdir()),
+            [
+                "darwin_process.py",
+                "pre_push_gate.py",
+                "process_tree.py",
+                "python",
+                "windows_process.py",
+            ],
+        )
+        self.assertEqual(
+            (runtime / "pre_push_gate.py").read_bytes(),
+            (SCRIPT.parent / "pre_push_gate.py").read_bytes(),
+        )
+        self.assertEqual(
+            (runtime / "python").read_text(encoding="utf-8"),
+            Path(sys.executable).resolve().as_posix(),
+        )
         # Two arguments, the second holding a space, each passed whole.
         expected = "argc=2 [origin] [my url] <refs/heads/x 1111 refs/heads/x 0000>"
         self.assertEqual(self.run_hook(self.repos / "unset"), f"owned-1 {expected}")
@@ -588,7 +626,88 @@ class HookInstallTestCase(unittest.TestCase):
         # A hook origin/main dropped loses its shim at the next install.
         self.publish({"pre-push": owned_hook("owned-2")})
         self.install(list(initial), code=1)
-        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["blobs", "pre-push"])
+        self.assertEqual(
+            sorted(p.name for p in shims.iterdir()),
+            ["blobs", "pre-push", "pre-push-runtime"],
+        )
+
+    def test_pre_push_refuses_before_git_when_the_supervisor_is_missing(self) -> None:
+        """The installed timer owns even the shim's fetched-object lookups."""
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        (self.runtime_dir(shims) / "pre_push_gate.py").unlink()
+        marker = Path(self._tmp.name) / "git-ran"
+        fake_bin = Path(self._tmp.name) / "fake-bin"
+        fake_bin.mkdir()
+        fake_git = fake_bin / "git"
+        fake_git.write_text(
+            "#!/usr/bin/env bash\nprintf ran > \"$ATLAS_SHIM_GIT_MARKER\"\nexit 91\n",
+            encoding="utf-8",
+        )
+        fake_git.chmod(0o755)
+
+        run = self.run_shim(
+            shims,
+            path=str(fake_bin),
+            ATLAS_SHIM_GIT_MARKER=str(marker),
+        )
+        output, error = run.communicate(b"", timeout=60)
+
+        self.assertEqual((run.returncode, output), (1, b""), error.decode())
+        self.assertIn("installed process-tree bootstrap is unavailable", error.decode())
+        self.assertFalse(marker.exists())
+
+    def test_pre_push_source_lookup_runs_inside_one_600_second_owner(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        runtime = self.runtime_dir(shims)
+        deadline = Path(self._tmp.name) / "deadline"
+        (runtime / "process_tree.py").write_text(
+            "import os\n"
+            "from pathlib import Path\n"
+            "import subprocess\n"
+            "class ProcessTreeTimeout(Exception):\n"
+            "    pass\n"
+            "class ProcessTreeCleanupError(Exception):\n"
+            "    pass\n"
+            "def run(command, *, cwd=None, env=None, input=None, timeout):\n"
+            "    Path(os.environ['ATLAS_TEST_DEADLINE']).write_text(str(timeout))\n"
+            "    child_env = dict(env or os.environ)\n"
+            "    child_env['ATLAS_TEST_BOUNDED'] = '1'\n"
+            "    return subprocess.run(command, cwd=cwd, env=child_env, input=input, "
+            "capture_output=True)\n",
+            encoding="utf-8",
+        )
+        marker = Path(self._tmp.name) / "unbounded-git"
+        fake_bin = Path(self._tmp.name) / "bounded-fake-bin"
+        fake_bin.mkdir()
+        fake_git = fake_bin / "git"
+        fake_git.write_text(
+            "#!/usr/bin/env bash\n"
+            "if [ \"${ATLAS_TEST_BOUNDED:-}\" != 1 ]; then\n"
+            "  printf unbounded > \"$ATLAS_TEST_UNBOUNDED_GIT\"\n"
+            "  exit 92\n"
+            "fi\n"
+            "exec \"$ATLAS_TEST_REAL_GIT\" \"$@\"\n",
+            encoding="utf-8",
+        )
+        fake_git.chmod(0o755)
+
+        run = self.run_shim(
+            shims,
+            path=str(fake_bin),
+            ATLAS_TEST_DEADLINE=str(deadline),
+            ATLAS_TEST_UNBOUNDED_GIT=str(marker),
+            ATLAS_TEST_REAL_GIT=shutil.which("git") or "git",
+        )
+        output, error = run.communicate(
+            b"refs/heads/x 1111 refs/heads/x 0000\n", timeout=60
+        )
+
+        self.assertEqual(run.returncode, 0, error.decode())
+        self.assertEqual(deadline.read_text(encoding="utf-8"), "600")
+        self.assertFalse(marker.exists())
+        self.assertIn(b"owned argc=2 [origin] [url]", output)
 
     def submodule_member(self, name: str) -> Path:
         """A member as the stack holds one: a submodule of the Atlas repository,
@@ -732,7 +851,10 @@ class HookInstallTestCase(unittest.TestCase):
         self.member("alpha")
         self.install(["alpha"])
         shims = self.shim_dir()
-        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["pre-commit", "pre-push"])
+        self.assertEqual(
+            sorted(p.name for p in shims.iterdir()),
+            ["pre-commit", "pre-push", "pre-push-runtime"],
+        )
         run = self.run_shim(shims)
         _, err = run.communicate(b"", timeout=60)
         self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
@@ -979,7 +1101,10 @@ class HookInstallTestCase(unittest.TestCase):
                 patch.object(_lock_form, "registered_member_names", return_value=["alpha"]):
             self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), 1)
         self.assertIn("fetch it first", stdout.getvalue())
-        self.assertEqual(sorted(p.name for p in self.shim_dir().iterdir()), ["pre-push"])
+        self.assertEqual(
+            sorted(p.name for p in self.shim_dir().iterdir()),
+            ["pre-push", "pre-push-runtime"],
+        )
 
     def test_install_reads_the_source_ref_in_the_atlas_repository(self) -> None:
         """An inherited `GIT_DIR` naming another repository must not divert the
@@ -998,7 +1123,10 @@ class HookInstallTestCase(unittest.TestCase):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             shims = _lock_form.write_hook_shims(self.atlas)
-        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["pre-push"])
+        self.assertEqual(
+            sorted(p.name for p in shims.iterdir()),
+            ["pre-push", "pre-push-runtime"],
+        )
         self.assertEqual(
             stdout.getvalue().splitlines(),
             ["install-hooks: removed the pre-commit shim; "
@@ -1464,6 +1592,8 @@ class HookInstallTestCase(unittest.TestCase):
     def test_a_failed_write_runs_nothing_and_leaves_no_partial(self) -> None:
         """origin/main names a hook blob the object store lacks, and the cache
         holds a corrupt copy: the shim refuses without running either."""
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
         missing = "1" * 40
 
         def mktree(entry: str) -> str:
@@ -1480,7 +1610,6 @@ class HookInstallTestCase(unittest.TestCase):
             self.atlas, "-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", top, "-m", "gone",
         )
         self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
-        shims = _lock_form.write_hook_shims(self.atlas)
         corrupt = shims / "blobs" / missing
         corrupt.parent.mkdir()
         corrupt.write_bytes(b"#!/usr/bin/env bash\necho CORRUPT-CACHE-RAN\n")

@@ -15,10 +15,16 @@
   invokes `pre-push documentation <candidate> [<base>]`, which uses the same
   committed hook, pushed-revision export, package selection, shared target, and
   source-identity lease protocol to run real public Rustdoc with warnings
-  denied. Both production entry points run under the stack process-tree owner
-  with a 600-second deadline; timeout reports the active stage and final bounded
-  log bytes. No record substitutes for running documentation, and required CI
-  remains the merge authority. This opt-in prevents one 405-second Moirai
+  denied. `install-hooks` installs the stack process-tree modules and their
+  exact Python interpreter beside the immutable hook shims. The installed
+  pre-push shim enters that trusted local supervisor before even its source-ref
+  Git lookup; the fetched hook reuses that ownership for its helpers, ref
+  guards, interpreter probes, cache cleanup, and archive. The one 600-second
+  deadline therefore covers the complete push, including every ref; a missing
+  bootstrap fails closed and setup never occurs inside a push.
+  Timeout reports the active stage and final bounded log bytes. No record
+  substitutes for running documentation, and required CI remains the merge
+  authority. This opt-in prevents one 405-second Moirai
   Rustdoc run from exceeding the aggregate push deadline after the push-owned
   checks without reducing coverage for other members.
 - Revision: 2026-10-01 — A path package is identified by its own directory's files, never its repository (ATLAS-IDENTITY-MEMBER-SCOPE). Its record identity is a digest of its `HEAD` entries and of its share of the working tree's changes, each file belonging to the deepest path-package directory containing it, so a commit editing one member moves no other member's record: in a real-Cargo workspace where `a` depends on `b` and `c` is independent, a commit editing `c` cleaned `a b c`, and now cleans `c` alone. The files a package's units read outside its directory, named by Cargo's dep-info and its build scripts' `rerun-if-changed`, are a new record field, `inputs`, hashed again on every run. The repository's revision and tree digest stay in the record for diagnostics, lease ownership and the mid-build guard, and still decide a run of declared artifact paths. Record version is 7, so each member's first push under it finds no current record and cleans its path packages once.
@@ -156,8 +162,9 @@ Nextest, warning-denied Rustdoc, and the final identity read. A workspace whose
 exported candidate sets `workspace.metadata.atlas.documentation-phase` to
 `"pre-merge"` omits only Rustdoc from that sequence. The explicit documentation
 sequence holds the documented subset through warning-denied Rustdoc and its
-final identity read regardless of that setting. Each entry point has one
-600-second process-tree deadline. Every step uses
+final identity read regardless of that setting. Each entry point has one total
+600-second process-tree deadline established by the installed local supervisor
+before the hook reads pushed refs or fetched tools. Every step uses
 the committed lock; records require command success and unchanged final source
 and dependencies. Other build entry points reuse the same modules and protocol.
 

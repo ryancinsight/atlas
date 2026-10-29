@@ -65,12 +65,23 @@ set -euo pipefail
 # warning-denied public documentation command on the same prepared export.
 # `--bounded-phase` is the runner-owned re-entry and still runs every guard.
 gate_phase="push"
-gate_bounded=0
+gate_bounded="${ATLAS_GATE_BOUNDED:-0}"
+unset ATLAS_GATE_BOUNDED
+case "$gate_bounded" in
+  0 | 1) ;;
+  *) echo "pre-push: BLOCKED -- invalid process-tree ownership marker" >&2; exit 2 ;;
+esac
 gate_needs_deadline=0
 documentation_tip=""
 documentation_base=""
 bounded_prepared_selected=0
 bounded_prepared_tools=""
+original_arguments=("$@")
+if [ "${1:-}" = "--bounded-entry" ]; then
+  gate_bounded=1
+  shift
+  original_arguments=("$@")
+fi
 case "${1:-}" in
   documentation)
     gate_phase="documentation"
@@ -100,6 +111,28 @@ case "${1:-}" in
     [ "$#" -eq 0 ] || gate_needs_deadline=1
     ;;
 esac
+
+# The total wall owner enters before any Git call, fetched helper, ref guard,
+# interpreter probe, cache cleanup, or archive. Setup installs this trusted
+# local bootstrap beside the hook shims, which enter it before loading this
+# source. Direct source invocations, including tests, name a trusted runtime
+# explicitly. A missing bootstrap refuses rather than performing unbounded
+# setup during the push.
+if [ "$gate_needs_deadline" -eq 1 ] && [ "$gate_bounded" -eq 0 ]; then
+  pre_push_runtime="${ATLAS_PRE_PUSH_RUNTIME:-}"
+  pre_push_python="${ATLAS_PRE_PUSH_PYTHON:-}"
+  if [ -z "$pre_push_python" ] && [ -f "$pre_push_runtime/python" ]; then
+    IFS= read -r pre_push_python < "$pre_push_runtime/python" || true
+  fi
+  pre_push_supervisor="$pre_push_runtime/pre_push_gate.py"
+  if [ -z "$pre_push_python" ] || [ ! -f "$pre_push_supervisor" ]; then
+    echo "pre-push: BLOCKED -- the installed process-tree bootstrap is unavailable; run scripts/atlas-lock-form.py install-hooks from the fetched Atlas default" >&2
+    exit 1
+  fi
+  unset MSYS_NO_PATHCONV
+  exec "$pre_push_python" -I "$pre_push_supervisor" \
+    direct "$gate_phase" "${BASH_SOURCE[0]}" "${original_arguments[@]}"
+fi
 
 # The lockfile section below still runs unconditionally; only the
 # no-manifest-in-range skip further down (evidence, not a bypass) can
@@ -733,75 +766,6 @@ stack_scripts=""
 if [ -n "$stack_baseline" ]; then
   extract_stack_scripts "$stack_baseline"
   stack_scripts="$extracted_stack_scripts"
-fi
-
-# The actual production push and documentation phases own a committed
-# ten-minute wall bound. The stack's process-tree runner gives every descendant
-# one Windows Job Object or POSIX process group, so timeout and interruption
-# retire Cargo, rustc, rustdoc, and Git children together. The bounded child
-# receives the exact ref protocol already validated above and repeats every
-# source, dependency, export, selection, and identity guard.
-if [ "$gate_needs_deadline" -eq 1 ] && [ "$gate_bounded" -eq 0 ]; then
-  process_tree_module="${stack_scripts:+$stack_scripts/process_tree.py}"
-  if [ -z "$python_bin" ] || [ ! -f "$process_tree_module" ]; then
-    echo "pre-push: BLOCKED -- the stack process-tree runner is unavailable; $gate_phase was not run" >&2
-    exit 1
-  fi
-  new_run_temp phase_progress pg-progress
-  phase_input="$(printf '%s\n' "${content_lines[@]}")"
-  set +e
-  "$python_bin" -I -c '
-import os
-import pathlib
-import sys
-
-sys.path.insert(0, sys.argv[1])
-import process_tree
-
-phase, hook, progress, prepared_selected, prepared_tools = sys.argv[2:7]
-payload = sys.argv[7].encode("utf-8") + b"\n"
-environment = os.environ.copy()
-environment["ATLAS_GATE_PROGRESS_DIR"] = progress
-command = [
-    "bash", hook, "--bounded-phase", phase, prepared_selected, prepared_tools,
-]
-
-def emit(value, stream):
-    if value:
-        stream.buffer.write(value)
-        stream.flush()
-
-def progress_report():
-    marker = pathlib.Path(progress, "stages.log")
-    if marker.is_file():
-        print("pre-push: bounded stage timings:", file=sys.stderr)
-        print(marker.read_text(encoding="utf-8", errors="replace"), end="", file=sys.stderr)
-
-try:
-    result = process_tree.run(command, input=payload, timeout=600, env=environment)
-except process_tree.ProcessTreeTimeout as error:
-    emit(error.output, sys.stdout)
-    emit(error.stderr, sys.stderr)
-    progress_report()
-    log = pathlib.Path(progress, "gate.log")
-    if log.is_file():
-        tail = log.read_bytes()[-32768:]
-        print("pre-push: final bounded gate log bytes:", file=sys.stderr)
-        emit(tail, sys.stderr)
-    print(f"pre-push: BLOCKED -- {phase} phase exceeded 600 seconds; its process tree was retired", file=sys.stderr)
-    raise SystemExit(124)
-except process_tree.ProcessTreeCleanupError as error:
-    print(f"pre-push: BLOCKED -- {phase} phase cleanup failed: {error}", file=sys.stderr)
-    raise SystemExit(1)
-emit(result.stdout, sys.stdout)
-emit(result.stderr, sys.stderr)
-progress_report()
-raise SystemExit(result.returncode)
-' "$stack_scripts" "$gate_phase" "${BASH_SOURCE[0]}" "$phase_progress" \
-    "$prepared_tools_selected" "$prepared_tools" "$phase_input"
-  bounded_status=$?
-  set -e
-  exit "$bounded_status"
 fi
 
 # A production multi-ref push enters the process-tree supervisor once with
