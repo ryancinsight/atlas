@@ -34,6 +34,7 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path, PurePosixPath
+from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lockfile  # noqa: E402
@@ -75,6 +76,14 @@ HEADER = f"""{BEGIN}
 # Regenerate:  python scripts/atlas-stack-overlay.py generate
 # Check lag:   python scripts/atlas-stack-overlay.py check
 """
+
+
+class PackageFact(NamedTuple):
+    """One package declaration retained with its manifest location and version."""
+
+    name: str
+    path: Path
+    version: str | None
 
 
 def _skip(path: Path) -> bool:
@@ -275,26 +284,38 @@ def read_manifests(pinned: bool, tips: bool = False) -> list[tuple[Path, str]]:
     return sorted(manifests)
 
 
-def load_packages(
-    manifests: list[tuple[Path, str]],
-) -> dict[str, tuple[Path, str | None]]:
-    packages: dict[str, tuple[Path, str | None]] = {}
+def load_package_facts(manifests: list[tuple[Path, str]]) -> tuple[PackageFact, ...]:
+    """Parse every package declaration without collapsing repeated names."""
+    parsed: list[tuple[Path, dict[str, object]]] = []
     workspace_versions: dict[Path, str] = {}
-
     for rel, text in manifests:
         try:
             data = tomllib.loads(text)
-        except tomllib.TOMLDecodeError:
-            continue
-        ws = data.get("workspace", {}).get("package", {})
+        except tomllib.TOMLDecodeError as error:
+            raise ValueError(f"{rel / 'Cargo.toml'} does not parse") from error
+        parsed.append((rel, data))
+        workspace = data.get("workspace")
+        ws = workspace.get("package", {}) if isinstance(workspace, dict) else {}
         if "version" in ws:
             workspace_versions[rel] = ws["version"]
 
-    for rel, text in manifests:
-        try:
-            data = tomllib.loads(text)
-        except tomllib.TOMLDecodeError:
+    directories = tuple(PurePosixPath(rel.as_posix()) for rel, _ in parsed)
+    for rel, data in parsed:
+        workspace = data.get("workspace")
+        if not isinstance(workspace, dict) or "members" not in workspace:
             continue
+        members = workspace["members"]
+        if not isinstance(members, list) or not all(isinstance(member, str) for member in members):
+            raise ValueError(f"{rel / 'Cargo.toml'} has unreadable workspace members")
+        for member in members:
+            pattern = lockfile.workspace_relative(PurePosixPath(rel.as_posix()), member)
+            if not any(lockfile.directory_pattern_matches(pattern, path) for path in directories):
+                raise ValueError(
+                    f"{rel / 'Cargo.toml'} declares workspace member {member!r} without a manifest"
+                )
+
+    facts: list[PackageFact] = []
+    for rel, data in parsed:
         pkg = data.get("package")
         if not pkg or "name" not in pkg:
             continue
@@ -312,8 +333,30 @@ def load_packages(
                         version = ver
         if not isinstance(version, str):
             version = None
+        facts.append(PackageFact(pkg["name"], rel, version))
+    return tuple(facts)
 
-        packages[pkg["name"]] = (rel, version)
+
+def package_versions(facts: tuple[PackageFact, ...]) -> dict[str, frozenset[str | None]]:
+    """Index every declared version without collapsing repeated package names."""
+    versions: dict[str, set[str | None]] = {}
+    for fact in facts:
+        versions.setdefault(fact.name, set()).add(fact.version)
+    return {name: frozenset(found) for name, found in versions.items()}
+
+
+def load_packages(
+    manifests: list[tuple[Path, str]],
+) -> dict[str, tuple[Path, str | None]]:
+    """Index package facts by unique name for overlay generation."""
+    packages: dict[str, tuple[Path, str | None]] = {}
+    for fact in load_package_facts(manifests):
+        if fact.name in packages:
+            previous = packages[fact.name][0]
+            raise ValueError(
+                f"package {fact.name!r} is declared by both {previous} and {fact.path}"
+            )
+        packages[fact.name] = (fact.path, fact.version)
     return packages
 
 
@@ -780,7 +823,10 @@ def main() -> int:
         return 0
 
     manifests = read_manifests(args.pinned, args.tips)
-    packages = load_packages(manifests)
+    try:
+        packages = load_packages(manifests)
+    except ValueError as error:
+        parser.error(str(error))
     source = "tips" if args.tips else ("pins" if args.pinned else "working tree")
     if args.mode == "generate":
         block, missing, lag = build_overlay(packages, manifests)

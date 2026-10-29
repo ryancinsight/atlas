@@ -342,6 +342,33 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
 
             self.assertEqual(packages["provider"], (Path("repos/provider"), "1.2.3"))
 
+    def test_declared_workspace_member_requires_a_manifest(self) -> None:
+        manifests = [
+            (
+                Path("repos/provider"),
+                '[workspace]\nmembers = ["crates/missing"]\n',
+            )
+        ]
+        with self.assertRaisesRegex(ValueError, "crates/missing.*without a manifest"):
+            _overlay.load_package_facts(manifests)
+
+    def test_repeated_package_names_remain_complete_but_cannot_index(self) -> None:
+        manifests = [
+            (Path("repos/provider/one"), '[package]\nname = "shared"\nversion = "0.1.0"\n'),
+            (Path("repos/provider/two"), '[package]\nname = "shared"\nversion = "9.9.9"\n'),
+        ]
+        facts = _overlay.load_package_facts(manifests)
+        self.assertEqual(
+            [(fact.name, fact.path, fact.version) for fact in facts],
+            [
+                ("shared", Path("repos/provider/one"), "0.1.0"),
+                ("shared", Path("repos/provider/two"), "9.9.9"),
+            ],
+        )
+        self.assertEqual(_overlay.package_versions(facts)["shared"], frozenset({"0.1.0", "9.9.9"}))
+        with self.assertRaisesRegex(ValueError, "declared by both"):
+            _overlay.load_packages(manifests)
+
     def test_worktree_package_cannot_replace_canonical_package(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
             root = Path(root_text)
