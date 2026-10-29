@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 import hashlib
+from http.client import HTTPException
 import io
 import json
 import os
@@ -29,6 +30,10 @@ VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
 
 class IdentityError(ValueError):
     """A release identity is absent, ambiguous, or inconsistent."""
+
+
+class RegistryTransportError(IdentityError):
+    """A transient network failure prevented a complete registry response."""
 
 
 def unique_object(pairs):
@@ -173,8 +178,8 @@ def read_url(url, limit):
         if error.code != 404:
             raise IdentityError(f"registry HTTP status {error.code}: {url}") from error
         response = error
-    except (URLError, TimeoutError) as error:
-        raise IdentityError(f"registry request failed: {url}: {error}") from error
+    except (URLError, TimeoutError, OSError) as error:
+        raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
     with response:
         if response.status not in (200, 404):
             raise IdentityError(f"registry HTTP status {response.status}: {url}")
@@ -184,7 +189,10 @@ def read_url(url, limit):
                 or len(transfers) > 1 or (lengths and transfers)
                 or (transfers and transfers[0].lower() != "chunked")):
             raise IdentityError("malformed or inconsistent registry HTTP framing")
-        body = response.read(limit + 1)
+        try:
+            body = response.read(limit + 1)
+        except (OSError, HTTPException) as error:
+            raise RegistryTransportError(f"registry response failed: {url}: {error}") from error
         if lengths and len(body) != int(lengths[0]):
             raise IdentityError("incomplete registry HTTP body")
     if len(body) > limit:

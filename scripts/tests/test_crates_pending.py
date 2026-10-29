@@ -180,6 +180,24 @@ class SelectTests(unittest.TestCase):
                 with self.assertRaises(cp.RegistryError):
                     cp.select({"packages": [pkg("bumped", "1.1.0")]}, OWNER, registry, no_sleep)
 
+    def test_duplicate_owners_keys_cannot_replace_a_foreign_owner(self) -> None:
+        body = (b'{"users":[{"login":"foreign"}],'
+                b'"users":[{"login":"ryancinsight"}]}')
+        with self.assertRaisesRegex(cp.RegistryError, "duplicate JSON key: users"):
+            cp.owners("bumped", lambda _url, _limit: (200, body))
+
+    def test_owner_schema_requires_nonempty_string_logins(self) -> None:
+        bodies = [b'{}', b'{"users":{}}', b'{"users":[{}]}',
+                  b'{"users":[{"login":""}]}', b'{"users":[{"login":7}]}']
+        for body in bodies:
+            with self.subTest(body=body), \
+                    self.assertRaisesRegex(cp.RegistryError, "malformed crates.io owners response"):
+                cp.owners("bumped", lambda _url, _limit, value=body: (200, value))
+
+    def test_owner_schema_preserves_documented_extra_fields(self) -> None:
+        body = b'{"users":[{"login":"ryancinsight","id":7}],"meta":{"total":1}}'
+        self.assertEqual(cp.owners("bumped", lambda _url, _limit: (200, body)), [OWNER])
+
     def test_owners_requests_follow_the_crawler_interval(self) -> None:
         slept = []
         cp.select({"packages": [pkg("a", "0.2.0"), pkg("b", "0.2.0")]}, OWNER,

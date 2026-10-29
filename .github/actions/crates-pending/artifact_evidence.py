@@ -20,6 +20,7 @@ _SPEC.loader.exec_module(_IDENTITY)
 COMMIT, PACKAGE_NAME, SHA256 = _IDENTITY.COMMIT, _IDENTITY.NAME, _IDENTITY.SHA256
 METADATA_LIMIT = _IDENTITY.METADATA_LIMIT
 IdentityError = _IDENTITY.IdentityError
+RegistryTransportError = _IDENTITY.RegistryTransportError
 index_path = _IDENTITY.index_path
 parse_json = _IDENTITY.parse_json
 read_url = _IDENTITY.read_url

@@ -134,7 +134,7 @@ def parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
 
 
 def main(argv: Sequence[str] | None = None,
-         fetch: drift.Fetch = drift.crates_pending.read_url) -> int:
+         fetch: drift.Fetch = drift.REGISTRY_POLICY) -> int:
     options = parse_arguments(argv)
     only = tuple(name.strip() for name in options.package.split(",") if name.strip())
     try:

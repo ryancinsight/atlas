@@ -42,6 +42,7 @@ ARTIFACT_PROFILE = _EVIDENCE.ARTIFACT_PROFILE
 ArtifactContext = _EVIDENCE.ArtifactContext
 ExpectedArtifacts = _EVIDENCE.ExpectedArtifacts
 IdentityError = _EVIDENCE.IdentityError
+RegistryTransportError = _EVIDENCE.RegistryTransportError
 METADATA_LIMIT = _EVIDENCE.METADATA_LIMIT
 index_path = _EVIDENCE.index_path
 parse_expected_artifacts = _EVIDENCE.parse_expected_artifacts
@@ -92,7 +93,17 @@ def owners(name: str, fetch: Fetch = read_url) -> list[str]:
         raise RegistryError(str(error)) from error
     if status != 200:
         raise RegistryError(f"crates.io owners API returned HTTP {status} for {name}")
-    return [user["login"] for user in json.loads(body)["users"]]
+    try:
+        response = _EVIDENCE.parse_json(body)
+        users = response.get("users") if isinstance(response, dict) else None
+        if (not isinstance(users, list)
+                or any(not isinstance(user, dict)
+                       or not isinstance(user.get("login"), str) or not user["login"]
+                       for user in users)):
+            raise IdentityError("malformed crates.io owners response")
+        return [user["login"] for user in users]
+    except (IdentityError, KeyError, TypeError, ValueError) as error:
+        raise RegistryError(f"malformed crates.io owners response for {name}: {error}") from error
 
 
 def publishable(package: dict) -> bool:

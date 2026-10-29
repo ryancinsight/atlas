@@ -57,9 +57,10 @@ def published_beta(source: str = BETA_SOURCE) -> bytes:
 class BumpGuardTestCase(unittest.TestCase):
     """A member pull request: `base` is the merge target, `head` the pull request."""
 
-    def test_default_transport_is_the_canonical_bounded_reader(self) -> None:
+    def test_default_policy_uses_the_canonical_bounded_reader(self) -> None:
         default = inspect.signature(guard.main).parameters["fetch"].default
-        self.assertIs(default, guard.drift.crates_pending.read_url)
+        self.assertIs(default, guard.drift.REGISTRY_POLICY)
+        self.assertIs(default.reader, guard.drift.crates_pending.read_url)
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="atlas-bump-guard-test-")
