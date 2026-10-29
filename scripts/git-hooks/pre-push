@@ -6,8 +6,9 @@
 # range must stay within the artifact budgets, add no credential, and raise no
 # debt class above the member's recorded baseline; shared artifacts must match
 # their source identity; and the packages the push changes must pass fmt, Clippy,
-# and Nextest. Pull-request readiness invokes this entry point's documentation
-# phase for warning-denied Rustdoc. CI confirms both phases.
+# Nextest, and warning-denied Rustdoc. A candidate workspace may move Rustdoc
+# to this entry point's explicit documentation phase through the metadata
+# contract below. CI confirms both phases.
 #
 # Refuse a push whose Cargo.lock cannot resolve under `--locked`.
 #
@@ -1320,6 +1321,43 @@ run_cargo_workspace_gate() {
     echo "pre-push: BLOCKED -- selected Cargo workspace manifest $workspace_manifest is missing from $gate_sha" >&2
     exit 1
   fi
+  # Rustdoc remains push-owned unless the exported candidate opts into the
+  # pre-merge documentation phase. Reading the live checkout or an environment
+  # variable would let peer dirt or the invoking shell change which gate the
+  # pushed revision receives.
+  local documentation_ownership="pre-push"
+  if [ -n "$python_bin" ]; then
+    if ! documentation_ownership="$("$python_bin" - "$gate_manifest_path" <<'PY'
+import pathlib
+import sys
+import tomllib
+
+manifest = pathlib.Path(sys.argv[1])
+try:
+    with manifest.open("rb") as stream:
+        document = tomllib.load(stream)
+except tomllib.TOMLDecodeError:
+    # Cargo metadata below owns malformed-manifest diagnostics. This parser
+    # decides only the Atlas metadata value in an otherwise valid manifest.
+    print("pre-push")
+    raise SystemExit(0)
+workspace = document.get("workspace", {})
+metadata = workspace.get("metadata", {}) if isinstance(workspace, dict) else {}
+atlas = metadata.get("atlas", {}) if isinstance(metadata, dict) else {}
+if not isinstance(atlas, dict):
+    raise SystemExit("workspace.metadata.atlas must be a table")
+value = atlas.get("documentation-phase", "pre-push")
+if value not in {"pre-push", "pre-merge"}:
+    raise SystemExit(
+        "workspace.metadata.atlas.documentation-phase must be 'pre-push' or 'pre-merge'"
+    )
+print(value)
+PY
+    )"; then
+      echo "pre-push: BLOCKED -- invalid documentation phase in $workspace_manifest" >&2
+      exit 1
+    fi
+  fi
   # Leading space: the steps render as `cargo doc --no-deps$gate_specs`, and
   # without it the flag joins the subcommand ("--no-deps--manifest-path").
   gate_manifest=" --manifest-path $gate_manifest_path"
@@ -1336,14 +1374,26 @@ run_cargo_workspace_gate() {
     fi
   fi
 
+# Package selection, testability, and documentation ownership all read the
+# same exported workspace graph. Cargo metadata is an input discovery step,
+# not a per-question command; repeating it serializes identical Cargo work and
+# can consume the bounded gate before a build begins.
+local workspace_metadata
+if ! workspace_metadata="$(
+  cd "$gate_command_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest
+)"; then
+  echo "pre-push: cargo metadata could not establish testable packages" >&2
+  echo "pre-push: push anyway with SKIP_LOCAL_GATE=1 git push" >&2
+  exit 1
+fi
+
 # Packages with no target nextest can run (a `test = false` cdylib such as a
 # PyO3 extension) produce no test artifact, so the source-identity checker would
 # report "no artifact found" for a package the tests stage has nothing to build.
 # Cargo metadata marks each target with `test`; a package none of whose targets
 # has it is skipped by the tests stage only. Its clippy and rustdoc stages stay.
 if ! untestable_packages="$(
-  cd "$gate_command_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest |
-    "$python_bin" -c 'import json, sys
+  printf '%s\n' "$workspace_metadata" | "$python_bin" -c 'import json, sys
 sys.stdout.reconfigure(newline="\n")
 metadata = json.load(sys.stdin)
 members = set(metadata["workspace_members"])
@@ -1363,8 +1413,7 @@ fi
 # `--no-deps` reads membership without resolving dependencies or changing the
 # lockfile. Each output record is `<repo-relative manifest><tab><package name>`.
 if ! workspace_members="$(
-  cd "$gate_command_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest |
-    "$python_bin" -c 'import json, os, sys
+  printf '%s\n' "$workspace_metadata" | "$python_bin" -c 'import json, os, sys
 # LF records: text-mode stdout on Windows writes CRLF, and bash keeps the CR
 # in the package name, so a new-member push gated `helios-core<CR>` beside
 # `helios-core` and the identity checker found no such package.
@@ -1719,8 +1768,7 @@ if [ -f "$identity_checker" ]; then
     exit 1
   fi
   if ! identity_target_dir="$(
-    cd "$gate_command_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest |
-      "$python_bin" -c 'import json, sys
+    printf '%s\n' "$workspace_metadata" | "$python_bin" -c 'import json, sys
 value = json.load(sys.stdin).get("target_directory")
 if not isinstance(value, str) or not value:
     raise SystemExit("cargo metadata did not provide target_directory")
@@ -2158,9 +2206,13 @@ if [ "$identity_enabled" -eq 1 ]; then
   # false` one (consus-python) writes none, so an all-undocumented selection
   # skips the stage; cargo's own target list is the authority.
   documented_packages=""
-  if [ "$gate_phase" = "documentation" ] && ! documented_packages="$(
-    cd "$gate_command_cwd" && cargo metadata --no-deps --format-version 1 $gate_manifest |
-      "$python_bin" -c 'import json, sys
+  run_documentation=0
+  if [ "$gate_phase" = "documentation" ] \
+    || [ "$documentation_ownership" = "pre-push" ]; then
+    run_documentation=1
+  fi
+  if [ "$run_documentation" -eq 1 ] && ! documented_packages="$(
+    printf '%s\n' "$workspace_metadata" | "$python_bin" -c 'import json, sys
 sys.stdout.reconfigure(newline="\n")
 documented = {"lib", "rlib", "dylib", "cdylib", "staticlib", "proc-macro", "bin"}
 for package in json.load(sys.stdin)["packages"]:
@@ -2176,7 +2228,7 @@ for package in json.load(sys.stdin)["packages"]:
   fi
   rustdoc_packages=""
   for package_name in $gate_packages; do
-    [ "$gate_phase" = "documentation" ] || continue
+    [ "$run_documentation" -eq 1 ] || continue
     case "
 $documented_packages
 " in
@@ -2209,7 +2261,7 @@ $package_name
       step_selection="$rustdoc_packages" run_identity_sequence 0 0 1 "$gate_stage"
     fi
   else
-    run_identity_sequence "$run_clippy" "$run_tests" 0 "$gate_stage"
+    run_identity_sequence "$run_clippy" "$run_tests" "$run_rustdoc" "$gate_stage"
   fi
   if [ -n "$cast_gate" ]; then
     cast_check_sites+=(--sites "$cast_sites")
@@ -2269,7 +2321,9 @@ fi
 # redundant intra-doc link that clippy and the tests never see turns main red
 # after the merge (a redundant link target from apollo#508 did). The changed
 # packages are documented here the same way.
-if [ "$identity_enabled" -eq 0 ] && [ "$gate_phase" = "documentation" ]; then
+if [ "$identity_enabled" -eq 0 ] \
+  && { [ "$gate_phase" = "documentation" ] \
+    || [ "$documentation_ownership" = "pre-push" ]; }; then
   case "$(classify_gate_step "$gate_log" env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps $gate_specs)" in
     ours)
       cat >&2 <<MESSAGE

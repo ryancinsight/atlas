@@ -628,10 +628,23 @@ def enqueue_pull_request(repo: Path, url: str) -> None:
     hosting_in(repo, "pr", "merge", url, "--merge", "--auto")
 
 
-def hook_publish_message(source: str, retired: list[str], item: str | None) -> str:
+AGENT_ID = re.compile(
+    r"[A-Za-z][A-Za-z0-9_-]*:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+    r"[0-9a-f]{4}-[0-9a-f]{12}(?:/[1-9][0-9]*)?"
+)
+
+
+def hook_publish_message(
+    source: str,
+    retired: list[str],
+    item: str | None,
+    agent: str | None = None,
+) -> str:
     """Build the commit and pull-request message for one hook publication."""
     if not valid_board_item(item):
         raise ValueError(f"invalid board item ID: {item!r}")
+    if agent is not None and AGENT_ID.fullmatch(agent) is None:
+        raise ValueError(f"invalid agent ID: {agent!r}")
     subject = "ci: Sync the stack-owned git hooks"
     message = (
         f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
@@ -646,6 +659,9 @@ def hook_publish_message(source: str, retired: list[str], item: str | None) -> s
         )
     if item is not None:
         message += f"\nItem: {item}\n"
+    if agent is not None:
+        message += f"Integrator: {agent}\n"
+        message += f"Agent: {agent}\n"
     return message
 
 
@@ -668,6 +684,10 @@ def cmd_publish_hooks(args) -> int:
     item = getattr(args, "item", None)
     if not valid_board_item(item):
         print("invalid item: expected a board item ID", file=sys.stderr)
+        return 2
+    agent = getattr(args, "agent", None)
+    if agent is not None and AGENT_ID.fullmatch(agent) is None:
+        print("invalid agent: expected <harness>:<UUID>", file=sys.stderr)
         return 2
     members = member_scope(args.members)
     if members is None:
@@ -716,7 +736,7 @@ def cmd_publish_hooks(args) -> int:
         return 2
     source = git_in(ROOT, "rev-parse", "--short", source_commit)
     subject = "ci: Sync the stack-owned git hooks"
-    message = hook_publish_message(source, retired, item)
+    message = hook_publish_message(source, retired, item, agent)
     failures = 0
     for member in members:
         repo = REPOS / member
@@ -1118,6 +1138,11 @@ def main() -> int:
         "--item",
         metavar="ID",
         help="append an Item trailer to each generated member commit",
+    )
+    publish.add_argument(
+        "--agent",
+        metavar="ID",
+        help="append an Agent trailer to each generated member commit",
     )
     publish.add_argument(
         "--draft",

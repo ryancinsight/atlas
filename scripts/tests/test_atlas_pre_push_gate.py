@@ -209,6 +209,7 @@ class GateFixture:
         root: pathlib.Path,
         layout: str = "crates",
         default_branch: str = "main",
+        documentation_phase: str | None = "pre-merge",
     ) -> None:
         self.root = root
         self.bin = root / "bin"
@@ -236,8 +237,20 @@ class GateFixture:
         # or logging a call stays fixture plumbing instead of looking like
         # content a test commit might carry.
         _write(root / ".git" / "info" / "exclude", _FIXTURE_EXCLUDES)
+        # The phase-ownership cases cover absent, opted-in, and invalid
+        # metadata. Other fixtures exercise the common guards with a valid
+        # pre-merge candidate so they do not repeat an unrelated Rustdoc
+        # subprocess in every scenario.
+        documentation_metadata = (
+            "\n[workspace.metadata.atlas]\n"
+            f'documentation-phase = "{documentation_phase}"\n'
+            if documentation_phase is not None else ""
+        )
         if layout == "crates":
-            _write(root / "Cargo.toml", '[workspace]\nmembers = ["crates/foo"]\n')
+            _write(
+                root / "Cargo.toml",
+                '[workspace]\nmembers = ["crates/foo"]\n' + documentation_metadata,
+            )
             _write(
                 root / "crates" / "foo" / "Cargo.toml",
                 '[package]\nname = "foo"\nversion = "0.1.0"\nedition = "2021"\n',
@@ -246,7 +259,9 @@ class GateFixture:
         elif layout == "single":
             _write(
                 root / "Cargo.toml",
-                '[package]\nname = "solo"\nversion = "0.1.0"\nedition = "2021"\n',
+                '[package]\nname = "solo"\nversion = "0.1.0"\nedition = "2021"\n'
+                "\n[workspace]\n"
+                + documentation_metadata,
             )
             _write(root / "src" / "lib.rs", "pub fn f() {}\n")
         elif layout == "meta":
@@ -259,7 +274,9 @@ class GateFixture:
                 workspace = root / "tools" / directory
                 _write(
                     workspace / "Cargo.toml",
-                    f'[package]\nname = "{directory}"\nversion = "0.1.0"\nedition = "2024"\n',
+                    f'[package]\nname = "{directory}"\nversion = "0.1.0"\nedition = "2024"\n'
+                    "\n[workspace]\n"
+                    + documentation_metadata,
                 )
                 _write(workspace / "Cargo.lock", "# lock\n")
                 _write(workspace / "src" / "lib.rs", "pub fn f() {}\n")
@@ -1443,6 +1460,11 @@ class PhaseOwnershipTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-gate-phase-") as temp:
             fixture = _stacked_fixture(temp)
             _git(fixture.root, "switch", "-q", "-c", "feat")
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nmembers = ["crates/foo"]\n\n'
+                '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n',
+                encoding="utf-8",
+            )
             source = fixture.root / "crates" / "foo" / "src" / "lib.rs"
             source.write_text("pub fn f() {}\n// changed\n", encoding="utf-8")
             _commit_all(fixture.root, "source")
@@ -1470,6 +1492,57 @@ class PhaseOwnershipTestCase(unittest.TestCase):
                 if line.split()[0] in {"clippy", "nextest", "doc"}
             ]
             self.assertEqual(stages, ["clippy", "nextest"])
+            metadata_calls = (
+                fixture.root / "metadata-calls.log"
+            ).read_text(encoding="utf-8").splitlines()
+            workspace_reads = [
+                line for line in metadata_calls
+                if line.startswith("metadata --no-deps --format-version 1")
+            ]
+            self.assertEqual(len(workspace_reads), 1, metadata_calls)
+
+            # Peer dirt opts the checkout into pre-merge, but the pushed
+            # candidate has no metadata and therefore remains pre-push.
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nmembers = ["crates/foo"]\n', encoding="utf-8"
+            )
+            _commit_all(fixture.root, "default documentation phase")
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nmembers = ["crates/foo"]\n\n'
+                '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n',
+                encoding="utf-8",
+            )
+            fixture.calls.unlink(missing_ok=True)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), arguments=("origin", "fixture")
+            )
+
+            self.assertEqual(code, 0, stderr)
+            stages = [
+                line.split()[0]
+                for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+                if line.split()[0] in {"clippy", "nextest", "doc"}
+            ]
+            self.assertEqual(stages, ["clippy", "nextest", "doc"])
+
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nmembers = ["crates/foo"]\n\n'
+                '[workspace.metadata.atlas]\ndocumentation-phase = "later"\n',
+                encoding="utf-8",
+            )
+            _commit_all(fixture.root, "invalid documentation phase")
+            fixture.calls.unlink(missing_ok=True)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), arguments=("origin", "fixture")
+            )
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn(
+                "documentation-phase must be 'pre-push' or 'pre-merge'", stderr
+            )
+            self.assertIn("invalid documentation phase in Cargo.toml", stderr)
 
     def test_documentation_phase_runs_warning_denied_rustdoc(self) -> None:
         """The public phase accepts valid links and rejects a broken link."""
@@ -2712,7 +2785,11 @@ class LaneGateTestCase(unittest.TestCase):
         identity checker found no package of that name (helios#112).
         """
         stack, fixture, lane = self._lane(overlay=True)
-        _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
+        _write(
+            lane / "Cargo.toml",
+            '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n\n'
+            '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n',
+        )
         _write(
             lane / "crates" / "bar" / "Cargo.toml",
             '[package]\nname = "bar"\nversion = "0.1.0"\nedition = "2021"\n',
@@ -2754,7 +2831,11 @@ class LaneGateTestCase(unittest.TestCase):
         still runs its clippy and any selected tests.
         """
         stack, fixture, lane = self._lane(overlay=True)
-        _write(lane / "Cargo.toml", '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n')
+        _write(
+            lane / "Cargo.toml",
+            '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n\n'
+            '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n',
+        )
         _write(
             lane / "crates" / "bar" / "Cargo.toml",
             '[package]\nname = "bar"\nversion = "0.1.0"\nedition = "2021"\n',

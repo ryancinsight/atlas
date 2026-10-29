@@ -202,7 +202,7 @@ class HookCommitTestCase(unittest.TestCase):
             self.assertEqual(self._git(repo, "status", "--porcelain"), status_before)
             self.assertEqual(self._git(repo, "rev-parse", "--abbrev-ref", "HEAD"), "peer")
 
-    def test_item_is_an_actual_generated_commit_trailer(self) -> None:
+    def test_item_and_agent_are_actual_generated_commit_trailers(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-item-") as temp:
             repo = Path(temp) / "member"
             repo.mkdir()
@@ -213,7 +213,10 @@ class HookCommitTestCase(unittest.TestCase):
             self._git(repo, "add", "seed")
             self._git(repo, "commit", "-q", "-m", "seed")
             item = "ATLAS-MOIRAI-MAIN-DIVERGED-2026-10-05"
-            message = _lock_form.hook_publish_message("a109abb8ac02", [], item)
+            agent = "codex:01a18859-2169-7173-b2bc-93fff6405cd1"
+            message = _lock_form.hook_publish_message(
+                "a109abb8ac02", [], item, agent
+            )
 
             commit = _lock_form.hook_commit(
                 repo,
@@ -231,7 +234,12 @@ class HookCommitTestCase(unittest.TestCase):
                 text=True,
                 check=True,
             ).stdout.strip()
-            self.assertEqual(parsed, f"Item: {item}")
+            self.assertEqual(
+                parsed,
+                f"Item: {item}\nIntegrator: {agent}\nAgent: {agent}",
+            )
+            with self.assertRaisesRegex(ValueError, "invalid agent ID"):
+                _lock_form.hook_publish_message("a109abb8ac02", [], item, "codex")
 
     def test_unique_remote_rollout_head_is_not_overwritten(self) -> None:
         with self._rollout_repositories("atlas-publish-lease-") as repositories:
