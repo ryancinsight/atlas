@@ -43,7 +43,6 @@ class PackageFact:
     name: str
     version: str
     manifest: PurePosixPath
-    lock_root: PurePosixPath
     dependencies: tuple[DependencyFact, ...]
 
 
@@ -141,7 +140,6 @@ def _metadata(topology: Path, lock: Path) -> tuple[PackageFact, ...]:
         facts.append(PackageFact(
             _string(package, "name"), _string(package, "version"),
             PurePosixPath(manifest.as_posix()),
-            PurePosixPath(lock.parent.relative_to(topology).as_posix()),
             tuple(_dependency(item) for item in package["dependencies"]),
         ))
     return tuple(facts)
