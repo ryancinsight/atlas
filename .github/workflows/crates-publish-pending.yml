@@ -105,7 +105,7 @@ jobs:
 
       - name: Select and verify the pending set
         id: plan
-        uses: ryancinsight/atlas/.github/actions/crates-pending@b22c0331da70ce1debb3b45afc022afbee62bafa
+        uses: ryancinsight/atlas/.github/actions/crates-pending@74eefb759862f3656451584df104d41d3897176a
         with:
           command: plan
           owner: ${{ inputs.owner }}
@@ -115,7 +115,7 @@ jobs:
   semver:
     needs: plan
     if: needs.plan.outputs.count != '0'
-    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@b22c0331da70ce1debb3b45afc022afbee62bafa
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@74eefb759862f3656451584df104d41d3897176a
     permissions:
       contents: read
     with:
@@ -161,7 +161,7 @@ jobs:
 
       - name: Bind the frozen package archives
         if: inputs.expected-artifacts != ''
-        uses: ryancinsight/atlas/.github/actions/crates-pending@b22c0331da70ce1debb3b45afc022afbee62bafa
+        uses: ryancinsight/atlas/.github/actions/crates-pending@74eefb759862f3656451584df104d41d3897176a
         with:
           command: bind
           packages: ${{ needs.plan.outputs.packages }}
@@ -174,7 +174,7 @@ jobs:
 
       - name: Publish what is still pending
         id: publish
-        uses: ryancinsight/atlas/.github/actions/crates-pending@b22c0331da70ce1debb3b45afc022afbee62bafa
+        uses: ryancinsight/atlas/.github/actions/crates-pending@74eefb759862f3656451584df104d41d3897176a
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         with:
@@ -190,7 +190,7 @@ jobs:
       # this step creates the missing releases.
       - name: Tag a release for each published version
         if: ${{ !cancelled() && steps.auth.outcome == 'success' }}
-        uses: ryancinsight/atlas/.github/actions/crates-pending@b22c0331da70ce1debb3b45afc022afbee62bafa
+        uses: ryancinsight/atlas/.github/actions/crates-pending@74eefb759862f3656451584df104d41d3897176a
         with:
           command: tag
           packages: ${{ needs.plan.outputs.packages }}
