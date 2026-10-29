@@ -392,10 +392,12 @@ class RegistryTransportTestCase(unittest.TestCase):
         self.assertIsNotNone(raised.exception.__cause__)
         self.assertIn("registry response failed", str(raised.exception))
 
-    def test_truncated_framing_is_permanent_and_is_not_retried(self) -> None:
-        with self.assertRaisesRegex(tool.IdentityError, "incomplete registry HTTP body"):
+    def test_truncated_content_length_retries_as_transport_loss(self) -> None:
+        with self.assertRaisesRegex(tool.crates_pending.RegistryTransportError,
+                                    "incomplete registry HTTP body.*after 5 attempts"):
             self.policy()(self.url("/truncated"), 128)
-        self.assertEqual(self.requests["/truncated"], 1)
+        self.assertEqual(self.requests["/truncated"],
+                         tool.crates_pending.TRANSPORT_ATTEMPTS)
 def package(name: str, dependencies: list[dict]) -> dict:
     return {"name": name, "dependencies": dependencies}
 
