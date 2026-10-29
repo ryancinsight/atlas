@@ -51,14 +51,15 @@ def identity():
 def source(tmp_path_factory, identity):
     root = tmp_path_factory.mktemp("crate-identity")
     (root / "crates/sample/src").mkdir(parents=True)
-    (root / ".gitignore").write_text("/target/\n")
-    (root / "Cargo.toml").write_text('[workspace]\nmembers=["crates/sample"]\nresolver="3"\n'
-                                    '[workspace.package]\nversion="0.1.2"\nreadme="README.md"\nlicense="MIT"\n')
-    (root / "crates/sample/Cargo.toml").write_text('[package]\nname="atlas-identity-fixture"\n'
-                                                  'version.workspace=true\nreadme.workspace=true\n'
-                                                  'license.workspace=true\nedition="2024"\n')
-    (root / "crates/sample/src/lib.rs").write_text("/// Triple an input.\npub fn scale(input: u64) -> u64 { input * 3 }\n")
-    (root / "README.md").write_text("Committed workspace readme, included byte for byte.\n")
+    (root / ".gitignore").write_bytes(b"/target/\n")
+    (root / "Cargo.toml").write_bytes(b'[workspace]\nmembers=["crates/sample"]\nresolver="3"\n'
+                                     b'[workspace.package]\nversion="0.1.2"\nreadme="README.md"\nlicense="MIT"\n')
+    (root / "crates/sample/Cargo.toml").write_bytes(b'[package]\nname="atlas-identity-fixture"\n'
+                                                   b'version.workspace=true\nreadme.workspace=true\n'
+                                                   b'license.workspace=true\nedition="2024"\n')
+    (root / "crates/sample/src/lib.rs").write_bytes(
+        b"/// Triple an input.\npub fn scale(input: u64) -> u64 { input * 3 }\n")
+    (root / "README.md").write_bytes(b"Committed workspace readme, included byte for byte.\n")
     run(["git", "init", "--quiet"], root)
     run(["cargo", "generate-lockfile", "--offline"], root)
     sha = commit(root)
@@ -102,6 +103,11 @@ def paths(package, identity):
     return (f"/api/v1/crates/{package.name}/{package.version}",
             "/" + identity.index_path(package.name),
             f"/crates/{package.name}/{package.name}-{package.version}.crate")
+
+
+def clone_fixture(source, destination, cwd):
+    run(["git", "-c", "core.autocrlf=false", "clone", "--quiet",
+         str(source), str(destination)], cwd)
 
 
 def published(routes, package, identity, archive=None):
@@ -339,7 +345,7 @@ def test_unverified_local_archive_provenance_fails_closed(identity, source, chan
 @pytest.mark.parametrize("change", ["dirty", "untracked", "head", "version"])
 def test_real_checkout_must_remain_the_exact_clean_release(identity, source, tmp_path, change):
     root = tmp_path / "repo"
-    run(["git", "clone", "--quiet", str(source[0]), str(root)], tmp_path)
+    clone_fixture(source[0], root, tmp_path)
     expected = source[1]
     version = "0.1.2"
     if change == "dirty": (root / "README.md").write_text("uncommitted change\n")
@@ -353,7 +359,7 @@ def test_real_checkout_must_remain_the_exact_clean_release(identity, source, tmp
 
 def test_equal_source_tree_at_different_commit_is_not_identical_publication(identity, source, registry, tmp_path):
     root = tmp_path / "repo"
-    run(["git", "clone", "--quiet", str(source[0]), str(root)], tmp_path)
+    clone_fixture(source[0], root, tmp_path)
     new_commit = commit(root)
     assert run(["git", "rev-parse", "HEAD^{tree}"], root) == run(["git", "rev-parse", "HEAD^{tree}"], source[0])
     with pytest.MonkeyPatch.context() as patch:
@@ -478,7 +484,7 @@ def test_workflow_uses_exact_helper_commit_and_correct_action_output(history):
 
 def test_same_clean_commit_regenerates_the_identical_complete_archive(identity, source, tmp_path):
     root = tmp_path / "repo"
-    run(["git", "clone", "--quiet", str(source[0]), str(root)], tmp_path)
+    clone_fixture(source[0], root, tmp_path)
     with pytest.MonkeyPatch.context() as patch:
         patch.setenv("CARGO_NET_OFFLINE", "true")
         package = identity.package_release("atlas-identity-fixture", "0.1.2", source[1], root)
@@ -488,7 +494,7 @@ def test_same_clean_commit_regenerates_the_identical_complete_archive(identity, 
 
 def test_ignored_uncommitted_package_content_is_not_clean_provenance(identity, source, tmp_path):
     root = tmp_path / "repo"
-    run(["git", "clone", "--quiet", str(source[0]), str(root)], tmp_path)
+    clone_fixture(source[0], root, tmp_path)
     manifest = root / "crates/sample/Cargo.toml"
     manifest.write_text(manifest.read_text() + 'include=["Cargo.toml", "src/**", "payload.bin"]\n')
     (root / ".gitignore").write_text("/target/\n/crates/sample/payload.bin\n")
