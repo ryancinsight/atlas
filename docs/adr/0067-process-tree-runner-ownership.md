@@ -117,6 +117,12 @@ The mechanisms:
   live states, denied reads and unavailable or incomplete inspection fail
   immediately. Expiry is checked before every observation, including after a
   pause; no destructive signal repeats during this observation.
+- Cleanup state durably records a returned termination request, any pending
+  Darwin proof, and confirmed failures. Request/proof outcomes commit under
+  the existing SIGINT deferral before delivering that interrupt. An interrupt
+  inside an unconfirmed syscall permits safe-owned retry; an interrupted proof
+  resumes without another group signal. Waiting and post-reap observations
+  retain prior failures and the original deadline, including deadline expiry.
 - Optional input is delivered concurrently with deadline observation, so pipe
   backpressure cannot delay timeout or cleanup; status and byte-exact standard
   streams remain command results.
