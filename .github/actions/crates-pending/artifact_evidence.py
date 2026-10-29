@@ -167,4 +167,3 @@ def verify_expected_artifacts(expected: ExpectedArtifacts, names: list[str],
         raise SystemExit("packaged archive checksum differs from expected-artifacts")
     validate_context(expected, candidate, runner)
 
-
