@@ -682,17 +682,46 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(child.returncode, 0)
 
     def test_darwin_group_probe_uses_native_states_without_a_helper_launch(self):
-        for active in (True, False):
+        for observed in process_tree.darwin_process.GroupState:
+            active = observed is not process_tree.darwin_process.GroupState.INACTIVE
             with (
-                self.subTest(active=active),
+                self.subTest(observed=observed),
                 patch.object(process_tree.sys, "platform", "darwin"),
                 patch.object(process_tree.subprocess, "Popen") as launch,
                 patch.object(
-                    process_tree.darwin_process, "group_has_active_members", return_value=active,
+                    process_tree.darwin_process, "group_state", return_value=observed,
                 ) as probe,
             ):
                 self.assertEqual(process_tree._posix_group_has_active_members(42), active)
                 probe.assert_called_once_with(42)
+                launch.assert_not_called()
+
+    def test_darwin_snapshot_waits_only_for_transient_changes_within_its_deadline(self):
+        states = process_tree.darwin_process.GroupState
+        cases = (
+            ([states.CHANGING, states.INACTIVE], [0.0], states.INACTIVE, 1),
+            ([states.CHANGING, states.ACTIVE], [0.0], states.ACTIVE, 1),
+            ([states.CHANGING, states.UNKNOWN], [0.0], states.UNKNOWN, 1),
+            ([states.CHANGING], [1.0], states.CHANGING, 0),
+            ([states.ACTIVE], [], states.ACTIVE, 0),
+            ([states.UNKNOWN], [], states.UNKNOWN, 0),
+        )
+        for readings, times, expected, sleeps in cases:
+            with (
+                self.subTest(readings=readings),
+                patch.object(process_tree.darwin_process, "group_state", side_effect=readings) as probe,
+                patch.object(process_tree.time, "monotonic", side_effect=times),
+                patch.object(process_tree.time, "sleep") as pause,
+                patch.object(process_tree.os, "killpg", create=True) as signal_group,
+                patch.object(process_tree.subprocess, "Popen") as launch,
+            ):
+                self.assertIs(process_tree._darwin_group_snapshot_before(42, 1.0), expected)
+                self.assertEqual(probe.call_count, len(readings))
+                self.assertEqual(pause.call_count, sleeps)
+                for call in pause.call_args_list:
+                    self.assertGreater(call.args[0], 0)
+                    self.assertLessEqual(call.args[0], process_tree.GROUP_POLL_SECONDS)
+                signal_group.assert_not_called()
                 launch.assert_not_called()
 
     @unittest.skipUnless(os.name == "posix", "POSIX group signalling")

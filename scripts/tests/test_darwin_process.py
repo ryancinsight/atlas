@@ -46,31 +46,40 @@ class DarwinProcessTests(unittest.TestCase):
         # A previous native operation's errno must not taint a fresh read.
         ctypes.set_errno(errno.EPERM)
         with patch.object(darwin_process, "_libproc", return_value=library):
-            return darwin_process.group_has_active_members(42)
+            return darwin_process.group_state(42)
 
     def test_only_complete_stable_empty_or_zombie_views_are_inactive(self):
-        self.assertFalse(self.observe())
-        self.assertFalse(self.observe(members=()))
+        self.assertIs(self.observe(), darwin_process.GroupState.INACTIVE)
+        self.assertIs(self.observe(members=()), darwin_process.GroupState.INACTIVE)
         for case in (
-            {"state": 2}, {"state": 0}, {"group": 43}, {"pid": 43},
+            {"group": 43}, {"pid": 43},
             {"info_size": 0}, {"info_size": 63}, {"info_size": 65},
-            {"info_error": errno.EPERM}, {"info_error": errno.ESRCH},
+            {"info_error": errno.EPERM},
             {"list_error": errno.EPERM}, {"estimate": 0}, {"estimate": -1},
             {"estimate": 63}, {"full": True}, {"odd": True},
             {"members": (0,)}, {"members": (-1,)}, {"members": (42, 42)},
-            {"after": ()}, {"after": (42, 43)},
-            {"members": (), "after": (43,)},
         ):
             with self.subTest(case=case):
-                self.assertTrue(self.observe(**case))
+                self.assertIs(self.observe(**case), darwin_process.GroupState.UNKNOWN)
+
+    def test_only_disappearance_or_changed_membership_is_transient(self):
+        for case in (
+            {"info_error": errno.ESRCH}, {"after": ()},
+            {"after": (42, 43)}, {"members": (), "after": (43,)},
+        ):
+            with self.subTest(case=case):
+                self.assertIs(self.observe(**case), darwin_process.GroupState.CHANGING)
+        for state in (0, 2):
+            with self.subTest(state=state):
+                self.assertIs(self.observe(state=state), darwin_process.GroupState.ACTIVE)
 
     def test_unavailable_library_and_invalid_groups_remain_active(self):
         for error in (OSError("unavailable"), AttributeError("missing native API")):
             with self.subTest(error=error), patch.object(darwin_process, "_libproc", side_effect=error):
-                self.assertTrue(darwin_process.group_has_active_members(42))
+                self.assertIs(darwin_process.group_state(42), darwin_process.GroupState.UNKNOWN)
         with patch.object(darwin_process, "_libproc") as load:
             for group in (-1, 0, 1 << 31):
-                self.assertTrue(darwin_process.group_has_active_members(group))
+                self.assertIs(darwin_process.group_state(group), darwin_process.GroupState.UNKNOWN)
             load.assert_not_called()
 
 

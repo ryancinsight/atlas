@@ -328,7 +328,11 @@ def _terminate_process_tree(
                 # EPERM when they are its only members. Only an independently
                 # verified inactive group satisfies cleanup; live or unknown
                 # membership retains the permission failure.
-                if sys.platform != "darwin" or _posix_group_has_active_members(process.pid):
+                if sys.platform == "darwin":
+                    observed = _darwin_group_snapshot_before(process.pid, cleanup_deadline)
+                    if observed is not darwin_process.GroupState.INACTIVE:
+                        error = f"process-group kill failed: {caught} (Darwin group state: {observed.name.lower()})"
+                else:
                     error = f"process-group kill failed: {caught}"
             except OSError as caught:
                 error = f"process-group kill failed: {caught}"
@@ -387,6 +391,23 @@ def _finish_interrupted_cleanup(
                 )
 
 
+def _darwin_group_snapshot_before(process_group: int, deadline: float):
+    """Observe changing membership while the unreaped launcher pins the group.
+
+    Only ESRCH or a changed list permits another read. Permission failures and
+    unavailable/incomplete views return UNKNOWN immediately. No signal repeats
+    and the caller's existing cleanup deadline is never extended.
+    """
+    while True:
+        observed = darwin_process.group_state(process_group)
+        if observed is not darwin_process.GroupState.CHANGING:
+            return observed
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return observed
+        time.sleep(min(GROUP_POLL_SECONDS, remaining))
+
+
 def _posix_group_has_active_members(process_group: int) -> bool:
     """Report executable members; an unreadable process view stays active.
 
@@ -414,7 +435,7 @@ def _posix_group_has_active_members(process_group: int) -> bool:
                         return True
         return False
     if sys.platform == "darwin":
-        return darwin_process.group_has_active_members(process_group)
+        return darwin_process.group_state(process_group) is not darwin_process.GroupState.INACTIVE
     try:
         os.killpg(process_group, 0)
     except ProcessLookupError:

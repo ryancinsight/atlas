@@ -111,6 +111,11 @@ The mechanisms:
   extend the launch window or restart an interrupted cleanup. These semantics
   follow Apple's [libproc interface](https://github.com/apple-oss-distributions/xnu/blob/main/libsyscall/wrappers/libproc/libproc.c)
   and [XNU process inspection](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/proc_info.c).
+  While the unreaped launcher still pins the group identity, a disappeared PID
+  (`ESRCH`) or changed membership permits a fresh snapshot within the existing
+  cleanup deadline. Each snapshot still requires the complete stable proof;
+  live states, denied reads and unavailable or incomplete inspection fail
+  immediately. No destructive signal repeats during this observation.
 - Optional input is delivered concurrently with deadline observation, so pipe
   backpressure cannot delay timeout or cleanup; status and byte-exact standard
   streams remain command results.

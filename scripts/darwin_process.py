@@ -9,6 +9,8 @@ remain active so the caller retains its cleanup failure and bounded deadline.
 from __future__ import annotations
 
 import ctypes
+import enum
+import errno
 import functools
 
 
@@ -16,6 +18,13 @@ import functools
 _PROC_PGRP_ONLY = 2
 _PROC_PIDT_SHORTBSDINFO = 13
 _SZOMB = 5
+
+
+class GroupState(enum.Enum):
+    INACTIVE = enum.auto()
+    ACTIVE = enum.auto()
+    CHANGING = enum.auto()
+    UNKNOWN = enum.auto()
 
 
 class _BsdShortInfo(ctypes.Structure):
@@ -73,15 +82,15 @@ def _group_members(library, process_group: int) -> frozenset[int] | None:
     return frozenset(members)
 
 
-def group_has_active_members(process_group: int) -> bool:
-    """Keep live, unreadable, incomplete or changing groups active."""
+def group_state(process_group: int) -> GroupState:
+    """Prove inactivity; distinguish changed membership from denied reads."""
     if not 0 < process_group < (1 << 31):
-        return True
+        return GroupState.UNKNOWN
     try:
         library = _libproc()
         members = _group_members(library, process_group)
         if members is None:
-            return True
+            return GroupState.UNKNOWN
         for pid in members:
             info = _BsdShortInfo()
             ctypes.set_errno(0)
@@ -90,10 +99,16 @@ def group_has_active_members(process_group: int) -> bool:
             copied = library.proc_pidinfo(
                 pid, _PROC_PIDT_SHORTBSDINFO, 1, ctypes.byref(info), ctypes.sizeof(info),
             )
+            if ctypes.get_errno() == errno.ESRCH:
+                return GroupState.CHANGING
             if (ctypes.get_errno() or copied != ctypes.sizeof(info)
-                    or info.pid != pid or info.pgid != process_group
-                    or info.status != _SZOMB):
-                return True
-        return _group_members(library, process_group) != members
+                    or info.pid != pid or info.pgid != process_group):
+                return GroupState.UNKNOWN
+            if info.status != _SZOMB:
+                return GroupState.ACTIVE
+        after = _group_members(library, process_group)
+        if after is None:
+            return GroupState.UNKNOWN
+        return GroupState.INACTIVE if after == members else GroupState.CHANGING
     except (OSError, AttributeError, OverflowError):
-        return True
+        return GroupState.UNKNOWN
