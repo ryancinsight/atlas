@@ -812,10 +812,11 @@ class ArtifactBindingTests(unittest.TestCase):
         subprocess.run(["cargo", "package", "--locked", "-p", "evidence-a", "-p", "evidence-b"],
                        cwd=cls.root, check=True, capture_output=True, text=True, timeout=120)
         cls.names = ["evidence-a", "evidence-b"]
+        cls.target = Path(os.environ.get("CARGO_TARGET_DIR", cls.root / "target"))
         artifacts = {}
         cls.archives = {}
         for name in cls.names:
-            archive = cls.root / "target" / "package" / f"{name}-0.2.0.crate"
+            archive = cls.target / "package" / f"{name}-0.2.0.crate"
             content = archive.read_bytes()
             cls.archives[archive.name] = content
             artifacts[archive.name] = hashlib.sha256(content).hexdigest()
@@ -840,7 +841,7 @@ class ArtifactBindingTests(unittest.TestCase):
                        "--package", "evidence-b"], self.runner.calls)
 
     def test_changed_archive_bytes_and_wrong_candidate_fail_closed(self) -> None:
-        archive = self.root / "target" / "package" / "evidence-a-0.2.0.crate"
+        archive = self.target / "package" / "evidence-a-0.2.0.crate"
         original = archive.read_bytes()
         try:
             archive.write_bytes(original + b"changed")
