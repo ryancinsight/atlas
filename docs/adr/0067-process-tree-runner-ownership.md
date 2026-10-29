@@ -112,9 +112,10 @@ The mechanisms:
   follow Apple's [libproc interface](https://github.com/apple-oss-distributions/xnu/blob/main/libsyscall/wrappers/libproc/libproc.c)
   and [XNU process inspection](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/proc_info.c).
   While the unreaped launcher still pins the group identity, a disappeared PID
-  (`ESRCH`) or changed membership permits a fresh snapshot within the existing
+  (`ESRCH`), changed membership or validated non-zombie `PROC_FLAG_INEXIT`
+  permits a fresh snapshot within the existing
   cleanup deadline. Each snapshot still requires the complete stable proof;
-  live states, denied reads and unavailable or incomplete inspection fail
+  live states without the exit flag, denied reads and unavailable or incomplete inspection fail
   immediately. Expiry is checked before every observation, including after a
   pause; no destructive signal repeats during this observation.
 - Cleanup state durably records a returned termination request, any pending

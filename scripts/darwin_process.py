@@ -18,6 +18,8 @@ import functools
 _PROC_PGRP_ONLY = 2
 _PROC_PIDT_SHORTBSDINFO = 13
 _SZOMB = 5
+# XNU exports P_LEXIT independently of p_stat in proc_bsdshortinfo.
+_PROC_FLAG_INEXIT = 4
 
 
 class GroupState(enum.Enum):
@@ -91,6 +93,7 @@ def group_state(process_group: int) -> GroupState:
         members = _group_members(library, process_group)
         if members is None:
             return GroupState.UNKNOWN
+        exiting = False
         for pid in members:
             info = _BsdShortInfo()
             ctypes.set_errno(0)
@@ -105,10 +108,16 @@ def group_state(process_group: int) -> GroupState:
                     or info.pid != pid or info.pgid != process_group):
                 return GroupState.UNKNOWN
             if info.status != _SZOMB:
-                return GroupState.ACTIVE
+                if not info.flags & _PROC_FLAG_INEXIT:
+                    return GroupState.ACTIVE
+                # Exit is pending, not proof of inactivity. Inspect siblings
+                # before allowing another bounded observation of this group.
+                exiting = True
         after = _group_members(library, process_group)
         if after is None:
             return GroupState.UNKNOWN
-        return GroupState.INACTIVE if after == members else GroupState.CHANGING
+        if exiting or after != members:
+            return GroupState.CHANGING
+        return GroupState.INACTIVE
     except (OSError, AttributeError, OverflowError):
         return GroupState.UNKNOWN
