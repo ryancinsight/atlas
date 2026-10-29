@@ -199,24 +199,41 @@ def index_path(name):
     return f"{name[:2]}/{name[2:4]}/{name}"
 
 
+def sparse_index_versions(name, status, body):
+    """Read every validated version checksum from one sparse-index response."""
+    if status == 404:
+        return {}
+    if status != 200:
+        raise IdentityError(f"crates.io index returned HTTP {status} for {name}")
+    if not body.strip():
+        raise IdentityError("empty registry index")
+    versions = {}
+    try:
+        for line in body.splitlines():
+            if not line.strip():
+                continue
+            row = parse_json(line)
+            version = row.get("vers")
+            checksum = row.get("cksum")
+            if (row.get("name") != name or not isinstance(version, str)
+                    or not VERSION.fullmatch(version) or version in versions
+                    or not isinstance(checksum, str) or not SHA256.fullmatch(checksum)):
+                raise IdentityError("malformed, duplicate, or inconsistent index identity")
+            versions[version] = checksum
+    except IdentityError:
+        raise
+    except (AttributeError, TypeError, ValueError) as error:
+        raise IdentityError(f"malformed crates.io index record for {name}: {error}") from error
+    return versions
+
+
 def publish_required(package, fetch=read_url):
     """Only consistent absence publishes; complete identity equality skips."""
     api_status, api_body = fetch(f"https://crates.io/api/v1/crates/{package.name}/{package.version}", METADATA_LIMIT)
     index_status, index_body = fetch(f"https://index.crates.io/{index_path(package.name)}", METADATA_LIMIT)
     if api_status not in (200, 404) or index_status not in (200, 404):
         raise IdentityError("registry lookup did not return 200 or 404")
-    versions = {}
-    if index_status == 200:
-        if not index_body.strip():
-            raise IdentityError("empty registry index")
-        for line in index_body.splitlines():
-            row = parse_json(line)
-            version = row.get("vers")
-            if (row.get("name") != package.name or not isinstance(version, str) or not version
-                    or not VERSION.fullmatch(version) or version in versions or not isinstance(row.get("cksum"), str)
-                    or not SHA256.fullmatch(row["cksum"])):
-                raise IdentityError("malformed, duplicate, or inconsistent index identity")
-            versions[version] = row["cksum"]
+    versions = sparse_index_versions(package.name, index_status, index_body)
     checksum = versions.get(package.version)
     if api_status == 404:
         if checksum is not None:

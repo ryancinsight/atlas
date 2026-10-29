@@ -18,7 +18,10 @@ _IDENTITY = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = _IDENTITY
 _SPEC.loader.exec_module(_IDENTITY)
 COMMIT, PACKAGE_NAME, SHA256 = _IDENTITY.COMMIT, _IDENTITY.NAME, _IDENTITY.SHA256
+IdentityError = _IDENTITY.IdentityError
+index_path = _IDENTITY.index_path
 parse_json = _IDENTITY.parse_json
+sparse_index_versions = _IDENTITY.sparse_index_versions
 
 ARTIFACT_PROFILE = "cargo-package-verify"
 
@@ -155,33 +158,14 @@ def verify_expected_artifacts(expected: ExpectedArtifacts, names: list[str],
     validate_context(expected, candidate, runner)
 
 
-def index_path(name: str) -> str:
-    """Return Cargo's sparse-index path for one package name."""
-    lowered = name.lower()
-    if len(lowered) <= 2:
-        return f"{len(lowered)}/{lowered}"
-    if len(lowered) == 3:
-        return f"3/{lowered[0]}/{lowered}"
-    return f"{lowered[:2]}/{lowered[2:4]}/{lowered}"
-
-
 def published_checksum(name: str, version: str, fetch: Fetch) -> str:
     """Return one exact sparse-index checksum, rejecting ambiguous records."""
     status, body = fetch(f"https://index.crates.io/{index_path(name)}")
-    if status != 200:
-        raise ValueError(f"crates.io index returned HTTP {status} for {name}")
-    matches = []
     try:
-        for line in body.splitlines():
-            if not line.strip():
-                continue
-            record = parse_json(line)
-            if record.get("name") != name or not isinstance(record.get("vers"), str):
-                raise ValueError("inconsistent package identity")
-            if record["vers"] == version:
-                matches.append(record.get("cksum"))
-    except (AttributeError, TypeError, ValueError) as error:
-        raise ValueError(f"malformed crates.io index record for {name}: {error}") from error
-    if len(matches) != 1 or not isinstance(matches[0], str) or not SHA256.fullmatch(matches[0]):
+        versions = sparse_index_versions(name, status, body)
+    except IdentityError as error:
+        raise ValueError(str(error)) from error
+    checksum = versions.get(version)
+    if checksum is None:
         raise ValueError(f"crates.io index lacks one valid checksum for {name}@{version}")
-    return matches[0]
+    return checksum

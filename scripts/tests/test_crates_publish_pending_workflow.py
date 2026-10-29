@@ -41,6 +41,11 @@ EXPECTED_STEPS = {
     ],
     "publish": [
         CHECKOUT,
+        {"if": "inputs.apt-packages != ''", "env": {"APT_PACKAGES": "${{ inputs.apt-packages }}"},
+         "run": "sudo apt-get update\n"
+                "# Word splitting is the input's contract: a space-separated list.\n"
+                "# shellcheck disable=SC2086\n"
+                "sudo apt-get install -y --no-install-recommends $APT_PACKAGES\n"},
         TOOLCHAIN,
         {"if": "inputs.expected-artifacts != ''", "uses": PENDING,
          "with": {"command": "bind", "packages": "${{ needs.plan.outputs.packages }}",
@@ -50,7 +55,8 @@ EXPECTED_STEPS = {
          "with": {"command": "publish", "packages": "${{ needs.plan.outputs.packages }}",
                   "cohort-json": "${{ inputs.cohort-json }}", **EXPECTED}},
         {"uses": PENDING, "if": "${{ !cancelled() && steps.auth.outcome == 'success' }}",
-         "with": {"command": "tag", "packages": "${{ needs.plan.outputs.packages }}", "cohort-json": "${{ inputs.cohort-json }}", **EXPECTED,
+         "with": {"command": "tag", "packages": "${{ needs.plan.outputs.packages }}", "cohort-json": "${{ inputs.cohort-json }}",
+                  **EXPECTED,
                   "tag-prefix": "${{ inputs.tag-prefix }}", "publish-outcome": "${{ steps.publish.outcome }}"}},
     ],
 }
@@ -201,10 +207,15 @@ class PendingWorkflowTests(unittest.TestCase):
                              (ROOT / path).read_bytes().replace(b"\r\n", b"\n"), path)
 
     def test_system_packages_reach_the_compiling_plan_and_the_gate(self) -> None:
-        steps = [s.get("name") for s in self.jobs["plan"]["steps"]]
-        install = steps.index("Install system packages the build scripts need")
-        self.assertLess(install, steps.index("Select and verify the pending set"))
-        self.assertEqual(self.step("plan", steps[install])["if"], "inputs.apt-packages != ''")
+        for job, consumer in (("plan", "Select and verify the pending set"),
+                              ("publish", "Bind the frozen package archives")):
+            with self.subTest(job=job):
+                steps = [s.get("name") for s in self.jobs[job]["steps"]]
+                install = steps.index("Install system packages the build scripts need")
+                self.assertLess(install, steps.index(consumer))
+                self.assertEqual(self.step(job, steps[install])["if"], "inputs.apt-packages != ''")
+                self.assertEqual(self.step(job, steps[install])["env"],
+                                 {"APT_PACKAGES": "${{ inputs.apt-packages }}"})
         self.assertEqual(self.jobs["semver"]["with"]["apt-packages"], "${{ inputs.apt-packages }}")
 
     def test_the_release_path_workflow_gains_no_permission(self) -> None:
