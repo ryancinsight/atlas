@@ -38,6 +38,40 @@ def baseline(sanctioned=None, counts=None):
     )
 
 
+def source_repository() -> pathlib.Path:
+    """Git object context for tests that inspect this script's shared target.
+
+    An immutable archive has no `.git` entry. Its caller can name the repository
+    and exact revision whose two loaded files it exported; byte comparison keeps
+    that context from substituting neighboring source while temporary test
+    repositories continue to use their own Git directories.
+    """
+    repository = pathlib.Path(os.environ.get("ATLAS_TEST_REPOSITORY", SCRIPT.parents[1]))
+    revision = os.environ.get("ATLAS_TEST_REVISION")
+    if revision is None:
+        return repository
+    for relative, exported in (
+        ("scripts/atlas_cast_gate.py", SCRIPT),
+        ("scripts/tests/test_atlas_cast_gate.py", pathlib.Path(__file__)),
+    ):
+        committed = subprocess.run(
+            ["git", "-C", str(repository), "rev-parse", f"{revision}:{relative}"],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout.strip()
+        exported_blob = subprocess.run(
+            ["git", "-C", str(repository), "hash-object", f"--path={relative}",
+             str(exported)],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout.strip()
+        if committed != exported_blob:
+            raise RuntimeError(f"{exported} does not match {revision}:{relative}")
+    return repository
+
+
 def test_added_lines_cover_each_hunk_and_ignore_deletions():
     diff = "\n".join([
         "diff --git a/src/lib.rs b/src/lib.rs",
@@ -142,7 +176,7 @@ def test_a_standalone_manifest_is_linted_in_place(tmp_path):
 def test_cargo_directory_keeps_the_exported_overlay_out_of_resolution(tmp_path, monkeypatch):
     from atlas_target_dir import shared_target_for
 
-    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(source_repository())))
     export = tmp_path / "export"
     execution = tmp_path / "execution"
     execution.mkdir()
@@ -186,7 +220,7 @@ def test_cli_uses_the_command_directory_for_every_cargo_step(tmp_path, monkeypat
                                                            command, compiles):
     from atlas_target_dir import shared_target_for
 
-    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(source_repository())))
     export = (tmp_path / "export").resolve()
     execution = (tmp_path / "execution").resolve()
     execution.mkdir()
@@ -824,9 +858,132 @@ def test_base_triggers_name_moves_and_build_inputs(tmp_path, capsys):
         ".cargo/config.toml changed", "a/Cargo.toml changed", "a/build.rs changed",
         "rust-toolchain.toml changed"]
 
-    assert gate.main(["base-triggers", "--repo", str(repo), "--base", edited,
-                      "--tip", moved]) == 0
+    rules = tmp_path / "positive-baseline.json"
+    rules.write_text(baseline_text({"member": {"a": 1}}))
+    assert gate.main(["--baseline", str(rules), "base-triggers", "--repo", str(repo),
+                      "--base", edited, "--tip", moved]) == 0
     assert capsys.readouterr().out == "a/src/moved.rs -> b/src/moved.rs\n"
+
+
+def test_zero_caps_make_the_base_count_redundant(tmp_path, capsys):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "crates" / "core").mkdir(parents=True)
+    (repo / "shared" / "helper").mkdir(parents=True)
+    (repo / "contracts" / "device").mkdir(parents=True)
+    (repo / "Cargo.toml").write_text(
+        '[package]\nname = "root"\nversion = "0.1.0"\n'
+        '[workspace]\nmembers = ["crates/core"]\nexclude = ["contracts/device"]\n')
+    (repo / "crates" / "core" / "Cargo.toml").write_text(
+        '[package]\nname = "core"\nversion = "0.1.0"\n'
+        '[dependencies]\nhelper = { path = "../../shared/helper" }\n')
+    (repo / "crates" / "core" / "src").mkdir()
+    (repo / "crates" / "core" / "src" / "lib.rs").write_text("pub fn core() {}\n")
+    (repo / "shared" / "helper" / "Cargo.toml").write_text(
+        '[package]\nname = "helper"\nversion = "0.1.0"\n')
+    (repo / "Cargo.lock").write_text("root lock\n")
+    device = repo / "contracts" / "device" / "Cargo.toml"
+    device.write_text(
+        '[package]\nname = "device"\nversion = "0.1.0"\n'
+        '[workspace]\nmembers = ["."]\n')
+    device_lock = repo / "contracts" / "device" / "Cargo.lock"
+    device_lock.write_text("device lock\n")
+    first = commit(repo, "base")
+    device.write_text(
+        '[package]\nname = "device"\nversion = "0.1.0"\n'
+        '[workspace]\nmembers = ["."]\n[features]\ndefault = []\n')
+    tip = commit(repo, "change standalone manifest")
+    zero = baseline(counts={
+        "member": {"root": 0, "core": 1, "helper": 1, "device": 0}
+    })
+
+    owners, packages = gate.revision_workspace_packages(repo, first)
+    assert owners["shared/helper/Cargo.toml"] == "Cargo.toml"
+    assert owners["contracts/device/Cargo.toml"] == "contracts/device/Cargo.toml"
+    assert packages["Cargo.toml"] == frozenset({"root", "core", "helper"})
+    assert packages["contracts/device/Cargo.toml"] == frozenset({"device"})
+    assert gate.base_triggers(repo, first, tip, zero) == []
+
+    rules = tmp_path / "baseline.json"
+    rules.write_text(baseline_text({"member": {"core": 0, "device": 0}}))
+    assert gate.main(["--baseline", str(rules), "base-triggers", "--repo", str(repo),
+                      "--base", first, "--tip", tip]) == 0
+    assert capsys.readouterr().out == ""
+
+    # The omitted base count cannot admit a candidate cast: an absent row is
+    # zero, so the candidate's complete count still fails the committed cap.
+    found = {site("device", "contracts/device/src/lib.rs", 1)}
+    assert gate.violations("member", found, {}, ["device"], zero) == [
+        "device: 1 bare `as` casts, above its baseline row of 0"]
+
+    device_lock.write_text("device lock changed\n")
+    lock_only = commit(repo, "change zero-cap fixture lock")
+    assert gate.base_triggers(repo, tip, lock_only, zero) == []
+
+    device.write_text(device.read_text() + '[package.metadata.test]\nvalue = 1\n')
+    (repo / "crates" / "core" / "src" / "lib.rs").write_text(
+        "pub fn core() {}\npub fn positive() {}\n"
+    )
+    with_source = commit(repo, "change fixture manifest and positive source")
+    assert gate.base_triggers(repo, lock_only, with_source, zero) == [
+        "contracts/device/Cargo.toml changed"
+    ]
+
+    device.write_text(device.read_text() + 'next = 2\n')
+    (repo / "Cargo.lock").write_text("root lock changed\n")
+    with_root_lock = commit(repo, "change fixture manifest and positive root lock")
+    assert gate.base_triggers(repo, with_source, with_root_lock, zero) == [
+        "contracts/device/Cargo.toml changed"
+    ]
+
+    (repo / "Cargo.lock").write_text("positive root lock alone\n")
+    positive_lock_only = commit(repo, "change only positive-cap root lock")
+    assert gate.base_triggers(repo, with_root_lock, positive_lock_only, zero) == []
+
+
+def test_positive_or_malformed_workspaces_retain_the_base_compile(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "crates" / "core").mkdir(parents=True)
+    (repo / "nested").mkdir()
+    (repo / "Cargo.toml").write_text(
+        '[workspace]\nmembers = ["crates/core", "nested"]\n')
+    core = repo / "crates" / "core" / "Cargo.toml"
+    core.write_text('[package]\nname = "core"\nversion = "0.1.0"\n')
+    nested = repo / "nested" / "Cargo.toml"
+    nested.write_text('[package]\nname = "nested"\nversion = "0.1.0"\n')
+    first = commit(repo, "base")
+    core.write_text(
+        '[package]\nname = "core"\nversion = "0.1.0"\n[features]\ndefault = []\n')
+    tip = commit(repo, "change manifest")
+    reason = ["crates/core/Cargo.toml changed"]
+
+    assert gate.base_triggers(
+        repo, first, tip, baseline(counts={"other-member": {"nested": 1}})
+    ) == reason
+    assert gate.base_triggers(
+        repo, first, tip, baseline(counts={"member": {"core": 0, "nested": 1}})
+    ) == reason
+
+    (repo / "orphan").mkdir()
+    (repo / "orphan" / "Cargo.lock").write_text("lock without an owning manifest\n")
+    core.write_text(core.read_text() + '[package.metadata.test]\nvalue = 1\n')
+    unknown_lock = commit(repo, "change manifest with ownerless lock")
+    assert gate.base_triggers(repo, tip, unknown_lock, baseline()) == reason
+
+    nested.write_text("[package\n")
+    malformed = commit(repo, "malformed nested manifest")
+    assert gate.base_triggers(repo, unknown_lock, malformed, baseline()) == [
+        "nested/Cargo.toml changed"]
+
+    nested.write_text('[package]\nname = "nested"\nversion = "0.1.0"\n')
+    (repo / "Cargo.toml").write_text(
+        '[workspace]\nmembers = ["crates/core", "nested"]\nexclude = "nested"\n'
+    )
+    malformed_membership = commit(repo, "malformed workspace exclusion")
+    assert gate.base_triggers(repo, malformed, malformed_membership, baseline()) == [
+        "Cargo.toml changed", "nested/Cargo.toml changed"
+    ]
 
 
 def test_base_triggers_at_the_root_and_nested(tmp_path):

@@ -78,6 +78,9 @@ import sys
 import tomllib
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
+from pathlib import PurePosixPath
+
+import lockfile
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
@@ -354,12 +357,15 @@ def package_build_script(repo: pathlib.Path, tip: str, path: str) -> bool:
                           capture_output=True).returncode == 0
 
 
-def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
+def base_triggers(repo: pathlib.Path, base: str, tip: str,
+                  baseline: Baseline | None = None) -> list[str]:
     """Why the range needs the base count: each change that can bring existing
     casts into a pushed package without adding their lines. A copy is not
     one: without `-C` it diffs as an added file, every line added."""
     fields = pushed_diff(repo, base, tip, ["--name-status", "-z"]).decode("utf-8").split("\0")
     reasons: list[str] = []
+    descriptions: set[str] = set()
+    descriptions_only = True
     index = 0
     while index < len(fields) and fields[index]:
         status = fields[index]
@@ -367,16 +373,31 @@ def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
             source, target = fields[index + 1], fields[index + 2]
             index += 3
             reasons.append(f"{source} -> {target}")
+            descriptions_only = False
             paths = [source, target]
         else:
             paths = [fields[index + 1]]
             index += 2
         for path in paths:
             name = path.rsplit("/", 1)[-1]
+            if name in {"Cargo.toml", "Cargo.lock"}:
+                descriptions.add(path)
+            else:
+                descriptions_only = False
             if (name in BUILD_INPUTS or "/.cargo/" in f"/{path}"
                     or package_build_script(repo, tip, path)):
                 reasons.append(f"{path} changed")
-    return list(dict.fromkeys(reasons))
+    reasons = list(dict.fromkeys(reasons))
+    if (reasons and descriptions_only and descriptions and baseline is not None
+            and affected_packages_have_zero_cap(
+                repo, base, tip, descriptions, baseline
+            )):
+        # A candidate count C is nonnegative. When its committed cap is zero,
+        # the row check requires C <= 0; adding the base check C <= B changes
+        # that bound to C <= min(0, B) = 0. The base compile is therefore
+        # redundant, including when an old dependency graph no longer resolves.
+        return []
+    return reasons
 
 
 def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
@@ -489,6 +510,132 @@ def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
             if member_package:
                 packages.add(member_package)
     return frozenset(packages)
+
+
+def revision_workspace_packages(
+        repo: pathlib.Path,
+        revision: str,
+) -> tuple[dict[str, str], dict[str, frozenset[str]]] | None:
+    """Manifest-to-workspace ownership and package names at `revision`.
+
+    Explicit members seed each workspace. Path dependencies beneath its root are
+    followed recursively as Cargo's implicit members; exclusions and nearer nested
+    workspace roots stop that walk. Packages not claimed by a workspace are their
+    own standalone workspaces.
+    """
+    try:
+        texts = lockfile.tracked_texts(repo, staged=False, revision=revision)
+    except lockfile.GitUnavailable:
+        return None
+    manifests = {
+        path: text
+        for path, text in texts.items()
+        if PurePosixPath(path).name == "Cargo.toml"
+    }
+    parsed: dict[str, dict] = {}
+    names: dict[str, str] = {}
+    roots: list[PurePosixPath] = []
+    for manifest, text in manifests.items():
+        try:
+            data = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
+            return None
+        parsed[manifest] = data
+        package = data.get("package")
+        if package is not None:
+            if not isinstance(package, dict) or not isinstance(package.get("name"), str):
+                return None
+            names[manifest] = package["name"]
+        workspace = data.get("workspace")
+        if workspace is None:
+            continue
+        if not isinstance(workspace, dict):
+            return None
+        for key in ("members", "exclude"):
+            entries = workspace.get(key, [])
+            if not (isinstance(entries, list)
+                    and all(isinstance(entry, str) for entry in entries)):
+                return None
+        roots.append(PurePosixPath(manifest).parent)
+
+    claims: dict[str, set[str]] = {manifest: set() for manifest in names}
+    packages: dict[str, frozenset[str]] = {}
+    for root in roots:
+        root_manifest = (root / "Cargo.toml").as_posix()
+        nested = [other for other in roots if other != root and root in other.parents]
+        selected = lockfile.workspace_selection(manifests, parsed, root, nested)
+        facts = lockfile.workspace_facts(manifests, root, nested)
+        if selected is None or facts.unreadable:
+            return None
+        # workspace_selection also exposes path dependencies that escape a
+        # nested workspace. They are real dependency facts, but Cargo does not
+        # measure an ancestor package as a member of the nested workspace.
+        contained = {
+            manifest
+            for manifest in selected
+            if (root == PurePosixPath(".")
+                or PurePosixPath(manifest).parent == root
+                or root in PurePosixPath(manifest).parent.parents)
+        }
+        packages[root_manifest] = frozenset(
+            names[manifest] for manifest in contained if manifest in names
+        )
+        for manifest in contained:
+            if manifest in claims:
+                claims[manifest].add(root_manifest)
+
+    owners: dict[str, str] = {}
+    for manifest, name in names.items():
+        if len(claims[manifest]) > 1:
+            return None
+        owner = next(iter(claims[manifest]), manifest)
+        owners[manifest] = owner
+        if owner == manifest:
+            packages[owner] = packages.get(owner, frozenset()) | {name}
+    for root in roots:
+        root_manifest = (root / "Cargo.toml").as_posix()
+        owners[root_manifest] = root_manifest
+    return owners, packages
+
+
+def affected_packages(repo: pathlib.Path, revision: str,
+                      descriptions: set[str]) -> frozenset[str] | None:
+    """Packages in every workspace touched by manifests or locks at `revision`."""
+    layout = revision_workspace_packages(repo, revision)
+    if layout is None:
+        return None
+    owners, packages = layout
+    affected: set[str] = set()
+    for path in descriptions:
+        manifest = path if path.endswith("Cargo.toml") else (
+            "Cargo.toml" if path == "Cargo.lock" else path[:-len("Cargo.lock")] + "Cargo.toml"
+        )
+        owner = owners.get(manifest)
+        if owner is None:
+            if git_file(repo, revision, path) is not None:
+                return None
+            continue
+        affected.update(packages.get(owner, frozenset()))
+    return frozenset(affected)
+
+
+def affected_packages_have_zero_cap(repo: pathlib.Path, base: str, tip: str,
+                                    descriptions: set[str], baseline: Baseline) -> bool:
+    """Whether all packages in the changed workspace descriptions have cap zero."""
+    before = affected_packages(repo, base, descriptions)
+    after = affected_packages(repo, tip, descriptions)
+    if before is None or after is None:
+        return False
+    packages = before | after
+    if not packages:
+        return False
+    nonzero = {
+        package
+        for rows in baseline.counts.values()
+        for package, count in rows.items()
+        if count != 0
+    }
+    return packages.isdisjoint(nonzero)
 
 
 def held_to_base(repo: pathlib.Path, base: str, candidates: Iterable[str],
@@ -692,7 +839,8 @@ def triggers(args: argparse.Namespace) -> int:
     # UTF-8 whatever the console code page: a path outside it must not stop
     # the gate (a Windows pipe defaults to the ANSI code page).
     sys.stdout.reconfigure(encoding="utf-8", newline="\n")
-    for reason in base_triggers(pathlib.Path(args.repo), args.base, args.tip):
+    baseline = Baseline.load(args.baseline)
+    for reason in base_triggers(pathlib.Path(args.repo), args.base, args.tip, baseline):
         print(reason)
     return 0
 
