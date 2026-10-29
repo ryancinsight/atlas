@@ -167,3 +167,26 @@ Usage:
 # allow-list downgrades D/F from FILE_MISSING to PLACEHOLDER_MISSING,
 # --strict-placeholder re-elevates them without double-counting.
 ``````
+
+## Fence boundary contract
+
+A closing fence allows zero to three leading ASCII spaces, the opener's
+character repeated at least as many times, then only ASCII spaces or tabs.
+Four-space, tab or Unicode indentation keeps the apparent closing fence inside
+the example. Stripping arbitrary whitespace closes such examples too early:
+example links and headings become visible, and real destinations after the
+actual closing fence can disappear from validation.
+
+[The boundary regressions](../../scripts/tests/test_mdbook_fence_boundaries.py)
+cover these cases, CRLF, valid fence controls and real missing-file failures.
+An independent mdBook 0.4.40 render of the four-space fixture retains the
+example and emits only the real link and heading; that observation does not
+qualify a reusable workflow's configured renderer version.
+
+The standalone validator retains its original root symbols and copied-file
+runtime contract. Links and headings share its corrected existing mask;
+classifications, allowlists, exit policies and gate activation paths remain
+unchanged. The historical notes above keep the executable below 500 lines.
+This repair does not establish member figure-generation closure or change
+dependency, hook, pin or publication policy. Final delivery still requires
+ordinary exact-revision tests, independent review and hosted gates.

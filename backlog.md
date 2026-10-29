@@ -11,7 +11,6 @@
 <a id="atlas-bench-budget-001"></a>- [ATLAS-BENCH-BUDGET-001](backlog/atlas-bench-budget-001.md) — Wall-clock budgets for benches and examples [patch] — todo
 <a id="atlas-book-caller-pins-2026-08-20"></a>- [ATLAS-BOOK-CALLER-PINS-2026-08-20](backlog/atlas-book-caller-pins-2026-08-20.md) — Repin provider mdBook callers [patch] — todo
 <a id="atlas-book-figure-closure-2026-08-21"></a>- [ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21](backlog/atlas-book-figure-closure-2026-08-21.md) — Restore generated validation figures [patch] — todo
-<a id="atlas-mdbook-fence-boundaries"></a>- [ATLAS-MDBOOK-FENCE-BOUNDARIES](backlog/atlas-mdbook-fence-boundaries.md) — Preserve code-indented fence boundaries in book validation [patch] — in progress
 <a id="atlas-bounded-runner"></a>- [ATLAS-BOUNDED-RUNNER](backlog/atlas-bounded-runner.md) — Launch every agent process through one bounded runner [patch] — todo
 <a id="atlas-branch-inventory-001"></a>- [ATLAS-BRANCH-INVENTORY-001](backlog/atlas-branch-inventory-001.md) — Burn down stack branch inventories [git-hygiene] [patch] — todo
 <a id="atlas-cfdrs-athena-migration-001"></a>- [ATLAS-CFDRS-ATHENA-MIGRATION-001](backlog/atlas-cfdrs-athena-migration-001.md) — Stage B: CFDrs to Athena [major] [arch] — todo
