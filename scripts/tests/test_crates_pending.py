@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import hashlib
+import inspect
 import json
 import contextlib
 import io
@@ -137,11 +138,79 @@ class SharedIndexReaderTests(unittest.TestCase):
         self.assertFalse(hasattr(cp, "http_get"))
 
 
+class RegistryPolicyTests(unittest.TestCase):
+    def test_registry_operations_share_one_policy_over_the_canonical_reader(self) -> None:
+        operations = (cp.published_versions, cp.owners, cp.select, cp.verify,
+                      cp.still_pending, cp.command_plan, cp.command_bind,
+                      cp.command_publish, cp.indexed_after_publish, cp.command_tag)
+        for operation in operations:
+            with self.subTest(operation=operation.__name__):
+                default = inspect.signature(operation).parameters["fetch"].default
+                self.assertIs(default, cp.REGISTRY_POLICY)
+        self.assertIs(cp.REGISTRY_POLICY.reader, cp.read_url)
+
+    def test_a_second_api_request_waits_out_the_rest_of_the_interval(self) -> None:
+        throttle = cp.ApiThrottle(interval=1.0)
+        clock = iter([10.0, 10.25, 11.0])
+        slept: list[float] = []
+        with mock.patch.object(cp.time, "monotonic", side_effect=lambda: next(clock)), \
+                mock.patch.object(cp.time, "sleep", side_effect=slept.append):
+            throttle.wait()
+            throttle.wait()
+        self.assertEqual(slept, [0.75])
+
+    def test_only_api_attempts_use_the_processwide_throttle(self) -> None:
+        reader = mock.Mock(return_value=(200, b"{}"))
+        throttle = mock.Mock()
+        policy = cp.RegistryPolicy(reader=reader, throttle=throttle)
+        policy("https://index.crates.io/de/mo/demo", 32)
+        policy("https://static.crates.io/crates/demo/demo-0.1.0.crate", 32)
+        self.assertEqual(throttle.wait.call_count, 0)
+        policy("https://crates.io/api/v1/crates/demo/owners", 32)
+        self.assertEqual(throttle.wait.call_count, 1)
+
+    def test_api_pacing_precedes_the_canonical_read(self) -> None:
+        events: list[str] = []
+        reader = mock.Mock(side_effect=lambda _url, _limit: (events.append("read") or (200, b"{}")))
+        throttle = mock.Mock()
+        throttle.wait.side_effect = lambda: events.append("pace")
+        cp.RegistryPolicy(reader=reader, throttle=throttle)(
+            "https://crates.io/api/v1/crates/demo/owners", 32)
+        self.assertEqual(events, ["pace", "read"])
+
+    def test_only_typed_transport_failures_retry_with_doubling_backoff(self) -> None:
+        transient = cp.RegistryTransportError("reset")
+        reader = mock.Mock(side_effect=[transient, transient, (200, b"owners")])
+        slept: list[float] = []
+        policy = cp.RegistryPolicy(
+            reader=reader,
+            throttle=cp.ApiThrottle(interval=0.0),
+            sleep=slept.append,
+            jitter=lambda _low, _high: 1.0,
+        )
+        self.assertEqual(policy("https://x", 32), (200, b"owners"))
+        self.assertEqual(reader.call_count, 3)
+        self.assertEqual(slept, [2.0, 4.0])
+
+    def test_transport_exhaustion_preserves_the_last_failure_as_cause(self) -> None:
+        reader = mock.Mock(side_effect=cp.RegistryTransportError("reset"))
+        policy = cp.RegistryPolicy(
+            reader=reader,
+            throttle=cp.ApiThrottle(interval=0.0),
+            sleep=lambda _delay: None,
+            jitter=lambda _low, _high: 1.0,
+        )
+        with self.assertRaisesRegex(cp.RegistryTransportError, "after 5 attempts") as raised:
+            policy("https://x", 32)
+        self.assertIsInstance(raised.exception.__cause__, cp.RegistryTransportError)
+        self.assertEqual(reader.call_count, cp.TRANSPORT_ATTEMPTS)
+
+
 class SelectTests(unittest.TestCase):
     def test_selects_versions_absent_from_the_index_even_when_older_lines_follow(self) -> None:
         registry = Registry({"alpha": ["0.6.0", "0.7.0", "0.6.1"], "alpha-core": ["0.6.0"]})
         plan = cp.select({"packages": [pkg("alpha", "0.7.0"), pkg("alpha-core", "0.7.0")]},
-                         OWNER, registry, no_sleep)
+                         OWNER, registry)
         self.assertEqual(plan.pending, ["alpha-core"])
 
     def test_registry_scoping_and_first_publication(self) -> None:
@@ -149,7 +218,7 @@ class SelectTests(unittest.TestCase):
         plan = cp.select({"packages": [
             pkg("kept", "1.1.0"), pkg("listed", "1.1.0", ["crates-io"]),
             pkg("internal", "0.1.0", []), pkg("private", "0.1.0", ["my-registry"]),
-            pkg("fresh", "0.1.0")]}, OWNER, registry, no_sleep)
+            pkg("fresh", "0.1.0")]}, OWNER, registry)
         self.assertEqual(plan.pending, ["kept", "listed"])
         self.assertEqual(len(plan.notices), 1)
         self.assertIn("fresh has never been published", plan.notices[0])
@@ -157,17 +226,17 @@ class SelectTests(unittest.TestCase):
 
     def test_a_never_published_name_does_not_end_the_selection(self) -> None:
         registry = Registry({"kept": ["1.0.0"]})
-        plan = cp.select({"packages": [pkg("fresh", "0.1.0"), pkg("kept", "1.1.0")]}, OWNER, registry, no_sleep)
+        plan = cp.select({"packages": [pkg("fresh", "0.1.0"), pkg("kept", "1.1.0")]}, OWNER, registry)
         self.assertEqual(plan.pending, ["kept"])
 
     def test_selection_follows_the_expected_owner(self) -> None:
         registry = Registry({"a": ["0.1.0"]}, owners={"a": ["someone"]})
-        self.assertEqual(cp.select({"packages": [pkg("a", "0.2.0")]}, "someone", registry, no_sleep).pending, ["a"])
-        self.assertEqual(cp.select({"packages": [pkg("a", "0.2.0")]}, OWNER, registry, no_sleep).pending, [])
+        self.assertEqual(cp.select({"packages": [pkg("a", "0.2.0")]}, "someone", registry).pending, ["a"])
+        self.assertEqual(cp.select({"packages": [pkg("a", "0.2.0")]}, OWNER, registry).pending, [])
 
     def test_a_name_someone_else_owns_is_never_published(self) -> None:
         registry = Registry({"horae": ["0.1.1", "0.2.1"]}, owners={"horae": ["zhaohang1205"]})
-        plan = cp.select({"packages": [pkg("horae", "0.1.0")]}, OWNER, registry, no_sleep)
+        plan = cp.select({"packages": [pkg("horae", "0.1.0")]}, OWNER, registry)
         self.assertEqual(plan.pending, [])
         self.assertIn("owned by zhaohang1205, not ryancinsight", plan.warnings[0])
 
@@ -178,7 +247,7 @@ class SelectTests(unittest.TestCase):
                 registry = Registry({"bumped": ["1.0.0"]},
                                     status={"https://crates.io/api/v1/crates/bumped/owners": status})
                 with self.assertRaises(cp.RegistryError):
-                    cp.select({"packages": [pkg("bumped", "1.1.0")]}, OWNER, registry, no_sleep)
+                    cp.select({"packages": [pkg("bumped", "1.1.0")]}, OWNER, registry)
 
     def test_duplicate_owners_keys_cannot_replace_a_foreign_owner(self) -> None:
         body = (b'{"users":[{"login":"foreign"}],'
@@ -198,15 +267,9 @@ class SelectTests(unittest.TestCase):
         body = b'{"users":[{"login":"ryancinsight","id":7}],"meta":{"total":1}}'
         self.assertEqual(cp.owners("bumped", lambda _url, _limit: (200, body)), [OWNER])
 
-    def test_owners_requests_follow_the_crawler_interval(self) -> None:
-        slept = []
-        cp.select({"packages": [pkg("a", "0.2.0"), pkg("b", "0.2.0")]}, OWNER,
-                  Registry({"a": ["0.1.0"], "b": ["0.1.0"]}), slept.append)
-        self.assertEqual(slept, [cp.API_INTERVAL_SECONDS, cp.API_INTERVAL_SECONDS])
-
     def test_owners_are_asked_only_for_pending_names(self) -> None:
         registry = Registry({"current": ["1.0.0"], "bumped": ["1.0.0"]})
-        cp.select({"packages": [pkg("current", "1.0.0"), pkg("bumped", "1.1.0")]}, OWNER, registry, no_sleep)
+        cp.select({"packages": [pkg("current", "1.0.0"), pkg("bumped", "1.1.0")]}, OWNER, registry)
         self.assertEqual([u for u in registry.asked if "/owners" in u],
                          ["https://crates.io/api/v1/crates/bumped/owners"])
 
@@ -232,7 +295,7 @@ class VerifyTests(unittest.TestCase):
     def test_ready_checks_resolution_then_compiles(self) -> None:
         cargo = Cargo([])
         packages = [pkg("a", "0.2.0"), pkg("b", "0.2.0")]
-        self.assertEqual(cp.verify(["a", "b"], packages, OWNER, Registry({}), cargo, no_sleep), ["a", "b"])
+        self.assertEqual(cp.verify(["a", "b"], packages, OWNER, Registry({}), cargo), ["a", "b"])
         self.assertEqual(cargo.calls, [
             ["cargo", "package", "--locked", "--no-verify", "--package", "a", "--package", "b"],
             ["cargo", "package", "--locked", "--package", "a", "--package", "b"]])
@@ -241,7 +304,7 @@ class VerifyTests(unittest.TestCase):
         cargo = Cargo([], {RESOLVE: (101, MISSING.format("hermes-simd"))})
         registry = Registry({})
         packages = [pkg("leto-ops", "0.2.0", deps=("hermes-simd",))]
-        self.assertEqual(cp.verify(["leto-ops"], packages, OWNER, registry, cargo, no_sleep), [])
+        self.assertEqual(cp.verify(["leto-ops"], packages, OWNER, registry, cargo), [])
         self.assertEqual(len(cargo.calls), 1)
         self.assertEqual(registry.asked, ["https://crates.io/api/v1/crates/hermes-simd/owners"])
 
@@ -252,14 +315,12 @@ class VerifyTests(unittest.TestCase):
         dev["dependencies"] = [{"name": "c", "kind": "dev", "req": "^0.2.0"}]
         packages = [pkg("a", "0.2.0", deps=("serde",)), dev, pkg("c", "0.2.0", deps=("hermes-simd",))]
         cargo = Cargo([], {resolve("a", "b", "c"): (101, MISSING.format("hermes-simd"))})
-        slept: list[float] = []
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            ready = cp.verify(["a", "b", "c"], packages, OWNER, Registry({}), cargo, slept.append)
+            ready = cp.verify(["a", "b", "c"], packages, OWNER, Registry({}), cargo)
         self.assertEqual(ready, ["a"])
         self.assertEqual(cargo.calls, [list(resolve("a", "b", "c")), list(resolve("a")),
                                        ["cargo", "package", "--locked", "--package", "a"]])
-        self.assertEqual(slept, [1.0])
         self.assertIn("::notice::waiting for the required hermes-simd version to reach the index: b c",
                       stdout.getvalue())
 
@@ -279,7 +340,7 @@ class VerifyTests(unittest.TestCase):
                 packages = [needing, pkg("c", "0.2.0")]
                 cargo = Cargo([], {resolve("a", "c"): (101, MISSING.format("dep"))})
                 with contextlib.redirect_stdout(io.StringIO()):
-                    ready = cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo, no_sleep)
+                    ready = cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo)
                 self.assertEqual(ready, ["c"])
 
     def test_a_dev_dependency_without_a_version_holds_nothing_back(self) -> None:
@@ -290,7 +351,7 @@ class VerifyTests(unittest.TestCase):
         packages = [dev, pkg("c", "0.2.0", deps=("hermes-simd",))]
         cargo = Cargo([], {resolve("b", "c"): (101, MISSING.format("hermes-simd"))})
         with contextlib.redirect_stdout(io.StringIO()):
-            ready = cp.verify(["b", "c"], packages, OWNER, Registry({}), cargo, no_sleep)
+            ready = cp.verify(["b", "c"], packages, OWNER, Registry({}), cargo)
         self.assertEqual(ready, ["b"])
         self.assertEqual(cp.dependents(["b", "c"], packages, "hermes-simd"), ["c"])
 
@@ -309,30 +370,19 @@ class VerifyTests(unittest.TestCase):
         packages = [renamed, pkg("c", "0.2.0")]
         cargo = Cargo([], {resolve("a", "c"): (101, MISSING.format("moirai-runtime"))})
         with contextlib.redirect_stdout(io.StringIO()):
-            ready = cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo, no_sleep)
+            ready = cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo)
         self.assertEqual(ready, ["c"])
-
-    def test_the_wait_check_sleeps_before_its_owners_request(self) -> None:
-        packages = [pkg("a", "0.2.0", deps=("dep",)), pkg("c", "0.2.0")]
-        registry = Registry({})
-        asked_before_sleep: list[int] = []
-        cargo = Cargo([], {resolve("a", "c"): (101, MISSING.format("dep"))})
-        with contextlib.redirect_stdout(io.StringIO()):
-            cp.verify(["a", "c"], packages, OWNER, registry, cargo,
-                      lambda _: asked_before_sleep.append(len(registry.asked)))
-        self.assertEqual(asked_before_sleep, [0])
-        self.assertEqual(registry.asked, ["https://crates.io/api/v1/crates/dep/owners"])
 
     def test_each_missing_version_holds_back_only_its_dependents(self) -> None:
         packages = [pkg("a", "0.2.0", deps=("x",)), pkg("b", "0.2.0", deps=("y",)), pkg("c", "0.2.0")]
         cargo = Cargo([], {resolve("a", "b", "c"): (101, MISSING.format("x")),
                            resolve("b", "c"): (101, MISSING.format("y"))})
-        self.assertEqual(cp.verify(["a", "b", "c"], packages, OWNER, Registry({}), cargo, no_sleep), ["c"])
+        self.assertEqual(cp.verify(["a", "b", "c"], packages, OWNER, Registry({}), cargo), ["c"])
 
     def test_a_missing_version_no_pending_name_depends_on_fails(self) -> None:
         cargo = Cargo([], {RESOLVE: (101, MISSING.format("hermes-simd"))})
         with self.assertRaisesRegex(SystemExit, "hermes-simd, which no pending package depends on"):
-            cp.verify(["a"], [pkg("a", "0.2.0", deps=("serde",))], OWNER, Registry({}), cargo, no_sleep)
+            cp.verify(["a"], [pkg("a", "0.2.0", deps=("serde",))], OWNER, Registry({}), cargo)
 
     def test_a_foreign_crate_missing_version_holds_back_only_its_dependents(self) -> None:
         foreign = Registry({}, owners={"itoa": ["dtolnay"]})
@@ -340,7 +390,7 @@ class VerifyTests(unittest.TestCase):
         cargo = Cargo([], {resolve("a", "c"): (101, MISSING.format("itoa"))})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            ready = cp.verify(["a", "c"], packages, OWNER, foreign, cargo, no_sleep)
+            ready = cp.verify(["a", "c"], packages, OWNER, foreign, cargo)
         self.assertEqual(ready, ["c"])
         self.assertIn("::warning::itoa is owned by another crates.io account and the index lacks "
                       "the required version; held: a", stdout.getvalue())
@@ -351,7 +401,7 @@ class VerifyTests(unittest.TestCase):
         cargo = Cargo([], {resolve("a", "c"): (101, MISSING.format("a-core"))})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            ready = cp.verify(["a", "c"], packages, OWNER, registry, cargo, no_sleep)
+            ready = cp.verify(["a", "c"], packages, OWNER, registry, cargo)
         self.assertEqual(ready, ["c"])
         self.assertIn("::warning::no version of workspace member a-core on crates.io or in this run's "
                       "pending set satisfies the requirement on it; held: a", stdout.getvalue())
@@ -370,7 +420,7 @@ class VerifyTests(unittest.TestCase):
                 cargo = Cargo([], {resolve("a", "c"): (101, absent)})
                 stdout = io.StringIO()
                 with contextlib.redirect_stdout(stdout):
-                    ready = cp.verify(["a", "c"], packages, OWNER, registry, cargo, no_sleep)
+                    ready = cp.verify(["a", "c"], packages, OWNER, registry, cargo)
                 self.assertEqual(ready, ["c"])
                 self.assertIn("::warning::ritk-parcellation has never been published on crates.io; its "
                               "first publish needs an API token; held: a", stdout.getvalue())
@@ -384,7 +434,7 @@ class VerifyTests(unittest.TestCase):
                 stdout = io.StringIO()
                 with contextlib.redirect_stdout(stdout):
                     ready = cp.verify(["a", "c"], packages, owner, Registry({}, owners={"dep": ["someone"]}),
-                                      cargo, no_sleep)
+                                      cargo)
                 self.assertEqual(ready, ["c"])
                 self.assertIn(kind, stdout.getvalue())
 
@@ -394,7 +444,7 @@ class VerifyTests(unittest.TestCase):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             ready = cp.verify(["a", "c"], packages, OWNER, Registry({}, owners={"itoa": ["dtolnay"]}),
-                              cargo, no_sleep)
+                              cargo)
         self.assertEqual(ready, ["c"])
         self.assertIn("::warning::itoa is owned by another crates.io account and the index lacks "
                       "the required version; held: a", stdout.getvalue())
@@ -413,7 +463,7 @@ class VerifyTests(unittest.TestCase):
                     stdout = io.StringIO()
                     with contextlib.redirect_stdout(stdout):
                         ready = cp.verify(["a", "c"], packages, OWNER,
-                                          Registry({}, owners={name: ["another-account"]}), cargo, no_sleep)
+                                          Registry({}, owners={name: ["another-account"]}), cargo)
                     self.assertEqual(ready, ["c"])
                     self.assertIn(f"{name} ", stdout.getvalue())
 
@@ -425,7 +475,7 @@ class VerifyTests(unittest.TestCase):
                            resolve("c"): (101, MISSING.format("dep"))})
         with contextlib.redirect_stdout(io.StringIO()), \
                 self.assertRaisesRegex(SystemExit, "cargo names dep, which no pending package depends on"):
-            cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo, no_sleep)
+            cp.verify(["a", "c"], packages, OWNER, Registry({}), cargo)
         self.assertEqual(len(cargo.calls), 2)
 
     def test_the_hold_back_follows_a_chain_to_its_end(self) -> None:
@@ -437,22 +487,22 @@ class VerifyTests(unittest.TestCase):
     def test_an_unrelated_error_quoting_a_requirement_is_not_a_wait(self) -> None:
         cargo = Cargo([], {RESOLVE: (101, 'error: invalid table key `serde = "1"` in manifest')})
         with self.assertRaisesRegex(SystemExit, "other than a missing dependency version"):
-            cp.verify(["a"], [pkg("a", "0.2.0", deps=("serde",))], OWNER, Registry({}), cargo, no_sleep)
+            cp.verify(["a"], [pkg("a", "0.2.0", deps=("serde",))], OWNER, Registry({}), cargo)
 
     def test_owners_outage_during_a_wait_fails(self) -> None:
         registry = Registry({}, status={"https://crates.io/api/v1/crates/hermes-simd/owners": 503})
         with self.assertRaises(cp.RegistryError):
             cp.verify(["a"], [pkg("a", "0.2.0", deps=("hermes-simd",))], OWNER, registry,
-                      Cargo([], {RESOLVE: (101, MISSING.format("hermes-simd"))}), no_sleep)
+                      Cargo([], {RESOLVE: (101, MISSING.format("hermes-simd"))}))
 
     def test_other_resolution_and_compile_failures_fail(self) -> None:
         packages = [pkg("a", "0.2.0")]
         with self.assertRaises(SystemExit):
             cp.verify(["a"], packages, OWNER, Registry({}),
-                      Cargo([], {RESOLVE: (101, "error: missing license")}), no_sleep)
+                      Cargo([], {RESOLVE: (101, "error: missing license")}))
         with self.assertRaises(SystemExit):
             cp.verify(["a"], packages, OWNER, Registry({}),
-                      Cargo([], {("cargo", "package", "--locked", "--package"): (101, "error[E0432]")}), no_sleep)
+                      Cargo([], {("cargo", "package", "--locked", "--package"): (101, "error[E0432]")}))
 
 
 class PolicyBoundTests(unittest.TestCase):
@@ -470,7 +520,7 @@ class PlanCommandTests(unittest.TestCase):
         for logins in (["a-co-owner", OWNER], [OWNER, "a-co-owner"]):
             with self.subTest(logins=logins):
                 registry = Registry({"a": ["0.1.0"]}, owners={"a": logins})
-                out = cp.command_plan(OWNER, registry, Cargo([pkg("a", "0.2.0")]), no_sleep)
+                out = cp.command_plan(OWNER, registry, Cargo([pkg("a", "0.2.0")]))
                 self.assertEqual(out, {"packages": "a", "count": "1"})
 
     def test_the_owner_input_decides_selection_and_waiting(self) -> None:
@@ -482,16 +532,15 @@ class PlanCommandTests(unittest.TestCase):
                       {resolve("a", "c"): (101, MISSING.format("dep"))})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            out = cp.command_plan("someone", registry, cargo, no_sleep)
+            out = cp.command_plan("someone", registry, cargo)
         self.assertEqual(out, {"packages": "c", "count": "1"})
         self.assertIn("::notice::waiting for the required dep version to reach the index: a",
                       stdout.getvalue())
-        self.assertEqual(cp.command_plan(OWNER, registry, Cargo([pkg("a", "0.2.0"), pkg("c", "0.2.0")]),
-                                         no_sleep), {"count": "0"})
+        self.assertEqual(cp.command_plan(OWNER, registry, Cargo([pkg("a", "0.2.0"), pkg("c", "0.2.0")])), {"count": "0"})
 
     def test_outputs_the_pending_set(self) -> None:
         cargo = Cargo([pkg("a", "0.2.0"), pkg("b", "0.2.0")])
-        out = cp.command_plan(OWNER, Registry({"a": ["0.1.0"], "b": ["0.1.0"]}), cargo, no_sleep)
+        out = cp.command_plan(OWNER, Registry({"a": ["0.1.0"], "b": ["0.1.0"]}), cargo)
         self.assertEqual(out, {"packages": "a,b", "count": "2"})
 
     def test_an_unpublishable_member_holds_back_only_its_dependents(self) -> None:
@@ -500,17 +549,17 @@ class PlanCommandTests(unittest.TestCase):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             out = cp.command_plan(OWNER, Registry({"a": ["0.1.0"], "a-internal": ["0.1.0"], "c": ["0.1.0"]}),
-                                  cargo, no_sleep)
+                                  cargo)
         self.assertEqual(out, {"packages": "c", "count": "1"})
         self.assertIn("::notice::pending packages (a) wait on a dependency", stdout.getvalue())
 
     def test_nothing_pending_or_waiting_is_count_zero(self) -> None:
-        self.assertEqual(cp.command_plan(OWNER, Registry({"a": ["0.1.0"]}), Cargo([pkg("a", "0.1.0")]), no_sleep),
+        self.assertEqual(cp.command_plan(OWNER, Registry({"a": ["0.1.0"]}), Cargo([pkg("a", "0.1.0")])),
                          {"count": "0"})
         waiting = Cargo([pkg("a", "0.2.0", deps=("hermes-simd",))], {RESOLVE: (101, MISSING.format("hermes-simd"))})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            self.assertEqual(cp.command_plan(OWNER, Registry({"a": ["0.1.0"]}), waiting, no_sleep), {"count": "0"})
+            self.assertEqual(cp.command_plan(OWNER, Registry({"a": ["0.1.0"]}), waiting), {"count": "0"})
         self.assertIn("::notice::pending packages (a) wait on a dependency version not yet on crates.io",
                       stdout.getvalue())
 
@@ -519,7 +568,7 @@ class PlanCommandTests(unittest.TestCase):
                       {resolve("a", "b"): (101, MISSING.format("hermes-simd"))})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            out = cp.command_plan(OWNER, Registry({"a": ["0.1.0"], "b": ["0.1.0"]}), cargo, no_sleep)
+            out = cp.command_plan(OWNER, Registry({"a": ["0.1.0"], "b": ["0.1.0"]}), cargo)
         self.assertEqual(out, {"packages": "a", "count": "1"})
         self.assertIn("::notice::pending packages (b) wait on a dependency version not yet on crates.io",
                       stdout.getvalue())
@@ -528,7 +577,7 @@ class PlanCommandTests(unittest.TestCase):
         registry = Registry({"horae": ["0.2.1"]}, owners={"horae": ["zhaohang1205"]})
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            out = cp.command_plan(OWNER, registry, Cargo([pkg("horae", "0.3.0"), pkg("fresh", "0.1.0")]), no_sleep)
+            out = cp.command_plan(OWNER, registry, Cargo([pkg("horae", "0.3.0"), pkg("fresh", "0.1.0")]))
         self.assertEqual(out, {"count": "0"})
         lines = stdout.getvalue().splitlines()
         self.assertIn("::warning::horae on crates.io is owned by zhaohang1205, not ryancinsight; "
@@ -645,7 +694,7 @@ class TagTests(unittest.TestCase):
                 outage = Registry({"a": ["0.1.0"]}, status={"https://index.crates.io/1/a": status})
                 cargo = Cargo([pkg("a", "0.2.0")])
                 with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(cp.RegistryError):
-                    cp.command_plan(OWNER, outage, cargo, no_sleep)
+                    cp.command_plan(OWNER, outage, cargo)
                 with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(cp.RegistryError):
                     cp.command_publish(["a"], outage, cargo)
                 self.assertFalse(any(c[:2] in (["cargo", "package"], ["cargo", "publish"]) for c in cargo.calls))
@@ -880,10 +929,9 @@ class ProcessTests(unittest.TestCase):
             "metadata": (lambda: cp.command_publish(["a"], Registry({"a": ["0.1.0"]}),
                                                     KilledMetadata(packages)), "cargo metadata failed"),
             "resolve": (lambda: cp.verify(["a"], packages, OWNER, Registry({}),
-                                          Cargo([], {RESOLVE: killed}), no_sleep), "other than a missing"),
+                                          Cargo([], {RESOLVE: killed})), "other than a missing"),
             "verify": (lambda: cp.verify(["a"], packages, OWNER, Registry({}),
-                                         Cargo([], {("cargo", "package", "--locked", "--package"): killed}),
-                                         no_sleep), "verification failed"),
+                                         Cargo([], {("cargo", "package", "--locked", "--package"): killed})), "verification failed"),
             "publish": (lambda: cp.command_publish(["a"], Registry({"a": ["0.1.0"]}),
                                                    Cargo(packages, {("cargo", "publish"): killed})),
                         "cargo publish failed"),

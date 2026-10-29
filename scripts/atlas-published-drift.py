@@ -75,12 +75,9 @@ import gzip
 import hashlib
 import io
 import json
-import random
 import sys
 import tarfile
 import tempfile
-import threading
-import time
 import zlib
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
@@ -118,12 +115,8 @@ pin_drift = load_sibling("atlas_pin_drift", SCRIPTS / "atlas-pin-drift.py")
 
 RegistryError = crates_pending.RegistryError
 IdentityError = crates_pending.IdentityError
-RegistryTransportError = crates_pending.RegistryTransportError
 
 DEFAULT_OWNER = "ryancinsight"
-API_PREFIX = "https://crates.io/api/"
-TRANSPORT_ATTEMPTS = 5
-TRANSPORT_BACKOFF_SECONDS = 2.0
 CRATE_URL = "https://static.crates.io/crates/{name}/{name}-{version}.crate"
 # Use one finite ceiling for metadata and compressed archive responses.
 CRATE_ARCHIVE_LIMIT = crates_pending.METADATA_LIMIT
@@ -146,57 +139,6 @@ Fetch = Callable[[str, int], "tuple[int, bytes]"]
 
 class MeasurementError(RuntimeError):
     """Git or cargo could not give the answer the measurement needs."""
-
-
-class ApiThrottle:
-    """Space crates.io API requests across concurrent measurement workers."""
-
-    def __init__(self, interval: float = crates_pending.API_INTERVAL_SECONDS) -> None:
-        self.interval = interval
-        self._lock = threading.Lock()
-        self._last: float | None = None
-
-    def wait(self) -> None:
-        with self._lock:
-            if self._last is not None:
-                remaining = self._last + self.interval - time.monotonic()
-                if remaining > 0:
-                    time.sleep(remaining)
-            self._last = time.monotonic()
-
-
-API_THROTTLE = ApiThrottle()
-
-
-class RegistryPolicy:
-    """Apply scanner pacing and transient retry policy to the shared reader."""
-
-    def __init__(self, reader: Fetch = crates_pending.read_url, *,
-                 throttle: ApiThrottle = API_THROTTLE,
-                 sleep: Callable[[float], None] = time.sleep,
-                 jitter: Callable[[float, float], float] = random.uniform) -> None:
-        self.reader = reader
-        self.throttle = throttle
-        self.sleep = sleep
-        self.jitter = jitter
-
-    def __call__(self, url: str, limit: int) -> tuple[int, bytes]:
-        for attempt in range(1, TRANSPORT_ATTEMPTS + 1):
-            if url.startswith(API_PREFIX):
-                self.throttle.wait()
-            try:
-                return self.reader(url, limit)
-            except RegistryTransportError as error:
-                if attempt == TRANSPORT_ATTEMPTS:
-                    raise RegistryError(
-                        f"{url}: {error} (after {attempt} attempts)") from error
-                delay = (TRANSPORT_BACKOFF_SECONDS * 2 ** (attempt - 1)
-                         * self.jitter(0.5, 1.0))
-                self.sleep(delay)
-        raise AssertionError("unreachable: the last attempt returns or raises")
-
-
-REGISTRY_POLICY = RegistryPolicy()
 
 
 def index_versions(name: str, fetch: Fetch) -> list[str] | None:
@@ -623,7 +565,8 @@ def parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: Sequence[str] | None = None, fetch: Fetch = REGISTRY_POLICY) -> int:
+def main(argv: Sequence[str] | None = None,
+         fetch: Fetch = crates_pending.REGISTRY_POLICY) -> int:
     options = parse_arguments(argv)
     try:
         atlas_tip, readings = measure_stack(

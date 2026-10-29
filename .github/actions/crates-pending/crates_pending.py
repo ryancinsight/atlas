@@ -41,6 +41,12 @@ _EVIDENCE_SPEC.loader.exec_module(_EVIDENCE)
 ARTIFACT_PROFILE = _EVIDENCE.ARTIFACT_PROFILE
 ArtifactContext = _EVIDENCE.ArtifactContext
 ExpectedArtifacts = _EVIDENCE.ExpectedArtifacts
+API_INTERVAL_SECONDS = _EVIDENCE.API_INTERVAL_SECONDS
+TRANSPORT_ATTEMPTS = _EVIDENCE.TRANSPORT_ATTEMPTS
+TRANSPORT_BACKOFF_SECONDS = _EVIDENCE.TRANSPORT_BACKOFF_SECONDS
+ApiThrottle = _EVIDENCE.ApiThrottle
+RegistryPolicy = _EVIDENCE.RegistryPolicy
+REGISTRY_POLICY = _EVIDENCE.REGISTRY_POLICY
 IdentityError = _EVIDENCE.IdentityError
 RegistryTransportError = _EVIDENCE.RegistryTransportError
 METADATA_LIMIT = _EVIDENCE.METADATA_LIMIT
@@ -61,8 +67,6 @@ MISSING_REQUIREMENT = re.compile(WAIT_MARKER + r" `([A-Za-z0-9_-]+) = ")
 UNSATISFIED_REQUIREMENT = re.compile(r"failed to select a version for `([A-Za-z0-9_-]+)`")
 # cargo, for a name the index has no entry for at all: no matching package named `ritk-x` found
 NEVER_PUBLISHED = re.compile(r"no matching package named `([A-Za-z0-9_-]+)` found")
-# crates.io's crawler policy: at most one API request per second.
-API_INTERVAL_SECONDS = 1.0
 # cargo publish waits 60 s (its default `publish.timeout`) for the last uploads to reach the
 # index, then warns and exits 0. Tagging waits up to five minutes more before a missing version
 # counts as lost: a red run is recoverable by re-running it, a green one without the release is not.
@@ -77,7 +81,7 @@ class RegistryError(RuntimeError):
 Fetch = Callable[[str, int], "tuple[int, bytes]"]
 
 
-def published_versions(name: str, fetch: Fetch = read_url) -> list[str] | None:
+def published_versions(name: str, fetch: Fetch = REGISTRY_POLICY) -> list[str] | None:
     """Versions on the index, or None when the name has never been published."""
     try:
         versions = sparse_index_versions(name, fetch)
@@ -86,7 +90,7 @@ def published_versions(name: str, fetch: Fetch = read_url) -> list[str] | None:
     return None if versions is None else list(versions)
 
 
-def owners(name: str, fetch: Fetch = read_url) -> list[str]:
+def owners(name: str, fetch: Fetch = REGISTRY_POLICY) -> list[str]:
     try:
         status, body = fetch(f"https://crates.io/api/v1/crates/{name}/owners", METADATA_LIMIT)
     except IdentityError as error:
@@ -156,8 +160,7 @@ class Plan:
     warnings: list[str] = field(default_factory=list)
 
 
-def select(metadata: dict, owner: str, fetch: Fetch = read_url,
-           sleep: Callable[[float], None] = time.sleep) -> Plan:
+def select(metadata: dict, owner: str, fetch: Fetch = REGISTRY_POLICY) -> Plan:
     """Publishable packages whose version is absent from an index the expected owner controls."""
     plan = Plan()
     for package in metadata["packages"]:
@@ -172,7 +175,6 @@ def select(metadata: dict, owner: str, fetch: Fetch = read_url,
             continue
         if version in versions:
             continue
-        sleep(API_INTERVAL_SECONDS)
         logins = owners(name, fetch)
         if owner not in logins:
             plan.warnings.append(
@@ -215,8 +217,8 @@ def dependents(names: list[str], packages: list[dict], dependency: str) -> list[
     return [name for name in names if name in held]
 
 
-def verify(names: list[str], packages: list[dict], owner: str, fetch: Fetch = read_url,
-           runner: Run = run, sleep: Callable[[float], None] = time.sleep) -> list[str]:
+def verify(names: list[str], packages: list[dict], owner: str, fetch: Fetch = REGISTRY_POLICY,
+           runner: Run = run) -> list[str]:
     """The names ready to publish: every one whose dependencies all resolve on crates.io.
 
     Resolution is checked first without compiling, so a wait costs no build. A name waits only
@@ -252,7 +254,6 @@ def verify(names: list[str], packages: list[dict], owner: str, fetch: Fetch = re
             print(f"::warning::no version of workspace member {dependency} on crates.io or in "
                   f"this run's pending set satisfies the requirement on it; held: {held}")
         else:
-            sleep(API_INTERVAL_SECONDS)
             if owner in owners(dependency, fetch):
                 print(f"::notice::waiting for the required {dependency} version to reach the "
                       f"index: {held}")
@@ -277,7 +278,8 @@ def metadata(runner: Run = run) -> dict:
     return json.loads(result.stdout)
 
 
-def still_pending(names: list[str], versions: dict[str, str], fetch: Fetch = read_url) -> list[str]:
+def still_pending(names: list[str], versions: dict[str, str],
+                  fetch: Fetch = REGISTRY_POLICY) -> list[str]:
     return [name for name in names if versions[name] not in (published_versions(name, fetch) or [])]
 
 
@@ -287,8 +289,7 @@ def write_outputs(values: dict[str, str]) -> None:
             out.write(f"{key}={value}\n")
 
 
-def command_plan(owner: str, fetch: Fetch = read_url, runner: Run = run,
-                 sleep: Callable[[float], None] = time.sleep, *,
+def command_plan(owner: str, fetch: Fetch = REGISTRY_POLICY, runner: Run = run, *,
                  cohort: dict[str, str] | None = None,
                  expected: ExpectedArtifacts | None = None,
                  candidate: str = "") -> dict[str, str]:
@@ -298,7 +299,7 @@ def command_plan(owner: str, fetch: Fetch = read_url, runner: Run = run,
     if expected is not None:
         validate_artifact_context(expected, candidate, runner)
     selected = cohort_packages(workspace["packages"], cohort)
-    plan = select({"packages": selected}, owner, fetch, sleep)
+    plan = select({"packages": selected}, owner, fetch)
     for notice in plan.notices:
         print(f"::notice::{notice}")
     for warning in plan.warnings:
@@ -307,7 +308,7 @@ def command_plan(owner: str, fetch: Fetch = read_url, runner: Run = run,
         if expected is not None:
             verify_expected_artifacts(expected, [], workspace, candidate, runner, package=False)
         return {"count": "0"}
-    ready = verify(plan.pending, workspace["packages"], owner, fetch, runner, sleep)
+    ready = verify(plan.pending, workspace["packages"], owner, fetch, runner)
     held = [name for name in plan.pending if name not in ready]
     if held:
         print(f"::notice::pending packages ({' '.join(held)}) wait on a dependency "
@@ -322,7 +323,7 @@ def command_plan(owner: str, fetch: Fetch = read_url, runner: Run = run,
     return {"packages": ",".join(ready), "count": str(len(ready))}
 
 
-def command_bind(names: list[str], fetch: Fetch = read_url, runner: Run = run, *,
+def command_bind(names: list[str], fetch: Fetch = REGISTRY_POLICY, runner: Run = run, *,
                  cohort: dict[str, str] | None = None,
                  expected: ExpectedArtifacts, candidate: str) -> None:
     """Repackage and bind the frozen set before registry authentication."""
@@ -334,7 +335,7 @@ def command_bind(names: list[str], fetch: Fetch = read_url, runner: Run = run, *
     verify_expected_artifacts(expected, names, workspace, candidate, runner, package=True)
 
 
-def command_publish(names: list[str], fetch: Fetch = read_url, runner: Run = run, *,
+def command_publish(names: list[str], fetch: Fetch = REGISTRY_POLICY, runner: Run = run, *,
                     cohort: dict[str, str] | None = None,
                     expected: ExpectedArtifacts | None = None,
                     candidate: str = "") -> None:
@@ -359,7 +360,7 @@ def command_publish(names: list[str], fetch: Fetch = read_url, runner: Run = run
 
 
 def indexed_after_publish(names: list[str], versions: dict[str, str], published: bool,
-                          fetch: Fetch = read_url,
+                          fetch: Fetch = REGISTRY_POLICY,
                           sleep: Callable[[float], None] = time.sleep) -> list[str]:
     """Planned names whose version the index holds.
 
@@ -380,7 +381,7 @@ def indexed_after_publish(names: list[str], versions: dict[str, str], published:
 
 
 def command_tag(names: list[str], prefix: str, sha: str, repo: str, published: bool,
-                fetch: Fetch = read_url, runner: Run = run,
+                fetch: Fetch = REGISTRY_POLICY, runner: Run = run,
                 sleep: Callable[[float], None] = time.sleep, *,
                 cohort: dict[str, str] | None = None,
                 expected: ExpectedArtifacts | None = None,

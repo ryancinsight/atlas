@@ -10,15 +10,23 @@ import io
 import json
 import os
 from pathlib import Path
+import random
 import re
 import subprocess
 import tarfile
 import tempfile
+import threading
+import time
 import tomllib
+from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 METADATA_LIMIT = 16 * 1024 * 1024
+API_INTERVAL_SECONDS = 1.0
+API_PREFIX = "https://crates.io/api/"
+TRANSPORT_ATTEMPTS = 5
+TRANSPORT_BACKOFF_SECONDS = 2.0
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\Z")
@@ -200,6 +208,60 @@ def read_url(url, limit):
     return response.status, body
 
 
+Fetch = Callable[[str, int], "tuple[int, bytes]"]
+
+
+class ApiThrottle:
+    """Space crates.io API requests across concurrent registry callers."""
+
+    def __init__(self, interval: float = API_INTERVAL_SECONDS) -> None:
+        self.interval = interval
+        self._lock = threading.Lock()
+        self._last: float | None = None
+
+    def wait(self) -> None:
+        with self._lock:
+            if self._last is not None:
+                remaining = self._last + self.interval - time.monotonic()
+                if remaining > 0:
+                    time.sleep(remaining)
+            self._last = time.monotonic()
+
+
+API_THROTTLE = ApiThrottle()
+
+
+class RegistryPolicy:
+    """Apply registry pacing and transient retry policy to the bounded reader."""
+
+    def __init__(self, reader: Fetch = read_url, *,
+                 throttle: ApiThrottle = API_THROTTLE,
+                 sleep: Callable[[float], None] = time.sleep,
+                 jitter: Callable[[float, float], float] = random.uniform) -> None:
+        self.reader = reader
+        self.throttle = throttle
+        self.sleep = sleep
+        self.jitter = jitter
+
+    def __call__(self, url: str, limit: int) -> tuple[int, bytes]:
+        for attempt in range(1, TRANSPORT_ATTEMPTS + 1):
+            if url.startswith(API_PREFIX):
+                self.throttle.wait()
+            try:
+                return self.reader(url, limit)
+            except RegistryTransportError as error:
+                if attempt == TRANSPORT_ATTEMPTS:
+                    raise RegistryTransportError(
+                        f"{url}: {error} (after {attempt} attempts)") from error
+                delay = (TRANSPORT_BACKOFF_SECONDS * 2 ** (attempt - 1)
+                         * self.jitter(0.5, 1.0))
+                self.sleep(delay)
+        raise AssertionError("unreachable: the last attempt returns or raises")
+
+
+REGISTRY_POLICY = RegistryPolicy()
+
+
 def index_path(name):
     name = name.lower()
     if len(name) < 3:
@@ -209,7 +271,7 @@ def index_path(name):
     return f"{name[:2]}/{name[2:4]}/{name}"
 
 
-def sparse_index_versions(name, fetch=read_url):
+def sparse_index_versions(name, fetch=REGISTRY_POLICY):
     """Read every validated version checksum through the bounded sparse-index transport."""
     status, body = fetch(f"https://index.crates.io/{index_path(name)}", METADATA_LIMIT)
     if status == 404:
@@ -238,7 +300,7 @@ def sparse_index_versions(name, fetch=read_url):
     return versions
 
 
-def publish_required(package, fetch=read_url):
+def publish_required(package, fetch=REGISTRY_POLICY):
     """Only consistent absence publishes; complete identity equality skips."""
     api_status, api_body = fetch(f"https://crates.io/api/v1/crates/{package.name}/{package.version}", METADATA_LIMIT)
     if api_status not in (200, 404):

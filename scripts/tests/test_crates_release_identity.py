@@ -23,6 +23,7 @@ def test_workflow_checks_identity_before_any_authentication_or_upload():
 # Registry fixtures feed real stdlib HTTPResponse parsing without opening sockets.
 import hashlib
 import importlib.util
+import inspect
 import io
 import json
 import os
@@ -103,6 +104,12 @@ def paths(package, identity):
     return (f"/api/v1/crates/{package.name}/{package.version}",
             "/" + identity.index_path(package.name),
             f"/crates/{package.name}/{package.name}-{package.version}.crate")
+
+
+def test_publication_queries_share_the_registry_policy(identity):
+    for operation in (identity.sparse_index_versions, identity.publish_required):
+        assert inspect.signature(operation).parameters["fetch"].default is identity.REGISTRY_POLICY
+    assert identity.REGISTRY_POLICY.reader is identity.read_url
 
 
 def clone_fixture(source, destination, cwd):

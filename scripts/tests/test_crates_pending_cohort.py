@@ -20,7 +20,7 @@ class CohortTests(unittest.TestCase):
         registry = Registry({"alpha": ["1.0.0"], "unrelated": ["8.0.0"]})
         cargo = Cargo([pkg("alpha", "1.1.0"), pkg("unrelated", "9.0.0")])
         with contextlib.redirect_stdout(io.StringIO()):
-            result = cp.command_plan(OWNER, registry, cargo, no_sleep,
+            result = cp.command_plan(OWNER, registry, cargo,
                                      cohort={"alpha": "1.1.0"})
         self.assertEqual(result, {"packages": "alpha", "count": "1"})
         self.assertEqual(cargo.calls[1:], [
@@ -32,7 +32,7 @@ class CohortTests(unittest.TestCase):
     def test_explicit_empty_cohort_is_unarmed_without_cargo_or_registry(self):
         def forbidden(*args):
             raise AssertionError(f"empty cohort must not perform I/O: {args}")
-        self.assertEqual(cp.command_plan(OWNER, forbidden, forbidden, forbidden, cohort={}),
+        self.assertEqual(cp.command_plan(OWNER, forbidden, forbidden, cohort={}),
                          {"count": "0"})
 
     def test_held_cohort_never_falls_back_to_an_unrelated_ready_package(self):
@@ -41,7 +41,7 @@ class CohortTests(unittest.TestCase):
                       {("cargo", "package", "--locked", "--no-verify"):
                        (101, 'error: failed to select a version for the requirement `upstream = "^0.7.0"`')})
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            result = cp.command_plan(OWNER, registry, cargo, no_sleep,
+            result = cp.command_plan(OWNER, registry, cargo,
                                      cohort={"alpha": "1.1.0"})
         self.assertEqual(result, {"count": "0"})
         self.assertFalse(any("unrelated" in url for url in registry.asked))
@@ -62,7 +62,7 @@ class CohortTests(unittest.TestCase):
             registry = Registry({"alpha": ["1.0.0"]})
             cargo = Cargo([pkg("alpha", "1.1.0"), pkg("private", "1.0.0", [])])
             with self.subTest(cohort=cohort), self.assertRaises(SystemExit):
-                cp.command_plan(OWNER, registry, cargo, no_sleep, cohort=cohort)
+                cp.command_plan(OWNER, registry, cargo,  cohort=cohort)
             self.assertEqual(registry.asked, [])
             self.assertEqual(len(cargo.calls), 1)
 

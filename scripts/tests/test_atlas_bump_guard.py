@@ -59,7 +59,7 @@ class BumpGuardTestCase(unittest.TestCase):
 
     def test_default_policy_uses_the_canonical_bounded_reader(self) -> None:
         default = inspect.signature(guard.main).parameters["fetch"].default
-        self.assertIs(default, guard.drift.REGISTRY_POLICY)
+        self.assertIs(default, guard.drift.crates_pending.REGISTRY_POLICY)
         self.assertIs(default.reader, guard.drift.crates_pending.read_url)
 
     def setUp(self) -> None:
