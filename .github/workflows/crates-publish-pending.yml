@@ -47,6 +47,13 @@ on:
         required: false
         default: ""
         type: string
+      expected-artifacts:
+        description: >-
+          Optional independent cargo-package-verify manifest for this exact
+          candidate. Omit to retain the existing publication behavior.
+        required: false
+        default: ""
+        type: string
       apt-packages:
         description: >-
           System packages the crates' build scripts need, space separated.
@@ -98,16 +105,17 @@ jobs:
 
       - name: Select and verify the pending set
         id: plan
-        uses: ryancinsight/atlas/.github/actions/crates-pending@73b10934dcf9086d8cd364c9f611d29eb2d843e3
+        uses: ryancinsight/atlas/.github/actions/crates-pending@b22c0331da70ce1debb3b45afc022afbee62bafa
         with:
           command: plan
           owner: ${{ inputs.owner }}
           cohort-json: ${{ inputs.cohort-json }}
+          expected-artifacts: ${{ inputs.expected-artifacts }}
 
   semver:
     needs: plan
     if: needs.plan.outputs.count != '0'
-    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@73b10934dcf9086d8cd364c9f611d29eb2d843e3
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@b22c0331da70ce1debb3b45afc022afbee62bafa
     permissions:
       contents: read
     with:
@@ -141,19 +149,29 @@ jobs:
         with:
           toolchain: ${{ inputs.rust-toolchain }}
 
+      - name: Bind the frozen package archives
+        if: inputs.expected-artifacts != ''
+        uses: ryancinsight/atlas/.github/actions/crates-pending@b22c0331da70ce1debb3b45afc022afbee62bafa
+        with:
+          command: bind
+          packages: ${{ needs.plan.outputs.packages }}
+          cohort-json: ${{ inputs.cohort-json }}
+          expected-artifacts: ${{ inputs.expected-artifacts }}
+
       - name: Request a short-lived crates.io token
         id: auth
         uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
 
       - name: Publish what is still pending
         id: publish
-        uses: ryancinsight/atlas/.github/actions/crates-pending@73b10934dcf9086d8cd364c9f611d29eb2d843e3
+        uses: ryancinsight/atlas/.github/actions/crates-pending@b22c0331da70ce1debb3b45afc022afbee62bafa
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         with:
           command: publish
           packages: ${{ needs.plan.outputs.packages }}
           cohort-json: ${{ inputs.cohort-json }}
+          expected-artifacts: ${{ inputs.expected-artifacts }}
 
       # Runs after a partial publish failure too: a version that reached the
       # index is current to the next plan, which no longer selects it. A run
@@ -162,10 +180,11 @@ jobs:
       # this step creates the missing releases.
       - name: Tag a release for each published version
         if: ${{ !cancelled() && steps.auth.outcome == 'success' }}
-        uses: ryancinsight/atlas/.github/actions/crates-pending@73b10934dcf9086d8cd364c9f611d29eb2d843e3
+        uses: ryancinsight/atlas/.github/actions/crates-pending@b22c0331da70ce1debb3b45afc022afbee62bafa
         with:
           command: tag
           packages: ${{ needs.plan.outputs.packages }}
           cohort-json: ${{ inputs.cohort-json }}
+          expected-artifacts: ${{ inputs.expected-artifacts }}
           tag-prefix: ${{ inputs.tag-prefix }}
           publish-outcome: ${{ steps.publish.outcome }}
