@@ -48,6 +48,30 @@ def identity():
     return module
 
 
+@pytest.fixture(scope="module", autouse=True)
+def raw_git_line_endings():
+    """Keep the fixture's bytes identical to what the Linux release runner sees.
+
+    These tests prove committed and packaged bytes are the same. A Windows host
+    with `core.autocrlf=true` translates line endings between the object
+    database and the working tree, so every git invocation under test — the
+    fixture commit, the clones, and `git show` — is pinned to raw bytes.
+    """
+    settings = {
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "core.autocrlf",
+        "GIT_CONFIG_VALUE_0": "false",
+    }
+    previous = {key: os.environ.get(key) for key in settings}
+    os.environ.update(settings)
+    yield
+    for key, value in previous.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+
+
 @pytest.fixture(scope="module")
 def source(tmp_path_factory, identity):
     root = tmp_path_factory.mktemp("crate-identity")
@@ -62,6 +86,12 @@ def source(tmp_path_factory, identity):
         b"/// Triple an input.\npub fn scale(input: u64) -> u64 { input * 3 }\n")
     (root / "README.md").write_bytes(b"Committed workspace readme, included byte for byte.\n")
     run(["git", "init", "--quiet"], root)
+    # The fixture proves byte identity between the committed manifest and the
+    # packaged `Cargo.toml.orig`. A host with `core.autocrlf=true` stores LF in
+    # the object database and checks out CRLF, so the two byte streams differ by
+    # line ending alone. Pin the fixture repository to raw bytes, as the Linux
+    # release runner resolves it.
+    run(["git", "config", "core.autocrlf", "false"], root)
     run(["cargo", "generate-lockfile", "--offline"], root)
     sha = commit(root)
     with pytest.MonkeyPatch.context() as patch:
@@ -153,7 +183,11 @@ def test_fresh_package_verifies_exact_workspace_source_and_archive_values(identi
     assert package.path == "crates/sample"
     assert package.commit == sha
     assert files["README.md"] == (root / "README.md").read_bytes()
-    assert files["src/lib.rs"] == run(["git", "show", "HEAD:crates/sample/src/lib.rs"], root).encode() + b"\n"
+    committed_source = subprocess.run(
+        ["git", "show", "HEAD:crates/sample/src/lib.rs"],
+        cwd=root, capture_output=True, check=True, timeout=60,
+    ).stdout
+    assert files["src/lib.rs"] == committed_source
     assert package.checksum == hashlib.sha256(package.archive).hexdigest()
     assert len(package.archive) > sum(len(v) for v in files.values()) // 10
 
@@ -477,6 +511,9 @@ def test_workflow_uses_exact_helper_commit_and_correct_action_output(history):
         path = ".github/actions/crate-release-identity/" + name
         actual = subprocess.run(["git", "show", f"{match.group(1)}:{path}"], cwd=history,
                                 capture_output=True, check=True, timeout=5).stdout
+        # A Windows checkout with `core.autocrlf=true` holds CRLF while the
+        # object database holds LF. The guard is about the pinned content, not
+        # the host's line-ending translation.
         assert actual.replace(b"\r\n", b"\n") == (ROOT / path).read_bytes().replace(b"\r\n", b"\n")
     action = yaml.safe_load((ROOT / ".github/actions/crate-release-identity/action.yml").read_text())
     assert action["outputs"]["publish"]["value"] == "${{ steps.identity.outputs.publish }}"
