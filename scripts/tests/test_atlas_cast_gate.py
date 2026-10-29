@@ -38,6 +38,10 @@ def baseline(sanctioned=None, counts=None):
     )
 
 
+def assert_triggers(repo, base, tip, counts, expected):
+    assert gate.base_triggers(repo, base, tip, baseline(counts=counts)) == expected
+
+
 def workspace_packages(manifest: pathlib.Path) -> set[str]:
     """The real Cargo-selected package names for `manifest`."""
     metadata = json.loads(subprocess.run(
@@ -506,6 +510,12 @@ def commit(repo: pathlib.Path, message: str) -> str:
     return git(repo, "rev-parse", "HEAD")
 
 
+def append_commit(repo: pathlib.Path, path: pathlib.Path, text: str, message: str) -> str:
+    """Append one fixture transition and commit its complete repository state."""
+    path.write_text(path.read_text() + text)
+    return commit(repo, message)
+
+
 def init(repo: pathlib.Path) -> None:
     repo.mkdir(parents=True)
     git(repo, "init", "-q")
@@ -883,17 +893,13 @@ def test_base_triggers_name_moves_and_build_inputs(tmp_path, capsys):
 def test_zero_caps_make_the_base_count_redundant(tmp_path, capsys):
     repo = tmp_path / "repo"
     init(repo)
-    (repo / "crates" / "core").mkdir(parents=True)
     (repo / "shared" / "helper").mkdir(parents=True)
     (repo / "contracts" / "device").mkdir(parents=True)
     (repo / "Cargo.toml").write_text(
         '[package]\nname = "root"\nversion = "0.1.0"\n'
         '[workspace]\nmembers = ["crates/core"]\nexclude = ["contracts/device"]\n')
-    (repo / "crates" / "core" / "Cargo.toml").write_text(
-        '[package]\nname = "core"\nversion = "0.1.0"\n'
-        '[dependencies]\nhelper = { path = "../../shared/helper" }\n')
-    (repo / "crates" / "core" / "src").mkdir()
-    (repo / "crates" / "core" / "src" / "lib.rs").write_text("pub fn core() {}\n")
+    package_manifest(repo / "crates" / "core", "core",
+                     '[dependencies]\nhelper = { path = "../../shared/helper" }\n')
     (repo / "shared" / "helper" / "Cargo.toml").write_text(
         '[package]\nname = "helper"\nversion = "0.1.0"\n')
     (repo / "Cargo.lock").write_text("root lock\n")
@@ -904,11 +910,8 @@ def test_zero_caps_make_the_base_count_redundant(tmp_path, capsys):
     device_lock = repo / "contracts" / "device" / "Cargo.lock"
     device_lock.write_text("device lock\n")
     first = commit(repo, "base")
-    device.write_text(
-        '[package]\nname = "device"\nversion = "0.1.0"\n'
-        '[workspace]\nmembers = ["."]\n'
-        '[features]\ndefault = []\n')
-    tip = commit(repo, "change standalone manifest")
+    tip = append_commit(repo, device, '[features]\ndefault = []\n',
+                        "change standalone manifest")
     zero = baseline(counts={
         "member": {"root": 0, "core": 1, "helper": 1, "device": 0}
     })
@@ -976,18 +979,12 @@ def test_external_and_ignored_explicit_members_retain_base_compile(tmp_path):
     assert workspace_packages(root_manifest) == {"root", "positive", "target-positive"}
 
     first = commit(repo, "base")
-    root_manifest.write_text(
-        root_manifest.read_text() + '[workspace.metadata.test]\nvalue = 1\n'
-    )
-    tip = commit(repo, "change workspace manifest")
+    tip = append_commit(repo, root_manifest, '[workspace.metadata.test]\nvalue = 1\n',
+                        "change workspace manifest")
     reason = ["workspace/Cargo.toml changed"]
     for positive, target in ((1, 0), (0, 1), (0, 0)):
-        assert gate.base_triggers(
-            repo, first, tip, baseline(counts={
-                "member": {"root": 0, "positive": positive,
-                           "target-positive": target}
-            })
-        ) == reason
+        assert_triggers(repo, first, tip, {"member": {
+            "root": 0, "positive": positive, "target-positive": target}}, reason)
 
     member_manifest.write_text(
         '[package]\nname = "positive"\nversion = "0.1.0"\nworkspace = 7\n'
@@ -1007,16 +1004,13 @@ def test_external_and_ignored_explicit_members_retain_base_compile(tmp_path):
     package_manifest(dependency, "dependency", 'workspace = "../dependency-workspace"\n')
     assert workspace_packages(dependency_manifest) == {"dependency-root", "dependency"}
     dependency_base = commit(repo, "path dependency workspace")
-    dependency_manifest.write_text(
-        dependency_manifest.read_text() + '[workspace.metadata.test]\nvalue = 1\n'
-    )
-    dependency_tip = commit(repo, "change path dependency workspace")
+    dependency_tip = append_commit(
+        repo, dependency_manifest, '[workspace.metadata.test]\nvalue = 1\n',
+        "change path dependency workspace")
     reason = ["dependency-workspace/Cargo.toml changed"]
     for count in (0, 1):
-        assert gate.base_triggers(
-            repo, dependency_base, dependency_tip,
-            baseline(counts={"member": {"dependency": count}}),
-        ) == reason
+        assert_triggers(repo, dependency_base, dependency_tip,
+                        {"member": {"dependency": count}}, reason)
 
 
 def test_added_deleted_or_internal_workspace_retain_base_compile(tmp_path):
@@ -1051,14 +1045,12 @@ def test_added_deleted_or_internal_workspace_retain_base_compile(tmp_path):
     package_manifest(internal / "child", "child")
     assert workspace_packages(internal_manifest) == {"root", "child"}
     internal_base = commit(repo, "internal workspace")
-    internal_manifest.write_text(
-        internal_manifest.read_text() + '[workspace.metadata.test]\nvalue = 1\n'
-    )
-    internal_tip = commit(repo, "change internal workspace")
-    assert gate.base_triggers(
-        repo, internal_base, internal_tip,
-        baseline(counts={"member": {"root": 0, "child": 0}}),
-    ) == ["internal/Cargo.toml changed"]
+    internal_tip = append_commit(
+        repo, internal_manifest, '[workspace.metadata.test]\nvalue = 1\n',
+        "change internal workspace")
+    assert_triggers(repo, internal_base, internal_tip,
+                    {"member": {"root": 0, "child": 0}},
+                    ["internal/Cargo.toml changed"])
 
 
 def test_positive_or_malformed_workspaces_retain_the_base_compile(tmp_path):
@@ -1070,9 +1062,7 @@ def test_positive_or_malformed_workspaces_retain_the_base_compile(tmp_path):
     core = package_manifest(repo / "crates" / "core", "core")
     nested = package_manifest(repo / "nested", "nested")
     first = commit(repo, "base")
-    core.write_text(
-        '[package]\nname = "core"\nversion = "0.1.0"\n[features]\ndefault = []\n')
-    tip = commit(repo, "change manifest")
+    tip = append_commit(repo, core, '[features]\ndefault = []\n', "change manifest")
     reason = ["crates/core/Cargo.toml changed"]
 
     for counts in ({"other-member": {"nested": 1}},
