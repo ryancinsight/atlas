@@ -291,7 +291,7 @@ def test_sparse_index_reader_rejects_oversized_and_redirected_transport(identity
 
     class OversizedResponse:
         status = 200
-        headers = SimpleNamespace(get_all=lambda name, default: default)
+        headers = SimpleNamespace(raw_items=lambda: ())
 
         def read(self, limit):
             return b"x" * limit
@@ -539,6 +539,35 @@ def test_real_tcp_valid_framing_is_accepted_at_the_bound(identity, wire, body, l
         assert server.request_count == 1
 
 
+@pytest.mark.parametrize("wire,body", [
+    (b"HTTP/1.1 200 OK\r\nContent-Length: 2 \t\r\n\r\nok", b"ok"),
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\t \r\n\r\n"
+     b"2\r\nok\r\n0\r\n\r\n", b"ok"),
+    (b"HTTP/1.1 103 Early Hints\r\nLink: </index>; rel=preload\r\n\r\n"
+     b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok", b"ok"),
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+     b"2 ; x = y\r\nok\r\n0\r\n\r\n", b"ok"),
+    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+     b"2;x ;y\r\nok\r\n0\r\n\r\n", b"ok"),
+])
+def test_real_tcp_admits_normalized_fields_informationals_and_chunk_bws(identity, wire, body):
+    with raw_http([wire]) as (url, server):
+        assert identity.read_url(url, len(body)) == (200, body)
+        assert server.request_count == 1
+
+
+def test_real_tcp_aggregate_metadata_line_bound_spans_informational_responses(identity):
+    headers = b"X-A: a\r\n" * 34
+    wire = ((b"HTTP/1.1 103 Early Hints\r\n" + headers + b"\r\n") * 3
+            + b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+    policy = identity.RegistryPolicy(
+        reader=identity.read_url, sleep=lambda _delay: None, jitter=lambda _low, _high: 1.0)
+    with raw_http([wire]) as (url, server):
+        with pytest.raises(identity.IdentityError, match="aggregate bound"):
+            policy(url, 2)
+        assert server.request_count == 1
+
+
 def test_real_tcp_chunked_response_exceeding_the_bound_fails(identity):
     wire = (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
             b"2\r\nab\r\n0\r\n\r\n")
@@ -549,8 +578,6 @@ def test_real_tcp_chunked_response_exceeding_the_bound_fails(identity):
 
 
 @pytest.mark.parametrize("wire,message", [
-    (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n0\r\n",
-     "final CRLF"),
     (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\nX\r\na\r\n0\r\n\r\n",
      "chunk size"),
     (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\naXX0\r\n\r\n",
@@ -574,7 +601,7 @@ def test_real_tcp_permanent_chunk_framing_is_not_retried(identity, wire, message
 
 
 @pytest.mark.parametrize("wire,error_type", [
-    (b"NOT AN HTTP STATUS\r\n\r\n", "BadStatusLine"),
+    (b"NOT AN HTTP STATUS\r\n\r\n", "RegistryFramingError"),
     (b"HTTP/1.1 +200 OK\r\nContent-Length: 2\r\n\r\nok", "RegistryFramingError"),
 ])
 def test_real_tcp_malformed_status_is_typed_permanent_with_cause(identity, wire, error_type):
@@ -609,14 +636,17 @@ def test_real_tcp_malformed_headers_are_permanent(identity, header):
         assert server.request_count == 1
 
 
-def test_real_tcp_header_eof_cannot_turn_404_into_absence(identity):
-    wire = b"HTTP/1.1 404 missing\r\nContent-Length: 0\r\n"
+@pytest.mark.parametrize("first", [
+    b"HTTP/1.1 404 missing\r\nContent-Length: 0\r\n",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n0\r\n",
+])
+def test_real_tcp_metadata_eof_retries_without_accepting_absence(identity, first):
+    complete = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok"
     policy = identity.RegistryPolicy(
         reader=identity.read_url, sleep=lambda _delay: None, jitter=lambda _low, _high: 1.0)
-    with raw_http([wire]) as (url, server):
-        with pytest.raises(identity.IdentityError, match="malformed registry HTTP response"):
-            policy(url, 4096)
-        assert server.request_count == 1
+    with raw_http([first, complete]) as (url, server):
+        assert policy(url, 4096) == (200, b"ok")
+        assert server.request_count == 2
 
 
 @pytest.mark.parametrize("first", [
@@ -642,6 +672,16 @@ def test_real_tcp_transient_statuses_use_the_bounded_retry_policy(identity, stat
         with pytest.raises(identity.RegistryTransportError, match="after 5 attempts"):
             policy(url, 4096)
         assert server.request_count == identity.TRANSPORT_ATTEMPTS
+
+
+def test_real_tcp_malformed_transient_status_framing_is_not_retried(identity):
+    wire = b"HTTP/1.1 503 retry\r\nContent-Length: invalid\r\n\r\n"
+    policy = identity.RegistryPolicy(
+        reader=identity.read_url, sleep=lambda _delay: None, jitter=lambda _low, _high: 1.0)
+    with raw_http([wire]) as (url, server):
+        with pytest.raises(identity.IdentityError, match="framing"):
+            policy(url, 4096)
+        assert server.request_count == 1
 
 
 @pytest.mark.parametrize("failure", [
@@ -687,13 +727,53 @@ def test_tls_certificate_failure_is_permanent_with_cause(identity, monkeypatch, 
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_tls_protocol_failure_is_permanent_with_cause(identity, monkeypatch, wrapped):
+    protocol = ssl.SSLError(1, "wrong TLS protocol")
+    failure = URLError(protocol) if wrapped else protocol
+    calls = []
+
+    def fail(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise failure
+
+    monkeypatch.setattr(identity, "build_opener", lambda *args: SimpleNamespace(open=fail))
+    policy = identity.RegistryPolicy(
+        reader=identity._read_url_once, sleep=lambda _delay: None,
+        jitter=lambda _low, _high: 1.0)
+    with pytest.raises(identity.IdentityError, match="TLS protocol") as raised:
+        policy("https://registry.invalid", 4096)
+    assert raised.value.__cause__ is failure
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_tls_eof_is_a_retryable_transport_disconnect(identity, monkeypatch, wrapped):
+    eof = ssl.SSLEOFError(8, "TLS peer disconnected")
+    failure = URLError(eof) if wrapped else eof
+    calls = []
+
+    def fail(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise failure
+
+    monkeypatch.setattr(identity, "build_opener", lambda *args: SimpleNamespace(open=fail))
+    policy = identity.RegistryPolicy(
+        reader=identity._read_url_once, sleep=lambda _delay: None,
+        jitter=lambda _low, _high: 1.0)
+    with pytest.raises(identity.RegistryTransportError, match="after 5 attempts"):
+        policy("https://registry.invalid", 4096)
+    assert len(calls) == identity.TRANSPORT_ATTEMPTS
+
+
 @pytest.mark.parametrize("status,body", [
     (599, b""),
     (200, b"too large"),
     (404, b"too large"),
 ])
 def test_parent_rejects_forged_worker_success_frames(identity, monkeypatch, status, body):
-    result = SimpleNamespace(returncode=0, stdout=b"S" + struct.pack("!H", status) + body)
+    result = SimpleNamespace(returncode=0, stdout=b"S" + struct.pack("!H", status) + body,
+                             stderr=b"")
     monkeypatch.setattr(identity, "_process_tree",
                         lambda: SimpleNamespace(run=lambda *args, **kwargs: result))
     with pytest.raises(identity.IdentityError, match="invalid success response"):
@@ -712,6 +792,43 @@ def test_transport_child_ignores_pythonpath_startup_code(identity, monkeypatch, 
     with raw_http([wire]) as (url, server):
         assert identity.read_url(url, 2) == (200, b"ok")
         assert server.request_count == 1
+
+
+def test_transport_parent_does_not_trust_cached_process_tree_module(identity, monkeypatch):
+    forged = SimpleNamespace(run=lambda *args, **kwargs: SimpleNamespace(
+        returncode=0, stdout=b"S" + struct.pack("!H", 404), stderr=b""))
+    monkeypatch.setitem(sys.modules, "process_tree", forged)
+    wire = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok"
+    with raw_http([wire]) as (url, server):
+        assert identity.read_url(url, 2) == (200, b"ok")
+        assert server.request_count == 1
+
+
+@pytest.mark.parametrize("payload", [
+    b'P{}',
+    b'P{"message":"x","chain":[],"extra":1}',
+    b'P{"message":"","chain":[{"type":"IdentityError","message":""}]}',
+    b'P{"message":"x","message":"y","chain":[{"type":"IdentityError","message":"x"}]}',
+    b'P{"message":"x","chain":[{"type":"IdentityError","message":"x"},'
+    + b'{"type":"Cause","message":"x"},' * 8
+    + b'{"type":"Cause","message":"x"}]}',
+    b'P{"message":"x","chain":[{"type":"Wrong","message":"x"}]}',
+])
+def test_parent_rejects_noncanonical_worker_error_frames(identity, monkeypatch, payload):
+    result = SimpleNamespace(returncode=0, stdout=payload, stderr=b"")
+    monkeypatch.setattr(identity, "_process_tree",
+                        lambda: SimpleNamespace(run=lambda *args, **kwargs: result))
+    with pytest.raises(identity.IdentityError, match="invalid error"):
+        identity.read_url("https://registry.invalid", 1)
+
+
+def test_parent_rejects_worker_stderr_even_with_a_valid_success(identity, monkeypatch):
+    result = SimpleNamespace(returncode=0, stdout=b"S" + struct.pack("!H", 200),
+                             stderr=b"unexpected")
+    monkeypatch.setattr(identity, "_process_tree",
+                        lambda: SimpleNamespace(run=lambda *args, **kwargs: result))
+    with pytest.raises(identity.IdentityError, match="unexpected diagnostics"):
+        identity.read_url("https://registry.invalid", 1)
 
 
 def test_real_tcp_slow_drip_is_stopped_by_the_total_deadline(identity, monkeypatch):

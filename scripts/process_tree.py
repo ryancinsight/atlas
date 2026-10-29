@@ -50,8 +50,10 @@ neither may substitute a module the supervisor imports.
 from __future__ import annotations
 
 import errno
+import importlib.util
 import math
 import os
+import pathlib
 import selectors
 import signal
 import subprocess
@@ -62,8 +64,30 @@ import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-import darwin_process
-import windows_process
+
+def _load_sibling(name: str):
+    """Load one exact runner dependency without trusting ``sys.modules``."""
+    source = pathlib.Path(__file__).resolve().with_name(f"{name}.py")
+    private_name = f"_atlas_process_tree_{name}"
+    spec = importlib.util.spec_from_file_location(private_name, source)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load process-tree dependency: {source}")
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.modules.get(private_name)
+    sys.modules[private_name] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        if previous is None:
+            del sys.modules[private_name]
+        else:
+            sys.modules[private_name] = previous
+    if pathlib.Path(module.__file__).resolve() != source:
+        raise ImportError(f"process-tree dependency origin differs: {source}")
+    return module
+
+darwin_process = _load_sibling("darwin_process")
+windows_process = _load_sibling("windows_process")
 
 # Longest the runner spends retiring a tree and collecting its launcher. The
 # slowest cleanup measured (kill to launcher reaped, a three-process tree, 40 runs
@@ -85,6 +109,7 @@ WAIT_SLICE_SECONDS = 0.1
 # signal either, so the pause is a tenth of the slice that bounds interrupt
 # latency, and an exiting group is noticed within it.
 GROUP_POLL_SECONDS = WAIT_SLICE_SECONDS / 10
+OUTPUT_READ_BYTES = 64 * 1024
 # The supervisor leads the command's process group and bounds it on its own: a
 # watcher thread retires the whole group, itself included, when the pipe the
 # caller holds reaches end of file (the caller exited or was killed) and another
@@ -204,6 +229,27 @@ class ProcessTreeTimeout(subprocess.TimeoutExpired):
         return f"{message}; process-tree cleanup failed: {self.cleanup_error}"
 
 
+class ProcessTreeOutputLimit(RuntimeError):
+    """A command exceeded an explicitly requested captured-output bound."""
+
+    def __init__(
+        self,
+        command: Sequence[str],
+        stream: str,
+        limit: int,
+        stdout: bytes,
+        stderr: bytes,
+        cleanup_error: str | None,
+    ) -> None:
+        super().__init__(f"{stream} exceeded its {limit}-byte output bound")
+        self.command = tuple(command)
+        self.stream = stream
+        self.limit = limit
+        self.stdout = stdout
+        self.stderr = stderr
+        self.cleanup_error = cleanup_error
+
+
 class _InterruptDeferral:
     """Hold main-thread ``SIGINT`` until an ownership phase commits.
 
@@ -296,6 +342,61 @@ class _InputWriter:
             except OSError as caught:
                 if caught.errno != errno.EINVAL and self._error is None:
                     self._error = caught
+
+
+class _OutputCollector:
+    """Drain one pipe while retaining no more than its caller's byte bound."""
+
+    def __init__(self, stream, limit: int, exceeded: threading.Event) -> None:
+        self._stream = stream
+        self._limit = limit
+        self._exceeded = exceeded
+        self._bytes = bytearray()
+        self._error: BaseException | None = None
+        self.limit_reached = False
+        self._thread = threading.Thread(
+            target=self._read,
+            name="atlas-process-output",
+            daemon=True,
+        )
+
+    def start(self) -> None:
+        self._thread.start()
+
+    def finish(self, deadline: float) -> str | None:
+        self._thread.join(max(0.0, deadline - time.monotonic()))
+        if self._thread.is_alive():
+            return "captured-output reader exceeded the cleanup deadline"
+        if self._error is not None:
+            return f"captured-output reader failed: {self._error}"
+        return None
+
+    def output(self) -> bytes:
+        return bytes(self._bytes)
+
+    def _read(self) -> None:
+        try:
+            while True:
+                remaining = self._limit - len(self._bytes)
+                size = OUTPUT_READ_BYTES if self.limit_reached else min(
+                    OUTPUT_READ_BYTES, max(1, remaining + 1)
+                )
+                block = self._stream.read(size)
+                if not block:
+                    return
+                if self.limit_reached:
+                    continue
+                if len(block) > remaining:
+                    self._bytes.extend(block[:remaining])
+                    self.limit_reached = True
+                    self._exceeded.set()
+                else:
+                    self._bytes.extend(block)
+        except BaseException as caught:
+            self._error = caught
+            self._exceeded.set()
+        finally:
+            self._stream.close()
 
 
 def _merge_errors(*errors: str | None) -> str | None:
@@ -488,9 +589,15 @@ def _posix_launch_command(
     ]
 
 
-def _wait_for_exit(process: subprocess.Popen[bytes], deadline: float) -> bool:
+def _wait_for_exit(
+    process: subprocess.Popen[bytes],
+    deadline: float,
+    output_exceeded: threading.Event | None = None,
+) -> bool:
     """Wait for ``process`` in bounded slices; ``False`` means the deadline passed."""
     while True:
+        if output_exceeded is not None and output_exceeded.is_set():
+            return False
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             return False
@@ -506,7 +613,11 @@ def _read_output(stream) -> bytes:
     return stream.read()
 
 
-def _read_posix_status(status: int, deadline: float) -> int | None:
+def _read_posix_status(
+    status: int,
+    deadline: float,
+    output_exceeded: threading.Event | None = None,
+) -> int | None:
     """Return the supervised command status, or ``None`` once it timed out.
 
     ``deadline`` is the absolute ``time.monotonic()`` reading the supervisor was
@@ -522,6 +633,8 @@ def _read_posix_status(status: int, deadline: float) -> int | None:
         while True:
             if selector.select(0):
                 break
+            if output_exceeded is not None and output_exceeded.is_set():
+                return None
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 return None
@@ -547,10 +660,15 @@ def run(
     env: Mapping[str, str] | None = None,
     input: bytes | None = None,
     timeout: float,
+    stdout_limit: int | None = None,
+    stderr_limit: int | None = None,
 ) -> subprocess.CompletedProcess[bytes]:
     """Run ``command`` and retire its owned process tree within finite bounds."""
     if not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("process timeout must be finite and greater than zero")
+    for name, limit in (("stdout", stdout_limit), ("stderr", stderr_limit)):
+        if limit is not None and (type(limit) is not int or limit < 0):
+            raise ValueError(f"{name} limit must be a nonnegative integer")
     arguments = list(command)
     deadline = time.monotonic() + timeout
     job_handle: int | None = None
@@ -565,6 +683,10 @@ def run(
     cleanup_error: str | None = None
     input_error: BaseException | None = None
     input_writer: _InputWriter | None = None
+    output_exceeded = threading.Event() if stdout_limit is not None or stderr_limit is not None else None
+    stdout_collector: _OutputCollector | None = None
+    stderr_collector: _OutputCollector | None = None
+    output_limit_hit = False
     caught_error: BaseException | None = None
     cleanup_state = _CleanupState()
     with tempfile.TemporaryFile(mode="w+b") as stdout, tempfile.TemporaryFile(
@@ -608,10 +730,24 @@ def run(
                     launch_command,
                     cwd=cwd,
                     env=env,
-                    stdout=stdout,
-                    stderr=stderr,
+                    stdout=stdout if stdout_limit is None else subprocess.PIPE,
+                    stderr=stderr if stderr_limit is None else subprocess.PIPE,
                     **process_options,
                 )
+                if stdout_limit is not None:
+                    if process.stdout is None:
+                        raise RuntimeError("process-tree launcher has no stdout pipe")
+                    stdout_collector = _OutputCollector(
+                        process.stdout, stdout_limit, output_exceeded
+                    )
+                    stdout_collector.start()
+                if stderr_limit is not None:
+                    if process.stderr is None:
+                        raise RuntimeError("process-tree launcher has no stderr pipe")
+                    stderr_collector = _OutputCollector(
+                        process.stderr, stderr_limit, output_exceeded
+                    )
+                    stderr_collector.start()
                 if status_write is not None:
                     os.close(status_write)
                     status_write = None
@@ -633,11 +769,22 @@ def run(
                 input_writer = _InputWriter(process.stdin, input)
                 input_writer.start()
             if sys.platform != "win32":
-                command_returncode = _read_posix_status(status_read, deadline)
-                timed_out = command_returncode is None
+                command_returncode = (_read_posix_status(status_read, deadline)
+                                      if output_exceeded is None else
+                                      _read_posix_status(status_read, deadline, output_exceeded))
+                stopped_for_output = output_exceeded is not None and output_exceeded.is_set()
+                output_limit_hit = any(collector is not None and collector.limit_reached
+                                       for collector in (stdout_collector, stderr_collector))
+                timed_out = command_returncode is None and not stopped_for_output
             else:
-                timed_out = not _wait_for_exit(process, deadline)
-                if not timed_out:
+                finished = (_wait_for_exit(process, deadline)
+                            if output_exceeded is None else
+                            _wait_for_exit(process, deadline, output_exceeded))
+                stopped_for_output = output_exceeded is not None and output_exceeded.is_set()
+                output_limit_hit = any(collector is not None and collector.limit_reached
+                                       for collector in (stdout_collector, stderr_collector))
+                timed_out = not finished and not stopped_for_output
+                if finished:
                     command_returncode = process.returncode
             cleanup_error = _terminate_process_tree(process, windows_job, cleanup_state)
         except BaseException as caught:
@@ -681,8 +828,36 @@ def run(
                 if close_error is not None and caught_error is not None:
                     caught_error.add_note(f"process-tree cleanup failed: {close_error}")
 
-        captured_stdout = _read_output(stdout)
-        captured_stderr = _read_output(stderr)
+            output_deadline = cleanup_state.deadline
+            if output_deadline is None:
+                output_deadline = time.monotonic() + PROCESS_TREE_CLEANUP_SECONDS
+            if stdout_collector is not None:
+                cleanup_error = _merge_errors(
+                    cleanup_error, stdout_collector.finish(output_deadline)
+                )
+            if stderr_collector is not None:
+                cleanup_error = _merge_errors(
+                    cleanup_error, stderr_collector.finish(output_deadline)
+                )
+            output_limit_hit = any(collector is not None and collector.limit_reached
+                                   for collector in (stdout_collector, stderr_collector))
+
+        captured_stdout = (_read_output(stdout) if stdout_collector is None
+                           else stdout_collector.output())
+        captured_stderr = (_read_output(stderr) if stderr_collector is None
+                           else stderr_collector.output())
+        if output_limit_hit:
+            stream = "stdout" if (stdout_collector is not None
+                                    and stdout_collector.limit_reached) else "stderr"
+            limit = stdout_limit if stream == "stdout" else stderr_limit
+            raise ProcessTreeOutputLimit(
+                arguments,
+                stream,
+                limit,
+                captured_stdout,
+                captured_stderr,
+                cleanup_error,
+            )
         if timed_out:
             raise ProcessTreeTimeout(
                 arguments,

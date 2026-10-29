@@ -224,6 +224,54 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 23)
         self.assertEqual(result.stdout, b"")
 
+    def test_stdout_limit_terminates_the_tree_before_unbounded_capture(self):
+        command = (
+            "import sys, threading; "
+            "sys.stdout.buffer.write(b'x' * 200000); sys.stdout.buffer.flush(); "
+            "threading.Event().wait()"
+        )
+
+        with self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised:
+            process_tree.run(
+                [sys.executable, "-c", command],
+                timeout=HANG_GUARD_SECONDS,
+                stdout_limit=7,
+                stderr_limit=7,
+            )
+
+        self.assertEqual(raised.exception.stream, "stdout")
+        self.assertEqual(raised.exception.limit, 7)
+        self.assertEqual(raised.exception.stdout, b"x" * 7)
+        self.assertEqual(raised.exception.stderr, b"")
+
+    def test_stderr_limit_is_independent_and_default_behavior_is_unchanged(self):
+        command = "import sys; sys.stderr.buffer.write(b'abcdef')"
+
+        with self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised:
+            process_tree.run(
+                [sys.executable, "-c", command],
+                timeout=HANG_GUARD_SECONDS,
+                stdout_limit=7,
+                stderr_limit=5,
+            )
+
+        self.assertEqual(raised.exception.stream, "stderr")
+        self.assertEqual(raised.exception.stderr, b"abcde")
+
+    def test_output_limits_are_validated_before_launch(self):
+        for limit in (-1, True, 1.5, "1"):
+            with self.subTest(limit=limit):
+                with (
+                    patch.object(process_tree.subprocess, "Popen") as launch,
+                    self.assertRaisesRegex(ValueError, "nonnegative integer"),
+                ):
+                    process_tree.run(
+                        [sys.executable, "-c", "pass"],
+                        timeout=HANG_GUARD_SECONDS,
+                        stdout_limit=limit,
+                    )
+                launch.assert_not_called()
+
     @unittest.skipUnless(os.name == "posix", "POSIX status pipe")
     def test_buffered_exit_status_wins_when_deadline_has_elapsed(self):
         status_read, status_write = os.pipe()

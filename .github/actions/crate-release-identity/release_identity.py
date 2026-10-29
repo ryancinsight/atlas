@@ -6,7 +6,7 @@ import argparse
 from dataclasses import dataclass
 import hashlib
 import http.client
-import importlib
+import importlib.util
 import io
 import json
 import os
@@ -32,6 +32,16 @@ API_INTERVAL_SECONDS = 1.0
 API_PREFIX = "https://crates.io/api/"
 TRANSPORT_ATTEMPTS = 5
 TRANSPORT_BACKOFF_SECONDS = 2.0
+# Apply the stdlib's established single-line and field-count bounds to the
+# complete response framing, rather than resetting them for each informational
+# response and trailer block.
+REGISTRY_FRAMING_BYTES = http.client._MAXLINE
+REGISTRY_FRAMING_LINES = http.client._MAXHEADERS
+REGISTRY_ERROR_CHAIN_ITEMS = 8
+REGISTRY_ERROR_TEXT = 1024
+REGISTRY_ERROR_TYPE_TEXT = 128
+REGISTRY_ERROR_PROTOCOL_BYTES = 16 * 1024
+REGISTRY_STDERR_BYTES = 4 * 1024
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\Z")
@@ -209,20 +219,41 @@ class RegistryWorkerError(RuntimeError):
         super().__init__(summary)
 
 
-class HeaderCapture:
-    """Record response-head lines while the stdlib owns socket buffering."""
+class RegistryWireReader:
+    """Read response metadata under one aggregate wire budget."""
 
     def __init__(self, stream):
         self.stream = stream
-        self.lines = []
+        self.bytes_read = 0
+        self.lines_read = 0
 
-    def readline(self, *args, **kwargs):
-        line = self.stream.readline(*args, **kwargs)
-        self.lines.append(line)
+    def line(self, kind):
+        line = self.stream.readline(http.client._MAXLINE + 1)
+        if len(line) > http.client._MAXLINE:
+            raise RegistryFramingError(f"HTTP {kind} exceeds the line bound")
+        if not line:
+            raise RegistryBodyDisconnect(f"connection closed during HTTP {kind}")
+        self.bytes_read += len(line)
+        self.lines_read += 1
+        if (self.bytes_read > REGISTRY_FRAMING_BYTES
+                or self.lines_read > REGISTRY_FRAMING_LINES):
+            raise RegistryFramingError("HTTP response metadata exceeds the aggregate bound")
         return line
 
-    def __getattr__(self, name):
-        return getattr(self.stream, name)
+    def status(self):
+        line = self.line("status line")
+        if not STATUS_LINE.fullmatch(line):
+            raise RegistryFramingError("malformed HTTP status line")
+        version, status, reason = line[:-2].split(b" ", 2)
+        return version, int(status), reason.decode("iso-8859-1")
+
+    def fields(self, kind):
+        fields = []
+        while True:
+            line = self.line(kind)
+            if line == b"\r\n":
+                return tuple(fields)
+            fields.append(validate_field_line(line, kind))
 
 
 def valid_token(value):
@@ -242,31 +273,23 @@ def validate_field_line(line, kind):
     return name.lower(), value.strip(b" \t")
 
 
-def validate_response_head(lines):
-    """Validate every captured status/header block and return final fields."""
-    position = 0
-    while True:
-        if position >= len(lines) or not STATUS_LINE.fullmatch(lines[position]):
-            raise RegistryFramingError("malformed HTTP status line")
-        version, status_bytes, _reason = lines[position].split(b" ", 2)
-        status = int(status_bytes)
-        position += 1
-        fields = []
-        while True:
-            if position >= len(lines):
-                raise RegistryFramingError("HTTP header section lacks the final CRLF")
-            line = lines[position]
-            position += 1
-            if line == b"\r\n":
-                break
-            fields.append(validate_field_line(line, "header"))
-        if status != http.client.CONTINUE:
-            if position != len(lines):
-                raise RegistryFramingError("unexpected bytes after HTTP header section")
-            if version == b"HTTP/1.0" and any(name == b"transfer-encoding"
-                                                for name, _value in fields):
-                raise RegistryFramingError("HTTP/1.0 response uses Transfer-Encoding")
-            return tuple(fields)
+def framing_fields(fields):
+    """Return validated content length and transfer coding."""
+    lengths = [value for name, value in fields if name == b"content-length"]
+    transfers = [value for name, value in fields if name == b"transfer-encoding"]
+    if (len(lengths) > 1 or (lengths and not re.fullmatch(rb"[0-9]+", lengths[0]))
+            or len(transfers) > 1 or (lengths and transfers)
+            or (transfers and transfers[0].lower() != b"chunked")):
+        raise RegistryFramingError("malformed or inconsistent registry HTTP framing")
+    length = int(lengths[0]) if lengths else None
+    return length, bool(transfers)
+
+
+def message_from_fields(fields):
+    message = http.client.HTTPMessage()
+    for name, value in fields:
+        message.add_header(name.decode("ascii"), value.decode("iso-8859-1"))
+    return message
 
 
 def valid_quoted_string(value):
@@ -301,14 +324,18 @@ def valid_chunk_extensions(value):
         position += 1
         while position < len(value) and value[position] in (9, 32):
             position += 1
+        if position == len(value):
+            return False
         start = position
         while position < len(value) and value[position] in TOKEN_BYTES:
             position += 1
         if not valid_token(value[start:position]):
             return False
-        whitespace = position
+        name_end = position
         while position < len(value) and value[position] in (9, 32):
             position += 1
+        if position == len(value):
+            return position == name_end
         if position < len(value) and value[position] == 61:
             position += 1
             while position < len(value) and value[position] in (9, 32):
@@ -333,7 +360,7 @@ def valid_chunk_extensions(value):
                     position += 1
                 if not valid_token(value[start:position]):
                     return False
-        elif position != whitespace:
+        elif value[position] != 59:
             return False
     return True
 
@@ -343,22 +370,45 @@ class StrictHTTPResponse(http.client.HTTPResponse):
 
     ``HTTPConnection.response_class`` is the stdlib extension point. The base
     response parser is intentionally lenient about status/header syntax, chunk
-    delimiters, extensions, and trailers. Capturing the bytes it consumes lets
-    this subclass reject ambiguous framing while retaining the standard TLS,
-    proxy, buffering, and connection lifecycle.
+    delimiters, extensions, and trailers. This subclass parses bounded framing
+    bytes strictly while retaining the standard TLS, proxy, buffering, and
+    connection lifecycle.
     """
 
     def begin(self):
         if self.headers is not None:
             return
-        capture = HeaderCapture(self.fp)
-        self.fp = capture
-        try:
-            super().begin()
-        finally:
-            if self.fp is capture:
-                self.fp = capture.stream
-        self.atlas_fields = validate_response_head(capture.lines)
+        wire = RegistryWireReader(self.fp)
+        while True:
+            version, status, reason = wire.status()
+            fields = wire.fields("header")
+            length, chunked = framing_fields(fields)
+            if not 100 <= status < 200:
+                break
+            if length is not None or chunked:
+                raise RegistryFramingError("informational response carries body framing")
+            if status == http.client.SWITCHING_PROTOCOLS:
+                raise RegistryFramingError("HTTP protocol switching is unsupported")
+        if version == b"HTTP/1.0":
+            self.version = 10
+        else:
+            self.version = 11
+        if version == b"HTTP/1.0" and chunked:
+            raise RegistryFramingError("HTTP/1.0 response uses Transfer-Encoding")
+        self.code = self.status = status
+        self.reason = reason.strip()
+        self.atlas_fields = fields
+        self.headers = self.msg = message_from_fields(fields)
+        self.chunked = chunked
+        self.chunk_left = None
+        self.will_close = self._check_close()
+        self.length = None if chunked else length
+        if (status == http.client.NO_CONTENT or status == http.client.NOT_MODIFIED
+                or self._method == "HEAD"):
+            self.length = 0
+        if not self.will_close and not self.chunked and self.length is None:
+            self.will_close = True
+        self._atlas_wire = wire
 
     def _read_next_chunk_size(self):
         line = self.fp.readline(http.client._MAXLINE + 1)
@@ -369,11 +419,12 @@ class StrictHTTPResponse(http.client.HTTPResponse):
         if not line.endswith(b"\r\n"):
             self._close_conn()
             raise RegistryFramingError("chunk size lacks its CRLF terminator")
-        size, separator, extensions = line[:-2].partition(b";")
-        if not re.fullmatch(rb"[0-9A-Fa-f]+", size):
+        match = re.fullmatch(rb"([0-9A-Fa-f]+)[ \t]*(.*)", line[:-2])
+        if match is None:
             self._close_conn()
             raise RegistryFramingError("malformed HTTP chunk size")
-        if separator and not valid_chunk_extensions(separator + extensions):
+        size, extensions = match.groups()
+        if extensions and not valid_chunk_extensions(extensions):
             self._close_conn()
             raise RegistryFramingError("malformed HTTP chunk extension")
         return int(size, 16)
@@ -395,11 +446,7 @@ class StrictHTTPResponse(http.client.HTTPResponse):
 
     def _read_and_discard_trailer(self):
         while True:
-            line = self.fp.readline(http.client._MAXLINE + 1)
-            if len(line) > http.client._MAXLINE:
-                raise http.client.LineTooLong("trailer line")
-            if not line or not line.endswith(b"\r\n"):
-                raise RegistryFramingError("chunk trailers lack the final CRLF terminator")
+            line = self._atlas_wire.line("trailer")
             if line == b"\r\n":
                 return
             validate_field_line(line, "trailer")
@@ -438,29 +485,40 @@ def _read_url_once(url, limit):
             error.close()
             raise IdentityError(f"registry HTTP status {error.code}: {url}") from error
         response = error
-    except http.client.RemoteDisconnected as error:
+    except (http.client.RemoteDisconnected, ssl.SSLEOFError) as error:
         raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
     except http.client.HTTPException as error:
         raise IdentityError(f"malformed registry HTTP response: {url}: {error}") from error
     except ssl.SSLCertVerificationError as error:
         raise IdentityError(f"registry TLS certificate verification failed: {url}") from error
+    except ssl.SSLError as error:
+        raise IdentityError(f"registry TLS protocol failed: {url}") from error
     except URLError as error:
         if isinstance(error.reason, ssl.SSLCertVerificationError):
             raise IdentityError(
                 f"registry TLS certificate verification failed: {url}") from error
+        if isinstance(error.reason, ssl.SSLEOFError):
+            raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
+        if isinstance(error.reason, ssl.SSLError):
+            raise IdentityError(f"registry TLS protocol failed: {url}") from error
         raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
     except (TimeoutError, OSError) as error:
         raise RegistryTransportError(f"registry request failed: {url}: {error}") from error
     with response:
+        fields = getattr(response, "atlas_fields", None)
+        if fields is None:
+            fields = tuple((name.lower().encode("ascii"), value.strip(" \t").encode("iso-8859-1"))
+                           for name, value in response.headers.raw_items())
+        try:
+            length, _chunked = framing_fields(fields)
+        except RegistryFramingError as error:
+            raise IdentityError(str(error)) from error
+        if response.status == 429 or 500 <= response.status <= 599:
+            raise RegistryTransportError(
+                f"transient registry HTTP status {response.status}: {url}")
         if response.status not in (200, 404):
             raise IdentityError(f"registry HTTP status {response.status}: {url}")
-        lengths = response.headers.get_all("Content-Length", [])
-        transfers = response.headers.get_all("Transfer-Encoding", [])
-        if (len(lengths) > 1 or (lengths and not re.fullmatch(r"[0-9]+", lengths[0]))
-                or len(transfers) > 1 or (lengths and transfers)
-                or (transfers and transfers[0].lower() != "chunked")):
-            raise IdentityError("malformed or inconsistent registry HTTP framing")
-        if lengths and int(lengths[0]) > limit:
+        if length is not None and length > limit:
             raise IdentityError(f"registry response exceeds identity bound: {url}")
         try:
             body = response.read(limit + 1)
@@ -472,16 +530,28 @@ def _read_url_once(url, limit):
             raise IdentityError(f"malformed registry HTTP framing: {url}: {error}") from error
         if len(body) > limit:
             raise IdentityError(f"registry response exceeds identity bound: {url}")
-        if lengths and len(body) != int(lengths[0]):
+        if length is not None and len(body) != length:
             raise RegistryTransportError("incomplete registry HTTP body")
     return response.status, body
+
+
+def _diagnostic_text(value):
+    text = str(value)
+    text = "".join(character if character >= " " and character != "\x7f" else "?"
+                   for character in text)
+    if not text:
+        return type(value).__qualname__
+    marker = " [truncated]"
+    if len(text) > REGISTRY_ERROR_TEXT:
+        text = text[:REGISTRY_ERROR_TEXT - len(marker)] + marker
+    return text
 
 
 def _error_chain(error):
     chain = []
     current = error
-    while current is not None and len(chain) < 8:
-        chain.append({"type": type(current).__qualname__, "message": str(current)})
+    while current is not None and len(chain) < REGISTRY_ERROR_CHAIN_ITEMS:
+        chain.append({"type": type(current).__qualname__, "message": _diagnostic_text(current)})
         current = current.__cause__
     return chain
 
@@ -491,10 +561,12 @@ def _transport_worker(url, limit):
     try:
         status, body = _read_url_once(url, limit)
     except RegistryTransportError as error:
-        payload = json.dumps({"message": str(error), "chain": _error_chain(error)}).encode()
+        payload = json.dumps({"message": _diagnostic_text(error),
+                              "chain": _error_chain(error)}, separators=(",", ":")).encode()
         sys.stdout.buffer.write(b"T" + payload)
     except IdentityError as error:
-        payload = json.dumps({"message": str(error), "chain": _error_chain(error)}).encode()
+        payload = json.dumps({"message": _diagnostic_text(error),
+                              "chain": _error_chain(error)}, separators=(",", ":")).encode()
         sys.stdout.buffer.write(b"P" + payload)
     else:
         sys.stdout.buffer.write(b"S" + struct.pack("!H", status) + body)
@@ -503,14 +575,37 @@ def _transport_worker(url, limit):
 
 def _process_tree():
     scripts = Path(__file__).resolve().parents[3] / "scripts"
-    if not (scripts / "process_tree.py").is_file():
+    source = (scripts / "process_tree.py").resolve()
+    if not source.is_file():
         raise IdentityError("bounded process-tree runner is absent from the action revision")
-    path = str(scripts)
-    sys.path.insert(0, path)
+    name = "_atlas_release_process_tree"
+    spec = importlib.util.spec_from_file_location(name, source)
+    if spec is None or spec.loader is None:
+        raise IdentityError("bounded process-tree runner cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.modules.get(name)
+    sys.modules[name] = module
     try:
-        return importlib.import_module("process_tree")
+        spec.loader.exec_module(module)
     finally:
-        sys.path.remove(path)
+        if previous is None:
+            del sys.modules[name]
+        else:
+            sys.modules[name] = previous
+    if Path(module.__file__).resolve() != source:
+        raise IdentityError("bounded process-tree runner origin differs from the action revision")
+    return module
+
+
+def _valid_protocol_text(value, *, type_name=False):
+    limit = REGISTRY_ERROR_TYPE_TEXT if type_name else REGISTRY_ERROR_TEXT
+    if not isinstance(value, str) or not value or len(value) > limit:
+        return False
+    if any(character < " " or character == "\x7f" for character in value):
+        return False
+    if type_name and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]*", value) is None:
+        return False
+    return True
 
 
 def read_url(url, limit):
@@ -524,15 +619,26 @@ def read_url(url, limit):
         raise IdentityError("registry response limit is outside the identity bound")
     command_line = [sys.executable, "-I", str(Path(__file__).resolve()),
                     "--registry-transport", url, str(limit)]
+    runner = _process_tree()
+    output_limit_error = getattr(runner, "ProcessTreeOutputLimit", ())
     try:
-        result = _process_tree().run(command_line, timeout=REGISTRY_REQUEST_SECONDS)
+        result = runner.run(
+            command_line,
+            timeout=REGISTRY_REQUEST_SECONDS,
+            stdout_limit=max(limit + 3, REGISTRY_ERROR_PROTOCOL_BYTES + 1),
+            stderr_limit=REGISTRY_STDERR_BYTES,
+        )
     except subprocess.TimeoutExpired as error:
         raise RegistryTransportError(
             f"registry request exceeded its total deadline: {url}") from error
+    except output_limit_error as error:
+        raise IdentityError("registry transport worker exceeded its output bound") from error
     if result.returncode != 0:
         cause = subprocess.CalledProcessError(
             result.returncode, command_line, output=result.stdout, stderr=result.stderr)
         raise IdentityError(f"registry transport worker failed: {url}") from cause
+    if result.stderr:
+        raise IdentityError("registry transport worker returned unexpected diagnostics")
     output = result.stdout
     if len(output) >= 3 and output[:1] == b"S":
         status = struct.unpack("!H", output[1:3])[0]
@@ -541,16 +647,26 @@ def read_url(url, limit):
             raise IdentityError("registry transport worker returned an invalid success response")
         return status, body
     if output[:1] in (b"P", b"T"):
+        if len(output) > REGISTRY_ERROR_PROTOCOL_BYTES:
+            raise IdentityError("registry transport worker returned an oversized error")
         try:
-            payload = json.loads(output[1:].decode("utf-8"))
+            payload = parse_json(output[1:])
+            if set(payload) != {"message", "chain"}:
+                raise ValueError("invalid transport error schema")
             message = payload["message"]
             chain = payload["chain"]
-            if (not isinstance(message, str) or not isinstance(chain, list)
+            expected = "RegistryTransportError" if output[:1] == b"T" else "IdentityError"
+            if (not _valid_protocol_text(message) or not isinstance(chain, list)
+                    or not 1 <= len(chain) <= REGISTRY_ERROR_CHAIN_ITEMS
                     or any(not isinstance(item, dict) or set(item) != {"type", "message"}
-                           or not all(isinstance(item[key], str) for key in item)
+                           or not _valid_protocol_text(item["type"], type_name=True)
+                           or not _valid_protocol_text(item["message"])
                            for item in chain)):
                 raise ValueError("invalid transport error schema")
-        except (KeyError, TypeError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
+            if chain[0]["type"] != expected or chain[0]["message"] != message:
+                raise ValueError("invalid transport error origin")
+        except (IdentityError, KeyError, TypeError, UnicodeDecodeError,
+                ValueError, json.JSONDecodeError) as error:
             raise IdentityError("registry transport worker returned an invalid error") from error
         cause = RegistryWorkerError(chain)
         error_type = RegistryTransportError if output[:1] == b"T" else IdentityError
