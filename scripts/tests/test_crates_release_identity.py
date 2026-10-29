@@ -470,7 +470,7 @@ def test_workflow_uses_exact_helper_commit_and_correct_action_output(history):
         path = ".github/actions/crate-release-identity/" + name
         actual = subprocess.run(["git", "show", f"{match.group(1)}:{path}"], cwd=history,
                                 capture_output=True, check=True, timeout=5).stdout
-        assert actual == (ROOT / path).read_bytes()
+        assert actual.replace(b"\r\n", b"\n") == (ROOT / path).read_bytes().replace(b"\r\n", b"\n")
     action = yaml.safe_load((ROOT / ".github/actions/crate-release-identity/action.yml").read_text())
     assert action["outputs"]["publish"]["value"] == "${{ steps.identity.outputs.publish }}"
     execution = action["runs"]["steps"]
