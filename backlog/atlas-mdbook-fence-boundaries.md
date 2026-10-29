@@ -14,12 +14,14 @@
   base. An independent mdBook 0.4.40 render of the four-space fixture keeps the
   example inside code and emits only the real link and heading. This renderer
   observation does not qualify a reusable workflow's configured tool version.
-- Implementation: share the syntax mask between link and heading extraction;
-  move syntax operations into a leaf module to keep modified files below
-  500 lines. Preserve all link classifications, allowlists and exit policies.
+- Implementation: retain the standalone validator and its original root symbols;
+  share the corrected existing mask between links and headings. Move historical
+  rationale to docs/mdbook/link-detector-internals.md to keep modified files
+  below 500 lines. Preserve classifications, allowlists, exit policies, copied
+  validator fixtures, and existing gate activation paths.
 - Acceptance: focused regressions, unchanged full Python suite, normal hooks,
   exact-head independent review and applicable hosted checks.
-- Status: focused validation passes (50 tests, 68 subtests); final qualification
+- Status: focused validation passes (53 tests, 68 subtests); final qualification
   and independent review pending. No member figure-generation closure is claimed.
 - Scope excludes #583, hooks, pins, dependency/lock changes, publication settings,
   and protected Apollo/Moirai work.

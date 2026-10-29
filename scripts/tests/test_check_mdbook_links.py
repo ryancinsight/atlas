@@ -16,7 +16,6 @@ import unittest
 from pathlib import Path
 
 import check_mdbook_links as cml
-from mdbook_links.syntax import extract_links
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "check_mdbook_links.py"
@@ -40,14 +39,14 @@ class ExtractLinksTestCase(unittest.TestCase):
 
     def test_detects_good_link(self) -> None:
         text = "See [the chapter](chapter.md) for details."
-        self.assertEqual(list(extract_links(text)), ["chapter.md"])
+        self.assertEqual(list(cml.extract_links(text)), ["chapter.md"])
 
     def test_yields_external_links_for_caller_to_classify(self) -> None:
         # `extract_links` is deliberately unopinionated about scheme;
         # `is_external` is the filter, so both hrefs come through here.
         text = "Visit [example](https://example.com) and [mail](mailto:test@example.com)."
         self.assertEqual(
-            list(extract_links(text)),
+            list(cml.extract_links(text)),
             ["https://example.com", "mailto:test@example.com"],
         )
         self.assertTrue(cml.is_external("https://example.com"))
@@ -56,69 +55,69 @@ class ExtractLinksTestCase(unittest.TestCase):
 
     def test_ignores_inline_math(self) -> None:
         text = r"The transform is $\mathcal{R}[p_0](\mathbf{r}_s, R)$ here."
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
     def test_ignores_block_math(self) -> None:
         text = "$$\n\\mathcal{R}[p_0](\\mathbf{r}_s, R)\n$$"
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
     def test_ignores_inline_code_recurrence(self) -> None:
         text = "Use `[n+1](x)` to index into the array."
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
     def test_ignores_fenced_code(self) -> None:
         text = "```\n# See [docs](missing.md)\n```"
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
     def test_ignores_fenced_code_with_info_string(self) -> None:
         text = "```markdown\nSee [docs](missing.md)\n```"
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
     def test_ignores_tilde_fenced_code(self) -> None:
         text = "~~~\nSee [docs](missing.md)\n~~~"
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
     def test_ignores_indented_fence(self) -> None:
         # Up to three leading spaces still opens a fence in CommonMark.
         text = "  ```\n  See [docs](missing.md)\n  ```"
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
     def test_longer_closing_fence_still_closes(self) -> None:
         text = "````\n[a](x.md)\n````\nThen [real](real.md)."
-        self.assertEqual(list(extract_links(text)), ["real.md"])
+        self.assertEqual(list(cml.extract_links(text)), ["real.md"])
 
     def test_inner_shorter_backtick_run_does_not_close_fence(self) -> None:
         # A ``` line inside a ```` block is content, not a closing fence.
         text = "````\n```\n[a](x.md)\n```\n````\nThen [real](real.md)."
-        self.assertEqual(list(extract_links(text)), ["real.md"])
+        self.assertEqual(list(cml.extract_links(text)), ["real.md"])
 
     def test_links_after_a_closed_fence_are_extracted(self) -> None:
         # The mask must not swallow the rest of the document.
         text = "```\n[hidden](nope.md)\n```\nSee [chapter](chapter.md)."
-        self.assertEqual(list(extract_links(text)), ["chapter.md"])
+        self.assertEqual(list(cml.extract_links(text)), ["chapter.md"])
 
     def test_unterminated_fence_masks_to_end_of_document(self) -> None:
         # CommonMark: an unclosed fence runs to the end of the document.
         text = "```\n[hidden](nope.md)\nSee [also-hidden](chapter.md)."
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
     def test_ignores_inline_code_link(self) -> None:
         # Previously leaked: only single-char hrefs were filtered, so a
         # full link inside backticks was extracted.
         text = "Write `[docs](missing.md)` to link a chapter."
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
     def test_inline_code_does_not_mask_the_rest_of_the_line(self) -> None:
         text = "Use `cargo build`, then see [chapter](chapter.md)."
-        self.assertEqual(list(extract_links(text)), ["chapter.md"])
+        self.assertEqual(list(cml.extract_links(text)), ["chapter.md"])
 
     def test_ignores_single_char_href(self) -> None:
         text = "The recurrence p[n+1](x) is defined as ..."
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
     def test_ignores_latex_command_href(self) -> None:
         text = r"The force is [F(m)](\mathbf{r}_s, t)."
-        self.assertEqual(list(extract_links(text)), [])
+        self.assertEqual(list(cml.extract_links(text)), [])
 
 
 class HeadingSlugTestCase(unittest.TestCase):

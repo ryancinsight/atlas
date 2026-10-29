@@ -7,7 +7,6 @@ import tempfile
 import unittest
 
 import check_mdbook_links as checker
-from mdbook_links.syntax import extract_links
 
 
 def chapter_with_false_closer(false_closer: str, fence: str = "```") -> str:
@@ -23,17 +22,17 @@ class FenceBoundaryTests(unittest.TestCase):
         for fence in ("```", "~~~~"):
             with self.subTest(fence=fence):
                 text = chapter_with_false_closer("    " + fence, fence)
-                self.assertEqual(list(extract_links(text)), ["real.md"])
+                self.assertEqual(list(checker.extract_links(text)), ["real.md"])
 
     def test_tab_indentation_does_not_close(self):
         text = chapter_with_false_closer("\t```")
-        self.assertEqual(list(extract_links(text)), ["real.md"])
+        self.assertEqual(list(checker.extract_links(text)), ["real.md"])
 
     def test_non_ascii_whitespace_is_not_closing_fence_padding(self):
         for false_closer in ("\u00a0```", "```\u00a0", "```\v", "```\f"):
             with self.subTest(false_closer=false_closer):
                 text = chapter_with_false_closer(false_closer)
-                self.assertEqual(list(extract_links(text)), ["real.md"])
+                self.assertEqual(list(checker.extract_links(text)), ["real.md"])
 
     def test_heading_extraction_uses_the_same_fence_boundary(self):
         text = chapter_with_false_closer("    ```")
@@ -47,7 +46,7 @@ class FenceBoundaryTests(unittest.TestCase):
                         "````markdown", "[example](example-only.md)",
                         " " * indent + "````` \t", "[real](real.md)", "",
                     ])
-                    self.assertEqual(list(extract_links(text)), ["real.md"])
+                    self.assertEqual(list(checker.extract_links(text)), ["real.md"])
 
     def test_valid_book_does_not_fail_on_links_shown_as_code(self):
         with tempfile.TemporaryDirectory() as directory:

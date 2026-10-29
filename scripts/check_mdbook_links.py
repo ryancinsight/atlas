@@ -1,45 +1,11 @@
-"""
-Portable mdbook-equivalent dead-link detector.
+"""Portable mdBook dead-link detector with heading checks.
 
-Walks every chapter file in a book, parses inline links `[text](href)`,
-validates:
-  - File paths resolve to existing files (FILE_MISSING)
-  - Anchor references (#slug) correspond to a heading in the target file (ANCHOR_MISSING)
-  - External URLs / mailto / anchors-only are skipped
+Checks inline local destinations and headings while ignoring code examples.
+Existing classifications, allowlists and CLI exit policies remain unchanged.
+Historical parsing rationale and supported syntax live in
+docs/mdbook/link-detector-internals.md.
 
-Exit codes:
-  0   clean (no FILE_MISSING)
-  1   FILE_MISSING > 0 (default gate; relaxed by --advisory, tightened by --strict-placeholder)
-  2   invocation error (no books supplied)
-
-Pattern classification (Patterns C / D / E / F from docs/mdbook/link-warnings.md)
-is appended to each FILE_MISSING row to aid triage.  --strict-placeholder
-elevates Pattern D / F rows so an explicit allow-list can be maintained
-per-target once the responsible chapters materialise.
-
-Forward-defence allow-list: `.check_mdbook_links_allowlist` at the atlas
-repo root (JSON, schema documented in that file).  If a FILE_MISSING
-row's `(source, href)` matches an entry, the row is silently skipped
-(and prefixed with `allowlist:` in the per-link section) so the strict-
-mode CI gate does not block legitimate commits.  Today's allow-list is
-empty — the gate is green across all 3 atlases — but the scaffold lets
-future contributors quickly silence a new false-positive pattern
-without re-running detector analysis.
-
-Architectural note (latent bug, masked by FILE_MISSING : 0 on all 3 atlases):
-`check_book()` previously referenced `allowlist` as a free variable that was
-only defined locally inside `main()`.  This worked by accident — every atlas
-had FILE_MISSING : 0 post-§7-#5, so the `if allowlist and ...` line was
-unreachable.  The first time FILE_MISSING > 0 occurred (e.g., the new
-`docs-link-smoke-test` fixture with the SINGLE_CHAR_HREF_RE filter disabled
-during the negative test), the detector raised `NameError: name 'allowlist'
-is not defined`.  Fix: `allowlist` is now an explicit parameter on
-`check_book()` (defaulting to `frozenset()` for backward-compat).  This
-unifies `check_book` as a pure function over its inputs — no implicit
-free-variable dependency on `main`'s scope.
-
-Usage:
-    check_mdbook_links.py [--advisory] [--strict-placeholder] <book-root> [<book-root> ...]
+Usage: check_mdbook_links.py [--advisory] [--strict-placeholder] BOOK ...
 """
 
 import sys
@@ -49,25 +15,13 @@ import argparse
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from mdbook_links.syntax import extract_links, mask_fenced
 
-
-# Patterns C / D / E / F — see docs/mdbook/link-warnings.md.  Order matters in
-# classify_pattern(): trailing-slash (D) → src/*.rs (F) → cross-book (C)
-# → depth-3 README (E).  First match wins so labels don't collide.
 PATTERN_F_RE = re.compile(r"^(?:\.\./)+crates/[^/]+/src/[^/]+(?:/[^/]+)*\.rs$")
 PATTERN_C_RE = re.compile(r"^(?:\.\./)+(?:[\w-]+)/docs/book/")
 PATTERN_E_RE = re.compile(r"^(?:\.\./){3,}README\.md$")
+LATEX_HREF_RE = re.compile(r"^\\[A-Za-z]+")
 
 
-# Forward-defence allow-list — `.check_mdbook_links_allowlist` at the atlas
-# repo root (JSON, schema documented in that file).  The detector loads this
-# file once at startup; matching FILE_MISSING rows are silently skipped
-# (with an `allowlist:` prefix in the per-link section).  See
-# `docs/mdbook/detector-parity-kwavers.md` §3 Issue B for the historical pattern
-# (FDTD-recurrence `[n+1](x)`) that the SINGLE_CHAR_HREF_RE filter already
-# handles detector-wide — entries in `.check_mdbook_links_allowlist` are
-# for true per-row exceptions only.
 ALLOWLIST_PATH = Path(__file__).resolve().parent.parent / ".check_mdbook_links_allowlist"
 
 
@@ -91,6 +45,7 @@ def load_allowlist(path: Path = ALLOWLIST_PATH) -> set:
         if isinstance(src, str) and isinstance(href, str):
             out.add((src, href))
     return out
+SINGLE_CHAR_HREF_RE = re.compile(r"^[a-zA-Z]$")
 
 
 def classify_pattern(href: str) -> str:
@@ -113,11 +68,63 @@ def is_external(href: str) -> bool:
     return bool(p.scheme)
 
 
-# HTML entity references that can appear in heading text.  mdBook's parser
-# decodes these to their literal character (which the char-loop below then
-# drops, or turns into a hyphen for &nbsp;).  Mirroring the decode matters:
-# e.g. `x &amp; y` renders as `x & y` in mdBook → id `x--y`; without the
-# decode the raw letters `amp` would wrongly survive into the slug.
+FENCE_OPEN_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})\s*(?P<info>[^`]*)$")
+INLINE_CODE_RE = re.compile(r"`+[^`\n]*`+")
+
+
+def _mask_fenced(content: str) -> str:
+    """Blank out FENCED code regions only, preserving line structure.
+
+    Used where code-block content must not be seen but inline code spans
+    must survive (heading extraction: mdBook keeps inline-code content in
+    heading text, so ``The `AllocPolicy` trait`` → `the-allocpolicy-trait`).
+    """
+    out: list[str] = []
+    closing: re.Pattern[str] | None = None
+    for line in content.split("\n"):
+        if closing is None:
+            opened = FENCE_OPEN_RE.match(line)
+            if opened:
+                run = opened.group("fence")
+                closing = re.compile(
+                    r" {0,3}" + re.escape(run[0])
+                    + "{" + str(len(run)) + r",}[ \t]*\r?"
+                )
+                out.append("")
+                continue
+            out.append(line)
+            continue
+        if closing.fullmatch(line):
+            closing = None
+        out.append("")
+    return "\n".join(out)
+
+
+def mask_code(content: str) -> str:
+    """Blank out code regions so link syntax inside them is not checked.
+
+    mdBook does not resolve links inside code, and book prose routinely
+    shows markdown, shell, or TOML snippets containing bracket-paren
+    text that is not a link (``[dependencies]``, ``[foo](bar)`` in a
+    markdown example). Fenced blocks and inline spans are replaced with
+    blanks. Line structure is preserved so the masked text stays
+    positionally aligned with the original.
+    """
+    return INLINE_CODE_RE.sub(" ", _mask_fenced(content))
+
+
+def extract_links(content: str):
+    """Yield raw href strings from inline `[text](href)` and reference-style"""
+    content = mask_code(content)
+    for m in re.finditer(r"\[[^\]]*\]\(([^)\n]+)\)", content):
+        href = m.group(1).strip()
+        if LATEX_HREF_RE.match(href):
+            continue
+        if SINGLE_CHAR_HREF_RE.match(href):
+            continue
+        yield href
+
+
 HTML_ENTITY_RE = re.compile(r"&(?:#(\d+)|#x([0-9a-fA-F]+)|(amp|lt|gt|quot|apos|nbsp));")
 HTML_ENTITY_NAMED = {
     "amp": "&",
@@ -128,11 +135,6 @@ HTML_ENTITY_NAMED = {
     "nbsp": " ",
 }
 
-# Trailing heading-attribute group consumed by pulldown-cmark's heading-
-# attributes parser (mdBook enables it): `NAV{1}` → text `NAV` (id `nav`),
-# `NAV {#x}` → text `NAV` + explicit id `x`.  The group must be the LAST
-# thing on the heading line (optional preceding whitespace); mid-heading
-# braces like `a {b} c` are literal text (braces dropped, content kept).
 HEADING_ATTR_RE = re.compile(r"\s*\{[^}]*\}\s*$")
 
 
@@ -170,20 +172,12 @@ def _render_heading_text(title: str) -> str:
       - HTML entities decode to their literal character
     """
     s = title
-    # Order matters: replace `---` before `--` so `A --- B` becomes the
-    # em-dash form (→ `a--b`), not an en-dash plus a stray hyphen.
     s = s.replace("---", "\u2014").replace("--", "\u2013")
     s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)
-    # Inline code span: keep the content, drop the backticks.
     s = re.sub(r"`+([^`\n]*)`+", r"\1", s)
-    # Underscore emphasis: `__bold__` then non-intraword `_em_`; the
-    # lookarounds keep intraword underscores (foo_bar) as literal text.
     s = re.sub(r"__([^_\s]+)__", r"\1", s)
     s = re.sub(r"(?<!\w)_([^_\s]+)_(?!\w)", r"\1", s)
-    # Star emphasis / strikethrough markers (dropped by the char loop anyway;
-    # stripping them here mirrors pulldown rendering `*em*` → `em`).
     s = re.sub(r"[*~]+", "", s)
-    # Trailing heading attribute group (non-id): `NAV{1}` → `NAV`.
     s = HEADING_ATTR_RE.sub("", s)
     return _decode_entities(s)
 
@@ -214,7 +208,6 @@ def heading_slug(title: str) -> str:
             out.append(ch.lower())
         elif ch in "-_":
             out.append(ch)
-        # else: dropped (em-dash, en-dash, punctuation, …)
     return "".join(out)
 
 
@@ -255,7 +248,7 @@ def heading_ids(content: str) -> list[str]:
     content in the rendered heading text (`The `AllocPolicy` trait` →
     `the-allocpolicy-trait`).
     """
-    content = mask_fenced(content)
+    content = _mask_fenced(content)
     ids: list[str] = []
     auto_seen: dict[str, int] = {}
     for _h, title in re.findall(r"^(#{1,6})\s+(.*?)\s*$", content, re.MULTILINE):
@@ -293,20 +286,12 @@ def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
             read_fail.append((md.relative_to(root).as_posix(), str(e)))
             continue
         origin = md.relative_to(root).as_posix()
-        # Pre-compute heading anchor ids of this file once for anchor checks.
-        # Explicit `{#id}` ids are case-preserved in the parity list, but the
-        # link side compares through `slugify` (which lowercases); adding the
-        # lowercased variant here keeps both an exact-case link
-        # (`#CamelCase-Anchor`) and the historical lowercase-lenient form
-        # resolving, without disturbing the byte-for-byte parity list.
         local_anchor_set = set()
         for hid in heading_ids(content):
             local_anchor_set.add(hid)
             local_anchor_set.add(hid.lower())
 
         for href in extract_links(content):
-            # Anchor-only links are NOT skipped; they fall through and are validated
-            # against the local anchor set (mdbook enforces in-page anchors too).
             if not href or is_external(href):
                 continue
             anchor = None
@@ -316,32 +301,21 @@ def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
                 anchor = unquote(anchor)
             path_part = unquote(path_part)
             if not path_part:
-                # pure anchor linked to current page
                 if anchor and slugify(anchor) not in local_anchor_set:
                     anchor_missing.append((origin, href, anchor))
                 continue
             if path_part.startswith("/"):
-                # mdBook resolves a leading `/` against the book root, not
-                # the filesystem. `Path.__truediv__` silently discards the
-                # left operand when the right side is absolute, which sent
-                # `/README.md` to the drive root and reported every
-                # root-absolute link as missing.
                 target = (root / path_part.lstrip("/")).resolve()
             else:
                 target = (md.parent / path_part).resolve()
             links_checked += 1
             if not target.exists():
-                # Forward-defence allow-list: if (origin, href) is in the
-                # atlas-root allow-list, skip the FILE_MISSING entry (the
-                # allow-list signals a documented exception — e.g., a
-                # pattern the detector can't yet filter detector-wide).
                 if allowlist and (origin, href) in allowlist:
                     file_missing.append((origin, href, str(target), "allowlisted"))
                 else:
                     file_missing.append((origin, href, str(target), None))
                 continue
             if anchor:
-                # If the target is the same file, use the precomputed set
                 if target.resolve() == md.resolve():
                     if slugify(anchor) not in local_anchor_set:
                         anchor_missing.append((origin, href, anchor))
@@ -433,15 +407,12 @@ def main(argv=None):
         total_allowlisted += _file_missing_allowlisted_count(fm)
         total_anchor_missing += len(am)
         print(f"  FILE_MISSING  : {len(fm)}")
-        # Show the allowlist-skipped subset for transparency.
         allow_count = _file_missing_allowlisted_count(fm)
         if allow_count:
             print(f"  FILE_MISSING (allow-listed): {allow_count}")
         if fm:
             seen_pairs = set()
             for row in fm:
-                # Backwards-compatible tuple shape: 3-tuple (legacy) or
-                # 4-tuple with `allowlist` flag at index 3 (current).
                 if len(row) >= 4:
                     origin, href, tgt, allow_flag = row
                 else:
@@ -466,27 +437,13 @@ def main(argv=None):
             for item in rf:
                 print(f"    - {item}")
 
-    # ---- Exit code decision ----
-    # All books invalid?  Treat as invocation error (exit 2) so a
-    # typo'd CI step can't silently pass — better to fail loud.
     if len(args.books) > 0 and bad_paths == len(args.books):
         return 2
     if args.advisory:
-        # Print-only: warnings printed above, exit 0 unconditionally so
-        # the run doesn't block commits while the 12 known misses are
-        # still being triaged (§7 #5 in docs/mdbook/detector-parity.md).
         return 0
-    # Strip allow-listed rows from the gate decision — they're documented
-    # exceptions, not real bugs.  total_allowlisted was accumulated during
-    # the main book loop above (no double-scanning required).
     real_file_missing = total_file_missing - total_allowlisted
     if real_file_missing > 0:
         return 1
-    # --strict-placeholder with no FILE_MISSING but D/F-specific misses.
-    # Currently unreachable (Pattern D/F are already counted under
-    # total_file_missing).  Kept for forward-compat: if a future
-    # allow-list downgrades D/F from FILE_MISSING to PLACEHOLDER_MISSING,
-    # --strict-placeholder re-elevates them without double-counting.
     if args.strict_placeholder and placeholder_errors > 0:
         return 1
     return 0
