@@ -283,6 +283,15 @@ def retire_group(group: int) -> None:
         os.killpg(group, signal.SIGKILL)
     except ProcessLookupError:
         pass
+    except PermissionError:
+        # A zombie can be reaped between listing it and reading its status.
+        # An incomplete observation stays active; allow the existing cleanup
+        # guard to obtain a complete inactive view before accepting EPERM.
+        deadline = time.monotonic() + HANG_GUARD_SECONDS
+        while process_tree._posix_group_has_active_members(group):
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(process_tree.GROUP_POLL_SECONDS)
 
 
 @unittest.skipUnless(os.name == "posix", "the supervisor exists only on POSIX")

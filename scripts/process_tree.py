@@ -62,6 +62,7 @@ import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+import darwin_process
 import windows_process
 
 # Longest the runner spends retiring a tree and collecting its launcher. The
@@ -204,7 +205,7 @@ class ProcessTreeTimeout(subprocess.TimeoutExpired):
 
 
 class _InterruptDeferral:
-    """Hold a main-thread ``SIGINT`` across the launch window.
+    """Hold main-thread ``SIGINT`` until an ownership phase commits.
 
     A launched root is retired only once the caller holds its handle, so an
     interrupt raised between creating the process and recording it would
@@ -213,7 +214,8 @@ class _InterruptDeferral:
     ``SIGINT`` is ignored or default-disposed, nothing is held.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, phase: str) -> None:
+        self._phase = phase
         self._previous = None
         self._held: tuple[int, object] | None = None
 
@@ -237,18 +239,20 @@ class _InterruptDeferral:
             return
         signum, frame = self._held
         if exc is not None:
-            exc.add_note("SIGINT received during process launch was superseded")
+            exc.add_note(f"SIGINT received during {self._phase} was superseded")
             return
         self._previous(signum, frame)
 
 
 @dataclass
 class _CleanupState:
-    """Track destructive cleanup so interruption cannot repeat it after reap."""
+    """Retain confirmed requests, pending proof and cleanup failures."""
 
     termination_issued: bool = False
     launcher_reaped: bool = False
     deadline: float | None = None
+    failure: str | None = None
+    pending_permission: str | None = None
 
 
 class _InputWriter:
@@ -306,27 +310,46 @@ def _terminate_process_tree(
     if state.deadline is None:
         state.deadline = time.monotonic() + PROCESS_TREE_CLEANUP_SECONDS
     cleanup_deadline = state.deadline
-    error: str | None = None
     if not state.termination_issued:
         # The unreaped supervisor pins its POSIX process-group identity. An
         # interrupted syscall may therefore retry safely; confirmation is
         # recorded only after the destructive request returns.
-        if sys.platform == "win32":
-            if windows_job is None:
-                error = "process was not assigned to a Windows kill-on-close job"
+        # Commit a returned request's outcome before a deferred SIGINT is
+        # delivered. An exception inside the syscall still permits owned retry.
+        with _InterruptDeferral("cleanup request"):
+            if sys.platform == "win32":
+                if windows_job is None:
+                    state.failure = "process was not assigned to a Windows kill-on-close job"
+                else:
+                    remaining = max(0.0, cleanup_deadline - time.monotonic())
+                    state.failure = windows_process.terminate_job(windows_job, remaining)
             else:
-                remaining = max(0.0, cleanup_deadline - time.monotonic())
-                error = windows_process.terminate_job(windows_job, remaining)
-        else:
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            except OSError as caught:
-                error = f"process-group kill failed: {caught}"
-        state.termination_issued = True
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                except PermissionError as caught:
+                    state.failure = f"process-group kill failed: {caught}"
+                    if sys.platform == "darwin":
+                        state.pending_permission = state.failure
+                except OSError as caught:
+                    state.failure = f"process-group kill failed: {caught}"
+            state.termination_issued = True
 
-    if error is not None and not state.launcher_reaped:
+    if state.pending_permission is not None:
+        # Retain both the returned EPERM and pending readonly proof across an
+        # interrupt. Settling proof and its failure is one SIGINT-safe commit.
+        with _InterruptDeferral("cleanup proof"):
+            observed = _darwin_group_snapshot_before(process.pid, cleanup_deadline)
+            if observed is darwin_process.GroupState.INACTIVE:
+                state.failure = None
+            else:
+                state.failure = (
+                    f"{state.pending_permission} (Darwin group state: {observed.name.lower()})"
+                )
+            state.pending_permission = None
+
+    if state.failure is not None and not state.launcher_reaped:
         process.kill()
     if not state.launcher_reaped:
         remaining = max(0.0, cleanup_deadline - time.monotonic())
@@ -339,7 +362,7 @@ def _terminate_process_tree(
                 process.wait(timeout=remaining)
             except subprocess.TimeoutExpired:
                 direct_error = "launcher did not exit within the process-tree cleanup budget"
-                error = _merge_errors(error, direct_error)
+                state.failure = _merge_errors(state.failure, direct_error)
         if process.returncode is not None:
             state.launcher_reaped = True
     if sys.platform != "win32" and state.launcher_reaped:
@@ -348,12 +371,12 @@ def _terminate_process_tree(
                 break
             remaining = cleanup_deadline - time.monotonic()
             if remaining <= 0:
-                error = _merge_errors(
-                    error, "process group remained active after the cleanup budget"
+                state.failure = _merge_errors(
+                    state.failure, "process group remained active after the cleanup budget"
                 )
                 break
             time.sleep(min(GROUP_POLL_SECONDS, remaining))
-    return error
+    return state.failure
 
 
 def _finish_interrupted_cleanup(
@@ -361,9 +384,9 @@ def _finish_interrupted_cleanup(
 ) -> str | None:
     """Retry cleanup interrupted by ``KeyboardInterrupt`` within its deadline.
 
-    The held launcher pins tree identity, so repeating the destructive request
-    is safe. Any other exception is a defect in cleanup itself and propagates
-    unchanged.
+    Retry an unconfirmed syscall only while the launcher pins tree identity.
+    Confirmed requests resume pending proof/collection without replay; failures
+    and the original deadline survive re-entry. Other exceptions propagate.
     """
     interruptions = 0
     while True:
@@ -373,14 +396,40 @@ def _finish_interrupted_cleanup(
             interruptions += 1
             deadline = state.deadline
             if deadline is not None and time.monotonic() >= deadline:
-                return (
+                state.failure = _merge_errors(state.failure, (
                     "process-tree cleanup remained interrupted through its "
                     f"bounded deadline ({interruptions} interruptions)"
-                )
+                ))
+                state.pending_permission = None
+                return state.failure
+
+
+def _darwin_group_snapshot_before(process_group: int, deadline: float) -> darwin_process.GroupState:
+    """Observe changing membership while the unreaped launcher pins the group.
+
+    Only ESRCH or a changed list permits another read. Permission failures and
+    unavailable/incomplete views return UNKNOWN immediately. No signal repeats
+    and the caller's existing cleanup deadline is never extended.
+    """
+    while time.monotonic() < deadline:
+        observed = darwin_process.group_state(process_group)
+        if observed is not darwin_process.GroupState.CHANGING:
+            return observed
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return observed
+        time.sleep(min(GROUP_POLL_SECONDS, remaining))
+    return darwin_process.GroupState.CHANGING
 
 
 def _posix_group_has_active_members(process_group: int) -> bool:
-    """Report executable group members while treating Linux zombies as inactive."""
+    """Report executable members; an unreadable process view stays active.
+
+    XNU's ``killpg1`` filters ``SZOMB`` before counting permitted targets,
+    so a zombie-only group can report EPERM, including for signal zero:
+    https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c
+    Darwin therefore needs the actual process-state view, as Linux does.
+    """
     if sys.platform.startswith("linux") and os.path.isdir("/proc"):
         with os.scandir("/proc") as entries:
             for entry in entries:
@@ -399,6 +448,8 @@ def _posix_group_has_active_members(process_group: int) -> bool:
                     if int(fields[2]) == process_group and active:
                         return True
         return False
+    if sys.platform == "darwin":
+        return darwin_process.group_state(process_group) is not darwin_process.GroupState.INACTIVE
     try:
         os.killpg(process_group, 0)
     except ProcessLookupError:
@@ -552,7 +603,7 @@ def run(
                     raise RuntimeError(
                         f"failed to establish process-tree ownership: {caught}"
                     ) from caught
-            with _InterruptDeferral():
+            with _InterruptDeferral("process launch"):
                 process = subprocess.Popen(
                     launch_command,
                     cwd=cwd,
