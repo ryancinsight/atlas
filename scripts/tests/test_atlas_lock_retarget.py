@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import sys
 import os
 import shutil
 import tempfile
@@ -12,6 +15,7 @@ from unittest import mock
 
 from test_atlas_lock_sweep import LOCK, NEW, OLD, sweep
 from test_lockfile_regenerate import git, provider
+from root_hook_support import shared_target_directory
 
 
 class RetargetSourceTests(unittest.TestCase):
@@ -55,9 +59,9 @@ class RetargetMetadataTests(unittest.TestCase):
             patch = mock.patch.object(sweep, name, value)
             patch.start()
             self.addCleanup(patch.stop)
-        self.moving = provider(self.root, "moving")
+        self.moving = provider(self.root / "repos", "moving")
         self.old = git(self.moving, "rev-parse", "HEAD")
-        self.consumer = self.root / "consumer"
+        self.consumer = self.root / "repos" / "consumer"
         (self.consumer / "src").mkdir(parents=True)
         (self.consumer / "src/lib.rs").write_text("", encoding="utf-8")
         manifest = ('[package]\nname = "consumer"\nversion = "0.1.0"\nedition = "2024"\n'
@@ -119,3 +123,41 @@ class RetargetMetadataTests(unittest.TestCase):
         self.assertEqual((failure.action, failure.ok), ("failed", False))
         self.assertIn("locked offline metadata", failure.detail)
         self.assertEqual(git(self.moving, "rev-parse", "HEAD"), revision)
+
+    def test_existing_ordinary_branch_cannot_bypass_strict_cli_rejection(self) -> None:
+        revision = self.commit_provider({"src/lib.rs": "pub fn next() {}\n"})
+        url = "https://github.com/ryancinsight/moving"
+        queried = f"git+{url}?rev={self.old}#{self.old}"
+        manifest = self.consumer / "Cargo.toml"
+        manifest.write_text(manifest.read_text().replace(
+            "git = " + json.dumps(self.moving.as_uri()),
+            "git = " + json.dumps(url) + ", rev = " + json.dumps(self.old)))
+        (self.consumer / "Cargo.lock").write_bytes(
+            self.original.replace(self.source.encode(), queried.encode()))
+        git(self.consumer, "init", "-q", "-b", "main")
+        git(self.consumer, "add", "--", "Cargo.toml", "Cargo.lock", "src/lib.rs")
+        git(self.consumer, "commit", "-q", "-m", "consumer")
+        base = git(self.consumer, "rev-parse", "HEAD")
+        for member in (self.moving, self.consumer):
+            remote = self.root / (member.name + ".git")
+            git(self.root, "clone", "-q", "--bare", str(member), str(remote))
+            git(member, "remote", "add", "origin", str(remote))
+            git(member, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+        branch = sweep.branch_name({"moving": revision})
+        remote = self.root / "consumer.git"
+        git(remote, "branch", branch, base)
+        (self.root / ".gitmodules").write_text("".join(
+            f'[submodule "{name}"]\npath = repos/{name}\nurl = local\n'
+            for name in ("consumer", "moving")))
+        output = io.StringIO()
+        arguments = ["atlas-lock-sweep.py",
+                     "--retarget-sources", "--members", "consumer", "--target", "moving=" + revision]
+        with mock.patch.object(sys.modules["atlas_stack"], "ROOT", self.root), \
+                mock.patch.object(sys, "argv", arguments), \
+                mock.patch.dict(os.environ, {"CARGO_TARGET_DIR": str(shared_target_directory())}), \
+                contextlib.redirect_stdout(output):
+            status = sweep.main()
+        self.assertEqual(status, 1, output.getvalue())
+        self.assertIn("source retargeting", output.getvalue())
+        self.assertIn("failed", output.getvalue())
+        self.assertEqual(git(remote, "rev-parse", "refs/heads/" + branch), base)

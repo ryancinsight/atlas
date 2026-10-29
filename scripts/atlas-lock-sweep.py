@@ -545,6 +545,10 @@ def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | N
 
 def advance(plan: Plan, targets: dict[str, str], hooks: Path | None, item: str | None,
             resolver: Callable[[Plan, dict[str, str], Path], Outcome | None] = resolve_lock) -> Outcome:
+    if resolver is resolve_lock:
+        resumed = resume(plan, targets, item, hooks is not None)
+        if resumed is not None:
+            return resumed
     member = plan.member
     with tempfile.TemporaryDirectory(prefix=f"lock-sweep-{plan.name}-") as scratch_name:
         scratch = Path(scratch_name)
@@ -683,9 +687,8 @@ def main() -> int:
                 outcomes.append(Outcome(member.name, "current", "every first-party source at its target", True))
             else:
                 outcomes.append(
-                    resume(plan, targets, arguments.item, arguments.open_prs)
-                    or advance(plan, targets, hooks, arguments.item,
-                               retarget_lock if arguments.retarget_sources else resolve_lock)
+                    advance(plan, targets, hooks, arguments.item,
+                            retarget_lock if arguments.retarget_sources else resolve_lock)
                 )
             print(render_report(targets, outcomes[-1:]).splitlines()[-1], flush=True)
     print(render_report(targets, outcomes))
