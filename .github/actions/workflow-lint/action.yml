@@ -1,0 +1,25 @@
+name: Lint workflows
+description: Validate and lint workflows from a clean candidate checkout
+inputs:
+  candidate: {description: Exact candidate commit checked out in the workspace, required: true}
+  actionlint: {description: Absolute path to the pinned actionlint executable, required: true}
+runs:
+  using: composite
+  steps:
+    - name: Install parser and Python analyzer
+      shell: bash
+      run: python -m pip install --disable-pip-version-check --no-input "PyYAML==6.0.3" "pyflakes==4.0.3"
+    - name: Test workflow lint integration
+      shell: bash
+      env:
+        ACTIONLINT: ${{ inputs.actionlint }}
+      run: python "$GITHUB_ACTION_PATH/../../../scripts/tests/test_atlas_workflow_lint.py"
+    - name: Lint candidate workflows
+      shell: bash
+      env:
+        CANDIDATE: ${{ inputs.candidate }}
+        ACTIONLINT: ${{ inputs.actionlint }}
+      run: >-
+        python "$GITHUB_ACTION_PATH/../../../scripts/atlas_workflow_lint.py"
+        --root "$GITHUB_WORKSPACE" --candidate "$CANDIDATE"
+        --actionlint "$ACTIONLINT"
