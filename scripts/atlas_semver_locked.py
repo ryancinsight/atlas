@@ -73,7 +73,8 @@ def permission(baseline: str, current: str) -> str:
     old, new = core(baseline), core(current)
     if new < old:
         raise ValueError(f"version decreases: {baseline} -> {current}")
-    if new[0] > old[0] or (new[0] == 0 and new[1] > old[1]):
+    if (new[0] > old[0] or (old[0] == 0 and new[1] > old[1])
+            or (old[:2] == (0, 0) and new[2] > old[2])):
         return "major"
     if new[1] > old[1]:
         return "minor"
@@ -100,7 +101,6 @@ def inventory(manifest: Path, env: dict[str, str]) -> tuple[dict[str, dict], Pat
     members = set(metadata["workspace_members"])
     packages = {item["name"]: item for item in metadata["packages"] if item["id"] in members}
     return packages, Path(metadata["workspace_root"]) / "Cargo.lock"
-
 
 def generate(manifest: Path, package: dict, output: Path, env: dict[str, str], config: dict) -> Path:
     """Generate one locked Rustdoc artifact for supplemental comparison."""

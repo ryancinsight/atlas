@@ -24,12 +24,9 @@ class NativeContract(unittest.TestCase):
         return subprocess.run(argv, cwd=cwd, check=True, capture_output=True,
                               text=True, timeout=120)
 
-    def commit(self, repo, message, empty=False):
+    def commit(self, repo, message):
         self.command(["git", "add", "Cargo.toml", "Cargo.lock", "src/lib.rs"], repo)
-        argv = ["git", "commit", "-m", message]
-        if empty:
-            argv.append("--allow-empty")
-        self.command(argv, repo)
+        self.command(["git", "commit", "-m", message], repo)
         return self.command(["git", "rev-parse", "HEAD"], repo).stdout.strip()
 
     def run_contract(self, repo, base, head, report, change="patch"):
@@ -37,7 +34,7 @@ class NativeContract(unittest.TestCase):
                       if line.startswith("host: "))
         args = argparse.Namespace(
             repo=repo, base=base, head=head, manifest_path="Cargo.toml",
-            packages=["contract"], toolchain="1.97.0", change_class=change,
+            packages=[repo.name.replace("-", "_")], toolchain="1.97.0", change_class=change,
             feature_policy="all", features=[], target=target,
             report=report,
         )
@@ -47,11 +44,17 @@ class NativeContract(unittest.TestCase):
         return code, json.loads(report.read_text(encoding="utf-8"))
 
     def test_native_pass_deny_and_manifest_permission_are_distinct(self):
+        for baseline, current, expected in (
+            ("1.2.3", "1.2.4", "patch"), ("1.2.3", "1.3.0", "minor"),
+            ("1.2.3", "2.0.0", "major"), ("0.1.0", "0.1.1", "patch"),
+            ("0.1.0", "0.2.0", "major"), ("0.0.1", "0.0.2", "major")):
+            self.assertEqual(MODULE.permission(baseline, current), expected)
         with tempfile.TemporaryDirectory(prefix="semver-native-") as directory:
             repo = Path(directory)
             (repo / "src").mkdir()
             (repo / "Cargo.toml").write_text(
-                '[package]\nname="contract"\nversion="0.1.0"\nedition="2024"\n', encoding="utf-8")
+                f'[package]\nname="{repo.name.replace("-", "_")}"\nversion="0.1.0"\nedition="2024"\n',
+                encoding="utf-8")
             (repo / "src/lib.rs").write_text("pub fn retained() {}\npub fn removed() {}\n", encoding="utf-8")
             for argv in (["git", "init", "-b", "main"],
                          ["git", "config", "user.email", "test@example.invalid"],
@@ -59,7 +62,8 @@ class NativeContract(unittest.TestCase):
                          ["cargo", "generate-lockfile"]):
                 self.command(argv, repo)
             base = self.commit(repo, "base")
-            head = self.commit(repo, "unchanged", empty=True)
+            self.command(["git", "commit", "--allow-empty", "-m", "unchanged"], repo)
+            head = self.command(["git", "rev-parse", "HEAD"], repo).stdout.strip()
             code, report = self.run_contract(repo, base, head, repo / "pass.json")
             self.assertEqual((code, report["packages"][0]["native"]["status"]), (0, "pass"))
             code, report = self.run_contract(repo, base, head, repo / "major.json", "major")
@@ -70,8 +74,8 @@ class NativeContract(unittest.TestCase):
             head = self.commit(repo, "remove API")
             code, report = self.run_contract(repo, base, head, repo / "deny.json")
             native = report["packages"][0]["native"]
-            self.assertEqual((code, native["exit_code"], native["status"]),
-                             (100, 100, "deny_findings"))
+            self.assertEqual((code, native["exit_code"], native["status"], report["packages"][0]["name"]),
+                             (100, 100, "deny_findings", repo.name.replace("-", "_")))
             self.assertIn("--baseline-rev", native["command"])
             self.assertEqual(report["configuration"]["feature_policy"], "all")
 
@@ -82,7 +86,3 @@ class NativeContract(unittest.TestCase):
         )
         self.assertEqual(record["status"], "timeout")
         self.assertEqual(record["diagnostics"], "")
-
-
-if __name__ == "__main__":
-    unittest.main()
