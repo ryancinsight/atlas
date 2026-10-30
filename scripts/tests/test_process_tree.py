@@ -224,6 +224,185 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 23)
         self.assertEqual(result.stdout, b"")
 
+    def test_inherited_output_is_visible_while_command_is_running(self):
+        listener = socket.create_server(("127.0.0.1", 0))
+        listener.settimeout(HANG_GUARD_SECONDS)
+        environment = os.environ.copy()
+        environment["ATLAS_TEST_READY_PORT"] = str(listener.getsockname()[1])
+        producer = textwrap.dedent(
+            """
+            import os
+            import socket
+            import sys
+
+            sys.stdout.buffer.write(b"stdout-prefix\\n")
+            sys.stdout.buffer.flush()
+            sys.stderr.buffer.write(b"stderr-prefix\\n")
+            sys.stderr.buffer.flush()
+            with socket.create_connection(
+                ("127.0.0.1", int(os.environ["ATLAS_TEST_READY_PORT"]))
+            ) as connection:
+                connection.sendall(b"ready")
+                if connection.recv(1) != b"x":
+                    raise SystemExit("release signal missing")
+            """
+        )
+        helper = textwrap.dedent(
+            f"""
+            import sys
+            sys.path.insert(0, {str(SCRIPTS)!r})
+            import process_tree
+
+            result = process_tree.run(
+                [sys.executable, "-c", {producer!r}],
+                timeout={HANG_GUARD_SECONDS!r},
+                output_mode=process_tree.OutputMode.INHERIT,
+            )
+            if result.returncode != 0:
+                raise SystemExit(f"unexpected status: {{result.returncode}}")
+            if result.stdout is not None or result.stderr is not None:
+                raise SystemExit("inherited output was reported as captured")
+            """
+        )
+        observed: dict[str, bytes] = {}
+        stdout_ready = threading.Event()
+        stderr_ready = threading.Event()
+
+        def read_prefix(name, stream, ready):
+            observed[name] = stream.readline()
+            ready.set()
+
+        helper_process = subprocess.Popen(
+            [sys.executable, "-c", helper],
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        def retire_helper():
+            if helper_process.poll() is None:
+                helper_process.kill()
+            helper_process.wait(timeout=HANG_GUARD_SECONDS)
+
+        self.addCleanup(retire_helper)
+        self.assertIsNotNone(helper_process.stdout)
+        self.assertIsNotNone(helper_process.stderr)
+        threading.Thread(
+            target=read_prefix,
+            args=("stdout", helper_process.stdout, stdout_ready),
+            daemon=True,
+        ).start()
+        threading.Thread(
+            target=read_prefix,
+            args=("stderr", helper_process.stderr, stderr_ready),
+            daemon=True,
+        ).start()
+
+        with listener:
+            connection, _ = listener.accept()
+            with connection:
+                connection.settimeout(HANG_GUARD_SECONDS)
+                self.assertEqual(connection.recv(5), b"ready")
+                self.assertTrue(stdout_ready.wait(HANG_GUARD_SECONDS))
+                self.assertTrue(stderr_ready.wait(HANG_GUARD_SECONDS))
+                self.assertEqual(observed["stdout"], b"stdout-prefix\n")
+                self.assertEqual(observed["stderr"], b"stderr-prefix\n")
+                self.assertIsNone(helper_process.poll())
+                connection.sendall(b"x")
+
+        self.assertEqual(helper_process.wait(timeout=HANG_GUARD_SECONDS), 0)
+
+    def test_inherited_timeout_retires_child_after_visible_prefixes(self):
+        lock = self.descendant_lock("atlas-process-tree-inherited-timeout-")
+        producer = textwrap.dedent(
+            """
+            import os
+            import pathlib
+            import socket
+            import sys
+            import threading
+
+            lock = pathlib.Path(sys.argv[1]).open("r+b")
+            pathlib.Path(sys.argv[1] + ".pid").write_text(str(os.getpid()))
+            if os.name == "nt":
+                import msvcrt
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock, fcntl.LOCK_EX)
+            print("timeout-stdout-prefix", flush=True)
+            print("timeout-stderr-prefix", file=sys.stderr, flush=True)
+            socket.create_connection(
+                ("127.0.0.1", int(os.environ["ATLAS_TEST_READY_PORT"]))
+            ).close()
+            threading.Event().wait()
+            """
+        )
+        helper = textwrap.dedent(
+            f"""
+            import os
+            import socket
+            import sys
+            sys.path.insert(0, {str(SCRIPTS)!r})
+            sys.path.insert(0, {str(SCRIPTS / 'tests')!r})
+            import process_tree
+            from process_tree_support import budget_from_readiness
+
+            listener = socket.create_server(("127.0.0.1", 0))
+            listener.settimeout({HANG_GUARD_SECONDS!r})
+            environment = os.environ.copy()
+            environment["ATLAS_TEST_READY_PORT"] = str(listener.getsockname()[1])
+            with listener, budget_from_readiness(listener):
+                try:
+                    process_tree.run(
+                        [sys.executable, "-c", {producer!r}, {str(lock)!r}],
+                        env=environment,
+                        timeout={EXPIRY_HOLD_SECONDS!r},
+                        output_mode=process_tree.OutputMode.INHERIT,
+                    )
+                except process_tree.ProcessTreeTimeout as error:
+                    if error.output is not None or error.stderr is not None:
+                        raise SystemExit("inherited timeout fabricated captured output")
+                    if error.cleanup_error is not None:
+                        raise SystemExit(error.cleanup_error)
+                else:
+                    raise SystemExit("nonterminating child did not time out")
+            """
+        )
+
+        bounded = subprocess.run(
+            [sys.executable, "-c", helper],
+            capture_output=True,
+            timeout=HANG_GUARD_SECONDS,
+            check=False,
+        )
+
+        self.assertEqual(
+            bounded.returncode,
+            0,
+            bounded.stderr.decode(errors="replace"),
+        )
+        self.assertEqual(bounded.stdout.splitlines(), [b"timeout-stdout-prefix"])
+        self.assertEqual(bounded.stderr.splitlines(), [b"timeout-stderr-prefix"])
+        process_id = int(lock.with_name(lock.name + ".pid").read_text())
+        _assert_lock_released(self, lock)
+        _assert_process_inactive(self, process_id)
+
+    def test_output_mode_must_be_an_enum_member(self):
+        for mode in (None, "inherit", True):
+            with self.subTest(mode=mode):
+                with (
+                    patch.object(process_tree.subprocess, "Popen") as launch,
+                    self.assertRaisesRegex(TypeError, "must be an OutputMode"),
+                ):
+                    process_tree.run(
+                        [sys.executable, "-c", "pass"],
+                        timeout=HANG_GUARD_SECONDS,
+                        output_mode=mode,
+                    )
+                launch.assert_not_called()
+
     @unittest.skipUnless(os.name == "posix", "POSIX status pipe")
     def test_buffered_exit_status_wins_when_deadline_has_elapsed(self):
         status_read, status_write = os.pipe()
