@@ -1,7 +1,11 @@
-"""Bind Git candidate inputs and project same-repository references byte-exactly."""
+"""Bind and lint Git candidate workflows byte-exactly."""
 
+import argparse
 import os
 import re
+import shutil
+import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -17,6 +21,10 @@ STRING_TAG = "tag:yaml.org,2002:str"
 
 class WorkflowSourceError(ValueError):
     """A workflow source is ambiguous, mutable, or outside its candidate."""
+
+
+class WorkflowExecutionError(RuntimeError):
+    """A required analyzer is unavailable or rejects the candidate."""
 
 
 def _children(node: Node) -> list[Node]:
@@ -340,3 +348,127 @@ def snapshot(root: Path, candidate: str) -> tuple[dict[str, bytes], dict[str, by
     if _identity(root, candidate) != tree or _inventory(root, candidate) != inventory:
         raise WorkflowSourceError("candidate source changed after ending byte checks")
     return first[0], first[1]
+
+
+def _executable(value: str, name: str) -> str:
+    resolved = shutil.which(value)
+    if resolved is None:
+        raise WorkflowExecutionError(f"required {name} executable is unavailable: {value}")
+    return resolved
+
+
+def _invoke(command: list[str], root: Path, source: bytes | None, timeout: float, name: str):
+    try:
+        return process_tree.run(command, cwd=root, input=source, timeout=timeout)
+    except process_tree.ProcessTreeTimeout as error:
+        raise WorkflowExecutionError(f"{name} exceeded its {timeout:g}-second deadline") from error
+    except (OSError, RuntimeError) as error:
+        raise WorkflowExecutionError(f"cannot execute {name}: {error}") from error
+
+
+def _output(result) -> str:
+    return b"\n".join(part for part in (result.stdout, result.stderr) if part).decode("utf-8", "replace").strip()
+
+
+def _write_project(
+    root: Path,
+    projected: dict[str, bytes],
+    inputs: dict[str, bytes],
+    timeout: float,
+) -> None:
+    for relative, source in inputs.items():
+        target = root.joinpath(*relative.split("/"))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(projected.get(relative, source))
+    initialized = _invoke(["git", "init", "--quiet"], root, None, timeout, "git")
+    if initialized.returncode != 0:
+        raise WorkflowExecutionError(f"cannot initialize analysis project: {_output(initialized)}")
+
+
+def run(
+    root: Path,
+    candidate: str,
+    actionlint: str,
+    shellcheck: str = "shellcheck",
+    pyflakes: str = "pyflakes",
+    timeout: float = 30,
+) -> None:
+    """Run actionlint against every projected workflow in an immutable candidate."""
+    root = root.absolute()
+    tools = (
+        _executable(actionlint, "actionlint"),
+        _executable(shellcheck, "shellcheck"),
+        _executable(pyflakes, "pyflakes"),
+    )
+    initial = snapshot(root, candidate)
+    failure: WorkflowExecutionError | None = None
+    try:
+        with tempfile.TemporaryDirectory(prefix="atlas-workflow-lint-") as directory:
+            analysis_root = Path(directory)
+            _write_project(analysis_root, initial[0], initial[1], timeout)
+            version = _invoke([tools[0], "-version"], analysis_root, None, timeout, "actionlint")
+            first_line = (version.stdout or b"").decode("utf-8", "replace").splitlines()
+            if version.returncode != 0 or first_line[:1] != ["1.7.12"]:
+                failure = WorkflowExecutionError(f"actionlint must be version 1.7.12: {_output(version)}")
+            else:
+                diagnostics: list[str] = []
+                for relative, source in initial[0].items():
+                    result = _invoke(
+                        [
+                            tools[0],
+                            "-no-color",
+                            "-shellcheck",
+                            tools[1],
+                            "-pyflakes",
+                            tools[2],
+                            "-stdin-filename",
+                            relative,
+                            "-",
+                        ],
+                        analysis_root,
+                        source,
+                        timeout,
+                        "actionlint",
+                    )
+                    if result.returncode != 0:
+                        diagnostics.append(_output(result))
+                if diagnostics:
+                    failure = WorkflowExecutionError(
+                        "actionlint rejected the candidate:\n" + "\n".join(diagnostics)
+                    )
+    except WorkflowExecutionError as error:
+        failure = error
+    ending = snapshot(root, candidate)
+    if ending != initial:
+        raise WorkflowSourceError("candidate lint inputs changed during actionlint")
+    if failure is not None:
+        raise failure
+
+
+def main() -> int:
+    """Parse the command line and report typed source or analyzer failures."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root", required=True, type=Path)
+    parser.add_argument("--candidate", required=True)
+    parser.add_argument("--actionlint", required=True)
+    parser.add_argument("--shellcheck", default="shellcheck")
+    parser.add_argument("--pyflakes", default="pyflakes")
+    parser.add_argument("--timeout", default=30, type=float)
+    arguments = parser.parse_args()
+    try:
+        run(
+            arguments.root,
+            arguments.candidate,
+            arguments.actionlint,
+            arguments.shellcheck,
+            arguments.pyflakes,
+            arguments.timeout,
+        )
+    except (WorkflowSourceError, WorkflowExecutionError, yaml.YAMLError) as error:
+        print(f"workflow lint: {error}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
