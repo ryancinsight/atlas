@@ -3254,6 +3254,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             directory = fingerprints / f"{name}-111"
             directory.mkdir(parents=True)
             (directory / "output").write_bytes(f"fingerprint-{name}".encode())
+        deadline_ns = time.monotonic_ns() + 1_000_000_000
 
         separate = {
             package: artifacts.artifact_identity(
@@ -3264,6 +3265,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 (),
                 related_packages=("shared",),
                 owners=owners,
+                deadline_ns=deadline_ns,
             )
             for package in ("a", "b")
         }
@@ -3273,6 +3275,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             {"a": ("shared",), "b": ("shared",)},
             "debug",
             owners=owners,
+            deadline_ns=deadline_ns,
         )
 
         self.assertEqual(
@@ -3282,6 +3285,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 {},
                 "debug",
                 owners=owners,
+                deadline_ns=deadline_ns,
             ),
             {},
         )
@@ -3289,6 +3293,244 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertIn("debug/deps/libshared-111.rlib", batch["a"]["files"])
         self.assertNotIn("debug/deps/libb-111.rlib", batch["a"]["files"])
         self.assertNotIn("debug/deps/liba-111.rlib", batch["b"]["files"])
+
+    def _artifact_census(self, packages=None, owners=None, deadline_ns=None):
+        return artifacts.artifact_identities(
+            self.root, self.target, packages or {"a": ()}, "debug",
+            owners=owners or {"a": frozenset({"a"})}, deadline_ns=deadline_ns,
+        )
+
+    def test_artifact_census_restarts_when_an_optional_diagnostic_retires(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        library = deps / "liba-111.rlib"
+        diagnostic = fingerprint / "output-lib-a"
+        library.write_bytes(b"library")
+        diagnostic.write_bytes(b"warning")
+        original = artifacts._file_digest
+
+        def retire(path: Path, deadline_ns: int | None = None) -> str:
+            if path == diagnostic.resolve():
+                diagnostic.unlink()
+            return original(path, deadline_ns)
+
+        with patch.object(artifacts, "_file_digest", side_effect=retire):
+            result = self._artifact_census()
+        files = {"debug/deps/liba-111.rlib": hashlib.sha256(b"library").hexdigest()}
+        self.assertEqual(result, {"a": {"files": files, "digest": artifacts.artifact_digest(files)}})
+
+    def test_artifact_census_accepts_stable_diagnostic_rename_and_addition(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        library = deps / "liba-111.rlib"
+        old = fingerprint / "output-lib-a"
+        new = fingerprint / "output-test-a"
+        added = fingerprint / "output-bin-a"
+        library.write_bytes(b"library")
+        old.write_bytes(b"old")
+        original = artifacts._file_digest
+        changed = False
+
+        def rename(path: Path, deadline_ns: int | None = None) -> str:
+            nonlocal changed
+            digest = original(path, deadline_ns)
+            if path == old.resolve() and not changed:
+                old.rename(new)
+                added.write_bytes(b"added")
+                changed = True
+            return digest
+
+        with patch.object(artifacts, "_file_digest", side_effect=rename):
+            result = self._artifact_census()["a"]["files"]
+        expected = {
+            "debug/.fingerprint/a-111/output-bin-a": hashlib.sha256(b"added").hexdigest(),
+            "debug/.fingerprint/a-111/output-test-a": hashlib.sha256(b"old").hexdigest(),
+            "debug/deps/liba-111.rlib": hashlib.sha256(b"library").hexdigest(),
+        }
+        self.assertEqual(result, expected)
+
+    def test_artifact_census_repeats_after_content_changes(self) -> None:
+        self.root.mkdir()
+        library = self.target / "debug" / "deps" / "liba-111.rlib"
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.write_bytes(b"before")
+        original = artifacts._file_digest
+        reads = 0
+
+        def change(path: Path, deadline_ns: int | None = None) -> str:
+            nonlocal reads
+            reads += 1
+            if reads == 2:
+                path.write_bytes(b"after")
+            return original(path, deadline_ns)
+
+        with patch.object(artifacts, "_file_digest", side_effect=change):
+            result = self._artifact_census()["a"]["files"]
+        self.assertEqual(
+            result,
+            {"debug/deps/liba-111.rlib": hashlib.sha256(b"after").hexdigest()},
+        )
+        self.assertEqual(reads, 3)
+
+    def test_artifact_census_rejects_observed_product_retirement(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        diagnostic = fingerprint / "output-lib-a"
+        diagnostic.write_bytes(b"warning")
+        products = (
+            deps / "liba-111.rlib",
+            deps / "liba-111.rmeta",
+            deps / "a-111.exe",
+            fingerprint / "lib-a",
+        )
+        for product in products:
+            with self.subTest(product=product.name):
+                product.write_bytes(product.name.encode())
+                original = artifacts._file_digest
+
+                def retire(path: Path, deadline_ns: int | None = None) -> str:
+                    digest = original(path, deadline_ns)
+                    if path == product.resolve():
+                        product.unlink()
+                    return digest
+
+                with (
+                    patch.object(artifacts, "_file_digest", side_effect=retire),
+                    self.assertRaisesRegex(BuildIdentityError, "required artifact disappeared") as caught,
+                ):
+                    self._artifact_census()
+                self.assertIn(product.name, str(caught.exception))
+
+    def test_artifact_census_does_not_claim_a_late_product(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        deps.mkdir(parents=True, exist_ok=True)
+        first = deps / "liba-111.rlib"
+        late = deps / "liba-222.rlib"
+        first.write_bytes(b"first")
+        original = artifacts._file_digest
+
+        def add(path: Path, deadline_ns: int | None = None) -> str:
+            digest = original(path, deadline_ns)
+            late.write_bytes(b"late")
+            return digest
+
+        with (
+            patch.object(artifacts, "_file_digest", side_effect=add),
+            self.assertRaisesRegex(BuildIdentityError, "artifact appeared after the first census") as caught,
+        ):
+            self._artifact_census()
+        self.assertIn(late.name, str(caught.exception))
+
+    def test_artifact_census_shares_overlapping_reads_and_ignores_other_owners(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        deps.mkdir(parents=True, exist_ok=True)
+        paths = {name: deps / f"lib{name}-111.rlib" for name in ("a", "b", "shared")}
+        for name, path in paths.items():
+            path.write_bytes(name.encode())
+        owners = {name: frozenset({name}) for name in paths}
+        original_digest = artifacts._file_digest
+        original_discover = artifacts._discover_artifacts_by_owner
+        reads: dict[Path, int] = {}
+        other_versions = 0
+
+        def count(path: Path, deadline_ns: int | None = None) -> str:
+            reads[path] = reads.get(path, 0) + 1
+            return original_digest(path, deadline_ns)
+
+        def mutate_other(*args: object, **kwargs: object):
+            nonlocal other_versions
+            other_versions += 1
+            paths["b"].write_bytes(f"b-{other_versions}".encode())
+            return original_discover(*args, **kwargs)
+
+        with (
+            patch.object(artifacts, "_file_digest", side_effect=count),
+            patch.object(artifacts, "_discover_artifacts_by_owner", side_effect=mutate_other),
+        ):
+            result = self._artifact_census({"a": ("shared",), "shared": ()}, owners)
+        self.assertEqual(reads, {paths["a"].resolve(): 2, paths["shared"].resolve(): 2})
+        self.assertEqual(other_versions, 2)
+        self.assertNotIn("debug/deps/libb-111.rlib", result["a"]["files"])
+
+    def test_artifact_census_content_churn_exhausts_one_deadline(self) -> None:
+        self.root.mkdir()
+        library = self.target / "debug" / "deps" / "liba-111.rlib"
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.write_bytes(b"a")
+        original = artifacts._file_digest
+        ticks = iter(range(100))
+
+        def churn(path: Path, deadline_ns: int | None = None) -> str:
+            digest = original(path, deadline_ns)
+            path.write_bytes(b"b" if path.read_bytes() == b"a" else b"a")
+            return digest
+
+        with (
+            patch.object(artifacts.time, "monotonic_ns", side_effect=lambda: next(ticks)),
+            patch.object(artifacts, "_file_digest", side_effect=churn),
+            self.assertRaisesRegex(BuildIdentityError, "did not converge before its deadline") as caught,
+        ):
+            self._artifact_census(deadline_ns=5)
+        self.assertIsNone(caught.exception.__cause__)
+
+    def test_artifact_census_diagnostic_name_churn_exhausts_one_deadline(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        (deps / "liba-111.rlib").write_bytes(b"library")
+        diagnostic = fingerprint / "output-lib-a"
+        diagnostic.write_bytes(b"warning")
+        original = artifacts._discover_artifacts_by_owner
+        ticks = iter(range(100))
+
+        def rename(*args: object, **kwargs: object):
+            nonlocal diagnostic
+            result = original(*args, **kwargs)
+            replacement = fingerprint / (
+                "output-test-a" if diagnostic.name == "output-lib-a" else "output-lib-a"
+            )
+            diagnostic.rename(replacement)
+            diagnostic = replacement
+            return result
+
+        with (
+            patch.object(artifacts.time, "monotonic_ns", side_effect=lambda: next(ticks)),
+            patch.object(artifacts, "_discover_artifacts_by_owner", side_effect=rename),
+            self.assertRaisesRegex(BuildIdentityError, "did not converge before its deadline") as caught,
+        ):
+            self._artifact_census(deadline_ns=5)
+        self.assertIsNone(caught.exception.__cause__)
+        self.assertEqual([path.read_bytes() for path in fingerprint.glob("output-*")], [b"warning"])
+
+    def test_artifact_census_preserves_unreadable_error_cause(self) -> None:
+        self.root.mkdir()
+        library = self.target / "debug" / "deps" / "liba-111.rlib"
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.write_bytes(b"artifact")
+
+        def unreadable(path: Path, deadline_ns: int | None = None) -> str:
+            error = PermissionError(f"locked: {path}")
+            raise BuildIdentityError(f"cannot hash artifact {path}: {error}") from error
+
+        with (
+            patch.object(artifacts, "_file_digest", side_effect=unreadable),
+            self.assertRaisesRegex(BuildIdentityError, "cannot hash artifact") as caught,
+        ):
+            self._artifact_census()
+        self.assertEqual(type(caught.exception.__cause__), PermissionError)
 
     def test_dependency_snapshot_tracks_reachable_path_sources(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -3877,10 +4119,10 @@ class CommandLeaseModeTestCase(unittest.TestCase):
         owners = {name: frozenset({name}) for name in self.PACKAGES}
         file_digest = artifacts._file_digest
 
-        def digest(path: Path) -> str:
+        def digest(path: Path, deadline_ns: int | None = None) -> str:
             if unreadable is not None and Path(path) == unreadable and self.answers.exists():
                 raise BuildIdentityError(f"cannot hash artifact {path}: Permission denied")
-            return file_digest(path)
+            return file_digest(path, deadline_ns)
 
         recorded_artifact = identity._recorded_artifact
         reads = []
