@@ -328,7 +328,7 @@ def check_resolution(manifest: Path, lockfile: Path) -> int:
     return check_provider_identity(lockfile)
 
 
-def check(manifest: Path | None = None) -> int:
+def check(repository: Path | None = None) -> int:
     """Judge and resolve every owned lock under the candidate root.
 
     The overlay's signature is judged by the one rule ([`judge_locks`]) that
@@ -337,22 +337,17 @@ def check(manifest: Path | None = None) -> int:
     and a CI checkout are not always repositories to ask. Staleness, which
     needs real resolution, is the `--locked` arm below.
     """
-    candidate = manifest is not None
-    if not candidate:
+    candidate = repository is not None
+    if repository is None:
         repository = REPOSITORY
-        lockfile = LOCKFILE
-        manifest = repository / "Cargo.toml"
-    else:
-        repository = manifest.parent
-        lockfile = repository / "Cargo.lock"
     try:
         ignored = frozenset() if candidate else IGNORED_DIRECTORIES
         texts = disk_texts(repository, ignored_directories=ignored)
     except OSError as error:
         print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
         return 1
-    if "Cargo.lock" not in texts:
-        print(f"error: {lockfile} does not exist", file=sys.stderr)
+    if not any(PurePosixPath(path).name == "Cargo.lock" for path in texts):
+        print(f"error: Cargo.lock does not exist under {repository}", file=sys.stderr)
         return 1
 
     manifests, selected_exempt, ownership_problems = lock_manifests(texts)
@@ -1154,8 +1149,11 @@ def main() -> int:
         metavar="REPOSITORY",
         help="judge every tracked lock at HEAD of each repository, offline",
     )
-    parser.add_argument("--manifest-path", type=Path, default=None,
-                        help="path to Cargo.toml (overrides auto-detection from __file__)")
+    location = parser.add_mutually_exclusive_group()
+    location.add_argument("--manifest-path", type=Path, default=None,
+                          help="path to Cargo.toml (overrides auto-detection from __file__)")
+    location.add_argument("--check-tree", type=Path, default=None,
+                          help="immutable candidate tree containing lock owners")
     arguments = parser.parse_args()
     if arguments.manifest_path is not None:
         global REPOSITORY, LOCKFILE, MANIFEST
@@ -1168,7 +1166,9 @@ def main() -> int:
         return check_staged()
     if arguments.check_committed:
         return check_committed(arguments.check_committed)
-    return check(MANIFEST if arguments.manifest_path is not None else None)
+    if arguments.check_tree is not None:
+        return check(Path(os.path.abspath(arguments.check_tree)))
+    return check(REPOSITORY if arguments.manifest_path is not None else None)
 
 
 if __name__ == "__main__":

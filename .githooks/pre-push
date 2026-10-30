@@ -530,8 +530,7 @@ lock_gate() {
         return 1
     fi
     CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$atlas_root/target}" "$python_bin" \
-        "$checker/scripts/lockfile.py" --check \
-        --manifest-path "$candidate/Cargo.toml"
+        "$checker/scripts/lockfile.py" --check --check-tree "$candidate"
     status=$?
     rm -rf "$candidate" "$checker"
     return "$status"

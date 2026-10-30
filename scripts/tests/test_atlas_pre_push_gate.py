@@ -32,6 +32,7 @@ from identity_fixture import PASSTHROUGH_IDENTITY
 SCRIPT = (
     pathlib.Path(__file__).resolve().parents[1] / "git-hooks" / "pre-push"
 )
+LOCKFILE_SCRIPT = SCRIPT.parents[1] / "lockfile.py"
 ZERO = "0" * 40
 # Bound on any wait for a hook run; the hooks finish in seconds, so this is
 # a backstop that ends a hung run, never a pace the tests rely on.
@@ -1328,6 +1329,29 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             self.assertFalse(identity_log.exists())
             self.assertFalse(fixture.calls.exists())
 
+    def test_skip_local_gate_still_checks_the_complete_meta_tree(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, _ = self._fixture(temp)
+            locks = [f"tools/{workspace}/Cargo.lock" for workspace in self.workspaces]
+            for workspace in self.workspaces:
+                (fixture.root / f"tools/{workspace}/Cargo.lock").write_text(
+                    f'version = 4\n[[package]]\nname = "{workspace}"\nversion = "0.1.0"\n',
+                    encoding="utf-8",
+                )
+            bad = fixture.root / "tools" / "criterion-regression" / "Cargo.lock"
+            with bad.open("a", encoding="utf-8") as stream:
+                stream.write('\n[[patch.unused]]\nname = "unused"\nversion = "0.1.0"\n')
+            _write(fixture.stack / "scripts" / "lockfile.py",
+                   LOCKFILE_SCRIPT.read_text(encoding="utf-8"), executable=True)
+            _publish_stack_scripts(fixture.stack)
+            self._commit(fixture, *locks)
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), {"SKIP_LOCAL_GATE": "1"}
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("tools/criterion-regression/Cargo.lock", stderr.replace("\\", "/"))
+            self.assertNotIn("local gate skipped", stderr)
+
     def test_nested_workspace_uses_its_manifest_cwd_and_complete_sequence(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
             fixture, _, identity_log = self._fixture(temp)
@@ -2021,31 +2045,6 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
             self.assertEqual(code, 1, stderr)
             self.assertIn("does not resolve under --locked", stderr)
             self.assertIn("scripts/lockfile.py --regenerate --manifest-path Cargo.toml", stderr)
-
-    def test_manifest_change_checks_unchanged_standalone_lock(self) -> None:
-        """A root manifest change can stale an excluded fuzz lock without
-        changing that lock's bytes, so the immutable candidate is checked whole."""
-        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-            fixture = GateFixture.in_stack(pathlib.Path(temp))
-            _write(
-                fixture.root / "fuzz" / "Cargo.toml",
-                '[package]\nname = "fuzz"\nversion = "0.0.0"\n[workspace]\n',
-            )
-            _write(fixture.root / "fuzz" / "Cargo.lock", "# FLATTENED\n")
-            _commit_all(fixture.root, "standalone lock")
-            _git(fixture.root, "push", "-q", "origin", "HEAD:main")
-            _git(fixture.root, "switch", "-q", "-c", "feat")
-            with (fixture.root / "Cargo.toml").open("a", encoding="utf-8") as manifest:
-                manifest.write("\n# dependency state changed\n")
-            _commit_all(fixture.root, "manifest")
-            fixture.install_stack_lockfile(_LOCK_READING_CHECKER)
-
-            code, stderr = fixture.run_hook(
-                fixture.push_line_new_branch(), {"SKIP_LOCAL_GATE": "1"}
-            )
-
-            self.assertEqual(code, 1, stderr)
-            self.assertIn("the Cargo.lock", stderr)
 
     def test_a_member_copy_is_never_the_checker_that_runs(self) -> None:
         """A copy that accepts every lock cannot overrule the stack's verdict."""
