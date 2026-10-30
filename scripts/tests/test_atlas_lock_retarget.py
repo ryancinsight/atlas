@@ -176,6 +176,8 @@ class RetargetMetadataTests(unittest.TestCase):
         scratch = self.root / "commit"
         scratch.mkdir()
         encoded = sweep.SourceOperation.RETARGET.lock_bytes(self.original, candidate)
+        git(self.consumer, "config", "user.name", "fixture")
+        git(self.consumer, "config", "user.email", "fixture@example.invalid")
         committed = sweep.commit_lock(self.consumer, base, encoded, "retarget\n", scratch)
         actual = sweep.lockfile.run_git(["show", committed + ":Cargo.lock"], self.consumer)
         self.assertEqual((failure, actual), (None, candidate))
