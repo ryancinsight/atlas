@@ -3239,6 +3239,84 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertEqual(set(paths), {artifact.resolve(), output.resolve()})
 
+    def test_discovery_probes_only_owned_artifact_candidates(self) -> None:
+        deps = self.target / "debug" / "deps"
+        builds = self.target / "debug" / "build"
+        fingerprints = self.target / "debug" / ".fingerprint"
+        owned_build = builds / "wanted-222"
+        owned_fingerprint = fingerprints / "wanted-333"
+        for directory in (deps, owned_build, owned_fingerprint):
+            directory.mkdir(parents=True, exist_ok=True)
+        owned_library = deps / "libwanted-111.rlib"
+        owned_output = owned_build / "output"
+        owned_fingerprint_file = owned_fingerprint / "lib-wanted"
+        for path in (owned_library, owned_output, owned_fingerprint_file):
+            path.write_bytes(path.name.encode())
+        unselected = {
+            deps / "libother-111.rlib",
+            builds / "other-222",
+            fingerprints / "other-333",
+            deps / "libshared-444.rlib",
+            builds / "shared-555",
+            fingerprints / "shared-666",
+        }
+        (deps / "libother-111.rlib").write_bytes(b"other")
+        (builds / "other-222").mkdir()
+        (fingerprints / "other-333").mkdir()
+        (deps / "libshared-444.rlib").write_bytes(b"shared")
+        (builds / "shared-555").mkdir()
+        (fingerprints / "shared-666").mkdir()
+        file_probes: list[Path] = []
+        directory_probes: list[Path] = []
+        original_is_file = Path.is_file
+        original_is_dir = Path.is_dir
+
+        def count_file(path: Path) -> bool:
+            file_probes.append(path)
+            return original_is_file(path)
+
+        def count_directory(path: Path) -> bool:
+            directory_probes.append(path)
+            return original_is_dir(path)
+
+        with (
+            patch.object(Path, "is_file", count_file),
+            patch.object(Path, "is_dir", count_directory),
+        ):
+            paths = artifacts.discover_artifacts(
+                self.target,
+                "wanted",
+                "debug",
+                owners={
+                    "wanted": frozenset({"wanted"}),
+                    "other": frozenset({"other"}),
+                    "shared-a": frozenset({"shared"}),
+                    "shared-b": frozenset({"shared"}),
+                },
+            )
+
+        self.assertEqual(
+            set(paths),
+            {owned_library.resolve(), owned_output.resolve(), owned_fingerprint_file.resolve()},
+        )
+        self.assertEqual(
+            file_probes,
+            [owned_library, owned_output, owned_fingerprint_file],
+        )
+        self.assertEqual(
+            set(directory_probes),
+            {
+                deps,
+                builds,
+                fingerprints,
+                self.target / ".fingerprint",
+                owned_build,
+                owned_fingerprint,
+            },
+        )
+        self.assertTrue(unselected.isdisjoint(file_probes))
+        self.assertTrue(unselected.isdisjoint(directory_probes))
+
     def test_batch_artifact_identity_preserves_each_overlapping_closure(self) -> None:
         self.root.mkdir()
         deps = self.target / "debug" / "deps"
@@ -3590,9 +3668,16 @@ class BuildIdentityTestCase(unittest.TestCase):
             "mnemosyne_memory-0123456789abcdef.d": "mnemosyne-memory",
             "libmnemosyne_extra-0123456789abcdef.rlib": None,
         }
+        owners_by_stem = artifacts._artifact_owners_by_stem(owners)
         for filename, owner in cases.items():
             with self.subTest(filename=filename):
-                self.assertEqual(artifacts._artifact_owner(filename, owners, "mnemosyne-build-util"), owner)
+                self.assertEqual(artifacts._artifact_owner(filename, owners_by_stem), owner)
+        ambiguous = artifacts._artifact_owners_by_stem(
+            {**owners, "mnemosyne-alias": frozenset({"libmnemosyne"})}
+        )
+        self.assertIsNone(
+            artifacts._artifact_owner("libmnemosyne-0123456789abcdef.rmeta", ambiguous)
+        )
 
     def test_dependency_snapshot_is_independent_of_the_export_path(self) -> None:
         """Cargo spells a path package's ID with its absolute directory."""
