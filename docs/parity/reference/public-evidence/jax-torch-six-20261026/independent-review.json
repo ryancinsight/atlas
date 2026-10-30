@@ -1,0 +1,78 @@
+{
+  "blocking_findings": [],
+  "checks": {
+    "Git_tree_objects_independently_decoded": 8,
+    "actual_source_test_entrypoint_attacks_replayed": 33,
+    "additional_independent_physically_reindexed_entrypoints_rejected": 6,
+    "author_copied_negative_test_methods_replayed": 56,
+    "author_valid_controls_replayed": 5,
+    "canonical_path_blob_links": 6,
+    "codec_path_blob_links": 2,
+    "framework_or_Sphinx_imports": 0,
+    "generated_source_JSON_outputs_byte_identical": 7,
+    "live_canonical_dependency": false,
+    "manifest_tests_passed": 7,
+    "offline_Git_commit": "20ae8d85f6c3aa6a6712e4f0b823b5f066bdc008",
+    "offline_Git_tree": "4741babc0cf80e7ca642f4f8e93006bd8724ead4",
+    "original_independent_attacks_now_rejected": 2,
+    "original_independent_review_and_evidence_preserved": true,
+    "predecessor_artifacts_preserved": 127,
+    "predecessor_manifest_preserved": true,
+    "sealed_artifacts_unchanged": 265,
+    "source_tests_passed": 61,
+    "source_tests_skipped": 0
+  },
+  "evidence_files": [
+    {
+      "bytes": 1090,
+      "file": "successor-67ed2377-evidence/self-consistent-input-drift-probes.json",
+      "sha256": "496b8f684046a7e0b468acc99c1e7a2c8cbe2bdbd88947358a69390bf7cd7c01"
+    },
+    {
+      "bytes": 427,
+      "file": "successor-67ed2377-evidence/offline-proof-independent.json",
+      "sha256": "6b4b103189070294ed961a893aefc72e34f097fcf314eb0f01c5f5b8d363e9d5"
+    },
+    {
+      "bytes": 1957,
+      "file": "successor-67ed2377-evidence/independent-entrypoint-co-mutations.json",
+      "sha256": "c236f6e96e3b744cfa0e77dad282dba7bf00bba55878b0d1bf2f173788239037"
+    },
+    {
+      "bytes": 364,
+      "file": "successor-67ed2377-evidence/final-integrity.json",
+      "sha256": "aa548c5efeaadce457fdef177175ee66de88b8eead3c9d2297cf43bd9410f537"
+    },
+    {
+      "bytes": 3087,
+      "file": "successor-67ed2377-evidence/reproduce_input_drift.py",
+      "sha256": "5dbf66e92e9e3ee5eb25725278b2da78d0ef624f6654d46b956b61a4cc8274f1"
+    }
+  ],
+  "resolved_findings": [
+    {
+      "id": "SIX-GUARD-001",
+      "original_review_sha256": "f696d2d57efdb86500e97836c93415c16630e35880353eb28a72f6d05c47c0c3",
+      "priority": "P2",
+      "resolution": "Canonical mapping/capability/contract/binding facts and codecs now bind to independently pinned offline Git commit/tree/path/blob proof plus typed semantic digests. Capture content hashes authorize encoding only. Both original co-mutated mapping/owner attacks reject before ownership joins."
+    }
+  ],
+  "result": "accept_bounded_source_definition_only",
+  "reviewed_manifest_sha256": "67ed237788d85c2cd6a44751a79ab11a366981840b7d8f878875e111cd744bd2",
+  "reviewed_packet": "/tmp/atlas-jax-torch-publicness-six-next-anchors",
+  "reviewer": "torch_closure",
+  "schema_version": 1,
+  "scope_limitations": [
+    "Acceptance is bounded source-definition/provenance-guard acceptance only; it supplies no canonical admission, complete public denominator, complete semantic mapping, implementation ownership, runtime, hardware, performance or release clearance.",
+    "Six source input associations describe frozen20ae; parent must perform separate live canonical joins and exact-revision integration checks.",
+    "No source/canonical/provider edit, framework build/import/execution, network/auth/GitHub action, held-route retry or subdelegation occurs."
+  ],
+  "source_conclusions": [
+    "All six original raw identities remain publicness unresolved and actual canonical mapping associations remain unmapped at frozen20ae; required functionality remains retained.",
+    "JAX member selection is bounded stock-source analysis; exact resolved environment, external callbacks and actual rendering remain unavailable. The prior403 route remains stopped.",
+    "Torch documented tooling functionality remains required while the public-reference/private-guide stability contradiction is preserved.",
+    "All974 returned lambda declarations remain source coverage/introspection views, not new API IDs, a complete runtime dictionary/callable set, effective runtime signatures or numerical kernel evidence.",
+    "The public wrapper/private helper tuple projection remains distinct from alias identity."
+  ],
+  "stable_review_snapshot": "/tmp/atlas-jax-torch-publicness-six-independent-review/successor-67ed2377-snapshot"
+}

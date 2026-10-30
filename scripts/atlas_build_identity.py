@@ -20,7 +20,13 @@ from atlas_build_artifacts import (
     validate_artifact_paths,
 )
 from atlas_build_dep_info import current_inputs, package_layout, record_inputs
-from atlas_build_inputs import _dependency_data, build_spec
+from atlas_build_inputs import (
+    _dependency_data,
+    build_spec,
+    compiler_environment,
+    effective_compiler_command,
+    effective_compiler_environment,
+)
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
@@ -94,6 +100,50 @@ def _run_checked(command: Sequence[str], root: Path, environment: dict[str, str]
 
 
 def run_build(
+    root: Path,
+    manifest: Path,
+    packages: Sequence[str],
+    target_dir: Path,
+    command: Sequence[str],
+    profile: str = "debug",
+    target: str = "host",
+    features: str = "",
+    artifact_paths: Sequence[Path] = (),
+    clean_command: Sequence[str] | None = None,
+    lease_seconds: int = DEFAULT_LEASE_SECONDS,
+    command_cwd: Path | None = None,
+    command_key: str | None = None,
+    ignore_paths: Sequence[Path] = (),
+    lease_wait_seconds: float = 0,
+    selection: Sequence[str] = (),
+) -> tuple[BuildResult, ...]:
+    """Run a build under the manifest's effective compiler environment."""
+    execution_root = _canonical(command_cwd or root, strict=True)
+    environment = effective_compiler_environment(manifest, execution_root, command)
+    command = effective_compiler_command(command, environment)
+    environment["CARGO_TARGET_DIR"] = _canonical(target_dir).as_posix()
+    with compiler_environment(environment):
+        return _run_build(
+            root,
+            manifest,
+            packages,
+            target_dir,
+            command,
+            profile,
+            target,
+            features,
+            artifact_paths,
+            clean_command,
+            lease_seconds,
+            command_cwd,
+            command_key,
+            ignore_paths,
+            lease_wait_seconds,
+            selection,
+        )
+
+
+def _run_build(
     root: Path,
     manifest: Path,
     packages: Sequence[str],

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "correction": "AWQ and source-specific export acceptance after independent review",
+  "superseded_snapshot": [
+    {
+      "path": "history/20261026-before-awq-export-correction/README.md",
+      "sha256": "117eb67114f979cdb9dd1f5a7cad43d5a34e517737ba416b55a8b4eb432080f6"
+    },
+    {
+      "path": "history/20261026-before-awq-export-correction/companion-inventory.json",
+      "sha256": "b7955de496eba25aa5c01c9b5c51a75ddfe4fea4cf80dafbd012658d94c6c7e7"
+    },
+    {
+      "path": "history/20261026-before-awq-export-correction/coverage-assertions.json",
+      "sha256": "6407c65bc2169b625408b1a05e8d93c6a159756643c52208d78a947557e7afa6"
+    },
+    {
+      "path": "history/20261026-before-awq-export-correction/deliverable-manifest.json",
+      "sha256": "1c9817e4f0227af26c98751d3cc5005e30914467ee730234e5f498bc386310b8"
+    },
+    {
+      "path": "history/20261026-before-awq-export-correction/workflow-contracts.json",
+      "sha256": "914d332774bef9e2cdfa3d9321faf11c6a97ede97dbd7f641f93cac3ce2cd079"
+    }
+  ],
+  "findings": [
+    "WF21 omitted public Keras AWQConfig/model.quantize awq configuration/calibration/scaling/packing/serialization workflow.",
+    "WF15 universal multi/dynamic-batch assertion wrongly applied to source-specific static/specialized/rejected export paths; JAX OpenVINO requires explicit constrained conversion flags."
+  ],
+  "history_policy": "Previous design stays historical and unexecuted. Corrected backend/format matrix does not grant runtime, target device, or full semantic closure.",
+  "correction_scope": [
+    "Public AWQ config/calibration/scaling/packing/serialization",
+    "Backend-format matrix with explicit shape specialization/rejection/dynamic policy",
+    "Ignored JAX2TF conversion flags and unrun compatibility outcome",
+    "Six reviewer numerical mutations and six additional scenario-specific mutations rejected",
+    "AD suffix readiness, valid nonbaseline variants, synchronous versus asynchronous history",
+    "Rich dtype inclusion required by DEC-003, representation design still open",
+    "Separate native executor and notification coordinator lanes, root state refresh required"
+  ],
+  "runtime_credit": 0
+}

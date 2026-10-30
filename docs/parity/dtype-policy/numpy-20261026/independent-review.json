@@ -1,0 +1,368 @@
+{
+  "audit_constraints": {
+    "action_denied_pending_or_uncertain": null,
+    "canonical_or_provider_writes": 0,
+    "denied_action_retries": 0,
+    "framework_imports": 0,
+    "native_builds": 0,
+    "network_or_auth_operations": 0,
+    "replay_location": "/tmp/atlas-numpy-dtype-native-independent-review/replay",
+    "source_packet_mutations": 0
+  },
+  "count_conservation": {
+    "families": 10,
+    "function_witnesses": 129,
+    "historical_additional_verified_blob_reads": 47,
+    "historical_reused_sources": 31,
+    "illustrative_ABI_profiles": 2,
+    "new_admissions": 0,
+    "open_gap_families": 8,
+    "portable_excerpts": 131,
+    "primary_reference_IDs": 3,
+    "reference_provider_case_specs_unrun": 47,
+    "source_files": 78,
+    "supporting_existing_reference_IDs": 5,
+    "symbolic_safe_cells": 576
+  },
+  "independent_controls": {
+    "canonical_provider_writes": 0,
+    "framework_imports": 0,
+    "native_builds": 0,
+    "network_actions": 0,
+    "offline_replay": {
+      "all_manifest_files_byte_identical": 211,
+      "commands": [
+        {
+          "command": [
+            "/opt/homebrew/opt/python@3.14/bin/python3.14",
+            "scripts/build.py"
+          ],
+          "exit_code": 0,
+          "log": "/private/tmp/atlas-numpy-dtype-native-independent-review/replay-1.log",
+          "log_sha256": "ccc67ac9b36221c4e15f1feff4815a5853e829a3b042dfee1ee4d4c15033fc87"
+        },
+        {
+          "command": [
+            "/opt/homebrew/opt/python@3.14/bin/python3.14",
+            "scripts/validate.py"
+          ],
+          "exit_code": 0,
+          "log": "/private/tmp/atlas-numpy-dtype-native-independent-review/replay-2.log",
+          "log_sha256": "46f85cf35fd4c9fb7c95bd98079c19b7d1478b8b621493b76d8cdfe43aedcab1"
+        },
+        {
+          "command": [
+            "/opt/homebrew/opt/python@3.14/bin/python3.14",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests",
+            "-v"
+          ],
+          "exit_code": 0,
+          "log": "/private/tmp/atlas-numpy-dtype-native-independent-review/replay-3.log",
+          "log_sha256": "26429555a8f14ff3708f5d1989bd3d71c9d363f02f7c87998de4f6f4b2cbbbbe"
+        },
+        {
+          "command": [
+            "/opt/homebrew/opt/python@3.14/bin/python3.14",
+            "scripts/seal.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log": "/private/tmp/atlas-numpy-dtype-native-independent-review/replay-4.log",
+          "log_sha256": "c40e74308ce86482e718106521354deada73b874785fe5da4e6eb4a4baade244"
+        }
+      ],
+      "original_graph_unchanged": true,
+      "replay_graph_including_manifest": 212
+    },
+    "packet": {
+      "exact_source_blobs": 78,
+      "families": 10,
+      "function_hashes": 129,
+      "historical_verified_blob_acquisitions_rechecked_offline": 47,
+      "manifest_files": 211,
+      "open_gap_families": 8,
+      "portable_excerpts": 131,
+      "reused_exact_blobs": 31,
+      "unchanged_primary_ids": 3,
+      "unchanged_supporting_ids": 5,
+      "unrun_acceptance_specs": 47
+    },
+    "packet_manifest_sha256": "04e6d40cd363a27e7169916a1c68e6716c2ed658bd7746f1c9f93ec977265a97",
+    "source_execution_or_runtime_parity_credit": false,
+    "tables": {
+      "ABI_profiles_observed": false,
+      "profile_boolean_cells_independently_recomputed": 1152,
+      "promotion_initializer": "literal_source_control_review_plus_full_symmetry_deferred-cell_checks",
+      "serialized_expression_and_AST_equality": 576,
+      "source_cells_independently_reconstructed": 576
+    }
+  },
+  "integration_notes": [
+    {
+      "status": "preserve_when_integrating",
+      "text": "gap-disposition.json explicitly corrects prior core result_type wording: single-input discovered descriptor can depend on integer range; multi-input exact Python weak-scalar abstraction is the narrower no-value-based-promotion path."
+    },
+    {
+      "status": "source_only",
+      "text": "All earlier acquisition outcomes are historical source receipts verified from local raw responses; no acquisition was replayed by this reviewer."
+    }
+  ],
+  "material_findings": [],
+  "outcome": "accept_bounded_source_definition_only",
+  "packet": {
+    "files": 211,
+    "framework": "numpy",
+    "manifest_sha256": "04e6d40cd363a27e7169916a1c68e6716c2ed658bd7746f1c9f93ec977265a97",
+    "path": "/tmp/atlas-numpy-dtype-native-closure-next",
+    "pin_provenance": "trusted frozen parent baseline; cached reference-to-tree identity plus exact per-blob bytes reverified offline, no fresh default/tag/network discovery",
+    "revision": "a3d0ef1df045b858e68115001fdabc930bb3b68c",
+    "tree": "838cf31b8096f12d7ca41ededf3ed60d94d37e3d",
+    "version": "2.5.4"
+  },
+  "qualification_limits": {
+    "AD_or_gradient_coverage": false,
+    "full_dtype_domain_semantics": false,
+    "full_transitive_C_source_or_CFG": false,
+    "implementation_ownership_approved": false,
+    "namespace_or_reference_inventory_complete": false,
+    "native_device_execution": false,
+    "observed_reference_build_ABI": false,
+    "observed_temporal_divergence": false,
+    "performance_qualified": false,
+    "reference_or_provider_runtime_verification": false,
+    "released": false
+  },
+  "remaining_evidence_obligations": [
+    {
+      "description": "Source expressions use generated C sizes/alignment/endian, longdouble representation and CPython/ctypes platform behavior. No actual reference build/runtime receipt exists; two model profiles are illustrative only.",
+      "id": "ABI-BUILD",
+      "status": "open"
+    },
+    {
+      "description": "Caller protocol/ordering/NotImplemented/error behavior is source-defined, but arbitrary valid registered callback bodies carry their own semantics. Complete extension registration/lifecycle and first-party execution remain unverified.",
+      "id": "CALLBACK-PROGRAMS",
+      "status": "open"
+    },
+    {
+      "description": "All descriptor families remain admitted: object, structured, subarray, temporal, fixed/managed strings, custom/legacy user types, aliases/protocols. Full cross-product of descriptor parameters, Python hooks, warnings/errors and compiler variants is not materialized byselected function witnesses.",
+      "id": "DESCRIPTOR-MATRIX",
+      "status": "open"
+    },
+    {
+      "description": "can_cast/type promotion is metadata policy. Exact actual casting payload conversion, same_value rejection, complex warnings, fenv/subnormals/overflow and object/NA allocation/finalization require separate complete kernels/contracts and execution.",
+      "id": "PAYLOAD-KERNELS",
+      "status": "open"
+    },
+    {
+      "description": "Selected C bodies/control sites are lexical, not preprocessor/CFG/formal verification. Further CPython/npy compatibility/import/allocation helper effects and build macros require exact environment interpretation; source availability alone is not API semantic closure.",
+      "id": "MACROS-AND-TRANSITIVE",
+      "status": "open"
+    },
+    {
+      "description": "All concrete reference/provider case specifications are unrun. Actual CPU ISA/device/gradient/layout/performance tests, independent review and release gates remain open.",
+      "id": "TESTS-HARDWARE",
+      "status": "open"
+    },
+    {
+      "description": "Registered temporal resolver has an integer-quotient metric-prefix NO/EQUIV branch, not merely equal base/multiplier metadata;2001ms versus2s is a source-derived mismatch question pending exact binary comparison. No reference-bug waiver or scope exclusion.",
+      "id": "TEMPORAL-QUOTIENT",
+      "status": "open"
+    },
+    {
+      "description": "NumPy supplies no AD semantics. Discrete dtype tags/query results do not justify severing custom/object graph payloads; Coeus differentiation behavior needs explicit consumer rules.",
+      "id": "NO-COMPARATOR-AD",
+      "status": "open"
+    }
+  ],
+  "reviewed_at_utc": "2026-10-26T15:55:25.819361+00:00",
+  "reviewer": "independent provider_evidence_audit lane",
+  "schema_version": 1,
+  "source_semantic_review": [
+    {
+      "anchors": [
+        {
+          "end": 3572,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/multiarraymodule.c#L3502-L3572",
+          "path": "numpy/_core/src/multiarray/multiarraymodule.c",
+          "start": 3502
+        },
+        {
+          "end": 35,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L21-L35",
+          "path": "numpy/_core/src/multiarray/arrayfunction_override.c",
+          "start": 21
+        },
+        {
+          "end": 63,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L51-L63",
+          "path": "numpy/_core/src/common/get_attr_string.h",
+          "start": 51
+        }
+      ],
+      "assessment": "Preserves full keyword mapping and duplicate/unknown checks before declaration-order converters, followed by missing-required checks; converter and outer-override invocation errors remain distinct from later resolver-query suppression. Lookup failure is cleared at the type-object __array_function__ lookup boundary only.",
+      "subject": "native argument and override phases"
+    },
+    {
+      "anchors": [
+        {
+          "end": 1739,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/convert_datatype.c#L1618-L1739",
+          "path": "numpy/_core/src/multiarray/convert_datatype.c",
+          "start": 1618
+        },
+        {
+          "end": 52,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/abstractdtypes.c#L24-L52",
+          "path": "numpy/_core/src/multiarray/abstractdtypes.c",
+          "start": 24
+        },
+        {
+          "end": 70,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/abstractdtypes.h#L42-L70",
+          "path": "numpy/_core/src/multiarray/abstractdtypes.h",
+          "start": 42
+        }
+      ],
+      "assessment": "Single-input result_type canonicalizes the discovered descriptor; exact Python integer value/range can select intp, longlong, unsigned longlong, or object during discovery. Multi-input exact Python int/float/complex temporary flags replace discovered descriptors with abstract kinds; bool and subclasses do not receive these exact-type flags. The packet explicitly corrects the older unconditional no-value-effect wording, without casting-payload credit.",
+      "subject": "single versus multi-input scalar descriptor abstraction"
+    },
+    {
+      "anchors": [
+        {
+          "end": 552,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/convert_datatype.c#L520-L552",
+          "path": "numpy/_core/src/multiarray/convert_datatype.c",
+          "start": 520
+        },
+        {
+          "end": 759,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/convert_datatype.c#L728-L759",
+          "path": "numpy/_core/src/multiarray/convert_datatype.c",
+          "start": 728
+        },
+        {
+          "end": 862,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/convert_datatype.c#L833-L862",
+          "path": "numpy/_core/src/multiarray/convert_datatype.c",
+          "start": 833
+        }
+      ],
+      "assessment": "The advertised-safety fast path can bypass resolver invocation. Otherwise registered cast lookup/resolution supplies descriptor safety; CanCastTypeTo and ordinary CanCastArrayTo clear a negative lookup/resolver result into False. Earlier public dtype conversion and outer override body errors propagate. Internal Python-literal flags are not presented as normal public zero-dimensional-array value promotion.",
+      "subject": "actual registered casting paths versus legacy helpers"
+    },
+    {
+      "anchors": [
+        {
+          "end": 1126,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/convert_datatype.c#L1075-L1126",
+          "path": "numpy/_core/src/multiarray/convert_datatype.c",
+          "start": 1075
+        },
+        {
+          "end": 463,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/_internal.py#L409-L463",
+          "path": "numpy/_core/_internal.py",
+          "start": 409
+        },
+        {
+          "end": 3300,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/convert_datatype.c#L3186-L3300",
+          "path": "numpy/_core/src/multiarray/convert_datatype.c",
+          "start": 3186
+        }
+      ],
+      "assessment": "Keeps identical native legacy non-VOID promotion fast path and nonparametric default-descriptor metadata loss separate. Recursive fields, names/titles, recomputed padding/alignment, subarray shape, object ownership/view offsets and native byte order remain descriptor-family rules rather than one universal associative promotion law. Casting metadata does not grant write aliasing permission.",
+      "subject": "descriptor identity, structured/subarray and byte order"
+    },
+    {
+      "anchors": [
+        {
+          "end": 354,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/stringdtype/casts.cpp#L326-L354",
+          "path": "numpy/_core/src/multiarray/stringdtype/casts.cpp",
+          "start": 326
+        },
+        {
+          "end": 2197,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/stringdtype/casts.cpp#L2186-L2197",
+          "path": "numpy/_core/src/multiarray/stringdtype/casts.cpp",
+          "start": 2186
+        },
+        {
+          "end": 136,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/descriptor.c#L94-L136",
+          "path": "numpy/_core/src/multiarray/descriptor.c",
+          "start": 94
+        },
+        {
+          "end": 85,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/descriptor.c#L53-L85",
+          "path": "numpy/_core/src/multiarray/descriptor.c",
+          "start": 53
+        }
+      ],
+      "assessment": "StringDType is not silently excluded or conflated with fixed S/U. Its String-to-Unicode registered cast advertises SAME_KIND; a SAFE query can invoke the unspecified-size rejecting resolver and clear its error to False, whereas SAME_KIND may bypass resolution. Hook presence-versus-absence, ctypes probe suppression-versus-conversion propagation, user callbacks, lifecycle and payload conversion remain explicit. Arbitrary callback programs and full registration/build/lifetime evidence remain open.",
+      "subject": "managed strings, object and custom dtype protocols"
+    },
+    {
+      "anchors": [
+        {
+          "end": 3999,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/datetime.c#L3920-L3999",
+          "path": "numpy/_core/src/multiarray/datetime.c",
+          "start": 3920
+        },
+        {
+          "end": 4285,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/datetime.c#L4250-L4285",
+          "path": "numpy/_core/src/multiarray/datetime.c",
+          "start": 4250
+        }
+      ],
+      "assessment": "Within-datetime and within-timedelta initialization installs time_to_time_resolve_descriptors, rather than relying solely on legacy can_cast_* metadata helpers. The positive integer-division branch has 2001//2 == 1000 at the ms-to-s enum gap, allowing the source-derived NO/EQUIV branch despite unequal mathematical durations. The packet leaves exact frozen-binary public behavior, descriptor normalization, payload conversion and documented-no-cast reconciliation open. No runtime bug, waiver, exclusion or observed result is asserted by this review.",
+      "subject": "temporal quotient source/documentation question"
+    },
+    {
+      "anchors": [
+        {
+          "end": 124,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/can_cast_table.h#L17-L124",
+          "path": "numpy/_core/src/multiarray/can_cast_table.h",
+          "start": 17
+        },
+        {
+          "end": 4492,
+          "frozen_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/scalartypes.c.src#L4359-L4492",
+          "path": "numpy/_core/src/multiarray/scalartypes.c.src",
+          "start": 4359
+        }
+      ],
+      "assessment": "Independently reconstructed all 576 source row-family predicates, compared every serialized C expression and predicate AST, and independently recomputed both 576-cell illustrative profile booleans. Read the literal scalar initializer traversal and checked all profile promotion symmetry/deferred cells. This is not a C preprocessor run, actual ABI observation, floating representation proof, full public descriptor relation or casting payload execution.",
+      "subject": "symbolic safe table and ABI model"
+    },
+    {
+      "artifact": "ownership-plan.json",
+      "assessment": "Eunomia is the planned numeric dtype/promotion policy owner; Leto handles array/dtype argument and interop lifecycle boundaries. Mnemosyne/Melinoe are storage/access-proof suppliers, Coeus consumes the policy and defines its AD boundary, and Hephaestus supplies actual device kernels. No implementation/codeowner ADR approval is claimed. Field/subarray geometry and dtype ABI decisions must retain Leto/Eunomia policy ownership while Melinoe supplies access/validity proofs.",
+      "subject": "single API owner and provider suppliers"
+    }
+  ],
+  "supplied_tests": {
+    "failed": 0,
+    "log": "/tmp/atlas-numpy-dtype-native-independent-review/replay-3.log",
+    "negative_mutation_guards": [
+      "wrong public reference ID",
+      "function body hash drift",
+      "source excerpt drift",
+      "acquisition outcome promotion",
+      "unrun case runtime-status promotion",
+      "safe table cell loss"
+    ],
+    "passed": 29,
+    "runtime_framework_cases_executed": 0,
+    "skipped": 0
+  }
+}

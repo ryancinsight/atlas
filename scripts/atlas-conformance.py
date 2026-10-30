@@ -1234,6 +1234,7 @@ def _cached_text(path: Path) -> str | None:
 
 def _snapshot_source_census(
     repo: Path,
+    member: str | None = None,
 ) -> tuple[list[Path], list[Path], list[Path]]:
     """Inventory an immutable snapshot and cache every Rust source once.
 
@@ -1255,8 +1256,12 @@ def _snapshot_source_census(
     orphan_sources: list[Path] = []
     canonical_sources: dict[Path, Path] = {}
     files: set[Path] = set()
+    # The seed is the scanned root's own name, and a snapshot's directory
+    # carries a disambiguator when one checkout is materialized twice into
+    # one scratch, so the member's name decides it whenever it is known.
+    root_name = member if member is not None else repo.name
     stack: list[tuple[Path, Path, bool, bool]] = [
-        (repo, root_canonical, True, repo.name == "src")
+        (repo, root_canonical, True, root_name == "src")
     ]
     text_cache = _file_text_cache()
     ignored = git_ignored_paths(repo)
@@ -1771,6 +1776,64 @@ def rust_files(repo: Path):
                 yield entry, testish
 
 
+# What identifies a member's lockfile checker by content. Counting the path
+# `scripts/lockfile.py` let a moved or renamed copy fall out of the ratchet
+# without being deleted, which is the behaviour
+# ATLAS-LOCKFILE-COPY-COUNT-CONTENT pins.
+#
+# Two signatures because the copies are not one vintage: the current checker
+# carries the staged entry point, while iris's older copy only has the
+# check/regenerate pair. A file counts when either signature is complete; the
+# baseline's 28 recorded copies remain 28 (27 with both, iris with the pair).
+LOCKFILE_CHECKER_SIGNATURES = (
+    ("--check-staged", "def check_staged"),
+    ("def check()", "def regenerate()", "Cargo.lock"),
+)
+
+
+def python_files(repo: Path):
+    """Yield every `.py` file, pruning caches, lanes and ignored paths.
+
+    The Python counterpart of [`rust_files`], for a content test that must
+    follow a file wherever a member moves or renames it. A materialized
+    snapshot contains only tracked files and has no ignore list; a live
+    checkout supplies one, so local build state cannot count as a copy.
+    """
+    ignored = git_ignored_paths(repo)
+    stack = [repo]
+    while stack:
+        directory = stack.pop()
+        for entry in _iterdir_or_empty(directory):
+            name = entry.name
+            if _resolved(entry) in ignored:
+                continue
+            if entry.is_dir():
+                if name in PRUNE_DIRS or name.startswith("target"):
+                    continue
+                stack.append(entry)
+            elif name.endswith(".py"):
+                yield entry
+
+
+def count_member_lockfile_copies(repo: Path) -> int:
+    """Whether the member carries a lockfile checker, wherever it sits.
+
+    Identity is content, not path: either the staged entry point plus its
+    implementation, or the older check/regenerate pair. A file that only
+    quotes the flag or mentions `Cargo.lock` does not count.
+    """
+    for path in python_files(repo):
+        text = _cached_text(path)
+        if text is None:
+            continue
+        if any(
+            all(marker in text for marker in group)
+            for group in LOCKFILE_CHECKER_SIGNATURES
+        ):
+            return 1
+    return 0
+
+
 def executable_source_dirs(
     repo: Path,
     manifests: list[Path] | None = None,
@@ -2170,7 +2233,7 @@ def scan_repo(
         source_paths = None
         orphan_source_paths = None
     else:
-        manifests, source_paths, orphan_source_paths = _snapshot_source_census(repo)
+        manifests, source_paths, orphan_source_paths = _snapshot_source_census(repo, member)
     executable_dirs = executable_source_dirs(repo, manifests)
 
     sources = (
@@ -2279,13 +2342,14 @@ def scan_repo(
     )
     c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
-    # A member carries no `scripts/lockfile.py` (board item
+    # A member carries no lockfile checker (board item
     # ATLAS-LOCKFILE-CHECKER-SINGLE-SOURCE): the stack's copy is the one
-    # checker, and a member's is a second source of it. The class counts that
-    # path, the one the hooks ran, so a copy moved elsewhere reads 0. Read from
-    # `repo`, the recorded revision's content, so a checkout behind or ahead of
-    # its gitlink does not change what the gitlink counts as.
-    c["member_lockfile_copies"] = int((repo / "scripts" / "lockfile.py").is_file())
+    # checker, and a member's is a second source of it. Counted by content so
+    # a moved or renamed copy cannot fall out of the ratchet (board item
+    # ATLAS-LOCKFILE-COPY-COUNT-CONTENT). Read from `repo`, the recorded
+    # revision's content, so a checkout behind or ahead of its gitlink does
+    # not change what the gitlink counts as.
+    c["member_lockfile_copies"] = count_member_lockfile_copies(repo)
     c["crlf_stored_blobs"] = count_crlf_stored_blobs(
         repo, live_repo=live_repo, revision=revision
     )
@@ -2429,6 +2493,15 @@ def link_snapshot(checkout: Path, revision: str, scratch: Path) -> Path:
         if mode != "160000":
             tracked.append((mode, path))
     content = scratch / checkout.name
+    # One directory per materialization. The same checkout can be
+    # materialized twice into one scratch -- a root push materializes the
+    # pushed content and the baseline config root, and both name the
+    # checkout's directory -- and one shared directory would either raise
+    # `FileExistsError` (Windows) or merge two revisions into one tree.
+    disambiguator = 0
+    while content.exists():
+        disambiguator += 1
+        content = scratch / f"{checkout.name}-{disambiguator}"
     content.mkdir(parents=True)
     fd, index_path = tempfile.mkstemp(prefix="atlas-snapshot-index-")
     os.close(fd)
@@ -2475,7 +2548,11 @@ def scan_member(
             stack_root, root_revision, Path(scratch)
         )
         return scan_repo(
-            content, live_repo=live, revision=expected, config_root=config_root
+            content,
+            live_repo=live,
+            revision=expected,
+            member=name,
+            config_root=config_root,
         )
 
 
@@ -2603,6 +2680,12 @@ def scan_stack(
                             live_repo=target[1],
                             member_for_package=member_for_package,
                             revision=target[2],
+                            # The snapshot's directory carries a
+                            # disambiguator when one checkout is
+                            # materialized twice into one scratch, so the
+                            # member's identity is named here rather than
+                            # read back from the path.
+                            member=target[1].name,
                             config_root=stack_content,
                         ),
                         targets,
@@ -2652,7 +2735,7 @@ def scan_stack(
                 ):
                     meta["member_namespace_pollution"] += 1
         meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(
-            content, live_repo=stack_root
+            content, live_repo=stack_root, member="<meta>"
         )
         meta["gitattributes_missing"] = lf_policy_missing(content)
         meta["crlf_stored_blobs"] = count_crlf_stored_blobs(

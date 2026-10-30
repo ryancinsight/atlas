@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "framework": "numpy",
+  "version": "2.5.4",
+  "revision": "a3d0ef1df045b858e68115001fdabc930bb3b68c",
+  "execution_scope": "Static Python AST/C text source assertions and one standard-library-only index/iteration witness; no NumPy import/build/runtime/provider/AD execution.",
+  "axis_index_failure_witness": {
+    "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/numeric.py#L1471",
+    "caught_exception_type": "TypeError",
+    "handler_is_pass": true,
+    "original_axis_retained_for_iteration": true,
+    "stdlib_witness_normalized": [
+      0
+    ],
+    "stdlib_witness_events": [
+      "index",
+      "iter"
+    ]
+  },
+  "axis_materialization_order_witness": {
+    "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/numeric.py#L1428",
+    "tuple_statement_index": 2,
+    "duplicate_statement_index": 3,
+    "whole_tuple_before_duplicates": true,
+    "size_shape_then_normalize_then_product": true,
+    "derived_case": "rank2 (0,0,2): conversion of2 raises AxisError before duplicate check; proposed runtime differential, not executed"
+  },
+  "delegated_identity_witness": {
+    "ndim": {
+      "direct_branch": "return a.ndim",
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L3553",
+      "no_forced_conversion_or_detach_in_branch": true
+    },
+    "shape": {
+      "direct_branch": "result = a.shape",
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L2164",
+      "no_forced_conversion_or_detach_in_branch": true
+    },
+    "size": {
+      "direct_branch": "return a.size",
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L3605",
+      "no_forced_conversion_or_detach_in_branch": true
+    }
+  },
+  "special_lookup_witness": {
+    "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L51",
+    "git_blob_sha": "324a92c5ef0c454a5255d3293f587f23e11b8406",
+    "target_is_type_object": true,
+    "instance_only_attribute_ignored": true,
+    "exact_basic_type_skips": true,
+    "basic_skip_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L9",
+    "present_None_remains_present": true,
+    "no_callability_precheck_in_collection": true
+  },
+  "phase_error_witness": {
+    "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L21",
+    "exact_ndarray_fastpath_precedes_lookup": true,
+    "lookup_failure_clear_has_no_exception_kind_filter": true,
+    "invocation_does_not_clear_errors": true,
+    "invocation_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L185",
+    "exact_invocation_positional_arguments": [
+      "argument",
+      "public_api",
+      "types",
+      "args",
+      "kwargs"
+    ]
+  },
+  "builtin_getter_only_witness": {
+    "array_ndim_get": {
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L38",
+      "no_buffer_dtype_stride_access_in_getter": true
+    },
+    "array_shape_get": {
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L50",
+      "no_buffer_dtype_stride_access_in_getter": true
+    },
+    "array_size_get": {
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L327",
+      "no_buffer_dtype_stride_access_in_getter": true
+    }
+  },
+  "count_arithmetic_witness": {
+    "macro_source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/include/numpy/ndarrayobject.h#L70",
+    "total_count_uses_npy_intp_helper": true,
+    "selected_axis_uses_python_math_prod": true,
+    "overflow_region_verified": false
+  },
+  "runtime_differential_verified": false,
+  "ad_preservation_verified": false,
+  "provider_design_status": "pending"
+}

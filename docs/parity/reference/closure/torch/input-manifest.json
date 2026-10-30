@@ -1,0 +1,387 @@
+{
+  "schema_version": 1,
+  "source_inputs": [
+    {
+      "path": "docs/source/conf.py",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/source/conf.py",
+      "sha256": "2d74baa5f6c8c085353ec6f251fb7c2c9520ba8c8d0ebacaf8811c59d965c072",
+      "git_blob": "a62b4346cd3402ede634ee701fb7b437bf73a77b",
+      "bytes": 80085,
+      "line_count": 2703,
+      "base_git_blob": "a62b4346cd3402ede634ee701fb7b437bf73a77b",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "torch/_torch_docs.py",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/_torch_docs.py",
+      "sha256": "f3962a2a4973e7d4917a3b3f265903d4a534085343bbe40d003728385d1949e5",
+      "git_blob": "d2c1e46c9b02a481a5b0eccf1da30cbd58aaca69",
+      "bytes": 445068,
+      "line_count": 14985,
+      "base_git_blob": "d2c1e46c9b02a481a5b0eccf1da30cbd58aaca69",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "torch/_tensor_docs.py",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py",
+      "sha256": "9c3d4d0bcef8041352cc87cff68980c39ddd8c506d4e8db6410af306bd46f189",
+      "git_blob": "d024f2a467070c5ee17f828823f8154c63179bcf",
+      "bytes": 142677,
+      "line_count": 6922,
+      "base_git_blob": "d024f2a467070c5ee17f828823f8154c63179bcf",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "torch/_tensor.py",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/_tensor.py",
+      "sha256": "dead69ea4e782ca5f68f046115b2a6defb3c93fe8ff671d93fa84d139f3d9f33",
+      "git_blob": "e346bccf14b677e27f2244ff0244e2c3d81c3dc9",
+      "bytes": 70738,
+      "line_count": 1746,
+      "base_git_blob": "e346bccf14b677e27f2244ff0244e2c3d81c3dc9",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "torch/__init__.py",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/__init__.py",
+      "sha256": "bd4a10ff16357ed78f45aaf4b46ce5b771fdc0e8549402206e324d0eb792c672",
+      "git_blob": "f69b12c7b98759b6c44e80ad4f7ac23aa40884d8",
+      "bytes": 130530,
+      "line_count": 3539,
+      "base_git_blob": "f69b12c7b98759b6c44e80ad4f7ac23aa40884d8",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "torch/_C/__init__.pyi.in",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/_C/__init__.pyi.in",
+      "sha256": "023934791ef4340be85c70ecce9036907aef92567050bcace1365fa72d1767be",
+      "git_blob": "92b5bd335c013e65a9ce80ab7191d4393d8f58fe",
+      "bytes": 112178,
+      "line_count": 3078,
+      "base_git_blob": "92b5bd335c013e65a9ce80ab7191d4393d8f58fe",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "aten/src/ATen/native/native_functions.yaml",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/native_functions.yaml",
+      "sha256": "d68d30699549d4b75ed0a8765a9a29663e7d7be7a25e381a40f6ce72ad2d3060",
+      "git_blob": "f1ad683b084cc02b5536ed04b9e3d719e0af2ace",
+      "bytes": 631065,
+      "line_count": 16238,
+      "base_git_blob": "7ec0fefa69582b06496295be1b69c46e65d7bbdb",
+      "unchanged_from_2_14_0": false
+    },
+    {
+      "path": "tools/autograd/derivatives.yaml",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/tools/autograd/derivatives.yaml",
+      "sha256": "a9d832e1993a3f47889a8d5ee52e443407bbd0df895550cc5a02c01b4465a526",
+      "git_blob": "55e0f644ce4334068e734cca1b48e66a959da425",
+      "bytes": 187713,
+      "line_count": 3299,
+      "base_git_blob": "55e0f644ce4334068e734cca1b48e66a959da425",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "aten/src/ATen/native/TensorFactories.cpp",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/TensorFactories.cpp",
+      "sha256": "50a514d73ed3890fec2dce74e02a86aa98cfd5da4644f52006d02c68c7e95522",
+      "git_blob": "0d22a86dce2c87b337de9204ce9d36ff99020864",
+      "bytes": 72117,
+      "line_count": 2277,
+      "base_git_blob": "0d22a86dce2c87b337de9204ce9d36ff99020864",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "aten/src/ATen/native/RangeFactories.cpp",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/RangeFactories.cpp",
+      "sha256": "dfe1db2539fc21e3c5c912026543c7ead4cde596d533a6fb606515bbb2b22191",
+      "git_blob": "24b745b1a68b00f919a7a5dadac209af17863f7e",
+      "bytes": 8222,
+      "line_count": 225,
+      "base_git_blob": "24b745b1a68b00f919a7a5dadac209af17863f7e",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "aten/src/ATen/native/cpu/RangeFactoriesKernel.cpp",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/cpu/RangeFactoriesKernel.cpp",
+      "sha256": "e670f5dacee3876d1bf153f231209c0d390381569837796c63b1477506d06361",
+      "git_blob": "b469aa5c2eee613131b04f6b1e5bd1b6c22d7c27",
+      "bytes": 2895,
+      "line_count": 77,
+      "base_git_blob": "b469aa5c2eee613131b04f6b1e5bd1b6c22d7c27",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "aten/src/ATen/native/cuda/RangeFactories.cu",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/cuda/RangeFactories.cu",
+      "sha256": "8048389ea78a9c7393467d3e3074aba45bef406163bb8574fac4c06f1cd387e4",
+      "git_blob": "c226aa40ab52adfd62191d44b4cd6dfa94cae782",
+      "bytes": 10367,
+      "line_count": 286,
+      "base_git_blob": "c226aa40ab52adfd62191d44b4cd6dfa94cae782",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "torch/csrc/utils/tensor_new.cpp",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp",
+      "sha256": "cd753c8a617ee283c430f586a613709c288f185828548a0653c3f14d4c67a547",
+      "git_blob": "0c802652af8fd07292d0b6ae2773bb49da4f7b78",
+      "bytes": 65252,
+      "line_count": 1877,
+      "base_git_blob": "0c802652af8fd07292d0b6ae2773bb49da4f7b78",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "torchgen/api/python.py",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torchgen/api/python.py",
+      "sha256": "b7b71df76c798d1fa50eac90e1c6115a2905ea207fc12e2eff0d5c35f75b4e2b",
+      "git_blob": "545cd1489d34eea9ccc1f75e72d596cf2cb2baab",
+      "bytes": 58080,
+      "line_count": 1525,
+      "base_git_blob": "545cd1489d34eea9ccc1f75e72d596cf2cb2baab",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "torch/csrc/autograd/python_torch_functions_manual.cpp",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/autograd/python_torch_functions_manual.cpp",
+      "sha256": "d7b3b7c05580350ff709b367efc83cb8cd5d87ecb4b44ceac88f217139b707f1",
+      "git_blob": "adf75954f1a55929cbeba66a2575cb92b040bec3",
+      "bytes": 33901,
+      "line_count": 877,
+      "base_git_blob": "adf75954f1a55929cbeba66a2575cb92b040bec3",
+      "unchanged_from_2_14_0": true
+    },
+    {
+      "path": "aten/src/ATen/native/RangeFactories.h",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/RangeFactories.h",
+      "sha256": "9be5d3f7b3eced0524c3455cd360804de10ed6db7d31825eca3704d0176815e0",
+      "git_blob": "b3a4769d4f411f420086dcbedf533699496f7358",
+      "line_count": 12,
+      "bytes": 354
+    },
+    {
+      "path": "docs/source/tensors.md",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/source/tensors.md",
+      "sha256": "f256381b09ae2940a800f9ca215e423cb5a9901e00c4bedd2c576d3ca8d27bbd",
+      "git_blob": "0dc5fa17440e2f0d5f0d5991cf48ac955f08355c",
+      "line_count": 733,
+      "bytes": 16244
+    },
+    {
+      "path": "docs/source/tensor_attributes.md",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/source/tensor_attributes.md",
+      "sha256": "c1882bd2c37cb9d3366a7f6dbeb56b88f66ab4b2c75c7f15a4c4c064a90faa5b",
+      "git_blob": "f7ee7742c39898f66adc7430676bfd7505614ef9",
+      "line_count": 390,
+      "bytes": 14968
+    },
+    {
+      "path": "docs/source/tensor_view.md",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/source/tensor_view.md",
+      "sha256": "31b513a59b47f594e2500d3d2e0b18c98f56bc53433270f7815cf6d81a6f2640",
+      "git_blob": "bd6171598d6a438bd8b6957b0e826db3203334c5",
+      "line_count": 103,
+      "bytes": 4029
+    },
+    {
+      "path": "docs/source/torch.aliases.md",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/source/torch.aliases.md",
+      "sha256": "806a8ef4c6f41a5e06b351027c861932e62522cf581091c7e04b898e4616f922",
+      "git_blob": "beb468bbbc97cc753ec43a2f96035eaac56ee2f4",
+      "line_count": 33,
+      "bytes": 714
+    },
+    {
+      "path": "docs/source/notes/autograd.md",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/source/notes/autograd.md",
+      "sha256": "f45e27007e129d49bdab58a11111d9a3d7f158b6dbcc7113df5a1277afadf668",
+      "git_blob": "2b6651c8682fdee2f0c37c0474e73fecb61c55fa",
+      "line_count": 1035,
+      "bytes": 48618
+    },
+    {
+      "path": "docs/source/notes/out.md",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/source/notes/out.md",
+      "sha256": "10d1b4e75b3ad0f2f2640648a6a37e0732d84a611600e755cdc4ecc88ede1192",
+      "git_blob": "8322c89ee4b320f42fa9712b32e787521dc917bf",
+      "line_count": 15,
+      "bytes": 1991
+    },
+    {
+      "path": "docs/source/notes/numerical_accuracy.md",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/source/notes/numerical_accuracy.md",
+      "sha256": "d6d06eb6fbf386580685603d6dc41efe89f3cef4764f75f692a98bbbfd51bb20",
+      "git_blob": "a2543c4360dfe823dc24493eba01067f044df96b",
+      "line_count": 245,
+      "bytes": 12627
+    },
+    {
+      "path": "docs/source/torch.md",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/source/torch.md",
+      "sha256": "23fe6a297450ac8373879eddbb18bd010f04ebead6bbb1c35c2a0b6de76def27",
+      "git_blob": "390dce1cdcccb329737c6c540cf593c4ac838aa0",
+      "line_count": 1254,
+      "bytes": 21887
+    },
+    {
+      "path": "docs/cpp/source/api/aten/creation.md",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/cpp/source/api/aten/creation.md",
+      "sha256": "3c9acbedf2d385dc420dc0edc33d4b6df27d21f84b6d1f7eb7b14116db00dc06",
+      "git_blob": "db779af0dd8366613870a678019f215b3059b4c6",
+      "line_count": 235,
+      "bytes": 6844
+    },
+    {
+      "path": "docs/cpp/source/Doxyfile",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/cpp/source/Doxyfile",
+      "sha256": "5179c31f6f835df890e0497082b51486582ec50277ae377b97994293681d2577",
+      "git_blob": "748f7a69ea2665b5404476dccc26ee9eec328602",
+      "line_count": 183,
+      "bytes": 9943
+    },
+    {
+      "path": "docs/cpp/check_coverage.py",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/docs/cpp/check_coverage.py",
+      "sha256": "e60452b242039b09e0dbbbb497b7003086076248d39604125f0cac04d9844e66",
+      "git_blob": "bd958671cacbf5d843b91690fd3b2192aa93e3a1",
+      "line_count": 782,
+      "bytes": 27718
+    },
+    {
+      "path": "tools/autograd/gen_python_functions.py",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/tools/autograd/gen_python_functions.py",
+      "sha256": "fe0358cef3af2d10429844ee271e98fb57efbd90db0f0f19ed041d41b4381426",
+      "git_blob": "4731183c93c1faeb61a84ec85f42711c43835231",
+      "line_count": 1411,
+      "bytes": 46586
+    },
+    {
+      "path": "torch/_C/_VariableFunctions.pyi.in",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/_C/_VariableFunctions.pyi.in",
+      "sha256": "7f7806fba0c6a6475bb34d730e4acc0363b2a5aa99e70593ec1da72ea5da568a",
+      "git_blob": "13940e4d0dd41d5a82effe88d2e5bec984a0a742",
+      "line_count": 38,
+      "bytes": 644
+    },
+    {
+      "path": "torch/_C/_nn.pyi.in",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/_C/_nn.pyi.in",
+      "sha256": "270a01dac02fb074db8361cc96bb85b179cf5ab6cb78bb22377521efd82fe9dd",
+      "git_blob": "cf6e98fe42e30c8a9183d037d4e02b950c5f672e",
+      "line_count": 145,
+      "bytes": 4087
+    },
+    {
+      "path": "torch/csrc/utils/python_arg_parser.cpp",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/python_arg_parser.cpp",
+      "sha256": "4570c57751c10e5c1cfa74416f179c8cbd30067d091093c56c29c6ee0f752bc3",
+      "git_blob": "4e6ccb5a750768189bc0f14e5a3729bda1ab6311",
+      "line_count": 2048,
+      "bytes": 66758
+    },
+    {
+      "path": "aten/src/ATen/native/RangeUtils.h",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/RangeUtils.h",
+      "sha256": "09fcbdae576762349324033ddd899a67a41f7343bc6290571aa9ce0a568e92e4",
+      "git_blob": "60044e9b28d5b0d91a9eee44924ce6109e5b96c9",
+      "bytes": 2393,
+      "line_count": 66
+    },
+    {
+      "path": "torch/autograd/grad_mode.py",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/autograd/grad_mode.py",
+      "sha256": "ddc32c2cc2dfa5e2320f8c8e75b7d048c7661c58e1c9f7304914a22744e2177f",
+      "git_blob": "5e6bea0874731f6b69920e42bcc0632a753d72f8",
+      "bytes": 16964,
+      "line_count": 489
+    },
+    {
+      "path": "torch/csrc/autograd/variable.h",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/csrc/autograd/variable.h",
+      "sha256": "94dbc890e0fac8dcde6dc3556bcafbdfffa5f8bce09d83e0169fed3ddbfbe5cd",
+      "git_blob": "c83c3428700611d2a288020aa45defbf8a50a593",
+      "bytes": 42963,
+      "line_count": 1015
+    },
+    {
+      "path": "c10/core/ScalarType.h",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/c10/core/ScalarType.h",
+      "sha256": "df5bce065a24d4902936e4c017d66a07c6823b4dbffaf2d2468732b2bb990198",
+      "git_blob": "e47092fd139675f6b12ac4fb2216a1e2957f320a",
+      "bytes": 9451,
+      "line_count": 305
+    },
+    {
+      "path": "aten/src/ATen/AccumulateType.h",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/AccumulateType.h",
+      "sha256": "f1defbdc257362abe5c4530baf558bb58880d8d5522b411da12b466cf6de7c08",
+      "git_blob": "0829853a97979075e3b83d8c917ad7289ddb0e1d",
+      "bytes": 6111,
+      "line_count": 173
+    },
+    {
+      "path": "aten/src/ATen/native/Fill.cpp",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/Fill.cpp",
+      "sha256": "5a1a1cad3e4c92c2a94307680a89b78066b93eea9d6e84e116196b3e5b0b6d7d",
+      "git_blob": "8e04a7490e87910f573658fccd9249da7b4bc9ca",
+      "bytes": 4779,
+      "line_count": 164
+    },
+    {
+      "path": "aten/src/ATen/native/cpu/FillKernel.cpp",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/cpu/FillKernel.cpp",
+      "sha256": "5b6e3a878638a344c13f6622c11d827e4e000f0b98b706f872f8a621e8888651",
+      "git_blob": "e22df01635fe0a3af243c2b620c45a8cc035994e",
+      "bytes": 2987,
+      "line_count": 75
+    },
+    {
+      "path": "aten/src/ATen/native/cuda/FillKernel.cu",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/cuda/FillKernel.cu",
+      "sha256": "629d5a87c62dd75595deae779e0fdab2d142d41ea6eb7591171daac5b7101b5a",
+      "git_blob": "1772892ac7c7b9faeb3f1c1e08589c8ea0a5d0f3",
+      "bytes": 932,
+      "line_count": 30
+    },
+    {
+      "path": "torch/functional.py",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/5c4886908584029761b579af026dcfb627c84070/torch/functional.py",
+      "sha256": "ab3bf6b6dd9c4928129da9115aad0acc3514fa45e052634a2f233ff7b10c37af",
+      "git_blob": "cf633e91787d136b1a94ef039e634179c2f66218",
+      "bytes": 90127,
+      "line_count": 2273
+    }
+  ],
+  "metadata_inputs": [
+    {
+      "url": "https://api.github.com/repos/pytorch/pytorch/compare/2b3ec34829036a65cd9d1398ea72a0167dc37470...5c4886908584029761b579af026dcfb627c84070",
+      "kind": "release_compare",
+      "sha256": "af9ffac38627168c6a070c093e3d6d44a8488f4d231ae4191b70a084f3b329fa",
+      "bytes": 95872
+    },
+    {
+      "url": "https://api.github.com/repos/pytorch/pytorch/git/trees/2b3ec34829036a65cd9d1398ea72a0167dc37470?recursive=1",
+      "kind": "base_tree",
+      "sha256": "683df380be3decb123c0c6e78a7ce9e25d4cdb6743f173471350403ab4fdf0c1",
+      "bytes": 6152749
+    },
+    {
+      "url": "https://api.github.com/repos/pytorch/pytorch/git/trees/5c4886908584029761b579af026dcfb627c84070?recursive=1",
+      "kind": "release_tree",
+      "sha256": "9649931995f67a8d0e188f4f5cb3185828326f1b71ab356ade296f818a44aba8",
+      "bytes": 6152750
+    },
+    {
+      "url": "https://docs.pytorch.org/docs/2.14/objects.inv?raw=1",
+      "kind": "published_inventory",
+      "sha256": "021a9908fed68dc53daf1a52b0f43fbd1719a7eb35beb03ab2d798b214c0fe31",
+      "bytes": 224608
+    },
+    {
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/2b3ec34829036a65cd9d1398ea72a0167dc37470/aten/src/ATen/native/native_functions.yaml",
+      "kind": "base_schema",
+      "sha256": "ae1a1589816320d622f1e77fd2ed8a1f826c214791858d2394a0e4ad3db0cdc7",
+      "bytes": 631091
+    }
+  ]
+}

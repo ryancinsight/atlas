@@ -103,10 +103,10 @@ from atlas_git_process import (  # noqa: E402
     GitProcessError,
     archive as git_archive,
     execute as execute_git,
-    execute_process,
     extract_archive,
 )
 from atlas_stack import ROOT, load_sibling  # noqa: E402
+from lockfile import CargoDeadlineExceeded, run_outside_the_overlay  # noqa: E402
 
 
 # The registry index reader and the publishable-set rule are the push-mode planner's:
@@ -130,7 +130,6 @@ TRANSPORT_BACKOFF_SECONDS = 2.0
 CRATE_URL = "https://static.crates.io/crates/{name}/{name}-{version}.crate"
 HTTP_TIMEOUT_SECONDS = 120.0
 GIT_TIMEOUT_SECONDS = 300
-CARGO_TIMEOUT_SECONDS = 600
 DEFAULT_JOBS = 4
 # Private ref a missing default tip is fetched into: never a remote-tracking ref
 # (ATLAS-ORIGIN-REF-CLOBBER-2026-09-21, scripts/atlas-refspec-guard.py).
@@ -382,26 +381,6 @@ def measure_crate(name: str, version: str, manifest: str, package_dir: Path,
                         latest, drift)
 
 
-def run_cargo_metadata(manifest: Path) -> dict:
-    """`cargo metadata --no-deps` from a directory outside every stack and member config.
-
-    Cargo resolves `.cargo/config.toml` and `rust-toolchain.toml` from the working
-    directory, never from `--manifest-path`; a neutral directory excludes the stack's
-    overlay and its toolchain pin, neither of which the manifests alone need.
-    """
-    with tempfile.TemporaryDirectory(prefix="atlas-published-drift-cwd-") as neutral:
-        result = execute_process(
-            ("cargo", "metadata", "--no-deps", "--format-version", "1",
-             "--manifest-path", str(manifest)),
-            cwd=Path(neutral),
-            timeout=CARGO_TIMEOUT_SECONDS,
-        )
-    if result.returncode:
-        detail = result.stderr.decode("utf-8", errors="replace").strip()
-        raise MeasurementError(f"cargo metadata failed for {manifest}: {detail}")
-    return json.loads(result.stdout.decode("utf-8"))
-
-
 @dataclass
 class MemberReading:
     name: str
@@ -413,7 +392,7 @@ class MemberReading:
 
 @dataclass(frozen=True)
 class Package:
-    """One publishable package of an exported revision."""
+    """One package of an exported revision."""
 
     name: str
     version: str
@@ -425,33 +404,66 @@ class Package:
         return (self.directory / "Cargo.toml").as_posix()
 
 
-def export_revision(label: str, repo: Path, revision: str, root: Path) -> dict:
+def export_revision(label: str, repo: Path, revision: str, root: Path,
+                    manifest_path: str = "Cargo.toml",
+                    missing_manifest_is_empty: bool = False) -> dict | None:
     """Export commit `revision` of `repo` under `root`; its `cargo metadata --no-deps`.
 
-    The export is `git archive`, never the working tree. A revision without a root
-    `Cargo.toml` has no packages to read and fails the measurement.
+    The export is `git archive`, never the working tree. The selected manifest
+    stays within the export. An absent selection fails unless the caller is
+    comparing with a revision from before that selected workspace existed.
     """
     try:
         tree = git_archive(repo, revision, timeout=GIT_TIMEOUT_SECONDS)
     except GitProcessError as error:
         raise MeasurementError(f"{label}: cannot archive {revision}: {error}") from error
     extract_archive(tree, root)
-    manifest = root / "Cargo.toml"
+    relative = PurePosixPath(manifest_path.replace("\\", "/"))
+    if (relative.is_absolute() or ".." in relative.parts
+            or (relative.parts and ":" in relative.parts[0])):
+        raise MeasurementError(f"{label}: manifest selection must stay within the repository")
+    manifest = (root / Path(*relative.parts)).resolve()
+    if not manifest.is_relative_to(root.resolve()):
+        raise MeasurementError(f"{label}: manifest selection escapes the exported revision")
     if not manifest.is_file():
-        raise MeasurementError(f"{label}: no root Cargo.toml at {revision}")
-    return run_cargo_metadata(manifest)
+        if missing_manifest_is_empty:
+            return None
+        raise MeasurementError(f"{label}: no {relative.as_posix()} at {revision}")
+    try:
+        result = run_outside_the_overlay(
+            ["metadata", "--no-deps", "--format-version", "1"], manifest=manifest
+        )
+    except CargoDeadlineExceeded as error:
+        raise MeasurementError(
+            f"{label}: cargo metadata did not finish within {error.timeout:g}s: "
+            f"{(error.stderr or '').strip()}"
+        ) from error
+    if result.returncode:
+        raise MeasurementError(
+            f"cargo metadata failed for {manifest}: {result.stderr.strip()}"
+        )
+    return json.loads(result.stdout)
 
 
-def publishable_packages(metadata: dict, root: Path) -> list[Package]:
-    """The publishable packages of an export at `root`, by name."""
+def workspace_packages(metadata: dict, root: Path) -> list[Package]:
+    """Every package selected by an exported workspace, ordered by name."""
     packages = []
-    for package in sorted(filter(crates_pending.publishable, metadata["packages"]),
-                          key=lambda p: p["name"]):
+    for package in sorted(metadata["packages"], key=lambda p: p["name"]):
         directory = Path(package["manifest_path"]).resolve().parent.relative_to(root)
         packages.append(Package(package["name"], package["version"],
                                 PurePosixPath(directory.as_posix()),
                                 tuple(package["dependencies"])))
     return packages
+
+
+def publishable_packages(metadata: dict, root: Path) -> list[Package]:
+    """The publishable packages of an export at `root`, by name."""
+    publishable = {
+        package["name"] for package in metadata["packages"]
+        if crates_pending.publishable(package)
+    }
+    return [package for package in workspace_packages(metadata, root)
+            if package.name in publishable]
 
 
 def measure_member(name: str, repo: Path, branch: str, revision: str,

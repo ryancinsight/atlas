@@ -1,0 +1,1914 @@
+{
+  "contracts": [
+    {
+      "capability": "ARR-LAYOUT",
+      "case_ids": [
+        "core-numpy-numpy-shape::case:numpy:rank0-shape",
+        "core-numpy-numpy-shape::case:numpy:zero-dimension-shape",
+        "core-numpy-numpy-shape::case:numpy:metadata-opaque-object",
+        "core-numpy-numpy-shape::case:numpy:metadata-subtype-overrides"
+      ],
+      "clause_ids": [
+        "CT-SHAPE"
+      ],
+      "endpoints": [
+        "numpy.shape"
+      ],
+      "existing_mapping_reused_without_promotion": true,
+      "id": "core-numpy-numpy-shape",
+      "mapping_id": "numpy-metadata-shape",
+      "owner": "leto",
+      "reference_id": "numpy@2.5.4|autosummary-object|numpy.shape|6dfc9f624d7e6926",
+      "semantics": {
+        "composition": "Outer __array_function__ dispatch first; default body attempts a.shape and catches ONLY AttributeError, then asarray(a).shape. Return delegated result unchanged. Built-in getter proof applies exact ndarray or subtype not overriding metadata.",
+        "dispatch_phase": "Type-object special lookup, exact-basic-type fast skips, exact ndarray cached-method fast path. ANY exception in lookup is cleared and treated absent. Present None/noncallable is invoked and fails; invocation/body/attribute/coercion errors are not cleared. Custom successful result or NotImplemented has normal dispatch lifecycle.",
+        "native_result": "tuple of Python ints",
+        "native_value": "shape=S",
+        "reviewed_prior_contract": {
+          "operation": "shape",
+          "path": "inputs/prior-numpy-metadata-contracts.json",
+          "reuse": "exact prior source branch composition, no evidence/status promotion",
+          "sha256": "6ac531c7f8aa8025d78f3c1769bcd0bcdfa01e59f23b8b4b28a42d523ec7fb7f"
+        },
+        "shared_laws": [
+          "law:concrete-host-shape",
+          "law:discrete-metadata-AD"
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          0
+        ],
+        "path": "core-tensor/numpy-jax/contracts/numpy.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Upstream coercion/protocol transitive implementation is not verified; object/recursive/ragged/dtype discovery legality follows its exact contract.",
+        "No runtime, provider, AD, hardware, performance or release credit."
+      ]
+    },
+    {
+      "capability": "ARR-LAYOUT",
+      "case_ids": [
+        "core-numpy-numpy-ndim::case:numpy:rank0-rank",
+        "core-numpy-numpy-ndim::case:numpy:empty-rank-not-cardinality",
+        "core-numpy-numpy-ndim::case:numpy:metadata-lookup-vs-invocation-error",
+        "core-numpy-numpy-ndim::case:numpy:metadata-invocation-error-propagates"
+      ],
+      "clause_ids": [
+        "CT-SHAPE"
+      ],
+      "endpoints": [
+        "numpy.ndim"
+      ],
+      "existing_mapping_reused_without_promotion": true,
+      "id": "core-numpy-numpy-ndim",
+      "mapping_id": "numpy-metadata-ndim",
+      "owner": "leto",
+      "reference_id": "numpy@2.5.4|autosummary-object|numpy.ndim|011abe5deeb25e4c",
+      "semantics": {
+        "composition": "Outer __array_function__ dispatch first; default body attempts a.ndim and catches ONLY AttributeError, then asarray(a).ndim. Return delegated result unchanged. Built-in getter proof applies exact ndarray or subtype not overriding metadata.",
+        "dispatch_phase": "Type-object special lookup, exact-basic-type fast skips, exact ndarray cached-method fast path. ANY exception in lookup is cleared and treated absent. Present None/noncallable is invoked and fails; invocation/body/attribute/coercion errors are not cleared. Custom successful result or NotImplemented has normal dispatch lifecycle.",
+        "native_result": "Python int",
+        "native_value": "ndim=len(S)",
+        "reviewed_prior_contract": {
+          "operation": "ndim",
+          "path": "inputs/prior-numpy-metadata-contracts.json",
+          "reuse": "exact prior source branch composition, no evidence/status promotion",
+          "sha256": "6ac531c7f8aa8025d78f3c1769bcd0bcdfa01e59f23b8b4b28a42d523ec7fb7f"
+        },
+        "shared_laws": [
+          "law:concrete-host-shape",
+          "law:discrete-metadata-AD"
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          1
+        ],
+        "path": "core-tensor/numpy-jax/contracts/numpy.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Upstream coercion/protocol transitive implementation is not verified; object/recursive/ragged/dtype discovery legality follows its exact contract.",
+        "No runtime, provider, AD, hardware, performance or release credit."
+      ]
+    },
+    {
+      "capability": "ARR-LAYOUT",
+      "case_ids": [
+        "core-numpy-numpy-broadcast-shapes::case:numpy:broadcast-empty-inputs",
+        "core-numpy-numpy-broadcast-shapes::case:numpy:broadcast-rank0-zero-unit",
+        "core-numpy-numpy-broadcast-shapes::case:numpy:broadcast-zero-nonunit-invalid",
+        "core-numpy-numpy-broadcast-shapes::case:numpy:broadcast-shape-negative-before-incompatibility"
+      ],
+      "clause_ids": [
+        "CT-SHAPE",
+        "CT-BROADCAST"
+      ],
+      "endpoints": [
+        "numpy.broadcast_shapes"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-numpy-numpy-broadcast-shapes",
+      "mapping_id": "core-numpy-numpy-broadcast-shapes",
+      "owner": "leto",
+      "reference_id": "numpy@2.5.4|autosummary-object|numpy.broadcast_shapes|902df78ac686e75b",
+      "semantics": {
+        "implementation_workflow": "Create every np.empty(x,dtype=np.dtype([])) in left-to-right list comprehension, then np.broadcast on first64 and batches of63 with broadcast_to(0,b.shape). A later shape conversion error occurs before any broadcasting incompatibility check.",
+        "rank0_zero": "No args produces broadcast(*[]) shape(); integer shape is accepted through empty; rank0 and zeros obey the abstract law only after legal shape conversion.",
+        "scope": "This API validates shapes through native constructors; mathematical integer tuples alone do not specify all accepted Python inputs.",
+        "shared_laws": [
+          "law:concrete-host-shape",
+          "law:concrete-broadcast"
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          2
+        ],
+        "path": "core-tensor/numpy-jax/contracts/numpy.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Cached native shape converter/allocation/iterator implementation is not present; max rank, overflow and custom-index exception ordering remain source gaps.",
+        "Not constructor coverage, broadcasting values, symbolic shapes, tracing or sharding closure."
+      ]
+    },
+    {
+      "capability": "NUM-PROMOTE",
+      "case_ids": [
+        "core-numpy-numpy-result-type::case:numpy:int32-float32-result"
+      ],
+      "clause_ids": [
+        "CT-PROMOTION"
+      ],
+      "endpoints": [
+        "numpy.result_type"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-numpy-numpy-result-type",
+      "mapping_id": "core-numpy-numpy-result-type",
+      "owner": "eunomia",
+      "reference_id": "numpy@2.5.4|autosummary-object|numpy.result_type|4932cb57cee2da5a",
+      "semantics": {
+        "examples": [
+          [
+            "result_type(3, array[int8])",
+            "int8"
+          ],
+          [
+            "result_type(int32,complex64)",
+            "complex128"
+          ],
+          [
+            "result_type(7,array[float32])",
+            "float32"
+          ],
+          [
+            "result_type(type(7),array[float32])",
+            "float64"
+          ]
+        ],
+        "rules": [
+          "Apply NumPy result_type semantics, not a universal associative least-upper-bound over every dtype.",
+          "Since2.0 Python scalar values contribute kind but not arbitrary precision; Python scalar TYPE objects are converted to default NumPy dtype and can promote differently.",
+          "Value-based min_scalar_type legacy logic is not the current result_type rule.",
+          "Native dtype result_type does not perform subsequent arithmetic or prove that a scalar payload fits its eventual operand conversion."
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          3
+        ],
+        "path": "core-tensor/numpy-jax/contracts/numpy.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Missing cached convert_datatype.c/dtypemeta.c native promotion implementation and complete numeric/custom dtype table.",
+        "Platform-dependent default int, longdouble, strings/fields/object/datetime, new/custom dtype promotion/error order remain whole-API obligations."
+      ]
+    },
+    {
+      "capability": "NUM-PROMOTE",
+      "case_ids": [
+        "core-numpy-numpy-promote-types::case:numpy:int32-float32-promote"
+      ],
+      "clause_ids": [
+        "CT-PROMOTION"
+      ],
+      "endpoints": [
+        "numpy.promote_types"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-numpy-numpy-promote-types",
+      "mapping_id": "core-numpy-numpy-promote-types",
+      "owner": "eunomia",
+      "reference_id": "numpy@2.5.4|autosummary-object|numpy.promote_types|cc6c50616eb3c3bf",
+      "semantics": {
+        "examples": [
+          [
+            "promote_types('>i8','<c8')",
+            "complex128"
+          ],
+          [
+            "promote_types(int32,'S8')",
+            "S11"
+          ],
+          [
+            "p('S',p('i1','u1'))",
+            "S6"
+          ],
+          [
+            "p(p('S','i1'),'u1')",
+            "S4"
+          ]
+        ],
+        "rules": [
+          "Symmetric but rarely associative across complete dtype domain; always native/canonical byte order.",
+          "Documented smallest size/scalar kind safe target is a NumPy policy, not proof all integers are represented exactly by float64.",
+          "String length and structured-field promotion are observable; unnecessary structured padding can be removed."
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          4
+        ],
+        "path": "core-tensor/numpy-jax/contracts/numpy.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Full descriptor table/custom dtype/error-order source is missing from selected cache.",
+        "No universal associativity/preservation theorem or complete pairwise cast table admitted."
+      ]
+    },
+    {
+      "capability": "NUM-PROMOTE",
+      "case_ids": [
+        "core-numpy-numpy-can-cast::case:numpy:cast-predicate-not-exact-range-proof",
+        "core-numpy-numpy-can-cast::case:numpy:cast-reject-python-scalar-value"
+      ],
+      "clause_ids": [
+        "CT-PROMOTION",
+        "CT-CAST"
+      ],
+      "endpoints": [
+        "numpy.can_cast"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-numpy-numpy-can-cast",
+      "mapping_id": "core-numpy-numpy-can-cast",
+      "owner": "eunomia",
+      "reference_id": "numpy@2.5.4|autosummary-object|numpy.can_cast|57db2aaab444a3b9",
+      "semantics": {
+        "rules": [
+          "Casting=no/equiv/safe/same_kind/unsafe have their exact documented relation; no/equiv include byteorder distinction.",
+          "Python scalar VALUES no longer supported since2.0; dtype objects/types, NumPy scalars and arrays are separate legal classes.",
+          "0D NumPy arrays/scalars have no value-based safe-casting exception.",
+          "can_cast is a policy predicate; safe does not substitute an exact numeric-representability proof (documented i8->f8 True).",
+          "ndarray.astype supports same_value but can_cast does not list it; do not merge these enums."
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          5
+        ],
+        "path": "core-tensor/numpy-jax/contracts/numpy.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Complete casting relation and malformed dtype/casting ordering require exact native cast source and runtime tests."
+      ]
+    },
+    {
+      "capability": "ARR-TYPE",
+      "case_ids": [
+        "core-numpy-numpy-astype::case:numpy:astype-list-error-before-device",
+        "core-numpy-numpy-astype::case:numpy:astype-python-scalar-invalid-device-first",
+        "core-numpy-numpy-astype::case:numpy:astype-python-scalar-missing-method",
+        "core-numpy-numpy-astype::case:numpy:astype-copy-identity"
+      ],
+      "clause_ids": [
+        "CT-CAST"
+      ],
+      "endpoints": [
+        "numpy.astype"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-numpy-numpy-astype",
+      "mapping_id": "core-numpy-numpy-astype",
+      "owner": "leto",
+      "reference_id": "numpy@2.5.4|autosummary-object|numpy.astype|0ea0ed13acab6c2d",
+      "semantics": {
+        "rules": [
+          "Dispatch relevant operands are(x,dtype), then default guard accepts isinstance(x,ndarray) OR isscalar(x).",
+          "Default device is None, only explicit cpu is accepted; validate device before calling x.astype(dtype,copy=copy).",
+          "Default ndarray.astype path keeps orderK/subokTrue/unsafe casting. copy=False may return the original when layout/dtype/subclass requirements match; copy=True allocates. Same shape/type conversion and custom method effects are not a generic mathematical cast law.",
+          "No casting keyword on the selected function; ndarray.astype is an independent supporting identity with same_value semantics."
+        ],
+        "source_conflict": "N-ASTYPE-SCALAR: doc parameter x says ndarray and excludes array_likes, but executable guard includes isscalar; Python int/float pass isscalar then lack astype, so AttributeError follows device validation. NumPy scalars/custom scalar methods are different branches."
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          6
+        ],
+        "path": "core-tensor/numpy-jax/contracts/numpy.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Doc/implementation scalar conflict retained; not waived as reference bug.",
+        "Full native scalar/custom dtype casting kernels, errors and layout equivalence not reconstructed."
+      ]
+    },
+    {
+      "capability": "ARR-LAYOUT",
+      "case_ids": [
+        "core-numpy-numpy-reshape::case:numpy:reshape-C-enumeration",
+        "core-numpy-numpy-reshape::case:numpy:reshape-F-enumeration",
+        "core-numpy-numpy-reshape::case:numpy:reshape-positive-inference",
+        "core-numpy-numpy-reshape::case:numpy:reshape-zero-positive-inference",
+        "core-numpy-numpy-reshape::case:numpy:reshape-no-copy-strided"
+      ],
+      "clause_ids": [
+        "CT-RESHAPE",
+        "CT-AFFINE-VIEW"
+      ],
+      "endpoints": [
+        "numpy.reshape"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-numpy-numpy-reshape",
+      "mapping_id": "core-numpy-numpy-reshape",
+      "owner": "leto",
+      "reference_id": "numpy@2.5.4|autosummary-object|numpy.reshape|7fdbc3bccc7f5aeb",
+      "semantics": {
+        "rules": [
+          "C/F specify logical read then write index order, independent of input physical layout. A selects F only for Fortran contiguous input, otherwiseC.",
+          "copy=True copies; copy=None copies only if required; copy=False rejects when copy unavoidable. A returned array is a new view object when possible else copy; no guarantee final C/F memory layout.",
+          "_wrapfunc gets reshape attribute; None/missing uses _wrapit conversion; ANY TypeError from bound reshape invocation triggers _wrapit (including TypeError raised in method body). Other exceptions propagate.",
+          "ndarray.reshape(None) compatibility branch returns a view after order/copy parsing; this source case stays retained even though ordinary generic target law requires a shape."
+        ],
+        "shared_laws": [
+          "law:concrete-host-shape",
+          "law:reshape-values"
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          7
+        ],
+        "path": "core-tensor/numpy-jax/contracts/numpy.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Native shape.c is not cached: exact negative/-1/zero inference, size overflow, stride coalescing and copy-error order remain unresolved.",
+        "General custom/cyclic coercion, subtype behavior and arbitrary shape-object protocols require upstream contracts."
+      ]
+    },
+    {
+      "capability": "ARR-INDEX",
+      "case_ids": [
+        "core-numpy-numpy-ndarray---getitem--::case:numpy:basic-negative-stride-view",
+        "core-numpy-numpy-ndarray---getitem--::case:numpy:rank0-empty-tuple-vs-ellipsis"
+      ],
+      "clause_ids": [
+        "CT-INDEX",
+        "CT-AFFINE-VIEW"
+      ],
+      "endpoints": [
+        "numpy.ndarray.__getitem__"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-numpy-numpy-ndarray---getitem--",
+      "mapping_id": "core-numpy-numpy-ndarray---getitem--",
+      "owner": "leto",
+      "reference_id": "numpy@2.5.4|autosummary-object|numpy.ndarray.__getitem__|61b75e4bb9c51766",
+      "semantics": {
+        "result_scope": "dtype-specific scalar extraction versus array view; object/managed/custom scalar results remain open",
+        "rules": [
+          "For a valid basic key, integer/slice/None/ellipsis determines selected coordinates. Ordinary native numeric all-integer element selection extracts its dtype scalar; a basic array result is a view.",
+          "Object/managed/custom dtype element extraction has dtype-specific Python-object/scalar behavior: this packet supplies no universal NumPy-scalar return-type proof. Object payload identity and managed/custom scalar type/lifetime stay open.",
+          "rank0 x[()] performs dtype-specific element extraction; x[...] is always array view. Bare bool/0D bool/int-array subtleties are admitted separate nonclosed variants.",
+          "Native returned array view keeps owner alive; offset/strides must respect memory proof/lifetime; cannot infer shares_memory True for empty view just from base ownership."
+        ],
+        "shared_laws": [
+          "law:basic-index-map"
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          8
+        ],
+        "path": "core-tensor/numpy-jax/contracts/numpy.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Full native mapping/error ordering missing; analytical basic map does not close public get/set.",
+        "Advanced integer/bool indexing, fields, iteration side-effects, overlap buffering, object/managed scalar extraction and subclass assignment unresolved."
+      ]
+    },
+    {
+      "capability": "ARR-INDEX",
+      "case_ids": [
+        "core-numpy-numpy-ndarray---setitem--::case:numpy:basic-alias-mutation",
+        "core-numpy-numpy-ndarray---setitem--::case:numpy:readonly-basic-assignment"
+      ],
+      "clause_ids": [
+        "CT-INDEX",
+        "CT-EFFECTS"
+      ],
+      "endpoints": [
+        "numpy.ndarray.__setitem__"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-numpy-numpy-ndarray---setitem--",
+      "mapping_id": "core-numpy-numpy-ndarray---setitem--",
+      "owner": "leto",
+      "reference_id": "numpy@2.5.4|autosummary-object|numpy.ndarray.__setitem__|ce9f2649de6e4045",
+      "semantics": {
+        "result_scope": "assignment coordinate/effect contract only; no getter result or method return claim",
+        "rules": [
+          "For a valid basic key, the shared law identifies destination coordinates only; it does not describe a returned getter/scalar/view result.",
+          "Assignment mutates selected owner coordinates; rhs broadcast/cast policy remains separate. A selection conceptually corresponding to a getter view does not imply __setitem__ returns that view. Exact native method return/error details remain open because mapping.c is not cached.",
+          "Casting errors may leave partially updated destination; other errors such as OOB leave it unchanged, as documented.",
+          "Subclass default __setitem__ can invoke __getitem__ for basic indexing; custom mutation contracts are not native getter proof."
+        ],
+        "shared_laws": [
+          "law:basic-index-map"
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          9
+        ],
+        "path": "core-tensor/numpy-jax/contracts/numpy.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Full native mapping/error ordering missing; analytical basic map does not close public get/set.",
+        "Advanced integer/bool indexing, fields, iteration side-effects, overlap buffering, object/managed scalar extraction and subclass assignment unresolved."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-jax-jax-numpy-shape::case:jax:rank0-shape",
+        "core-jax-jax-numpy-shape::case:jax:zero-dimension-shape",
+        "core-jax-jax-numpy-shape::case:jax:metadata-opaque-object",
+        "core-jax-jax-numpy-shape::case:jax:metadata-two-property-accesses"
+      ],
+      "clause_ids": [
+        "CT-SHAPE"
+      ],
+      "endpoints": [
+        "jax.numpy.shape"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-jax-jax-numpy-shape",
+      "mapping_id": "core-jax-jax-numpy-shape",
+      "owner": "coeus",
+      "reference_id": "jax@0.12.0.1|autosummary-object|jax.numpy.shape|4a3d9e1e7ef7f7b6",
+      "semantics": {
+        "rules": [
+          "hasattr(a,metadata) then a.metadata: a successful property can be evaluated twice; the second access may return something else or raise.",
+          "If hasattr catches AttributeError, check_arraylike(...,emit_warning=True): Ref raises TypeError; other nonarraylike (including list/tuple) emits DeprecationWarning, then continues unless warning policy raises.",
+          "Next instance getattr(a,__jax_array__,None); if present not None, invoke with no arguments, then delegate to companion np.shape(a). A None value is absent here; a noncallable non-None value fails at invocation.",
+          "No JAX __array_function__ dispatch around this wrapper; fallback companion np.shape can perform its own dispatch and coercion. Native Array getter yields aval.shape or len(shape)."
+        ],
+        "shared_laws": [
+          "law:concrete-host-shape",
+          "law:discrete-metadata-AD"
+        ],
+        "source_conflict": "J-META-COLLECTION: public doc says TypeError for lists/tuples but source warning branch continues. Warnings-as-errors and Ref are distinct exceptions, not a universal collection error."
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          0
+        ],
+        "path": "core-tensor/numpy-jax/contracts/jax.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Symbolic/abstract shape metadata is admitted but not closed by concrete-host law.",
+        "Companion NumPy release and warning policy must be recorded for exact fallback outcomes; reference paired acceptance uses NumPy2.5.4.",
+        "Arbitrary protocol/attribute behavior is compositional, not verified runtime behavior."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-jax-jax-numpy-ndim::case:jax:rank0-rank",
+        "core-jax-jax-numpy-ndim::case:jax:empty-rank-not-cardinality",
+        "core-jax-jax-numpy-ndim::case:jax:collection-warns-and-delegates",
+        "core-jax-jax-numpy-ndim::case:jax:collection-warnings-as-errors"
+      ],
+      "clause_ids": [
+        "CT-SHAPE"
+      ],
+      "endpoints": [
+        "jax.numpy.ndim"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-jax-jax-numpy-ndim",
+      "mapping_id": "core-jax-jax-numpy-ndim",
+      "owner": "coeus",
+      "reference_id": "jax@0.12.0.1|autosummary-object|jax.numpy.ndim|abbd0eca6e0a9a8b",
+      "semantics": {
+        "rules": [
+          "hasattr(a,metadata) then a.metadata: a successful property can be evaluated twice; the second access may return something else or raise.",
+          "If hasattr catches AttributeError, check_arraylike(...,emit_warning=True): Ref raises TypeError; other nonarraylike (including list/tuple) emits DeprecationWarning, then continues unless warning policy raises.",
+          "Next instance getattr(a,__jax_array__,None); if present not None, invoke with no arguments, then delegate to companion np.ndim(a). A None value is absent here; a noncallable non-None value fails at invocation.",
+          "No JAX __array_function__ dispatch around this wrapper; fallback companion np.ndim can perform its own dispatch and coercion. Native Array getter yields aval.shape or len(shape)."
+        ],
+        "shared_laws": [
+          "law:concrete-host-shape",
+          "law:discrete-metadata-AD"
+        ],
+        "source_conflict": "J-META-COLLECTION: public doc says TypeError for lists/tuples but source warning branch continues. Warnings-as-errors and Ref are distinct exceptions, not a universal collection error."
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          1
+        ],
+        "path": "core-tensor/numpy-jax/contracts/jax.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Symbolic/abstract shape metadata is admitted but not closed by concrete-host law.",
+        "Companion NumPy release and warning policy must be recorded for exact fallback outcomes; reference paired acceptance uses NumPy2.5.4.",
+        "Arbitrary protocol/attribute behavior is compositional, not verified runtime behavior."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-jax-jax-numpy-broadcast-shapes::case:jax:broadcast-empty-inputs",
+        "core-jax-jax-numpy-broadcast-shapes::case:jax:broadcast-rank0-zero-unit",
+        "core-jax-jax-numpy-broadcast-shapes::case:jax:broadcast-zero-nonunit-invalid",
+        "core-jax-jax-numpy-broadcast-shapes::case:jax:broadcast-shape-negative-before-incompatibility",
+        "core-jax-jax-numpy-broadcast-shapes::case:jax:broadcast-validates-without-replacing-original-dim"
+      ],
+      "clause_ids": [
+        "CT-SHAPE",
+        "CT-BROADCAST"
+      ],
+      "endpoints": [
+        "jax.numpy.broadcast_shapes"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-jax-jax-numpy-broadcast-shapes",
+      "mapping_id": "core-jax-jax-numpy-broadcast-shapes",
+      "owner": "coeus",
+      "reference_id": "jax@0.12.0.1|autosummary-object|jax.numpy.broadcast_shapes|cb32756f8e1d6713",
+      "semantics": {
+        "rules": [
+          "No shapes ->(). Otherwise each shape with np.ndim(shape)==0 becomes(shape,), else tuple(shape), left-to-right; this uses companion NumPy metadata semantics, not the shared shape domain converter.",
+          "lax.broadcast_shapes tries cached implementation and catches ANY exception, then retries uncached. A custom shape effect may run twice; do not replace with error-kind filtering.",
+          "Uncached: _validate_shapes canonicalizes each shape with operator.index, accepts symbolic dimensions through is_dim, rejects negative static extents before compatibility; all shape validation completes before matching.",
+          "Validation uses a local canonicalized checked shape but does NOT replace original dimensions. The one-shape fast path returns fst unchanged, retaining original dimension objects/types (for example scalar True becomes tuple(True,)); multi-shape matching also operates on original dimensions.",
+          "Rank-promotion fast path uses definitely_equal_shape; singleton broadcast uses definitely_equal and same_referent. For concrete shapes, non1 extents match exactly, including zero.",
+          "Compatibility TypeError in _try_broadcast_shapes is translated to ValueError; conversion/negative static shape TypeError is outside that translation."
+        ],
+        "shared_laws": [
+          "law:concrete-host-shape",
+          "law:concrete-broadcast"
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          2
+        ],
+        "path": "core-tensor/numpy-jax/contracts/jax.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Full symbolic equality/constraints and dynamic traced dimensional values unresolved; exact positivity proof and symbolic exception lifecycle are not replaced by concrete law.",
+        "Companion NumPy metadata behavior and cache effects are upstream; no construction or broadcasting kernel coverage."
+      ]
+    },
+    {
+      "capability": "NUM-PROMOTE",
+      "case_ids": [
+        "core-jax-jax-numpy-result-type::case:jax:int32-float32-result",
+        "core-jax-jax-numpy-result-type::case:jax:result-explicit64-policy-error",
+        "core-jax-jax-numpy-result-type::case:jax:result-existing64-array-preserved",
+        "core-jax-jax-numpy-result-type::case:jax:strict-mixed-strong-invalid"
+      ],
+      "clause_ids": [
+        "CT-PROMOTION"
+      ],
+      "endpoints": [
+        "jax.numpy.result_type"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-jax-jax-numpy-result-type",
+      "mapping_id": "core-jax-jax-numpy-result-type",
+      "owner": "eunomia",
+      "reference_id": "jax@0.12.0.1|autosummary-object|jax.numpy.result_type|b416e786c1515d40",
+      "semantics": {
+        "contrasts": [
+          "NumPy int32+float32 promotesfloat64, JAX standard promotesfloat32.",
+          "NumPy Python scalar typeint is default strong dtype; JAX int type is weak in promote_types and result_type-derived weak handling."
+        ],
+        "rules": [
+          "Public wrapper delegates dtypes.result_type; no arguments ->ValueError before dtype conversion. None operand replaced with default_float_dtype.",
+          "dtypes.dtype distinguishes Python scalar values/types (canonicalized), explicit dtype strings/NumPy scalar types (explicit_x64 policy), and formed JAX Array types (preserve existing dtype regardless current x64 flag).",
+          "lattice_result_type preserves same-dtype strong/extended trivial case; all-weak nonstrict case computes strong lattice then returns weak. Other cases use weak/strong node LUB; no LUB ->TypePromotionError.",
+          "Final all-weak result selects default dtype of the resulting kind (bool exception); return dtype only in jnp wrapper.",
+          "x64False default does not universally truncate every64 dtype: explicit_x64 ALLOW and already formed JAX arrays preserve some64 types; WARN truncates explicit specs with warning, ERROR rejects."
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          3
+        ],
+        "path": "core-tensor/numpy-jax/contracts/jax.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Complete conditional ml_dtypes/extended/string/object/custom domain, companion version and platform defaults are not enumerated.",
+        "No result_type law closes arithmetic ufunc-specific promotion or value-overflow behavior."
+      ]
+    },
+    {
+      "capability": "NUM-PROMOTE",
+      "case_ids": [
+        "core-jax-jax-numpy-promote-types::case:jax:int32-float32-promote",
+        "core-jax-jax-numpy-promote-types::case:jax:promote-weak-builtins",
+        "core-jax-jax-numpy-promote-types::case:jax:promote-explicit64-bypasses-canonicalizer"
+      ],
+      "clause_ids": [
+        "CT-PROMOTION"
+      ],
+      "endpoints": [
+        "jax.numpy.promote_types"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-jax-jax-numpy-promote-types",
+      "mapping_id": "core-jax-jax-numpy-promote-types",
+      "owner": "eunomia",
+      "reference_id": "jax@0.12.0.1|autosummary-object|jax.numpy.promote_types|4a7b9d5fa1cf0e28",
+      "semantics": {
+        "rules": [
+          "Builtin scalar type objects int/float/complex are weak by IDENTITY, not dtype equality. All other arguments use companion np.dtype, a thenb.",
+          "Return np.dtype(LUB(config.numpy_dtype_promotion,config.enable_x64,a_node,b_node)). This path does NOT call dtype() or explicit_x64 canonicalizer.",
+          "Strong identical explicit float64 dtype arguments can returnfloat64 even when x64False; do not blindly copy result_type canonicalization.",
+          "x64 flag changes standard lattice u32->i64 edge to u32->i32 so non64 operands need not create64 result; strict lattice forbids many strong-type mixed paths."
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          4
+        ],
+        "path": "core-tensor/numpy-jax/contracts/jax.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Full companion dtype parsing and conditional lattice nodes, custom registration and extended paths remain source/runtime obligations."
+      ]
+    },
+    {
+      "capability": "NUM-PROMOTE",
+      "case_ids": [
+        "core-jax-jax-numpy-can-cast::case:jax:cast-predicate-not-exact-range-proof",
+        "core-jax-jax-numpy-can-cast::case:jax:cast-reject-python-scalar-value"
+      ],
+      "clause_ids": [
+        "CT-PROMOTION",
+        "CT-CAST"
+      ],
+      "endpoints": [
+        "jax.numpy.can_cast"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-jax-jax-numpy-can-cast",
+      "mapping_id": "core-jax-jax-numpy-can-cast",
+      "owner": "eunomia",
+      "reference_id": "jax@0.12.0.1|autosummary-object|jax.numpy.can_cast|8ac2c544eb160736",
+      "semantics": {
+        "binding_chain": [
+          "jax.numpy.can_cast -> lax_numpy.can_cast -> dtypes.can_cast -> companion numpy.can_cast"
+        ],
+        "rules": [
+          "This is a direct companion NumPy function binding, not JAX promotion-lattice safe_to_cast.",
+          "The exact NumPy companion release is part of the future reference environment. Paired target here specifies2.5.4, but no installed runtime is inspected.",
+          "Wrapper delegation is documentary provenance, not permission for an Atlas NumPy runtime dependency."
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          5
+        ],
+        "path": "core-tensor/numpy-jax/contracts/jax.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Environment companion version and native NumPy cast table missing/unexecuted; no independent JAX-wide cast predicate closure."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-jax-jax-numpy-astype::case:jax:astype-protocol-before-invalid-dtype",
+        "core-jax-jax-numpy-astype::case:jax:astype-complex-bool",
+        "core-jax-jax-numpy-astype::case:jax:grad-discrete-input-default-rejected",
+        "core-jax-jax-numpy-astype::case:jax:grad-discrete-input-allowed-float0",
+        "core-jax-jax-numpy-astype::case:jax:cast-integer-target-payload-tangent"
+      ],
+      "clause_ids": [
+        "CT-CAST",
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "jax.numpy.astype"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-jax-jax-numpy-astype",
+      "mapping_id": "core-jax-jax-numpy-astype",
+      "owner": "coeus",
+      "reference_id": "jax@0.12.0.1|autosummary-object|jax.numpy.astype|2b47bee24b9c4e9b",
+      "semantics": {
+        "rules": [
+          "ensure_arraylike validates/uses __jax_array__ and converts before dtype validation. Unlike NumPy function, numeric scalar arraylike is accepted. Lists/tuples rejected by check_arraylike default (not emit_warning).",
+          "dtype=None uses defaultfloat; else check_and_canonicalize_user_dtype including explicit64 warning/error/allow policy.",
+          "Complex->integral/real uses named deprecation system (warning versus accelerated error needs unavailable deprecations.py); complex->bool compares x!=0 before conversion to obtain correct semantics.",
+          "Canonicalize optional device/sharding then lax conversion. copy=True invokes _array_copy, defaultFalse may return existing logical value.",
+          "Public docs explicitly leave float-int/int-float cast details implementation dependent; no CPU-only numeric threshold can certify accelerator behavior.",
+          "Conversion JVP output tangentfloat0 when target tangent dtypefloat0; otherwise cast tangent. Transpose for discrete old dtype returns zero tangent; inexact old dtype casts cotangent back."
+        ],
+        "shared_laws": [
+          "law:discrete-metadata-AD"
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          6
+        ],
+        "path": "core-tensor/numpy-jax/contracts/jax.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Missing cached deprecations.py means complex->real warning/error lifecycle cannot be closed.",
+        "Backend cast implementation, exact fenv/overflow and sharding/tiling matrix remain open."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-jax-jax-numpy-reshape::case:jax:reshape-C-enumeration",
+        "core-jax-jax-numpy-reshape::case:jax:reshape-F-enumeration",
+        "core-jax-jax-numpy-reshape::case:jax:reshape-positive-inference",
+        "core-jax-jax-numpy-reshape::case:jax:reshape-zero-positive-inference",
+        "core-jax-jax-numpy-reshape::case:jax:reshape-numpy-delegation-retained",
+        "core-jax-jax-numpy-reshape::case:jax:reshape-native-same-shape-identity",
+        "core-jax-jax-numpy-reshape::case:jax:reshape-error-order-shape-before-order",
+        "core-jax-jax-numpy-reshape::case:jax:reshape-zero-product-inference",
+        "core-jax-jax-numpy-reshape::case:jax:reshape-dynamic-traced-target"
+      ],
+      "clause_ids": [
+        "CT-RESHAPE",
+        "CT-EFFECTS"
+      ],
+      "endpoints": [
+        "jax.numpy.reshape"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-jax-jax-numpy-reshape",
+      "mapping_id": "core-jax-jax-numpy-reshape",
+      "owner": "coeus",
+      "reference_id": "jax@0.12.0.1|autosummary-object|jax.numpy.reshape|7643d92c443fff88",
+      "semantics": {
+        "rules": [
+          "copy argument is ignored, without bool validation. Ensure arraylike a before shape/order validation.",
+          "When out_sharding isNone, try a.reshape(shape,order=order) and return result unchanged. ANY AttributeError from attribute access or method body falls through to asarray(a).reshape; other exceptions propagate. np.ndarray input therefore delegates to NumPy reshape and can return NumPy view, including orderA.",
+          "Native JAX method canonicalizes shape, recognizes exactint -1, rejects multiple unknowns TypeError, checks concrete products/divisibility, then symbolic cancellation/division. With other target product0, modulo in concrete -1 branch raises ZeroDivisionError before order validation.",
+          "Native JAX orderC/F supported; orderA NotImplementedError after newshape computation; unknown order ValueError. Different validation failures can mask invalid order.",
+          "Native values immutable and no mutable-stride alias guarantee. lax.reshape returns the operand itself for nonrank0 same shape/dimensions/sharding fast path, so doc copy language does not guarantee new Python identity.",
+          "Dtype preserved; fixed-shape payload JVP/VJP linear permutation. Explicit layout/sharding legal operations can reject despite equal element count."
+        ],
+        "shared_laws": [
+          "law:concrete-host-shape",
+          "law:reshape-values"
+        ],
+        "source_conflicts": [
+          "J-RESHAPE-DELEGATE: public copy/JAXArray description vs NumPy/custom method passthrough.",
+          "J-RESHAPE-IDENTITY: native same-shape fast path can preserve identity despite copy wording."
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          7
+        ],
+        "path": "core-tensor/numpy-jax/contracts/jax.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Symbolic cancellation/equality/constraint solver, arbitrary tracers, sharding/layout lowering not fully specified.",
+        "Native and NumPy delegate zero/-1 cases deliberately not equated."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-jax-jax-Array-at::case:jax:at-add-duplicates",
+        "core-jax-jax-Array-at::case:jax:at-set-duplicates-unspecified",
+        "core-jax-jax-Array-at::case:jax:at-default-oob-get-and-add",
+        "core-jax-jax-Array-at::case:jax:at-static-oob-check-enabled",
+        "core-jax-jax-Array-at::case:jax:at-no-wrap-negative-drop",
+        "core-jax-jax-Array-at::case:jax:at-empty-selection-skips-rhs-broadcast",
+        "core-jax-jax-Array-at::case:jax:at-fixed-gather-payload-vjp",
+        "core-jax-jax-Array-at::case:jax:at-unique-set-payload-grad",
+        "core-jax-jax-Array-at::case:jax:at-apply-ad-unsupported",
+        "core-jax-jax-Array-at::case:jax:at-bare-python-list-index-rejected"
+      ],
+      "clause_ids": [
+        "CT-INDEX",
+        "CT-EFFECTS",
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "jax.Array.at"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-jax-jax-Array-at",
+      "mapping_id": "core-jax-jax-Array-at",
+      "owner": "coeus",
+      "reference_id": "jax@0.12.0.1|autosummary-object|jax.Array.at|76d272f0016931ea",
+      "semantics": {
+        "rules": [
+          "A bare non-tuple Python sequence index is rejected TypeError before NDIndexer parsing; intended advanced integer indices must be actual JAX/NumPy integer arrays or explicit tuple forms. This is distinct from NumPy list indexing.",
+          "Array.__setitem__ rejects TypeError because immutable. at[idx] only stores index helper; get/set/add return logical values without modifying original. JIT may implement in-place internally without observable original mutation (lifetime/donation separate).",
+          "Default promise_in_bounds get clips and updates drop in practical/documented mode; negative wrapTrue by default, False treats negatives asOOB. clip/drop/fill modes remain separate. Default fill exact dtype defaults are documented (NaN, signedmin, unsignedmax, boolTrue).",
+          "jax_check_static_indices defaultFalse; ifTrue with promise/default gather mode, validate static integer bounds before strategy selection and raise IndexError. Do not assert default clipping under all configurations.",
+          "get strategy auto/static_slice/dynamic_slice/gather, enum conversion and static slice restrictions have distinct error/fallback behavior. Auto catches TypeError/ValueError/IndexError from each slice conversion then tries gather; this phase filtering is not a general error mask.",
+          "All duplicate .add updates contribute; floating order hardware dependent. .set conflicting winner unspecified. unique_indices/indices_are_sorted are promises about NORMALIZED indices; violating promises has undefined reference output, not an Atlas omission.",
+          "Updates convertx theny; Python int within integer x dtype range cast directly tox dtype. Index parsing/bool expansion precedes scatter impl safe_to_cast warning. Empty selection returnsx AFTER safe_to_cast and to_gather but BEFORE promotion/rhs broadcasting; invalid broadcasting can therefore be unobserved for empty selections.",
+          "Nonempty update promotesx/y perJAX rules, broadcasts y to slice_shape, squeezesnewaxis/reverses, scatters, then converts output back to originaldtype/weaktype. This is not ndarray in-place cast behavior.",
+          "Fixed gather JVP differentiates operand, no index tangent (registered None). scatteradd JVP/VJP retain operand/update gradients with indices primal. scatterset lower transpose requires unique_indices; actual JVP duplicate routing has separate winner-ID scheme. apply AD explicitly unsupported."
+        ],
+        "shared_laws": [
+          "law:basic-index-map",
+          "law:discrete-metadata-AD"
+        ]
+      },
+      "source_endpoint": {
+        "entry": [
+          "endpoints",
+          8
+        ],
+        "path": "core-tensor/numpy-jax/contracts/jax.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Other7 at methods remain admitted but no full workflow/AD definition; all advanced/mixed/bool/dynamic/symbolic indices remain open.",
+        "Full OOB checkify/error policy, static/dynamic strategy, explicit layouts/sharding and duplicate/higher AD matrices unresolved.",
+        "Array.__getitem__ supports these source workflows but has no admitted primary record in this snapshot; do not fabricate denominator admission."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-pytorch-torch-Tensor-dim::TORCH-RANK-SCALAR",
+        "core-pytorch-torch-Tensor-dim::TORCH-RANK-EMPTY"
+      ],
+      "clause_ids": [
+        "CT-SHAPE"
+      ],
+      "endpoints": [
+        "torch.Tensor.dim"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-pytorch-torch-Tensor-dim",
+      "mapping_id": "core-pytorch-torch-Tensor-dim",
+      "owner": "coeus",
+      "reference_id": "pytorch@2.14.1|py:method|torch.Tensor.dim|77cb95c283da6389",
+      "semantics": [
+        "Returns rank as a Python integer, not a differentiable tensor; rank-zero and empty-extent ranks are distinct from element count.",
+        "Native schema is a method with manual C++ binding and no device check/guard; this is source dispatch metadata, not device/runtime qualification."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          0
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "native dim manual binding and symbolic shape implementation",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-pytorch-torch-broadcast-shapes::BCAST-RANK0",
+        "core-pytorch-torch-broadcast-shapes::BCAST-ZERO-UNIT",
+        "core-pytorch-torch-broadcast-shapes::BCAST-ZERO-ZERO",
+        "core-pytorch-torch-broadcast-shapes::BCAST-POSITIVE",
+        "core-pytorch-torch-broadcast-shapes::BCAST-INCOMPATIBLE"
+      ],
+      "clause_ids": [
+        "CT-SHAPE",
+        "CT-BROADCAST"
+      ],
+      "endpoints": [
+        "torch.broadcast_shapes"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-pytorch-torch-broadcast-shapes",
+      "mapping_id": "core-pytorch-torch-broadcast-shapes",
+      "owner": "coeus",
+      "reference_id": "pytorch@2.14.1|py:function|torch.broadcast_shapes|77cb95c283da6389",
+      "semantics": [
+        "Ordinary wrapper delegates to torch._refs._broadcast_shapes; None result becomes empty torch.Size.",
+        "TorchScript tracing path explicitly creates a CPU rank-zero tensor under no_grad, expands it to supplied shapes and calls broadcast_tensors. This source path is not accelerator performance parity.",
+        "Pinned note says componentwise max; that prose conflicts with zero/one extent join. Preserve the discrepancy and missing cached _refs implementation."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          1
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "torch/_refs/__init__.py",
+        "aten/src/ATen/ExpandUtils.cpp",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-pytorch-torch-promote-types::TORCH-PROMOTE-PAIR",
+        "core-pytorch-torch-promote-types::TORCH-PROMOTE-UINT"
+      ],
+      "clause_ids": [
+        "CT-PROMOTION"
+      ],
+      "endpoints": [
+        "torch.promote_types"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-pytorch-torch-promote-types",
+      "mapping_id": "core-pytorch-torch-promote-types",
+      "owner": "coeus",
+      "reference_id": "pytorch@2.14.1|py:function|torch.promote_types|77cb95c283da6389",
+      "semantics": [
+        "Dtype-pair query is distinct from tensor/scalar/rank-zero arithmetic promotion priority. Exact documented pair int32,float32 yields float32, not a universal max-precision rule.",
+        "Arithmetic promotion note distinguishes Python scalars, rank-zero tensors and dimensioned tensors, category order and default scalar dtype; values are not inspected.",
+        "Pinned note says complex not supported while showing complex promotion examples; preserve this source discrepancy. Shell-dtype promotion is documented undefined; do not invent a complete table."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          2
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "c10/core/ScalarType.cpp",
+        "torch/_prims_common/__init__.py",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-pytorch-torch-can-cast::TORCH-CAST-PERMISSION"
+      ],
+      "clause_ids": [
+        "CT-PROMOTION",
+        "CT-CAST"
+      ],
+      "endpoints": [
+        "torch.can_cast"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-pytorch-torch-can-cast",
+      "mapping_id": "core-pytorch-torch-can-cast",
+      "owner": "coeus",
+      "reference_id": "pytorch@2.14.1|py:function|torch.can_cast|77cb95c283da6389",
+      "semantics": [
+        "This is PyTorch category casting permission, not a proof that every value is exactly representable. Documented double->float is True, float->int is False.",
+        "Output casting notes reject floating->integral, nonboolean->boolean and complex->noncomplex; this policy is distinct from explicit Tensor.to casts."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          3
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "c10/core/ScalarType.cpp",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-pytorch-torch-Tensor-to::TORCH-TO-NOOP",
+        "core-pytorch-torch-Tensor-to::TORCH-TO-FORCED-COPY",
+        "core-pytorch-torch-Tensor-to::TORCH-TO-INCOMPATIBLE-FORMAT",
+        "core-pytorch-torch-Tensor-to::TORCH-TO-INTEGER"
+      ],
+      "clause_ids": [
+        "CT-CAST",
+        "CT-EFFECTS"
+      ],
+      "endpoints": [
+        "torch.Tensor.to"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-pytorch-torch-Tensor-to",
+      "mapping_id": "core-pytorch-torch-Tensor-to",
+      "owner": "coeus",
+      "reference_id": "pytorch@2.14.1|py:method|torch.Tensor.to|77cb95c283da6389",
+      "semantics": [
+        "Native self-return requires unspecified-or-matching dtype, layout and device, copy=False, and memory_format=Preserve or self.suggest_memory_format()==requested memory_format. Matching dtype/device alone is insufficient. Otherwise to_impl calls _to_copy; copy=True also prevents self-return.",
+        "Integer target clears requires_grad; float->integer truncates toward zero, with unrepresentable/Inf results documented undefined/platform dependent.",
+        "Device/non_blocking/memory_format are semantic axes; nonblocking is an attempted transfer behavior with explicit stream synchronization requirements, not evidence of completion.",
+        "AD _to_copy output differentiability requires a differentiable target dtype; no whole conversion/complex-gradient closure follows."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          4
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Python/C++ argument binding and complete lower conversion-kernel/device/quantized validation closure",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-pytorch-torch-reshape::TORCH-RESHAPE-VALUES",
+        "core-pytorch-torch-reshape::TORCH-RESHAPE-EMPTY-INFER",
+        "core-pytorch-torch-reshape::TORCH-RESHAPE-AMBIGUOUS"
+      ],
+      "clause_ids": [
+        "CT-RESHAPE",
+        "CT-EFFECTS"
+      ],
+      "endpoints": [
+        "torch.reshape"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-pytorch-torch-reshape",
+      "mapping_id": "core-pytorch-torch-reshape",
+      "owner": "coeus",
+      "reference_id": "pytorch@2.14.1|py:function|torch.reshape|77cb95c283da6389",
+      "semantics": [
+        "Preserves element count/order and permits one inferred -1 extent. Aliasing may be a view or a copy; callers cannot assume either unconditionally.",
+        "Schema uses SymInt[] and dispatches nested and ordinary reshape separately. Concrete, symbolic and nested domains cannot be collapsed by spelling.",
+        "Zero-element reshape with a nonzero known product can infer zero; a zero known product with -1 is mathematically ambiguous and requires native-reference error/behavior evidence."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          5
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "aten/src/ATen/native/TensorShape.cpp",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-pytorch-torch-Tensor-view::TORCH-VIEW-ALIAS",
+        "core-pytorch-torch-Tensor-view::TORCH-VIEW-STRIDE-REJECT",
+        "core-pytorch-torch-Tensor-view::TORCH-VIEW-DTYPE",
+        "core-pytorch-torch-Tensor-view::TORCH-VIEW-FLOATING-AD-BOUNDARY"
+      ],
+      "clause_ids": [
+        "CT-RESHAPE",
+        "CT-AFFINE-VIEW",
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "torch.Tensor.view"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-pytorch-torch-Tensor-view",
+      "mapping_id": "core-pytorch-torch-Tensor-view",
+      "owner": "coeus",
+      "reference_id": "pytorch@2.14.1|py:method|torch.Tensor.view|77cb95c283da6389",
+      "semantics": [
+        "Shape view shares underlying storage. Adjacent collapsed dimensions must satisfy stride[i]=stride[i+1]*size[i+1]; a copy fallback belongs to reshape/contiguous, not an unconditional view success.",
+        "Dtype view reinterprets bytes rather than numerically casting: rank>0, final stride=1, and widening byte ratio requires final size, storage offset and preceding strides divisibility.",
+        "Shape-view AD reshapes cotangent; dtype-view output is explicitly non-differentiable in derivatives.yaml. TorchScript dtype overload is documented unsupported/undefined, not a qualified variant."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          6
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "aten/src/ATen/native/TensorShape.cpp",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-pytorch-torch-index-select::TORCH-INDEX-REPEAT"
+      ],
+      "clause_ids": [
+        "CT-INDEX",
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "torch.index_select"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-pytorch-torch-index-select",
+      "mapping_id": "core-pytorch-torch-index-select",
+      "owner": "coeus",
+      "reference_id": "pytorch@2.14.1|py:function|torch.index_select|77cb95c283da6389",
+      "semantics": [
+        "Documented index is one-dimensional int32/int64, output replaces selected axis extent by index length, and output does not share input storage.",
+        "out tensor may be resized/reallocated if its shape differs; this rebinding/resizing axis differs from source-storage aliasing.",
+        "AD registers index_select_backward_symint for values and non_differentiable index. Repeated selections accumulate cotangents; exact native backend/error ordering remains unclosed."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          7
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "aten/src/ATen/native/TensorAdvancedIndexing.cpp",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-pytorch-torch-Tensor-index-put-::TORCH-PUT-ACCUMULATE",
+        "core-pytorch-torch-Tensor-index-put-::TORCH-PUT-DUPLICATE-REPLACE"
+      ],
+      "clause_ids": [
+        "CT-INDEX",
+        "CT-EFFECTS",
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "torch.Tensor.index_put_"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-pytorch-torch-Tensor-index-put-",
+      "mapping_id": "core-pytorch-torch-Tensor-index-put-",
+      "owner": "coeus",
+      "reference_id": "pytorch@2.14.1|py:method|torch.Tensor.index_put_|77cb95c283da6389",
+      "semantics": [
+        "Mutates self and returns self; values have same dtype. accumulate=True adds updates; duplicate indices with accumulate=False are documented undefined, not silently treated as deterministic last-write.",
+        "Basic indexing returns views, advanced indexing returns copies, but assignment through either is in-place; indexing-read and indexing-write obligations are distinct.",
+        "Schema has Tensor(a!) mutation alias. Related index_put derivative registers replacement/additive self rule and gathered update gradients; this does not settle leaf/view in-place legality or undefined duplicate gradients."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          8
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "aten/src/ATen/native/TensorAdvancedIndexing.cpp",
+        "torch/csrc/autograd/VariableTypeUtils.h",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "AD-REVERSE",
+      "case_ids": [
+        "core-pytorch-torch-autograd-grad::TORCH-GRAD-SCALAR",
+        "core-pytorch-torch-autograd-grad::TORCH-GRAD-UNUSED"
+      ],
+      "clause_ids": [
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "torch.autograd.grad"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-pytorch-torch-autograd-grad",
+      "mapping_id": "core-pytorch-torch-autograd-grad",
+      "owner": "coeus",
+      "reference_id": "pytorch@2.14.1|py:function|torch.autograd.grad|77cb95c283da6389",
+      "semantics": [
+        "Returns VJPs without accumulating into input .grad; dict inputs produce matching dict keys in this pinned source.",
+        "materialize_grads=True with allow_unused=False raises first; then default allow_unused follows materialize_grads, input/output normalization, empty-input rejection, override handling and grad-output checks precede engine call.",
+        "Unused input policy distinguishes error, None and materialized zero. create_graph controls higher-order graph construction; is_grads_batched is a distinct experimental vmap path.",
+        "Ordinary integral/shape/index values are not infinitesimal floating/complex tensor inputs; metadata ints are not autograd outputs. Native engine and extension cases remain separate."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          9
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "torch/csrc/autograd/VariableTypeUtils.h",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-tensorflow-tf-rank::TF-RANK-SCALAR",
+        "core-tensorflow-tf-rank::TF-TAPE-METADATA"
+      ],
+      "clause_ids": [
+        "CT-SHAPE"
+      ],
+      "endpoints": [
+        "tf.rank"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-tensorflow-tf-rank",
+      "mapping_id": "core-tensorflow-tf-rank",
+      "owner": "coeus",
+      "reference_id": "tensorflow@2.21.0|function|tf.rank|a128953132f05570",
+      "semantics": [
+        "Converts dense input, reads static TensorShape rank, returns int32 constant if rank is known; otherwise delegates Rank. Rank of scalar is0 even when shape has no elements.",
+        "Sparse path computes size of dense_shape separately. Rank is explicitly NotDifferentiable; do not invent a zero-valued gradient for metadata."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          10
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "tensorflow/python/ops/gen_array_ops.py",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-tensorflow-tf-shape::TF-SHAPE-EMPTY",
+        "core-tensorflow-tf-shape::TF-SHAPE-CONFIG",
+        "core-tensorflow-tf-shape::TF-TAPE-METADATA"
+      ],
+      "clause_ids": [
+        "CT-SHAPE"
+      ],
+      "endpoints": [
+        "tf.shape"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-tensorflow-tf-shape",
+      "mapping_id": "core-tensorflow-tf-shape",
+      "owner": "coeus",
+      "reference_id": "tensorflow@2.21.0|function|tf.shape|a128953132f05570",
+      "semantics": [
+        "out_type=None chooses int64 when tf_shape_default_int64 flag is set, otherwise int32; no unconditional int32-default law is valid for every configuration.",
+        "Graph-mode fully defined static shape may become a constant; dynamic/eager path delegates Shape. Known rank with unknown extent is different from unknown rank.",
+        "Sparse shape comes from dense_shape cast; Shape/ShapeN/Rank/Size are explicitly nondifferentiable metadata."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          11
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "tensorflow/python/ops/gen_array_ops.py",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-tensorflow-tf-broadcast-dynamic-shape::BCAST-RANK0",
+        "core-tensorflow-tf-broadcast-dynamic-shape::BCAST-ZERO-UNIT",
+        "core-tensorflow-tf-broadcast-dynamic-shape::BCAST-ZERO-ZERO",
+        "core-tensorflow-tf-broadcast-dynamic-shape::BCAST-POSITIVE",
+        "core-tensorflow-tf-broadcast-dynamic-shape::BCAST-INCOMPATIBLE"
+      ],
+      "clause_ids": [
+        "CT-SHAPE",
+        "CT-BROADCAST"
+      ],
+      "endpoints": [
+        "tf.broadcast_dynamic_shape"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-tensorflow-tf-broadcast-dynamic-shape",
+      "mapping_id": "core-tensorflow-tf-broadcast-dynamic-shape",
+      "owner": "coeus",
+      "reference_id": "tensorflow@2.21.0|function|tf.broadcast_dynamic_shape|a128953132f05570",
+      "semantics": [
+        "Dynamic public wrapper delegates BroadcastArgs on integer shape tensors; dtype/rank/native negative-extent validation order is not present in cached generated/kernel sources.",
+        "Related static helper right-aligns and selects the other dimension when one is1, so0 joined with1 is0. It is not componentwise max.",
+        "Static unknown extents may adopt a known extent>1 as an assumption and leave other cases unknown; unknown rank returns unknown TensorShape. This does not prove dynamic compatibility."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          12
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "tensorflow/python/ops/gen_array_ops.py",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-tensorflow-tf-cast::TF-CAST-NOOP",
+        "core-tensorflow-tf-cast::TF-CAST-COMPLEX",
+        "core-tensorflow-tf-cast::TF-CAST-PYTHON-FLOAT"
+      ],
+      "clause_ids": [
+        "CT-CAST",
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "tf.cast"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-tensorflow-tf-cast",
+      "mapping_id": "core-tensorflow-tf-cast",
+      "owner": "coeus",
+      "reference_id": "tensorflow@2.21.0|function|tf.cast|a128953132f05570",
+      "semantics": [
+        "First resolves target base dtype. Matching Tensor or ResourceVariable dtype returns x itself before entering Cast name scope; this is a real no-op alias/resource-object distinction.",
+        "SparseTensor and IndexedSlices cast values and rewrap metadata; dense/Python input converts to tensor before dtype conversion. Python floating input may first become float32 before requested float64 cast.",
+        "Complex->real drops imaginary part and warns. Cast gradient casts back only for the explicit registered float16/float32/float64/bfloat16/complex64/complex128 list; otherwise returns None. Ordinary integer cast is not a differentiable shape/data approximation."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          13
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "native Cast kernel/complete dtype/device conversion table not cached",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-tensorflow-tf-add::TF-ADD-BROADCAST-AD",
+        "core-tensorflow-tf-add::TF-ADD-EMPTY-AD",
+        "core-tensorflow-tf-add::TF-ADD-DTYPE-MISMATCH"
+      ],
+      "clause_ids": [
+        "CT-PROMOTION",
+        "CT-BROADCAST",
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "tf.add"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-tensorflow-tf-add",
+      "mapping_id": "core-tensorflow-tf-add",
+      "owner": "coeus",
+      "reference_id": "tensorflow@2.21.0|function|tf.add|a128953132f05570",
+      "semantics": [
+        "Normal source path converts x first, then y using x base dtype as hint. String x uses Add, otherwise AddV2. Same-T kernel contract is not a universal NumPy/PyTorch promotion rule.",
+        "Broadcasted value gradients reduce cotangents to operand shapes via _AddGrad. Rank-zero/scalar conversion, weak/experimental promotion modes and explicit dtype mismatches are distinct obligations.",
+        "No explicit cast or silent CPU fallback can be counted as native dtype/device parity."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          14
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "native Add/AddV2 kernel and weak-tensor wrapper closure",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-CORE",
+      "case_ids": [
+        "core-tensorflow-tf-reshape::TF-RESHAPE-VALUES-AD"
+      ],
+      "clause_ids": [
+        "CT-RESHAPE"
+      ],
+      "endpoints": [
+        "tf.reshape"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-tensorflow-tf-reshape",
+      "mapping_id": "core-tensorflow-tf-reshape",
+      "owner": "coeus",
+      "reference_id": "tensorflow@2.21.0|function|tf.reshape|a128953132f05570",
+      "semantics": [
+        "Wrapper calls reshape op, then maybe_set_static_shape. Element order/count and one inferred dimension are public constraints; no physical always-copy or object-alias promise is inferred.",
+        "Tensor is a functional value even when physical buffers are reused. Resource assign is a separate mutation/handle workflow.",
+        "Reshape gradient returns reshaped value gradient and None for shape. For one unknown input dimension, optimization uses -1 only if no known zero dimension; otherwise uses runtime shape."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          15
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "tensorflow/core/kernels/reshape_op.h",
+        "tensorflow/python/ops/gen_array_ops.py",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-tensorflow-tf-gather::TF-GATHER-REPEAT"
+      ],
+      "clause_ids": [
+        "CT-INDEX",
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "tf.gather"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-tensorflow-tf-gather",
+      "mapping_id": "core-tensorflow-tf-gather",
+      "owner": "coeus",
+      "reference_id": "tensorflow@2.21.0|function|tf.gather|a128953132f05570",
+      "semantics": [
+        "v2 forwards to gather; validate_indices is discarded, axis defaults to batch_dims. Nonzero/not-statically-zero axis calls GatherV2; axis0 tries resource sparse_read and falls back after AttributeError.",
+        "Axis0 value gradient is IndexedSlices with potentially repeated indices; dense cotangent semantics accumulate repeats but sparse representation is not silently replaced by a dense tensor.",
+        "indices and axis gradients return None. Negative batch_dims with unknown indices rank raises in the registered gradient before later reshaping."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          16
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "tensorflow/core/kernels/gather_op.cc",
+        "tensorflow/python/ops/gen_array_ops.py",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-OPS",
+      "case_ids": [
+        "core-tensorflow-tf-tensor-scatter-nd-update::TF-SCATTER-UNIQUE-AD",
+        "core-tensorflow-tf-tensor-scatter-nd-update::TF-SCATTER-GPU-DUPLICATE"
+      ],
+      "clause_ids": [
+        "CT-INDEX",
+        "CT-EFFECTS",
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "tf.tensor_scatter_nd_update"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-tensorflow-tf-tensor-scatter-nd-update",
+      "mapping_id": "core-tensorflow-tf-tensor-scatter-nd-update",
+      "owner": "coeus",
+      "reference_id": "tensorflow@2.21.0|function|tf.tensor_scatter_nd_update|a128953132f05570",
+      "semantics": [
+        "Creates a functional tensor value, not Tensor in-place assignment; may reuse buffer or copy. Shape constraint: indices rank>=2, index_depth<=tensor rank, updates.shape=indices.shape[:-1]+tensor.shape[index_depth:].",
+        "Pinned docs distinguish CPU out-of-bounds error from GPU ignored out-of-bounds and nondeterministic duplicate-update order. Do not impose deterministic last-write or one device-independent error law.",
+        "Registered update gradient gathers update cotangents and zeros replaced base positions; integer indices return None. Duplicate replacement is not a generally differentiable mathematical map and needs its own explicit source/runtime policy."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          17
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "tensorflow/core/kernels/scatter_nd_op.cc",
+        "tensorflow/python/ops/gen_array_ops.py",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "TEN-RESOURCE",
+      "case_ids": [
+        "core-tensorflow-tf-Variable-assign::TF-ASSIGN-SHAPE",
+        "core-tensorflow-tf-Variable-assign::TF-ASSIGN-READ-POLICY"
+      ],
+      "clause_ids": [
+        "CT-EFFECTS",
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "tf.Variable.assign"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-tensorflow-tf-Variable-assign",
+      "mapping_id": "core-tensorflow-tf-Variable-assign",
+      "owner": "coeus",
+      "reference_id": "tensorflow@2.21.0|method|tf.Variable.assign|1f3f0badb2021981",
+      "semantics": [
+        "Selected resource implementation converts value to variable dtype before static shape compatibility check, then emits assign_variable_op and optionally dependency-linked lazy read.",
+        "Mutates the resource handle state; no ordinary Tensor reshape/cast copy law substitutes for it. read_value=True returns a read-dependent value, false returns the assign operation result whose eager/graph form differs.",
+        "Abstract public signature and selected resource implementation have different use_locking defaults; retain both. Legacy/ref/distributed/Keras variables and tape-through-mutation are not closed by this resource path."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          18
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "resource AssignVariableOp kernel/factory dispatch/AD effects not closed",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    },
+    {
+      "capability": "AD-REVERSE",
+      "case_ids": [
+        "core-tensorflow-tf-GradientTape-gradient::TF-TAPE-SCALAR",
+        "core-tensorflow-tf-GradientTape-gradient::TF-TAPE-METADATA"
+      ],
+      "clause_ids": [
+        "CT-AD-BOUNDARY"
+      ],
+      "endpoints": [
+        "tf.GradientTape.gradient"
+      ],
+      "existing_mapping_reused_without_promotion": false,
+      "id": "core-tensorflow-tf-GradientTape-gradient",
+      "mapping_id": "core-tensorflow-tf-GradientTape-gradient",
+      "owner": "coeus",
+      "reference_id": "tensorflow@2.21.0|method|tf.GradientTape.gradient|2854e601f8384181",
+      "semantics": [
+        "Consumed nonpersistent tape error is checked before target=None error. Recording-state handling precedes target flatten/normalization and target trainability logging; only then are sources flattened/normalized and source trainability/packed-source checks performed, before imperative gradient invocation.",
+        "Unconnected NONE versus ZERO and persistent/higher-order execution are separate policies. Shape/rank/index integer metadata has no ordinary value gradient; do not materialize zero unless requested by policy.",
+        "IsTrainable includes real/complex, resource and variant, plus optional quantized types under a feature flag. Predicate membership does not prove an operator has a gradient; do not blanket exclude these variants."
+      ],
+      "source_endpoint": {
+        "entry": [
+          "records",
+          19
+        ],
+        "path": "core-tensor/torch-tf/contracts.json"
+      },
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "native imperative gradient engine and composite/resource/variant AD closure",
+        "Sparse/nested/ragged/resource/device variants remain required obligations, not exclusions.",
+        "Full source/runtime dispatch, validation error class/order and dtype/layout/AD Cartesian domain remain incomplete."
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "whole_api_semantic_closure": false
+}

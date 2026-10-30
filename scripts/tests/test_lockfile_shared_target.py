@@ -20,6 +20,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from readonly_tree import clear_readonly_tree
+
 SCRIPT = Path(__file__).resolve().parent.parent / "lockfile.py"
 SPEC = importlib.util.spec_from_file_location("atlas_lockfile_target", SCRIPT)
 lockfile = importlib.util.module_from_spec(SPEC)
@@ -31,8 +33,10 @@ SPEC.loader.exec_module(lockfile)
 class SharedTargetDirTestCase(unittest.TestCase):
     def stack(self, config_body: str | None) -> tuple[Path, Path]:
         """A stack root with an optional `.cargo/config.toml`, and a member manifest."""
-        root = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: None)
+        root = Path(tempfile.mkdtemp(prefix="atlas-shared-target-"))
+        # The fixture owns its tree: the no-op cleanup left one directory
+        # under the OS temp directory per call (ATLAS-TEST-TEMPDIR-LEAKS).
+        self.addCleanup(clear_readonly_tree, root)
         member = root / "repos" / "member"
         member.mkdir(parents=True)
         (member / "Cargo.toml").write_text("[package]\nname = \"m\"\n", encoding="utf-8")
@@ -82,7 +86,7 @@ class SharedTargetDirTestCase(unittest.TestCase):
         completed = subprocess.CompletedProcess(["cargo"], 0, stdout="", stderr="")
         with (
             patch.dict(os.environ, {}, clear=True),
-            patch.object(lockfile.subprocess, "run", return_value=completed) as cargo_run,
+            patch.object(lockfile, "run_bounded", return_value=completed) as cargo_run,
         ):
             result = lockfile.run_outside_the_overlay(
                 ["clippy", "--locked", "-p", "m", "--all-targets", "--", "-D", "warnings"],

@@ -1,0 +1,193 @@
+{
+  "schema_version": 1,
+  "framework": "pytorch",
+  "version": "2.14.1",
+  "revision": "5c4886908584029761b579af026dcfb627c84070",
+  "symbol": "torch.Tensor.new_tensor",
+  "source_contract_status": "partial_whole_api; builtin_parser_boundary_resolved",
+  "runtime_verification": "not_run",
+  "public_api_mapping_complete": false,
+  "builtin_signature": {
+    "signature": "new_tensor(PyObject* data, *, ScalarType dtype=None, Device? device=None, bool requires_grad=False)",
+    "accepted_parameter_names": [
+      "data",
+      "dtype",
+      "device",
+      "requires_grad"
+    ],
+    "rejected_builtin_keywords": [
+      "layout",
+      "pin_memory",
+      "out",
+      "non_blocking",
+      "copy"
+    ],
+    "builtin_route": "manual parser after self __torch_function__ interception",
+    "universal_copy_proven": false,
+    "universal_strided_proven": false,
+    "protocol_branch_order": [
+      "THPVariable_Check(data)",
+      "PyObject_HasAttrString(data, \"__cuda_array_interface__\")",
+      "PyArray_Check(data)",
+      "PyObject_HasAttrString(data, \"__dlpack__\")",
+      "compute_sizes(data, scalar_type)",
+      "if (isStorage(data))"
+    ],
+    "source_assertion_groups_passed": 15
+  },
+  "defaults": {
+    "dtype": "Omitted/None uses receiver scalar_type; no inference from data and no global default-dtype substitution. Explicit torch.dtype or Python float/int/bool/complex types accepted by parser; Python aliases map Double/Long/Bool/ComplexDouble.",
+    "device": "Omitted/None resolves receiver legacy dispatch device type inside OptionalDeviceGuard(device_of(self)); guard preserves indexed receiver device. Explicit torch.device/string or nonnegative integer accelerator index overrides; symbolic integer device forms guard/specialize. Backend admission/device initialization remains separate.",
+    "requires_grad": "DefaultFalse; parser bool parameter, then result.detach_() and set_requires_grad. True requires isDifferentiableType(dtype). Tensor data emits UserWarning before construction; warning-as-error can abort.",
+    "layout_and_pinning": "No built-in keyword parameters. Tensor route preserves input layout through .to; sequence/storage/array routes have their own layout/storage behavior. No API control of pinned allocation is forwarded."
+  },
+  "input_protocols": [
+    {
+      "kind": "Tensor",
+      "route": "detach when copy_variables=True; .to(target device,target dtype,non_blocking=False,copy=True); final detach_ and requires_grad",
+      "alias": "fresh copied Tensor storage where .to is admitted; input layout kind preserved; exact stride preservation depends non-overlapping/dense and _to_copy policy",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L279"
+    },
+    {
+      "kind": "CUDA array interface",
+      "route": "USE_NUMPY-guarded, before ndarray/DLPack; validate dict/shape/typestr/data/strides then .to(copy=True)",
+      "alias": "copy requested; stream/read-only/version behavior must follow CAI consumer source, not ndarray or DLPack assumptions",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_numpy.cpp#L30"
+    },
+    {
+      "kind": "NumPy ndarray",
+      "route": "USE_NUMPY + is_numpy_available; validate mapped dtype/native-endian/nonnegative element-compatible strides; .to(copy=True); warning for nonwritable suppressed when copying",
+      "alias": "copy requested, including nonwritable arrays; negative strides and nonnative byte order reject before copying",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_numpy.cpp#L14"
+    },
+    {
+      "kind": "DLPack object",
+      "route": "Object must expose __dlpack__; torch.utils.dlpack.from_dlpack(data), then .to(copy=True); from_dlpack negotiates version/device/stream protocol",
+      "alias": "new_tensor copy requested after initial DLPack consumption; raw capsule has no dedicated new_tensor branch",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L346"
+    },
+    {
+      "kind": "Storage",
+      "route": "typed/untyped Storage admitted by isStorage; type check, allocate empty then tensor.set_(storage); later .to(copy=False) can return self on matching metadata",
+      "alias": "universal copying is not established; same-device/dtype alias path survives. Exact admitted behavior needs explicit source-supported acceptance case and reference oracle before semantic closure.",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L407"
+    },
+    {
+      "kind": "Scalar/rectangular sequence",
+      "route": "compute_sizes, max128 rank, nonempty recursive_store in receiver/explicit dtype with type_inference=False; CPU construction/lift/device transfer as source defines; meta branch skips materialization",
+      "alias": "new allocation for ordinary values; ragged shapes, unsupported scalar objects and representability errors propagate",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L365"
+    },
+    {
+      "kind": "Overridden receiver or TorchFunction mode",
+      "route": "handle_torch_function receives original args/kwargs before manual parser",
+      "alias": "extension-defined behavior; unsupported built-in keywords can be handled by an override, so builtin rejection must be scoped",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/tools/autograd/templates/python_variable_methods.cpp#L953"
+    }
+  ],
+  "scalar_storage_dispatch_types": [
+    "kByte",
+    "kUInt16",
+    "kUInt32",
+    "kUInt64",
+    "kChar",
+    "kShort",
+    "kInt",
+    "kLong",
+    "kHalf",
+    "kFloat",
+    "kDouble",
+    "kComplexHalf",
+    "kBComplex32",
+    "kComplexFloat",
+    "kComplexDouble",
+    "kBool",
+    "kBFloat16",
+    "kFloat8_e5m2",
+    "kFloat8_e5m2fnuz",
+    "kFloat8_e4m3fn",
+    "kFloat8_e4m3fnuz",
+    "kFloat8_e8m0fnu"
+  ],
+  "contradictions": [
+    {
+      "id": "TORCH-NEW-TENSOR-KWARGS",
+      "documented": "layout and pin_memory are listed in exact docstring/published minor docs",
+      "builtin_source": "manual parser has neither keyword and rejects extras",
+      "resolution": "Builtin accepted signature resolved; preserve published documented capability as distinct reference discrepancy, not a silently excluded parameter.",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/_tensor_docs.py#L40",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L1510"
+      ]
+    },
+    {
+      "id": "TORCH-NEW-TENSOR-COPY",
+      "documented": "new_tensor always copies data",
+      "builtin_source": "Storage route set_(storage), then matching .to(copy=False) alias fast path; no clone inserted",
+      "resolution": "Do not assert universal copy. Keep Storage alias counterexample as source-derived obligation pending admitted-case/oracle confirmation.",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/torch/csrc/utils/tensor_new.cpp#L407",
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/TensorConversions.cpp#L409"
+      ]
+    },
+    {
+      "id": "TORCH-NEW-TENSOR-LAYOUT",
+      "documented": "default layout strided",
+      "builtin_source": "Tensor input .to preserves its layout; _to_copy rejects layout conversion and merges input options",
+      "resolution": "Do not claim all inputs become strided. Keep sparse/quantized/nested and stride classes separate.",
+      "sources": [
+        "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/TensorConversions.cpp#L232"
+      ]
+    }
+  ],
+  "legacy_separation": {
+    "torch_tensor": "copies/detaches Tensor data; dtype inferred from data when unspecified",
+    "torch_Tensor": "legacy Tensor(Tensor) alias/AD and default-floating sequence behavior",
+    "new_tensor": "receiver dtype/device defaults; Tensor route copy/detach, Storage concern separate; no type inference"
+  },
+  "source_test_definitions": [
+    {
+      "name": "test_tensor_factory_copy_var",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/test/test_tensor_creation_ops.py#L2269",
+      "decorators": [
+        "suppress_warnings",
+        "onlyCPU"
+      ],
+      "execution": "not_run",
+      "credit": "source definition only; decorators/conditional hardware clauses receive no execution credit"
+    },
+    {
+      "name": "test_new_tensor",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/test/test_tensor_creation_ops.py#L2327",
+      "decorators": [
+        "suppress_warnings",
+        "onlyCPU"
+      ],
+      "execution": "not_run",
+      "credit": "source definition only; decorators/conditional hardware clauses receive no execution credit"
+    },
+    {
+      "name": "test_new_tensor_device",
+      "source": "https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/test/test_tensor_creation_ops.py#L2879",
+      "decorators": [
+        "onlyCUDA",
+        "onlyNativeDeviceTypes"
+      ],
+      "execution": "not_run",
+      "credit": "source definition only; decorators/conditional hardware clauses receive no execution credit"
+    }
+  ],
+  "source_test_limitations": [
+    "test_tensor_factory_copy_var compares bound data_ptr methods rather than calling data_ptr(); it does not prove pointer inequality. Value-mutation test_new_tensor is stronger for ordinary Tensor/NumPy copy.",
+    "The inspected new_tensor tests do not establish keyword rejection, Storage no-alias, all layout classes or DLPack/CAI behavior. This is a selected-source search, not a claim that the entire reference suite lacks such cases.",
+    "Conditional multi-GPU branches and CUDA-only tests are source definitions, not executed coverage."
+  ],
+  "remaining_whole_api_questions": [
+    "Confirm same-device/dtype TypedStorage and UntypedStorage admission/alias behavior and clarify documented always-copy disagreement.",
+    "Materialize complete input-kind x dtype x layout x backend admission and conversion matrix, including quantized, sparse/nested, shell/packed/float8/complex reduced precision and meta/Fake modes.",
+    "Account exact device-guard/default-device/TorchFunction mode behavior for every optional backend and build feature; no CPU fallback credit.",
+    "Close CAI stream/version/lifetime and DLPack versioned/read-only protocol behavior through actual generated/native consumers; do not infer full behavior from attribute presence.",
+    "Derive and test exact conversion/shape/error/warning boundaries; cyclic sequences differ because type_inference=False bypasses infer_scalar_type cycle checks.",
+    "Close compiled/exported/trace/dynamic shape and forward/reverse/higher-order/vmap/functionalization behavior for each protocol/override class."
+  ]
+}

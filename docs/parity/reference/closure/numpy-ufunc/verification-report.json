@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "tests_run": 17,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "static_checks": {
+    "status": "passed",
+    "source_files": 30,
+    "unique_frozen_source_line_citations": 597,
+    "original_rows_retained": 133,
+    "bounded_object_member_expansions": 2860,
+    "public_spelling_member_expansions": 2706,
+    "framework_imports_or_builds": 0,
+    "semantic_verification_credited": 0
+  },
+  "runtime_numerical_tests": 0,
+  "performance_tests": 0,
+  "reference_framework_imports_or_builds": 0,
+  "claim": "Bounded source inventory integrity and source-control-flow witnesses only; no numerical/runtime/provider verification."
+}

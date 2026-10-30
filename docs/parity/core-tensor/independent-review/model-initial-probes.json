@@ -1,0 +1,15 @@
+{
+  "positive_fixture_checks": 8,
+  "negative_expected_value_checks": 8,
+  "bounded_empty_footprint_probe": {
+    "shape": [
+      0,
+      37
+    ],
+    "result": [],
+    "axis_pool_items_materialized": 37
+  },
+  "weakened_named_case_checks_accepted": 7,
+  "weakened_fixture_total": 8,
+  "provider_or_framework_execution": false
+}

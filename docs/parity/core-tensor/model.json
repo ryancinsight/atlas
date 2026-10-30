@@ -1,0 +1,250 @@
+{
+  "clauses": [
+    {
+      "analytical_fixture_ids": [
+        "CT-ZERO-BROADCAST",
+        "CT-RANK-ZERO"
+      ],
+      "capability": "ARR-LAYOUT",
+      "equivalence_claim": "Reusable mathematical or policy contract only. Every framework signature, native/delegated branch and exception remains separately linked.",
+      "id": "CT-SHAPE",
+      "law": "Shape is an ordered finite tuple of concrete nonnegative integer extents in this law. Rank is tuple length, including rank zero; element count is the product with empty product one. This law does not parse Python shape objects or decide symbolic/unknown dimensions.",
+      "owner": "leto",
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Dimension admission, integer width, maximum rank and overflow checks; unknown/symbolic/partial shape; subtype and protocol-return metadata; Python binding and validation priority."
+      ]
+    },
+    {
+      "analytical_fixture_ids": [
+        "CT-INT64-F64-LOSS"
+      ],
+      "capability": "NUM-PROMOTE",
+      "equivalence_claim": "Reusable mathematical or policy contract only. Every framework signature, native/delegated branch and exception remains separately linked.",
+      "id": "CT-PROMOTION",
+      "law": "Promotion is a framework-policy-indexed operation on representation descriptors, operand categories and evaluation context. Inputs retain weak versus strong scalar status, Python versus NumPy scalars, zero-dimensional versus dimensioned arrays, default dtype, X64 mode and configured strict/standard policy. A dtype name alone does not determine the result.",
+      "owner": "eunomia",
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Exhaustive built-in and registered/custom representation relations, temporal/string/object/structured/quantized/extended types; platform aliases; companion pins; contextual accumulator/output casting and rejection priorities."
+      ]
+    },
+    {
+      "analytical_fixture_ids": [
+        "CT-INT64-F64-LOSS"
+      ],
+      "capability": "ARR-TYPE",
+      "equivalence_claim": "Reusable mathematical or policy contract only. Every framework signature, native/delegated branch and exception remains separately linked.",
+      "id": "CT-CAST",
+      "law": "A cast has independent representation-conversion, value-range/rounding/overflow/warning, copy/alias, device and differentiability policies. can_cast is a relation under a named casting mode, not proof that a particular value converts without loss. A facade must preserve represented values rather than round-trip all integers through f64.",
+      "owner": "leto",
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Every input and target representation; copy/like/subclass or dispatch hooks; native precision and explicit software fallback selection; complex-real AD conventions and discontinuities; device-specific casts and exceptional values."
+      ]
+    },
+    {
+      "analytical_fixture_ids": [
+        "CT-ZERO-BROADCAST",
+        "CT-BROADCAST-ADJOINT"
+      ],
+      "capability": "ARR-LAYOUT",
+      "equivalence_claim": "Reusable mathematical or policy contract only. Every framework signature, native/delegated branch and exception remains separately linked.",
+      "id": "CT-BROADCAST",
+      "law": "Right-align concrete shapes, pad absent leading axes by one and join each pair only when equal or one is one. The join is the non-one extent, so zero joined with one is zero and zero joined with extent greater than one rejects. A read mapping repeats the source address on expanded singleton axes. No universal write policy follows from broadcasting.",
+      "owner": "leto",
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Symbolic dimension constraints, overflow/rank binding and error ordering; native materialized versus view representations; framework write restrictions, compiled/sharded/device paths."
+      ]
+    },
+    {
+      "analytical_fixture_ids": [
+        "CT-RANK-ZERO",
+        "CT-REVERSE-OFFSET",
+        "CT-EMPTY-VIEW"
+      ],
+      "capability": "ARR-LAYOUT",
+      "equivalence_claim": "Reusable mathematical or policy contract only. Every framework signature, native/delegated branch and exception remains separately linked.",
+      "id": "CT-AFFINE-VIEW",
+      "law": "For the bounded positive-itemsize element-unit model, an index i addresses offset + sum(i_k * stride_k) in one storage identity. Nonempty extrema must lie inside storage. Signed and zero strides are legal mathematical descriptors; legal runtime aliases require separate access/lifetime proof. Rank-zero load uses its offset. Empty shapes address no element.",
+      "owner": "leto",
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Byte-stride, unaligned, zero-itemsize, object/structured/variable-sized elements; storage extent/overflow and allocation identity; proof-branded borrow/alias modes; physical device or distributed storage."
+      ]
+    },
+    {
+      "analytical_fixture_ids": [
+        "CT-NONAFFINE-RESHAPE",
+        "CT-RANK-ZERO"
+      ],
+      "capability": "ARR-LAYOUT",
+      "equivalence_claim": "Reusable mathematical or policy contract only. Every framework signature, native/delegated branch and exception remains separately linked.",
+      "id": "CT-RESHAPE",
+      "law": "A value reshape preserves the specified logical enumeration order. A view reshape additionally requires an address map representable by the target descriptor. A transposed C-order enumeration need not admit one rank-one affine stride; copy=False failure, copy or materialization must follow the particular public API. Do not infer one universal copy or object-identity rule.",
+      "owner": "leto",
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Dimension inference and zero/-1 ambiguity; C/F/A order and copy modes; subtype/foreign-object delegation; JAX native versus delegated NumPy branch; sparse/quantized/symbolic/device variants."
+      ]
+    },
+    {
+      "analytical_fixture_ids": [
+        "CT-REVERSE-OFFSET",
+        "CT-EMPTY-VIEW",
+        "CT-DUPLICATE-GATHER"
+      ],
+      "capability": "ARR-INDEX",
+      "equivalence_claim": "Reusable mathematical or policy contract only. Every framework signature, native/delegated branch and exception remains separately linked.",
+      "id": "CT-INDEX",
+      "law": "Typed basic integer selection changes offset and removes an axis; a normalized slice changes offset, stride and extent; newaxis introduces extent one. Advanced gather and assignment are distinct operations, not assumed basic views. A fixed gather matrix has a transpose that adds contributions from repeated addresses. This linear law says nothing about primal duplicate assignment order or out-of-bounds policy.",
+      "owner": "leto",
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Python bool/list/ellipsis/array selector normalization and axis reordering; bounds/wrap/clip/drop modes; duplicates, overlap and update order; symbolic index extent and compilation; device scatter determinism and every AD convention."
+      ]
+    },
+    {
+      "analytical_fixture_ids": [
+        "CT-BROADCAST-ADJOINT",
+        "CT-DUPLICATE-GATHER"
+      ],
+      "capability": "TEN-RESOURCE",
+      "equivalence_claim": "Reusable mathematical or policy contract only. Every framework signature, native/delegated branch and exception remains separately linked.",
+      "id": "CT-EFFECTS",
+      "law": "Separate logical value identity, storage identity, resource identity, version/effect token and differentiation state. Native NumPy and Torch view mutation is observable under their source rules. Native JAX arrays have immutable value semantics with functional updates and compiler storage reuse that must preserve those semantics. TensorFlow Tensor values and Variable resources have different effect/alias contracts. Custom object delegation can differ from the native branch.",
+      "owner": "coeus",
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Complete view writeability/version/leaf restrictions and saved-tensor invalidation; resource capture/update order and concurrency; Ref/effect transforms; shallow copies/COW shared observability and serialization/distributed ownership."
+      ]
+    },
+    {
+      "analytical_fixture_ids": [
+        "CT-BROADCAST-ADJOINT",
+        "CT-DUPLICATE-GATHER",
+        "CT-EMPTY-VIEW"
+      ],
+      "capability": "AD-REVERSE",
+      "equivalence_claim": "Reusable mathematical or policy contract only. Every framework signature, native/delegated branch and exception remains separately linked.",
+      "id": "CT-AD-BOUNDARY",
+      "law": "For fixed valid shape and index metadata, gather/broadcast VJPs sum cotangents over repeated source positions; empty outputs contribute zero and nonunit signed cotangents must be tested. Metadata is discrete in the native mathematical law, but arbitrary delegated property/protocol results are not forcibly detached. Cast AD follows each framework convention, not a claim that rounding is differentiable.",
+      "owner": "coeus",
+      "status": {
+        "framework_execution_credit": 0,
+        "performance_credit": 0,
+        "provider_execution_credit": 0,
+        "release_credit": 0,
+        "source_contract_defined": false,
+        "whole_public_surface_complete": false
+      },
+      "unclosed_obligations": [
+        "Integer/bool/float0 versus error/None, complex conjugation, sparse/custom tangents, forward/higher-order AD, detach/stop_gradient/leaf mutation, transform composition, nondifferentiable updates and device/distributed accumulation."
+      ]
+    }
+  ],
+  "coordinate_witness_domain": {
+    "address_units": "elements of one positive-itemsize representation",
+    "cotangents": "exact integers; arbitrary signed nonunit seeds in the registered finite witnesses",
+    "dimensions": "concrete nonnegative exact integers",
+    "limit_is_reference_api_limit": false,
+    "materialization_limit": 10000,
+    "not_decided": [
+      "arbitrary byte strides",
+      "unbounded shape rank and size binding",
+      "symbolic or unknown dimensions",
+      "zero-itemsize or variable-sized descriptors",
+      "framework admission and exception priority",
+      "runtime ownership/capability validity",
+      "accelerator execution"
+    ]
+  },
+  "decision_reason": "Direction follows the already authorized generic native workspace and full functional-equivalence goal. The six concrete boundary/AD/alias proposals still need normal provider ADR review; no user scope reduction is requested.",
+  "genuine_user_architecture_decision_required": false,
+  "model_version": "2026-10-26.1",
+  "policy_direction": {
+    "aliasing": "Use proof-branded/scoped access and explicit copy/alias modes to preserve observable reference mutation. Do not solve alias incompatibility by silently copying every view or dropping mutable APIs. Concrete cross-repo API/ADR review remains required.",
+    "authority": "Existing full-parity instruction and DEC-001..DEC-010 native generic policies; no concrete provider ADR approval inferred.",
+    "device": "No implicit CPU fallback receives device parity credit; host-staging threshold policy is not accelerator execution.",
+    "foreign_architecture": "Reference frameworks are differential/source oracles only; production execution remains native workspace providers.",
+    "layout": "Leto owns generic signed layout/index algebra. Mnemosyne owns allocation/lifetime, Melinoe owns access proofs, Themis owns placement and Hephaestus owns native device support. Coeus integrates their contracts and AD/effects without a duplicate scalar or layout kernel.",
+    "precision": "A storage type is not native arithmetic evidence. Explicit caller-selected documented software precision boundaries remain separate from native hardware acceptance.",
+    "scalar": "First-party generic representation, promotion/casting policy and associated accumulator traits in Eunomia; policy axes are explicit and one shared implementation is selected by typed framework context."
+  },
+  "schema_version": 1,
+  "state_axes": [
+    "logical_value",
+    "representation_descriptor",
+    "shape",
+    "optional_storage_identity",
+    "optional_affine_layout",
+    "device_or_mesh_placement",
+    "access_and_effect_token",
+    "differentiation_state"
+  ],
+  "status": {
+    "framework_execution_credit": 0,
+    "performance_credit": 0,
+    "provider_execution_credit": 0,
+    "release_credit": 0,
+    "source_contract_defined": false,
+    "whole_public_surface_complete": false
+  }
+}

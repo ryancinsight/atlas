@@ -1,0 +1,197 @@
+{
+  "author_handoff_sha256": "796b913c18e680cce247345ecd73deb2fe02e7530360aeded0783c39b2c2c7ee",
+  "author_preservation_sha256": "032191a994fb7feaa1be8c65de959cb6ab476dce0576680185904db22b2b706a",
+  "blocking_findings": [],
+  "checks": {
+    "active_commands": [],
+    "actual_implementation_owner": null,
+    "author_copied_probes_independently_rerun": 71,
+    "author_invalid_mutations_rejected": 63,
+    "author_valid_controls_passed": 8,
+    "baseline_verify_semantic_seal_replay": "pass",
+    "canonical_files_git_proven": 13,
+    "canonical_git_commit": "fd0efd9007235bede364fc6a4f26036a3bbe5204",
+    "canonical_git_root_tree": "3ec069926a406cbf3e22bf5fb9dac1108c36bded",
+    "current_partial_ids": 4,
+    "current_unmapped_ids": 6,
+    "existing_identity_joins": 10,
+    "full_actual_mapping_associations": 4,
+    "future_cases": 30,
+    "future_cases_status": "all UNRUN",
+    "generated_jsons_byte_identical": 14,
+    "independent_adjacent_tie_and_representation_assertions": 204224,
+    "independent_cotangent_boundary_controls": 4,
+    "independent_extra_valid_entrypoint_commands": 12,
+    "independent_extra_valid_numerical_controls": 4,
+    "independent_finite_overflow_boundary_controls": 9,
+    "independent_ordered_float32_additions": 1845,
+    "independent_signed_zero_controls": 2,
+    "open_gap_groups": 10,
+    "original_independent_entrypoint_commands": 42,
+    "original_independent_invalid_mutations_rejected": 12,
+    "original_independent_valid_controls_passed": 2,
+    "predecessor_856_sealed_artifacts_unchanged": 42,
+    "predecessor_e075_sealed_artifacts_unchanged": 125,
+    "primary_mapping_stage": "unmapped",
+    "prior_mathematical_verify_seal_replay_commands_rejected": 9,
+    "prior_mathematical_wrong_claims_rejected": 3,
+    "raw_tree_objects_checked": 10,
+    "runtime_cases_executed": 0,
+    "source_blobs_unchanged": 21,
+    "source_spans_unchanged": 63,
+    "source_tests_passed": 24,
+    "source_tests_skipped": 0,
+    "successor_sealed_artifacts_unchanged": 320
+  },
+  "evidence": [
+    {
+      "bytes": 985,
+      "path": "baseline-results.json",
+      "sha256": "7f098699698e66af2e95cc9e15d2ce1ac168cee477f09b8cc9ab6f72b9fd1120"
+    },
+    {
+      "bytes": 1961,
+      "path": "validate.log",
+      "sha256": "957e8d1613471cde3f3e6b316849279b4e95382a7a50663a827bbbacdb4c2bc6"
+    },
+    {
+      "bytes": 2613,
+      "path": "tests.log",
+      "sha256": "adcb7c6e4d524da3c4f0157f42600d5359cccd0eaf32cb3fa883e49e7295c10f"
+    },
+    {
+      "bytes": 172,
+      "path": "seal-check.log",
+      "sha256": "7894355e0bb6b3596c3c9a457bd01518b3d2bb8458348ebff72e7998af93820b"
+    },
+    {
+      "bytes": 2370,
+      "path": "replay.log",
+      "sha256": "d4725bd4792d6aa85b9a36e90f72e439f0462ec221495a4238f488d442de7a4a"
+    },
+    {
+      "bytes": 96576,
+      "path": "author-copied-probes.json",
+      "sha256": "9b408c3ff40d1507a9017f4b87342f1e8ad60aceb481612bea5868cb76aa6d16"
+    },
+    {
+      "bytes": 0,
+      "path": "author-copied-probes.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 33562,
+      "path": "original-attacks-recheck.json",
+      "sha256": "b9ce450b6c6f4b5c251efb55c9c297bf6f0312f7380c02d7195aea5ed7092d64"
+    },
+    {
+      "bytes": 2237,
+      "path": "recheck_original_attacks.py",
+      "sha256": "362b8445b8d5d1185ce3677104c56aca05cae440d869bb24e9490624189c87be"
+    },
+    {
+      "bytes": 8412,
+      "path": "numeric-counterexamples.json",
+      "sha256": "1b6ed66d952044057e208b691058676a50b6bb1da0867000fa69ae2abaadf00b"
+    },
+    {
+      "bytes": 3550,
+      "path": "recheck_numeric_counterexamples.py",
+      "sha256": "823c9cee36543806c42dde2eb90086b991f5374c2c4b5570d4a8c561a020266e"
+    },
+    {
+      "bytes": 390,
+      "path": "numeric-recheck-summary.json",
+      "sha256": "2c40fe2c54f19abc4a3d3614c919aa9fba4a44f2a23f3f7663056c0cf843bbe3"
+    },
+    {
+      "bytes": 1571,
+      "path": "independent-math.json",
+      "sha256": "0268990561cb7680f5a1f79a83c7964c143d6d5089ce0d53916e8bff9dee7107"
+    },
+    {
+      "bytes": 4082,
+      "path": "independent_math.py",
+      "sha256": "0814c413e9c1c0ac4ad1ae56cb88e07954fcbb66dc222442994a759d1ea9878c"
+    },
+    {
+      "bytes": 2977,
+      "path": "independent-valid-controls.json",
+      "sha256": "a15db34a350acf64c3af17b821c0c9ad18700fd1681a7067af17fed03155ec2d"
+    },
+    {
+      "bytes": 2556,
+      "path": "independent_valid_controls.py",
+      "sha256": "3c2964fddef3017cf98fa37a602032667e48a1905dad6d11ab09dcc03e5b98e7"
+    },
+    {
+      "bytes": 3370,
+      "path": "independent-git-source-audit.json",
+      "sha256": "b1fa1684b5bfd8cc6e2a5305b1a7efcda25e3bdc955599a6f3e3d5a4c74e0e26"
+    },
+    {
+      "bytes": 1553,
+      "path": "preservation.json",
+      "sha256": "15c61cf0f4b02ec7217c1e088d175bb3cf29eeceb83f72e5dbce559456b113a9"
+    }
+  ],
+  "mathematical_assessment": "The exponent/quantum construction chooses the finite binary spacing, rounds the scaled rational significand by remainder/parity and rejects represented overflow; target_add applies two operand conversions before the target sum. Independent adjacent-bit midpoint/parity checks and stdlib controlled additions agree. Generated protocol cotangents now undergo their declared-dtype finite representation guard. These are mathematical value-model checks, not observed TensorFlow/native execution.",
+  "next_action": "Parent owns canonical integration/live joins, acceptance execution/dependency prerequisites and all later exact-revision delivery gates.",
+  "resolved_findings": [
+    {
+      "id": "TF-CVT-001",
+      "resolution": "Hinted normal None AttributeError, caught converter exceptions/retry and unhinted invalid-return RuntimeError remain separate.",
+      "scope": "bounded source/model/guard definition only"
+    },
+    {
+      "id": "TF-CVT-002",
+      "resolution": "Exact public exclusion/internal registration tuple, Python complex versus bool/NumPy scalars and priorities preserved.",
+      "scope": "bounded source/model/guard definition only"
+    },
+    {
+      "id": "TF-CVT-003",
+      "resolution": "Non-eager capture returns without dtype forwarding or superclass invocation; delegated/runtime validation remains open.",
+      "scope": "bounded source/model/guard definition only"
+    },
+    {
+      "id": "TF-CVT-004",
+      "resolution": "Independent predecessor/audit anchors bind source bytes/coordinates; source/receipt/witness co-mutation and unrelated clause proof reject.",
+      "scope": "bounded source/model/guard definition only"
+    },
+    {
+      "id": "TF-CVT-005",
+      "resolution": "Fixed canonical commit/root tree proves13path/blob memberships; exact10IDs/full4mapping associations/transitive owner/prerequisites bind claims.",
+      "scope": "bounded source/model/guard definition only"
+    },
+    {
+      "id": "TF-CVT-006",
+      "resolution": "Complete typed projections preserve all cases/gaps/null owners/readiness/evidence/conditional estimates; original malformed claims reject.",
+      "scope": "bounded source/model/guard definition only"
+    },
+    {
+      "id": "TF-CVT-007",
+      "resolution": "Both operands round to targetfloat32 before target addition in the analytical model; wrong old claims reject and ordered-rounding controls pass.",
+      "scope": "bounded source/model/guard definition only"
+    },
+    {
+      "id": "TF-CVT-008",
+      "resolution": "Every generated protocol VJP component is checked in its declared finite dtype; impossible overflow rejects and half-max boundaries pass.",
+      "scope": "bounded source/model/guard definition only"
+    }
+  ],
+  "result": "accept_bounded_source_definition_only",
+  "reviewed_manifest_sha256": "67e6c982b00ed38936c66a65d0c192790c59db4da7b1337291c727022c2bc3a7",
+  "reviewed_packet_path": "/tmp/atlas-tf-conversion-boundary-repaired-numeric-20261026",
+  "reviewed_proposal_sha256": "c374da36ed6a8c38d1861ace2fab3d6b39934459840f9435c9a8999e0bb5c51a",
+  "schema_version": 1,
+  "scope_limitations": [
+    "This acceptance grants bounded source-definition/model/guard review only. It does not admit or map any API, approve an implementation owner/ADR, or establish complete public inventory/whole-API semantics.",
+    "Nearest-even is an explicit UNRUN analytical premise, not verified TensorFlow cast/construction/native/kernel/device behavior. A future differential reference/provider run must establish exact artifact/context compatibility.",
+    "The finite value model does not qualify zero signs, NaN/infinity/overflow exceptions, subnormal/flush behavior, inexact/full dtype or mode tables, custom/composite protocols, forward/higher/complex AD, tracing/capture, distributed/device execution, performance or release. Those remain open public obligations, never scope exclusions.",
+    "All30future cases remain UNRUN; no skipped or stdlib guard result counts as framework/provider verification.",
+    "The adjacent-bit tests enumerate half-format positive finite adjacencies and sampled float32/64 positions; they do not constitute exhaustive rational-domain/native execution coverage.",
+    "Primary tf.convert_to_tensor stays unmapped, contextual10IDs stay4partial/6unmapped, actual implementation owner stays null and all10gap groups stay open.",
+    "No canonical/provider/source-original edits, source expansion/acquisition, network/auth/GitHub/external actions, protected work inspection/takeover, owner contact or subdelegation occurred."
+  ],
+  "trust_root_assessment": "Original source and canonical guards remain intact. The fixed reviewed predecessor/audit hashes and raw Git commit/root tree membership bind independently known source/canonical inputs; mutable co-attestations do not authenticate themselves. Both prior changes-requested review histories and all sealed predecessor artifacts remain preserved."
+}

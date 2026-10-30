@@ -23,6 +23,13 @@ provider graph stays acyclic. Ownership is enforced by the
 the equivalence column below states what a package displaces, not an API
 compatibility promise.
 
+The October 26 [four-framework parity program](docs/parity/README.md) adds a
+versioned functional-equivalence goal against the full documented NumPy, JAX,
+PyTorch and TensorFlow surfaces. The historical displacement table does not
+define that denominator. Its reference extraction, semantic mapping and runtime
+qualification remain incomplete; the program records those gaps and the
+provider-first implementation/release gates without changing package versions.
+
 | Concern | Atlas owner | Displaces |
 | --- | --- | --- |
 | Allocation, arenas, staging memory | `mnemosyne` | ad-hoc global allocation and per-crate pools |
@@ -850,6 +857,7 @@ atlas/
 │   ├── atlas-conformance.py         # per-repo debt scan + non-increasing ratchet
 │   ├── atlas-pin-compile.py         # compile the recorded Aequitas/Eunomia seam
 │   ├── atlas-multiphysics-audit.py  # integrator boundary and evidence audit
+│   ├── atlas-aequitas-units.py      # aequitas cohort, typing and unit audit
 │   ├── atlas-stack-overlay.py       # generates the [patch] overlay from cargo metadata
 │   ├── atlas-toolchain-bootstrap.*  # clear Rust overrides; prioritize MSYS2 ucrt64
 │   ├── build-all.ps1 / build-all.sh # run one Cargo command across every recorded package
@@ -1012,6 +1020,29 @@ former empty-`RUSTC` `-vV` environment blocker. Cargo-generated lockfile and
 untracked build artifacts in provider worktrees were preserved for owner
 reconciliation; no cleanup/reset was performed by the bootstrap slice.
 
+### Aequitas cohort and unit audit
+
+The dimensioned-quantity seam has its own audit. It reports every member's
+Aequitas requirement and locked revision, how far that revision is behind the
+provider's default branch, the `from_base`/`into_base`/`Quantity` volume per
+member, every unit constructed through `from_unit::<U>`, every public
+trait getter that returns a bare `f64` directly beneath a doc comment naming
+an SI unit, and every accessor whose name claims a unit other than the
+returned quantity's canonical one (for example a `_mm` method returning a
+metre-valued `Length`):
+
+```sh
+python scripts/atlas-aequitas-units.py
+python scripts/atlas-aequitas-units.py --format json
+python scripts/atlas-aequitas-units.py --strict
+```
+
+Skew is measured against the provider's default branch rather than against
+the majority revision: most of the stack sitting one commit behind Aequitas
+is a finding, not a consensus. `--strict` turns the findings into a gate; the
+default is a report, because a lagging pin and an untyped getter are debt to
+sequence, not a build failure.
+
 ### Multiphysics contract audit
 
 The integrator boundary audit checks direct provider ownership, forbidden
@@ -1115,7 +1146,7 @@ member and a hand-rolled copy is the duplication defect. GitHub forbids
 | --- | --- | --- |
 | `lockfile-guard.yml` | `Cargo.lock` resolves under `--locked` outside the stack overlay, with first-party git sources intact | `manifest-path`, `rust-toolchain` |
 | `adr-index-guard.yml` | `docs/adr/README.md` matches the one generator, `scripts/adr-index.py`; `strict: true` also requires the canonical `# ADR NNNN: Title` heading and heading/filename number agreement | `directory` (default `docs/adr`), `strict` |
-| `semver-gate.yml` | `cargo-semver-checks` over the published surface; the release gate fails a break under a non-major bump, the informational twin reports; opt-in `dependency-contract: locked` blocks PRs using exact committed API graphs (ADR 0069) | `package`, `manifest-path`, `rust-toolchain`, `dependency-contract`, `atlas-ref` |
+| `semver-gate.yml` | `cargo-semver-checks` over the published surface; the release gate fails a break under a non-major bump, the informational twin reports | `package`, `manifest-path`, `rust-toolchain` |
 | `book-pages.yml` | mdBook build with `mdbook test`, Pages artifact and deploy | book path and Pages inputs |
 | `artifact-budget.yml` | PM boards (`backlog.md`, `checklist.md`, `gap_audit.md`, resolved by canonical name whatever case a member spells them -- four track `CHECKLIST.md`) within their line budget and tracked images within their byte budget, ratchet-to-budget against the PR base: an over-budget board may not grow, an oversized image may not be added or touched | `line-budget` (default 1000), `image-budget-bytes` (default 204800) |
 | `crates-publish.yml` | dependency-ordered `cargo publish` through OIDC trusted publishing | release inputs |

@@ -8,7 +8,7 @@ verification against the stale registry copy (ATLAS-PUB-011). This guard runs on
 member's pull request and stops that change while it is still in review.
 
     python scripts/atlas-bump-guard.py --repo <member checkout> --base <rev> --head <rev>
-        [--package <name>[,<name>...]]
+        [--package <name>[,<name>...]] [--manifest-path <path>]
 
 Selection: the crates the pull request touches, never the whole member. The diff is
 read from the merge base of `--base` and `--head`, so a branch behind its base does
@@ -97,19 +97,37 @@ def describe(reading) -> str:
 
 def guard(repo: Path, base: str, head: str, fetch: drift.Fetch,
           owner: str = drift.DEFAULT_OWNER,
-          only: Sequence[str] = ()) -> tuple[list, list]:
+          only: Sequence[str] = (), manifest_path: str = "Cargo.toml") -> tuple[list, list]:
     """The touched crates' readings, and those among them that need a bump."""
     fork = git_output(repo, "merge-base", base, head)
     with tempfile.TemporaryDirectory(prefix="atlas-bump-guard-") as scratch:
         fork_root = (Path(scratch) / "fork").resolve()
         head_root = (Path(scratch) / "head").resolve()
-        before = {p.name: p for p in drift.publishable_packages(
-            drift.export_revision("merge base", repo, fork, fork_root), fork_root)}
+        head_metadata = drift.export_revision(
+            "head", repo, head, head_root, manifest_path)
+        all_packages = drift.workspace_packages(head_metadata, head_root)
+        packages = drift.publishable_packages(head_metadata, head_root)
+        if only:
+            if len(only) != len(set(only)):
+                raise drift.MeasurementError("--package contains a duplicate name")
+            all_names = {package.name for package in all_packages}
+            missing = [name for name in only if name not in all_names]
+            if missing:
+                raise drift.MeasurementError(
+                    "--package does not name a package at head: "
+                    + ", ".join(missing))
+            publishable_by_name = {package.name: package for package in packages}
+            packages = [publishable_by_name[name] for name in only
+                        if name in publishable_by_name]
+        fork_metadata = drift.export_revision(
+            "merge base", repo, fork, fork_root, manifest_path,
+            missing_manifest_is_empty=True)
+        before = ({} if fork_metadata is None else {
+            package.name: package
+            for package in drift.publishable_packages(fork_metadata, fork_root)
+        })
         readings = []
-        for package in drift.publishable_packages(
-                drift.export_revision("head", repo, head, head_root), head_root):
-            if only and package.name not in only:
-                continue
+        for package in packages:
             if not touched(repo, fork, head, package, before.get(package.name)):
                 continue
             readings.append(drift.measure_crate(
@@ -124,21 +142,28 @@ def parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
                         help="the member repository holding both revisions (default: cwd)")
     parser.add_argument("--base", required=True, help="the pull request's base revision")
     parser.add_argument("--head", required=True, help="the pull request's head revision")
-    parser.add_argument("--package", default="",
+    parser.add_argument("--manifest-path", default="Cargo.toml",
+                        help="repository-relative manifest selected by the caller")
+    parser.add_argument("--package", default=None,
                         help="comma-separated crate names to check (default: every "
                              "publishable crate)")
     parser.add_argument("--owner", default=drift.DEFAULT_OWNER,
                         help="crates.io login that must own every indexed name "
                              "(default: %(default)s)")
-    return parser.parse_args(argv)
+    options = parser.parse_args(argv)
+    if options.package is not None and any(
+            not name.strip() for name in options.package.split(",")):
+        parser.error("--package contains an empty name")
+    return options
 
 
 def main(argv: Sequence[str] | None = None, fetch: drift.Fetch = drift.http_get) -> int:
     options = parse_arguments(argv)
-    only = tuple(name.strip() for name in options.package.split(",") if name.strip())
+    only = (() if options.package is None
+            else tuple(name.strip() for name in options.package.split(",")))
     try:
         readings, bumps = guard(options.repo, options.base, options.head, fetch,
-                                options.owner, only)
+                                options.owner, only, options.manifest_path)
     except (drift.RegistryError, drift.MeasurementError) as error:
         print(f"atlas-bump-guard: {error}", file=sys.stderr)
         return 2

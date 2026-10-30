@@ -1,0 +1,27 @@
+{
+  "kind": "source-only gamma/provider boundary review",
+  "records": [
+    {
+      "bytes": 35908,
+      "file": "source-snapshots.json",
+      "sha256": "187541dd972beddf1bc4609f2365ac67c17d0eed0743e7c1770bd9b3fe0d1c86"
+    },
+    {
+      "bytes": 18783,
+      "file": "gamma-source-audit.json",
+      "sha256": "299d48e568a29b4467e6681cce4f6f7c0b91f8cd006ddb92491de0d43053eb7a"
+    },
+    {
+      "bytes": 89373,
+      "file": "core-tensor-boundaries.json",
+      "sha256": "264a9df2598dfa0e8220c724ee2a07bf3b39f9fa004083e54aeb4a2df5487e10"
+    },
+    {
+      "bytes": 4323,
+      "file": "boundary-recommendation.md",
+      "sha256": "13a4bfa27e3f072036333ba50dbac0990f78fd00da00cd7693c4cb8b05581e26"
+    }
+  ],
+  "runtime_builds_imports_network_provider_or_canonical_writes": 0,
+  "schema_version": 1
+}

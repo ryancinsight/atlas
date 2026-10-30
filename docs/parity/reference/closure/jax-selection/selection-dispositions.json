@@ -1,0 +1,2645 @@
+{
+  "framework": "jax",
+  "version": "0.12.0.1",
+  "source_revision": "dc4af684446e65ee98eee8090e1ff6f8211473fb",
+  "original_candidate_count": 22,
+  "original_candidates_sha256": "2fe2d177b8971c4d8e065321a7e9b2f30d8816919b75e7db7d34104fa11c4cab",
+  "configured_tooling": {
+    "python": "3.12 minor only",
+    "sphinx": ">=7.3.2,<8.0",
+    "resolved_build_lock": "not present in inspected configuration",
+    "compatible_source_releases_verified": [
+      "7.3.2",
+      "7.3.3",
+      "7.3.4",
+      "7.3.5",
+      "7.3.6",
+      "7.3.7",
+      "7.4.0",
+      "7.4.1",
+      "7.4.2",
+      "7.4.3",
+      "7.4.4",
+      "7.4.5",
+      "7.4.6",
+      "7.4.7"
+    ],
+    "inherit_docstrings_default": true,
+    "undoc_members_for_five_sets": false,
+    "napoleon_flags_default_false": true,
+    "rendered_output_verified": false,
+    "stock_napoleon_hook": "Default include-init/private/special flags areFalse; source hook returns no override for these22 representative descriptors."
+  },
+  "counts": {
+    "selector_eligible_own_docstring": 15,
+    "selector_filtered_undocumented": 4,
+    "selector_eligible_explicit_inherited_property": 2,
+    "selector_eligible_generic_metaclass_doc_fallback": 1
+  },
+  "semantic_api_closures": 0,
+  "supersedes_historical_claims": [
+    "Original proposal new_documented_identities and selection_basis labels did not prove rendered inclusion. All originals are retained as source-requested candidates; these explicit dispositions supersede that stronger interpretation."
+  ],
+  "rows": [
+    {
+      "symbol": "jax.export.DisabledSafetyCheck.custom_call",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.export.DisabledSafetyCheck.custom_call",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py#L101",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/export/_export.py",
+            "line": 101,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.export.rst#L20",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "cls, target_name: str",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "32f1a3cc2092d88f439fcc7eaf041e67d817d59d64bc5c7e6f332429a047dc19"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py#L101",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.export.DisabledSafetyCheck.is_custom_call",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.export.DisabledSafetyCheck.is_custom_call",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py#L110",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/export/_export.py",
+            "line": 110,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.export.rst#L20",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "f8970b4532f87d15a5d76c9033f6de4dbd33f27ea1025d0531d2d1e5578edabf"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py#L110",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.export.DisabledSafetyCheck.platform",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.export.DisabledSafetyCheck.platform",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py#L93",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/export/_export.py",
+            "line": 93,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.export.rst#L20",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "cls",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2f0cc0513f279ea4db1a33724e471da6e7658450ed32f3584715cfc61a898d93"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py#L93",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Wrapped.__call__",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Wrapped.__call__",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L990",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 990,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L11",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self, *args, **kwargs",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "17e7876a545db526014700bae384381b11c91a00d9c741c675c5cfb4240af9ca"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L990",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Wrapped.lower",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Wrapped.lower",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L1005",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 1005,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L11",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self, *args, **kwargs",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "d0825c69d0635e9bc962c1fbc1234a5a32aa36cff160b250eec6abdeb406bdd5"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L1005",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Wrapped.trace",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Wrapped.trace",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L994",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 994,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L11",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self, *args, **kwargs",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "0b7d1e380f731c2e975b2cb1b94e6acf774e72829e4f6443f37dfbf87fe6b66c"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L994",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Traced.jaxpr",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Traced.jaxpr",
+        "kind": "attribute",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L445",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 445,
+            "kind": "attribute",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L15",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": null,
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_filtered_undocumented",
+      "basis": "No own/inherited descriptor doc or #: attribute comment; undoc-members absent. Explicit members/special-members requests do not by themselves bypass has_doc.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L445",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ],
+      "attribute_source_evidence": {
+        "direct_assignment_line": 445,
+        "preceding_doc_comment": false,
+        "inline_doc_comment": false,
+        "slot_container": "list",
+        "slot_doc": null,
+        "slot_member": false
+      },
+      "additional_public_prose_evidence": {
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L421-L430",
+        "basis": "The class docstring explicitly names .jaxpr; filtering its individual member section does not erase this documented capability."
+      }
+    },
+    {
+      "symbol": "jax.stages.Traced.lower",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Traced.lower",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L567",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 567,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L15",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self, *, lowering_platforms: tuple[str, ...] | None=None, _private_parameters: mlir.LoweringParameters | None=None",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ed5dd6498eb64253206b2782633f90c45528ca0b207a8562906824127d28d826"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L567",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Traced.out_info",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Traced.out_info",
+        "kind": "attribute",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L448",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 448,
+            "kind": "attribute",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L15",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": null,
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_filtered_undocumented",
+      "basis": "No own/inherited descriptor doc or #: attribute comment; undoc-members absent. Explicit members/special-members requests do not by themselves bypass has_doc.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L448",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ],
+      "attribute_source_evidence": {
+        "direct_assignment_line": 448,
+        "preceding_doc_comment": false,
+        "inline_doc_comment": false,
+        "slot_container": "list",
+        "slot_doc": null,
+        "slot_member": false
+      }
+    },
+    {
+      "symbol": "jax.stages.Lowered.as_text",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Lowered.as_text",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L684",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 684,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self, dialect: str | None=None, *, debug_info: bool=False",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "1ee99a0a0797601fda9964f6da80872be3b8e47e2f6b5f3808625b357a94e308"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L684",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Lowered.compile",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Lowered.compile",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L674",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 674,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self, compiler_options: CompilerOptions | None=None, *, device_assignment: tuple[xc.Device, ...] | None=None",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4dce013a0aa12195adb2792cce983bc09e11b8c629a012e4d30a30193a1813ff"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L674",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Lowered.compiler_ir",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Lowered.compiler_ir",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L700",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 700,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self, dialect: str | None=None",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "bb8e2f0831f9924844d274da22fba85cf8d75236475fa0a729722fd161d27289"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L700",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Lowered.cost_analysis",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Lowered.cost_analysis",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L720",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 720,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L720",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Lowered.in_tree",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Lowered.in_tree",
+        "kind": "property",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L341",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 341,
+            "kind": "property",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": "jax._src.stages.Stage"
+          }
+        ],
+        "signature": "self",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_explicit_inherited_property",
+      "basis": "Explicit members list retrieves Stage.in_tree; its own property getter has a docstring. members is a finite list, so the ALL-only inherited exclusion does not apply.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L341",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Lowered.out_tree",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Lowered.out_tree",
+        "kind": "attribute",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L633",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 633,
+            "kind": "attribute",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": null,
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_filtered_undocumented",
+      "basis": "No own/inherited descriptor doc or #: attribute comment; undoc-members absent. Explicit members/special-members requests do not by themselves bypass has_doc.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L633",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ],
+      "attribute_source_evidence": {
+        "direct_assignment_line": 633,
+        "preceding_doc_comment": false,
+        "inline_doc_comment": false,
+        "slot_container": "list",
+        "slot_doc": null,
+        "slot_member": true
+      }
+    },
+    {
+      "symbol": "jax.stages.Compiled.__call__",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Compiled.__call__",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L962",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 962,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self, *args, **kwargs",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_generic_metaclass_doc_fallback",
+      "basis": "Own function has no docstring. With default autodoc_inherit_docstrings=True, getdoc visits Stage/object; getattr(base,\"__call__\") resolves type.__call__, whose generic nonempty doc survives function-class-doc suppression. This is not a functional execution contract.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "42938cd9f57edd4ecd39f32827fbcbf74d1d8cf40952063fda62ee8cd29326cf"
+        }
+      ],
+      "questions": [
+        "Actual Python3.12 patch and descriptor/doc metadata are not pinned; exact rendered output still needs receipt."
+      ],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L962",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Compiled.as_text",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Compiled.as_text",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L767",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 767,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "048fb08692ad586cb0e5c6a53b719b37bf5523ceefa8b6b56ae51f660ed07586"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L767",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Compiled.cost_analysis",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Compiled.cost_analysis",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L781",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 781,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "2a36b35fcc5720786c06b37bde85c4ef115750e3382dd3d1384f9df7ac95d7d5"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L781",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Compiled.in_tree",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Compiled.in_tree",
+        "kind": "property",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L341",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 341,
+            "kind": "property",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": "jax._src.stages.Stage"
+          }
+        ],
+        "signature": "self",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_explicit_inherited_property",
+      "basis": "Explicit members list retrieves Stage.in_tree; its own property getter has a docstring. members is a finite list, so the ALL-only inherited exclusion does not apply.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "4f59170550f5657f83d78c05dfcf34a254c89ebb6c28b315885b5fe8d057db93"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L341",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Compiled.memory_analysis",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Compiled.memory_analysis",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L799",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 799,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "9fd336a3991c0c6449e3b5110c2b55a690eb4d55c8291fc9aef9cae9e3fe0168"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L799",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    },
+    {
+      "symbol": "jax.stages.Compiled.out_tree",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Compiled.out_tree",
+        "kind": "attribute",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L751",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 751,
+            "kind": "attribute",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": null,
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_filtered_undocumented",
+      "basis": "No own/inherited descriptor doc or #: attribute comment; undoc-members absent. Explicit members/special-members requests do not by themselves bypass has_doc.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": false,
+          "doc_sha256": null
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L751",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ],
+      "attribute_source_evidence": {
+        "direct_assignment_line": 751,
+        "preceding_doc_comment": false,
+        "inline_doc_comment": false,
+        "slot_container": "list",
+        "slot_doc": null,
+        "slot_member": true
+      }
+    },
+    {
+      "symbol": "jax.stages.Compiled.runtime_executable",
+      "original_candidate_preserved": {
+        "framework": "jax",
+        "version": "0.12.0.1",
+        "symbol": "jax.stages.Compiled.runtime_executable",
+        "kind": "method",
+        "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L838",
+        "domain": "autodiff-compiler",
+        "stability": "release-documented-stability-unreviewed",
+        "deprecation_status": "not-yet-reviewed",
+        "occurrences": [
+          {
+            "path": "jax/_src/stages.py",
+            "line": 838,
+            "kind": "method",
+            "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+            "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+            "inherited_from": null
+          }
+        ],
+        "signature": "self",
+        "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+      },
+      "source_requested": true,
+      "selection_state": "selector_eligible_own_docstring",
+      "basis": "Own callable/property docstring satisfies has_doc; public/explicit member selector requests it.",
+      "configured_selection_verified": "source-derived with stock Sphinx/Napoleon; not a render run",
+      "rendered_output_verified": false,
+      "public_scope_action": "retain original candidate; selection filtering is not permission to exclude public/workflow capability",
+      "actual_tooling_version_pinned": false,
+      "descriptor_fixture_results": [
+        {
+          "version": "7.3.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.3.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.3.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.3.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.3.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.3.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.4.0",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.4.1",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.4.2",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.4.3",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.4.4",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.4.5",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.4.6",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        },
+        {
+          "version": "7.4.7",
+          "has_doc_after_class_doc_suppression": true,
+          "doc_sha256": "ff1c1b5c93affd1e437bb756dc8353ca11f876d1df8e8c673c6ab052aa3d3b84"
+        }
+      ],
+      "questions": [],
+      "citations": [
+        "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L838",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/ext/autodoc/__init__.py#L643-L806",
+        "https://github.com/sphinx-doc/sphinx/blob/v7.4.7/sphinx/util/inspect.py#L892-L940"
+      ]
+    }
+  ],
+  "tooling_method_ast_fingerprints": {
+    "Documenter.filter_members": {
+      "32cb4d8de73706bdff9a18674b557ab722ee6bae4b0300f62c260907ad8d82e2": [
+        "7.3.2",
+        "7.3.3",
+        "7.3.4",
+        "7.3.5",
+        "7.3.6",
+        "7.3.7",
+        "7.4.0",
+        "7.4.1",
+        "7.4.2",
+        "7.4.3",
+        "7.4.4",
+        "7.4.5",
+        "7.4.6",
+        "7.4.7"
+      ]
+    },
+    "ClassDocumenter.get_object_members": {
+      "e0aff10c5c3faf7f429c5d4d73808d05ac8d9530ed5880341154f6146c68aa39": [
+        "7.3.2",
+        "7.3.3",
+        "7.3.4",
+        "7.3.5",
+        "7.3.6",
+        "7.3.7"
+      ],
+      "4c1cac2a330bb5bf92ee4ab6326c3b17682ed1f75405334746925eb0dc290df1": [
+        "7.4.0",
+        "7.4.1",
+        "7.4.2",
+        "7.4.3",
+        "7.4.4",
+        "7.4.5",
+        "7.4.6",
+        "7.4.7"
+      ]
+    },
+    "getdoc": {
+      "e4bf16afce90df9a3d583946d2c69f86ce224bf702a9839269087c5d90d037ae": [
+        "7.3.2",
+        "7.3.3",
+        "7.3.4",
+        "7.3.5",
+        "7.3.6",
+        "7.3.7",
+        "7.4.0",
+        "7.4.1",
+        "7.4.2",
+        "7.4.3",
+        "7.4.4",
+        "7.4.5",
+        "7.4.6",
+        "7.4.7"
+      ]
+    },
+    "get_class_members": {
+      "8aa0f7197044f6a9b0c0f527b31b480a0e6a2f9dcf4bd208353d3d7e7547c5be": [
+        "7.3.2",
+        "7.3.3",
+        "7.3.4",
+        "7.3.5",
+        "7.3.6",
+        "7.3.7",
+        "7.4.0",
+        "7.4.1",
+        "7.4.2",
+        "7.4.3",
+        "7.4.4",
+        "7.4.5",
+        "7.4.6",
+        "7.4.7"
+      ]
+    },
+    "_skip_member": {
+      "6f4daadf84af608e899ddbfbfa11fa12b323e1474aabc047c18c717816a4ea0c": [
+        "7.3.2",
+        "7.3.3",
+        "7.3.4",
+        "7.3.5",
+        "7.3.6",
+        "7.3.7",
+        "7.4.0",
+        "7.4.1",
+        "7.4.2",
+        "7.4.3",
+        "7.4.4",
+        "7.4.5",
+        "7.4.6",
+        "7.4.7"
+      ]
+    }
+  },
+  "remaining_questions": [
+    "Exact resolved Python/Sphinx/third-party-extension environment and rendered docs receipt absent",
+    "Three official release-versioned JAX stage URLs returnHTTP403; no rendered page was obtained",
+    "External extension event hooks not fixed by an exact transitive lock; no claim all handlers were executed",
+    "Filtered metadata candidates remain scope obligations; workflow and prose evidence must be reconciled, not silently excluded"
+  ],
+  "jax_sources": [
+    {
+      "path": "docs/requirements.txt",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/requirements.txt",
+      "sha256": "8a8ef3922254e0e9696ca456dfd52cd0d30556de358b8c1a6ec40e7053ad4827"
+    },
+    {
+      "path": ".readthedocs.yml",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/.readthedocs.yml",
+      "sha256": "ec835a77f6c469d3f75c1cda769199d0fb92203e53384a6db125f59aefa9004c"
+    },
+    {
+      "path": ".github/workflows/documentation.yml",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/.github/workflows/documentation.yml",
+      "sha256": "8a11377ba31220b18c2247be9f326998ad703d1a4cf1da0994858594d46b9df6"
+    },
+    {
+      "path": "docs/conf.py",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/conf.py",
+      "sha256": "bccf0b84a24d05913cec0b8b4c9935f4cb83aa5e0f13fd06bdeed4c711dd0163"
+    },
+    {
+      "path": "docs/jax.stages.rst",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst",
+      "sha256": "606603410c3b97eb0f92b6e2866b98777a77d53c871ed8431ca939796a5adb1f"
+    },
+    {
+      "path": "docs/jax.export.rst",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.export.rst",
+      "sha256": "e213fe3778dc627215991c2af52e23c4466dd9a373358ce3d2227d61c1a7ebee"
+    },
+    {
+      "path": "jax/_src/stages.py",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py",
+      "sha256": "85faffefd43598283b52e22c5d99293b05702f9796b1c898000d3d2c38a7aca2"
+    },
+    {
+      "path": "jax/_src/export/_export.py",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py",
+      "sha256": "0a76002754193bf660f54b2dd23e9f2498d713b4bdbd338252328fc7051893e8"
+    }
+  ]
+}

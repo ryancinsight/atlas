@@ -1,0 +1,182 @@
+[
+  {
+    "path": "doc/source/reference/c-api/generalized-ufuncs.rst",
+    "git_blob_sha": "7a436b102600ab54b1041a71930d26c49ff38f68",
+    "sha256": "97509244b5a6d2e34108284e51324421f3ee6ea54d7fcfb191733689efb8de51",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/generalized-ufuncs.rst"
+  },
+  {
+    "path": "doc/source/reference/c-api/ufunc.rst",
+    "git_blob_sha": "2dbc8cae2fa19421c5572936b0cd7d7482c66417",
+    "sha256": "4d25e510a2bb583972199f5e18caf3174c46333397d889ac479a2bea13e17799",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/c-api/ufunc.rst"
+  },
+  {
+    "path": "doc/source/reference/routines.bitwise.rst",
+    "git_blob_sha": "f6c15dd60f3490c8197a5154200b08838f5e3450",
+    "sha256": "8783efc394ba6411d93dd2e08ee0b67c2b484be8da2a037334d833731a317d77",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.bitwise.rst"
+  },
+  {
+    "path": "doc/source/reference/routines.linalg.rst",
+    "git_blob_sha": "3920e28f999464751d754d6aef9d0afb4e716876",
+    "sha256": "b7fad216e7e18de7883193aa1db2f7d8741b2b3ce1a30f88b9bf1e0003ed0f6e",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.linalg.rst"
+  },
+  {
+    "path": "doc/source/reference/routines.logic.rst",
+    "git_blob_sha": "68a236605f90223b5bd6cc2bbbc7e5e2500d850f",
+    "sha256": "ebdb00ab7392cf379a76224c0f3d4352f37f043f8c4443433be5e0d5d48a1df7",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.logic.rst"
+  },
+  {
+    "path": "doc/source/reference/routines.math.rst",
+    "git_blob_sha": "f08304e74f51d571683f241cdb5498c2cb0bdc9d",
+    "sha256": "818701edcbe736d6f067b04123c9fc59dc2e93203ff4d02932a41c1b6bb82b68",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.math.rst"
+  },
+  {
+    "path": "doc/source/reference/routines.strings.rst",
+    "git_blob_sha": "68387aee22ff14863ab18d42dacd3a5eb88632d1",
+    "sha256": "9167ecd78cad4376e77fe47167cb47bd98c668d7f83779d1b2f638aaf56dac98",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/routines.strings.rst"
+  },
+  {
+    "path": "doc/source/reference/ufuncs.rst",
+    "git_blob_sha": "cac15b66cf14cd4eee510b4cd5724720299c3129",
+    "sha256": "5d2ef99af16f40cb7a5037300a72a96c077d97b7ba1f5b1bffb58b4069bcbca3",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/reference/ufuncs.rst"
+  },
+  {
+    "path": "doc/source/user/basics.ufuncs.rst",
+    "git_blob_sha": "5c91ab6c0168b2af033a10e9ed8f3f440cc3bede",
+    "sha256": "d606ea5bf20727b5596c6d25dc35d683674b35cbd4d65024c6885e0c52e1c4be",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/doc/source/user/basics.ufuncs.rst"
+  },
+  {
+    "path": "numpy/__init__.py",
+    "git_blob_sha": "be46f6b09c7531a43f341b8e530465a58f1725de",
+    "sha256": "09295a80660f17925ae23765ce8cbd7ff7ceae968d5f2f89349f1cb74c0b9e11",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/__init__.py"
+  },
+  {
+    "path": "numpy/__init__.pyi",
+    "git_blob_sha": "d50397a5c4d90bc3a93964016df9b1b559f44312",
+    "sha256": "2d707eb1d54563c69bdac3b095be5e1e7de517b06b3c07c04815cc425c42eb8d",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/__init__.pyi"
+  },
+  {
+    "path": "numpy/_core/__init__.py",
+    "git_blob_sha": "ede50aaeefc3f595ed7e5993eadfba6d044fd94c",
+    "sha256": "837ce8aec8693095d2e1c7c306d385d1785a50be97a009935c64cae04e3555d2",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/__init__.py"
+  },
+  {
+    "path": "numpy/_core/_add_newdocs.py",
+    "git_blob_sha": "eed4d7f945a8a0cb7899acba0e08abb3239fed77",
+    "sha256": "2fc06f2d919b16afc1e1f1abdb161bdce9eedafe3e07f127bb0f45b0841964c6",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/_add_newdocs.py"
+  },
+  {
+    "path": "numpy/_core/_internal.py",
+    "git_blob_sha": "15f436b80bd78ab03e4fd54be6ca26f3f923b93b",
+    "sha256": "497f1ce325bcc6ffc2ccf013e2cdd2ff2e32c55106a0a07997213d45d6c777a0",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/_internal.py"
+  },
+  {
+    "path": "numpy/_core/code_generators/generate_umath.py",
+    "git_blob_sha": "ecb455767a24528f8748e2da6d9a83037a81bae4",
+    "sha256": "b924cc28bd1f6760ae0a670f2369f9f1bc2f102e7b1e886d3ab803541374e37d",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/code_generators/generate_umath.py"
+  },
+  {
+    "path": "numpy/_core/code_generators/generate_umath_doc.py",
+    "git_blob_sha": "f2f1e5d35d885f00064d0c3fc809c37b82736561",
+    "sha256": "c460e83fb86ad25a8485baa6d2ce0a1b0af7654d5c2ad7081063945cff4c6d93",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/code_generators/generate_umath_doc.py"
+  },
+  {
+    "path": "numpy/_core/code_generators/ufunc_docstrings.py",
+    "git_blob_sha": "6973ba34322e5bdb045c68869a8ab0a7ebe56070",
+    "sha256": "132af5a04b96af3a9e7cc30d17808d8e31cb263392abd23ec3bc004cb627660d",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/code_generators/ufunc_docstrings.py"
+  },
+  {
+    "path": "numpy/_core/defchararray.py",
+    "git_blob_sha": "8d67766b6e97d4cb499a50a5f14524948596fee8",
+    "sha256": "a174cd2354ef6fd8851d51c6f5b43f3fc836a344d1a37fa9600060387858d395",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/defchararray.py"
+  },
+  {
+    "path": "numpy/_core/multiarray.py",
+    "git_blob_sha": "c7f21b60c488bcec7f889709dd7d8ed716bdc74b",
+    "sha256": "afd14181b927aa10800a0c5dab5f456f52e219726847dbef379e313419029d49",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/multiarray.py"
+  },
+  {
+    "path": "numpy/_core/numeric.py",
+    "git_blob_sha": "4ba4ae4cae1d6192ff95a206905a1c30ecf7633c",
+    "sha256": "feb150554b4879d4df7bd0a4ab7b1a6b818de7ba994ed0c73583fee177533417",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/numeric.py"
+  },
+  {
+    "path": "numpy/_core/src/multiarray/multiarraymodule.c",
+    "git_blob_sha": "543c1977b4d930c38f93b3ac886af20636cf6646",
+    "sha256": "1bfda5658c09101dd6557fcb6f235ed63b0f57cdf01b07fb9e3166a25f724c64",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/multiarraymodule.c"
+  },
+  {
+    "path": "numpy/_core/src/umath/override.c",
+    "git_blob_sha": "421359eb6203a23f05762151686cda31088143b3",
+    "sha256": "bc8b655d12c71aa22177be9be86c742e9876e9659cb18607ab95a560f2ba176a",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/umath/override.c"
+  },
+  {
+    "path": "numpy/_core/src/umath/ufunc_object.c",
+    "git_blob_sha": "f86b6736e68d8f173b99d3e067dd320d648357e4",
+    "sha256": "7526a7a9dd606beec78f6e9f687b65ce048555c8400659cb7dfab55cf9faf4ef",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/umath/ufunc_object.c"
+  },
+  {
+    "path": "numpy/_core/src/umath/umathmodule.c",
+    "git_blob_sha": "439a2ac308d95bfc397767f3be8dab7d8c124747",
+    "sha256": "666347ae33fdb79c89f1a855ea18f6a34f2edcd6f7a2f20e952cbab1c29779aa",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/umath/umathmodule.c"
+  },
+  {
+    "path": "numpy/_core/strings.py",
+    "git_blob_sha": "371a582d35fedc616134676abc7733902385fe3b",
+    "sha256": "e1a4fc1fac89a947772a464d4b2a630be75347756e8d5edd00d8c33edc17c1fe",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/strings.py"
+  },
+  {
+    "path": "numpy/_core/umath.py",
+    "git_blob_sha": "0f37d41749df4e96174e3270ac3e33f2fbf9990a",
+    "sha256": "fabc529bdfcc632ae82bcaaa5539494802757e5a52c492999e2ebfe10f396987",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/umath.py"
+  },
+  {
+    "path": "numpy/_globals.py",
+    "git_blob_sha": "76f380b3e23e0708c5d19deea9d31877a8259c8d",
+    "sha256": "fe13921c6f4a00bd12891da7d800f2a42f878c067d8ed881ddf0af3fbace3a36",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_globals.py"
+  },
+  {
+    "path": "numpy/_typing/_ufunc.pyi",
+    "git_blob_sha": "5ace7d90d00a53f67011933902ca3adf7971f27b",
+    "sha256": "0230b6e895fd9a85599cbe460b6e84e6be4d59123097db0f495d14074936c66c",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_typing/_ufunc.pyi"
+  },
+  {
+    "path": "numpy/char/__init__.py",
+    "git_blob_sha": "a757fcee58ac4901abc2ed93e1720250111d0fd1",
+    "sha256": "93ff0019e949b734526cfd53c96a25923f8445fdae6c91ec3d400363de3ce94a",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/char/__init__.py"
+  },
+  {
+    "path": "numpy/strings/__init__.py",
+    "git_blob_sha": "561dadcf37d090ce201f9b9bec2dbb6e86a3dc06",
+    "sha256": "a36ef01d6f2319a51f6c3a294b2126603e918dea37dc0ce4181053816ae5187e",
+    "url": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/strings/__init__.py"
+  }
+]

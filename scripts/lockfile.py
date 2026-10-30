@@ -53,8 +53,10 @@ the hooks export it alone, which is why it stays one file.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import os
 import re
+import signal
 import subprocess
 import posixpath
 import sys
@@ -72,11 +74,9 @@ SCRIPT_CHECKOUT = REPOSITORY
 LOCKFILE = REPOSITORY / "Cargo.lock"
 MANIFEST = REPOSITORY / "Cargo.toml"
 
-# One `[[package]]` source line for a first-party repository, captured whole so
-# the revision and the URL spelling both take part in the identity comparison.
-FIRST_PARTY_PACKAGE_SOURCE = re.compile(
-    r'^source = "(git\+https://github\.com/ryancinsight/[^"]+)"', re.M
-)
+# A first-party source retains the revision and URL spelling because both take
+# part in provider-identity comparison.
+FIRST_PARTY_GIT = "git+https://github.com/ryancinsight/"
 
 # A member records how many first-party providers its graph currently resolves
 # through more than one source, as a single integer beside its lock. The file is
@@ -101,6 +101,106 @@ DEPENDENCY_KINDS = ("dependencies", "dev-dependencies", "build-dependencies")
 # any workspace.
 IGNORED_DIRECTORIES = frozenset({"target", ".git", "node_modules"})
 GIT_DEADLINE_SECONDS = 60
+
+# One cargo invocation is bounded: `cargo metadata --locked` and the consumer
+# sweep's `cargo update` both fetch first-party git sources, and a fetch that
+# hangs must fail the push rather than stall it. The `lockfile-guard` workflow
+# bounds the same run at five minutes from the outside; this is the deadline
+# the runner itself owns, so it also holds where no workflow wraps it.
+CARGO_DEADLINE_SECONDS = 600
+# A killed tree is already dead; this bounds only the wait to reap the launcher
+# and collect the output it wrote before the deadline.
+PROCESS_TREE_CLEANUP_SECONDS = 10.0
+# What the runner launches. A test replaces this with a stand-in so the
+# deadline and the tree kill are exercised without cargo.
+CARGO_COMMAND: tuple[str, ...] = ("cargo",)
+
+
+class CargoDeadlineExceeded(subprocess.TimeoutExpired):
+    """cargo outlived its deadline; its process tree has been killed.
+
+    A typed timeout rather than a return code, because the two failures cargo
+    produces here mean different things: a nonzero exit is a resolution that
+    ran and refused, while an expired deadline is a run that never finished.
+    Reporting the second as the first would blame the lock for a hung fetch.
+    """
+
+
+def _kill_process_tree(process: subprocess.Popen[str]) -> None:
+    """Kill `process` and every descendant it started.
+
+    The tree is the point: `cargo metadata` starts a rustc and git fetches, and
+    killing only the launcher leaves them holding the network and the lock.
+    POSIX starts the launcher in its own session, so one `killpg` retires the
+    group. Windows has no equivalent without a job object, and this file is
+    exported alone to the hooks, so it uses `taskkill /T` instead.
+    """
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/T", "/F", "/PID", str(process.pid)],
+                capture_output=True,
+                check=False,
+                timeout=PROCESS_TREE_CLEANUP_SECONDS,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+            return
+        except ProcessLookupError:
+            return
+        except OSError:
+            pass
+    if process.poll() is None:
+        process.kill()
+
+
+def run_bounded(
+    command: Sequence[str], *, cwd: Path, env: Mapping[str, str], deadline: float
+) -> subprocess.CompletedProcess[str]:
+    """Run `command`, killing its whole process tree if it outlives `deadline`.
+
+    `subprocess.run(timeout=...)` kills the launcher only, so the runner owns
+    the launch: a timeout is followed by [`_kill_process_tree`] and only then by
+    a collected result. A timeout raises [`CargoDeadlineExceeded`] carrying the
+    output the command managed to write before it was stopped.
+    """
+    process = subprocess.Popen(
+        tuple(command),
+        cwd=cwd,
+        env=dict(env),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        # `text=True` alone decodes with the locale codepage. Cargo emits UTF-8,
+        # so on a Windows console (cp1252) subprocess's reader thread dies on
+        # the first byte it cannot map and the captured stream is lost. The
+        # verdict survives -- it comes from `returncode` -- but the message
+        # explaining a failure does not, which is the one moment it is needed.
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        # The POSIX tree is the process group: the launcher must lead its own
+        # session for `killpg` to reach a descendant cargo did not reap.
+        start_new_session=os.name != "nt",
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=deadline)
+    except subprocess.TimeoutExpired:
+        _kill_process_tree(process)
+        try:
+            stdout, stderr = process.communicate(timeout=PROCESS_TREE_CLEANUP_SECONDS)
+        except subprocess.TimeoutExpired:
+            stdout, stderr = "", ""
+        note = (
+            f"cargo did not finish within {deadline:g}s; "
+            "its process tree was killed."
+        )
+        raise CargoDeadlineExceeded(
+            tuple(command), deadline, output=stdout, stderr=(stderr + "\n" + note).strip()
+        ) from None
+    return subprocess.CompletedProcess(tuple(command), process.returncode, stdout, stderr)
 
 
 def shared_target_dir(manifest: Path) -> Path | None:
@@ -134,7 +234,10 @@ def shared_target_dir(manifest: Path) -> Path | None:
 
 
 def run_outside_the_overlay(
-    arguments: list[str], manifest: Path | None = None
+    arguments: list[str],
+    manifest: Path | None = None,
+    *,
+    deadline: float = CARGO_DEADLINE_SECONDS,
 ) -> subprocess.CompletedProcess[str]:
     """Run cargo with a working directory outside the stack root.
 
@@ -155,6 +258,10 @@ def run_outside_the_overlay(
     `target_forks` class the conformance ratchet counts. An inherited
     `CARGO_TARGET_DIR` wins, so CI -- where there is no stack config and each
     job is isolated anyway -- is unaffected.
+
+    The run is bounded by `deadline` ([`run_bounded`]): a first-party fetch
+    that never returns raises [`CargoDeadlineExceeded`] after its whole process
+    tree is killed, so a stalled push fails instead of holding the hook open.
     """
     if manifest is None:
         manifest = MANIFEST
@@ -174,20 +281,11 @@ def run_outside_the_overlay(
         *arguments[separator:],
     ]
     with tempfile.TemporaryDirectory() as neutral_directory:
-        return subprocess.run(
-            ["cargo", *cargo_arguments],
-            cwd=neutral_directory,
+        return run_bounded(
+            [*CARGO_COMMAND, *cargo_arguments],
+            cwd=Path(neutral_directory),
             env=environment,
-            capture_output=True,
-            # `text=True` alone decodes with the locale codepage. Cargo emits
-            # UTF-8, so on a Windows console (cp1252) subprocess's reader thread
-            # dies on the first byte it cannot map and the captured stream is
-            # lost. The verdict survives -- it comes from `returncode` -- but the
-            # message explaining a failure does not, which is the one moment it
-            # is needed.
-            encoding="utf-8",
-            errors="replace",
-            check=False,
+            deadline=deadline,
         )
 
 
@@ -227,9 +325,22 @@ def check() -> int:
         )
         return 1
 
-    completed = run_outside_the_overlay(
-        ["metadata", "--locked", "--format-version", "1", "--all-features"]
-    )
+    try:
+        completed = run_outside_the_overlay(
+            ["metadata", "--locked", "--format-version", "1", "--all-features"]
+        )
+    except CargoDeadlineExceeded as error:
+        print(
+            f"error: cargo metadata --locked did not finish within "
+            f"{error.timeout:g}s, so its process tree was killed.\n"
+            "\n"
+            "The lock form is intact; this is a resolution that never finished\n"
+            "(usually a stalled first-party fetch), not a flattened lock.\n"
+            "\n"
+            f"cargo said:\n{(error.stderr or '').strip()}",
+            file=sys.stderr,
+        )
+        return 1
     if completed.returncode != 0:
         print(
             "error: the committed Cargo.lock does not resolve under --locked "
@@ -251,6 +362,40 @@ def check() -> int:
     return check_provider_identity()
 
 
+def locked_package_records(lock_text: str) -> list[Mapping[str, object]]:
+    """Return structurally readable package records from one Cargo lock.
+
+    Cargo owns the semantic grammars of package names, versions, and source
+    URLs. This boundary validates only the fields consumers must read without
+    ambiguity; callers interpret source identities for their own domain.
+    """
+    try:
+        data = tomllib.loads(lock_text)
+    except tomllib.TOMLDecodeError as error:
+        raise ValueError(f"unparseable lock: {error}") from error
+
+    packages = data.get("package", [])
+    if not isinstance(packages, list):
+        raise ValueError("lock package collection is not an array")
+
+    records: list[Mapping[str, object]] = []
+    for index, package in enumerate(packages):
+        if not isinstance(package, dict):
+            raise ValueError(f"lock package {index} is not a table")
+        for field in ("name", "version"):
+            value = package.get(field)
+            if not isinstance(value, str) or not value:
+                raise ValueError(
+                    f"lock package {index} has missing, empty, or non-string {field}"
+                )
+        if "source" in package:
+            source = package["source"]
+            if not isinstance(source, str) or not source:
+                raise ValueError(f"lock package {index} has empty or non-string source")
+        records.append(package)
+    return records
+
+
 def provider_identities(lock_text: str) -> dict[str, set[str]]:
     """Map each first-party repository to the distinct sources it resolves through.
 
@@ -258,7 +403,10 @@ def provider_identities(lock_text: str) -> dict[str, set[str]]:
     repository count as the fork they are rather than as two providers.
     """
     identities: dict[str, set[str]] = {}
-    for source in FIRST_PARTY_PACKAGE_SOURCE.findall(lock_text):
+    for package in locked_package_records(lock_text):
+        source = package.get("source")
+        if not isinstance(source, str) or not source.startswith(FIRST_PARTY_GIT):
+            continue
         base = source.split("#", 1)[0]
         repository = base.split("?", 1)[0].removesuffix(".git").lower()
         identities.setdefault(repository, set()).add(base)
@@ -409,9 +557,9 @@ def violations(
     quantified over what the lock resolves, never over a count of `git+` lines.
     """
     try:
-        data = tomllib.loads(lock_text)
-    except tomllib.TOMLDecodeError as error:
-        return [f"unparseable lock: {error}"]
+        packages = locked_package_records(lock_text)
+    except ValueError as error:
+        return [str(error)]
 
     found: list[str] = []
     unused = lock_text.count(PATCH_UNUSED)
@@ -419,7 +567,7 @@ def violations(
         found.append(f"{unused} {PATCH_UNUSED} table(s): overlay residue")
 
     sources: dict[str, list[str | None]] = {}
-    for package in data.get("package", []):
+    for package in packages:
         sources.setdefault(package.get("name"), []).append(package.get("source"))
 
     for name in sorted(set(git_dependencies) - set(local)):
@@ -461,8 +609,155 @@ def escapes_repository(manifest: PurePosixPath, path: str) -> bool:
     return resolved == ".." or resolved.startswith("../")
 
 
+def directory_pattern_matches(pattern: PurePosixPath, directory: PurePosixPath) -> bool:
+    """Whether `directory` matches one of cargo's member or exclude globs.
+
+    Cargo confines `*` and `?` to one path component and lets `**` span them;
+    `PurePosixPath.match` lets `*` cross separators, so the components are
+    walked here instead.
+    """
+    wanted = pattern.parts
+    actual = directory.parts
+
+    def walk(pattern_index: int, directory_index: int) -> bool:
+        if pattern_index == len(wanted):
+            return directory_index == len(actual)
+        component = wanted[pattern_index]
+        if component == "**":
+            return any(
+                walk(pattern_index + 1, index)
+                for index in range(directory_index, len(actual) + 1)
+            )
+        if directory_index == len(actual):
+            return False
+        return (
+            fnmatch.fnmatchcase(actual[directory_index], component)
+            and walk(pattern_index + 1, directory_index + 1)
+        )
+
+    return walk(0, 0)
+
+
+def workspace_relative(workspace: PurePosixPath, path: str) -> PurePosixPath:
+    """A member or exclude entry, resolved against the workspace root."""
+    joined = posixpath.normpath(posixpath.join(workspace.as_posix(), path.replace("\\", "/")))
+    return PurePosixPath(joined)
+
+
+def workspace_selection(
+    manifests: Mapping[str, str],
+    parsed: Mapping[str, Mapping[str, object] | None],
+    workspace: PurePosixPath,
+    nested: Sequence[PurePosixPath],
+) -> set[str] | None:
+    """The manifests cargo resolves in the workspace's lock, or None when it declares none.
+
+    Cargo, not directory containment, decides membership: `members` names the
+    packages (globs included), `exclude` removes paths from that set, path
+    dependencies under the root join it, and a manifest declaring its own
+    `[workspace]` is a separate unit whether or not it has a lock. Grouping by
+    containing directory instead missed a member outside the lock's directory,
+    let an excluded crate shadow a stripped source by name, and let a lockless
+    nested workspace exempt the root lock through a path leaving the repository.
+
+    `None` means the root declares no `[workspace]` table; the caller then keeps
+    the directory-based reading, which is all a single-package manifest has.
+    """
+    root = (workspace / "Cargo.toml").as_posix()
+    root_data = parsed.get(root)
+    table = root_data.get("workspace") if isinstance(root_data, dict) else None
+    if not isinstance(table, dict):
+        return None
+
+    def entries(key: str) -> list[PurePosixPath]:
+        listed = table.get(key)
+        if not isinstance(listed, list):
+            return []
+        return [
+            workspace_relative(workspace, entry)
+            for entry in listed
+            if isinstance(entry, str)
+        ]
+
+    members = entries("members")
+    excluded = entries("exclude")
+    # Only workspaces *beneath* this one are boundaries. An ancestor's
+    # `[workspace]` does not own this lock: this one declares its own, and may
+    # itself be a `[workspace]` root under an umbrella that only lists other
+    # members.
+    boundaries = {
+        PurePosixPath(name).parent
+        for name, data in parsed.items()
+        if isinstance(data, dict)
+        and isinstance(data.get("workspace"), dict)
+        and workspace in PurePosixPath(name).parent.parents
+    }
+    boundaries.update(boundary for boundary in nested if workspace in boundary.parents)
+
+    def ignored(directory: PurePosixPath) -> bool:
+        return bool({part.lower() for part in directory.parts} & IGNORED_DIRECTORIES)
+
+    def inside_boundary(directory: PurePosixPath) -> bool:
+        return any(
+            boundary == directory or boundary in directory.parents
+            for boundary in boundaries
+        )
+
+    def excluded_manifest(name: str) -> bool:
+        directory = PurePosixPath(name).parent
+        ancestors = [
+            PurePosixPath(*directory.parts[:index])
+            for index in range(len(directory.parts), 0, -1)
+        ]
+        return any(
+            directory_pattern_matches(pattern, ancestor)
+            for pattern in excluded
+            for ancestor in ancestors
+        )
+
+    selected = {root}
+    for name in manifests:
+        directory = PurePosixPath(name).parent
+        if inside_boundary(directory) or ignored(directory):
+            continue
+        if any(directory_pattern_matches(pattern, directory) for pattern in members):
+            selected.add(name)
+
+    # Cargo joins every path dependency under the root to the workspace; one
+    # outside it is a separate package even when a member reaches it.
+    changed = True
+    while changed:
+        changed = False
+        for name in sorted(selected):
+            data = parsed.get(name)
+            if not isinstance(data, dict):
+                continue
+            for table_of_dependencies in dependency_tables(data):
+                for spec in table_of_dependencies.values():
+                    if not isinstance(spec, dict) or not isinstance(spec.get("path"), str):
+                        continue
+                    target = workspace_relative(PurePosixPath(name).parent, spec["path"])
+                    target_manifest = (target / "Cargo.toml").as_posix()
+                    if target_manifest in selected or target_manifest not in manifests:
+                        continue
+                    if inside_boundary(target) or ignored(target):
+                        continue
+                    selected.add(target_manifest)
+                    changed = True
+
+    return {
+        name
+        for name in selected
+        if not inside_boundary(PurePosixPath(name).parent)
+        and not ignored(PurePosixPath(name).parent)
+        and not excluded_manifest(name)
+    }
+
+
 def workspace_facts(
-    manifests: Mapping[str, str], workspace: PurePosixPath, nested: Sequence[PurePosixPath]
+    manifests: Mapping[str, str],
+    workspace: PurePosixPath,
+    nested: Sequence[PurePosixPath],
 ) -> WorkspaceFacts:
     """The packages a workspace defines and the git dependencies it declares.
 
@@ -470,31 +765,45 @@ def workspace_facts(
     workspace roots beneath this one that own their own lock; their manifests
     belong to that lock, not this one.
 
+    Membership comes from the workspace's own declarations when it has any
+    ([`workspace_selection`]); a manifest without a `[workspace]` table keeps
+    the directory reading, which is the only membership a lone package has.
+
     `fixture` marks a workspace depending on a sibling repository by relative
     path (`../../../hephaestus/...`). It exists only inside a full Atlas
     checkout and cannot resolve standalone, so the standalone rule does not
     apply to its lock (ADR-0044's one exemption).
     """
+    parsed: dict[str, Mapping[str, object] | None] = {}
+    for name, text in manifests.items():
+        try:
+            parsed[name] = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
+            parsed[name] = None
+
+    selected = workspace_selection(manifests, parsed, workspace, nested)
+    if selected is None:
+        selected = {
+            name
+            for name in manifests
+            if workspace in PurePosixPath(name).parents
+            and not ({part.lower() for part in PurePosixPath(name).parts} & IGNORED_DIRECTORIES)
+            and not any(other in PurePosixPath(name).parents for other in nested)
+        }
+
     local: set[str] = set()
     git_dependencies: set[str] = set()
     unreadable: list[str] = []
     fixture = False
-    for name, text in sorted(manifests.items()):
-        manifest = PurePosixPath(name)
-        if workspace not in manifest.parents:
-            continue
-        if {part.lower() for part in manifest.parts} & IGNORED_DIRECTORIES:
-            continue
-        if any(other in manifest.parents for other in nested):
-            continue
-        try:
-            data = tomllib.loads(text)
-        except tomllib.TOMLDecodeError:
+    for name in sorted(selected):
+        data = parsed.get(name)
+        if data is None:
             unreadable.append(name)
             continue
         package = data.get("package")
         if isinstance(package, dict) and isinstance(package.get("name"), str):
             local.add(package["name"])
+        manifest = PurePosixPath(name)
         for table in dependency_tables(data):
             for dependency, spec in table.items():
                 if not isinstance(spec, dict):
@@ -739,7 +1048,15 @@ def regenerate() -> int:
     a repair must not do (ADR-0044); advancing a pin is `cargo update`, run
     deliberately.
     """
-    completed = run_outside_the_overlay(["metadata", "--format-version", "1"])
+    try:
+        completed = run_outside_the_overlay(["metadata", "--format-version", "1"])
+    except CargoDeadlineExceeded as error:
+        print(
+            f"error: regeneration did not finish within {error.timeout:g}s; its "
+            f"process tree was killed.\n{(error.stderr or '').strip()}",
+            file=sys.stderr,
+        )
+        return 1
     if completed.returncode != 0:
         print(f"error: regeneration failed:\n{completed.stderr.strip()}", file=sys.stderr)
         return 1

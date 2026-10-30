@@ -1,0 +1,820 @@
+{
+  "schema_version": 1,
+  "source_capture_is_execution_evidence": false,
+  "sources": [
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-REP",
+          "line_end": 68,
+          "line_start": 16,
+          "sha256": "49db6ca5dd00b077a7d62cf7bb7b7bd2e0e8fa3a88138ab28dcdc508d79fc3c2"
+        },
+        {
+          "contract_id": "CT-PROMOTE",
+          "line_end": 34,
+          "line_start": 16,
+          "sha256": "6997b5978bfb2aaeda975b6e9526662229e9514d73b49a9fecfe8e91124435c4"
+        }
+      ],
+      "bytes": 10377,
+      "git_blob": "18ad5f5c76763f47f21d6ad9a4453448615a67d1",
+      "lines": 261,
+      "path": "crates/eunomia/src/traits/numeric.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "source_sha256": "81bb15da9036cd09cef504ad743ccb11e0f99edafccd9c1f860970e766c52ad7"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-REP",
+          "line_end": 24,
+          "line_start": 7,
+          "sha256": "155976dfeb5f7e4bd2f7b096de49acad1282737213fb727ed977492e28f6555e"
+        },
+        {
+          "contract_id": "CT-REP",
+          "line_end": 186,
+          "line_start": 158,
+          "sha256": "b6ad0fa2429c2bd64da487c8198070e100f85e88749402a8ee59d1389cb5f517"
+        }
+      ],
+      "bytes": 18034,
+      "git_blob": "05bc2bd872e026fe907130406fab0fbccdaf784a",
+      "lines": 499,
+      "path": "crates/eunomia/src/traits/float.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "source_sha256": "ccad6f08d74cfed5598a70ed745a39b85ea7f63fdbff56b49c48204d9f94c0b9"
+    },
+    {
+      "anchors": [],
+      "bytes": 9166,
+      "git_blob": "04715e7be90f4d3de0aae79a21290df1db08dc6a",
+      "lines": 233,
+      "path": "crates/eunomia/src/traits/field.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "source_sha256": "0100188069bb9dd16114b90d9e1a53bd710ca34fdd21287f0acfc657703553fc"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-REP",
+          "line_end": 38,
+          "line_start": 1,
+          "sha256": "f89e472e3e6a4ac12943efd6eacb7c916ba5e7a2adcc4a3a0a7122d5299dbf18"
+        }
+      ],
+      "bytes": 4159,
+      "git_blob": "5dace7c0b2abad88e23559ed7f3254d9b9d4f2f0",
+      "lines": 87,
+      "path": "crates/eunomia/src/layout/marker.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "source_sha256": "425e2e3371a936609f8c296714f91d3ea309a6c9007c170ffbad80fc5e37ee18"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-PROMOTE",
+          "line_end": 79,
+          "line_start": 46,
+          "sha256": "be4b67f37bd1241be36e66cf798f3f8b24a7401bf2e0b10783b482511f6d8da6"
+        }
+      ],
+      "bytes": 7320,
+      "git_blob": "358c7bb4aea612259dde78b69fc36c0e14779e84",
+      "lines": 205,
+      "path": "crates/eunomia/src/convert/integer.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "source_sha256": "1039291ad484f21a40d56dda64b1df9c1a41045fa0418fcae07143373f6d5f97"
+    },
+    {
+      "anchors": [],
+      "bytes": 13113,
+      "git_blob": "67846b821f459705fa94aea28dadfbbe95ebc68a",
+      "lines": 328,
+      "path": "crates/eunomia/src/impls/wrappers/float.rs",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "source_sha256": "db1ef840bf6fdc62cd8429d07ef67cb170219ec6c6e8d746023c88ab8a5a8ba3"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-SHAPE-LAYOUT",
+          "line_end": 52,
+          "line_start": 3,
+          "sha256": "4f77cf68c3e8ef0991adfd7df7b8b20d3478eb52be5db88ec2c16c329258962a"
+        }
+      ],
+      "bytes": 3883,
+      "git_blob": "8d795fc742480db7051150fefe84ba85ca4d74a6",
+      "lines": 114,
+      "path": "crates/leto/src/domain/layout/core.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source_sha256": "40feebd020646a70f2c9ba985dff8a2c007f215df5250dd69213b83b4ece4894"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-SHAPE-LAYOUT",
+          "line_end": 80,
+          "line_start": 40,
+          "sha256": "34c5abb81671090b9be7b748a5731763ecbbfc1b9bb44e9c5be967987fa95821"
+        },
+        {
+          "contract_id": "CT-INDEX-MUTATION",
+          "line_end": 80,
+          "line_start": 45,
+          "sha256": "c4ab5e98f3110f05254e7daeb634e0dc5e58bc94507ff9aed43507846d2103f0"
+        }
+      ],
+      "bytes": 10037,
+      "git_blob": "557f31ac23f06b98a01de82d2b4c9e38a537259a",
+      "lines": 236,
+      "path": "crates/leto/src/domain/layout/shape.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source_sha256": "aac982d7710b3612bd58e6311357ed9ad4712aba95bc07324550e7130bb80e68"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-SHAPE-LAYOUT",
+          "line_end": 47,
+          "line_start": 7,
+          "sha256": "4d661c2eefc3c163f1bc25a0b056e833e68a43211852ea4c4bea88efc33994f4"
+        }
+      ],
+      "bytes": 5975,
+      "git_blob": "068f69d10f479f93ac61ef066383b77799d0c147",
+      "lines": 164,
+      "path": "crates/leto/src/domain/dynamic/layout.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source_sha256": "368bb805b8f57492969702186a2eb6825cc8124a2db2c4fbfd9a39f1578da685"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-INDEX-MUTATION",
+          "line_end": 70,
+          "line_start": 50,
+          "sha256": "f755ca310eea0b41f792b141ad76bec39f975d00c9e80b55e9b34ff8ee2826d8"
+        }
+      ],
+      "bytes": 8849,
+      "git_blob": "b5c9c6672637accd574b10684a76d0232af02f82",
+      "lines": 239,
+      "path": "crates/leto/src/application/view/mutable_core.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source_sha256": "a4a598f689c2a464a3f714bf002c9a3a58a864e2ff769060c8c8f5312ee7b5df"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-RICH-ARRAY",
+          "line_end": 28,
+          "line_start": 7,
+          "sha256": "9dfbbba994ef98aa43072a4d201c60d813039bc4cc58443c0080ce41c87cfa0f"
+        }
+      ],
+      "bytes": 12204,
+      "git_blob": "9daed89ef92b962ba3df5d712a2c0263d99a4f0a",
+      "lines": 339,
+      "path": "crates/leto/src/application/view/immutable.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source_sha256": "b53a9a55fd1c4e58067a10197a34a69bec70a0197e40a9853daf092cd73c9960"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-INDEX-MUTATION",
+          "line_end": 78,
+          "line_start": 37,
+          "sha256": "65365fbb5d76c17987389475e5228f98edc59f2b19fd3cead0f5ec6aa9d88c1a"
+        }
+      ],
+      "bytes": 6332,
+      "git_blob": "6f8aabef66dfaed6de2183ac87af180fe63649be",
+      "lines": 170,
+      "path": "crates/leto/src/application/assign/assign_into.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source_sha256": "012e380494030f4434a88f39fd01ff5e21616b10f5a3036a1ed76fa6546d9205"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-ALLOC",
+          "line_end": 22,
+          "line_start": 1,
+          "sha256": "d8c05fea938a91119def572547873323244500465e4c4bb976afa554607b029b"
+        },
+        {
+          "contract_id": "CT-RICH-ARRAY",
+          "line_end": 22,
+          "line_start": 1,
+          "sha256": "d8c05fea938a91119def572547873323244500465e4c4bb976afa554607b029b"
+        }
+      ],
+      "bytes": 696,
+      "git_blob": "f425ebdead379629c05c5c021d7e933200e08cc0",
+      "lines": 23,
+      "path": "crates/leto/src/infrastructure/storage/traits.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source_sha256": "5327a15802cabb91e74ea8ce8dac86b23745fe70ff2803c1813f71c4aa0248bb"
+    },
+    {
+      "anchors": [],
+      "bytes": 7261,
+      "git_blob": "6ab41f64ab52f3f49f4c688b375879f6c9a8e97c",
+      "lines": 220,
+      "path": "crates/leto/src/infrastructure/storage/mnemosyne.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source_sha256": "16d392577dcee4744bd7e8ac48d8b946efdd4d3f4e13758b85199655192d8eee"
+    },
+    {
+      "anchors": [],
+      "bytes": 7675,
+      "git_blob": "cc0a12af3fc7c654f6e394810f5e999d8f2b2f23",
+      "lines": 242,
+      "path": "crates/leto-ops/src/domain/scalar/contract.rs",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source_sha256": "778d950430ee7f3a93775ad9196b076d228eac16ab001fc524d330009ae2095a"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-PROMOTE",
+          "line_end": 44,
+          "line_start": 6,
+          "sha256": "7fc81de9c1c25926e59535f46888105922a44bf8ce98511c67938c9247f36076"
+        },
+        {
+          "contract_id": "CT-RICH-ARRAY",
+          "line_end": 44,
+          "line_start": 6,
+          "sha256": "7fc81de9c1c25926e59535f46888105922a44bf8ce98511c67938c9247f36076"
+        }
+      ],
+      "bytes": 8673,
+      "git_blob": "a6cbc42010f28eb7d552baece90ef51dcdab1465",
+      "lines": 218,
+      "path": "crates/coeus-core/src/dtype/traits/scalar.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "9d218ba8f7193aec867605071bcafab9d7660636f1b488fb31999d5e28f0be97"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-TENSOR-FACADE",
+          "line_end": 135,
+          "line_start": 122,
+          "sha256": "828b04555d3bcdee65cc7b3f1e42e8cf276e478d421f9dc54987f9452305cbc8"
+        }
+      ],
+      "bytes": 8435,
+      "git_blob": "dd4936f859c523611671781e51728c760b951793",
+      "lines": 214,
+      "path": "crates/coeus-core/src/backend/traits.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "bfa72322799475732c76825596d8185f6e59082abad30789a15871d35e320238"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-TENSOR-FACADE",
+          "line_end": 75,
+          "line_start": 21,
+          "sha256": "2635de685e780f3c4f8681ead7e485d4a5db40ad100271a64cbf2a8f145f4f41"
+        }
+      ],
+      "bytes": 2407,
+      "git_blob": "874aea24991d86d7a5ba413902097d2ddd8770d8",
+      "lines": 76,
+      "path": "crates/coeus-core/src/storage/traits.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "3cfc022a8a0c114ae0d1909de9b85c1d6f9bcf500869988dee8a2b7f9aa906d7"
+    },
+    {
+      "anchors": [],
+      "bytes": 16682,
+      "git_blob": "6e33b0e97b985a1b73ec73a1b2b521c0dd72e44c",
+      "lines": 475,
+      "path": "crates/coeus-core/src/storage/cpu.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "0fa4e4ea02837f9ffdb4ca2ff1c1464f1a255c082ef606d4589cf0c4e2601014"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-SHAPE-LAYOUT",
+          "line_end": 73,
+          "line_start": 56,
+          "sha256": "a5704276a87492c45bd1d1a940e2ac91073f3699ce227b0b8386825e09072dd5"
+        }
+      ],
+      "bytes": 12144,
+      "git_blob": "a98f711b5fdaa3b67e0d35ce6ffa3a7cf671118a",
+      "lines": 454,
+      "path": "crates/coeus-core/src/layout/layout.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "f90f3819a1db23788599e9e76bf3338d8fa6d8b0c7b4de845f1a55426fd40984"
+    },
+    {
+      "anchors": [],
+      "bytes": 3755,
+      "git_blob": "98ddbce26bea1c6e77e827b5f40de4ac2bc5ea11",
+      "lines": 167,
+      "path": "crates/coeus-core/src/layout/shape.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "de65ac57cb9e53679a878983c12950abb55f85d0955fadb5963b40ffc78c3025"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-SHAPE-LAYOUT",
+          "line_end": 31,
+          "line_start": 4,
+          "sha256": "af67eabf60ccd1fea2e0ca63df4485e2609e57cd31839c603eb3ffcb26fac626"
+        }
+      ],
+      "bytes": 1526,
+      "git_blob": "0af960c68b8e395946c659aa92a93b45949cffe3",
+      "lines": 59,
+      "path": "crates/coeus-core/src/layout/strides.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "f38c575318c39a91c3b54969f6d5ed0f67fe36af7c9cd794a503519a500e0025"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-TENSOR-FACADE",
+          "line_end": 78,
+          "line_start": 65,
+          "sha256": "1fc4732a25e8d428b8538f743b686cb7725bc7f1719474d939fb8eff7942b4c3"
+        },
+        {
+          "contract_id": "CT-RESOURCE",
+          "line_end": 78,
+          "line_start": 65,
+          "sha256": "1fc4732a25e8d428b8538f743b686cb7725bc7f1719474d939fb8eff7942b4c3"
+        }
+      ],
+      "bytes": 13090,
+      "git_blob": "018110f6bd0907afb4ab76e4d993a3dc39fa18da",
+      "lines": 420,
+      "path": "crates/coeus-tensor/src/tensor.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "598cd44c27d7aaaeb94deba042bbf53e7b5cbcc25ffa9dbbd3c6a3758aecc709"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-TENSOR-FACADE",
+          "line_end": 28,
+          "line_start": 10,
+          "sha256": "72e8ae8ecfbc61f7d58c02ae311860835809730d4ef4a748d7d4c22b95092c35"
+        }
+      ],
+      "bytes": 3693,
+      "git_blob": "4e944daf8420410895d53137a5f0c424dc6d8708",
+      "lines": 120,
+      "path": "crates/coeus-tensor/src/views.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "a700d74e1d0c34e63864f306bae2330450239e51483167e99b72d2191b4e664e"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-SHAPE-LAYOUT",
+          "line_end": 77,
+          "line_start": 41,
+          "sha256": "c08c5ac843a5b9fe555507da5fe82faf209ee68c4005ad7a1fb4e6d7690284f8"
+        }
+      ],
+      "bytes": 4751,
+      "git_blob": "f4bc3322eb839ce1daa7aafd6e17d1be22fbe4ec",
+      "lines": 146,
+      "path": "crates/coeus-cpu/src/convert.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "aecb5df5d48bbd5ebb93a1b60130d3017cfdee91093257d85dbc11b270e8a3ef"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-REVERSE-AD",
+          "line_end": 56,
+          "line_start": 49,
+          "sha256": "d773978bae14a2ebaa5eb1a389785e0ded98ce76ceb8dcb2c4234953fb804541"
+        },
+        {
+          "contract_id": "CT-RESOURCE",
+          "line_end": 56,
+          "line_start": 49,
+          "sha256": "d773978bae14a2ebaa5eb1a389785e0ded98ce76ceb8dcb2c4234953fb804541"
+        }
+      ],
+      "bytes": 14276,
+      "git_blob": "f2ea6b57ae50ca57a96ba5fcd1f17bdba5fb0040",
+      "lines": 381,
+      "path": "crates/coeus-autograd/src/var.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "4fb423b85eee342663b3db6b146aebf6c4184ee2b355fd2c6400bfd8f80df1db"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-REVERSE-AD",
+          "line_end": 37,
+          "line_start": 5,
+          "sha256": "e970b53d741e7bb67833c929684f5a163a071bffcf267ba2a5e438cf1c01e9af"
+        },
+        {
+          "contract_id": "CT-REVERSE-AD",
+          "line_end": 73,
+          "line_start": 46,
+          "sha256": "f6fc1102bc93a8dba3a9039bacb782c8d0106bdc621a1060f7450afdb080ab05"
+        }
+      ],
+      "bytes": 3168,
+      "git_blob": "617b7f1b3cf36388799f1c26990905be6fbf7026",
+      "lines": 75,
+      "path": "crates/coeus-autograd/src/grad_buffer.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "fec60d8a1db4da04f936ed8048950beef203ae188f1c8dafa0fb1d80aa9da55e"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-REVERSE-AD",
+          "line_end": 22,
+          "line_start": 4,
+          "sha256": "6a2f5d39a8d573c9ce6d1cb270c4e3d329332f8c178dfdeead9b71e1b6890afd"
+        }
+      ],
+      "bytes": 2888,
+      "git_blob": "226fa0a9408af1404ad4c12b26e2cff9a0039cef",
+      "lines": 70,
+      "path": "crates/coeus-autograd/src/backward.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "b063e8ee5d747b5749cf3da777200f2cc4d89efde45dbf591d8fe9c68764e958"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-TENSOR-FACADE",
+          "line_end": 36,
+          "line_start": 31,
+          "sha256": "26bd132330404db5312616a3d9831032f541c11c585041203d1c667344425ca0"
+        },
+        {
+          "contract_id": "CT-TENSOR-FACADE",
+          "line_end": 935,
+          "line_start": 905,
+          "sha256": "d2e82a3bfbe1de6c4b7b2645c2b9ba337b9286fc0ef04d25d0a0126556d0b48e"
+        }
+      ],
+      "bytes": 34256,
+      "git_blob": "1600e31c0b53c57cb1f5168f7c804a13a96aaaa5",
+      "lines": 985,
+      "path": "crates/coeus-python/src/tensor/pyimpl/pytensor.rs",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source_sha256": "40a800aa5fcb4f2e5257f08ea3f309efc36f1a6abeaeae34a54fafb92cd7613e"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-ALLOC",
+          "line_end": 68,
+          "line_start": 33,
+          "sha256": "51092fde1b15b439f7ec3c1d8a88b6902e825792d65e2ee46feb165b57415a86"
+        }
+      ],
+      "bytes": 7079,
+      "git_blob": "019f5772051abb86246368077f104f4fe4e9942f",
+      "lines": 159,
+      "path": "crates/mnemosyne-core/src/lib.rs",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "source_sha256": "846a84108e7577b5101ed4f0ec8c725da3b8ad3e88f5ebedc23ef47912cae465"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-ALLOC",
+          "line_end": 46,
+          "line_start": 9,
+          "sha256": "c8edfc75026f27b09145757bd8efebef023e2866035b1df023523015966498ee"
+        }
+      ],
+      "bytes": 6792,
+      "git_blob": "f479379cf96081281c5dae2951d6eef8364985f6",
+      "lines": 158,
+      "path": "crates/mnemosyne/src/allocator.rs",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "source_sha256": "9f6de07457849558159eaad566a3802a2624f0e543cc0d0c46bca6c7b49665af"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-ALLOC",
+          "line_end": 74,
+          "line_start": 18,
+          "sha256": "3beb2213482d93a2cbfe9501319feab7c9cb80757778045d3cd04f1416f67644"
+        }
+      ],
+      "bytes": 12010,
+      "git_blob": "0b8c56b5b981ab9d54615827b35abde5869ff434",
+      "lines": 307,
+      "path": "crates/mnemosyne-heap/src/branded_vec.rs",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "source_sha256": "a358b37280657d4cc7e715ad53c1b323647b58592f41f8dea841701845255edb"
+    },
+    {
+      "anchors": [],
+      "bytes": 12840,
+      "git_blob": "51d18ea4f571436ea7240f5dd78b18cce7461c83",
+      "lines": 320,
+      "path": "crates/mnemosyne-heap/src/branded_vec/ops.rs",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "source_sha256": "4f1753008bdc9be6cf230bb11199799d46ad2f20882e937b899931df520f7c70"
+    },
+    {
+      "anchors": [],
+      "bytes": 2184,
+      "git_blob": "094dfd8587414c0a935ec6630e6e836676d414b5",
+      "lines": 56,
+      "path": "crates/mnemosyne-heap/src/lib.rs",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "source_sha256": "667e053c943e00621d7aab8a9629e7996aa611fa2638abfa9c40c1e66f596049"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-ACCESS",
+          "line_end": 78,
+          "line_start": 30,
+          "sha256": "39caaa18bc52611b0e107129701c2dcdc0e15446d6d12f1c51056b79d6d7ad3b"
+        },
+        {
+          "contract_id": "CT-RESOURCE",
+          "line_end": 63,
+          "line_start": 39,
+          "sha256": "1e2bef2fb7617629c720cfdd1c4af71782e5380f2e2f83b187261bd6fd5cbef7"
+        }
+      ],
+      "bytes": 3662,
+      "git_blob": "2dbb0fea15a73bbaec3f81b6305841fe630bcfaf",
+      "lines": 78,
+      "path": "src/token/capability.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "source_sha256": "40d928daf683181d4ec41f9b6739a355162ae8652a535fd6f196686e2badbecc"
+    },
+    {
+      "anchors": [],
+      "bytes": 8788,
+      "git_blob": "9e54891dccbfb352c76d5361c00ee2b9a2b7a7b4",
+      "lines": 203,
+      "path": "src/cell/melinoe_cell.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "source_sha256": "85e173e8ca0f1c1ca7f866dfd58a61b19fb2a94491a26a360fa09627a7bc0409"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-ACCESS",
+          "line_end": 29,
+          "line_start": 5,
+          "sha256": "3fff7f8cf8d661d78fe0aa278e313d4a92649e5ee86fd2ba9b4c65c59812b494"
+        }
+      ],
+      "bytes": 2705,
+      "git_blob": "f261c5a453884c76114c23b3ce93364ecabc7300",
+      "lines": 61,
+      "path": "src/sync/tokens/region.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "source_sha256": "cab1d473f5e963ac1e208a7b6db2510ea0ef56d6f92a27fb6ca4543097886d23"
+    },
+    {
+      "anchors": [],
+      "bytes": 3024,
+      "git_blob": "5b1a50088450e590696e06262fb7552ac7194508",
+      "lines": 60,
+      "path": "src/sync/mod.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "source_sha256": "e43a8771ddb1c2a5e4a1d6219289654136521f8fcf2400de39bd128a84ece5c1"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-INDEX-MUTATION",
+          "line_end": 36,
+          "line_start": 19,
+          "sha256": "1d02b063b4d75b00147a59f47d2fe717e62cc703b6f8515bb0a3ca2194b9fb53"
+        }
+      ],
+      "bytes": 8156,
+      "git_blob": "68768a73d1e4f46bc5387926e94a76c57d265b3d",
+      "lines": 213,
+      "path": "src/region/shard.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "source_sha256": "9517a6fc7b79815c7e6961c3c49adaed37d7201dcc274d19a965177ea8a39ffa"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-ACCESS",
+          "line_end": 54,
+          "line_start": 21,
+          "sha256": "46c8f563580b8c47fda1ca721a3ff1d666d58df37d23ee4c64ed94e557cbd4a8"
+        }
+      ],
+      "bytes": 3024,
+      "git_blob": "ef76b4031aa9349a4b6ceece7ba99fa9f882218b",
+      "lines": 91,
+      "path": "contracts/atlas-device/tests/device_buffer.rs",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "source_sha256": "d190bdf4d7c7234e89adf0960144655c9b9eaf2e08aef6c6c8c4f981ed401bb4"
+    },
+    {
+      "anchors": [],
+      "bytes": 2497,
+      "git_blob": "28f281b9d31484bc343ba2a2b96fbba96c43451e",
+      "lines": 53,
+      "path": "contracts/atlas-device/Cargo.toml",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "source_sha256": "c39ebb3fcaa92646db5cba5e94af7c3a82ee48091c807ce91f8cad141b1e9b9b"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-DEVICE",
+          "line_end": 163,
+          "line_start": 115,
+          "sha256": "afbfd17afee4a14bdfdbecca86ad79b36b467726d01de3dc00763dfa61efc825"
+        }
+      ],
+      "bytes": 15445,
+      "git_blob": "eed06f1410d44b490ee2abb1b82d322695d44724",
+      "lines": 374,
+      "path": "crates/hephaestus-core/src/domain/device.rs",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "source_sha256": "391f52f9a71dca91bc47375b37f6f08fbdaf2ad29cf8089a29b8b31d47d1229e"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-DEVICE",
+          "line_end": 18,
+          "line_start": 1,
+          "sha256": "8d69f0e9fc70060ff1c679bf24470c8808a52cd024293cdf1d56559dd03a9b61"
+        }
+      ],
+      "bytes": 707,
+      "git_blob": "f25b9ea1ca8a0e1cd1b54627b5ba8d1f8d1566ce",
+      "lines": 19,
+      "path": "crates/hephaestus-core/src/domain/buffer.rs",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "source_sha256": "542c9eb5b75bb0fdcfdf85b7809cf7679c795b4dc7ade93bbb9300ae1fb1c483"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-DEVICE",
+          "line_end": 39,
+          "line_start": 9,
+          "sha256": "6f031b3a8c4f29c369e093ca06bacbdc71b8b138156c71c3850ac1207102f912"
+        }
+      ],
+      "bytes": 5894,
+      "git_blob": "d8c4fad875b5e9a25b3632558a56782a38704d35",
+      "lines": 149,
+      "path": "crates/hephaestus-core/src/domain/view.rs",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "source_sha256": "e78ae9e9574d0f8e45c9d6079bc2fedd3d5979055df6401f7783e30099ea3825"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-DEVICE",
+          "line_end": 132,
+          "line_start": 100,
+          "sha256": "13676f1fb62662d25d1826ba7f740de604a9c2326bdf91e0804667eef8e98245"
+        }
+      ],
+      "bytes": 4821,
+      "git_blob": "f59c27e3823e21d8410e88ade137b32fabd89e1e",
+      "lines": 133,
+      "path": "crates/hephaestus-core/src/domain/accelerator/device_api.rs",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "source_sha256": "c35ab1fb5759c9c1e27c1239d271fd20712207b8a675d09c9ffbd750f6819efd"
+    },
+    {
+      "anchors": [],
+      "bytes": 11991,
+      "git_blob": "ff6959b9a09f6d8c170d8d9f44d4b6be43fe82fc",
+      "lines": 321,
+      "path": "crates/hephaestus-core/src/domain/reduction.rs",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "source_sha256": "9824be266b104ad1e6d70a642e22eead40d2756f31973ccd8dc320d0f65a3b98"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-PLACEMENT",
+          "line_end": 5,
+          "line_start": 1,
+          "sha256": "9df8f5c955aee9dc56001317421ae7480f396052f9d42d9f788a452405964612"
+        },
+        {
+          "contract_id": "CT-PLACEMENT",
+          "line_end": 42,
+          "line_start": 23,
+          "sha256": "c83ba9700457f1a953f5768f0e91024ed9f9b72e5a70869ad830c67ffcd6a455"
+        }
+      ],
+      "bytes": 2218,
+      "git_blob": "3f7e7188b2632fab3b34d0b5aba3e4e174e8f3fb",
+      "lines": 55,
+      "path": "src/lib.rs",
+      "repo": "themis",
+      "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+      "source_sha256": "54ef4a35833f204787f2ba84475f9dbd51f5c3b1a4bbb3f1b1c6eec0a1075f27"
+    },
+    {
+      "anchors": [
+        {
+          "contract_id": "CT-PLACEMENT",
+          "line_end": 108,
+          "line_start": 81,
+          "sha256": "7dfbef024fe36b2a85465fcf4b16752a6abc5ae2167f9ed4bcb1cfa4a6e04c1d"
+        },
+        {
+          "contract_id": "CT-PLACEMENT",
+          "line_end": 147,
+          "line_start": 123,
+          "sha256": "81cda9e2a52de8e9fab8a298ee41403a583c9b991b88133a9b34acec3fa20d03"
+        }
+      ],
+      "bytes": 14151,
+      "git_blob": "0804fb062bc679cfa12f00924e64a0ac78e66b4f",
+      "lines": 410,
+      "path": "src/branded/region/storage.rs",
+      "repo": "themis",
+      "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+      "source_sha256": "99ecf0e7a4647b3bec63bf5d4409eb2072ded0b2c378f0dd0daeea25bc438dc2"
+    },
+    {
+      "anchors": [],
+      "bytes": 5242,
+      "git_blob": "66a5c05b6f229cf083d3191b3edfe2e4042e6751",
+      "lines": 126,
+      "path": "src/branded/region/cell.rs",
+      "repo": "themis",
+      "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+      "source_sha256": "f283e4eae0564c3e8590961c8ec912a2e80bf7982489d11e67a2a678a1716a3e"
+    }
+  ]
+}

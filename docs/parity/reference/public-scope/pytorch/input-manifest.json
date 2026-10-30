@@ -1,0 +1,56 @@
+[
+  {
+    "path": "inputs/pytorch.json",
+    "sha256": "9b7339ea2c74a4b50cc676ce6684eb55ac2a96561f959b45da0206b14b79eea2",
+    "source_path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-parity-program/docs/parity/reference/pytorch.json",
+    "bytes": 6804262
+  },
+  {
+    "path": "inputs/capabilities.json",
+    "sha256": "0f3d54d5d881543b4603944a8110f37a0bc56d6ed3916a15c792229f7f594e7c",
+    "source_path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task/atlas-parity-program/docs/parity/capabilities.json",
+    "bytes": 183332
+  },
+  {
+    "path": "inputs/source-supplement.json",
+    "sha256": "0f7769acf9159e9e41c421ee97cd6a43cf696978fcf35dc6b6d81f728fc96878",
+    "source_path": "/tmp/atlas-parity-torch-closure/source-supplement.json",
+    "bytes": 2029409
+  },
+  {
+    "path": "inputs/release-tree.json",
+    "sha256": "52ab248b22f15f12f13b3cd3abe05fb42cb4d91b91089b8ee5088768ed46b130",
+    "source_path": "/tmp/atlas-parity-torch-closure/release-tree.json",
+    "bytes": 7475783
+  },
+  {
+    "path": "inputs/new-tensor-contract.json",
+    "sha256": "ab23b5bd7e57d3d73864408873d8d651b19f5bd24556b3a4c5972e64f09a97d3",
+    "source_path": "/tmp/atlas-parity-torch-new-tensor/contract.json",
+    "bytes": 11312
+  },
+  {
+    "path": "inputs/objects.inv",
+    "sha256": "021a9908fed68dc53daf1a52b0f43fbd1719a7eb35beb03ab2d798b214c0fe31",
+    "source_url": "https://docs.pytorch.org/docs/2.14/objects.inv?raw=1",
+    "bytes": 224608
+  },
+  {
+    "path": "inputs/pre-correction-record-checkpoint.json",
+    "bytes": 4785351,
+    "sha256": "c2a9df74a678141b9ca6da83ccf11fee6562f2c52b3b9721b13d39428ed68f4a",
+    "source": "immutable9cc prior handoff"
+  },
+  {
+    "path": "inputs/symmem-before-rows.json",
+    "bytes": 27057,
+    "sha256": "3f084ebd9d3e9806b1a07153660e3ff8bcca73b9bb10a227865990377198be6c",
+    "source": "immutable9cc prior handoff"
+  },
+  {
+    "path": "history/base-9ccda309/artifact-manifest.json",
+    "bytes": 5366,
+    "sha256": "9ccda3094a2ae6948fc50824f5d56b75f922a86ad7201ffc49d7d8e088688f2b",
+    "source": "immutable9cc prior handoff"
+  }
+]

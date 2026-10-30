@@ -1,0 +1,1099 @@
+{
+  "apollo_696": {
+    "action_taken": "read_only_no_retry_no_mutation",
+    "base": "3fe4c021a274c33efe21847cec5f7baf67a97d1f",
+    "check_count": 16,
+    "head": "b62b9c7ef780cb41e0fedba526db877b0ad3fc88",
+    "informational_semver": "skipped",
+    "release_semver": "skipped",
+    "rust_workspace": "failure:subtle2.6.1 BSD-3-Clause via rustls/moirai-quic",
+    "tested_merge": "0ed605ccefa2adcfe1f2ac43637d015ac7aa44b1",
+    "version_guard": "failure:19 published-drifted packages",
+    "version_log": "https://github.com/ryancinsight/apollo/actions/runs/40023895725/job/120655327820",
+    "workspace_log": "https://github.com/ryancinsight/apollo/actions/runs/40023895725/job/120655327406"
+  },
+  "atlas_planning_delivery_570": {
+    "deployment_inspection": "Pages disabled; no webhooks or deployment history; all16workflow blobs unchanged; publish/book/wheel workflows call-only without automatic Atlas callers",
+    "fast_job": "success after ordinary readiness",
+    "head": "756d2c80ed1a7b431cd26df2d4c1c8421d7b94dd",
+    "independent_review": "No findings on exact source head; repository has no required GitHub approval rule",
+    "merge_commit": "2dbfeabc9f44de2d37e5cdfa2776bd272bb513bb",
+    "merged_verified": true,
+    "policy": "Active ruleset23641010, no policy/credential changes and no admin bypass requested",
+    "post_merge_actions": "Only Python script tests, atlas-conformance and dynamic security analysis observed at merge revision; no deployment record",
+    "pr": "https://github.com/ryancinsight/atlas/pull/570",
+    "previous_main": "f60fef17286b8cfdacf9191b133dc975aa186787",
+    "qualification_credit": "Bounded planning/tooling delivery only. Full program, per-API runtime/performance and repository1.0 exits remain unqualified; skipped cases receive no credit",
+    "readiness_python_checks_run": "https://github.com/ryancinsight/atlas/actions/runs/40292702283",
+    "required_checks": [
+      "Workflows are valid / Workflows are valid",
+      "Debt-class ratchet (counts non-increasing vs committed baseline)"
+    ],
+    "required_checks_run": "https://github.com/ryancinsight/atlas/actions/runs/40283691029",
+    "slow_job": "success after ordinary readiness"
+  },
+  "atlas_planning_delivery_571": {
+    "deployment_records": [],
+    "exact_head_independent_review": "No findings within bounded planning/tooling source scope",
+    "merge_revision": "03464d75e0bcfd0f177beb9ed505e2cb7509aa57",
+    "merged_at": "2026-10-26T09:16:20Z",
+    "post_merge_workflows": {
+      "40298262806": "Push on main:success",
+      "40298263902": "Python script tests:success",
+      "40298264181": "atlas-conformance:success"
+    },
+    "pull_request": "https://github.com/ryancinsight/atlas/pull/571",
+    "qualification_credit": "Planning/tooling delivery only; not full definition or1.0 qualification",
+    "reviewed_head": "7a1f96b1aca40131add614cc6ce835f69481bb06"
+  },
+  "atlas_planning_delivery_574": {
+    "actual_required_runs": {
+      "codeql": 40339117660,
+      "conformance": 40339121408,
+      "fast_slow": 40339245066
+    },
+    "exact_head": "11406055bc424500c98fb37b2e59456696a9f87b",
+    "mandatory_exact_head_review": {
+      "expanded_board_lines": 1000,
+      "local_links": 43,
+      "skipped": 0,
+      "source": "/tmp/atlas-core-tensor-independent-review/FINAL_REVIEW_11406055.json",
+      "tests_passed": 139
+    },
+    "merge_commit": "f642337d67a7853e9c81a2f6fb07cd45a5691d83",
+    "merged_at": "2026-10-26T14:33:57Z",
+    "no_full_definition_runtime_or_release_credit": true,
+    "parent_observed_policy": {
+      "admin_bypass": false,
+      "copilot_review_only": true,
+      "hooks": [],
+      "pages": false,
+      "premerge_main": "de9d428d41b26a0876a3e76a4a6984bd0ad2ef65",
+      "required_check_observation": "Parent reports rules2requiredchecks bothsuccess"
+    },
+    "provenance": "Trusted parent delivery handoff; this dtype lane performs no network/auth/protection probe",
+    "pull_request": "https://github.com/ryancinsight/atlas/pull/574",
+    "required_runs_result": "success",
+    "saved_snapshot_preserved": "510410f20cce546ea9a1ba8e79669540e9821a00",
+    "state": "verified_merged"
+  },
+  "atlas_public_scope_delivery_20261026": {
+    "branch": "docs/parity-public-contracts-20261026",
+    "ci": "Actual ready-state fast/slow pytest, all CodeQL languages and conformance pass at exact f09; three post-merge runs pass. Historical draft-skipped tests grant no credit. Tooling/source delivery is not framework/provider execution.",
+    "cli_delivery": {
+      "base": "main",
+      "connector_denial_retried": false,
+      "creation": "confirmed using existing gh CLI session after duplicate check returned empty",
+      "head": "f09f078edda6367304763b1e977a8771066bdffe",
+      "historical_receipt": true,
+      "merge_or_release": false,
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/572",
+      "receipt_phase": "initial_cli_creation_before_normal_readiness_and_gates",
+      "state": "Created at this historical receipt; verified_merge separately records completed delivery"
+    },
+    "confirmed_pushed_revision": "f09f078edda6367304763b1e977a8771066bdffe",
+    "draft_pr": {
+      "base": "main",
+      "head": "docs/parity-public-contracts-20261026",
+      "historical_receipt": true,
+      "http_status": 403,
+      "operation": "Create draft pull request",
+      "outcome": "denied",
+      "readback_matching_pull_requests": 0,
+      "reason": "Resource not accessible by integration",
+      "repository": "ryancinsight/atlas",
+      "retry": "Stopped; no alternate creation route attempted",
+      "transport": "GitHub connector"
+    },
+    "historical_merge_or_release": false,
+    "historical_no_pr_ci_receipt": "No PR-triggered exact-head CI exists; local/source checks do not replace hosted gates",
+    "historical_pushed_revision": "3d765a943cbaf7e6b6456b1e815b7fcc4d684a04",
+    "merged": true,
+    "released": false,
+    "remaining_delivery_gates": "Planning slice merged after its applicable exact-head gates; full extraction/semantics, provider/hardware/performance/release and1.0 remain unqualified.",
+    "verified_merge": {
+      "active_repository_hooks": [],
+      "actual_postmerge_successful_runs": [
+        40331438934,
+        40331439275,
+        40331435947
+      ],
+      "actual_premerge_successful_runs": [
+        40329936713,
+        40329704758,
+        40329712716
+      ],
+      "github_deployments_observed": [],
+      "has_pages": false,
+      "head": "f09f078edda6367304763b1e977a8771066bdffe",
+      "independent_review_sha256": "3465133831f6c10edf27fcaba0879f2c4867932a0dac814e665dc32966da5d23",
+      "merge_commit": "60f32ba8f44a79bc93013067432e1f8704a48cdb",
+      "merged_at": "2026-10-26T13:32:13Z",
+      "method": "merge with expected-head match; no admin bypass",
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/572",
+      "runtime_or_definition_qualification": false
+    }
+  },
+  "atlas_workflow_scope_delivery_20261026": {
+    "base_revision": "60f32ba8f44a79bc93013067432e1f8704a48cdb",
+    "branch": "docs/parity-workflow-contracts-20261026",
+    "confirmed_pushed_revision": "45d24c14a8598afb2f9a5d67ead5711c5951e1d0",
+    "draft_pr": "CLI PR#573 created after duplicate check, then normalready; verifiedmerged",
+    "historical_draft_observation": "Not attempted after predecessor creation403; matching readback0",
+    "historical_hosted_checks_or_release": false,
+    "historical_pushed_snapshot": "da03f4ea2b134539f4f26343510f0e41e8e43568",
+    "local_validation": "121 focused tests0skip and exact-head independent review clear",
+    "merged": true,
+    "released": false,
+    "verified_merge": {
+      "actual_premerge_successful_runs": [
+        40334653453,
+        40333999640,
+        40334003014
+      ],
+      "focused_tests_passed": 121,
+      "focused_tests_skipped": 0,
+      "github_deployments_observed": [],
+      "head": "45d24c14a8598afb2f9a5d67ead5711c5951e1d0",
+      "independent_review_sha256": "6a65ba65901bb6ef89d85a12f52dd30194e3a4e2aaa03994ac38c7fd65a10c26",
+      "merge_commit": "de9d428d41b26a0876a3e76a4a6984bd0ad2ef65",
+      "merged_at": "2026-10-26T14:02:45Z",
+      "postmerge_runs_observed": {
+        "40335982823": "in_progress",
+        "40335982847": "success",
+        "40335982871": "success"
+      },
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/573",
+      "runtime_or_definition_qualification": false,
+      "tree_identical_to_reviewed_da03": "7b05f831de12a9b4061941c80757edd9c3fdbf7f"
+    }
+  },
+  "audit_date": "2026-10-26",
+  "audit_kind": "read_only_source_and_selected_remote_evidence",
+  "coordinator_handoff_20261026": {
+    "apollo_696": "version/license holds unchanged",
+    "base_commit": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+    "baseline_failure_witnesses": 7,
+    "broad_miri_loom": "not established",
+    "clippy_archive_independent_review": "reported scoped pass; no broad provider/graph qualification",
+    "delivery_owner_task": "01a176ab-537b-71fe-aa02-d59f00de713d",
+    "historical_recovery_owner": "01a13836-1b78-7d83-93b2-fdef2d3b650c",
+    "historical_recovery_state": "completed with experimental work preserved; parent read fails unsupported placement format, not a code defect or permission denial",
+    "native_tokio_remaining": [
+      "genuine unbounded MPSC",
+      "versioned Quinn I/O and buffer adaptation"
+    ],
+    "native_tokio_removal_executor": "Superseded by later parent admission: task01a176ac-6a9e-77cc-a488-42908214f023 / turn01a176ac-776a-7757-b4ab-7a881fc390e4, started05:26 UTC",
+    "ownership_correction_0526": {
+      "duplicate_work": "prohibited",
+      "native_migration_scope": "genuine unbounded MPSC / versioned Quinn I/O-buffer migration, source/design/lightweight work only until parent heavy-slot grant",
+      "native_migration_task": "01a176ac-6a9e-77cc-a488-42908214f023",
+      "native_migration_turn": "01a176ac-776a-7757-b4ab-7a881fc390e4",
+      "native_runtime_acceptance": "not established by notification receipt or executor admission",
+      "notification_delivery_coordinator": "01a159ec-7017-7725-a554-194472dc20dc",
+      "notification_delivery_turn": "01a176ab-537b-71fe-aa02-d59f00de713d",
+      "provenance": "Trusted subsequent parent handoff"
+    },
+    "proposed_package": "moirai-async 0.11.1",
+    "provenance": "Trusted parent handoff plus read-only local receipt/seal hash verification; no public delivery artifact yet",
+    "qualification_credit": "none; filtered/skipped subset and uncommitted tree are not exact-commit full acceptance",
+    "receipt_sha256": "c11d5b6a14baa65d745a59764f24e8469f6becac44d24fb515421f03aa31eecd",
+    "scope": "Native notification correctness prerequisite only",
+    "source_identity_kind": "uncommitted_git_tree",
+    "source_tree": "8eae3a73447526609b52dc782c526e8d9ef4c14b",
+    "strict_api_passed": 223,
+    "strict_api_skipped": 30,
+    "superseded_current_native_status": "Historical notification-stage snapshot; current native candidate/review is native_migration_local_20261026",
+    "sync_tests_filter_excluded": 91,
+    "sync_tests_passed": 56,
+    "tokio_free": "not established"
+  },
+  "core_tensor_reviewed_snapshot_20261026": {
+    "branch": "docs/parity-core-tensor-contracts-20261026",
+    "compare": "https://github.com/ryancinsight/atlas/compare/da03f4ea2b134539f4f26343510f0e41e8e43568...510410f20cce546ea9a1ba8e79669540e9821a00",
+    "integration_main": "de9d428d41b26a0876a3e76a4a6984bd0ad2ef65",
+    "integration_tree_identical_to_saved_snapshot": true,
+    "new_status_successor_delivery_pending": true,
+    "no_full_definition_runtime_or_release_credit": true,
+    "status_interpretation": "Historical saved-snapshot fields retained; current completed delivery is atlas_planning_delivery_574.",
+    "verified_pushed_snapshot": "510410f20cce546ea9a1ba8e79669540e9821a00"
+  },
+  "gammaln_implementation_owner_20261026": {
+    "authentication_handoff": {
+      "authorized_repository_route": "Explicit later user direction authorizes existing gh CLI session for policy/deployment reads and draft creation; connector is not retried and no credentials/access settings change.",
+      "cli_identity_verified_by_parent": true,
+      "cli_route_authorized": true,
+      "connector_permission_repair_claimed": false,
+      "historical_integration403_hold_resolved": false,
+      "identity_outcome": "verified ryancinsight via parent minimal-account receipt; no additional login or planning probe needed",
+      "identity_verification_owner": "01a17793-e227-73cf-b347-6c85477ef010",
+      "source": "Trusted parent delegation after user Mac CLI login",
+      "user_instruction": "Use existing logged-in CLI session, not a separately supplied token"
+    },
+    "authority": "Trusted parent handoff; implementation lane must check local ownership before edits",
+    "baseline_gap": "Tracked inputs rejected at selected baseline57f7c459; three candidate heads repair bounded CPU scalar-real first-order behavior. No default/released cohort integration inferred.",
+    "candidate_cohort": {
+      "coeus": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "eunomia": "ebb1923feed7e416cbb97a9fcb19423922ae09d2",
+      "leto": "93e2a8c653252dfc943339c1bcec143a663a77d6"
+    },
+    "default_cohort_qualification": false,
+    "delivery": "Existing CLI identity ryancinsight is verified by parent. Eunomia/Leto feature pushes are reported successful; planning has not independently read their exact remote refs, and no complete Coeus/registry/release result is inferred. Captured invalid-CLI receipt remains historical.",
+    "gpu": "Separate mandatory acceptance; no silent CPU fallback",
+    "heavy_slot": "No resource assignment inferred by planning; parent coordinates existing owner.",
+    "historical_baseline_gap": "Current source rejects gradient-tracked inputs per parent; no completion or tests inferred",
+    "historical_delivery_receipt": "No push/PR/merge/publication attempted by gamma owner; invalid CLI token and policy reads403. Stopped without alternate route or access changes.",
+    "owner_task": "01a17793-e227-73cf-b347-6c85477ef010",
+    "qualification_credit": 0,
+    "qualifications": "Exact-head source reviews clear; scoped CPU and locked API receipts only.7 packages196pass/57skip each, skips never verification; no registry baseline or fresh remote consumer.",
+    "released": false,
+    "scope": [
+      "Eunomia digamma",
+      "Leto CPU gammaln/lgamma",
+      "Coeus autograd",
+      "Both public Python aliases"
+    ],
+    "source_audit": "core-tensor/gamma-source-audit.json",
+    "state": "locally_qualified_cpu_candidate_delivery_blocked"
+  },
+  "limitations": [
+    "No provider builds/tests/benchmarks executed by this audit.",
+    "Historical docs record claims, not current exact-revision verification.",
+    "Full public API/feature/platform coverage remains unmapped.",
+    "Registry checks establish selected availability only; archive identity and fresh consumers untested."
+  ],
+  "metrics": {
+    "gradcheck_dtype_sets_equal": true,
+    "gradcheck_leaf_files": 11,
+    "gradcheck_named_cases_per_dtype": 146,
+    "leto_array_data_rows": 34,
+    "leto_linalg_data_rows": 25,
+    "leto_stale_array_headline": 28,
+    "nn_manifest_rows": 21,
+    "nn_python_partial_families": [
+      "conv",
+      "dropout",
+      "regularization",
+      "rnn"
+    ]
+  },
+  "native_migration_local_20261026": {
+    "commit": "edfd15ea7678bea24fa4f08f4df453efb9d608aa",
+    "heavy_slot_owner": "Last explicit assignment was independent reviewer; subsequent repair resumption does not establish a new slot allocation in this ledger",
+    "implementation_owner_task": "01a176ac-6a9e-77cc-a488-42908214f023",
+    "independent_review_owner_task": "01a1771f-4ace-75e4-a240-c800b7d7e02a",
+    "independent_review_state": "Historical first review requests two P2 fixes; latest exact b50a96cf re-review resolves both within scope",
+    "independent_review_turn": "01a1771f-57f9-74f4-a78c-2d2193a1a0c3",
+    "predecessor_commit": "d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da",
+    "provenance": "Trusted parent handoff plus read-only receipt hash/head/record-count verification; independent candidate review pending",
+    "publication": {
+      "blocked_by": "Predecessor notification draft PR creation denied HTTP403 Resource not accessible by integration",
+      "merged": false,
+      "published": false,
+      "pushed": false,
+      "retry_or_alternate_route": "prohibited; no retry attempted by planning lane"
+    },
+    "qualification_credit": "Scoped source-owner evidence only, outside current pinned Atlas provider revision. No full provider, all-feature graph, platform runtime, numerical, hardware, performance or release acceptance inferred.",
+    "receipt_records": 1436,
+    "receipt_sha256": "ed2993676318dff7bdc5f161a2d11a2297257d9f06fc9b6266de2bfa35c93152",
+    "scoped_groups": {
+      "actual_source_miri_witnesses": {
+        "passed": 33,
+        "skipped": 0
+      },
+      "async_native_quic": {
+        "passed": 191,
+        "skipped": 0
+      },
+      "driver": {
+        "passed": 25,
+        "skipped": 0,
+        "stress_included": 3
+      },
+      "native_dependency_graphs": {
+        "configurations": 6,
+        "edge_scope": "normal/build",
+        "platform_runtime_acceptance": false,
+        "platforms": [
+          "macOS",
+          "Linux",
+          "Windows"
+        ],
+        "profiles": [
+          "default",
+          "minimal"
+        ],
+        "tokio_nodes": 0
+      },
+      "source_consumer_modes": "both source-consumer mode sessions pass; not a published-registry fresh-consumer receipt"
+    },
+    "source_receipt": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-2/receipt.json",
+    "state": "Historical edfd15ea local-candidate snapshot; later repaired/re-reviewed b50a96cf observation supersedes current repair state",
+    "tree": "e2c9d233b760722ca8935978a53d616bbd2c648d"
+  },
+  "native_qualification_owner_20261026": {
+    "adr": "0084 Proposed; broad native architecture direction does not grant concrete breaking-API sign-off",
+    "commit": "cab5499fa4ec41064a4c191b55911a8dbc852b60",
+    "delta": "Three test/docs files, seven additions/seven deletions, no production/manifest/lock/license/policy/performance change per owner report; exact-head independent review still required.",
+    "failed_or_unavailable": {
+      "all_feature_clippy": "Go absent during aws-lc-fips-sys build, no lint verdict",
+      "broad_windows_cross_clippy": "Missing MSVC CRT assert.h, no broad verdict",
+      "cached_cargo_deny": "Optional FIPS OpenSSL license and async-std discontinuation fail existing policy; cached advisory DB2026-10-13, no fresh-security verdict",
+      "linux_controlled_performance": "Never run:108process pairs per policy plus30shared-queue pairs with original deadlines; Mac81does not substitute",
+      "recovery_controller_python": "25run:22pass,1fail,2errors; three archived lock provenance cases require historical recovery owner reconciliation, do not replace archive",
+      "registry_consumers": "No push/PR/hosted CI/registry publication/registry-only clean consumer; predecessor integration403 remains stopped",
+      "strict_api_current_head": "Registry/git network unavailable; prior223pass30checker skips not a current-head verdict"
+    },
+    "independent_exact_head_review": "assigned_pending",
+    "owner_reported_results": {
+      "actual_source_miri": {
+        "passed": 34,
+        "skipped": 0
+      },
+      "darwin_unshaped_loopback": {
+        "controlled_linux_gate_credit": false,
+        "pairs": 81,
+        "policies": 3
+      },
+      "default_workspace": {
+        "passed": 1399,
+        "skipped": 12
+      },
+      "driver": {
+        "passed": 26,
+        "skipped": 0
+      },
+      "native_async_quic": {
+        "passed": 192,
+        "skipped": 0
+      },
+      "native_graphs": {
+        "configurations": 6,
+        "platform_runtime_credit": false,
+        "tokio_nodes": 0
+      },
+      "source_consumers": {
+        "passed": 2,
+        "skipped": 0
+      }
+    },
+    "owner_task": "01a176ac-6a9e-77cc-a488-42908214f023",
+    "parent_source_reviewed": "b50a96cfebf38a99c52b42e816ea3a5340927c25",
+    "provenance": "Trusted parent plus planning-lane read/hash/identity inspection; planning lane did not rerun provider commands.",
+    "qualification_credit": "Owner-reported scoped source/local acceptance only; no API stage promotion, performance/platform/registry/1.0 qualification",
+    "receipt_records": 1403,
+    "receipt_sha256": "36cb4995612f4fa65641af6833c7b7b29dc8254b2bc02e1f49cf44d4d5999bee",
+    "report_sha256": "28765ba3135f3b79285920735ab1f01af241350c312346ea190ef5b4a119443e",
+    "report_source": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-2/qualification/REPORT.md",
+    "same_reviewer_task": "01a1771f-4ace-75e4-a240-c800b7d7e02a",
+    "source_identity_sha256": "aa1887c83b29475cf5ac9c27cb34dcfb51f842c7b1e3360b9f7ac1ce8a7d40ed",
+    "tree": "45e6500a8b1b98eb48a6b41dc05843131f77ee3e"
+  },
+  "native_repaired_review_20261026": {
+    "archive": {
+      "entries_verified": 79,
+      "registry_publication": false,
+      "rust_files_matched": 74,
+      "sha256": "6a553579d59a1163111cba803d89ad31b10b891ec4bde795ef7431edfeee8489"
+    },
+    "commit": "b50a96cfebf38a99c52b42e816ea3a5340927c25",
+    "delivery": "Source review permits continuation to remaining gates only. No native push, PR, merge, publication or full-parity clearance is inferred; notification integration HTTP403 remains stopped.",
+    "heavy_slot_owner": "Native owner continues remaining unblocked acceptance under parent assignment",
+    "implementation_owner_task": "01a176ac-6a9e-77cc-a488-42908214f023",
+    "independent_executed_scope": {
+      "actual_source_miri": {
+        "passed": 34,
+        "skipped": 0,
+        "warning": "One isolated-library unused-method warning retained"
+      },
+      "async_native_quic": {
+        "passed": 192,
+        "skipped": 0
+      },
+      "driver": {
+        "includes_original_stress_cases": 3,
+        "passed": 26,
+        "skipped": 0
+      },
+      "native_normal_build_graphs": {
+        "configurations": 6,
+        "platform_runtime_acceptance": false,
+        "tokio_nodes": 0
+      },
+      "source_consumers": {
+        "default_passed": 1,
+        "minimal_passed": 1,
+        "skipped": 0
+      }
+    },
+    "notification_predecessor": "d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da",
+    "ordered_release_targets": [
+      "moirai-async 0.12.0",
+      "moirai-quinn 0.1.0",
+      "moirai-quic 0.2.0",
+      "moirai-runtime 0.12.0"
+    ],
+    "owner_receipt_records_independently_verified": 1336,
+    "owner_receipt_sha256": "9faef4809a5e43772ea8eea573142e9c5b006e3f130cd908757086fc44356452",
+    "parent": "edfd15ea7678bea24fa4f08f4df453efb9d608aa",
+    "provenance": "Trusted parent handoff plus read-only inspection of same independent reviewer report and identity-verification result; planning lane does not rerun provider tests",
+    "qualification_credit": "Scoped independently executed source evidence outside the current Atlas pinned revision; no API-ledger stage, platform/performance, registry or 1.0 promotion",
+    "remaining_gates": [
+      "ADR 0084 sign-off and precise ADR reconciliation",
+      "Exact-head hosted/workspace/all-feature/doc/doctest/licensing/security checks and current policy",
+      "Actual Linux/Windows, FIPS/post-quantum and alternative-runtime execution",
+      "Full fuzz/workspace-Miri applicability",
+      "Unchanged controlled 108-pair performance/fairness/latency/queue/recovery acceptance",
+      "Ordered package/registry publication and clean registry-only consumers"
+    ],
+    "resolved_findings": {
+      "MOIRAI-REVIEW-COOPERATIVE-DRAIN": "Actual driver has finite 128-event batch and wake-correct continuation outside mutex; six backlog boundaries verify remainder, protocol transmission and timer servicing",
+      "MOIRAI-REVIEW-DROP-WAKE": "Original and expanded ownership/reentry oracles pass; wakes precede queued-payload destruction after mutex release; values and allocation addresses preserved"
+    },
+    "review_outcome": "No findings within the recorded source-review scope; both first-round P2 findings resolved on this exact head",
+    "review_owner_task": "01a1771f-4ace-75e4-a240-c800b7d7e02a",
+    "review_report_sha256": "e55a6565b313f32ac7bbb35aa6bb2cd0370279c52870feef93baa3f63dbf482d",
+    "review_report_source": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-3/revision-2-review/REVIEW_REPORT.md",
+    "review_turn_prefix_supplied": "01a17749",
+    "review_verification_sha256": "524b5b05261130acde989fabbae463d475bcbd0d62ffe100fa85bf89ed155695",
+    "review_verification_source": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-3/revision-2-review/verification.json",
+    "source_records_independently_verified": 1273,
+    "strict_api_owner_observation": {
+      "checker_skipped": 30,
+      "independently_rerun": false,
+      "passed": 223,
+      "qualification_credit": "No full API qualification from skipped checker cases"
+    },
+    "tree": "2513a98c6df5a37cefb4811ad3e98d0d0023218a"
+  },
+  "native_review_correction_20261026": {
+    "candidate_commit": "edfd15ea7678bea24fa4f08f4df453efb9d608aa",
+    "current_disposition": "Both findings resolved by independent oracles on b50a96cf; retain the first-round counterexamples and acceptance criteria as history",
+    "findings": [
+      {
+        "counterexample": "Capacity1, queued panicking payload, parked second send, caught receiver-drop unwind: candidate closed with0wakes; original main1wake. Manual candidate poll returns exact unsent payload.",
+        "failure": "Receiver::drop drops queued payloads before delivering extracted parked-sender wakes. Payload destruction panic can bypass those wakes while destruction remains outside the mutex.",
+        "id": "MOIRAI-REVIEW-DROP-WAKE",
+        "line": 349,
+        "required_acceptance": "Wake delivery survives payload destructor unwind; payload destruction stays outside mutex; preserve exact returned ownership and reentry semantics.",
+        "severity": "P2",
+        "source_path": "moirai-async/src/sync/mpsc.rs"
+      },
+      {
+        "counterexample": "Tokio1.54.1 spawned-task witness with65536queued events: upstream Pending after128; candidate65536at empty. This is a scheduling witness, not saturated QUIC performance. Native provider outsideTokio had no upstream Tokio budget.",
+        "failure": "Unbounded process_conn_events drains while holding state mutex without independent batch bound; retained runtime-tokio path loses prior cooperative yield and postpones timers/transmission/notifications.",
+        "id": "MOIRAI-REVIEW-COOPERATIVE-DRAIN",
+        "line": 85,
+        "required_acceptance": "Finite event-processing budget with wake-correct continuation; retain native graph policy and run applicable exact-source fairness/runtime/108-pair performance gates.",
+        "severity": "P2",
+        "source_path": "moirai-quinn/src/connection/state.rs"
+      }
+    ],
+    "independent_passing_scope": "218 package/driver/source-consumer tests and6zero-Tokio native graph configurations do not waive either finding. Owner33Miri witnesses were inspected, not independently rerun.",
+    "outcome": "changes_requested; two reproducible P2 defects; candidate not cleared",
+    "provenance": "Trusted later parent correction plus read-only independent review report inspection/hash",
+    "publication": "No push/PR/merge/publication for native candidate; predecessor integrationHTTP403 remains; no retry or alternate route",
+    "qualification_credit": "none; explicit known correctness/progress failures block implementation acceptance and release",
+    "repair_owner_task": "01a176ac-6a9e-77cc-a488-42908214f023",
+    "repair_turn_prefix_supplied": "01a1772c",
+    "rereview": "Replacement exact-source review pending with existing reviewer; no clear or qualification outcome",
+    "review_report_sha256": "2d4b84b510f6f704c93c57d858053b3740fc21e632fb6c5a2963a3f643a78d57",
+    "review_report_source": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-3/REVIEW_REPORT.md"
+  },
+  "notification_delivery_20261026": {
+    "acceptance_mapping_sha256": "d73c45aa4c8de46dcffb9a28bc8dfccb1f89936231e0e9c6a0d9e383a357f64e",
+    "ci_runs": 0,
+    "commit": "d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da",
+    "denied": {
+      "action": "Create draft PR",
+      "reason": "GitHub HTTP403 Resource not accessible by integration",
+      "retry_count": 0,
+      "status": "denied",
+      "target": "ryancinsight/Moirai codex/notify-broadcast-permit-20261026 -> main",
+      "user_instruction": "Do not retry through another route"
+    },
+    "hooks_elapsed_seconds": 79.57864808401791,
+    "later_heavy_slot_handoff": "Native implementation completed locally; heavy slot is now assigned to independent reviewer01a1771f-4ace-75e4-a240-c800b7d7e02a",
+    "merged": false,
+    "native_migration_heavy_slot_owner": "01a176ac-6a9e-77cc-a488-42908214f023",
+    "package_version": "moirai-async0.11.1 proposed source, not registry release",
+    "parent": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+    "pr_created": false,
+    "provenance": "Trusted parent handoff and locally hash-verified delivery receipt/seal/mapping",
+    "published": false,
+    "pushed_verified": true,
+    "qualification_credit": "Scoped source/receipt observation only; no complete native runtime/CI/release acceptance",
+    "receipt_sha256": "1e0c29dd715e16389bd3a4c67edeac228ba44f286903f748adc6a46f64b6c3e0",
+    "source": "https://github.com/ryancinsight/Moirai/blob/d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da/moirai-async/src/sync/notify.rs",
+    "tests": "https://github.com/ryancinsight/Moirai/blob/d94d5ab6e765ca0bf9fa4a8e95cc0037ec4959da/moirai-async/src/sync/notify_tests.rs",
+    "tree": "8eae3a73447526609b52dc782c526e8d9ef4c14b"
+  },
+  "observations": [
+    {
+      "claim": "Policy names PyTorch/JAX/MLX, not TensorFlow. Historical 413/215/70 counts are not current four-framework coverage.",
+      "id": "PROV-COEUS-ORACLES",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/docs/adr/0025-external-framework-parity-without-burn.md#L26",
+      "status": "source_observed"
+    },
+    {
+      "claim": "External Burn performance criteria retired; NN benchmarks compare Sequential/Moirai.",
+      "id": "PROV-COEUS-PERF",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/docs/adr/0025-external-framework-parity-without-burn.md#L45",
+      "status": "source_observed"
+    },
+    {
+      "claim": "21 implemented-family rows, four Python partials: conv/dropout/regularization/rnn.",
+      "family_count": 21,
+      "id": "PROV-COEUS-NN",
+      "python_partial_count": 4,
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-nn/benches/nn_bench/evidence.tsv#L1",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Guard checks implemented Coeus families, not comparator API union.",
+      "id": "PROV-COEUS-DENOMINATOR",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-nn/tests/nn_ops/evidence_manifest.rs#L166",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Free constructors delegate to native-T Tensor implementations; old fake-generic backlog finding is stale.",
+      "counterpart": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-tensor/src/constructors.rs#L119",
+      "id": "PROV-COEUS-CONSTRUCTOR-CORRECTION",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-ops/src/constructors.rs#L14",
+      "status": "source_observed"
+    },
+    {
+      "claim": "11 leaves have equal f32/f64 named-case sets:146 cases each; backlog four-files-remaining claim is stale.",
+      "id": "PROV-COEUS-GRADCHECK-CORRECTION",
+      "leaf_files": 11,
+      "named_cases_per_dtype": 146,
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/tests/autograd/gradcheck/mod.rs#L36",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Reverse dynamic tape exists; does not establish forward/higher-order AD, JIT/export or transform composition.",
+      "id": "PROV-COEUS-TAPE",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "source": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/crates/coeus-autograd/src/var.rs#L50",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Existing target is ndarray0.16/nalgebra0.35, not full NumPy; seeded inventory.",
+      "id": "PROV-LETO-DENOMINATOR",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/docs/completeness/PLAN.md#L4",
+      "status": "source_observed"
+    },
+    {
+      "array_rows": 34,
+      "claim": "A has34 data rows, B has25 including two exclusions; headline28/28 is stale.",
+      "id": "PROV-LETO-COUNT-CORRECTION",
+      "linalg_rows": 25,
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/docs/completeness/parity_matrix.md#L116",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Type-level shape and geometry exclusions require explicit full-program disposition.",
+      "id": "PROV-LETO-EXCLUSIONS",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/docs/adr/0008-parity-scope-boundary.md#L33",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Complete can mean slower with a recorded benchmark, not performance-qualified.",
+      "id": "PROV-LETO-COMPLETE-LABEL",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "source": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/docs/completeness/PLAN.md#L49",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Host-delegated Leto computations upload results; buffer ownership does not establish device residency.",
+      "id": "PROV-HEPH-HOST-DELEGATION",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "source": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/README.md#L264",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Remaining CUDA/ROCm shape, arg/topk, embedding, interpolation/adaptive-pooling obligations.",
+      "id": "PROV-HEPH-VENDOR-GAPS",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "source": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/backlog.md#L78",
+      "status": "source_observed"
+    },
+    {
+      "claim": "ROCm container/adapterless checks are separate from manually enabled required AMD execution.",
+      "id": "PROV-HEPH-HARDWARE",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "source": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/README.md#L342",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Unsupported FP64 is typed rejection before mutation, not FP64 computation evidence.",
+      "id": "PROV-HEPH-PRECISION",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "source": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/README.md#L360",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Historical 783 zero-skip Mac tests leave CUDA/Intel/hosted/native-kernel/performance gaps open.",
+      "id": "PROV-HEPH-MAC-RECORD",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "source": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/docs/verification/macos/checklist.md#L71",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Quinn uses Tokio synchronization despite ADR0001 no-runtime-dependency policy; existing coordinator owns repair.",
+      "counterpart": "https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/docs/adr/0001-moirai-as-complete-alternative-to-tokio-rayon.md#L10",
+      "id": "PROV-MOIRAI-QUINN",
+      "repo": "moirai",
+      "revision": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+      "source": "https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/README.md#L165",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Bounded Rayon and consumer-conditional HTTP/2 are prior scope decisions, not full-program exemptions.",
+      "id": "PROV-MOIRAI-BOUNDED",
+      "repo": "moirai",
+      "revision": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+      "source": "https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/gap_audit.md#L332",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Historical readiness/stabilization/platform/tooling/performance aspirations lack acceptance contracts.",
+      "id": "PROV-MOIRAI-DOR",
+      "repo": "moirai",
+      "revision": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+      "source": "https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/gap_audit.md#L362",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Persistent device queues depend on a Hephaestus-owned contract; avoid reverse dependency.",
+      "id": "PROV-MOIRAI-DEVICE",
+      "repo": "moirai",
+      "revision": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+      "source": "https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/gap_audit.md#L344",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Four NPY built-ins f32/f64/i32/i64; writer rejects Fortran order and emits v1.0.",
+      "counterpart": "https://github.com/ryancinsight/consus/blob/ef082711f3b6087b9d2214d14c2230fbdc79e620/crates/consus-npy/src/format.rs#L65",
+      "id": "PROV-CONSUS-NPY",
+      "repo": "consus",
+      "revision": "ef082711f3b6087b9d2214d14c2230fbdc79e620",
+      "source": "https://github.com/ryancinsight/consus/blob/ef082711f3b6087b9d2214d14c2230fbdc79e620/crates/consus-npy/src/array.rs#L36",
+      "status": "source_observed"
+    },
+    {
+      "claim": "ONNX document parsing is not model execution/export or deployment parity.",
+      "id": "PROV-CONSUS-ONNX",
+      "repo": "consus",
+      "revision": "ef082711f3b6087b9d2214d14c2230fbdc79e620",
+      "source": "https://github.com/ryancinsight/consus/blob/ef082711f3b6087b9d2214d14c2230fbdc79e620/README.md#L54",
+      "status": "source_observed"
+    },
+    {
+      "claim": "from_count/from_integer/TryFromCount already exist upstream; Coeus backlog absence claim is stale.",
+      "id": "PROV-EUNOMIA-COUNT",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "source": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/README.md#L26",
+      "status": "source_observed"
+    },
+    {
+      "claim": "AMX exists but no CI machine satisfies CPUID/XCR0/permission chain; no hardware qualification.",
+      "id": "PROV-HERMES-AMX",
+      "repo": "hermes",
+      "revision": "f9b6322e62d3f059964746b0bb82e5782e41b4e4",
+      "source": "https://github.com/ryancinsight/hermes/blob/f9b6322e62d3f059964746b0bb82e5782e41b4e4/README.md#L26",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Generic LSQR currently has Leto-only shipped rectangular operator.",
+      "id": "PROV-ATHENA-LSQR",
+      "repo": "athena",
+      "revision": "7e8cace82ef36df5f2130fe7824966d5cadf6429",
+      "source": "https://github.com/ryancinsight/athena/blob/7e8cace82ef36df5f2130fe7824966d5cadf6429/README.md#L25",
+      "status": "source_observed"
+    },
+    {
+      "claim": "Seed/replay/statistical laws belong here; framework-specific RNG stream/state/gradient mapping remains open.",
+      "id": "PROV-TYCHE-RANDOM",
+      "repo": "tyche",
+      "revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+      "source": "https://github.com/ryancinsight/tyche/blob/1f6cd334b8aad90a05e5f4db27643626e43d928c/README.md#L12",
+      "status": "source_observed"
+    }
+  ],
+  "pending_provider_qualification_changes": [
+    {
+      "candidate_revision": null,
+      "publication": "unverified",
+      "pull_request": "https://github.com/ryancinsight/ares/pull/66",
+      "qualification": "pending_exact_revision_repository_gates",
+      "qualification_credit": false,
+      "registry_receipt": null,
+      "regression_assessment": "not_assessed_in_this_lane",
+      "repository": "ares",
+      "source_verification": "reported_source_verified_by_parent_2026_10_26"
+    },
+    {
+      "candidate_revision": null,
+      "publication": "unverified",
+      "pull_request": "https://github.com/ryancinsight/leto/pull/385",
+      "qualification": "pending_exact_revision_repository_gates",
+      "qualification_credit": false,
+      "registry_receipt": null,
+      "regression_assessment": "not_assessed_in_this_lane",
+      "repository": "leto",
+      "source_verification": "reported_source_verified_by_parent_2026_10_26"
+    }
+  ],
+  "protected_ownership": {
+    "apollo_service_hold": "01a13842-5a71-712c-b982-d6631f84e002",
+    "atlas_551_same_PR_replacement": {
+      "authorization": "trusted_parent_relay_of_current_verified_user_thumbs_up",
+      "coherence_qualified": false,
+      "current_remote_head": null,
+      "current_remote_head_verified": false,
+      "delivery_qualified": false,
+      "duplicate_PR_authorized": false,
+      "existing_branch_and_work_preserved": true,
+      "heavy_build_slot_owner": "leto",
+      "history": "Prior pending approval/original-owner snapshot retained in program.json protected_ownership ownership_history; no new remote read or branch action by parity lane",
+      "inherited_handoffs": [
+        "PyPI prerequisite evidence",
+        "all existing holds"
+      ],
+      "last_observed_pr_head": "811a704864c3b30fb269f12196396b25099c3130",
+      "owner_task": "01a17995-4c0b-701d-8625-8650165230c2",
+      "previous_owner_task": "01a169d2-8b8f-7b90-a5bd-79e24b4cb6c7",
+      "pull_request": "https://github.com/ryancinsight/atlas/pull/551",
+      "reviews_qualified": false,
+      "state": "admitted_same_PR_replacement_unqualified",
+      "tooling_qualified": false
+    },
+    "kwavers_typed_error_miri": "01a16141-84fd-7045-a5d6-75c04aafa0ef",
+    "moirai_native_independent_review": "01a1771f-4ace-75e4-a240-c800b7d7e02a",
+    "moirai_native_tokio_quinn": "01a176ac-6a9e-77cc-a488-42908214f023",
+    "moirai_notification_coordinator": "01a159ec-7017-7725-a554-194472dc20dc",
+    "protected_prs": [
+      "https://github.com/ryancinsight/atlas/pull/551",
+      "https://github.com/ryancinsight/apollo/pull/696"
+    ]
+  },
+  "schema_version": "1.0.0",
+  "selected_registry_receipts": [
+    {
+      "checksum": null,
+      "http_status": 404,
+      "package": "moirai-runtime",
+      "source": "https://crates.io/api/v1/crates/moirai-runtime/0.11.0",
+      "version": "0.11.0",
+      "yanked": null
+    },
+    {
+      "checksum": "8cff2f97e6e98eb640c727f7f135c6d53d45b5fcb834e1f4e1237f2fdbd2a82f",
+      "http_status": 200,
+      "package": "moirai-async",
+      "source": "https://crates.io/api/v1/crates/moirai-async/0.11.0",
+      "version": "0.11.0",
+      "yanked": false
+    },
+    {
+      "checksum": null,
+      "http_status": 404,
+      "package": "moirai-quic",
+      "source": "https://crates.io/api/v1/crates/moirai-quic/0.1.0",
+      "version": "0.1.0",
+      "yanked": null
+    },
+    {
+      "checksum": "30afe569dc057c61e2ac85a8ca84ab6312889695cc9e73c72e823aaf13aa1bcd",
+      "http_status": 200,
+      "package": "leto",
+      "source": "https://crates.io/api/v1/crates/leto/0.46.5",
+      "version": "0.46.5",
+      "yanked": false
+    },
+    {
+      "checksum": "f53bea40abbf757148672ae1f05f74668d7048ceb8d7d899d6f72c0a9e571ed9",
+      "http_status": 200,
+      "package": "hephaestus-core",
+      "source": "https://crates.io/api/v1/crates/hephaestus-core/0.27.0",
+      "version": "0.27.0",
+      "yanked": false
+    },
+    {
+      "checksum": null,
+      "http_status": 404,
+      "package": "coeus-core",
+      "source": "https://crates.io/api/v1/crates/coeus-core/0.12.1",
+      "version": "0.12.1",
+      "yanked": null
+    }
+  ],
+  "snapshots": [
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/coeus",
+      "manifest_prerequisites": [
+        "apollo",
+        "eunomia",
+        "hephaestus",
+        "hermes",
+        "leto",
+        "mnemosyne",
+        "moirai",
+        "themis"
+      ],
+      "manifest_sha256": "bcda39ea8d2ec526e8ae960c143ddb2c74e472e9df363657ee848609b8025102",
+      "manifest_source": "https://github.com/ryancinsight/coeus/blob/57f7c4596884949e15815659544096b62c570d85/Cargo.toml",
+      "repo": "coeus",
+      "revision": "57f7c4596884949e15815659544096b62c570d85",
+      "role": "Tensor/program semantics, autodiff, NN, optimizers and bindings",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.12.0"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/leto",
+      "manifest_prerequisites": [
+        "aequitas",
+        "eunomia",
+        "hermes",
+        "mnemosyne",
+        "moirai",
+        "themis"
+      ],
+      "manifest_sha256": "0f9b35ff4539e991f541fb50a67b440a2ab569bdaecef89fc481a37bc758efaf",
+      "manifest_source": "https://github.com/ryancinsight/leto/blob/074ab891cbc399163539a2f72185754875c8e943/Cargo.toml",
+      "repo": "leto",
+      "revision": "074ab891cbc399163539a2f72185754875c8e943",
+      "role": "CPU arrays/layouts and dense/sparse/direct-LA kernels",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.46.5"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "master",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/hephaestus",
+      "manifest_prerequisites": [
+        "aequitas",
+        "eunomia",
+        "leto",
+        "moirai",
+        "themis"
+      ],
+      "manifest_sha256": "39a42abe273b571def61b0ddc237dd602e32bcf2a6042990e867bcd6856a497b",
+      "manifest_source": "https://github.com/ryancinsight/hephaestus/blob/13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3/Cargo.toml",
+      "repo": "hephaestus",
+      "revision": "13dad9cdcd2f24d2186b9d9cdbd62b0290e313c3",
+      "role": "Accelerator devices, resident kernels and precision admission",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.27.0"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/moirai",
+      "manifest_prerequisites": [
+        "melinoe",
+        "mnemosyne",
+        "themis"
+      ],
+      "manifest_sha256": "77e11fbcec79ef976dbccd1092efed205afbc8262e35f535b2542ed21cfd9c94",
+      "manifest_source": "https://github.com/ryancinsight/moirai/blob/4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5/Cargo.toml",
+      "repo": "moirai",
+      "revision": "4bb7d2d4bfbcb5660bfe44b065292e1233ed24e5",
+      "role": "Scheduling, task lifecycle and async/transport execution",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.11.0"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/apollo",
+      "manifest_prerequisites": [
+        "eunomia",
+        "hephaestus",
+        "hermes",
+        "leto",
+        "melinoe",
+        "mnemosyne",
+        "moirai",
+        "themis"
+      ],
+      "manifest_sha256": "20b974e5fac4444215505d8bacb75b80019ed4ee1278e373256e1a72d36a6ff4",
+      "manifest_source": "https://github.com/ryancinsight/apollo/blob/3fe4c021a274c33efe21847cec5f7baf67a97d1f/Cargo.toml",
+      "repo": "apollo",
+      "revision": "3fe4c021a274c33efe21847cec5f7baf67a97d1f",
+      "role": "Transform mathematics and plans",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.17.1"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/eunomia",
+      "manifest_prerequisites": [],
+      "manifest_sha256": "6b4372841ca8ab9859a6b01164ae279c0d26f5554fa62db812bb9748c371dcb8",
+      "manifest_source": "https://github.com/ryancinsight/eunomia/blob/23c604725507726c090b5d34a724f119de1047a4/Cargo.toml",
+      "repo": "eunomia",
+      "revision": "23c604725507726c090b5d34a724f119de1047a4",
+      "role": "Dtype/scalar laws and representations",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.10.0"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/Mnemosyne",
+      "manifest_prerequisites": [
+        "eunomia",
+        "melinoe",
+        "themis"
+      ],
+      "manifest_sha256": "13c9fca205e72b4ca7314fd2bd4868e6ff64bc7d488ab9c99bd602d5a25431ff",
+      "manifest_source": "https://github.com/ryancinsight/Mnemosyne/blob/b40870ea3dca06a324d397e0b480edf3c18fe544/Cargo.toml",
+      "repo": "mnemosyne",
+      "revision": "b40870ea3dca06a324d397e0b480edf3c18fe544",
+      "role": "Allocation, memory tiers and staging lifetime",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": null
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/hermes",
+      "manifest_prerequisites": [
+        "eunomia",
+        "mnemosyne",
+        "themis"
+      ],
+      "manifest_sha256": "37ed48b54475a91b6d1add7b25efed9b2bb2cc6440153978f7e68b787a7bd95c",
+      "manifest_source": "https://github.com/ryancinsight/hermes/blob/f9b6322e62d3f059964746b0bb82e5782e41b4e4/Cargo.toml",
+      "repo": "hermes",
+      "revision": "f9b6322e62d3f059964746b0bb82e5782e41b4e4",
+      "role": "CPU lane kernels and ISA dispatch",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.9.2"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/themis",
+      "manifest_prerequisites": [],
+      "manifest_sha256": "3bcd88aca5806b009c1676476900230227e33263b0d95925d62d989a300f4141",
+      "manifest_source": "https://github.com/ryancinsight/themis/blob/a6d0620b99d5d5518ed4e7225aa47eac66e5add2/Cargo.toml",
+      "repo": "themis",
+      "revision": "a6d0620b99d5d5518ed4e7225aa47eac66e5add2",
+      "role": "Topology, locality and placement vocabulary",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.11.3"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/melinoe",
+      "manifest_prerequisites": [],
+      "manifest_sha256": "038d437fe50ad9a1ff788233c94bf7cee7e9a556e9905b736458abbffbcfd372",
+      "manifest_source": "https://github.com/ryancinsight/melinoe/blob/3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6/Cargo.toml",
+      "repo": "melinoe",
+      "revision": "3ddf61ed182ce9ed3eda6099a1d04dc301d4c1a6",
+      "role": "Branded access and disjoint ownership proofs",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.10.0"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/consus",
+      "manifest_prerequisites": [
+        "apollo",
+        "moirai",
+        "themis"
+      ],
+      "manifest_sha256": "5d2b28c81e79094a71e1f3b0000e7299b673711d10625656d8c673073ec42332",
+      "manifest_source": "https://github.com/ryancinsight/consus/blob/ef082711f3b6087b9d2214d14c2230fbdc79e620/Cargo.toml",
+      "repo": "consus",
+      "revision": "ef082711f3b6087b9d2214d14c2230fbdc79e620",
+      "role": "Formats, compression, durable stores and byte serialization",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.4.0"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/tyche",
+      "manifest_prerequisites": [
+        "consus",
+        "eunomia",
+        "mnemosyne",
+        "moirai"
+      ],
+      "manifest_sha256": "5fe8fb6caf3e26669d0a099a999ac9e6b547bdc8ce351f00a89e2c40619ef8ce",
+      "manifest_source": "https://github.com/ryancinsight/tyche/blob/1f6cd334b8aad90a05e5f4db27643626e43d928c/Cargo.toml",
+      "repo": "tyche",
+      "revision": "1f6cd334b8aad90a05e5f4db27643626e43d928c",
+      "role": "Study seed/replay, sampling and statistical laws",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.4.0"
+    },
+    {
+      "audit_level": "source_snapshot_read",
+      "default_branch": "main",
+      "full_parity_status": "unmapped",
+      "github_repo": "ryancinsight/athena",
+      "manifest_prerequisites": [
+        "eunomia",
+        "hephaestus",
+        "leto",
+        "mnemosyne"
+      ],
+      "manifest_sha256": "8ecc83fb114197466862905f8103886ff4c65dd6fb024c9aafbf881005f3029f",
+      "manifest_source": "https://github.com/ryancinsight/athena/blob/7e8cace82ef36df5f2130fe7824966d5cadf6429/Cargo.toml",
+      "repo": "athena",
+      "revision": "7e8cace82ef36df5f2130fe7824966d5cadf6429",
+      "role": "Iterative solve/preconditioning policy over provider kernels",
+      "runtime_verification_this_audit": "not_run",
+      "workspace_version": "0.3.3"
+    }
+  ]
+}

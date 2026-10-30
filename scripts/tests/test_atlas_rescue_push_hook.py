@@ -16,6 +16,7 @@ HELPER = ROOT / "scripts" / "git-hooks" / "rescue-push"
 SCANNER_RUNTIME = (
     "atlas-secret-scan.py",
     "process_tree.py",
+    "darwin_process.py",
     "windows_process.py",
 )
 MEMBER_HOOK = ROOT / "scripts" / "git-hooks" / "pre-push"
@@ -159,6 +160,44 @@ class RescuePushHookTests(unittest.TestCase):
         for hook in (".githooks/pre-push", "scripts/git-hooks/pre-push"):
             self.assertEqual(git(ROOT, "ls-tree", "HEAD", "--", hook).split()[0], "100755")
 
+    def test_scanner_archive_padding_and_late_producer_failure(self):
+        real_git = shutil.which("git")
+        self.assertIsNotNone(real_git)
+        for producer_status in (0, 23):
+            with self.subTest(producer_status=producer_status):
+                temporary, root = self.fixture()
+                with temporary:
+                    wrapper = (
+                        f"#!{sys.executable}\n"
+                        "import os, signal, subprocess, sys\n"
+                        f"git = {real_git!r}\n"
+                        "if 'archive' not in sys.argv[1:]:\n"
+                        "    os.execv(git, [git, *sys.argv[1:]])\n"
+                        "signal.signal(signal.SIGPIPE, signal.SIG_DFL)\n"
+                        "result = subprocess.run([git, *sys.argv[1:]], stdout=sys.stdout.buffer)\n"
+                        "if result.returncode:\n"
+                        "    raise SystemExit(result.returncode)\n"
+                        "sys.stdout.buffer.write(bytes(1 << 20))\n"
+                        "sys.stdout.buffer.flush()\n"
+                        f"raise SystemExit({producer_status})\n"
+                    )
+                    write_file(root / "bin" / "git", wrapper)
+                    tip = git(root, "rev-parse", "HEAD")
+                    environment = dict(os.environ, PYTHON=sys.executable)
+                    environment["PATH"] = str(root / "bin") + os.pathsep + environment.get("PATH", "")
+                    result = subprocess.run(
+                        ["bash", str(root / "scripts" / "git-hooks" / "rescue-push"),
+                         "--scan", str(root), str(root), "origin/main", "origin/main", tip, ""],
+                        cwd=root, capture_output=True, text=True, env=environment,
+                    )
+                    if producer_status:
+                        self.assertEqual(result.returncode, 2, result.stderr)
+                        self.assertIn("could not extract", result.stderr)
+                        self.assertNotIn("no credential", result.stdout)
+                    else:
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertIn("no credential", result.stdout)
+
     def test_destination_classification_accepts_branch_and_object_sources(self):
         temporary, root = self.fixture()
         with temporary:
@@ -206,7 +245,7 @@ class RescuePushHookTests(unittest.TestCase):
             self.assertFalse((root / "auditor.log").exists())
             self.assertNotIn("gitlink auditor", result.stderr)
 
-    def test_rescue_update_uses_normal_gate(self):
+    def test_fast_forward_rescue_update_runs_only_secret_scan(self):
         temporary, root = self.fixture()
         with temporary:
             git(root, "switch", "-qc", "rescue/preserved-work")
@@ -220,8 +259,25 @@ class RescuePushHookTests(unittest.TestCase):
             tip = git(root, "rev-parse", "HEAD")
             result = self.run_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {base}\n")
             self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f"{base[:12]}..{tip[:12]}", result.stdout)
+            self.assertFalse((root / "auditor.log").exists())
+
+    def test_non_fast_forward_rescue_update_uses_normal_gate(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/remote", "main")
+            (root / "remote.txt").write_text("remote\n", encoding="utf-8")
+            git(root, "add", "remote.txt")
+            git(root, "commit", "-qm", "remote rescue work")
+            remote = git(root, "rev-parse", "HEAD")
+            git(root, "switch", "-qc", "rescue/preserved-work", "main")
+            (root / "replacement.txt").write_text("replacement\n", encoding="utf-8")
+            git(root, "add", "replacement.txt")
+            git(root, "commit", "-qm", "replacement rescue work")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(root, f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {remote}\n")
+            self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(f"--revision {tip}", (root / "auditor.log").read_text(encoding="utf-8"))
-            self.assertIn(f"..{tip[:12]}", result.stdout)
 
     def test_rescue_to_main_uses_normal_gate(self):
         temporary, root = self.fixture()
@@ -533,6 +589,28 @@ class RescuePushHookTests(unittest.TestCase):
             self.assertIn(first[:12], result.stdout)
             self.assertNotIn("gitlink auditor", result.stderr)
 
+    def test_fast_forward_rescue_scans_an_added_then_removed_credential(self):
+        temporary, root = self.fixture()
+        with temporary:
+            git(root, "switch", "-qc", "rescue/preserved-work")
+            base = git(root, "rev-parse", "HEAD")
+            token = "ghp_" + "u" * 36
+            (root / "secret.txt").write_text(token + "\n", encoding="utf-8")
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "temporary credential")
+            added = git(root, "rev-parse", "HEAD")
+            (root / "secret.txt").unlink()
+            git(root, "add", "secret.txt")
+            git(root, "commit", "-qm", "remove credential")
+            tip = git(root, "rev-parse", "HEAD")
+            result = self.run_hook(
+                root,
+                f"refs/heads/rescue/preserved-work {tip} refs/heads/rescue/preserved-work {base}\n",
+            )
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn(added[:12], result.stdout)
+            self.assertFalse((root / "auditor.log").exists())
+
     def commit_stub_scanner(self, root):
         """Replace the pushed tip's scanner with one that reports every push clean."""
         write_file(
@@ -727,10 +805,11 @@ class RescuePushHookTests(unittest.TestCase):
 
         def environment(root):
             hostile = root / "hostile-modules"
-            write_file(
-                hostile / "process_tree.py",
-                "import sys\nprint('secret-scan: no credential in the hostile module')\nsys.exit(0)\n",
-            )
+            for name in SCANNER_RUNTIME[1:]:
+                write_file(
+                    hostile / name,
+                    "import sys\nprint('secret-scan: no credential in the hostile module')\nsys.exit(0)\n",
+                )
             return {"PYTHONPATH": str(hostile)}
 
         self.assert_blocked_on_every_path(token, prepare, environment)
@@ -781,6 +860,11 @@ class RescuePushHookTests(unittest.TestCase):
                  "malformed rescue tip"),
                 ("absent tip", "origin/main", "origin/main", f"HEAD {'1' * 40} refs/heads/rescue/work {ZERO}",
                  "rescue tip is unavailable"),
+                ("malformed remote tip", "origin/main", "origin/main",
+                 f"HEAD {tip} refs/heads/rescue/work zzz", "malformed rescue remote tip"),
+                ("absent remote tip", "origin/main", "origin/main",
+                 f"HEAD {tip} refs/heads/rescue/work {'1' * 40}",
+                 "rescue remote tip is unavailable"),
                 ("absent allowlist revision", "origin/main", "refs/remotes/origin/absent", line,
                  "trusted allowlist revision is unavailable"),
                 ("scannerless trusted revision", scannerless, "origin/main", line,

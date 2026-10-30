@@ -67,6 +67,7 @@ import tarfile
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
@@ -76,11 +77,9 @@ from atlas_pull_request import open_pull_request  # noqa: E402
 from atlas_stack import ROOT, git, registered_members  # noqa: E402
 
 LOG_ROOT = ROOT / "output" / "lock-sweep"
-FIRST_PARTY_GIT = "git+https://github.com/ryancinsight/"
 # A pushed member branch runs the member's whole pre-push gate, which can queue
 # on the shared build-identity lease (900 s) before it builds.
 PUSH_TIMEOUT_SECONDS = 3000
-SOURCE_LINE = re.compile(r'^source = "(?P<source>[^"]+)"$', re.M)
 
 
 @dataclass(frozen=True)
@@ -136,8 +135,11 @@ class Outcome:
 
 
 def normalize_repo_url(url: str) -> str:
-    """Canonical form for a first-party GitHub URL: lower-case, no `.git`."""
-    return url.rstrip("/").removesuffix(".git").lower()
+    """Canonical provider URL: lower-case, without query or `.git`."""
+    base = url.split("?", 1)[0].rstrip("/")
+    if base.lower().endswith(".git"):
+        base = base[:-4]
+    return base.lower()
 
 
 def provider_repo_name(url: str) -> str:
@@ -145,24 +147,78 @@ def provider_repo_name(url: str) -> str:
     return normalize_repo_url(url).rsplit("/", 1)[-1]
 
 
-def first_party_packages(lock_text: str) -> list[LockedPackage]:
-    """Every lock entry resolved through an unpinned first-party git source.
+def supported_first_party_location(location: str, package_index: int) -> bool:
+    """Whether a Git location has the supported first-party authority and path."""
+    try:
+        parsed = urlsplit(location)
+    except ValueError:
+        return False
+    if (parsed.hostname or "").lower() != "github.com":
+        return False
 
-    A source carrying a query (`?rev=`, `?branch=`, `?tag=`) is a pin the
-    manifest states; advancing it is a manifest change, not a lock sweep."""
-    packages = []
-    for block in lock_text.split("[[package]]")[1:]:
-        source = SOURCE_LINE.search(block)
-        if not source or not source.group("source").startswith(FIRST_PARTY_GIT):
+    owner = next((component for component in parsed.path.split("/") if component), None)
+    if owner is None or unquote(owner).lower() != "ryancinsight":
+        return False
+    if any(ord(character) < 0x20 or ord(character) == 0x7F for character in location):
+        raise ValueError(
+            f"lock package {package_index} has unreadable first-party Git source identity"
+        )
+    if owner.lower() != "ryancinsight":
+        raise ValueError(
+            f"lock package {package_index} has unsupported first-party Git source path"
+        )
+    if parsed.scheme.lower() != "https" or parsed.username is not None or parsed.password is not None:
+        raise ValueError(
+            f"lock package {package_index} has unsupported first-party Git source authority"
+        )
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError(
+            f"lock package {package_index} has unreadable first-party Git source authority"
+        ) from error
+    if port not in (None, 443):
+        raise ValueError(
+            f"lock package {package_index} has unsupported first-party Git source authority"
+        )
+    if not re.fullmatch(
+        r"/ryancinsight/[A-Za-z0-9][A-Za-z0-9._-]*/?",
+        parsed.path,
+        re.IGNORECASE | re.ASCII,
+    ):
+        raise ValueError(
+            f"lock package {package_index} has unreadable first-party Git source identity"
+        )
+    return True
+
+
+def locked_packages(lock_text: str) -> list[LockedPackage]:
+    """Read every complete Git identity in the supported first-party namespace."""
+    locked: list[LockedPackage] = []
+    for index, package in enumerate(lockfile.locked_package_records(lock_text)):
+        source = package.get("source")
+        if not isinstance(source, str):
             continue
-        location, _, rev = source.group("source").removeprefix("git+").partition("#")
-        if "?" in location or not rev:
+        if not source.lower().startswith("git+"):
             continue
-        name = re.search(r'^name = "([^"]+)"$', block, re.M)
-        version = re.search(r'^version = "([^"]+)"$', block, re.M)
-        if name and version:
-            packages.append(LockedPackage(name.group(1), version.group(1), location, rev))
-    return packages
+        payload = source[4:]
+        location, separator, revision = payload.rpartition("#")
+        candidate = location if separator else payload
+        if not supported_first_party_location(candidate, index):
+            continue
+        if not separator or "#" in location or not re.fullmatch(r"[0-9a-fA-F]{40}", revision):
+            raise ValueError(
+                f"lock package {index} has unreadable first-party Git source identity"
+            )
+        locked.append(
+            LockedPackage(package["name"], package["version"], location, revision.lower())
+        )
+    return locked
+
+
+def first_party_packages(lock_text: str) -> list[LockedPackage]:
+    """First-party packages update mode may move: explicit query pins excluded."""
+    return [package for package in locked_packages(lock_text) if "?" not in package.url]
 
 
 def stale_packages(lock_text: str, targets: dict[str, str]) -> tuple[LockedPackage, ...]:
@@ -375,7 +431,13 @@ def commit_lock(member: Path, base: str, lock: bytes, message: str, scratch: Pat
 
 
 def cargo(tree: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
-    return lockfile.run_outside_the_overlay(list(arguments), manifest=tree / "Cargo.toml")
+    try:
+        return lockfile.run_outside_the_overlay(list(arguments), manifest=tree / "Cargo.toml")
+    except lockfile.CargoDeadlineExceeded as error:
+        # The sweep reports a row per failure from `returncode`/`stderr`; a
+        # deadline is a failed row like any other, with the runner's note as
+        # the detail.
+        return subprocess.CompletedProcess(error.cmd, 124, "", str(error))
 
 
 def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | None:

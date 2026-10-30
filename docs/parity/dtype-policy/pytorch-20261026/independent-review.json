@@ -1,0 +1,121 @@
+{
+  "findings": [],
+  "framework": "pytorch",
+  "independently_verified": {
+    "additional_independent_mutations_rejected": 46,
+    "admitted_public_IDs_unchanged": 10,
+    "author_in_memory_negative_probes": 38,
+    "author_reindexed_actual_file_negative_probes": 18,
+    "author_source_checks": 14,
+    "author_source_definition_unit_tests": 28,
+    "author_unit_test_skips": 0,
+    "author_valid_reindexed_controls": 2,
+    "canCast_pairs_reconstructed": 2209,
+    "exact_line_excerpts": 88,
+    "exact_source_git_blobs": 45,
+    "framework_case_specs_unrun": 66,
+    "framework_runtime_cases_executed": 0,
+    "independent_complex_positive_real_coordinate_controls": 6,
+    "native_core_cells_reconstructed": 196,
+    "native_enum_ordinals_reconstructed": 47,
+    "offline_all_sealed_artifacts_byte_identical": 156,
+    "offline_derived_files_byte_identical": 11,
+    "open_named_gaps": 14,
+    "original_independent_mutations_rejected": 12,
+    "other_case_records_unchanged": 65,
+    "predecessor_root_manifest_preserved": true,
+    "preserved_predecessor_artifacts": 74,
+    "promotion_pairs_reconstructed": 2209,
+    "sealed_artifacts": 156,
+    "source_packet_original_and_successor_unchanged": true
+  },
+  "initial_review": {
+    "file": "/tmp/atlas-torch-dtype-native-independent-review/initial-review.json",
+    "sha256": "3ac30501eabe1b0cca49f5edb2b60f4ea9cf8a05430da288191e90100d658de1"
+  },
+  "limits": [
+    "Acceptance is for this exact bounded source-definition handoff only.",
+    "No framework import/build/native or provider runtime/device/AD/performance/release verification. All 66 comparator cases remain UNRUN.",
+    "Finite 47-enum/196-cell/4418-pair models are not whole public API, runtime dtype registry, generated kernel, ABI, compiler or device support closure.",
+    "All fourteen named gaps, selected CUDA/MPS/generated dispatch/backward gaps, shell/default-dtype source/prose conflicts and signed-minimum/-1 division uncertainty remain visible without waiver.",
+    "The oracle models exact rational real/imaginary arithmetic only within explicitly finite binary32-exact inputs/intermediates. It is not a generated-kernel rounding oracle or proof of actual framework AD.",
+    "Original saved acquisition/tree/path/blob receipts were checked offline; no remote/auth/access action occurred.",
+    "Source-definition acceptance grants no implementation ADR, actual owner, canonical mapping, release or integration approval. Parent owns acceptance/integration."
+  ],
+  "ownership_interpretation": {
+    "actual_implementation_owner": null,
+    "canonical_integration_requirement": "Join all admitted API identities to the live canonical mapping separately; preserve existing NUM-PROMOTE/Eunomia accountable-owner routes where applicable. No mapping or code-owner approval is granted here.",
+    "facade_role": "Coeus TEN-OPS is a planning facade/provider proposal, not a canonical per-API owner reassignment.",
+    "policy_supplier": "Eunomia NUM-PROMOTE supplies numeric policy; this does not decide each public API accountable owner."
+  },
+  "packet": "/tmp/atlas-torch-dtype-native-closure-repaired-20261026",
+  "predecessor_manifest_sha256": "697b0c7463ba3bff6935c48bbc73d24728e05843123d0587bf6e6b077314bd21",
+  "prohibited_actions_performed": {
+    "canonical_or_provider_writes": 0,
+    "framework_imports": 0,
+    "framework_or_native_builds": 0,
+    "framework_runtime_execution": 0,
+    "network_or_auth_actions": 0,
+    "source_packet_writes": 0,
+    "subdelegations": 0
+  },
+  "resolved_findings": [
+    {
+      "disposition": "resolved",
+      "id": "F1-COMPLEX-FIXTURE-ENCODING",
+      "witnesses": [
+        "build_packet.py explicit rank-zero complex64 native_tensor operands with requires_grad=true; Python complex Number alpha; float32 real scalar loss/cotangent; tagged native result/loss/VJPs",
+        "README.md gives exact future scalar extraction, torch.tensor construction, torch.add call and backward cotangent decoding; none executed",
+        "verify_packet.py strict decoder and input-sensitive exact rational oracle guard finite binary32-exact declared components/intermediates",
+        "Six independent small binary-exact complex configurations, seeds including negative/zero/fractional, and real-coordinate central derivatives agree; stale outputs/gradients and malformed encodings reject"
+      ]
+    },
+    {
+      "disposition": "resolved",
+      "id": "F2-AGGREGATE-SCOPE-CREDIT-COHERENCE",
+      "witnesses": [
+        "Exact typed header/status/scope schemas retain partial/unrun/unreleased/null-implementation-owner states",
+        "Record-derived counts agree across data, source-report and manifest; public/registry/transitive-closure flags remain false booleans",
+        "All twelve original independent mutations reject, including all six previously accepted false-credit probes",
+        "Forty-six new aligned status, schema/type/count/report and complex decoder/output-dependency mutations reject",
+        "Eighteen author actual copied-file mutations reject after valid hash reindexing; valid reformat and regeneration controls pass"
+      ]
+    }
+  ],
+  "result": "ACCEPTED_BOUNDED_SOURCE_DEFINITION",
+  "review_evidence": {
+    "audit_independent.py": {
+      "bytes": 10856,
+      "sha256": "c4569aada20f87fef8a0c1e57b15f0d27def0d25f69bef8414757f8901f4c1f5"
+    },
+    "independent-model-and-replay.json": {
+      "bytes": 1721,
+      "sha256": "39880294c4e8cdb73233d738a05704df65550e0d5d252cd3ecc1c8a45d46ca63"
+    },
+    "independent-repair-checks.json": {
+      "bytes": 13465,
+      "sha256": "2aa8fe3e0879f6b72308c2c3732ed2e317e58d8f2b0fad463d139adb67506cf1"
+    },
+    "independent_repair_checks.py": {
+      "bytes": 11251,
+      "sha256": "1ceb203dc9e4b1805564693d14cfbd2c6e491dad7ef10a23b2752a569ae40b09"
+    },
+    "mutation-results.json": {
+      "bytes": 2489,
+      "sha256": "d431132adf0c19a8ab1f0fcafc89ba4d78d79e7a88dbab61c5dea73163c44784"
+    },
+    "offline-replay.json": {
+      "bytes": 3129,
+      "sha256": "efe674ba0aa39de5932eb587d6850a9ff7ec6f0b48a1f1f41841f921fdef77b6"
+    },
+    "original_mutation_audit.py": {
+      "bytes": 3376,
+      "sha256": "a84d6fc507ac9c57a4d0cdf3cf1233488350a8987e34e474de8520a4f5c3bb2c"
+    }
+  },
+  "revision": "5c4886908584029761b579af026dcfb627c84070",
+  "same_independent_reviewer": true,
+  "schema_version": 1,
+  "sealed_manifest_sha256": "a34fc711c04e087985c8835b933bcfae275493fdeb0b72455523ee7e1618fcb0",
+  "version": "2.14.1"
+}

@@ -1,0 +1,75 @@
+{
+  "capture_complete_for_selected_files": true,
+  "captured": [
+    {
+      "original_path": "README.md",
+      "path": "core-tensor/numpy-jax/README.md",
+      "sha256": "daf2be506ecfd8ae55bedef580c9645f9c16b41b9938e5d425d9b5258a1bbbe2"
+    },
+    {
+      "original_path": "scope.json",
+      "path": "core-tensor/numpy-jax/scope.json",
+      "sha256": "bb465a4cdab5541579faba9053d0c2de011bcd5a75337a9ad8b8e2da09114549"
+    },
+    {
+      "original_path": "manifest.json",
+      "path": "core-tensor/numpy-jax/manifest.json",
+      "sha256": "7c169acfcb711c3714701f6fde84fea2fe14508c30d3d8148b7e2aca1cee1ea0"
+    },
+    {
+      "original_path": "contracts/numpy.json",
+      "path": "core-tensor/numpy-jax/contracts/numpy.json",
+      "sha256": "edbd632f6d55398e8182045699be87c5491b3e22c829ec7eefa6eb2ea0940044"
+    },
+    {
+      "original_path": "contracts/jax.json",
+      "path": "core-tensor/numpy-jax/contracts/jax.json",
+      "sha256": "de7acfb90ff9635fbb779a36f5479340958ebb6e2a627fd257a151d5a3e3ee57"
+    },
+    {
+      "original_path": "contracts/shared-laws.json",
+      "path": "core-tensor/numpy-jax/contracts/shared-laws.json",
+      "sha256": "e8c41fc36b2663b651ea38b630caf5f8b64c48b76ba9b2b7cf1e74123e9fb973"
+    },
+    {
+      "original_path": "source-receipts.json",
+      "path": "core-tensor/numpy-jax/source-receipts.json",
+      "sha256": "bf427f760097eb2506718a3e8a2347e45de79d39c0496b2a0fcf4c8e3923ecc3"
+    },
+    {
+      "original_path": "source-witnesses.json",
+      "path": "core-tensor/numpy-jax/source-witnesses.json",
+      "sha256": "9e51e13b1ed50f437790035fdaf94858711720a2eea25200bb6352cab985ab0e"
+    },
+    {
+      "original_path": "reference-links.json",
+      "path": "core-tensor/numpy-jax/reference-links.json",
+      "sha256": "de9ca10929d300a8a88d43332262cb7fca160e220a5ca460a2c7b3fb5ba0e477"
+    },
+    {
+      "original_path": "dependency-map.json",
+      "path": "core-tensor/numpy-jax/dependency-map.json",
+      "sha256": "f8d394c6c0f705cb3e0888a4f3c0d10026a8bf700007f4e2b36631eafca3f21a"
+    },
+    {
+      "original_path": "acceptance-cases.json",
+      "path": "core-tensor/numpy-jax/acceptance-cases.json",
+      "sha256": "833c3bb4023e9e03e0e231422e19fe122fc290217e68c514fcb790ddefaa2110"
+    },
+    {
+      "original_path": "gaps.json",
+      "path": "core-tensor/numpy-jax/gaps.json",
+      "sha256": "7cb79bd9fa27ae8c95e911c88008b80c1cdefd6f7fc4a98f10379e4b1fd81618"
+    },
+    {
+      "original_path": "benchmarks.json",
+      "path": "core-tensor/numpy-jax/benchmarks.json",
+      "sha256": "c52f3924041b0aa588f46ea1a8595886c993311406982caa0ba1a39d8cf0069f"
+    }
+  ],
+  "full_source_files_vendored": false,
+  "manifest_sha256": "7c169acfcb711c3714701f6fde84fea2fe14508c30d3d8148b7e2aca1cee1ea0",
+  "schema_version": 1,
+  "source_packet_files": 73,
+  "source_review_requirement": "Original source blobs and line witnesses need independent review; portable receipt validation does not execute the comparator."
+}

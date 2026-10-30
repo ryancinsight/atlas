@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import io
 import json
-import shutil
 import sys
 import tempfile
 import threading
@@ -14,6 +13,8 @@ import unittest
 from contextlib import ExitStack, redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
+
+from readonly_tree import clear_readonly_tree
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import atlas_build_lease as lease_module
@@ -54,7 +55,7 @@ class Clock:
 class ClaimTest(unittest.TestCase):
     def setUp(self) -> None:
         self.base = Path(tempfile.mkdtemp(prefix="atlas-claim-"))
-        self.addCleanup(shutil.rmtree, self.base, ignore_errors=True)
+        self.addCleanup(clear_readonly_tree, self.base)
         self.target = self.base / "target"
         self.holders: list[OwnerLease] = []
 

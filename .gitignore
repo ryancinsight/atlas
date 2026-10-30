@@ -51,6 +51,9 @@ repos/report/
 # Local linked-worktree lanes and dependency junctions. All Rust builds use the
 # shared D:/atlas/target directory; per-worktree target trees are disposable.
 worktrees/
+# Member-repository lanes under the stack root, beside `worktrees/`: each
+# member's own `git worktree list` names them, and they carry no root content.
+lanes/
 
 # Atlas-root transient scratch artifacts (NOT gitlinked; created during chore ceremony)
 # `_*` catch-all catches session-work scratch (e.g. `_de-dup-audit.txt`,

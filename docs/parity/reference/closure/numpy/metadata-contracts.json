@@ -1,0 +1,896 @@
+{
+  "schema_version": 1,
+  "framework": "numpy",
+  "version": "2.5.4",
+  "revision": "a3d0ef1df045b858e68115001fdabc930bb3b68c",
+  "source_contract_scope": "All source branches defined by dispatch/attribute/coercion composition; native dtype/layout equivalence is structural. Upstream coercion/protocol implementation verification remains a dependency, not an exclusion.",
+  "operations": {
+    "ndim": {
+      "symbol": "numpy.ndim",
+      "signature": "ndim(a)",
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L3521",
+      "source_body_sha256": "33ce58ccfc840b13b41f3a63bcc9b964c9582ec397aa3e2e9a5c4ca204193952",
+      "dispatch": {
+        "relevant_arguments": [
+          "a"
+        ],
+        "axis_does_not_dispatch": true,
+        "precedence": "The decorator dispatches __array_function__ before the default body. The only relevant argument is a, even for size(axis=...). A non-default implementation's returned value is returned unchanged; if all attempted implementations return NotImplemented, raise TypeError rather than falling back to metadata/coercion.",
+        "fallback": "Exact ndarray/default implementation, or no relevant argument with an override, calls the source Python body. Actual override invocation/body errors propagate. A failure while LOOKING UP the special method is a separate phase: get_array_function clears ANY exception at that lookup boundary and continues with the absent-override outcome. This is phase-dependent, not an error-type/origin whitelist.",
+        "lookup": {
+          "native_exact_fastpath": "PyArray_CheckExact(a) returns the cached ndarray.__array_function__ object without special-lookup helper or metaclass lookup.",
+          "basic_exact_type_fast_skips": [
+            "bool",
+            "int",
+            "float",
+            "complex",
+            "list",
+            "tuple",
+            "dict",
+            "set",
+            "frozenset",
+            "str",
+            "bytes",
+            "slice",
+            "NoneType",
+            "EllipsisType",
+            "NotImplementedType"
+          ],
+          "basic_skip_rule": "These are exact Py_TYPE comparisons, not isinstance checks. A subclass does not qualify for its base's skip. Skips return absent without inspecting a or its type attribute.",
+          "target": "For other inputs use PyObject_GetOptionalAttr(Py_TYPE(a), '__array_function__', &res), not instance lookup. Instance-only __array_function__ is ignored. Ordinary lookup on the type object can execute metaclass __getattribute__, descriptors and other Python code; inherited class attributes follow that lookup's descriptor semantics.",
+          "outcomes": {
+            "absent": "No method object: default body is eligible.",
+            "present_None_or_other_noncallable": "Present object is collected as an override; no callability precheck converts it to absence. Actual invocation raises TypeError; no attribute/coercion fallback.",
+            "present_callable": "Invoke exactly as specified below, including any binding already performed by type-object attribute lookup.",
+            "lookup_exception": "ANY exception during lookup (including RuntimeError, MemoryError, or an error originating in domain/kernel code called by the lookup) is cleared at this boundary and produces absent override. Its Python error/refcount lifecycle must match the reference. This does not license clearing a later invocation/body/metadata/coercion error."
+          },
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L51"
+        },
+        "invocation": {
+          "general_rule": "After successful non-default lookup, call the returned method object with exactly five positional arguments: method(a, public_api, types, args, kwargs). public_api is the dispatched numpy.ndim/shape/size function object; types is a tuple containing the actual argument type(s), not a. Here only a participates, so types=(type(a),). args and kwargs preserve the original public call's positional/keyword partition, and kwargs is always a dict.",
+          "examples": [
+            "np.size(a, axis=1): method(a, np.size, (type(a),), (a,), {'axis':1})",
+            "np.size(a,1): method(a,np.size,(type(a),),(a,1),{})",
+            "np.shape(a=a): method(a,np.shape,(type(a),),(),{'a':a})"
+          ],
+          "order": "General helper deduplicates actual types and orders subclasses before superclasses, otherwise left-to-right; with one relevant argument there is at most one collected type. No axis object is inspected for __array_function__. When there are no non-default overrides, call the default implementation directly; default ndarray method dispatch calls the function's _implementation without repeating that public dispatch.",
+          "return_and_errors": "Return an actual invocation result unchanged, preserving object identity and any AD graph. A returned NotImplemented is a deferral; exhausting implementations raises TypeError. A None/noncallable method or a callable that raises produces its invocation error and does not trigger absent-override fallback.",
+          "size_non_None_order": "Resolve outer size dispatch first. If its default body runs for non-None axis, call decorated numpy.shape(a) and complete that dispatch/attribute/coercion path before axis normalization, then math.prod. A size override that returns a result prevents all default/nested work.",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L185"
+        },
+        "sources": [
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L2118",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L3516",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L3559",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L9",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L51",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L21",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L493",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L578"
+        ]
+      },
+      "coercion": {
+        "rule": "Only AttributeError from the attempted direct attribute access triggers asarray(a), with no dtype/order/device/like argument supplied. Any other exception propagates. This includes AttributeError deliberately raised by a property. NumPy's asarray coercion/array-interface/buffer/sequence protocols then determine the materialized ndarray; they can allocate and execute user hooks.",
+        "valid_cases": "Python numeric/string/bytes/None scalar objects become rank0 arrays where coercion succeeds; rectangular nested sequences have their discovered shape; existing arrays/buffers use asarray semantics. Ragged sequences without an explicit object dtype are rejected; recursive/cyclic/deeper-than-max-rank structures and failing __array__ hooks follow coercion's errors.",
+        "cost": "Built-in getter branch reads metadata only; this does not cover a subtype overriding that metadata. General array-like fallback can inspect/copy all values, allocate, infer dtype, and invoke custom code; no O(rank) or numeric-data-independence guarantee is made for coercion, custom dispatch or arbitrary custom axis protocols.",
+        "dependency": "Exact asarray/coercion protocol is an upstream semantic capability. This metadata contract specifies composition and propagation; it is not verification of that upstream implementation.",
+        "sources": [
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L13",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/array_coercion.c#L1338"
+        ]
+      },
+      "native_dtype_layout_value_equivalence": {
+        "domain": "An exact ndarray using its built-in getters, or a subtype whose RELEVANT metadata attributes resolve to those same built-in getters. This is not a claim about every ndarray subclass: it may override ndim/shape/size despite inheriting default __array_function__. Actual dimension metadata is authoritative only in the built-in getter branch.",
+        "per_operation_guard": {
+          "ndim": "Built-in ndim getter; no overriding dispatch result.",
+          "shape": "Built-in shape getter; no overriding dispatch result.",
+          "size_axisNone": "Built-in size getter; no overriding dispatch result.",
+          "size_axisNonNone": "Default size body, built-in shape getter after nested shape dispatch, and ordinary valid integer/axis container inputs for the stated native complexity. Arbitrary axis protocol code is specified separately and has no metadata-only cost guarantee."
+        },
+        "dtype_classes": "All legal ndarray DTypes: bool; signed/unsigned integers of all supported widths; real/complex including reduced/extended precision; endian variants; fixed/variable strings; datetime/timedelta metadata units; void/structured/nested fields; object-reference arrays; subarray/custom DTypes that form a valid ndarray. This equivalence is proved from absence of dtype or element reads in the native getter code, not from executing one representative dtype.",
+        "layout_classes": "Within the built-in getter guard: C and Fortran contiguous; transposed/strided; negative/zero strides; overlapping/broadcast views; non-contiguous/aligned/unaligned; readonly or writable; empty/degenerate axes; scalar/rank0; up to reference rank limit. They return metadata for the actual view. These getters require no numeric-buffer copy/scan/kernel/transfer/synchronization; subclass getters, overrides and arbitrary axis/coercion code are not covered by that cost statement.",
+        "structured_subarray_rule": "Do not descend into dtype.fields, object elements, or field subarray dimensions. A plain subarray dtype can already have expanded the actual ndarray dimensions during construction; read those actual dimensions exactly.",
+        "values": "For fixed actual shape in the applicable count-arithmetic domain, changing numeric values (including NaN, Inf and signed zero), object referents, byte order or physical strides cannot change built-in metadata output. No element needs to be read/executed. This does not prove arbitrary-precision total-size arithmetic for an overflowing dimension product.",
+        "count_arithmetic": "Built-in ndim/shape expose rank and individual npy_intp dimensions as Python integers. Built-in size(axisNone) uses PyArray_SIZE\u2192PyArray_MultiplyList with npy_intp multiplication then converts to Python int; when the mathematical product fits npy_intp, it equals that product. The selected-axis default size path uses Python math.prod of built-in shape ints, so it has Python integer arithmetic. Do not equate the two paths for products outside npy_intp without target/build evidence.",
+        "sources": [
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L38",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L50",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L327",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/include/numpy/ndarrayobject.h#L70",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/multiarraymodule.c#L202"
+        ]
+      },
+      "device": "No device argument. Built-in getter branch returns host metadata, with no silent accelerator fallback. External providers can handle __array_function__; if they decline/coercion refuses transfer, preserve the resulting error. Delegated outputs may themselves reside on devices and remain unchanged.",
+      "gradient": {
+        "native_metadata": "Built-in ndarray getter outputs are Python int/tuple-of-int values, nondifferentiable with respect to element values; do not apply this assertion to an overridden subtype getter and do not fabricate a zero tensor gradient.",
+        "delegated_identity": "A custom direct attribute or successful __array_function__ override is returned unchanged. It may be a graph-bearing tensor or container; preserve identity and its existing AD behavior, with no forced detach, scalarization or nondifferentiability annotation.",
+        "selected_axis_custom_shape": "For size with non-None axis, a custom shape's indexed factors pass through Python math.prod. Their multiplication may retain/create AD according to their own arithmetic protocol; no blanket nondifferentiability or int conversion is allowed. The native Python-int factors remain nondifferentiable."
+      },
+      "exceptions": [
+        "Arity, duplicate or unknown keyword: TypeError",
+        "ANY special-method LOOKUP exception is cleared only at the documented lookup boundary and produces absent override",
+        "After successful lookup, invocation/noncallable/body errors propagate; all-NotImplemented raises TypeError",
+        "Metadata attribute access exceptions other than AttributeError: propagate",
+        "AttributeError at metadata attribute access: attempt asarray fallback and propagate coercion/allocation/protocol errors"
+      ],
+      "status": {
+        "source_branch_composition_defined": true,
+        "source_contract_defined": true,
+        "mapping_recommendation": "source-only-specified-candidate-awaiting-independent-review",
+        "implementation_evidence": false,
+        "runtime_differential_evidence": false,
+        "benchmark_evidence": false
+      },
+      "operational_semantics": "Try return a.ndim unchanged. If access raises AttributeError, return asarray(a).ndim. Existing custom attributes are not type-checked or coerced.",
+      "native_result": "Python int r equal to actual ndarray rank; native getter calls PyLong_FromLong(PyArray_NDIM(self)).",
+      "native_cost": "O(1) in rank/element count plus Python integer result handling."
+    },
+    "shape": {
+      "symbol": "numpy.shape",
+      "signature": "shape(a)",
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L2123",
+      "source_body_sha256": "6228af8d4028b2d5e75bb0ba0f3c8f0f6ed74ef452f2e7d305b2a720fb244664",
+      "dispatch": {
+        "relevant_arguments": [
+          "a"
+        ],
+        "axis_does_not_dispatch": true,
+        "precedence": "The decorator dispatches __array_function__ before the default body. The only relevant argument is a, even for size(axis=...). A non-default implementation's returned value is returned unchanged; if all attempted implementations return NotImplemented, raise TypeError rather than falling back to metadata/coercion.",
+        "fallback": "Exact ndarray/default implementation, or no relevant argument with an override, calls the source Python body. Actual override invocation/body errors propagate. A failure while LOOKING UP the special method is a separate phase: get_array_function clears ANY exception at that lookup boundary and continues with the absent-override outcome. This is phase-dependent, not an error-type/origin whitelist.",
+        "lookup": {
+          "native_exact_fastpath": "PyArray_CheckExact(a) returns the cached ndarray.__array_function__ object without special-lookup helper or metaclass lookup.",
+          "basic_exact_type_fast_skips": [
+            "bool",
+            "int",
+            "float",
+            "complex",
+            "list",
+            "tuple",
+            "dict",
+            "set",
+            "frozenset",
+            "str",
+            "bytes",
+            "slice",
+            "NoneType",
+            "EllipsisType",
+            "NotImplementedType"
+          ],
+          "basic_skip_rule": "These are exact Py_TYPE comparisons, not isinstance checks. A subclass does not qualify for its base's skip. Skips return absent without inspecting a or its type attribute.",
+          "target": "For other inputs use PyObject_GetOptionalAttr(Py_TYPE(a), '__array_function__', &res), not instance lookup. Instance-only __array_function__ is ignored. Ordinary lookup on the type object can execute metaclass __getattribute__, descriptors and other Python code; inherited class attributes follow that lookup's descriptor semantics.",
+          "outcomes": {
+            "absent": "No method object: default body is eligible.",
+            "present_None_or_other_noncallable": "Present object is collected as an override; no callability precheck converts it to absence. Actual invocation raises TypeError; no attribute/coercion fallback.",
+            "present_callable": "Invoke exactly as specified below, including any binding already performed by type-object attribute lookup.",
+            "lookup_exception": "ANY exception during lookup (including RuntimeError, MemoryError, or an error originating in domain/kernel code called by the lookup) is cleared at this boundary and produces absent override. Its Python error/refcount lifecycle must match the reference. This does not license clearing a later invocation/body/metadata/coercion error."
+          },
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L51"
+        },
+        "invocation": {
+          "general_rule": "After successful non-default lookup, call the returned method object with exactly five positional arguments: method(a, public_api, types, args, kwargs). public_api is the dispatched numpy.ndim/shape/size function object; types is a tuple containing the actual argument type(s), not a. Here only a participates, so types=(type(a),). args and kwargs preserve the original public call's positional/keyword partition, and kwargs is always a dict.",
+          "examples": [
+            "np.size(a, axis=1): method(a, np.size, (type(a),), (a,), {'axis':1})",
+            "np.size(a,1): method(a,np.size,(type(a),),(a,1),{})",
+            "np.shape(a=a): method(a,np.shape,(type(a),),(),{'a':a})"
+          ],
+          "order": "General helper deduplicates actual types and orders subclasses before superclasses, otherwise left-to-right; with one relevant argument there is at most one collected type. No axis object is inspected for __array_function__. When there are no non-default overrides, call the default implementation directly; default ndarray method dispatch calls the function's _implementation without repeating that public dispatch.",
+          "return_and_errors": "Return an actual invocation result unchanged, preserving object identity and any AD graph. A returned NotImplemented is a deferral; exhausting implementations raises TypeError. A None/noncallable method or a callable that raises produces its invocation error and does not trigger absent-override fallback.",
+          "size_non_None_order": "Resolve outer size dispatch first. If its default body runs for non-None axis, call decorated numpy.shape(a) and complete that dispatch/attribute/coercion path before axis normalization, then math.prod. A size override that returns a result prevents all default/nested work.",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L185"
+        },
+        "sources": [
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L2118",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L3516",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L3559",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L9",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L51",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L21",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L493",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L578"
+        ]
+      },
+      "coercion": {
+        "rule": "Only AttributeError from the attempted direct attribute access triggers asarray(a), with no dtype/order/device/like argument supplied. Any other exception propagates. This includes AttributeError deliberately raised by a property. NumPy's asarray coercion/array-interface/buffer/sequence protocols then determine the materialized ndarray; they can allocate and execute user hooks.",
+        "valid_cases": "Python numeric/string/bytes/None scalar objects become rank0 arrays where coercion succeeds; rectangular nested sequences have their discovered shape; existing arrays/buffers use asarray semantics. Ragged sequences without an explicit object dtype are rejected; recursive/cyclic/deeper-than-max-rank structures and failing __array__ hooks follow coercion's errors.",
+        "cost": "Built-in getter branch reads metadata only; this does not cover a subtype overriding that metadata. General array-like fallback can inspect/copy all values, allocate, infer dtype, and invoke custom code; no O(rank) or numeric-data-independence guarantee is made for coercion, custom dispatch or arbitrary custom axis protocols.",
+        "dependency": "Exact asarray/coercion protocol is an upstream semantic capability. This metadata contract specifies composition and propagation; it is not verification of that upstream implementation.",
+        "sources": [
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L13",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/array_coercion.c#L1338"
+        ]
+      },
+      "native_dtype_layout_value_equivalence": {
+        "domain": "An exact ndarray using its built-in getters, or a subtype whose RELEVANT metadata attributes resolve to those same built-in getters. This is not a claim about every ndarray subclass: it may override ndim/shape/size despite inheriting default __array_function__. Actual dimension metadata is authoritative only in the built-in getter branch.",
+        "per_operation_guard": {
+          "ndim": "Built-in ndim getter; no overriding dispatch result.",
+          "shape": "Built-in shape getter; no overriding dispatch result.",
+          "size_axisNone": "Built-in size getter; no overriding dispatch result.",
+          "size_axisNonNone": "Default size body, built-in shape getter after nested shape dispatch, and ordinary valid integer/axis container inputs for the stated native complexity. Arbitrary axis protocol code is specified separately and has no metadata-only cost guarantee."
+        },
+        "dtype_classes": "All legal ndarray DTypes: bool; signed/unsigned integers of all supported widths; real/complex including reduced/extended precision; endian variants; fixed/variable strings; datetime/timedelta metadata units; void/structured/nested fields; object-reference arrays; subarray/custom DTypes that form a valid ndarray. This equivalence is proved from absence of dtype or element reads in the native getter code, not from executing one representative dtype.",
+        "layout_classes": "Within the built-in getter guard: C and Fortran contiguous; transposed/strided; negative/zero strides; overlapping/broadcast views; non-contiguous/aligned/unaligned; readonly or writable; empty/degenerate axes; scalar/rank0; up to reference rank limit. They return metadata for the actual view. These getters require no numeric-buffer copy/scan/kernel/transfer/synchronization; subclass getters, overrides and arbitrary axis/coercion code are not covered by that cost statement.",
+        "structured_subarray_rule": "Do not descend into dtype.fields, object elements, or field subarray dimensions. A plain subarray dtype can already have expanded the actual ndarray dimensions during construction; read those actual dimensions exactly.",
+        "values": "For fixed actual shape in the applicable count-arithmetic domain, changing numeric values (including NaN, Inf and signed zero), object referents, byte order or physical strides cannot change built-in metadata output. No element needs to be read/executed. This does not prove arbitrary-precision total-size arithmetic for an overflowing dimension product.",
+        "count_arithmetic": "Built-in ndim/shape expose rank and individual npy_intp dimensions as Python integers. Built-in size(axisNone) uses PyArray_SIZE\u2192PyArray_MultiplyList with npy_intp multiplication then converts to Python int; when the mathematical product fits npy_intp, it equals that product. The selected-axis default size path uses Python math.prod of built-in shape ints, so it has Python integer arithmetic. Do not equate the two paths for products outside npy_intp without target/build evidence.",
+        "sources": [
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L38",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L50",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L327",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/include/numpy/ndarrayobject.h#L70",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/multiarraymodule.c#L202"
+        ]
+      },
+      "device": "No device argument. Built-in getter branch returns host metadata, with no silent accelerator fallback. External providers can handle __array_function__; if they decline/coercion refuses transfer, preserve the resulting error. Delegated outputs may themselves reside on devices and remain unchanged.",
+      "gradient": {
+        "native_metadata": "Built-in ndarray getter outputs are Python int/tuple-of-int values, nondifferentiable with respect to element values; do not apply this assertion to an overridden subtype getter and do not fabricate a zero tensor gradient.",
+        "delegated_identity": "A custom direct attribute or successful __array_function__ override is returned unchanged. It may be a graph-bearing tensor or container; preserve identity and its existing AD behavior, with no forced detach, scalarization or nondifferentiability annotation.",
+        "selected_axis_custom_shape": "For size with non-None axis, a custom shape's indexed factors pass through Python math.prod. Their multiplication may retain/create AD according to their own arithmetic protocol; no blanket nondifferentiability or int conversion is allowed. The native Python-int factors remain nondifferentiable."
+      },
+      "exceptions": [
+        "Arity, duplicate or unknown keyword: TypeError",
+        "ANY special-method LOOKUP exception is cleared only at the documented lookup boundary and produces absent override",
+        "After successful lookup, invocation/noncallable/body errors propagate; all-NotImplemented raises TypeError",
+        "Metadata attribute access exceptions other than AttributeError: propagate",
+        "AttributeError at metadata attribute access: attempt asarray fallback and propagate coercion/allocation/protocol errors"
+      ],
+      "status": {
+        "source_branch_composition_defined": true,
+        "source_contract_defined": true,
+        "mapping_recommendation": "source-only-specified-candidate-awaiting-independent-review",
+        "implementation_evidence": false,
+        "runtime_differential_evidence": false,
+        "benchmark_evidence": false
+      },
+      "operational_semantics": "Try result=a.shape; on AttributeError set result=asarray(a).shape; return result unchanged. A custom shape attribute can therefore return a list, sentinel or custom object despite the documented tuple result for native arrays.",
+      "native_result": "Python tuple of r Python ints (d0,...,d[r-1]); rank0 returns(); empty dimensions are represented as integer0.",
+      "native_cost": "O(r) metadata reads/result construction, independent of element count/itemsize/strides."
+    },
+    "size": {
+      "symbol": "numpy.size",
+      "signature": "size(a, axis=None)",
+      "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L3564",
+      "source_body_sha256": "dd4c96773ee79bed8fc41df736db0e1f3cda19d768fbc9a2626c5ecec26db9d5",
+      "dispatch": {
+        "relevant_arguments": [
+          "a"
+        ],
+        "axis_does_not_dispatch": true,
+        "precedence": "The decorator dispatches __array_function__ before the default body. The only relevant argument is a, even for size(axis=...). A non-default implementation's returned value is returned unchanged; if all attempted implementations return NotImplemented, raise TypeError rather than falling back to metadata/coercion.",
+        "fallback": "Exact ndarray/default implementation, or no relevant argument with an override, calls the source Python body. Actual override invocation/body errors propagate. A failure while LOOKING UP the special method is a separate phase: get_array_function clears ANY exception at that lookup boundary and continues with the absent-override outcome. This is phase-dependent, not an error-type/origin whitelist.",
+        "lookup": {
+          "native_exact_fastpath": "PyArray_CheckExact(a) returns the cached ndarray.__array_function__ object without special-lookup helper or metaclass lookup.",
+          "basic_exact_type_fast_skips": [
+            "bool",
+            "int",
+            "float",
+            "complex",
+            "list",
+            "tuple",
+            "dict",
+            "set",
+            "frozenset",
+            "str",
+            "bytes",
+            "slice",
+            "NoneType",
+            "EllipsisType",
+            "NotImplementedType"
+          ],
+          "basic_skip_rule": "These are exact Py_TYPE comparisons, not isinstance checks. A subclass does not qualify for its base's skip. Skips return absent without inspecting a or its type attribute.",
+          "target": "For other inputs use PyObject_GetOptionalAttr(Py_TYPE(a), '__array_function__', &res), not instance lookup. Instance-only __array_function__ is ignored. Ordinary lookup on the type object can execute metaclass __getattribute__, descriptors and other Python code; inherited class attributes follow that lookup's descriptor semantics.",
+          "outcomes": {
+            "absent": "No method object: default body is eligible.",
+            "present_None_or_other_noncallable": "Present object is collected as an override; no callability precheck converts it to absence. Actual invocation raises TypeError; no attribute/coercion fallback.",
+            "present_callable": "Invoke exactly as specified below, including any binding already performed by type-object attribute lookup.",
+            "lookup_exception": "ANY exception during lookup (including RuntimeError, MemoryError, or an error originating in domain/kernel code called by the lookup) is cleared at this boundary and produces absent override. Its Python error/refcount lifecycle must match the reference. This does not license clearing a later invocation/body/metadata/coercion error."
+          },
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L51"
+        },
+        "invocation": {
+          "general_rule": "After successful non-default lookup, call the returned method object with exactly five positional arguments: method(a, public_api, types, args, kwargs). public_api is the dispatched numpy.ndim/shape/size function object; types is a tuple containing the actual argument type(s), not a. Here only a participates, so types=(type(a),). args and kwargs preserve the original public call's positional/keyword partition, and kwargs is always a dict.",
+          "examples": [
+            "np.size(a, axis=1): method(a, np.size, (type(a),), (a,), {'axis':1})",
+            "np.size(a,1): method(a,np.size,(type(a),),(a,1),{})",
+            "np.shape(a=a): method(a,np.shape,(type(a),),(),{'a':a})"
+          ],
+          "order": "General helper deduplicates actual types and orders subclasses before superclasses, otherwise left-to-right; with one relevant argument there is at most one collected type. No axis object is inspected for __array_function__. When there are no non-default overrides, call the default implementation directly; default ndarray method dispatch calls the function's _implementation without repeating that public dispatch.",
+          "return_and_errors": "Return an actual invocation result unchanged, preserving object identity and any AD graph. A returned NotImplemented is a deferral; exhausting implementations raises TypeError. A None/noncallable method or a callable that raises produces its invocation error and does not trigger absent-override fallback.",
+          "size_non_None_order": "Resolve outer size dispatch first. If its default body runs for non-None axis, call decorated numpy.shape(a) and complete that dispatch/attribute/coercion path before axis normalization, then math.prod. A size override that returns a result prevents all default/nested work.",
+          "source": "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L185"
+        },
+        "sources": [
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L2118",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L3516",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L3559",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L9",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/get_attr_string.h#L51",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L21",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L493",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/arrayfunction_override.c#L578"
+        ]
+      },
+      "coercion": {
+        "rule": "Only AttributeError from the attempted direct attribute access triggers asarray(a), with no dtype/order/device/like argument supplied. Any other exception propagates. This includes AttributeError deliberately raised by a property. NumPy's asarray coercion/array-interface/buffer/sequence protocols then determine the materialized ndarray; they can allocate and execute user hooks.",
+        "valid_cases": "Python numeric/string/bytes/None scalar objects become rank0 arrays where coercion succeeds; rectangular nested sequences have their discovered shape; existing arrays/buffers use asarray semantics. Ragged sequences without an explicit object dtype are rejected; recursive/cyclic/deeper-than-max-rank structures and failing __array__ hooks follow coercion's errors.",
+        "cost": "Built-in getter branch reads metadata only; this does not cover a subtype overriding that metadata. General array-like fallback can inspect/copy all values, allocate, infer dtype, and invoke custom code; no O(rank) or numeric-data-independence guarantee is made for coercion, custom dispatch or arbitrary custom axis protocols.",
+        "dependency": "Exact asarray/coercion protocol is an upstream semantic capability. This metadata contract specifies composition and propagation; it is not verification of that upstream implementation.",
+        "sources": [
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/fromnumeric.py#L13",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/array_coercion.c#L1338"
+        ]
+      },
+      "native_dtype_layout_value_equivalence": {
+        "domain": "An exact ndarray using its built-in getters, or a subtype whose RELEVANT metadata attributes resolve to those same built-in getters. This is not a claim about every ndarray subclass: it may override ndim/shape/size despite inheriting default __array_function__. Actual dimension metadata is authoritative only in the built-in getter branch.",
+        "per_operation_guard": {
+          "ndim": "Built-in ndim getter; no overriding dispatch result.",
+          "shape": "Built-in shape getter; no overriding dispatch result.",
+          "size_axisNone": "Built-in size getter; no overriding dispatch result.",
+          "size_axisNonNone": "Default size body, built-in shape getter after nested shape dispatch, and ordinary valid integer/axis container inputs for the stated native complexity. Arbitrary axis protocol code is specified separately and has no metadata-only cost guarantee."
+        },
+        "dtype_classes": "All legal ndarray DTypes: bool; signed/unsigned integers of all supported widths; real/complex including reduced/extended precision; endian variants; fixed/variable strings; datetime/timedelta metadata units; void/structured/nested fields; object-reference arrays; subarray/custom DTypes that form a valid ndarray. This equivalence is proved from absence of dtype or element reads in the native getter code, not from executing one representative dtype.",
+        "layout_classes": "Within the built-in getter guard: C and Fortran contiguous; transposed/strided; negative/zero strides; overlapping/broadcast views; non-contiguous/aligned/unaligned; readonly or writable; empty/degenerate axes; scalar/rank0; up to reference rank limit. They return metadata for the actual view. These getters require no numeric-buffer copy/scan/kernel/transfer/synchronization; subclass getters, overrides and arbitrary axis/coercion code are not covered by that cost statement.",
+        "structured_subarray_rule": "Do not descend into dtype.fields, object elements, or field subarray dimensions. A plain subarray dtype can already have expanded the actual ndarray dimensions during construction; read those actual dimensions exactly.",
+        "values": "For fixed actual shape in the applicable count-arithmetic domain, changing numeric values (including NaN, Inf and signed zero), object referents, byte order or physical strides cannot change built-in metadata output. No element needs to be read/executed. This does not prove arbitrary-precision total-size arithmetic for an overflowing dimension product.",
+        "count_arithmetic": "Built-in ndim/shape expose rank and individual npy_intp dimensions as Python integers. Built-in size(axisNone) uses PyArray_SIZE\u2192PyArray_MultiplyList with npy_intp multiplication then converts to Python int; when the mathematical product fits npy_intp, it equals that product. The selected-axis default size path uses Python math.prod of built-in shape ints, so it has Python integer arithmetic. Do not equate the two paths for products outside npy_intp without target/build evidence.",
+        "sources": [
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L38",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L50",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/getset.c#L327",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/include/numpy/ndarrayobject.h#L70",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/multiarraymodule.c#L202"
+        ]
+      },
+      "device": "No device argument. Built-in getter branch returns host metadata, with no silent accelerator fallback. External providers can handle __array_function__; if they decline/coercion refuses transfer, preserve the resulting error. Delegated outputs may themselves reside on devices and remain unchanged.",
+      "gradient": {
+        "native_metadata": "Built-in ndarray getter outputs are Python int/tuple-of-int values, nondifferentiable with respect to element values; do not apply this assertion to an overridden subtype getter and do not fabricate a zero tensor gradient.",
+        "delegated_identity": "A custom direct attribute or successful __array_function__ override is returned unchanged. It may be a graph-bearing tensor or container; preserve identity and its existing AD behavior, with no forced detach, scalarization or nondifferentiability annotation.",
+        "selected_axis_custom_shape": "For size with non-None axis, a custom shape's indexed factors pass through Python math.prod. Their multiplication may retain/create AD according to their own arithmetic protocol; no blanket nondifferentiability or int conversion is allowed. The native Python-int factors remain nondifferentiable."
+      },
+      "exceptions": [
+        "Arity, duplicate or unknown keyword: TypeError",
+        "ANY special-method LOOKUP exception is cleared only at the documented lookup boundary and produces absent override",
+        "After successful lookup, invocation/noncallable/body errors propagate; all-NotImplemented raises TypeError",
+        "Metadata attribute access exceptions other than AttributeError: propagate",
+        "AttributeError at metadata attribute access: attempt asarray fallback and propagate coercion/allocation/protocol errors",
+        "Initial operator.index(axis) TypeError is caught and iteration of original axis attempted; non-TypeError propagates",
+        "Iteration or per-element conversion errors propagate",
+        "Index exceeds C-int range: OverflowError",
+        "Index outside[-r,r): AxisError",
+        "Repeated normalized axes: ValueError",
+        "Custom shape not sized/indexable or factors not multiplicative: preserve len/index/math.prod errors"
+      ],
+      "status": {
+        "source_branch_composition_defined": true,
+        "source_contract_defined": false,
+        "mapping_recommendation": "partial-reference-definedness-and-build-contract-open",
+        "implementation_evidence": false,
+        "runtime_differential_evidence": false,
+        "benchmark_evidence": false
+      },
+      "operational_semantics": "If axis is None, return a.size unchanged; on AttributeError return asarray(a).size. Otherwise call the decorated numpy.shape(a), normalize axis with len(shape) and allow_duplicate=False, then return math.prod(shape[j] for j in normalized_axes). The non-None branch does not consult a.size and may dispatch numpy.shape separately.",
+      "native_result": "For the built-in size getter, Python int converted from npy_intp PyArray_MultiplyList(S); this equals mathematical product(S) when representable. Selected-axis default size with built-in shape factors returns Python int product(S[j] for j in normalize(A)), with arbitrary-precision Python multiplication; empty selection is1. The getter result is neither ndarray nor NumPy integer scalar. Overflow-region native total-count outcome is not invented or silently excluded.",
+      "native_cost": "Total-size native getter O(r) or better metadata work; selected axes materialize shape O(r), normalize k axes and duplicate set O(k) expected, multiply k Python ints. No element scan.",
+      "axis": {
+        "accepted_forms": "axis=None is a distinct fast branch. For a non-None axis not already tuple/list, first try axis=[operator.index(axis)]. If that attempt raises TypeError for ANY reason, catch it, leave the original axis object unchanged, and then iterate it. A custom __index__ raising TypeError plus __iter__ yielding[0] therefore succeeds for a non-scalar array. An index attempt raising a different exception propagates before iteration. Tuple/list inputs bypass the first index attempt. Lists, tuples, generators and other iterables are accepted; do not narrow to documented int/tuple forms.",
+        "normalization": "Materialize the ENTIRE tuple by iterating in source order and applying normalize_axis_index to each yielded element through the CPython-like C-int converter. For rank r, valid j satisfies -r<=j<r and becomes j+r if negative. Only AFTER iteration/conversion finishes, check normalized duplicates with len(set(axis)); if repeated, raise ValueError. Only AFTER that succeeds, index shape factors and multiply. Negative aliases such as(-1,r-1) duplicate each other, but rank2 axis=(0,0,2) raises AxisError on2 before any duplicate check.",
+        "side_effect_order": "Default size(non-None) obtains shape and calls len(shape) before normalize_axis_tuple. It then attempts initial scalar __index__ if applicable; creates the iterator; obtains/converts each element in order; finishes tuple materialization; performs duplicate detection; finally indexes shape and math.prod multiplies. A later iteration/conversion exception wins over an earlier potential duplicate, and no shape-factor indexing/product occurs in that failure case. Custom __index__/__iter__/__next__ side effects follow this order; no early duplicate short-circuit is equivalent.",
+        "type_errors": "At the initial scalar operator.index phase only TypeError is swallowed to permit iteration of the original object. Iteration failures and every per-element normalize_axis_index conversion failure propagate; there is no catch around that generator expression. A scalar float fails the initial index attempt then fails iteration, while a float inside a tuple/list reaches the C converter and fails there. Python bool becomes index0/1; frozen NumPy bool has neither nb_index nor iterable behavior, so its single-axis use ultimately fails TypeError after the caught initial index failure.",
+        "overflow": "Indices outside C-int range raise OverflowError in the converter before ordinary AxisError range checking; no arbitrary modulo or truncation. Out-of-range representable C-int indices raise numpy.exceptions.AxisError (a ValueError and IndexError subtype).",
+        "rank0": "For shape(), axisNone returns total1. axis=() or another empty iterable gives empty product1. Any single integer or nonempty axis tuple is out of bounds, including0 and-1; scalar reduction exceptions from unrelated APIs do not apply.",
+        "empty_axes": "axis=() yields Python int1 for every valid array, including arrays whose total size is0. Selecting any zero-length dimension yields0; other selected axes multiply normally.",
+        "sources": [
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/numeric.py#L1428",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/numeric.py#L1476",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/multiarraymodule.c#L4333",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/common.h#L201",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/common/npy_argparse.c#L54",
+          "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/scalartypes.c.src#L3856"
+        ]
+      }
+    }
+  },
+  "analytical_cases": [
+    {
+      "input_class": "valid-native-ndarray-any-dtype-layout",
+      "actual_shape": [],
+      "expected": {
+        "ndim": 0,
+        "shape": [],
+        "size_axisNone": 1,
+        "size_axisEmptyTuple": 1
+      },
+      "proof": "rank/tuple/product of concrete actual shape; no numeric element values involved"
+    },
+    {
+      "input_class": "valid-native-ndarray-any-dtype-layout",
+      "actual_shape": [
+        0
+      ],
+      "expected": {
+        "ndim": 1,
+        "shape": [
+          0
+        ],
+        "size_axisNone": 0,
+        "size_axisEmptyTuple": 1
+      },
+      "proof": "rank/tuple/product of concrete actual shape; no numeric element values involved"
+    },
+    {
+      "input_class": "valid-native-ndarray-any-dtype-layout",
+      "actual_shape": [
+        1
+      ],
+      "expected": {
+        "ndim": 1,
+        "shape": [
+          1
+        ],
+        "size_axisNone": 1,
+        "size_axisEmptyTuple": 1
+      },
+      "proof": "rank/tuple/product of concrete actual shape; no numeric element values involved"
+    },
+    {
+      "input_class": "valid-native-ndarray-any-dtype-layout",
+      "actual_shape": [
+        2,
+        3
+      ],
+      "expected": {
+        "ndim": 2,
+        "shape": [
+          2,
+          3
+        ],
+        "size_axisNone": 6,
+        "size_axisEmptyTuple": 1
+      },
+      "proof": "rank/tuple/product of concrete actual shape; no numeric element values involved"
+    },
+    {
+      "input_class": "valid-native-ndarray-any-dtype-layout",
+      "actual_shape": [
+        2,
+        0,
+        3
+      ],
+      "expected": {
+        "ndim": 3,
+        "shape": [
+          2,
+          0,
+          3
+        ],
+        "size_axisNone": 0,
+        "size_axisEmptyTuple": 1
+      },
+      "proof": "rank/tuple/product of concrete actual shape; no numeric element values involved"
+    },
+    {
+      "input_class": "valid-native-ndarray-any-dtype-layout",
+      "actual_shape": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "expected": {
+        "ndim": 64,
+        "shape": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "size_axisNone": 1,
+        "size_axisEmptyTuple": 1
+      },
+      "proof": "rank/tuple/product of concrete actual shape; no numeric element values involved"
+    }
+  ],
+  "negative_and_axis_cases": [
+    {
+      "shape": [
+        2,
+        3,
+        5
+      ],
+      "axis": -1,
+      "normalized": [
+        2
+      ],
+      "expected": 5
+    },
+    {
+      "shape": [
+        2,
+        3,
+        5
+      ],
+      "axis": [
+        0,
+        -1
+      ],
+      "normalized": [
+        0,
+        2
+      ],
+      "expected": 10
+    },
+    {
+      "shape": [
+        2,
+        0,
+        5
+      ],
+      "axis": [
+        0,
+        2
+      ],
+      "normalized": [
+        0,
+        2
+      ],
+      "expected": 10
+    },
+    {
+      "shape": [
+        2,
+        0,
+        5
+      ],
+      "axis": [
+        1
+      ],
+      "normalized": [
+        1
+      ],
+      "expected": 0
+    },
+    {
+      "shape": [
+        2,
+        3
+      ],
+      "axis": [
+        1,
+        0
+      ],
+      "normalized": [
+        1,
+        0
+      ],
+      "expected": 6
+    },
+    {
+      "shape": [
+        2,
+        3
+      ],
+      "axis": [
+        1,
+        -1
+      ],
+      "error": "ValueError-repeated-axis-after-complete-normalization"
+    },
+    {
+      "shape": [
+        2,
+        3
+      ],
+      "axis": [
+        0,
+        0,
+        2
+      ],
+      "error": "AxisError-before-duplicate-detection"
+    },
+    {
+      "shape": [
+        2,
+        3
+      ],
+      "axis": "iterator yields0,0 then raises RuntimeError",
+      "error": "same RuntimeError-before-duplicate-detection"
+    },
+    {
+      "shape": [
+        2,
+        3
+      ],
+      "axis": "custom __index__ raises TypeError; __iter__ yields[0]",
+      "normalized": [
+        0
+      ],
+      "expected": 2
+    },
+    {
+      "shape": [
+        2,
+        3
+      ],
+      "axis": "custom __index__ raises RuntimeError; __iter__ yields[0]",
+      "error": "same RuntimeError-no-iteration"
+    },
+    {
+      "shape": [],
+      "axis": 0,
+      "error": "AxisError"
+    },
+    {
+      "shape": [
+        2,
+        3
+      ],
+      "axis": 2,
+      "error": "AxisError"
+    },
+    {
+      "shape": [
+        2,
+        3
+      ],
+      "axis": -3,
+      "error": "AxisError"
+    },
+    {
+      "shape": [
+        2,
+        3
+      ],
+      "axis": "1.0-as-float",
+      "error": "TypeError"
+    },
+    {
+      "shape": [
+        2,
+        3
+      ],
+      "axis": "2**100-as-int",
+      "error": "OverflowError-before-axis-range-check"
+    }
+  ],
+  "protocol_and_coercion_cases": [
+    {
+      "given": "custom a.ndim/shape/size attribute returns a sentinel, no overriding __array_function__",
+      "expect": "corresponding default attribute branch returns identical sentinel object unchanged; no asarray call"
+    },
+    {
+      "given": "custom metadata attribute returns graph-bearing tensor/container",
+      "expect": "return identical graph-bearing object with existing AD intact; no detach/int/tuple conversion or blanket nondifferentiability"
+    },
+    {
+      "given": "ndarray subtype inherits default __array_function__ but overrides ndim/shape/size getter",
+      "expect": "default function body follows overridden property; built-in getter data-independence/dtype/layout proof does not apply to it"
+    },
+    {
+      "given": "size non-None custom shape factors are graph-bearing values",
+      "expect": "preserve Python math.prod arithmetic/AD outcome rather than forcing Python-int output; execute only after complete successful axis normalization and duplicate check"
+    },
+    {
+      "given": "custom metadata property raises AttributeError",
+      "expect": "asarray fallback is attempted"
+    },
+    {
+      "given": "custom metadata property raises RuntimeError",
+      "expect": "same error propagates; no fallback"
+    },
+    {
+      "given": "custom __array_function__ returns tagged nonstandard result",
+      "expect": "tagged result returned and native attribute/coercion not attempted"
+    },
+    {
+      "given": "__array_function__ exists only in a.__dict__ and not on type(a)",
+      "expect": "instance-only attribute ignored; proceed through absent-override default body"
+    },
+    {
+      "given": "exact basic type versus its subclass with class-level __array_function__",
+      "expect": "basic exact type skips special lookup; subclass is not fast-skipped and its override can run"
+    },
+    {
+      "given": "type(a).__array_function__ lookup through metaclass descriptor raises RuntimeError/MemoryError/domain-origin error",
+      "expect": "lookup boundary clears the exception and continues absent-override with unchanged reference exception lifecycle; method invocation is never attempted"
+    },
+    {
+      "given": "metaclass descriptor lookup returns callable, then that callable raises the same RuntimeError/MemoryError/domain-origin error",
+      "expect": "lookup succeeded; actual invocation error propagates with no absent-override/attribute/coercion fallback"
+    },
+    {
+      "given": "type(a).__array_function__ is absent versus present None/noncallable",
+      "expect": "absent permits default body; present None/noncallable is invoked and raises TypeError; do not conflate the states"
+    },
+    {
+      "given": "call size(a,axis=1), size(a,1) and shape(a=a) through successful custom callable",
+      "expect": "observe exactly five protocol positional arguments and original args/kwargs partition as listed in dispatch.invocation.examples; axis object does not independently dispatch"
+    },
+    {
+      "given": "custom __array_function__ returns NotImplemented",
+      "expect": "TypeError; do not bypass override with attr/asarray"
+    },
+    {
+      "given": "size axisNone and a.size is inconsistent with a.shape",
+      "expect": "return a.size, no correction"
+    },
+    {
+      "given": "size non-None axis and a.size property raises",
+      "expect": "do not access size property; use decorated shape and selected product"
+    },
+    {
+      "given": "size non-None axis and custom __array_function__ handles shape differently",
+      "expect": "verify outer size override/default protocol then nested shape dispatch call order; no swallowed error"
+    },
+    {
+      "given": "rectangular nested sequence/None/string scalar/buffer fallback",
+      "expect": "same metadata as exact asarray(a) result; distinguish coercion execution costs from native metadata"
+    },
+    {
+      "given": "ragged/cyclic/failing __array__ fallback",
+      "expect": "same coercion error, no shape guessed from first child"
+    }
+  ],
+  "differential_spec": "Run each analytical/negative/protocol case against pinned NumPy2.5.4 and Atlas, compare Python types/values/identity where delegated, errors and call order. No differential tests executed here.",
+  "benchmarks": {
+    "native_cases": "Compare exact NumPy2.5.4 and Atlas on built-in-getter actual shape metadata for ranks0,1,2,8,64; hold rank fixed while varying element count, itemsize, dtype family and logical strides. Use genuine exact ndarrays/views or subtypes proven not to override relevant metadata, and built-in integer/list/tuple axes. Time arbitrary custom getter/axis/dispatch/coercion costs separately. Preserve synchronization discipline of the actual backend; do not allocate workload arrays inside timed native metadata query.",
+    "measurements": [
+      "per-query latency distribution and Python/binding cost separately",
+      "allocations/result tuple handling",
+      "numeric buffer bytes read or transferred (native target0)",
+      "rank/axis-count scaling",
+      "total coercion time measured separately for array-like fallbacks"
+    ],
+    "acceptance": "Mathematical metadata equality is exact. Reject an element-count-dependent native scan/copy/transfer. Performance budget must be set from counterbalanced same-hardware baselines and analytic O(1)/O(r+k) contracts; no unsupported universal nanosecond target is invented.",
+    "hardware": "Host CPU plus each Atlas metadata-resident device backend declared in the program. Native NumPy CPU timing cannot qualify accelerator behavior; record device transfer/sync evidence separately.",
+    "executed": false
+  },
+  "policy_decisions": [
+    {
+      "id": "NUMPY-METADATA-DISPATCH-001",
+      "status": "reviewer-accepted-source-preserving-policy; provider design pending",
+      "boundary": "Classify by PHASE, not exception kind or error origin. Any exception arising DURING special-method lookup becomes the absent-override outcome at that boundary. After a successful lookup, invocation/noncallable/body/metadata/coercion exceptions preserve their own source propagation/catch rules.",
+      "internal_typed_context": "A typed LookupFailed can record phase/context without introducing a caller-visible error, new fallback, extra lookup/call or changed Python exception lifecycle. It must not prolong exception/traceback ownership or alter cleanup/finalizer behavior versus the reference. An AttributeError absorbed by PyObject_GetOptionalAttr is already an absent result; do not invent a surviving exception.",
+      "provider_design_status": "pending; no implementation or runtime evidence"
+    }
+  ],
+  "unresolved_axes": [
+    {
+      "id": "NUMPY-METADATA-COUNT-OVERFLOW-001",
+      "affected_branch": "built-in ndarray.size / size(axisNone), dimension-count product outside npy_intp",
+      "classification": "reference-definedness/build-contract question; retained in denominator, no approved exclusion and no automatic reference-bug waiver",
+      "source_fact": "PyArray_MultiplyList uses unchecked signed npy_intp multiplication. Array construction checks byte-size product; zero-itemsize flexible dtype admission prevents deriving count representability from allocation validity alone.",
+      "required_evidence": "Prove all supported constructor/view invariants or characterize exact target/compiler overflow-region reference behavior with authorized runtime/ABI evidence. No arbitrary wrap, saturation, exception or dtype exclusion is asserted.",
+      "sources": [
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/multiarraymodule.c#L202",
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/ctors.c#L629",
+        "https://github.com/numpy/numpy/blob/a3d0ef1df045b858e68115001fdabc930bb3b68c/numpy/_core/src/multiarray/ctors.c#L657"
+      ]
+    }
+  ],
+  "verification_status": {
+    "source_static_assertions": "executed",
+    "analytical_integer_metadata_assertions": "executed",
+    "runtime_or_implementation_tests": "not-run",
+    "performance_qualified": false,
+    "full_parity_claim": false
+  }
+}

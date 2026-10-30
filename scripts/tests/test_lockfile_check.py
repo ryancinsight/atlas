@@ -14,11 +14,15 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+
+from readonly_tree import clear_readonly_tree
 
 SCRIPT = Path(__file__).resolve().parent.parent / "lockfile.py"
 SPEC = importlib.util.spec_from_file_location("atlas_lockfile_check", SCRIPT)
@@ -59,7 +63,7 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
         self.original = (
-            lockfile.subprocess.run,
+            lockfile.run_bounded,
             lockfile.REPOSITORY,
             lockfile.LOCKFILE,
             lockfile.SCRIPT_CHECKOUT,
@@ -77,11 +81,11 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
                 command, 0 if self.resolves else 101, "{}", "" if self.resolves else "stale"
             )
 
-        lockfile.subprocess.run = fake_run
+        lockfile.run_bounded = fake_run
 
     def _restore(self) -> None:
         (
-            lockfile.subprocess.run,
+            lockfile.run_bounded,
             lockfile.REPOSITORY,
             lockfile.LOCKFILE,
             lockfile.SCRIPT_CHECKOUT,
@@ -196,6 +200,45 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("stale rather than flattened", stderr)
         self.assertIn("cargo said:\nstale", stderr)
+
+    def test_an_unreadable_manifest_fails_the_check_closed(self) -> None:
+        """A tree the checker cannot read must not be read as clean (K7)."""
+        self._write("Cargo.toml", NO_DEPENDENCIES)
+        self._write("Cargo.lock", SERDE)
+        self._write("sealed/Cargo.toml", NO_DEPENDENCIES)
+
+        original = Path.read_text
+
+        def read_text(path, *arguments, **keywords):
+            if path.name == "Cargo.toml" and path.parent.name == "sealed":
+                raise PermissionError(13, "Permission denied", str(path))
+            return original(path, *arguments, **keywords)
+
+        with mock.patch.object(Path, "read_text", read_text):
+            code, stderr = self._check()
+        self.assertEqual(code, 1)
+        self.assertIn("could not be read", stderr)
+        self.assertEqual(self.resolution_calls, 0, "an unreadable tree is not resolved")
+
+    def test_a_symlinked_directory_is_not_walked(self) -> None:
+        """Following a link would judge manifests outside the repository (K8)."""
+        self._write("Cargo.toml", NO_DEPENDENCIES)
+        self._write("Cargo.lock", SERDE)
+        outside = self.root.parent / f"{self.root.name}-outside"
+        self.addCleanup(clear_readonly_tree, outside)
+        flattened = outside / "flattened"
+        flattened.mkdir(parents=True)
+        (flattened / "Cargo.toml").write_text(
+            TWO_GIT_DEPENDENCIES, encoding="utf-8", newline="\n"
+        )
+        (flattened / "Cargo.lock").write_text(
+            SERDE + git_package("themis", False), encoding="utf-8", newline="\n"
+        )
+        try:
+            (self.root / "linked").symlink_to(flattened, target_is_directory=True)
+        except (OSError, NotImplementedError) as error:
+            self.skipTest(f"this host cannot create a directory symlink: {error}")
+        self.assertEqual(self._check(), (0, ""))
 
     def test_a_missing_root_lock_is_an_error(self) -> None:
         self._write("Cargo.toml", NO_DEPENDENCIES)

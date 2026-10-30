@@ -35,16 +35,18 @@ EXPECTED_STEPS = {
                 "# shellcheck disable=SC2086\n"
                 "sudo apt-get install -y --no-install-recommends $APT_PACKAGES\n"},
         TOOLCHAIN,
-        {"uses": PENDING, "id": "plan", "with": {"command": "plan", "owner": "${{ inputs.owner }}"}},
+        {"uses": PENDING, "id": "plan", "with": {"command": "plan", "owner": "${{ inputs.owner }}",
+                                                "cohort-json": "${{ inputs.cohort-json }}"}},
     ],
     "publish": [
         CHECKOUT,
         TOOLCHAIN,
         {"uses": "rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18", "id": "auth"},
         {"uses": PENDING, "id": "publish", "env": {"CARGO_REGISTRY_TOKEN": "${{ steps.auth.outputs.token }}"},
-         "with": {"command": "publish", "packages": "${{ needs.plan.outputs.packages }}"}},
+         "with": {"command": "publish", "packages": "${{ needs.plan.outputs.packages }}",
+                  "cohort-json": "${{ inputs.cohort-json }}"}},
         {"uses": PENDING, "if": "${{ !cancelled() && steps.auth.outcome == 'success' }}",
-         "with": {"command": "tag", "packages": "${{ needs.plan.outputs.packages }}",
+         "with": {"command": "tag", "packages": "${{ needs.plan.outputs.packages }}", "cohort-json": "${{ inputs.cohort-json }}",
                   "tag-prefix": "${{ inputs.tag-prefix }}", "publish-outcome": "${{ steps.publish.outcome }}"}},
     ],
 }
@@ -73,6 +75,7 @@ EXPECTED_INPUTS = {
     "semver-toolchain": {"required": False, "default": "", "type": "string"},
     "tag-prefix": {"required": False, "default": "crate-", "type": "string"},
     "owner": {"required": False, "default": "ryancinsight", "type": "string"},
+    "cohort-json": {"required": False, "default": "", "type": "string"},
     "apt-packages": {"required": False, "default": "", "type": "string"},
 }
 
@@ -148,14 +151,15 @@ class PendingWorkflowTests(unittest.TestCase):
         self.assertEqual(tag["if"], "${{ !cancelled() && steps.auth.outcome == 'success' }}")
         self.assertEqual(tag["with"], {
             "command": "tag", "packages": "${{ needs.plan.outputs.packages }}",
+            "cohort-json": "${{ inputs.cohort-json }}",
             "tag-prefix": "${{ inputs.tag-prefix }}", "publish-outcome": "${{ steps.publish.outcome }}"})
         self.assertEqual(self.step("publish", "Publish what is still pending")["id"], "publish")
 
     def test_plan_and_publish_receive_the_owner_and_the_planned_set(self) -> None:
         self.assertEqual(self.step("plan", "Select and verify the pending set")["with"],
-                         {"command": "plan", "owner": "${{ inputs.owner }}"})
+                         {"command": "plan", "owner": "${{ inputs.owner }}", "cohort-json": "${{ inputs.cohort-json }}"})
         self.assertEqual(self.step("publish", "Publish what is still pending")["with"],
-                         {"command": "publish", "packages": "${{ needs.plan.outputs.packages }}"})
+                         {"command": "publish", "packages": "${{ needs.plan.outputs.packages }}", "cohort-json": "${{ inputs.cohort-json }}"})
         self.assertEqual(self.jobs["plan"]["outputs"], {
             "packages": "${{ steps.plan.outputs.packages }}", "count": "${{ steps.plan.outputs.count }}"})
 

@@ -1,0 +1,205 @@
+{
+  "critical_path": [
+    "CTWP-01",
+    "CTWP-02",
+    "CTWP-03",
+    "CTWP-04",
+    "CTWP-05"
+  ],
+  "estimate_non_calendar_engineer_weeks_range": [
+    17,
+    36
+  ],
+  "full_program_replacement": false,
+  "packages": [
+    {
+      "acceptance": [
+        "Materialize reviewed built-in numeric strong/weak/scalar/array promotion and casting policy tables per frozen framework, including default/X64/context branches; every case has exact representations and typed success/error or documented warning outcome.",
+        "Prove identity/idempotence and source-valid relation laws only where each framework actually provides them; preserve counterexamples. Use explicit associated accumulator/evaluation precision.",
+        "Run exact-revision analytical/differential CPU matrix with represented values near integer/float limits, signed zeros, NaN/infinity, complex-real boundaries and modes; preserve source disagreements rather than widening tolerance."
+      ],
+      "clause_ids": [
+        "CT-PROMOTION",
+        "CT-CAST"
+      ],
+      "dependencies": [],
+      "done_is_whole_framework_parity": false,
+      "estimate": {
+        "basis": "Bounded primitive/bridge contract work only, conditional on stated readiness. Not a complete four-framework estimate or calendar deadline; critical path sums dependencies and cannot assume parallel heavy builds.",
+        "confidence": "low",
+        "engineer_weeks_high": 6,
+        "engineer_weeks_low": 3
+      },
+      "hardware_required": [
+        "actual CPU reference/provider execution",
+        "actual supported accelerator per admitted source branch; no fallback credit",
+        "symbolic/compiled/distributed modes on their admitted hardware when applicable"
+      ],
+      "id": "CTWP-01",
+      "owner": "eunomia",
+      "parent_work_package": "WP-005",
+      "remaining_readiness_blockers": [
+        "Registered/custom/string/object/structured/temporal and complete backend matrices remain full-parity obligations after this numeric core slice.",
+        "Exact companion versions/configurations and provider ADR/API review are still required."
+      ],
+      "state": "planned_acceptance_defined_not_started"
+    },
+    {
+      "acceptance": [
+        "Specify/implement one checked generic shape/offset/signed-stride algebra with typed ownership proof hooks, zero/rank-zero and overflow/rank-bound partitions. Preserve storage identity and offset.",
+        "Explicitly distinguish basic views, advanced gathers, reshapes requiring materialization and each API copy prohibition; no all-view copying or unsigned coercion of negative strides.",
+        "Run native layout properties and differential value/alias/write/error cases for the selected finite concrete dense domains. Repeated-index and broadcast cotangent fixtures use nonunit signed seeds; actual AD composition remains CTWP-04."
+      ],
+      "clause_ids": [
+        "CT-SHAPE",
+        "CT-BROADCAST",
+        "CT-AFFINE-VIEW",
+        "CT-RESHAPE",
+        "CT-INDEX"
+      ],
+      "dependencies": [
+        "CTWP-01"
+      ],
+      "done_is_whole_framework_parity": false,
+      "estimate": {
+        "basis": "Bounded primitive/bridge contract work only, conditional on stated readiness. Not a complete four-framework estimate or calendar deadline; critical path sums dependencies and cannot assume parallel heavy builds.",
+        "confidence": "low",
+        "engineer_weeks_high": 8,
+        "engineer_weeks_low": 4
+      },
+      "hardware_required": [
+        "actual CPU reference/provider execution",
+        "actual supported accelerator per admitted source branch; no fallback credit",
+        "symbolic/compiled/distributed modes on their admitted hardware when applicable"
+      ],
+      "id": "CTWP-02",
+      "owner": "leto",
+      "parent_work_package": "WP-009",
+      "remaining_readiness_blockers": [
+        "WP-006 allocation/access/placement proof contracts and WP-008 execution prerequisites require their own qualified evidence.",
+        "Arbitrary byte-stride/zero-itemsize/rich-element/symbolic/advanced-selector and hardware contracts remain required and unclosed."
+      ],
+      "state": "planned_acceptance_defined_not_started"
+    },
+    {
+      "acceptance": [
+        "Bridge generic provider dtypes and signed layouts through Rust/Python tensor facades without f64 round trips; prove int64 distinguishability at2^53 and offset-preserving rank-zero operations.",
+        "Preserve NumPy/Torch mutable view effects, native JAX value semantics and TF Tensor/Variable distinction through explicit typed API policy; scoped borrow/COW choices must preserve observable aliases and errors.",
+        "Execute finite native/delegated API branches including JAX warning/delegation differences, Torch to/view copy and AD conditions, TF resource no-op/assignment ordering. No framework-specific behavior is inferred from equal names."
+      ],
+      "clause_ids": [
+        "CT-SHAPE",
+        "CT-PROMOTION",
+        "CT-CAST",
+        "CT-BROADCAST",
+        "CT-RESHAPE",
+        "CT-EFFECTS"
+      ],
+      "dependencies": [
+        "CTWP-02"
+      ],
+      "done_is_whole_framework_parity": false,
+      "estimate": {
+        "basis": "Bounded primitive/bridge contract work only, conditional on stated readiness. Not a complete four-framework estimate or calendar deadline; critical path sums dependencies and cannot assume parallel heavy builds.",
+        "confidence": "low",
+        "engineer_weeks_high": 9,
+        "engineer_weeks_low": 4
+      },
+      "hardware_required": [
+        "actual CPU reference/provider execution",
+        "actual supported accelerator per admitted source branch; no fallback credit",
+        "symbolic/compiled/distributed modes on their admitted hardware when applicable"
+      ],
+      "id": "CTWP-03",
+      "owner": "coeus",
+      "parent_work_package": "WP-019",
+      "remaining_readiness_blockers": [
+        "WP-014/015 real device execution plus full WP-019 suppliers remain mandatory for device credit.",
+        "Six concrete provider design decisions in core-tensor-boundaries.json need ordinary ADR review; generic direction is authorized, API signoff is not inferred."
+      ],
+      "state": "planned_acceptance_defined_not_started"
+    },
+    {
+      "acceptance": [
+        "Specify source-specific tangent/cotangent structure for floating/complex/discrete metadata, integer/float0/error/None and unconnected policy; preserve nondifferentiable effect and cast boundaries.",
+        "Implement provider-first fixed-gather/broadcast transpose with additive duplicate contributions, signed seed, empty, shared path and saved-version mutation rejection tests, then source-valid forward/higher-order and transform compositions.",
+        "Record scalar-gamma candidate as separately locally qualified at its three owned heads; neither its rank0 fix nor CPU VJP closes this tensor/AD package."
+      ],
+      "clause_ids": [
+        "CT-INDEX",
+        "CT-EFFECTS",
+        "CT-AD-BOUNDARY"
+      ],
+      "dependencies": [
+        "CTWP-03"
+      ],
+      "done_is_whole_framework_parity": false,
+      "estimate": {
+        "basis": "Bounded primitive/bridge contract work only, conditional on stated readiness. Not a complete four-framework estimate or calendar deadline; critical path sums dependencies and cannot assume parallel heavy builds.",
+        "confidence": "low",
+        "engineer_weeks_high": 9,
+        "engineer_weeks_low": 4
+      },
+      "hardware_required": [
+        "actual CPU reference/provider execution",
+        "actual supported accelerator per admitted source branch; no fallback credit",
+        "symbolic/compiled/distributed modes on their admitted hardware when applicable"
+      ],
+      "id": "CTWP-04",
+      "owner": "coeus",
+      "parent_work_package": "WP-020",
+      "remaining_readiness_blockers": [
+        "Forward/higher-order/complex/Ref/resource/distributed device domains remain mandatory and not qualified by reverse scalar CPU tests.",
+        "Existing gamma and native-runtime owners retain their slices; this package is a definition boundary and does not admit a competing executor."
+      ],
+      "state": "planned_acceptance_defined_not_started"
+    },
+    {
+      "acceptance": [
+        "Close source branch, signature and coverage-class partitions for the selected endpoints only after all unresolved variants are explicitly specified and independently reviewed. Public/internal/alias/inherited distinctions stay conserved.",
+        "Bind actual native/CPU/accelerator/external/performance/release evidence to exact selected coherent revisions and hardware. A passing mathematical model, unavailable backend, local task cache or skipped test cannot substitute.",
+        "Run exact-head end-to-end acceptance through existing workflow programs and independent review; then recompute remaining whole-inventory obligations without promoting unmapped endpoints."
+      ],
+      "clause_ids": [
+        "CT-SHAPE",
+        "CT-PROMOTION",
+        "CT-CAST",
+        "CT-BROADCAST",
+        "CT-AFFINE-VIEW",
+        "CT-RESHAPE",
+        "CT-INDEX",
+        "CT-EFFECTS",
+        "CT-AD-BOUNDARY"
+      ],
+      "dependencies": [
+        "CTWP-01",
+        "CTWP-02",
+        "CTWP-03",
+        "CTWP-04"
+      ],
+      "done_is_whole_framework_parity": false,
+      "estimate": {
+        "basis": "Bounded primitive/bridge contract work only, conditional on stated readiness. Not a complete four-framework estimate or calendar deadline; critical path sums dependencies and cannot assume parallel heavy builds.",
+        "confidence": "low",
+        "engineer_weeks_high": 4,
+        "engineer_weeks_low": 2
+      },
+      "hardware_required": [
+        "actual CPU reference/provider execution",
+        "actual supported accelerator per admitted source branch; no fallback credit",
+        "symbolic/compiled/distributed modes on their admitted hardware when applicable"
+      ],
+      "id": "CTWP-05",
+      "owner": "atlas",
+      "parent_work_package": "WP-003",
+      "remaining_readiness_blockers": [
+        "Current 118 distinct source programs have 125 API target views, all designed and unrun; counts are checked against the linked source recipes.",
+        "All four full public inventories, companion pins, 38k-scale remaining semantic obligations and cross-repo release gates remain open."
+      ],
+      "state": "planned_acceptance_defined_not_started"
+    }
+  ],
+  "remaining_full_scope_not_reduced": true,
+  "schema_version": 1,
+  "scope": "Acceptance-defined subordinate packages under existing WP-005/009/019/020 and WP-003; not competing provider implementation assignments. Estimates must be refined as source partitions close."
+}

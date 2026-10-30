@@ -1,6 +1,47 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-10-28: parallel clones leave CI member checkout serial
+
+Risk: member checkout consumes the fast job's unchanged ten-minute budget;
+`git submodule update --jobs` overlaps clones but not worktree materialization.
+The bounded CI helper freezes every committed direct pin and complete mapping,
+registers serially, then updates four disjoint fresh destinations with root-state
+and error/child-lifetime checks. Closure requires exact-head review and unchanged gates; #551's cohort remains held.
+
+## Finding 2026-10-26: bounded provider checklists do not define four-framework parity
+
+Risk: displacement tables, Coeus's implemented-family manifest and Leto's seeded matrix can appear complete while public comparator APIs, compiler/device/distributed variants and external performance remain unmapped. [The versioned program](docs/parity/README.md) retains source-linked candidates, explicit extraction gaps, separate evidence stages and provider ownership. Source audit corrects stale Coeus constructors/gradchecks and Leto's 28/28 headline without crediting unrun tests. The [JAX dtype policy](docs/parity/dtype-policy/README.md) adds finite symbolic joins and source/case/owner validation while retaining unrun acceptance and unresolved companion artifacts. The NumPy native dtype supplement preserves 78 receipts / 129 functions / 131 spans, 576 symbolic cells and 47 unrun targets, including unresolved temporal quotient and unregistered native-interop prerequisites, with no denominator or mapping-stage credit. Repaired Torch source definitions retain 66 UNRUN cases / 14 gaps and separate actual API ownership, facade proposal and numeric supplier; no mapping or runtime promotion. Independent canonical review adds exact package evidence/gap guards and typed scalar error normalization; same-reviewer final-head assessment remains pending. The [accepted public-evidence capture](docs/parity/reference/public-evidence/README.md) makes reviewed TF 492 and JAX/Torch six source facts durable with separate live owner joins; all 498 unresolved classifications and three uncertified NumPy internal proposals remain requirements, with no gate or stage relief. The [TF conversion capture](docs/parity/core-tensor/tf-conversion-20261026/README.md) retains 30 UNRUN cases / ten open gaps with ordered rounding and cotangent-range guards; its primary API stays unmapped, live owner joins are separate from frozen context, and native behavior remains unqualified. Owner: ATLAS-FULL-PARITY-001. Closure requires complete extraction/semantic classes, reviewed scope decisions and exact-revision qualification; no version bump occurs here.
+
+The existing exact-release-cohort item had a level-one heading without the board's canonical status suffix, causing `atlas-board-index.py check` to fail on unchanged main. Its heading now uses the required anchor/blocked status; the historical status/evidence body remains intact. The generator synchronizes current source titles, retains the overlay's blocked owner hold while correcting its source ID typo, and moves the publisher retry-review pointer into its authoritative body. Hosted CI additionally catches noncanonical board states/priorities and the introduced root checklist; acceptance stays in canonical program items, and source fixes restore all four baseline board counts without changing the ratchet. No provider or publication work is declared delivered by this index repair.
+
 <!-- Compacted 2026-09-26 under the 1,000-line board budget: a risk entry holds risk/evidence/re-open-trigger/owner in ~5 lines; closed findings and delivery narrative are gone -- the record of a closed finding is the commit or PR that closed it. Recover removed narrative with `git log -p -- gap_audit.md`. -->
+
+## Finding 2026-10-26: Aequitas adoption is measured at getters, not formulas
+
+Risk: the cohort audit now catches untyped trait getters, spanning requirements and misleading unit suffixes, but a typed signature does not prove the formula. Two measured examples: `prometheus::ReactionNetwork` stores each reaction's rate constant as a bare `T` documented as order-dependent (`s⁻¹`, `m³·mol⁻¹·s⁻¹`) and `mass_action_rate` accepts any coefficient dimension, so a wrong order wraps silently as `ReactionRate`; `ritk`'s spatial API is millimetre-native raw `f64` (ITK compatibility) with Aequitas used only in diffusion weighting. The sweep found three real errors of this class: `helios_solver::deposit_ray_terma` conserved areal energy [J/m²] but returned `AbsorbedDose` [J/kg] (now `EnergyPerArea`, with the mass-thickness calibration recorded in the Helios gap audit); CFDrs's Kunz cavitation term omitted the `½ ρ_l U_∞² t_∞` normalization, leaving a pressure in a `MassDensityRate` (now typed `reference_velocity`/`reference_time`, dimensionless coefficients); and CFDrs's `nusselt_number` dropped Fourier's sign, returning a negative value for a hot wall (now `−L(∂T/∂y)/(T_wall−T_bulk)` with an asserted `Nu = 2` oracle). A typed accessor is evidence of the unit at the boundary, not of the theorem behind it. Re-open/check: every law provider's analytical oracle is stated in the quantity it returns (a differential against the closed form in SI units), and a provider that stores a coefficient raw names the missing enforcement in its own gap audit. Owner: provider owners; kwavers' remaining raw calculators and CFDrs' kernel scalars are deliberate, documented boundaries, not candidates for a mechanical sweep.
+
+## Finding 2026-10-21: lanes on worktreeConfig members misresolve into the gitdir
+
+Risk: members with `extensions.worktreeConfig=true` (hermes, coeus, leto) resolve a linked lane's shared relative `core.worktree` against the per-worktree gitdir, so `--show-toplevel` becomes `.git/modules/repos/<m>` and checkout writes land in the gitdir while tracked files read deleted (observed 2026-10-21 on three lanes; commits intact). Re-open/check: lane creation writes a per-lane absolute `core.worktree`, asserted by a conformance row over every `worktrees/*` admin dir. Owner: unfiled; pair with ATLAS-IDENTITY-LEASE-STARVATION.
+
+## Finding 2026-10-20: duplicate Release publication needs full artifact identity [patch]
+
+The shared Release publisher requests OIDC and uploads after validation even
+when another lane already published the version. A private pinned helper now
+requires exact clean HEAD/path, verified committed package source, complete
+archive bytes and consistent API/index/download checks before skipping both.
+Unknown or inconsistent results fail closed. Exact-final-head acceptance remains
+open in PR #547; pending publisher/SemVer owner files are untouched. Comparison
+fixtures fetch origin bytes without mutating shallow/blobless checkouts.
+See [bounded design](docs/pr/crate-release-identity.md).
+
+## Finding 2026-10-16: pending publication has no package scope
+
+Risk: an unrelated main merge can release an existing pending cohort. Evidence:
+RITK's exact pinned selector returns 29 owned versions; an unrelated member
+passes package verification. Check: explicit cohort identity/subset regressions
+and empty-installation execution in ATLAS-PUB-EXPLICIT-COHORT-001. Owner: PR544;
+Atlas acceptance awaits full gates; RITK adoption separately needs a coherent graph.
 
 ## Finding 2026-10-05: path-package identity follows repository revision
 
@@ -17,10 +58,6 @@ Risk: clippy reports only casts it compiles: default features and the host targe
 ## Finding 2026-10-02: the pre-push gate skips the feature matrix CI checks
 
 Risk: a change that compiles only with default features passes pre-push and fails CI. Evidence: ryancinsight/eunomia#143 (its pushed head before the no-std test fix) passed the owned pre-push gate; CI's `cargo check --all-targets --no-default-features` failed (`to_string` with no `std` in a test). The hook runs clippy and nextest with the default or CI-lint feature set only. Check that would catch it: the hook runs each member's committed feature-matrix list, as `cargo check` on the changed packages. Owner: none. Re-open: the next hook change, or the next CI-only feature failure.
-
-## Finding 2026-09-28: staged revert of dependency-digest memoization in the shared main tree
-
-Risk: `D:/atlas` (main, at `7b14277be`) carries staged, uncommitted changes that delete `scripts/atlas_build_package_source.py` and its tests and revert `6538f5b09`; a pathspec-free commit from that tree would clobber landed work. Evidence: `git status --porcelain -- scripts` shows `D  scripts/atlas_build_package_source.py`; index written 16:22 local, no lease line. Owner: none found. Re-open: the next orientation of the main tree; triage per fix-forward (the staged hunks are reverts, not landed work).
 
 ## Finding 2026-09-24: Dioxus joins the GUI comparator set
 
@@ -218,15 +255,6 @@ Helios PR #64 (draft; Rust/Python/book green, benchmark in progress). No
 Atlas gitlink advances from any of these until their own hosted gates are
 terminal green. Re-open trigger: each PR's own hosted result.
 
-## Finding 2026-09-04: apollo main red — triple-versioned mnemosyne (resolved)
-
-**Resolved 2026-09-04:** apollo `ci` green on `8ce18e57` via Eunomia source
-unification (#324). **Residual watchpoint:** apollo still carries the
-temporary co-evolution pin `mnemosyne rev = "af7a23a"`, whose own comment
-orders its removal after Mnemosyne PR #128 — if that PR has merged and the
-pin remains, the quarantine has outlived its trigger. Verify against
-mnemosyne's merge log before re-firing the sweep.
-
 ## Finding 2026-09-24: member pre-push reads the secret scanner from the live stack tree
 
 `scripts/git-hooks/pre-push` runs the scanner checked out in the local stack
@@ -289,15 +317,29 @@ crate-root `pub use` gained the name — mechanically, a one-line script
 comparing the module's exports against the root list. Re-open trigger:
 that check lands in the stack tooling.
 
-## Finding 2026-10-13: leto-ops cast row 590 vs measured 715 blocks every leto-ops push
+<a id="precision-profile-tier-conflation"></a>
+## Finding 2026-10-12: `CpuStorage::PROFILE` is one const on a storage type read by two tiers whose arithmetic disagrees
 
-Risk: the cast-gate baseline row (590, basis 6d0eca392) is 125 sites behind current main (715, measured via atlas_cast_gate.py --present-only at origin/main): the growth arrived through rescue/secret-scan-only pushes and scripts-scoped landings whose changed-path scoping never selected leto-ops. The first leto-ops-touching push after them (the Bessel branch, leto#351) is blocked; every subsequent one will be. Rows only fall, so the 125 sites convert: the concentration is tests/ops/backward_error.rs (55) and tests/ops/migration_fixtures.rs (40), then matrix/generic_kernel (37), reduction/axis (33), reduction/topk (25). Owner: none. Re-open: the conversion lands and leto#351 pushes green.
-## Finding 2026-10-14: SemVer extraction can fail before producing a verdict
+Risk: the CPU typed plans widen `f32`/`F16` storage into the owner `f64`/`Complex64` arithmetic, while the accelerator typed paths dispatch the same storage through `Complex32` device buffers and compute natively. A single `PROFILE` const on `CpuStorage` therefore describes one tier truthfully and the other falsely, and a caller of the lied-about tier is rejected. Measured on the apollo worktree base: `apollo-nufft` `type1_typed_storage_matches_represented_input` panicked with `InvalidPlan { message: "precision profile does not match typed NUFFT-WGPU storage" }` whenever a GPU adapter was present, and passed only because the test early-returns without one — a host without an adapter cannot observe this class of failure, so the CPU test gate is blind to it by construction. Only `NufftComplexStorage` was conflated; `apollo-{radon,sht,sft,stft}` and `apollo-fft`'s transform backend already bound on `GpuStorage` and were correct throughout. Evidence: apollo PR #650, whose `refactor(apollo)` commit splits the consts; on current `origin/main` #630 has reverted the widening rebase so `[F16; 2]::PROFILE` is `MIXED_PRECISION_F16_F32` again, which leaves the defect latent rather than fixed — the conflation returns the moment anyone re-adopts a widening descriptor.
 
-Apollo's compatible locked Moirai 0.8.2 graph cannot be freshly resolved after
-the provider advances to 0.9.0. The informational PR job absorbs that failure.
-ADR 0069 adds an opt-in blocking comparison of exact committed locked APIs;
-real provider-advance and unbumped public-removal regressions cover both outcomes.
-Existing callers remain on the latest-resolution contract until explicitly
-adopted. Re-open: a locked comparison reports success without a complete verdict.
+Root cause: a profile is a property of a *path*, not of a storage type, and the trait stored it on the type. Two independent callers then read one value and disagree about what it means.
 
+Catching check: the reference port on apollo rescue branch `rescue/apollo-nufft-device-profile` (preserved as PR apollo#677) adds a `DEVICE_PROFILE` const to the storage trait plus three host-runnable value-semantic tests that pin both tiers' profile values; its push is blocked by the conformance ratchet `apollo/manifest_implementation` rising because the additions return to the flattened module root. The check that must land is therefore structural: the accelerator tier names its own profile, and a test with no device asserts each type's profile on both tiers.
+
+Re-open trigger: any change to `CpuStorage::PROFILE`, or a re-adoption of widening descriptors, which this finding cites as the reproduction path. Twin consolidation delivered under apollo #652 and consus #171 (both merged); the monomorphization review item is closed.
+
+<a id="whole-file-writer-utf8-mangling"></a>
+## Finding 2026-10-12: whole-file writers mangle non-ASCII into cp1252 double-encoding on Windows hosts
+
+Risk: an agent's whole-file write that resolves the file as cp1252 instead of UTF-8 rewrites every non-ASCII byte pair as its Windows-1252 interpretation re-encoded in UTF-8, silently corrupting Rustdoc and test prose while leaving the file valid UTF-8, so no gate notices. Measured 2026-10-12 in the apollo worktree: five files carried `π`->`Ï€`, `Σ`->`Î£`, `è`->`Ã¨`, `∀`->`Ãž` and friends across module docs, proptest contracts and published references (`apollo-nufft/.../transform/dimension_1d.rs`, `.../dimension_1d/proptest_suite.rs`, `apollo-sft/.../transform/sparse.rs`, `sparse/plan.rs`, `sparse/tests.rs`). The corruption is recoverable only by re-encoding the runs back through cp1252, which is exactly what repaired it; the same class had already reached apollo's CHANGELOG.md, where it remains. This session's own first PowerShell heredoc reproduced the failure live, so it is not hypothetical.
+
+Root cause: the writer, not the file. Every mechanism that rewrites a whole file from a shell heredoc, a `Set-Content`/`Out-File` without an explicit UTF-8 encoding, or an editor defaulting to the system code page can do this on a Windows host.
+
+Catching check: a conformance scan over tracked text files rejecting any run of two or more characters in U+0080..U+00FF whose cp1252 re-encoding is valid UTF-8, plus a byte-level check that a file the agent rewrote is unchanged outside its intended edit. Both are cheap and deterministic; neither exists.
+
+Re-open trigger: the scan lands in the stack tooling, or a second occurrence is observed. Pre-existing instance already recorded: apollo `CHANGELOG.md` at `main`.
+
+<a id="apollo-scratch-rescue-weakening"></a>
+## Finding 2026-10-13: apollo rescue ref preserves a defect-masking test weakening
+
+Risk: `refs/rescue/apollo-scratch-order-isolation` (apollo checkout only, unpushed) preserves a hunk that renames the scratch-hook registry test and weakens its release-count assertion from an exact `assert_eq!` to `>= 1`; applying it would mask the thread-local hook leak instead of fixing it. Re-open trigger: the ref still exists; delete the ref and this finding together once its isolation hunk is confirmed landed on apollo main or obsolete against it.

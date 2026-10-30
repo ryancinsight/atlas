@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Compare committed APIs using each revision's compatible locked source graph.
-
-cargo-semver-checks' local-project generator runs cargo update and discards its
-temporary lock. First-party Git providers can advance past the source version
-a consumer requires. Generate complete Rustdoc JSON with Cargo --locked instead,
-then use the tool's supported prebuilt-JSON comparison. Build, schema, and
-comparison failures remain failures; no failure is interpreted as a version bump.
-"""
+"""Attempt native SemVer analysis and retain exact locked-graph evidence."""
 
 from __future__ import annotations
 
@@ -18,48 +11,59 @@ import os
 from pathlib import Path
 import re
 import shutil
-import subprocess
 import tarfile
 import tempfile
-
-
-def run(argv: list[str], cwd: Path, env: dict[str, str], *, capture: bool = False):
-    """Run an actual tool with bounded execution and preserve its diagnostics."""
-    return subprocess.run(
-        argv, cwd=cwd, env=env, check=True, text=True, encoding="utf-8", errors="replace",
-        stdout=subprocess.PIPE if capture else None,
-        timeout=1800,
+import process_tree
+TOOL_VERSION = "0.51.0"
+COMMAND_SECONDS = 600
+KNOWN_RESOLUTION_DIAGNOSTICS = (
+    "failed to select a version for the requirement",
+    "candidate versions found which didn't match",
+    "location searched: Git repository",
+)
+def text(data: bytes | None) -> str:
+    """Decode tool output without hiding malformed bytes."""
+    return (data or b"").decode("utf-8", errors="replace")
+def invoke(argv: list[str], cwd: Path, env: dict[str, str], timeout: float = COMMAND_SECONDS):
+    """Run one command under Atlas's process-tree deadline."""
+    return process_tree.run(
+        argv, cwd=cwd, env=env, timeout=timeout,
+        output_mode=process_tree.OutputMode.CAPTURE,
     )
-
-
-def commit(repo: Path, ref: str, env: dict[str, str]) -> str:
-    result = run(
-        ["git", "rev-parse", "--verify", "--end-of-options", f"{ref}^{{commit}}"],
-        repo, env, capture=True,
-    ).stdout.strip()
-    if not re.fullmatch(r"[0-9a-f]{40,64}", result):
-        raise ValueError(f"invalid resolved commit: {result!r}")
+def checked(argv: list[str], cwd: Path, env: dict[str, str], timeout: float = COMMAND_SECONDS):
+    """Run a command and preserve both output streams on failure."""
+    result = invoke(argv, cwd, env, timeout)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"command exited {result.returncode}: {' '.join(argv)}\n"
+            f"{text(result.stdout)}{text(result.stderr)}"
+        )
     return result
-
-
+def digest_bytes(data: bytes) -> str:
+    """Return the evidence digest used by the report."""
+    return hashlib.sha256(data).hexdigest()
+def digest(path: Path) -> str:
+    """Hash one immutable input or generated artifact."""
+    return digest_bytes(path.read_bytes())
+def commit(repo: Path, ref: str, env: dict[str, str]) -> str:
+    """Resolve a commit without accepting option-shaped revisions."""
+    value = text(checked(
+        ["git", "rev-parse", "--verify", "--end-of-options", f"{ref}^{{commit}}"],
+        repo, env, 120,
+    ).stdout).strip()
+    if not re.fullmatch(r"[0-9a-f]{40,64}", value):
+        raise ValueError(f"invalid resolved commit: {value!r}")
+    return value
 def export(repo: Path, revision: str, destination: Path, env: dict[str, str]) -> None:
-    # Export both arms outside an Atlas ancestor's path overlay. Only committed
-    # content enters the comparison; dirty files and a shared index cannot drift it.
-    archive = subprocess.run(
-        ["git", "archive", "--format=tar", revision], cwd=repo, env=env,
-        stdout=subprocess.PIPE, check=True, timeout=120,
+    """Export committed source without reading the shared checkout."""
+    archive = checked(
+        ["git", "archive", "--format=tar", revision], repo, env, 120,
     ).stdout
     destination.mkdir()
     with tarfile.open(fileobj=io.BytesIO(archive)) as stream:
         stream.extractall(destination, filter="data")
-
-
-def digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def release_type(baseline: str, current: str) -> str:
-    """Enforce the declared SemVer change, including pre-1.0 minor breaks."""
+def permission(baseline: str, current: str) -> str:
+    """Return the manifest boundary's Cargo-compatible change class."""
     def core(version: str) -> tuple[int, int, int]:
         match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:[-+].*)?", version)
         if match is None:
@@ -74,114 +78,230 @@ def release_type(baseline: str, current: str) -> str:
     if new[1] > old[1]:
         return "minor"
     return "patch"
-
-
-def inventory(manifest: Path, env: dict[str, str]) -> tuple[dict, Path]:
-    metadata = json.loads(run(
-        ["cargo", "metadata", "--locked", "--no-deps", "--format-version", "1",
-         "--manifest-path", str(manifest)], manifest.parent, env, capture=True,
-    ).stdout)
+def cargo_features(policy: str, features: list[str]) -> list[str]:
+    """Map one explicit feature policy to Cargo flags."""
+    flags = {"all": ["--all-features"], "default": [], "explicit": ["--no-default-features"]}[policy]
+    return flags + (["--features", ",".join(features)] if features else [])
+def semver_features(policy: str, features: list[str]) -> list[str]:
+    """Map the same feature policy to cargo-semver-checks flags."""
+    flags = {
+        "all": ["--all-features"],
+        "default": ["--default-features"],
+        "explicit": ["--only-explicit-features"],
+    }[policy]
+    return flags + sum((["--features", feature] for feature in features), [])
+def inventory(manifest: Path, env: dict[str, str]) -> tuple[dict[str, dict], Path]:
+    """Read resolved package facts without changing the committed lock."""
+    result = checked([
+        "cargo", "metadata", "--locked", "--no-deps", "--format-version", "1",
+        "--manifest-path", str(manifest),
+    ], manifest.parent, env)
+    metadata = json.loads(text(result.stdout))
     members = set(metadata["workspace_members"])
-    return ({p["name"]: p for p in metadata["packages"] if p["id"] in members},
-            Path(metadata["workspace_root"]) / "Cargo.lock")
+    packages = {item["name"]: item for item in metadata["packages"] if item["id"] in members}
+    return packages, Path(metadata["workspace_root"]) / "Cargo.lock"
 
 
-def library(package: dict) -> dict:
-    kinds = {"lib", "rlib", "dylib", "cdylib", "staticlib"}
-    targets = [t for t in package["targets"] if kinds.intersection(t["kind"])]
+def generate(manifest: Path, package: dict, output: Path, env: dict[str, str], config: dict) -> Path:
+    """Generate one locked Rustdoc artifact for supplemental comparison."""
+    targets = [target for target in package["targets"]
+               if {"lib", "rlib", "dylib", "cdylib", "staticlib"} & set(target["kind"])]
     if len(targets) != 1:
         raise ValueError(f"{package['name']} has {len(targets)} library targets")
-    return targets[0]
-
-
-def generate(manifest: Path, package: dict, destination: Path, env: dict[str, str]) -> Path:
-    target = library(package)
-    # Bootstrap is used only for the JSON/visibility extraction flags, as in
-    # cargo-semver-checks itself; runtime builds keep the pinned stable toolchain.
-    run(
-        ["cargo", "rustdoc", "--locked", "--manifest-path", str(manifest),
-         "--package", package["name"], "--lib", "--all-features", "--",
-         "-Z", "unstable-options", "--output-format=json",
-         "--document-private-items", "--document-hidden-items"],
-        manifest.parent, dict(env, RUSTC_BOOTSTRAP="1"),
-    )
-    generated = Path(env["CARGO_TARGET_DIR"]) / "doc" / f"{target['name']}.json"
-    data = json.loads(generated.read_text())
+    command = [
+        "cargo", "rustdoc", "--locked", "--manifest-path", str(manifest),
+        "--package", package["name"], "--lib", "--target", config["target"],
+        *cargo_features(config["feature_policy"], config["features"]), "--",
+        "-Z", "unstable-options", "--output-format=json", "--document-private-items",
+        "--document-hidden-items",
+    ]
+    checked(command, manifest.parent, dict(env, RUSTC_BOOTSTRAP="1"))
+    generated = Path(env["CARGO_TARGET_DIR"]) / config["target"] / "doc" / f"{targets[0]['name']}.json"
+    data = json.loads(generated.read_text(encoding="utf-8"))
     if data["crate_version"] != package["version"] or not data["includes_private"]:
-        raise ValueError(f"incomplete or wrong-version Rustdoc for {package['name']}")
-    root = data["index"][str(data["root"])]
-    if root["name"] != target["name"]:
-        raise ValueError(f"wrong Rustdoc crate identity for {package['name']}")
-    shutil.copyfile(generated, destination)
-    return destination
+        raise ValueError(f"incomplete Rustdoc for {package['name']}")
+    shutil.copyfile(generated, output)
+    return output
 
 
-def compare(repo: Path, base: str, head: str, manifest_path: str,
-            packages: list[str], toolchain: str, report: Path) -> None:
-    relative = Path(manifest_path)
-    if relative.is_absolute() or ".." in relative.parts:
-        raise ValueError("manifest path must stay inside the committed snapshot")
-    if not packages or any(not name for name in packages) or len(set(packages)) != len(packages):
-        raise ValueError("provide a nonempty, unique package selection")
-    env = dict(os.environ, RUSTUP_TOOLCHAIN=toolchain)
-    # A caller's custom build target would redirect JSON to a target-specific
-    # folder and alter the comparison's API universe. Require an explicit native
-    # invocation here; target-specific comparison can be added as a full contract.
-    if env.get("CARGO_BUILD_TARGET"):
-        raise ValueError("locked comparison requires the native toolchain target")
-    base_sha, head_sha = commit(repo, base, env), commit(repo, head, env)
-    evidence = {"base": base_sha, "head": head_sha, "packages": [], "completed": False}
-    report.parent.mkdir(parents=True, exist_ok=True)
+def native_command(manifest: Path, package: str, baseline: str, config: dict) -> list[str]:
+    """Build the native command; every Git baseline uses --baseline-rev."""
+    return [
+        "cargo", "semver-checks", "--manifest-path", str(manifest), "--package", package,
+        "--baseline-rev", baseline, "--release-type", config["change_class"],
+        "--target", config["target"], *semver_features(config["feature_policy"], config["features"]),
+    ]
+
+
+def result_record(command: list[str], result) -> dict:
+    """Record a reviewable command result without interpreting exit 101 as success."""
+    diagnostics = text(result.stdout) + text(result.stderr)
+    statuses = {0: "pass", 100: "deny_findings", 101: "execution_error"}
+    return {
+        "command": command,
+        "exit_code": result.returncode,
+        "status": statuses.get(result.returncode, "unknown_failure"),
+        "diagnostics": diagnostics,
+        "diagnostics_sha256": digest_bytes(diagnostics.encode()),
+    }
+
+
+def attempt(command: list[str], cwd: Path, env: dict[str, str], timeout: float = COMMAND_SECONDS) -> dict:
+    """Classify execution and cleanup failures without fabricating a verdict."""
+    try:
+        return result_record(command, invoke(command, cwd, env, timeout))
+    except process_tree.ProcessTreeTimeout as error:
+        diagnostics = text(error.stdout) + text(error.stderr)
+        return {"command": command, "exit_code": None, "status": "timeout",
+                "diagnostics": diagnostics,
+                "diagnostics_sha256": digest_bytes(diagnostics.encode())}
+    except process_tree.ProcessTreeCleanupError as error:
+        diagnostics = str(error)
+        return {"command": command, "exit_code": None, "status": "cleanup_error",
+                "diagnostics": diagnostics,
+                "diagnostics_sha256": digest_bytes(diagnostics.encode())}
+
+
+def supplemental(roots: list[Path], manifests: list[Path], pair: list[dict], locks: list[Path],
+                 package: str, env: dict[str, str], config: dict, workspace: Path) -> dict:
+    """Collect locked consumer and prebuilt-Rustdoc evidence after a known native limitation."""
+    before = [digest(lock) for lock in locks]
+    checks = []
+    cargo_flags = cargo_features(config["feature_policy"], config["features"])
+    for root, manifest in zip(roots, manifests):
+        command = ["cargo", "check", "--locked", "--manifest-path", str(manifest),
+                   "--package", package, "--target", config["target"], *cargo_flags]
+        checks.append(attempt(command, root, env))
+    docs = [generate(manifest, item, workspace / f"{arm}-{package}.json", env, config)
+            for arm, manifest, item in zip(("baseline", "current"), manifests, pair)]
+    if before != [digest(lock) for lock in locks]:
+        raise RuntimeError(f"Cargo.lock changed while documenting {package}")
+    command = [
+        "cargo", "semver-checks", "--baseline-rustdoc", str(docs[0]),
+        "--current-rustdoc", str(docs[1]), "--release-type", config["change_class"],
+    ]
+    comparison = attempt(command, roots[1], env)
+    return {
+        "kind": "SUPPLEMENTAL",
+        "disposition": "requires-review",
+        "consumer_contract": checks,
+        "comparison": comparison,
+        "baseline_lock_sha256": before[0],
+        "current_lock_sha256": before[1],
+        "baseline_rustdoc_sha256": digest(docs[0]),
+        "current_rustdoc_sha256": digest(docs[1]),
+    }
+
+
+def compare(args) -> int:
+    """Attempt every native baseline and write evidence even when one is unavailable."""
+    repo = args.repo.resolve()
+    env = dict(os.environ, RUSTUP_TOOLCHAIN=args.toolchain)
+    target_dir = Path(env.get("CARGO_TARGET_DIR", "")).resolve()
+    if not env.get("CARGO_TARGET_DIR"):
+        raise ValueError("CARGO_TARGET_DIR must name the shared build cache")
+    env["CARGO_TARGET_DIR"] = str(target_dir)
+    base, head = commit(repo, args.base, env), commit(repo, args.head, env)
+    if commit(repo, "HEAD", env) != head:
+        raise ValueError("--head must be the checked-out revision used by the native tool")
+    if invoke(["git", "diff-index", "--quiet", head, "--"], repo, env, 120).returncode != 0:
+        raise ValueError("native comparison requires a clean tracked checkout")
+    config = {
+        "change_class": args.change_class,
+        "feature_policy": args.feature_policy,
+        "features": args.features,
+        "target": args.target,
+        "toolchain": args.toolchain,
+    }
+    tool = shutil.which("cargo-semver-checks")
+    if tool is None:
+        raise RuntimeError("cargo-semver-checks 0.51.0 is not installed")
+    version = text(checked(["cargo", "semver-checks", "--version"], repo, env, 120).stdout).strip()
+    if version != f"cargo-semver-checks {TOOL_VERSION}":
+        raise RuntimeError(f"expected cargo-semver-checks {TOOL_VERSION}, found {version!r}")
+    report = {
+        "schema": 1, "base": base, "head": head, "configuration": config,
+        "tool": {"version": version, "sha256": digest(Path(tool))}, "packages": [],
+    }
+    exit_code = 0
+    args.report.parent.mkdir(parents=True, exist_ok=True)
     try:
         with tempfile.TemporaryDirectory(prefix="atlas-semver-") as directory:
             workspace = Path(directory)
-            snapshots = [workspace / "baseline", workspace / "current"]
-            for sha, root in zip((base_sha, head_sha), snapshots):
-                export(repo, sha, root, env)
-            manifests = [root / relative for root in snapshots]
-            inventories, locks = zip(*(inventory(m, env) for m in manifests))
-            # Save an immutable copy immediately after each successful build:
-            # the shared Cargo target may overwrite the same crate's JSON later.
-            env["CARGO_TARGET_DIR"] = str(workspace / "target")
-            for name in packages:
-                pair = [items[name] for items in inventories]
-                # The workspace lock, not a member-local phantom lock, pins Git.
-                before = [digest(lock) for lock in locks]
-                kind = release_type(pair[0]["version"], pair[1]["version"])
-                docs = [generate(m, p, workspace / f"{arm}-{name}.json", env)
-                        for arm, m, p in zip(("base", "head"), manifests, pair)]
-                if before != [digest(lock) for lock in locks]:
-                    raise ValueError(f"Cargo.lock changed while documenting {name}")
-                print(f"Locked API: {name} {pair[0]['version']} -> {pair[1]['version']} ({kind})",
-                      flush=True)
-                run(["cargo", "semver-checks", "--baseline-rustdoc", str(docs[0]),
-                     "--current-rustdoc", str(docs[1]), "--release-type", kind],
-                    repo, env)
-                evidence["packages"].append({
-                    "name": name, "base_version": pair[0]["version"],
-                    "head_version": pair[1]["version"], "release_type": kind,
-                    "base_lock_sha256": before[0], "head_lock_sha256": before[1],
-                    "base_json_sha256": digest(docs[0]), "head_json_sha256": digest(docs[1]),
-                })
-            evidence["completed"] = True
+            roots = [workspace / "baseline", workspace / "current"]
+            for revision, root in zip((base, head), roots):
+                export(repo, revision, root, env)
+            relative = Path(args.manifest_path)
+            if relative.is_absolute() or ".." in relative.parts:
+                raise ValueError("manifest path must stay inside the committed snapshot")
+            manifests = [root / relative for root in roots]
+            inventories, locks = zip(*(inventory(manifest, env) for manifest in manifests))
+            for package in args.packages:
+                pair = [inventory_[package] for inventory_ in inventories]
+                boundary = permission(pair[0]["version"], pair[1]["version"])
+                command = native_command(repo / relative, package, base, config)
+                native = attempt(command, repo, env)
+                entry = {
+                    "name": package, "versions": [pair[0]["version"], pair[1]["version"]],
+                    "manifest_permission": boundary, "native": native,
+                    "manifest_sha256": [digest(manifest) for manifest in manifests],
+                    "lock_sha256": [digest(lock) for lock in locks],
+                }
+                if {"patch": 0, "minor": 1, "major": 2}[boundary] < {
+                    "patch": 0, "minor": 1, "major": 2
+                }[args.change_class]:
+                    entry["manifest_error"] = "declared change class exceeds manifest boundary"
+                    exit_code = 101
+                if native["exit_code"] == 100:
+                    exit_code = max(exit_code, 100)
+                elif native["exit_code"] != 0:
+                    exit_code = 101
+                    known = all(fragment in native["diagnostics"]
+                                for fragment in KNOWN_RESOLUTION_DIAGNOSTICS)
+                    entry["known_resolution_limitation"] = known
+                    if known:
+                        try:
+                            entry["supplemental"] = supplemental(
+                                roots, manifests, pair, list(locks), package, env, config, workspace,
+                            )
+                        except Exception as error:
+                            entry["supplemental"] = {
+                                "kind": "SUPPLEMENTAL", "disposition": "failed",
+                                "error": f"{type(error).__name__}: {error}",
+                            }
+                report["packages"].append(entry)
     finally:
-        report.write_text(json.dumps(evidence, indent=2) + "\n")
+        args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    return exit_code
 
 
-def main() -> int:
+def parse_args():
+    """Parse the explicit comparison contract."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--base", required=True)
     parser.add_argument("--head", required=True)
     parser.add_argument("--manifest-path", default="Cargo.toml")
-    parser.add_argument("--package", required=True, help="comma-separated library package names")
+    parser.add_argument("--package", required=True)
     parser.add_argument("--toolchain", required=True)
+    parser.add_argument("--change-class", choices=("patch", "minor", "major"), required=True)
+    parser.add_argument("--feature-policy", choices=("all", "default", "explicit"), required=True)
+    parser.add_argument("--features", default="")
+    parser.add_argument("--target", required=True)
     parser.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
-    compare(args.repo.resolve(), args.base, args.head, args.manifest_path,
-            [name.strip() for name in args.package.split(",")], args.toolchain,
-            args.report.resolve())
-    return 0
+    args.packages = [name.strip() for name in args.package.split(",") if name.strip()]
+    args.features = [name.strip() for name in args.features.split(",") if name.strip()]
+    if not args.packages or len(args.packages) != len(set(args.packages)):
+        parser.error("--package must contain unique names")
+    if args.feature_policy != "explicit" and args.features:
+        parser.error("--features requires --feature-policy explicit")
+    return args
+
+
+def main() -> int:
+    """Run the comparison contract."""
+    return compare(parse_args())
 
 
 if __name__ == "__main__":

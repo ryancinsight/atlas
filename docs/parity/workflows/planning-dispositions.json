@@ -1,0 +1,160 @@
+{
+  "concrete_provider_approvals_granted": false,
+  "decisions": [
+    {
+      "accountable_owner": "eunomia",
+      "concrete_provider_ADR_approval": false,
+      "direction": "planning_direction_resolved_from_existing_user_scope_and_native_generic_principles",
+      "existing_policy_authority": [
+        "DEC-002",
+        "DEC-003",
+        "DEC-007"
+      ],
+      "id": "AD01",
+      "implementation_authorization_inferred": false,
+      "remaining_requirement": "Concrete typed interface, ownership/effect/format/precision laws, provider dependency graph and existing ADR/design/code review before implementation or qualification; no scope exclusion or foreign runtime adoption.",
+      "selected_direction": "Use one generic Scalar/Representation/Promotion/Accumulator policy surface and associated storage/layout traits; encode reference semantic policies explicitly without cloned dtype kernels or silent f64 widening. Runtime object/protocol boundaries get typed schemas/erasure only where their actual domain requires it.",
+      "source_recommendation": {
+        "entry": "AD01",
+        "path": "workflows/architecture-decisions.json"
+      },
+      "title": "Native generic array/tensor numerical contract"
+    },
+    {
+      "accountable_owner": "coeus",
+      "concrete_provider_ADR_approval": false,
+      "direction": "planning_direction_resolved_from_existing_user_scope_and_native_generic_principles",
+      "existing_policy_authority": [
+        "DEC-003",
+        "DEC-004",
+        "DEC-007"
+      ],
+      "id": "AD02",
+      "implementation_authorization_inferred": false,
+      "remaining_requirement": "Concrete typed interface, ownership/effect/format/precision laws, provider dependency graph and existing ADR/design/code review before implementation or qualification; no scope exclusion or foreign runtime adoption.",
+      "selected_direction": "Represent owned resources with branded lifetimes, typed effect tokens/region state and associated tangent/adjoint accumulator policies; lower through first-party trace/AD IR with legal alias/effect proofs. Keep pure state threading as a supported policy, not the only architecture.",
+      "source_recommendation": {
+        "entry": "AD02",
+        "path": "workflows/architecture-decisions.json"
+      },
+      "title": "Effect-aware Ref and resource AD"
+    },
+    {
+      "accountable_owner": "coeus",
+      "concrete_provider_ADR_approval": false,
+      "direction": "planning_direction_resolved_from_existing_user_scope_and_native_generic_principles",
+      "existing_policy_authority": [
+        "DEC-002",
+        "DEC-004",
+        "DEC-006"
+      ],
+      "id": "AD03",
+      "implementation_authorization_inferred": false,
+      "remaining_requirement": "Concrete typed interface, ownership/effect/format/precision laws, provider dependency graph and existing ADR/design/code review before implementation or qualification; no scope exclusion or foreign runtime adoption.",
+      "selected_direction": "Typed shape/effect/AD IR and generic lowering/backend traits in Coeus/Hephaestus; implement source-compatible capture/control/guard semantics and format import/export translators. Execute Atlas native IR; run XLA/TF/Torch/ORT only as isolated oracle/target interoperability tests.",
+      "source_recommendation": {
+        "entry": "AD03",
+        "path": "workflows/architecture-decisions.json"
+      },
+      "title": "First-party compiler with compatible artifact boundaries"
+    },
+    {
+      "accountable_owner": "moirai",
+      "concrete_provider_ADR_approval": false,
+      "direction": "planning_direction_resolved_from_existing_user_scope_and_native_generic_principles",
+      "existing_policy_authority": [
+        "DEC-004",
+        "DEC-005",
+        "DEC-007"
+      ],
+      "id": "AD04",
+      "implementation_authorization_inferred": false,
+      "remaining_requirement": "Concrete typed interface, ownership/effect/format/precision laws, provider dependency graph and existing ADR/design/code review before implementation or qualification; no scope exclusion or foreign runtime adoption.",
+      "selected_direction": "Moirai supplies typed rendezvous/rank/process/collective and cancellation state machines; Themis placement, Melinoe capability proofs and Hephaestus device communication implement concrete backends. Coeus owns gradient scaling, sharding and distributed training policies.",
+      "source_recommendation": {
+        "entry": "AD04",
+        "path": "workflows/architecture-decisions.json"
+      },
+      "title": "Native collective and topology semantics"
+    },
+    {
+      "accountable_owner": "consus",
+      "concrete_provider_ADR_approval": false,
+      "direction": "planning_direction_resolved_from_existing_user_scope_and_native_generic_principles",
+      "existing_policy_authority": [
+        "DEC-003",
+        "DEC-006",
+        "DEC-007"
+      ],
+      "id": "AD05",
+      "implementation_authorization_inferred": false,
+      "remaining_requirement": "Concrete typed interface, ownership/effect/format/precision laws, provider dependency graph and existing ADR/design/code review before implementation or qualification; no scope exclusion or foreign runtime adoption.",
+      "selected_direction": "Consus owns schema, integrity, ownership and storage primitives; Coeus composes model/optimizer/RNG/data/graph state and format translators. Separate safe/trusted object reconstruction policy from numeric tensor storage, with typed errors and explicit user trust options.",
+      "source_recommendation": {
+        "entry": "AD05",
+        "path": "workflows/architecture-decisions.json"
+      },
+      "title": "Versioned artifact and foreign interchange schemas"
+    },
+    {
+      "accountable_owner": "atlas",
+      "concrete_provider_ADR_approval": false,
+      "direction": "planning_direction_resolved_from_existing_user_scope_and_native_generic_principles",
+      "existing_policy_authority": [
+        "DEC-001",
+        "DEC-002",
+        "DEC-006"
+      ],
+      "id": "AD06",
+      "implementation_authorization_inferred": false,
+      "remaining_requirement": "Concrete typed interface, ownership/effect/format/precision laws, provider dependency graph and existing ADR/design/code review before implementation or qualification; no scope exclusion or foreign runtime adoption.",
+      "selected_direction": "Keep frozen root releases; distinguish required root/runtime/build dependencies, documented optional workflow companions and adjacent ecosystem scope. Resolve a signed-off companion API/version/ABI/opset matrix and hashed artifacts before claiming any target; do not downgrade roots as a workaround.",
+      "source_recommendation": {
+        "entry": "AD06",
+        "path": "workflows/architecture-decisions.json"
+      },
+      "title": "Companion ecosystem boundary and independent version pins"
+    },
+    {
+      "accountable_owner": "coeus",
+      "concrete_provider_ADR_approval": false,
+      "direction": "planning_direction_resolved_from_existing_user_scope_and_native_generic_principles",
+      "existing_policy_authority": [
+        "DEC-002",
+        "DEC-005",
+        "DEC-006"
+      ],
+      "id": "AD07",
+      "implementation_authorization_inferred": false,
+      "remaining_requirement": "Concrete typed interface, ownership/effect/format/precision laws, provider dependency graph and existing ADR/design/code review before implementation or qualification; no scope exclusion or foreign runtime adoption.",
+      "selected_direction": "Provide a reviewed stable native C/schema boundary and language bindings with generic typed core, versioned ABI, explicit buffer ownership/stream handoff and first-party target lowering. Edge/browser/embedded runtimes remain capability-specific targets, with real target execution and build receipts.",
+      "source_recommendation": {
+        "entry": "AD07",
+        "path": "workflows/architecture-decisions.json"
+      },
+      "title": "Public native and edge surface functional equivalence"
+    },
+    {
+      "accountable_owner": "tyche",
+      "concrete_provider_ADR_approval": false,
+      "direction": "planning_direction_resolved_from_existing_user_scope_and_native_generic_principles",
+      "existing_policy_authority": [
+        "DEC-005",
+        "DEC-007"
+      ],
+      "id": "AD08",
+      "implementation_authorization_inferred": false,
+      "remaining_requirement": "Concrete typed interface, ownership/effect/format/precision laws, provider dependency graph and existing ADR/design/code review before implementation or qualification; no scope exclusion or foreign runtime adoption.",
+      "selected_direction": "Typed algorithm/key/state/splitting policies with provider-native sampling and device implementations; versioned stream compatibility and statistical specifications are independent contracts.",
+      "source_recommendation": {
+        "entry": "AD08",
+        "path": "workflows/architecture-decisions.json"
+      },
+      "title": "RNG sequence promises distinct from distribution equivalence"
+    }
+  ],
+  "policy_directions_resolved": true,
+  "schema_version": 1,
+  "scope_reduction": false,
+  "workspace_runtime_permission": false
+}

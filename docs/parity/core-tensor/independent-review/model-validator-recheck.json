@@ -1,0 +1,111 @@
+{
+  "results": [
+    {
+      "case": "positive_control",
+      "outcome": "ACCEPTED",
+      "counts": {
+        "partial_source_endpoints": 39,
+        "unrun_acceptance_cases": 125,
+        "distinct_unrun_source_programs": 118,
+        "reusable_laws": 9,
+        "analytical_witnesses": 8,
+        "wrong_value_probes_rejected": 8,
+        "provider_boundary_contracts": 12,
+        "framework_execution_credit": 0,
+        "whole_api_closure_credit": 0
+      }
+    },
+    {
+      "case": "capture_manifest_role_bypass",
+      "outcome": "REJECTED",
+      "error": "ParityError: core captured source role/path association drift"
+    },
+    {
+      "case": "deleted_source_case_view",
+      "outcome": "REJECTED",
+      "error": "ParityError: core captured source case views lost or duplicated"
+    },
+    {
+      "case": "duplicated_source_case_view",
+      "outcome": "REJECTED",
+      "error": "ParityError: core captured source case views lost or duplicated"
+    },
+    {
+      "case": "cross_endpoint_torch_tf_case",
+      "outcome": "REJECTED",
+      "error": "ParityError: core tensor case source endpoint mismatches canonical API"
+    },
+    {
+      "case": "package_whole_framework_parity",
+      "outcome": "REJECTED",
+      "error": "ParityError: core tensor package owner/state drift"
+    },
+    {
+      "case": "remaining_scope_reduced",
+      "outcome": "REJECTED",
+      "error": "ParityError: core bounded package cannot reduce or replace full scope"
+    },
+    {
+      "case": "package_owner_mismatch",
+      "outcome": "REJECTED",
+      "error": "ParityError: core tensor package owner/state drift"
+    },
+    {
+      "case": "unbounded_package_estimate",
+      "outcome": "REJECTED",
+      "error": "ParityError: core tensor package estimate invalid"
+    },
+    {
+      "case": "nan_package_estimate",
+      "outcome": "REJECTED",
+      "error": "ParityError: core tensor package estimate invalid"
+    },
+    {
+      "case": "mapping_dangling_case_ids",
+      "outcome": "REJECTED",
+      "error": "ParityError: core canonical mapping case links drift"
+    },
+    {
+      "case": "source_review_policy_disabled",
+      "outcome": "REJECTED",
+      "error": "ParityError: core source review/denominator policy drift"
+    },
+    {
+      "case": "denominator_changed",
+      "outcome": "REJECTED",
+      "error": "ParityError: core source review/denominator policy drift"
+    },
+    {
+      "case": "whole_api_closure_claim",
+      "outcome": "REJECTED",
+      "error": "ParityError: core tensor header contradicts bounded unrun definitions"
+    },
+    {
+      "case": "cases_header_claims_executed",
+      "outcome": "REJECTED",
+      "error": "ParityError: core tensor header contradicts bounded unrun definitions"
+    },
+    {
+      "case": "bounded_program_replaces_full_program",
+      "outcome": "REJECTED",
+      "error": "ParityError: core bounded package cannot reduce or replace full scope"
+    },
+    {
+      "case": "false_aggregate_estimate",
+      "outcome": "REJECTED",
+      "error": "ParityError: core package aggregate estimate contradicts dependency path"
+    },
+    {
+      "case": "false_critical_path",
+      "outcome": "REJECTED",
+      "error": "ParityError: core critical path does not attain the declared upper estimate"
+    }
+  ],
+  "validator_sha256": "c56c8527a376ab99efb363374524dcf214a7a53999515658ad4d1af649ad279c",
+  "source_manifest_sha256": {
+    "numpy-jax": "7c169acfcb711c3714701f6fde84fea2fe14508c30d3d8148b7e2aca1cee1ea0",
+    "torch-tf": "875d1411199b7762da68d37ad9cc16b5df06a412fe733695d3914007a655457f"
+  },
+  "canonical_provider_writes": 0,
+  "source_or_runtime_acquisitions": 0
+}

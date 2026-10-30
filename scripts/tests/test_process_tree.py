@@ -224,6 +224,185 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 23)
         self.assertEqual(result.stdout, b"")
 
+    def test_inherited_output_is_visible_while_command_is_running(self):
+        listener = socket.create_server(("127.0.0.1", 0))
+        listener.settimeout(HANG_GUARD_SECONDS)
+        environment = os.environ.copy()
+        environment["ATLAS_TEST_READY_PORT"] = str(listener.getsockname()[1])
+        producer = textwrap.dedent(
+            """
+            import os
+            import socket
+            import sys
+
+            sys.stdout.buffer.write(b"stdout-prefix\\n")
+            sys.stdout.buffer.flush()
+            sys.stderr.buffer.write(b"stderr-prefix\\n")
+            sys.stderr.buffer.flush()
+            with socket.create_connection(
+                ("127.0.0.1", int(os.environ["ATLAS_TEST_READY_PORT"]))
+            ) as connection:
+                connection.sendall(b"ready")
+                if connection.recv(1) != b"x":
+                    raise SystemExit("release signal missing")
+            """
+        )
+        helper = textwrap.dedent(
+            f"""
+            import sys
+            sys.path.insert(0, {str(SCRIPTS)!r})
+            import process_tree
+
+            result = process_tree.run(
+                [sys.executable, "-c", {producer!r}],
+                timeout={HANG_GUARD_SECONDS!r},
+                output_mode=process_tree.OutputMode.INHERIT,
+            )
+            if result.returncode != 0:
+                raise SystemExit(f"unexpected status: {{result.returncode}}")
+            if result.stdout is not None or result.stderr is not None:
+                raise SystemExit("inherited output was reported as captured")
+            """
+        )
+        observed: dict[str, bytes] = {}
+        stdout_ready = threading.Event()
+        stderr_ready = threading.Event()
+
+        def read_prefix(name, stream, ready):
+            observed[name] = stream.readline()
+            ready.set()
+
+        helper_process = subprocess.Popen(
+            [sys.executable, "-c", helper],
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        def retire_helper():
+            if helper_process.poll() is None:
+                helper_process.kill()
+            helper_process.wait(timeout=HANG_GUARD_SECONDS)
+
+        self.addCleanup(retire_helper)
+        self.assertIsNotNone(helper_process.stdout)
+        self.assertIsNotNone(helper_process.stderr)
+        threading.Thread(
+            target=read_prefix,
+            args=("stdout", helper_process.stdout, stdout_ready),
+            daemon=True,
+        ).start()
+        threading.Thread(
+            target=read_prefix,
+            args=("stderr", helper_process.stderr, stderr_ready),
+            daemon=True,
+        ).start()
+
+        with listener:
+            connection, _ = listener.accept()
+            with connection:
+                connection.settimeout(HANG_GUARD_SECONDS)
+                self.assertEqual(connection.recv(5), b"ready")
+                self.assertTrue(stdout_ready.wait(HANG_GUARD_SECONDS))
+                self.assertTrue(stderr_ready.wait(HANG_GUARD_SECONDS))
+                self.assertEqual(observed["stdout"], b"stdout-prefix\n")
+                self.assertEqual(observed["stderr"], b"stderr-prefix\n")
+                self.assertIsNone(helper_process.poll())
+                connection.sendall(b"x")
+
+        self.assertEqual(helper_process.wait(timeout=HANG_GUARD_SECONDS), 0)
+
+    def test_inherited_timeout_retires_child_after_visible_prefixes(self):
+        lock = self.descendant_lock("atlas-process-tree-inherited-timeout-")
+        producer = textwrap.dedent(
+            """
+            import os
+            import pathlib
+            import socket
+            import sys
+            import threading
+
+            lock = pathlib.Path(sys.argv[1]).open("r+b")
+            pathlib.Path(sys.argv[1] + ".pid").write_text(str(os.getpid()))
+            if os.name == "nt":
+                import msvcrt
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock, fcntl.LOCK_EX)
+            print("timeout-stdout-prefix", flush=True)
+            print("timeout-stderr-prefix", file=sys.stderr, flush=True)
+            socket.create_connection(
+                ("127.0.0.1", int(os.environ["ATLAS_TEST_READY_PORT"]))
+            ).close()
+            threading.Event().wait()
+            """
+        )
+        helper = textwrap.dedent(
+            f"""
+            import os
+            import socket
+            import sys
+            sys.path.insert(0, {str(SCRIPTS)!r})
+            sys.path.insert(0, {str(SCRIPTS / 'tests')!r})
+            import process_tree
+            from process_tree_support import budget_from_readiness
+
+            listener = socket.create_server(("127.0.0.1", 0))
+            listener.settimeout({HANG_GUARD_SECONDS!r})
+            environment = os.environ.copy()
+            environment["ATLAS_TEST_READY_PORT"] = str(listener.getsockname()[1])
+            with listener, budget_from_readiness(listener):
+                try:
+                    process_tree.run(
+                        [sys.executable, "-c", {producer!r}, {str(lock)!r}],
+                        env=environment,
+                        timeout={EXPIRY_HOLD_SECONDS!r},
+                        output_mode=process_tree.OutputMode.INHERIT,
+                    )
+                except process_tree.ProcessTreeTimeout as error:
+                    if error.output is not None or error.stderr is not None:
+                        raise SystemExit("inherited timeout fabricated captured output")
+                    if error.cleanup_error is not None:
+                        raise SystemExit(error.cleanup_error)
+                else:
+                    raise SystemExit("nonterminating child did not time out")
+            """
+        )
+
+        bounded = subprocess.run(
+            [sys.executable, "-c", helper],
+            capture_output=True,
+            timeout=HANG_GUARD_SECONDS,
+            check=False,
+        )
+
+        self.assertEqual(
+            bounded.returncode,
+            0,
+            bounded.stderr.decode(errors="replace"),
+        )
+        self.assertEqual(bounded.stdout.splitlines(), [b"timeout-stdout-prefix"])
+        self.assertEqual(bounded.stderr.splitlines(), [b"timeout-stderr-prefix"])
+        process_id = int(lock.with_name(lock.name + ".pid").read_text())
+        _assert_lock_released(self, lock)
+        _assert_process_inactive(self, process_id)
+
+    def test_output_mode_must_be_an_enum_member(self):
+        for mode in (None, "inherit", True):
+            with self.subTest(mode=mode):
+                with (
+                    patch.object(process_tree.subprocess, "Popen") as launch,
+                    self.assertRaisesRegex(TypeError, "must be an OutputMode"),
+                ):
+                    process_tree.run(
+                        [sys.executable, "-c", "pass"],
+                        timeout=HANG_GUARD_SECONDS,
+                        output_mode=mode,
+                    )
+                launch.assert_not_called()
+
     @unittest.skipUnless(os.name == "posix", "POSIX status pipe")
     def test_buffered_exit_status_wins_when_deadline_has_elapsed(self):
         status_read, status_write = os.pipe()
@@ -650,6 +829,112 @@ class ProcessTreeTests(unittest.TestCase):
         process_id = int(output.split(b"child-ready ", 1)[1].splitlines()[0])
         _assert_lock_released(self, lock)
         _assert_process_inactive(self, process_id)
+
+    @unittest.skipUnless(sys.platform == "darwin", "Darwin's zombie-only group errno")
+    def test_cleanup_accepts_a_verified_zombie_only_group(self):
+        child = subprocess.Popen(
+            [sys.executable, "-c", "pass"],
+            start_new_session=True,
+            stdout=subprocess.PIPE,
+        )
+        self.addCleanup(child.stdout.close)
+        self.addCleanup(child.wait, HANG_GUARD_SECONDS)
+        self.addCleanup(child.kill)
+        self.assertEqual(child.stdout.read(), b"")
+        deadline = time.monotonic() + HANG_GUARD_SECONDS
+        while True:
+            observed = subprocess.run(
+                ["/bin/ps", "-p", str(child.pid), "-o", "stat="],
+                capture_output=True, text=True, check=True,
+                timeout=HANG_GUARD_SECONDS,
+            ).stdout.strip()
+            if observed.startswith("Z"):
+                break
+            self.assertLess(time.monotonic(), deadline, observed)
+        with self.assertRaises(PermissionError):
+            os.killpg(child.pid, signal.SIGKILL)
+        self.assertFalse(process_tree._posix_group_has_active_members(child.pid))
+        error = process_tree._terminate_process_tree(
+            child, None, process_tree._CleanupState()
+        )
+        self.assertIsNone(error)
+        self.assertEqual(child.returncode, 0)
+
+    def test_darwin_group_probe_uses_native_states_without_a_helper_launch(self):
+        for observed in process_tree.darwin_process.GroupState:
+            active = observed is not process_tree.darwin_process.GroupState.INACTIVE
+            with (
+                self.subTest(observed=observed),
+                patch.object(process_tree.sys, "platform", "darwin"),
+                patch.object(process_tree.subprocess, "Popen") as launch,
+                patch.object(
+                    process_tree.darwin_process, "group_state", return_value=observed,
+                ) as probe,
+            ):
+                self.assertEqual(process_tree._posix_group_has_active_members(42), active)
+                probe.assert_called_once_with(42)
+                launch.assert_not_called()
+
+    def test_darwin_snapshot_waits_only_for_transient_changes_within_its_deadline(self):
+        states = process_tree.darwin_process.GroupState
+        cases = (
+            ([states.CHANGING, states.INACTIVE], [0.0, 0.0, 0.0], states.INACTIVE, 1),
+            ([states.CHANGING, states.ACTIVE], [0.0, 0.0, 0.0], states.ACTIVE, 1),
+            ([states.CHANGING, states.UNKNOWN], [0.0, 0.0, 0.0], states.UNKNOWN, 1),
+            ([states.CHANGING], [0.0, 1.0], states.CHANGING, 0),
+            ([states.ACTIVE], [0.0], states.ACTIVE, 0),
+            ([states.UNKNOWN], [0.0], states.UNKNOWN, 0),
+        )
+        for readings, times, expected, sleeps in cases:
+            with (
+                self.subTest(readings=readings),
+                patch.object(process_tree.darwin_process, "group_state", side_effect=readings) as probe,
+                patch.object(process_tree.time, "monotonic", side_effect=times),
+                patch.object(process_tree.time, "sleep") as pause,
+                patch.object(process_tree.os, "killpg", create=True) as signal_group,
+                patch.object(process_tree.subprocess, "Popen") as launch,
+            ):
+                self.assertIs(process_tree._darwin_group_snapshot_before(42, 1.0), expected)
+                self.assertEqual(probe.call_count, len(readings))
+                self.assertEqual(pause.call_count, sleeps)
+                for call in pause.call_args_list:
+                    self.assertGreater(call.args[0], 0)
+                    self.assertLessEqual(call.args[0], process_tree.GROUP_POLL_SECONDS)
+                signal_group.assert_not_called()
+                launch.assert_not_called()
+
+    def test_darwin_snapshot_never_starts_an_observation_after_expiry(self):
+        states = process_tree.darwin_process.GroupState
+        for times, readings, expected_reads in (
+            ([1.0], [states.INACTIVE], 0),
+            ([0.0, 0.0, 1.0], [states.CHANGING, states.INACTIVE], 1),
+        ):
+            with (
+                self.subTest(times=times),
+                patch.object(process_tree.darwin_process, "group_state", side_effect=readings) as probe,
+                patch.object(process_tree.time, "monotonic", side_effect=times),
+                patch.object(process_tree.time, "sleep"),
+            ):
+                self.assertIs(
+                    process_tree._darwin_group_snapshot_before(42, 1.0), states.CHANGING,
+                )
+                self.assertEqual(probe.call_count, expected_reads)
+
+    @unittest.skipUnless(os.name == "posix", "POSIX group signalling")
+    def test_permission_denied_on_a_live_group_remains_a_cleanup_error(self):
+        child = subprocess.Popen(
+            [sys.executable, "-c", NEVER_ENDS], start_new_session=True,
+        )
+        self.addCleanup(child.wait, HANG_GUARD_SECONDS)
+        self.addCleanup(child.kill)
+        with patch.object(
+            process_tree.os, "killpg", side_effect=PermissionError("live group denied"),
+        ):
+            error = process_tree._terminate_process_tree(
+                child, None, process_tree._CleanupState()
+            )
+        self.assertIn("process-group kill failed: live group denied", error)
+        self.assertEqual(child.returncode, -signal.SIGKILL)
 
     def test_survivor_reaper_retires_a_holder_that_outlives_its_run(self):
         lock = self.descendant_lock("atlas-process-tree-reap-")

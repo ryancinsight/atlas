@@ -23,7 +23,10 @@ import io
 import sys
 import tempfile
 import unittest
+
 from pathlib import Path
+
+from readonly_tree import clear_readonly_tree
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "safety-census.py"
@@ -225,6 +228,10 @@ class ScanFileTestCase(unittest.TestCase):
 class MainWalkTestCase(unittest.TestCase):
     def _make_repo(self) -> Path:
         repo = Path(tempfile.mkdtemp(prefix="atlas-safety-census-repo-"))
+        # The fixture owns its directory: without a cleanup the
+        # `atlas-safety-census-repo-*` trees accumulate under the OS temp
+        # directory (ATLAS-TEST-TEMPDIR-LEAKS).
+        self.addCleanup(clear_readonly_tree, repo)
         crate = repo / "acme" / "src"
         crate.mkdir(parents=True)
         (crate / "lib.rs").write_text(

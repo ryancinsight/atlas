@@ -1,0 +1,509 @@
+{
+  "framework": "jax",
+  "version": "0.12.0.1",
+  "input_inventory_sha256": "ce7362f1540e4d60060768f5177feb34e3e37cb2e645edaaafe91634585d2c34",
+  "source_revision": "dc4af684446e65ee98eee8090e1ff6f8211473fb",
+  "records": [
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.export.DisabledSafetyCheck.custom_call",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py#L101",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/export/_export.py",
+          "line": 101,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.export.rst#L20",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "cls, target_name: str",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.export.DisabledSafetyCheck.is_custom_call",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py#L110",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/export/_export.py",
+          "line": 110,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.export.rst#L20",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.export.DisabledSafetyCheck.platform",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py#L93",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/export/_export.py",
+          "line": 93,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.export.rst#L20",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "cls",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Wrapped.__call__",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L990",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 990,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L11",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self, *args, **kwargs",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Wrapped.lower",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L1005",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 1005,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L11",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self, *args, **kwargs",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Wrapped.trace",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L994",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 994,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L11",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self, *args, **kwargs",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Traced.jaxpr",
+      "kind": "attribute",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L445",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 445,
+          "kind": "attribute",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L15",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": null,
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Traced.lower",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L567",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 567,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L15",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self, *, lowering_platforms: tuple[str, ...] | None=None, _private_parameters: mlir.LoweringParameters | None=None",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Traced.out_info",
+      "kind": "attribute",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L448",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 448,
+          "kind": "attribute",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L15",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": null,
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Lowered.as_text",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L684",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 684,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self, dialect: str | None=None, *, debug_info: bool=False",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Lowered.compile",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L674",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 674,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self, compiler_options: CompilerOptions | None=None, *, device_assignment: tuple[xc.Device, ...] | None=None",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Lowered.compiler_ir",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L700",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 700,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self, dialect: str | None=None",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Lowered.cost_analysis",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L720",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 720,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Lowered.in_tree",
+      "kind": "property",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L341",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 341,
+          "kind": "property",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": "jax._src.stages.Stage"
+        }
+      ],
+      "signature": "self",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Lowered.out_tree",
+      "kind": "attribute",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L633",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 633,
+          "kind": "attribute",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L18",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": null,
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Compiled.__call__",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L962",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 962,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self, *args, **kwargs",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Compiled.as_text",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L767",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 767,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Compiled.cost_analysis",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L781",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 781,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Compiled.in_tree",
+      "kind": "property",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L341",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 341,
+          "kind": "property",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": "jax._src.stages.Stage"
+        }
+      ],
+      "signature": "self",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Compiled.memory_analysis",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L799",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 799,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Compiled.out_tree",
+      "kind": "attribute",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L751",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 751,
+          "kind": "attribute",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": null,
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    },
+    {
+      "framework": "jax",
+      "version": "0.12.0.1",
+      "symbol": "jax.stages.Compiled.runtime_executable",
+      "kind": "method",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py#L838",
+      "domain": "autodiff-compiler",
+      "stability": "release-documented-stability-unreviewed",
+      "deprecation_status": "not-yet-reviewed",
+      "occurrences": [
+        {
+          "path": "jax/_src/stages.py",
+          "line": 838,
+          "kind": "method",
+          "documentation_directive": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/docs/jax.stages.rst#L21",
+          "selection_basis": "Explicit requested member or directly documented public method of class with :members:",
+          "inherited_from": null
+        }
+      ],
+      "signature": "self",
+      "definition_status": "documented API identity addition only; full semantic mapping remains unreviewed"
+    }
+  ],
+  "sources": [
+    {
+      "path": "jax/_src/export/_export.py",
+      "git_blob_sha": "e3acdb839c735ed61ba3cf9d7ef513ff8e83556b",
+      "sha256": "0a76002754193bf660f54b2dd23e9f2498d713b4bdbd338252328fc7051893e8",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/export/_export.py"
+    },
+    {
+      "path": "jax/_src/stages.py",
+      "git_blob_sha": "d80052c0d0a250b08b76d8524a3e21cdf2a87f61",
+      "sha256": "85faffefd43598283b52e22c5d99293b05702f9796b1c898000d3d2c38a7aca2",
+      "source": "https://github.com/jax-ml/jax/blob/dc4af684446e65ee98eee8090e1ff6f8211473fb/jax/_src/stages.py"
+    }
+  ],
+  "new_documented_identities": 22,
+  "full_semantic_mappings_completed": 0,
+  "scope": "Review-ready finite first slice; preserve unresolved classes and source namespace candidates separately."
+}

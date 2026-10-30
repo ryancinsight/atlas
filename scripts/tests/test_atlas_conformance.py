@@ -15,6 +15,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+from readonly_tree import clear_readonly_tree
+
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas-conformance.py"
 SPEC = importlib.util.spec_from_file_location("atlas_conformance", SCRIPT)
@@ -28,6 +30,20 @@ def _write(root: Path, rel: str, content: str) -> None:
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+LOCKFILE_CHECKER = (
+    "def check_staged() -> int:\n"
+    "    return 0\n\n"
+    "USAGE = '--check-staged'\n"
+)
+LEGACY_LOCKFILE_CHECKER = (
+    "def check() -> int:\n"
+    "    return 0\n\n"
+    "def regenerate() -> int:\n"
+    "    return 0\n\n"
+    "LOCKFILE = 'Cargo.lock'\n"
+)
 
 
 class AtlasConformanceTestCase(unittest.TestCase):
@@ -482,8 +498,40 @@ class AtlasConformanceTestCase(unittest.TestCase):
             root = Path(temp)
             _write(root, "Cargo.toml", "[workspace]\n")
             self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 0)
-            _write(root, "scripts/lockfile.py", "print('check')\n")
+            _write(root, "scripts/lockfile.py", LOCKFILE_CHECKER)
             self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 1)
+
+    def test_a_checker_moved_to_another_directory_is_counted(self) -> None:
+        """Moving the copy must not lower the ratchet; only deleting it can."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "tools/checks/lock_check.py", LOCKFILE_CHECKER)
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 1)
+
+    def test_a_renamed_checker_is_counted(self) -> None:
+        """The file name is not the identity; the checker's content is."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "scripts/check_lockfiles.py", LOCKFILE_CHECKER)
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 1)
+
+    def test_a_checker_without_the_staged_entry_point_is_counted(self) -> None:
+        """Iris's older copy has only the check/regenerate pair; it is still a
+        copy, and the baseline's 28th row must not read 0."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "scripts/lockfile.py", LEGACY_LOCKFILE_CHECKER)
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 1)
+
+    def test_a_file_quoting_the_flag_without_implementing_it_is_not_counted(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "scripts/tests/test_lockfile.py", "USAGE = '--check-staged'\n")
+            self.assertEqual(conformance.scan_repo(root)["member_lockfile_copies"], 0)
 
     def test_the_recorded_content_decides_whether_a_copy_exists(self) -> None:
         """A checkout behind or ahead of its gitlink carries a different set of
@@ -493,10 +541,10 @@ class AtlasConformanceTestCase(unittest.TestCase):
             live = Path(temp) / "live"
             for root in (snapshot, live):
                 _write(root, "Cargo.toml", "[workspace]\n")
-            _write(snapshot, "scripts/lockfile.py", "print('recorded')\n")
+            _write(snapshot, "scripts/lockfile.py", LOCKFILE_CHECKER)
             counts = conformance.scan_repo(snapshot, live_repo=live)
             self.assertEqual(counts["member_lockfile_copies"], 1)
-            _write(live, "scripts/lockfile.py", "print('live')\n")
+            _write(live, "scripts/lockfile.py", LOCKFILE_CHECKER)
             (snapshot / "scripts" / "lockfile.py").unlink()
             counts = conformance.scan_repo(snapshot, live_repo=live)
             self.assertEqual(counts["member_lockfile_copies"], 0)
@@ -2336,6 +2384,29 @@ class MaterializedMemberTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "not in the provider's object store"):
                 conformance.materialize_member(provider, "0" * 40, Path(temp) / "scratch")
 
+    def test_one_checkout_materialized_twice_keeps_two_snapshots(self) -> None:
+        """A root push materializes the pushed content and the baseline
+        config root into one scratch, and both name the checkout's
+        directory: the two must not share a tree, and the second must not
+        raise `FileExistsError` where the directory already exists."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            provider, first, second = self._provider(Path(temp))
+            scratch = Path(temp) / "scratch"
+            pushed = conformance.link_snapshot(provider, second, scratch)
+            baseline = conformance.link_snapshot(provider, first, scratch)
+
+            self.assertNotEqual(pushed, baseline, "the two snapshots must differ")
+            self.assertEqual(
+                (pushed / "src/lib.rs").read_text(encoding="utf-8"),
+                'pub fn alpha() { println!("debt"); }\n',
+                "the pushed snapshot keeps the pushed revision",
+            )
+            self.assertEqual(
+                (baseline / "src/lib.rs").read_text(encoding="utf-8"),
+                "pub fn alpha() {}\n",
+                "the baseline snapshot keeps its own revision",
+            )
+
 # Manifest fixtures for SubstrateContractTests.
 RUNTIME_RAYON = "[dependencies]\nrayon = \"1.8\""
 TARGET_NALGEBRA = "[target.'cfg(unix)'.dependencies]\nnalgebra = \"0.33\""
@@ -2461,7 +2532,10 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
         self, attributes: str | None, extra: dict[str, bytes] | None = None
     ) -> Path:
         root = Path(tempfile.mkdtemp(prefix="crlf-detector-"))
-        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        # The fixture's own objects are read-only, and `ignore_errors=True`
+        # swallowed the refusal to delete them: the tree stayed under the OS
+        # temp directory (ATLAS-TEST-TEMPDIR-LEAKS).
+        self.addCleanup(clear_readonly_tree, root)
         # Identity travels with the command, not the machine: CI runners
         # carry no global git identity, so a bare `commit` fails there
         # while passing on any developer box.

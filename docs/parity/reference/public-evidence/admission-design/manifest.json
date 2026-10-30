@@ -1,0 +1,32 @@
+{
+  "reviewed_revision": "20ae8d85f6c3aa6a6712e4f0b823b5f066bdc008",
+  "reviewed_tree": "4741babc0cf80e7ca642f4f8e93006bd8724ead4",
+  "plan_sha256": "ef16c4c78fe658e6599c5fc38000addb72b0ccd31bdfd34784489ae3caa9eb69",
+  "canonical_changes": false,
+  "new_gate_or_admission_changes": false,
+  "files": {
+    "REVIEW.md": "915620980a0d9b6f638ade77bdd7c8d14b1e728c703173855437ea0b395d4b7e",
+    "admission-interface-recommendation.json": "b94c15774b5c29dfae8b11f6b8e36613703d0bb6ff45f07fe11d67b794dec898",
+    "current-reader-observations.json": "4f96dff40b80a118201790654619eb5287e7c5a8c7f428ac77c8135f7bca5eaa",
+    "guard-test-matrix.json": "4931dfddd49b0bb311491ac3d4d021152d3e1daddbe8b4dab76ea6e74e054f01",
+    "three-candidate-readiness.json": "f1206b6678bfa466fc4abb25f2505fc6ce70b266a1ccd0d0e38392cfc97ad5f9",
+    "three-internal-candidates.json": "0e82f720b11fcd54857796bd2ccc03d9c133222bd26ffefbee05410bbca949d1"
+  },
+  "artifact_validation": {
+    "json_parse": "PASS",
+    "distinct_test_scenarios": 40,
+    "source_candidate_assessments": 3,
+    "canonical_gate_or_status_changes": 0
+  },
+  "existing_20ae_code_review_not_reopened_by_this_design": true,
+  "observed_finish_revision": "4dd42f913ec6bca4c6e3d6cda27ae992d4f6c8f4",
+  "post_review_head_change": {
+    "head": "4dd42f913ec6bca4c6e3d6cda27ae992d4f6c8f4",
+    "paths": [
+      ".github/workflows/python-tests.yml",
+      "docs/parity/validation.md"
+    ],
+    "admission_readers_and_source_data_unchanged_from_20ae": true,
+    "new_workflow_candidate_reviewed_here": false
+  }
+}

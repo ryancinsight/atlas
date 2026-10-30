@@ -1,0 +1,362 @@
+{
+  "audit_kind": "independent read-only source/receipt validation; no new runtime or remote qualification",
+  "candidate_cohort": [
+    {
+      "base": "23c604725507726c090b5d34a724f119de1047a4",
+      "branch": "feat/digamma-provider",
+      "clean": true,
+      "head": "ebb1923feed7e416cbb97a9fcb19423922ae09d2",
+      "repo": "eunomia",
+      "tree": "23bc5881381cd3ab2d01c6639e948f53972e0c6c"
+    },
+    {
+      "base": "074ab891cbc399163539a2f72185754875c8e943",
+      "branch": "feat/digamma-provider",
+      "clean": true,
+      "head": "93e2a8c653252dfc943339c1bcec143a663a77d6",
+      "repo": "leto",
+      "tree": "ffa7716fbc197ba043147a71173a3f5f8b612072"
+    },
+    {
+      "base": "57f7c4596884949e15815659544096b62c570d85",
+      "branch": "feat/gammaln-autograd",
+      "clean": true,
+      "head": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "repo": "coeus",
+      "tree": "39b4843e5e0eccef130742555293c36742fd1b51"
+    }
+  ],
+  "delivery_state": {
+    "authorization": "Existing user authorization persists; REPORT/API-QUALIFICATION supersede historical authorization-unresolved/API-pending annotations.",
+    "external_write_outcome": "Gamma lane reports no push/PR/merge/publication attempt and no uncertain write outcome.",
+    "release_or_remote_delivery_qualified": false,
+    "reported_context": "CLI token invalid; policy reads HTTP403. No credentials/access/policy probes or retries by this audit."
+  },
+  "gamma_integrated_into_defaults_claimed": false,
+  "local_test_receipt_scope": {
+    "api_baseline": "committed task source bases; not registry release baseline",
+    "api_checks_passed_each": 196,
+    "api_checks_skipped_each": 57,
+    "coeus_autograd_target_passed": 254,
+    "coeus_cpu_target_passed": 42,
+    "configured_pre_1_0_major_zero_checks_not_acceptance": true,
+    "eunomia_native_passed": 228,
+    "extension": {
+      "commit": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "default_features": true,
+      "extension": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/final-import/pycoeus/pycoeus.cpython-313-darwin.so",
+      "sha256": "5bf8536c4e32c915d51c2235c980570cd8ec33ca5417efbff0d3a25d825949d9",
+      "wheel": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/wheels-final/coeus_python-0.13.0-cp313-cp313-macosx_11_0_arm64.whl",
+      "wheel_sha256": "266ea6689c3a1ba20a571f81800a93b52732b18fbd8be0e6ae1a02534075d9e5"
+    },
+    "framework_versions": {
+      "jax": "0.12.0.1",
+      "jaxlib": "0.12.0.1",
+      "mpmath": "1.3.0",
+      "numpy": "2.5.4",
+      "scipy": "1.18.1",
+      "torch": "2.14.1"
+    },
+    "leto_doctests_passed": 33,
+    "leto_native_passed": 1204,
+    "leto_preexisting_ignored_doctest": 1,
+    "native_skip_count": 0,
+    "python_gamma_passed": 20,
+    "python_unrelated_deselected": 591,
+    "strict_minor_api_packages": 7,
+    "this_audit_reran_tests_or_imported_frameworks": false
+  },
+  "no_canonical_or_provider_writes": true,
+  "open_gates": [
+    "Hephaestus digamma/device capability and actual accelerator gradients unrun.",
+    "No performance qualification or complete hosted/cross-platform workspace matrix.",
+    "Canonical Git-lock fetch uses task-private cached candidate objects. No committed path overlay ships, but local cached resolution is not fresh remote/registry availability.",
+    "Ordinary fresh-consumer API commands failed dependency resolution; locked local API qualification supersedes local-comparison-pending only.",
+    "Effective protection/Pages inspection, hosted required checks, provider-first delivery/Apollo#696 coordination, registry-baseline API and published source/version/fresh consumers remain open."
+  ],
+  "outcome": "bounded CPU gamma evidence accepted; delivery/release/device qualification remains incomplete",
+  "schema_version": 1,
+  "semantic_scope": {
+    "AD": "First-order reverse grad_out*digamma(saved_input); weighted/shared/repeated accumulation. Forward/higher-order/complex/transform/distributed/device composition unqualified.",
+    "domain": "Real derivative of ln(abs(Gamma(x))) off poles; signed zeros,negative integers,infinities,NaN,tiny/large values explicit",
+    "dtypes": "Scalar f32/F32,f64/F64; documented f32 software boundary for F16/Bf16/F8/Bf8/F4/Bf4. Selected native AD f64/f32/F16/Bf16; Python f64 only.",
+    "layout": "CPU rank0..6 adapter; scalar/empty/strided/offset/transposed/broadcast reduction/output layout. Above6 typed rejection is not arbitrary-rank parity.",
+    "ownership": [
+      "eunomia scalar algorithm",
+      "leto CPU traversal",
+      "coeus dispatch/VJP/Python facade"
+    ],
+    "reference_differences": "JAX negative-zero convention and SciPy/PyTorch near-pole error explicitly retained; no bitwise full-framework equivalence.",
+    "reference_scope": "PyTorch2.14.1,JAX/JAXlib0.12.0.1,SciPy1.18.1,mpmath1.3.0 CPU witnesses; NumPy2.5.4 array support. No TensorFlow numerical comparison."
+  },
+  "source_files": [
+    {
+      "git_blob": "7576c5021d2e9446c07ee86ef312f875a5485b5b",
+      "line_count": 63,
+      "path": "crates/eunomia/src/traits/digamma.rs",
+      "repo": "eunomia",
+      "revision": "ebb1923feed7e416cbb97a9fcb19423922ae09d2",
+      "sha256": "fe637114dd1ac9beb79c44142740beff1ae8b9830d17a27f7b81bf8885b9b591",
+      "source": "https://github.com/ryancinsight/eunomia/blob/ebb1923feed7e416cbb97a9fcb19423922ae09d2/crates/eunomia/src/traits/digamma.rs"
+    },
+    {
+      "git_blob": "43cd8d2fd0dff0e26e9de3e09752ea2ba6e54c1a",
+      "line_count": 497,
+      "path": "crates/eunomia/src/traits/float.rs",
+      "repo": "eunomia",
+      "revision": "ebb1923feed7e416cbb97a9fcb19423922ae09d2",
+      "sha256": "e975ce1ac774b6c30efe4c0b83d9fd3baa2cb05c61013c95755eef9696e0a50e",
+      "source": "https://github.com/ryancinsight/eunomia/blob/ebb1923feed7e416cbb97a9fcb19423922ae09d2/crates/eunomia/src/traits/float.rs"
+    },
+    {
+      "git_blob": "aef74aad0a1fc5116d5b07dac2d90c4b5c11ae5c",
+      "line_count": 224,
+      "path": "crates/eunomia/src/impls/native_f64.rs",
+      "repo": "eunomia",
+      "revision": "ebb1923feed7e416cbb97a9fcb19423922ae09d2",
+      "sha256": "52d5e6f027d873f4a3e7b1539501efe7a8d59c07820b1304860d96a724890346",
+      "source": "https://github.com/ryancinsight/eunomia/blob/ebb1923feed7e416cbb97a9fcb19423922ae09d2/crates/eunomia/src/impls/native_f64.rs"
+    },
+    {
+      "git_blob": "d897956ea9369aff6bdcf34fac74cd002b297356",
+      "line_count": 225,
+      "path": "crates/eunomia/tests/float_special/digamma.rs",
+      "repo": "eunomia",
+      "revision": "ebb1923feed7e416cbb97a9fcb19423922ae09d2",
+      "sha256": "02b50041b31312987b949583cd8ecef946084a8f088e03b1137ca0bb54788cd3",
+      "source": "https://github.com/ryancinsight/eunomia/blob/ebb1923feed7e416cbb97a9fcb19423922ae09d2/crates/eunomia/tests/float_special/digamma.rs"
+    },
+    {
+      "git_blob": "5796071d0bb51cdbe506041312e1233dc1cc1f15",
+      "line_count": 155,
+      "path": "crates/leto-ops/src/application/unary/operators/elementary.rs",
+      "repo": "leto",
+      "revision": "93e2a8c653252dfc943339c1bcec143a663a77d6",
+      "sha256": "994361fbb3721d456d20bddb8700fb75ee49aeef020ef090c7f4465795f9c20b",
+      "source": "https://github.com/ryancinsight/leto/blob/93e2a8c653252dfc943339c1bcec143a663a77d6/crates/leto-ops/src/application/unary/operators/elementary.rs"
+    },
+    {
+      "git_blob": "269b058a20937fa07ca3e5db19f41938895d5b71",
+      "line_count": 83,
+      "path": "crates/leto-ops/tests/ops/elementwise/digamma.rs",
+      "repo": "leto",
+      "revision": "93e2a8c653252dfc943339c1bcec143a663a77d6",
+      "sha256": "41fa9ab417b672105efe9edf3d7f3667d84cf9dfecd212995f77e2ba8b464ba8",
+      "source": "https://github.com/ryancinsight/leto/blob/93e2a8c653252dfc943339c1bcec143a663a77d6/crates/leto-ops/tests/ops/elementwise/digamma.rs"
+    },
+    {
+      "git_blob": "85ff527c4781df890c748c6b4d6d401a12d7d8f4",
+      "line_count": 23,
+      "path": "crates/coeus-ops/src/backend_ops/traits/digamma.rs",
+      "repo": "coeus",
+      "revision": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "sha256": "3cff9f85fc6024bc717900436a562c05d917544d9eacd751c9956bf8b5d5721d",
+      "source": "https://github.com/ryancinsight/coeus/blob/068a5ff0ba74db9fde4d8bbe7c90f493222a0480/crates/coeus-ops/src/backend_ops/traits/digamma.rs"
+    },
+    {
+      "git_blob": "52ccd58f5b1f84d3577ad54b452b8e35ff8e36d7",
+      "line_count": 43,
+      "path": "crates/coeus-cpu/src/dispatch/digamma.rs",
+      "repo": "coeus",
+      "revision": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "sha256": "2780b94e53d5b7e3f76c46c52060975a79c2abba99b4889f266e340ba4b103ff",
+      "source": "https://github.com/ryancinsight/coeus/blob/068a5ff0ba74db9fde4d8bbe7c90f493222a0480/crates/coeus-cpu/src/dispatch/digamma.rs"
+    },
+    {
+      "git_blob": "19cd96ee8144101b4f2d0ce2873f80373f7afddb",
+      "line_count": 40,
+      "path": "crates/coeus-autograd/src/ops/activation/gamma.rs",
+      "repo": "coeus",
+      "revision": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "sha256": "ff176f8e535a37a1d900e4b17d0427dba24e83e365a510b3b554ccf37f3a668c",
+      "source": "https://github.com/ryancinsight/coeus/blob/068a5ff0ba74db9fde4d8bbe7c90f493222a0480/crates/coeus-autograd/src/ops/activation/gamma.rs"
+    },
+    {
+      "git_blob": "b71dd788edadc6861b732d5e255cb75e3b9d4db0",
+      "line_count": 238,
+      "path": "crates/coeus-autograd/tests/autograd/gammaln.rs",
+      "repo": "coeus",
+      "revision": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "sha256": "f503210c110b743c77ba511b8b59d16f7e8793472a5ab69785b240008fcc6ca7",
+      "source": "https://github.com/ryancinsight/coeus/blob/068a5ff0ba74db9fde4d8bbe7c90f493222a0480/crates/coeus-autograd/tests/autograd/gammaln.rs"
+    },
+    {
+      "git_blob": "0cc009a88335a9b5549b26c5de4a82fb0dc03b68",
+      "line_count": 227,
+      "path": "crates/coeus-python/src/ops/elementwise.rs",
+      "repo": "coeus",
+      "revision": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "sha256": "14dbfd32fd00ce30357f248d85c6e0b4d5fde8c39fb6fbf10c3f465b47c95b25",
+      "source": "https://github.com/ryancinsight/coeus/blob/068a5ff0ba74db9fde4d8bbe7c90f493222a0480/crates/coeus-python/src/ops/elementwise.rs"
+    },
+    {
+      "git_blob": "b3aa3aec1541c0af698a68db7896838e74e3e2a7",
+      "line_count": 154,
+      "path": "crates/coeus-python/tests/test_gammaln_gradients.py",
+      "repo": "coeus",
+      "revision": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+      "sha256": "cacf2b82addd11a29a8a0e87c945486e8a38df8c4e9321b82641547b674fab2c",
+      "source": "https://github.com/ryancinsight/coeus/blob/068a5ff0ba74db9fde4d8bbe7c90f493222a0480/crates/coeus-python/tests/test_gammaln_gradients.py"
+    }
+  ],
+  "source_reviews": {
+    "kind": "independent static source review; execution reported separately",
+    "limitations": "Static reviews do not replace hosted required checks, fresh remote consumers, release/API gates or hardware execution. The independent numerical witness has its own command and binary provenance receipt.",
+    "reviews": [
+      {
+        "algorithm_blob": "7576c5021d2e9446c07ee86ef312f875a5485b5b",
+        "head": "ebb1923feed7e416cbb97a9fcb19423922ae09d2",
+        "repository": "eunomia",
+        "result": "No blocking findings",
+        "reviewer": "/root/numerical_review",
+        "scope": "Native generic algorithm, domain/precision boundaries, absolute-error propagation, coefficient/cross/underflow terms, finite-fixture primitive premises, high-precision generation and reduced formats"
+      },
+      {
+        "acceptance_blob": "269b058a20937fa07ca3e5db19f41938895d5b71",
+        "head": "93e2a8c653252dfc943339c1bcec143a663a77d6",
+        "marker_blob": "5796071d0bb51cdbe506041312e1233dc1cc1f15",
+        "repository": "leto",
+        "result": "No blocking findings; clean HEAD and diff whitespace checked",
+        "reviewer": "/root/numerical_review",
+        "scope": "DigammaOp provider delegation, layout/domain acceptance and canonical Eunomia references"
+      },
+      {
+        "head": "068a5ff0ba74db9fde4d8bbe7c90f493222a0480",
+        "repository": "coeus",
+        "result": "No blocking findings; clean HEAD and diff whitespace checked",
+        "reviewer": "/root/consumer_review",
+        "scope": "Optional capability and initialization contract, provider ownership, native precision, gamma-log VJP, Python aliases, strict tolerance propagation, scalar/empty cases and rank-zero forward/multiply/accumulation/reshape adapters; final four-file documentation delta"
+      }
+    ]
+  },
+  "verified_api_json_files": [
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/leto-contract/base-leto.json",
+      "sha256": "6dffe3ed338ed66acff2f49afcefc8bf8170881bfae6c82ddf8ad93fbb29bed8"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/leto-contract/head-leto.json",
+      "sha256": "01670581f6b88ca3e05cb480d3dcc11ba23a4c4bcef51ff7c5d57b7161b7b802"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/leto-contract/base-leto-ops.json",
+      "sha256": "4faa74041a88f623d06380a1ea3eb01bcfb58bf7e14c9b54ebcdede1ff25c7ac"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/leto-contract/head-leto-ops.json",
+      "sha256": "1d62ff49e47982bc850a27b58ea910186966a41aa6c33de100fb750c90c206c4"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/coeus-contract/base-coeus-core.json",
+      "sha256": "f2985c5cdb18fef67b8ed4d6a419c8983f35e1389e49e8ca9c701f084276e25e"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/coeus-contract/head-coeus-core.json",
+      "sha256": "62ecdb2b8417f1da744d948f5769963ae87c5283b824625ce2ba5ac195f6261e"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/coeus-contract/base-coeus-cpu.json",
+      "sha256": "7f91bb75a01b8b6debb230a06101fcf7ac3a6ac07d4f6dad537ba537ba23cedb"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/coeus-contract/head-coeus-cpu.json",
+      "sha256": "08eabd91632935af7a122acd07de67a42141c2a4df1805e52e55dd1ed1c08192"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/coeus-contract/base-coeus-tensor.json",
+      "sha256": "2572510fc6b27f4eb3d737220bfda1259c923c2dc91884333c24dda373a7fcff"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/coeus-contract/head-coeus-tensor.json",
+      "sha256": "f6eff2d12412a6e3dc2305fcdca03539d132eb6e497827d53beff2626dd12129"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/coeus-contract/base-coeus-ops.json",
+      "sha256": "6bffe694afe2fbea6725bef8969d76f29a161fe7b8464a35d7c42be45e53a9b5"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/coeus-contract/head-coeus-ops.json",
+      "sha256": "b103d83cf4019dfc3a4340d6dee0a74274fcdb9b8ed15e1363e492eb8952a730"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/coeus-contract/base-coeus-autograd.json",
+      "sha256": "ee1a8be4ab62d3d23116d6ed21ba3c38d9e8b26a7ec7f60e901d59466bb7fead"
+    },
+    {
+      "path": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api/coeus-contract/head-coeus-autograd.json",
+      "sha256": "6faf7d2d82ff99951008b69d88dfe07d8342e32e3e9792f29ef029b929a0e99c"
+    }
+  ],
+  "verified_receipts": [
+    {
+      "bytes": 15874,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/REPORT.md",
+      "sha256": "f89add4c5671bec8e4a9430d8112c024636acadb96629f24380dbcb226797b96"
+    },
+    {
+      "bytes": 4658,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/API-QUALIFICATION.md",
+      "sha256": "79f36cea07cbedbeeacdf18b9e3d65807a5fc8d43c201f1cf69a908d09b9f5a1"
+    },
+    {
+      "bytes": 769,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/source-identities.json",
+      "sha256": "4708cce2960800f3a9960b569200fbe430e82af6d237424bacc0463907d9e685"
+    },
+    {
+      "bytes": 1761,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/source-review-receipts.json",
+      "sha256": "d56b98b4c34f8bac4f89b355e533f5645332769dd9f352ec045dd09ee1c3a7be"
+    },
+    {
+      "bytes": 18896,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/final-validation-receipt.json",
+      "sha256": "c9c6838a212c105a19987ccc2e24549eadf0be420908fa19a5ecf3e7ac47f0da"
+    },
+    {
+      "bytes": 8327,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api-final-receipt.json",
+      "sha256": "bfd84335452f44991f34aacd8a8669258d679df1edd575571eb164b6b518f01f"
+    },
+    {
+      "bytes": 722,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api-closeout.json",
+      "sha256": "cd97bdf9cad0de757ed9c66d7823446e4dd6cac5f52be4955518bf8666ed6d1f"
+    },
+    {
+      "bytes": 1402,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/locked-api-independent-review.json",
+      "sha256": "bd516919e6c1a0230fd46821c964a3d50a90eb6ef086f757f03ac7f30820b52b"
+    },
+    {
+      "bytes": 1484,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/coherent-canonical-graph.json",
+      "sha256": "29352812409aa070c85f81dcb91b051a15a58a0a141b324a2412afec4319998f"
+    },
+    {
+      "bytes": 509,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/final-python-extension.json",
+      "sha256": "b092cae9530667215310e9457807d3e753c5a068519f397b93ef713ed94e6134"
+    },
+    {
+      "bytes": 1028,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/framework_contract.json",
+      "sha256": "7ce8c128281de3a51a00567c1a89410797c82e5faaa7f152b16cd6efc53d52ad"
+    },
+    {
+      "bytes": 65811,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/independent-pole-witness.json",
+      "sha256": "a2ac6f697588fa7d00b3db23a69c04171456e46135a554ccce921ca328337d22"
+    },
+    {
+      "bytes": 930,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/evidence/independent-pole-run.json",
+      "sha256": "4066ef11dee5fbfcdc8c597891fe77eef79f73563c1d31fde49a2b0e58af5269"
+    },
+    {
+      "bytes": 1411,
+      "file": "/Users/ryanclanton/Documents/Codex/2026-10-26/task-4/deliverables/manifest.json",
+      "sha256": "d9421d97f929acbb0ff071c29d55bc9d289a454a9c233344e54fb7a0f00a66f9"
+    }
+  ]
+}
