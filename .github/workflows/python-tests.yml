@@ -62,6 +62,10 @@ jobs:
                   command.extend(("--component", component))
               subprocess.run(command, check=True)
           PY
+      - name: Install cargo-semver-checks
+        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
+        with:
+          tool: cargo-semver-checks@0.51.0
 
       - name: Run pytest (fast)
         env:

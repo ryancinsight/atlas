@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import _thread
+import hashlib
 import math
 import os
 import pathlib
@@ -214,6 +215,33 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout, b"standard input\x00")
         self.assertEqual(result.stderr, b"standard error")
+
+    def test_caller_owned_stdout_preserves_large_binary_output(self):
+        size = (32 * 1024 * 1024) + 1
+        producer = (
+            "import sys; remaining=int(sys.argv[1]); block=b'x'*(1024*1024); "
+            "output=sys.stdout.buffer; "
+            "exec(\"while remaining:\\n chunk=block[:min(len(block),remaining)]\\n "
+            "output.write(chunk)\\n remaining-=len(chunk)\")"
+        )
+        with tempfile.TemporaryFile(mode="w+b") as output:
+            result = process_tree.run(
+                [sys.executable, "-c", producer, str(size)],
+                timeout=HANG_GUARD_SECONDS,
+                stdout_destination=output,
+            )
+            self.assertIsNone(result.stdout)
+            self.assertEqual(result.stderr, b"")
+            self.assertEqual(output.tell(), size)
+            output.seek(0)
+            actual = hashlib.file_digest(output, "sha256").digest()
+        expected = hashlib.sha256()
+        remaining = size
+        while remaining:
+            chunk = b"x" * min(1024 * 1024, remaining)
+            expected.update(chunk)
+            remaining -= len(chunk)
+        self.assertEqual(actual, expected.digest())
 
     def test_nonzero_exit_preserves_status(self):
         result = process_tree.run(
@@ -827,6 +855,27 @@ class ProcessTreeTests(unittest.TestCase):
         output = raised.exception.output
         self.assertIsInstance(output, bytes)
         process_id = int(output.split(b"child-ready ", 1)[1].splitlines()[0])
+        _assert_lock_released(self, lock)
+        _assert_process_inactive(self, process_id)
+
+    def test_caller_owned_stdout_timeout_retires_live_descendant(self):
+        lock = self.descendant_lock("atlas-process-tree-output-timeout-")
+        listener = socket.create_server(("127.0.0.1", 0))
+        listener.settimeout(READY_SECONDS)
+        environment = os.environ.copy()
+        environment["ATLAS_TEST_READY_PORT"] = str(listener.getsockname()[1])
+        with tempfile.TemporaryFile(mode="w+b") as output:
+            with listener, budget_from_readiness(listener):
+                with self.assertRaises(process_tree.ProcessTreeTimeout) as raised:
+                    process_tree.run(
+                        [sys.executable, "-c", WAITING_PARENT, str(lock), CHILD],
+                        env=environment, timeout=EXPIRY_HOLD_SECONDS,
+                        stdout_destination=output,
+                    )
+            self.assertIsNone(raised.exception.output)
+            self.assertIsNone(raised.exception.cleanup_error)
+            output.seek(0)
+            process_id = int(output.read().split(b"child-ready ", 1)[1].strip())
         _assert_lock_released(self, lock)
         _assert_process_inactive(self, process_id)
 
