@@ -302,7 +302,11 @@ def load_package_facts(manifests: list[tuple[Path, str]]) -> tuple[PackageFact, 
         if "version" in ws:
             workspace_versions[rel] = ws["version"]
 
-    directories = tuple(PurePosixPath(rel.as_posix()) for rel, _ in parsed)
+    manifests_by_directory = {
+        PurePosixPath(rel.as_posix()): data for rel, data in parsed
+    }
+    directories = tuple(manifests_by_directory)
+    workspace_members: set[PurePosixPath] = set()
     for rel, data in parsed:
         workspace = data.get("workspace")
         if not isinstance(workspace, dict) or "members" not in workspace:
@@ -312,10 +316,16 @@ def load_package_facts(manifests: list[tuple[Path, str]]) -> tuple[PackageFact, 
             raise ValueError(f"{rel / 'Cargo.toml'} has unreadable workspace members")
         for member in members:
             pattern = lockfile.workspace_relative(PurePosixPath(rel.as_posix()), member)
-            if not any(lockfile.directory_pattern_matches(pattern, path) for path in directories):
+            matches = {
+                path
+                for path in directories
+                if lockfile.directory_pattern_matches(pattern, path)
+            }
+            if not matches:
                 raise ValueError(
                     f"{rel / 'Cargo.toml'} declares workspace member {member!r} without a manifest"
                 )
+            workspace_members.update(matches)
 
     def selected_workspace(rel: Path, data: dict[str, object]) -> Path | None:
         package = data.get("package")
@@ -336,15 +346,50 @@ def load_package_facts(manifests: list[tuple[Path, str]]) -> tuple[PackageFact, 
         roots = [root for root in workspace_tables if root == rel or root in rel.parents]
         return max(roots, key=lambda root: len(root.parts), default=None)
 
+    def package_dependency_tables(
+        data: dict[str, object],
+    ) -> tuple[dict[str, object], ...]:
+        tables: list[dict[str, object]] = []
+        for kind in lockfile.DEPENDENCY_KINDS:
+            table = data.get(kind)
+            if isinstance(table, dict):
+                tables.append(table)
+        targets = data.get("target")
+        if isinstance(targets, dict):
+            for target in targets.values():
+                if not isinstance(target, dict):
+                    continue
+                for kind in lockfile.DEPENDENCY_KINDS:
+                    table = target.get(kind)
+                    if isinstance(table, dict):
+                        tables.append(table)
+        return tuple(tables)
+
     selected_workspaces = {rel: selected_workspace(rel, data) for rel, data in parsed}
-    for rel, data in parsed:
+    package_manifests = {
+        rel: data for rel, data in parsed if isinstance(data.get("package"), dict)
+    }
+    pending = [
+        rel
+        for rel in package_manifests
+        if rel in workspace_tables
+        or PurePosixPath(rel.as_posix()) in workspace_members
+        or not any(root == rel or root in rel.parents for root in workspace_tables)
+    ]
+    visited: set[Path] = set()
+    while pending:
+        rel = pending.pop()
+        if rel in visited:
+            continue
+        visited.add(rel)
+        data = package_manifests[rel]
         workspace_root = selected_workspaces[rel]
         workspace_dependencies = (
             workspace_tables[workspace_root].get("dependencies", {})
             if workspace_root is not None
             else {}
         )
-        for table in lockfile.dependency_tables(data):
+        for table in package_dependency_tables(data):
             for dependency, spec in table.items():
                 if not isinstance(spec, dict):
                     continue
@@ -362,14 +407,37 @@ def load_package_facts(manifests: list[tuple[Path, str]]) -> tuple[PackageFact, 
                 target = lockfile.workspace_relative(
                     PurePosixPath(declaring_root.as_posix()), path
                 )
-                if target in directories or lockfile.escapes_repository(
+                if lockfile.escapes_repository(
                     PurePosixPath((declaring_root / "Cargo.toml").as_posix()), path
                 ):
                     continue
-                raise ValueError(
-                    f"{rel / 'Cargo.toml'} declares path dependency {dependency!r} "
-                    f"without {target / 'Cargo.toml'}"
+                target_manifest = manifests_by_directory.get(target)
+                if target_manifest is None:
+                    raise ValueError(
+                        f"{rel / 'Cargo.toml'} declares path dependency {dependency!r} "
+                        f"without {target / 'Cargo.toml'}"
+                    )
+                expected_package = resolved.get("package", dependency)
+                target_package = target_manifest.get("package")
+                actual_package = (
+                    target_package.get("name")
+                    if isinstance(target_package, dict)
+                    else None
                 )
+                if not isinstance(expected_package, str) or actual_package != expected_package:
+                    declared = (
+                        f"package {actual_package!r}"
+                        if isinstance(actual_package, str)
+                        else "a virtual manifest"
+                    )
+                    raise ValueError(
+                        f"{rel / 'Cargo.toml'} declares path dependency {dependency!r} "
+                        f"with expected package {expected_package!r}, but "
+                        f"{target / 'Cargo.toml'} declares {declared}"
+                    )
+                target_path = Path(target.as_posix())
+                if target_path not in visited:
+                    pending.append(target_path)
 
     facts: list[PackageFact] = []
     for rel, data in parsed:

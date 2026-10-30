@@ -504,13 +504,24 @@ class GitUnavailable(Exception):
     """
 
 
+class GitDependency(NamedTuple):
+    """One Git dependency an actual workspace package consumes."""
+
+    package: str
+    url: str
+    requirement: str | None
+    manifest: str
+
+
 class WorkspaceFacts(NamedTuple):
     """What a workspace's manifests say about the lock it owns."""
 
     local: frozenset[str]
     git_dependencies: frozenset[str]
+    consumed_git_dependencies: tuple[GitDependency, ...]
     fixture: bool
     unreadable: tuple[str, ...]
+    problems: tuple[str, ...]
 
 
 def run_git(
@@ -579,21 +590,76 @@ def violations(
     return found
 
 
-def dependency_tables(manifest: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
-    """Every table of a manifest that declares dependencies, of any kind."""
+def consumed_dependency_violations(
+    lock_text: str, consumed_git_dependencies: Iterable[GitDependency]
+) -> list[str]:
+    """Find consumed Git package identities absent from the lock.
+
+    This lexical completeness rule proves only that a record carries each
+    consumed package name. [`violations`] separately checks a declared Git
+    package's source form. Native ``cargo metadata --locked`` remains the
+    authority for URL, requirement, feature, and target resolution; the
+    development-overlay owner separately checks selected versions against
+    manifest requirements.
+    """
+    try:
+        packages = locked_package_records(lock_text)
+    except ValueError:
+        return []
+    locked = {package["name"] for package in packages}
+    consumed = {dependency.package for dependency in consumed_git_dependencies}
+    return [
+        f"`{name}` consumed as a Git dependency but absent from the lock"
+        for name in sorted(consumed - locked)
+    ]
+
+
+def package_dependency_tables(manifest: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
+    """Every dependency table attached to a package, including target tables."""
     for kind in DEPENDENCY_KINDS:
         table = manifest.get(kind)
         if isinstance(table, dict):
             yield table
-    workspace = manifest.get("workspace")
-    if isinstance(workspace, dict) and isinstance(workspace.get("dependencies"), dict):
-        yield workspace["dependencies"]
     targets = manifest.get("target")
     for target in targets.values() if isinstance(targets, dict) else ():
         if isinstance(target, dict):
             for kind in DEPENDENCY_KINDS:
                 if isinstance(target.get(kind), dict):
                     yield target[kind]
+
+
+def dependency_tables(manifest: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
+    """Every package or workspace table that declares dependencies."""
+    yield from package_dependency_tables(manifest)
+    workspace = manifest.get("workspace")
+    if isinstance(workspace, dict) and isinstance(workspace.get("dependencies"), dict):
+        yield workspace["dependencies"]
+
+
+def resolved_dependency_specs(
+    manifest: Mapping[str, object], workspace_dependencies: Mapping[str, object]
+) -> Iterator[tuple[str, Mapping[str, object], bool]]:
+    """Package dependencies with `workspace = true` resolved at their owner.
+
+    The boolean says the source specification came from the workspace root;
+    Cargo resolves an inherited `path` relative to that root, not the member.
+    Unused workspace declarations never enter this projection.
+    """
+    for table in package_dependency_tables(manifest):
+        for dependency, spec in table.items():
+            if not isinstance(spec, dict):
+                continue
+            if spec.get("workspace") is not True:
+                yield dependency, spec, False
+                continue
+            inherited = workspace_dependencies.get(dependency)
+            if not isinstance(inherited, dict):
+                raise ValueError(
+                    f"workspace dependency {dependency!r} is missing or unreadable"
+                )
+            resolved = dict(inherited)
+            resolved.update({key: value for key, value in spec.items() if key != "workspace"})
+            yield dependency, resolved, True
 
 
 def escapes_repository(manifest: PurePosixPath, path: str) -> bool:
@@ -723,7 +789,11 @@ def workspace_selection(
         if any(directory_pattern_matches(pattern, directory) for pattern in members):
             selected.add(name)
 
-    # Cargo joins every path dependency under the root to the workspace; one
+    workspace_dependencies = table.get("dependencies", {})
+    if not isinstance(workspace_dependencies, dict):
+        workspace_dependencies = {}
+
+    # Cargo joins every consumed path dependency under the root to the workspace; one
     # outside it is a separate package even when a member reaches it.
     changed = True
     while changed:
@@ -732,18 +802,20 @@ def workspace_selection(
             data = parsed.get(name)
             if not isinstance(data, dict):
                 continue
-            for table_of_dependencies in dependency_tables(data):
-                for spec in table_of_dependencies.values():
-                    if not isinstance(spec, dict) or not isinstance(spec.get("path"), str):
-                        continue
-                    target = workspace_relative(PurePosixPath(name).parent, spec["path"])
-                    target_manifest = (target / "Cargo.toml").as_posix()
-                    if target_manifest in selected or target_manifest not in manifests:
-                        continue
-                    if inside_boundary(target) or ignored(target):
-                        continue
-                    selected.add(target_manifest)
-                    changed = True
+            for _dependency, spec, inherited in resolved_dependency_specs(
+                data, workspace_dependencies
+            ):
+                if not isinstance(spec.get("path"), str):
+                    continue
+                owner = workspace if inherited else PurePosixPath(name).parent
+                target = workspace_relative(owner, spec["path"])
+                target_manifest = (target / "Cargo.toml").as_posix()
+                if target_manifest in selected or target_manifest not in manifests:
+                    continue
+                if inside_boundary(target) or ignored(target):
+                    continue
+                selected.add(target_manifest)
+                changed = True
 
     return {
         name
@@ -781,7 +853,13 @@ def workspace_facts(
         except tomllib.TOMLDecodeError:
             parsed[name] = None
 
-    selected = workspace_selection(manifests, parsed, workspace, nested)
+    problems: list[str] = []
+    try:
+        selected = workspace_selection(manifests, parsed, workspace, nested)
+    except ValueError as error:
+        return WorkspaceFacts(
+            frozenset(), frozenset(), (), False, (), (str(error),)
+        )
     if selected is None:
         selected = {
             name
@@ -792,9 +870,16 @@ def workspace_facts(
         }
 
     local: set[str] = set()
-    git_dependencies: set[str] = set()
+    consumed: set[GitDependency] = set()
     unreadable: list[str] = []
     fixture = False
+    root_data = parsed.get((workspace / "Cargo.toml").as_posix())
+    root_workspace = root_data.get("workspace") if isinstance(root_data, dict) else None
+    workspace_dependencies = (
+        root_workspace.get("dependencies", {}) if isinstance(root_workspace, dict) else {}
+    )
+    if not isinstance(workspace_dependencies, dict):
+        workspace_dependencies = {}
     for name in sorted(selected):
         data = parsed.get(name)
         if data is None:
@@ -804,15 +889,35 @@ def workspace_facts(
         if isinstance(package, dict) and isinstance(package.get("name"), str):
             local.add(package["name"])
         manifest = PurePosixPath(name)
-        for table in dependency_tables(data):
-            for dependency, spec in table.items():
-                if not isinstance(spec, dict):
+        try:
+            dependencies = tuple(resolved_dependency_specs(data, workspace_dependencies))
+        except ValueError as error:
+            problems.append(f"{name}: {error}")
+            continue
+        for dependency, spec, inherited in dependencies:
+            package_name = spec.get("package", dependency)
+            if isinstance(spec.get("git"), str):
+                if not isinstance(package_name, str) or not package_name:
+                    problems.append(f"{name}: dependency {dependency!r} has unreadable package identity")
                     continue
-                if isinstance(spec.get("git"), str):
-                    git_dependencies.add(spec.get("package", dependency))
-                elif isinstance(spec.get("path"), str) and escapes_repository(manifest, spec["path"]):
+                requirement = spec.get("version")
+                if requirement is not None and not isinstance(requirement, str):
+                    problems.append(f"{name}: dependency {dependency!r} has unreadable requirement")
+                    continue
+                consumed.add(GitDependency(package_name, spec["git"], requirement, name))
+            elif isinstance(spec.get("path"), str):
+                owner = workspace / "Cargo.toml" if inherited else manifest
+                if escapes_repository(owner, spec["path"]):
                     fixture = True
-    return WorkspaceFacts(frozenset(local), frozenset(git_dependencies), fixture, tuple(unreadable))
+    ordered = tuple(sorted(consumed))
+    return WorkspaceFacts(
+        frozenset(local),
+        frozenset(dependency.package for dependency in ordered),
+        ordered,
+        fixture,
+        tuple(unreadable),
+        tuple(problems),
+    )
 
 
 def workspace_units(
@@ -850,10 +955,15 @@ def judge_locks(
         if facts.fixture:
             exempt.append(lock)
             continue
-        for problem in violations(texts[lock], facts.local, facts.git_dependencies):
+        problems_for_lock = violations(texts[lock], facts.local, facts.git_dependencies)
+        problems_for_lock.extend(
+            consumed_dependency_violations(texts[lock], facts.consumed_git_dependencies)
+        )
+        for problem in problems_for_lock:
             problems.append(f"{lock}: {problem}")
         for manifest in facts.unreadable:
             problems.append(f"{lock}: {manifest} does not parse, so the lock cannot be judged")
+        problems.extend(f"{lock}: {problem}" for problem in facts.problems)
     return problems, exempt
 
 

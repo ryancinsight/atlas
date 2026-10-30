@@ -14,6 +14,8 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -156,7 +158,6 @@ class DependencyTablesTestCase(unittest.TestCase):
             "[dependencies]": "regular",
             "[dev-dependencies]": "development",
             "[build-dependencies]": "build",
-            "[workspace.dependencies]": "shared",
             "[target.'cfg(unix)'.dependencies]": "unix",
             "[target.'cfg(unix)'.dev-dependencies]": "unixdev",
             "[target.'cfg(unix)'.build-dependencies]": "unixbuild",
@@ -165,6 +166,76 @@ class DependencyTablesTestCase(unittest.TestCase):
             with self.subTest(header):
                 manifest = f'[package]\nname = "m"\nversion = "0.1.0"\n\n{header}\n{name} = {git}\n'
                 self.assertEqual(self.declared(manifest), {name})
+
+    def test_only_consumed_workspace_dependencies_are_read(self) -> None:
+        manifest = textwrap.dedent(
+            """\
+            [workspace]
+            members = ["member"]
+
+            [workspace.dependencies]
+            used = { package = "real", version = "^1", git = "https://github.com/ryancinsight/p" }
+            idle = { git = "https://github.com/ryancinsight/idle" }
+
+            [package]
+            name = "root"
+            version = "0.1.0"
+            """
+        )
+        member = textwrap.dedent(
+            """\
+            [package]
+            name = "member"
+            version = "0.1.0"
+
+            [target.'cfg(unix)'.build-dependencies]
+            used = { workspace = true }
+            """
+        )
+        facts = lockfile.workspace_facts(
+            {"Cargo.toml": manifest, "member/Cargo.toml": member}, ROOT_WORKSPACE, []
+        )
+        self.assertEqual(facts.git_dependencies, {"real"})
+        self.assertEqual(
+            facts.consumed_git_dependencies,
+            (
+                lockfile.GitDependency(
+                    "real", "https://github.com/ryancinsight/p", "^1", "member/Cargo.toml"
+                ),
+            ),
+        )
+
+    def test_missing_inherited_dependency_fails_closed(self) -> None:
+        manifest = textwrap.dedent(
+            """\
+            [workspace]
+            members = ["member"]
+
+            [package]
+            name = "root"
+            version = "0.1.0"
+            """
+        )
+        member = textwrap.dedent(
+            """\
+            [package]
+            name = "member"
+            version = "0.1.0"
+
+            [dependencies]
+            absent = { workspace = true }
+            """
+        )
+        problems, _ = lockfile.judge_locks(
+            {
+                "Cargo.toml": manifest,
+                "member/Cargo.toml": member,
+                "Cargo.lock": STANDALONE,
+            }
+        )
+        self.assertIn(
+            "Cargo.lock: workspace dependency 'absent' is missing or unreadable", problems
+        )
 
     def test_a_renamed_dependency_is_declared_under_its_package_name(self) -> None:
         manifest = (
@@ -188,6 +259,159 @@ class DependencyTablesTestCase(unittest.TestCase):
         problems, exempt = lockfile.judge_locks({"Cargo.toml": manifest, "Cargo.lock": STRIPPED})
         self.assertIn("Cargo.lock: `eunomia` locked without a git source (stripped)", problems)
         self.assertEqual(exempt, [])
+
+    def test_consumed_alias_absent_from_the_lock_fails_closed(self) -> None:
+        manifest = (
+            '[package]\nname = "member"\nversion = "0.1.0"\n\n[dependencies]\n'
+            'alias = { package = "absent", git = "https://github.com/ryancinsight/p" }\n'
+        )
+        problems, exempt = lockfile.judge_locks(
+            {"Cargo.toml": manifest, "Cargo.lock": STANDALONE}
+        )
+        self.assertEqual(
+            (problems, exempt),
+            (["Cargo.lock: `absent` consumed as a Git dependency but absent from the lock"], []),
+        )
+
+
+class CargoDependencyDifferentialTestCase(unittest.TestCase):
+    """Compare the lexical completeness rule with Cargo's real resolver."""
+
+    def test_consumed_package_presence_matches_real_locked_metadata(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-cargo-") as directory:
+            root = Path(directory)
+            provider = root / "provider"
+            provider.mkdir()
+            provider_names = ("normal", "development", "build", "targeted")
+            (provider / "Cargo.toml").write_text(
+                '[workspace]\nresolver = "3"\nmembers = ["normal", "development", "build", "targeted"]\n',
+                encoding="utf-8",
+            )
+            for name in provider_names:
+                package = provider / name
+                (package / "src").mkdir(parents=True)
+                (package / "Cargo.toml").write_text(
+                    f'[package]\nname = "provider-{name}"\nversion = "0.1.0"\nedition = "2024"\n',
+                    encoding="utf-8",
+                )
+                (package / "src/lib.rs").write_text(
+                    "pub fn value() -> u8 { 1 }\n", encoding="utf-8"
+                )
+            git(provider, "init", "-q", "-b", "main")
+            git(provider, "add", ".")
+            git(provider, "commit", "-q", "-m", "provider")
+
+            consumer = root / "consumer"
+            member = consumer / "member"
+            (member / "src").mkdir(parents=True)
+            manifest = (
+                '[workspace]\nresolver = "3"\nmembers = ["member"]\n\n[workspace.dependencies]\n'
+                + "\n".join(
+                    f'{name} = {{ package = "provider-{name}", git = "{provider.as_uri()}" }}'
+                    for name in provider_names
+                )
+                + f'\nidle = {{ package = "absent", git = "{provider.as_uri()}" }}\n'
+            )
+            member_manifest = (
+                '[package]\nname = "consumer"\nversion = "0.1.0"\nedition = "2024"\n'
+                '\n[dependencies]\nnormal = { workspace = true }\n'
+                '\n[dev-dependencies]\ndevelopment = { workspace = true }\n'
+                '\n[build-dependencies]\nbuild = { workspace = true }\n'
+                "\n[target.'cfg(windows)'.dependencies]\ntargeted = { workspace = true }\n"
+            )
+            (consumer / "Cargo.toml").write_text(manifest, encoding="utf-8")
+            (member / "Cargo.toml").write_text(member_manifest, encoding="utf-8")
+            (member / "src/lib.rs").write_text(
+                "pub fn value() -> u8 { normal::value() }\n", encoding="utf-8"
+            )
+            environment = {
+                **os.environ,
+                "CARGO_TARGET_DIR": "D:/atlas/target",
+                "CARGO_BUILD_BUILD_DIR": "D:/atlas/target",
+            }
+            generated = subprocess.run(
+                ["cargo", "generate-lockfile"],
+                cwd=consumer,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            metadata = subprocess.run(
+                ["cargo", "metadata", "--locked", "--offline", "--format-version", "1"],
+                cwd=consumer,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+            self.assertEqual(metadata.returncode, 0, metadata.stderr)
+            resolved = json.loads(metadata.stdout)
+            consumer_package = next(
+                package for package in resolved["packages"] if package["name"] == "consumer"
+            )
+            self.assertEqual(
+                {dependency["name"] for dependency in consumer_package["dependencies"]},
+                {f"provider-{name}" for name in provider_names},
+            )
+            lock = (consumer / "Cargo.lock").read_text(encoding="utf-8")
+            self.assertEqual(
+                lockfile.judge_locks(
+                    {
+                        "Cargo.toml": manifest,
+                        "member/Cargo.toml": member_manifest,
+                        "Cargo.lock": lock,
+                    }
+                ),
+                ([], []),
+            )
+
+            blocks = lock.split("[[package]]")
+            missing = "[[package]]".join(
+                block for block in blocks if 'name = "provider-normal"' not in block
+            )
+            missing_problems, _ = lockfile.judge_locks(
+                {
+                    "Cargo.toml": manifest,
+                    "member/Cargo.toml": member_manifest,
+                    "Cargo.lock": missing,
+                }
+            )
+            self.assertEqual(
+                missing_problems,
+                ["Cargo.lock: `provider-normal` consumed as a Git dependency but absent from the lock"],
+            )
+
+            absent_manifest = manifest.replace(
+                'package = "provider-normal"', 'package = "absent"'
+            )
+            absent_problems, _ = lockfile.judge_locks(
+                {
+                    "Cargo.toml": absent_manifest,
+                    "member/Cargo.toml": member_manifest,
+                    "Cargo.lock": lock,
+                }
+            )
+            self.assertEqual(
+                absent_problems,
+                ["Cargo.lock: `absent` consumed as a Git dependency but absent from the lock"],
+            )
+            (consumer / "Cargo.toml").write_text(absent_manifest, encoding="utf-8")
+            (consumer / "Cargo.lock").unlink()
+            rejected = subprocess.run(
+                ["cargo", "generate-lockfile", "--offline"],
+                cwd=consumer,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("absent", rejected.stderr)
 
 
 class FixtureDetectionTestCase(unittest.TestCase):

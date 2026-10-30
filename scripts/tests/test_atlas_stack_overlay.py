@@ -465,6 +465,149 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
                 ):
                     _overlay.load_package_facts(incomplete)
 
+    def test_consumed_path_requires_the_expected_package(self) -> None:
+        cases = {
+            "virtual": (
+                '[workspace]\nmembers = []\n',
+                "found a virtual manifest",
+            ),
+            "different": (
+                (
+                    '[package]\nname = "different"\nversion = "0.1.0"\n'
+                    'edition = "2024"\n'
+                ),
+                "no matching package named `expected`",
+            ),
+        }
+        for case, (dependency_manifest, cargo_error) in cases.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory(
+                prefix="atlas-overlay-path-package-"
+            ) as root_text:
+                root = Path(root_text)
+                contents = {
+                    "Cargo.toml": (
+                        '[workspace]\nresolver = "3"\nmembers = ["app"]\n'
+                        'exclude = ["dep"]\n'
+                    ),
+                    "app/Cargo.toml": (
+                        '[package]\nname = "app"\nversion = "0.1.0"\n'
+                        'edition = "2024"\n[dependencies]\n'
+                        'expected = { path = "../dep" }\n'
+                    ),
+                    "app/src/lib.rs": "pub fn app() {}\n",
+                    "dep/Cargo.toml": dependency_manifest,
+                    "dep/src/lib.rs": "pub fn dep() {}\n",
+                }
+                self._write_fixture(root, contents)
+                metadata = self._cargo_metadata(root)
+                self.assertNotEqual(metadata.returncode, 0)
+                self.assertIn(cargo_error, metadata.stderr)
+                with self.assertRaisesRegex(ValueError, "expected.*package"):
+                    _overlay.load_package_facts(self._fixture_manifests(contents))
+
+    def test_path_package_rename_matches_cargo(self) -> None:
+        contents = {
+            "Cargo.toml": '[workspace]\nresolver = "3"\nmembers = ["app"]\n',
+            "app/Cargo.toml": (
+                '[package]\nname = "app"\nversion = "0.1.0"\nedition = "2024"\n'
+                '[dependencies]\nalias = { package = "actual", path = "../dep" }\n'
+            ),
+            "app/src/lib.rs": "pub fn app() {}\n",
+            "dep/Cargo.toml": (
+                '[package]\nname = "actual"\nversion = "0.1.0"\nedition = "2024"\n'
+            ),
+            "dep/src/lib.rs": "pub fn dep() {}\n",
+        }
+        self._assert_cargo_and_owner_accept(contents, {"actual", "app"})
+
+    def test_inherited_path_package_name_matches_cargo(self) -> None:
+        contents = {
+            "Cargo.toml": (
+                '[workspace]\nresolver = "3"\nmembers = ["app"]\n'
+                '[workspace.dependencies]\n'
+                'alias = { package = "actual", path = "dep" }\n'
+            ),
+            "app/Cargo.toml": (
+                '[package]\nname = "app"\nversion = "0.1.0"\nedition = "2024"\n'
+                '[dependencies]\nalias = { workspace = true }\n'
+            ),
+            "app/src/lib.rs": "pub fn app() {}\n",
+            "dep/Cargo.toml": (
+                '[package]\nname = "actual"\nversion = "0.1.0"\nedition = "2024"\n'
+            ),
+            "dep/src/lib.rs": "pub fn dep() {}\n",
+        }
+        self._assert_cargo_and_owner_accept(contents, {"actual", "app"})
+
+    def test_unused_workspace_path_is_not_part_of_package_closure(self) -> None:
+        contents = {
+            "Cargo.toml": (
+                '[workspace]\nresolver = "3"\nmembers = ["app"]\n'
+                '[workspace.dependencies]\nunused = { path = "missing" }\n'
+            ),
+            "app/Cargo.toml": (
+                '[package]\nname = "app"\nversion = "0.1.0"\nedition = "2024"\n'
+            ),
+            "app/src/lib.rs": "pub fn app() {}\n",
+        }
+        self._assert_cargo_and_owner_accept(contents, {"app"})
+
+    @staticmethod
+    def _write_fixture(root: Path, contents: dict[str, str]) -> None:
+        for name, text in contents.items():
+            path = root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+
+    @staticmethod
+    def _fixture_manifests(contents: dict[str, str]) -> list[tuple[Path, str]]:
+        return [
+            (Path(name).parent, text)
+            for name, text in contents.items()
+            if name.endswith("Cargo.toml")
+        ]
+
+    @staticmethod
+    def _cargo_metadata(root: Path) -> subprocess.CompletedProcess[str]:
+        environment = dict(os.environ)
+        environment.update(
+            CARGO_HOME=str(root / "cargo-home"),
+            CARGO_TARGET_DIR=str(root / "target"),
+        )
+        return subprocess.run(
+            [
+                "cargo",
+                "metadata",
+                "--offline",
+                "--format-version",
+                "1",
+                "--manifest-path",
+                str(root / "Cargo.toml"),
+            ],
+            cwd=root,
+            env=environment,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        )
+
+    def _assert_cargo_and_owner_accept(
+        self, contents: dict[str, str], expected: set[str]
+    ) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-path-package-") as root_text:
+            root = Path(root_text)
+            self._write_fixture(root, contents)
+            metadata = self._cargo_metadata(root)
+            self.assertEqual(metadata.returncode, 0, metadata.stderr)
+            cargo_names = {
+                package["name"] for package in json.loads(metadata.stdout)["packages"]
+            }
+            self.assertEqual(cargo_names, expected)
+            facts = _overlay.load_package_facts(self._fixture_manifests(contents))
+            self.assertEqual({fact.name for fact in facts}, expected)
+
     def test_repeated_non_provider_names_remain_complete_and_unindexed(self) -> None:
         manifests = [
             (Path("repos/provider/one"), '[package]\nname = "shared"\nversion = "0.1.0"\n'),
