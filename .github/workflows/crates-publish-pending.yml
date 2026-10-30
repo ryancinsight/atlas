@@ -115,6 +115,7 @@ jobs:
       package: ${{ needs.plan.outputs.packages }}
       rust-toolchain: ${{ inputs.semver-toolchain || inputs.rust-toolchain }}
       apt-packages: ${{ inputs.apt-packages }}
+      atlas-ref: 3714b5d6ff6618b319263fd676817603c8a998f1
 
   publish:
     needs: [plan, semver]
