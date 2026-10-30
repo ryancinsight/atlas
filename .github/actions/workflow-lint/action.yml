@@ -1,0 +1,83 @@
+name: Lint workflows
+description: Run the pinned native analyzers against one exact candidate
+inputs:
+  candidate:
+    description: Exact candidate commit checked out in the workspace
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install pinned workflow analyzers
+      shell: bash
+      env:
+        ACTIONLINT_VERSION: "1.7.12"
+        ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        SHELLCHECK_VERSION: "0.11.0"
+        SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+      run: |
+        set -euo pipefail
+        tools="$RUNNER_TEMP/workflow-lint-tools"
+        python="$RUNNER_TEMP/workflow-lint-python"
+        mkdir -p "$tools"
+
+        actionlint_archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+        curl --fail --silent --show-error --location \
+          --output "$tools/$actionlint_archive" \
+          "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${actionlint_archive}"
+        printf '%s  %s\n' "$ACTIONLINT_SHA256" "$tools/$actionlint_archive" \
+          | sha256sum --check --strict
+        tar --extract --gzip --directory "$tools" \
+          --file "$tools/$actionlint_archive" actionlint
+
+        shellcheck_archive="shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+        curl --fail --silent --show-error --location \
+          --output "$tools/$shellcheck_archive" \
+          "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/${shellcheck_archive}"
+        printf '%s  %s\n' "$SHELLCHECK_SHA256" "$tools/$shellcheck_archive" \
+          | sha256sum --check --strict
+        tar --extract --xz --directory "$tools" --file "$tools/$shellcheck_archive"
+
+        python3 -m venv "$python"
+        "$python/bin/python" -m pip install --disable-pip-version-check --no-input \
+          "PyYAML==6.0.3" "pyflakes==4.0.0"
+
+        test "$("$tools/actionlint" -version)" = "$ACTIONLINT_VERSION"
+        "$tools/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" --version \
+          | grep --fixed-strings "version: $SHELLCHECK_VERSION"
+        "$python/bin/pyflakes" --version | grep --extended-regexp '^4\.0\.0( |$)'
+    - name: Test native workflow lint integration
+      shell: bash
+      env:
+        ACTIONLINT: ${{ runner.temp }}/workflow-lint-tools/actionlint
+        SHELLCHECK: ${{ runner.temp }}/workflow-lint-tools/shellcheck-v0.11.0/shellcheck
+        PYFLAKES: ${{ runner.temp }}/workflow-lint-python/bin/pyflakes
+        PYTHON: ${{ runner.temp }}/workflow-lint-python/bin/python
+      run: |
+        set -euo pipefail
+        scripts="$GITHUB_ACTION_PATH/../../../scripts"
+        "$PYTHON" -I "$scripts/python_source_loader.py" \
+          --module "atlas_workflow_lint=$scripts/atlas_workflow_lint.py" \
+          --module "process_tree=$scripts/process_tree.py" \
+          --module "windows_process=$scripts/windows_process.py" \
+          --module "darwin_process=$scripts/darwin_process.py" \
+          "$scripts/tests/test_atlas_workflow_lint.py"
+    - name: Lint the candidate workflows
+      shell: bash
+      env:
+        ACTIONLINT: ${{ runner.temp }}/workflow-lint-tools/actionlint
+        SHELLCHECK: ${{ runner.temp }}/workflow-lint-tools/shellcheck-v0.11.0/shellcheck
+        PYFLAKES: ${{ runner.temp }}/workflow-lint-python/bin/pyflakes
+        PYTHON: ${{ runner.temp }}/workflow-lint-python/bin/python
+      run: |
+        set -euo pipefail
+        scripts="$GITHUB_ACTION_PATH/../../../scripts"
+        "$PYTHON" -I "$scripts/python_source_loader.py" \
+          --module "process_tree=$scripts/process_tree.py" \
+          --module "windows_process=$scripts/windows_process.py" \
+          --module "darwin_process=$scripts/darwin_process.py" \
+          "$scripts/atlas_workflow_lint.py" \
+          --root "$GITHUB_WORKSPACE" \
+          --candidate "${{ inputs.candidate }}" \
+          --actionlint "$ACTIONLINT" \
+          --shellcheck "$SHELLCHECK" \
+          --pyflakes "$PYFLAKES"
