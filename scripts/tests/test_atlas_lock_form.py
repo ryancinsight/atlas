@@ -1135,10 +1135,9 @@ class HookInstallTestCase(unittest.TestCase):
         baseline_exit: int,
         candidate_exit: int,
         *,
-        prepared_value: str | None = None,
-        missing_tool: bool = False,
-    ) -> dict:
-        """Run a root push with different fetched and prepared debt tools."""
+        selections: tuple[tuple[str | None, bool], ...] = ((None, False),),
+    ) -> list[dict]:
+        """Run root pushes over prepared revisions of one real candidate."""
         run_id = getattr(self, "_root_prepared_runs", 0)
         self._root_prepared_runs = run_id + 1
         self.atlas = (
@@ -1191,50 +1190,66 @@ class HookInstallTestCase(unittest.TestCase):
             conformance("candidate", candidate_exit)
         )
         (scripts / "atlas_stack.py").write_bytes(b"ATLAS_STACK_ROOT = True\n")
-        if not missing_tool:
-            (scripts / "atlas-build-identity.py").write_bytes(
-                b"raise SystemExit(0)\n"
-            )
+        build_identity = scripts / "atlas-build-identity.py"
+        build_identity.write_bytes(b"raise SystemExit(0)\n")
         self.git(self.atlas, "add", ".gitmodules", "scripts")
         self.git(
             self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
             "commit", "-q", "-m", "root push",
         )
         pushed = self.git(self.atlas, "rev-parse", "HEAD")
-        run = self.run_shim(
-            _lock_form.write_hook_shims(self.atlas),
-            cwd=self.atlas,
-            ATLAS_SECRET_PROBE=str(secret_probe),
-            ATLAS_DEBT_PROBE=str(debt_probe),
-            GIT_CONFIG_COUNT="1",
-            GIT_CONFIG_KEY_0="atlas.preparedTools",
-            GIT_CONFIG_VALUE_0=(pushed if prepared_value is None else prepared_value),
-            SKIP_LOCAL_GATE="1",
-        )
-        _, err = run.communicate(
-            f"refs/heads/root {pushed} refs/heads/root {'0' * 40}\n".encode(),
-            timeout=60,
-        )
-        return {
-            "baseline": baseline,
-            "debt": (
-                json.loads(debt_probe.read_text(encoding="utf-8"))
-                if debt_probe.is_file()
-                else None
-            ),
-            "pushed": pushed,
-            "returncode": run.returncode,
-            "secret": (
-                json.loads(secret_probe.read_text(encoding="utf-8"))
-                if secret_probe.is_file()
-                else None
-            ),
-            "text": err.decode(errors="replace"),
-        }
+        results = []
+        for prepared_value, missing_tool in selections:
+            if missing_tool == build_identity.is_file():
+                if missing_tool:
+                    build_identity.unlink()
+                else:
+                    build_identity.write_bytes(b"raise SystemExit(0)\n")
+                self.git(
+                    self.atlas, "add", "-A", "--", "scripts/atlas-build-identity.py"
+                )
+                self.git(
+                    self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+                    "commit", "-q", "-m", "select prepared tools",
+                )
+                pushed = self.git(self.atlas, "rev-parse", "HEAD")
+            secret_probe.unlink(missing_ok=True)
+            debt_probe.unlink(missing_ok=True)
+            run = self.run_shim(
+                _lock_form.write_hook_shims(self.atlas),
+                cwd=self.atlas,
+                ATLAS_SECRET_PROBE=str(secret_probe),
+                ATLAS_DEBT_PROBE=str(debt_probe),
+                GIT_CONFIG_COUNT="1",
+                GIT_CONFIG_KEY_0="atlas.preparedTools",
+                GIT_CONFIG_VALUE_0=(pushed if prepared_value is None else prepared_value),
+                SKIP_LOCAL_GATE="1",
+            )
+            _, err = run.communicate(
+                f"refs/heads/root {pushed} refs/heads/root {'0' * 40}\n".encode(),
+                timeout=60,
+            )
+            results.append({
+                "baseline": baseline,
+                "debt": (
+                    json.loads(debt_probe.read_text(encoding="utf-8"))
+                    if debt_probe.is_file()
+                    else None
+                ),
+                "pushed": pushed,
+                "returncode": run.returncode,
+                "secret": (
+                    json.loads(secret_probe.read_text(encoding="utf-8"))
+                    if secret_probe.is_file()
+                    else None
+                ),
+                "text": err.decode(errors="replace"),
+            })
+        return results
 
     def test_a_push_from_the_stack_root_runs_secret_and_meta_debt_gates(self) -> None:
         """The prepared checker fails while the fetched checker would pass."""
-        result = self.root_prepared_push(0, 19)
+        result, = self.root_prepared_push(0, 19)
         text = result["text"]
         self.assertEqual(result["returncode"], 1, text)
         self.assertNotIn("no Atlas stack above this clone", text)
@@ -1261,7 +1276,7 @@ class HookInstallTestCase(unittest.TestCase):
 
     def test_a_prepared_fix_passes_when_the_fetched_checker_would_fail(self) -> None:
         """The candidate tool is the executable input; the baseline stays fetched."""
-        result = self.root_prepared_push(19, 0)
+        result, = self.root_prepared_push(19, 0)
         self.assertEqual(result["returncode"], 0, result["text"])
         self.assertEqual(result["debt"]["label"], "candidate")
         self.assertEqual(
@@ -1280,14 +1295,13 @@ class HookInstallTestCase(unittest.TestCase):
             ("f" * 40, False, "is unavailable in the Atlas object store"),
             (None, True, "lacks a required prepared tool"),
         )
-        for prepared_value, missing_tool, message in cases:
+        results = self.root_prepared_push(
+            0, 0, selections=tuple((value, missing) for value, missing, _ in cases)
+        )
+        for (prepared_value, missing_tool, message), result in zip(
+            cases, results, strict=True
+        ):
             with self.subTest(prepared_value=prepared_value, missing_tool=missing_tool):
-                result = self.root_prepared_push(
-                    0,
-                    0,
-                    prepared_value=prepared_value,
-                    missing_tool=missing_tool,
-                )
                 self.assertEqual(result["returncode"], 1, result["text"])
                 self.assertIn(message, result["text"])
                 self.assertIsNone(result["secret"])
