@@ -1,13 +1,15 @@
 """Immutable, path-confined Cargo source cohorts."""
 from __future__ import annotations
 
+import io
 import re
+import tarfile
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
-from atlas_git_process import execute
+from atlas_git_process import execute, extract_archive
 
 PROCESS_TIMEOUT_SECONDS = 60
 MEMBER_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*", re.ASCII)
@@ -40,8 +42,7 @@ def _selection(name: str, selected: SelectedRepository) -> None:
         raise CargoSnapshotError(f"unsafe selected repository name: {name!r}")
     if COMMIT_ID.fullmatch(selected.revision) is None:
         raise CargoSnapshotError(f"selected revision is not a full commit ID: {name!r}")
-    resolved = execute(
-        selected.repository,
+    resolved = execute(selected.repository,
         ("--no-replace-objects", "rev-parse", "--verify", f"{selected.revision}^{{commit}}"),
         timeout=PROCESS_TIMEOUT_SECONDS,
     )
@@ -51,8 +52,7 @@ def _selection(name: str, selected: SelectedRepository) -> None:
 
 
 def _export(selected: SelectedRepository, destination: Path) -> None:
-    listing = execute(
-        selected.repository,
+    listing = execute(selected.repository,
         ("--no-replace-objects", "ls-tree", "-r", "-z", "--full-tree", selected.revision),
         timeout=PROCESS_TIMEOUT_SECONDS,
     )
@@ -68,21 +68,21 @@ def _export(selected: SelectedRepository, destination: Path) -> None:
         head, separator, name = record.partition("\t")
         fields = head.split()
         path = PurePosixPath(name)
-        if (not separator or len(fields) != 3 or fields[1] != "blob"
-                or fields[0] not in {"100644", "100755"}):
+        if (not separator or len(fields) != 3 or fields[1] != "blob" or
+                fields[0] not in {"100644", "100755"}):
             raise CargoSnapshotError(f"selected tree has an unsupported entry: {name!r}")
-        if (path.is_absolute() or PureWindowsPath(name).is_absolute()
-                or any(part in {"", ".", ".."} or "\\" in part for part in path.parts)):
+        if (path.is_absolute() or PureWindowsPath(name).is_absolute() or
+                any(part in {"", ".", ".."} or "\\" in part for part in path.parts)):
             raise CargoSnapshotError(f"selected tree has an unsafe path: {name!r}")
         entries.append((fields[0], fields[2], path))
     request = b"".join(f"{blob}\n".encode("ascii") for _, blob, _ in entries)
-    objects = execute(
-        selected.repository, ("--no-replace-objects", "cat-file", "--batch"),
+    objects = execute(selected.repository, ("--no-replace-objects", "cat-file", "--batch"),
         stdin=request, timeout=PROCESS_TIMEOUT_SECONDS,
     )
     if objects.returncode:
         raise CargoSnapshotError("cannot read selected tree blobs")
     stream = objects.stdout
+    files = []
     for mode, blob, path in entries:
         header, separator, stream = stream.partition(b"\n")
         fields = header.split()
@@ -92,18 +92,21 @@ def _export(selected: SelectedRepository, destination: Path) -> None:
         if len(stream) <= size or stream[size:size + 1] != b"\n":
             raise CargoSnapshotError(f"selected blob is truncated: {path}")
         payload, stream = stream[:size], stream[size + 1:]
-        target = destination.joinpath(*path.parts)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(payload)
-        target.chmod(0o755 if mode == "100755" else 0o644)
+        files.append((path, payload, mode))
+    archive = io.BytesIO()
+    with tarfile.open(fileobj=archive, mode="w") as tree:
+        for path, payload, mode in files:
+            member = tarfile.TarInfo(path.as_posix())
+            member.size = len(payload)
+            member.mode = 0o755 if mode == "100755" else 0o644
+            tree.addfile(member, io.BytesIO(payload))
+    extract_archive(archive.getvalue(), destination)
 
 
 def _reject_external_workspace(destination: Path) -> None:
     for ancestor in destination.resolve().parents:
         if ancestor.joinpath("Cargo.toml").is_file():
-            raise CargoSnapshotError(
-                f"snapshot destination has an external workspace ancestor: {ancestor}"
-            )
+            raise CargoSnapshotError(f"snapshot destination has external workspace: {ancestor}")
 
 
 def _inside(root: Path, manifest: Path, raw: str, field: str) -> None:
