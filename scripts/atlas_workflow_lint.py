@@ -1,17 +1,12 @@
-"""Project same-repository references; candidate bytes must exactly match stored Git blobs."""
+"""Project validated same-repository references without changing other YAML bytes."""
 
 import os
-import re
 from pathlib import Path
 
 import yaml
 from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 
-import process_tree
-
-
-CONFIG_NAMES = ("actionlint.yaml", "actionlint.yml")
-FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
+STRING_TAG = "tag:yaml.org,2002:str"
 
 
 class WorkflowSourceError(ValueError):
@@ -58,8 +53,8 @@ def _field(node: Node | None, name: str) -> Node | None:
 
 
 def _scalar(node: Node | None, name: str) -> ScalarNode | None:
-    if node is not None and not isinstance(node, ScalarNode):
-        raise WorkflowSourceError(f"{name!r} must be a scalar")
+    if node is not None and (not isinstance(node, ScalarNode) or node.tag != STRING_TAG):
+        raise WorkflowSourceError(f"{name!r} must be a string scalar")
     return node
 
 
@@ -122,6 +117,23 @@ def _target(root: Path, reference: str, kind: str) -> Path:
     return _resolved(root, metadata[0], reference)
 
 
+def _sigil_offset(text: str, node: ScalarNode, path: Path) -> int:
+    span = text[node.start_mark.index : node.end_mark.index]
+    if node.style is None:
+        relative = 0
+    elif node.style in ("'", '"'):
+        relative = 1
+    else:
+        header = span.find("\n")
+        relative = header + 1
+        while 0 < relative < len(span) and span[relative] in " \r\n":
+            relative += 1
+    if relative < 0 or not span.startswith("$/", relative):
+        raise WorkflowSourceError(f"unsupported leading self-reference spelling in {path}")
+    character = node.start_mark.index + relative
+    return len(text[:character].encode("utf-8"))
+
+
 def project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, list[Path]]:
     """Replace only validated leading `$` bytes in one YAML document."""
     try:
@@ -139,95 +151,9 @@ def project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, li
             continue
         if id(node) in ambiguous:
             raise WorkflowSourceError(f"aliased same-repository reference in {path}")
-        span = text[node.start_mark.index : node.end_mark.index]
-        relative = span.find("$/")
-        if relative < 0 or span.find("$/", relative + 1) >= 0:
-            raise WorkflowSourceError(f"ambiguous scalar spelling for {node.value!r}")
-        character = node.start_mark.index + relative
-        offsets.append(len(text[:character].encode("utf-8")))
+        offsets.append(_sigil_offset(text, node, path))
         targets.append(_target(root, node.value, target_kind))
     projected = bytearray(source)
     for offset in offsets:
         projected[offset] = ord(".")
     return bytes(projected), targets
-
-
-def _git(root: Path, *arguments: str, input: bytes | None = None) -> bytes:
-    result = process_tree.run(["git", *arguments], cwd=root, input=input, timeout=30)
-    if result.returncode != 0:
-        raise WorkflowSourceError(result.stderr.decode("utf-8", "replace").strip())
-    return result.stdout
-
-
-def _checkout(root: Path, candidate: str) -> None:
-    if not FULL_SHA.fullmatch(candidate):
-        raise WorkflowSourceError("candidate must be a full lowercase commit SHA")
-    checkout = Path(_git(root, "rev-parse", "--show-toplevel").decode().strip()).resolve()
-    if checkout != root or _git(root, "rev-parse", "HEAD").decode().strip() != candidate:
-        raise WorkflowSourceError("checkout does not match the declared candidate")
-    if _git(root, "status", "--porcelain", "--untracked-files=all"):
-        raise WorkflowSourceError("candidate checkout is not clean")
-
-
-def _candidate_bytes(root: Path, candidate: str, path: Path) -> bytes:
-    relative = path.relative_to(root).as_posix()
-    expected = _git(root, "cat-file", "blob", f"{candidate}:{relative}")
-    source = _resolved(root, path, relative).read_bytes()
-    if source != expected:
-        raise WorkflowSourceError(f"lint input differs from candidate {candidate}: {relative}")
-    return source
-
-
-def _inventory(root: Path, candidate: str) -> tuple[str, ...]:
-    paths = _git(
-        root, "ls-tree", "-r", "-z", "--name-only", candidate, "--",
-        ".github/workflows",
-        *(f".github/{name}" for name in CONFIG_NAMES),
-    ).split(b"\0")
-    return tuple(sorted(value.decode("utf-8", "strict") for value in paths if value))
-
-
-def _working_inventory(root: Path) -> tuple[str, ...]:
-    paths = [path for path in (root / ".github" / "workflows").glob("*") if path.suffix in (".yml", ".yaml")]
-    paths.extend(root / ".github" / name for name in CONFIG_NAMES if os.path.lexists(root / ".github" / name))
-    return tuple(sorted(path.relative_to(root).as_posix() for path in paths))
-
-
-def _collect(root: Path, candidate: str, inventory: tuple[str, ...]) -> tuple[dict[Path, bytes], dict[Path, bytes]]:
-    paths = [root / relative for relative in inventory]
-    workflows = [path for path in paths if path.parent == root / ".github" / "workflows"]
-    configs = [path for path in paths if path.name in CONFIG_NAMES]
-    pending = [(path, "workflow") for path in workflows]
-    queued = set(workflows)
-    inputs = {path: _candidate_bytes(root, candidate, path) for path in configs}
-    projected: dict[Path, bytes] = {}
-    while pending:
-        path, kind = pending.pop(0)
-        source = _candidate_bytes(root, candidate, path)
-        inputs[path] = source
-        content, targets = project(source, path, root, kind)
-        if kind == "workflow":
-            projected[path] = content
-        for target in targets:
-            inputs[target] = _candidate_bytes(root, candidate, target)
-            if target.parent != root / ".github" / "workflows" and target not in queued:
-                queued.add(target)
-                pending.append((target, "action"))
-    return projected, inputs
-
-
-def snapshot(root: Path, candidate: str) -> tuple[dict[Path, bytes], dict[Path, bytes]]:
-    """Collect projected workflows and their candidate-owned lint inputs."""
-    root = root.resolve()
-    _checkout(root, candidate)
-    inventory = _inventory(root, candidate)
-    if _working_inventory(root) != inventory:
-        raise WorkflowSourceError("workflow or actionlint config inventory differs from candidate")
-    first = _collect(root, candidate, inventory)
-    _checkout(root, candidate)
-    if _inventory(root, candidate) != inventory or _working_inventory(root) != inventory:
-        raise WorkflowSourceError("candidate lint inventory changed while projecting")
-    if _collect(root, candidate, inventory) != first:
-        raise WorkflowSourceError("candidate lint bytes changed while projecting")
-    _checkout(root, candidate)
-    return first

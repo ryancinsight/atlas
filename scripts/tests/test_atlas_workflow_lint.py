@@ -29,10 +29,6 @@ runs:
     - shell: bash
       run: echo ok
 """
-ACTION_PATH = ".github/actions/sample/action.yml"
-CONFIG = "self-hosted-runner:\n  labels: [custom-runner]\n"
-FILTER_ATTRIBUTE = f"{ACTION_PATH} filter=judged\n"
-GIT_IDENTITY = ("-c", "user.email=workflow-lint@example.invalid", "-c", "user.name=workflow-lint")
 
 
 def fixture(test: unittest.TestCase) -> tuple[Path, Path, Path]:
@@ -41,22 +37,9 @@ def fixture(test: unittest.TestCase) -> tuple[Path, Path, Path]:
     action = root / ".github" / "actions" / "sample" / "action.yml"
     workflow.parent.mkdir(parents=True)
     action.parent.mkdir(parents=True)
-    (root / ".github" / "actionlint.yaml").write_text(CONFIG, encoding="utf-8", newline="\n")
     workflow.write_text(WORKFLOW, encoding="utf-8", newline="\n")
     action.write_text(ACTION, encoding="utf-8", newline="\n")
     return root, workflow, action
-
-
-def commit(test: unittest.TestCase, root: Path) -> str:
-    commands = (
-        ("init", "--quiet"),
-        ("config", "core.autocrlf", "false"),
-        ("add", "--", ".github"),
-        (*GIT_IDENTITY, "commit", "--quiet", "-m", "test: add workflow fixture"),
-    )
-    for command in commands:
-        lint._git(root, *command)
-    return lint._git(root, "rev-parse", "HEAD").decode().strip()
 
 
 class WorkflowProjectionTests(unittest.TestCase):
@@ -71,6 +54,13 @@ class WorkflowProjectionTests(unittest.TestCase):
         self.assertEqual(projected, source.replace(b'uses: "$/', b'uses: "./', 1))
         self.assertEqual(targets, [self.action])
 
+        block = WORKFLOW.replace(
+            'uses: "$/.github/actions/sample" # keep this comment',
+            "uses: >- # $/ is a self reference\n          $/.github/actions/sample",
+        )
+        projected, _ = lint.project(block.encode(), self.workflow, self.root, "workflow")
+        self.assertEqual(projected, block.replace("\n          $/", "\n          ./", 1).encode())
+
     def test_rejects_ambiguous_or_invalid_references(self) -> None:
         cases = {
             "alias": "shared: &ref $/.github/actions/sample\njobs:\n  build:\n    uses: *ref\n",
@@ -80,6 +70,18 @@ class WorkflowProjectionTests(unittest.TestCase):
         }
         for name, source in cases.items():
             with self.subTest(name=name), self.assertRaises(lint.WorkflowSourceError):
+                lint.project(source.encode(), self.workflow, self.root, "workflow")
+
+    def test_rejects_unsupported_spelling_and_nonstring_tags(self) -> None:
+        cases = {
+            "escaped": (
+                WORKFLOW.replace('"$/.github/actions/sample"', r'"\x24/.github/actions/$/sample"'),
+                "unsupported leading self-reference spelling",
+            ),
+            "tag": (WORKFLOW.replace('"$/.github/actions/sample"', "!!int $/"), "string scalar"),
+        }
+        for name, (source, message) in cases.items():
+            with self.subTest(name=name), self.assertRaisesRegex(lint.WorkflowSourceError, message):
                 lint.project(source.encode(), self.workflow, self.root, "workflow")
 
     def test_rejects_escaping_action_path_components(self) -> None:
@@ -99,64 +101,6 @@ class WorkflowProjectionTests(unittest.TestCase):
                 self.skipTest(f"{kind} symlinks are unavailable")
             with self.subTest(kind=kind), self.assertRaisesRegex(lint.WorkflowSourceError, "escapes|symlink"):
                 lint.project(WORKFLOW.encode(), workflow, root, "workflow")
-
-
-class CandidateSnapshotTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.root, self.workflow, self.action = fixture(self)
-        self.candidate = commit(self, self.root)
-
-    def test_collects_candidate_owned_workflow_action_and_config(self) -> None:
-        projected, inputs = lint.snapshot(self.root, self.candidate)
-
-        self.assertEqual(projected[self.workflow], WORKFLOW.replace('uses: "$/', 'uses: "./', 1).encode())
-        self.assertEqual(
-            (inputs[self.action], set(inputs)),
-            (ACTION.encode(), {self.workflow, self.action, self.root / ".github" / "actionlint.yaml"}),
-        )
-
-    def test_rejects_changed_candidate_inputs(self) -> None:
-        for path in (self.workflow, self.action, self.root / ".github" / "actionlint.yaml"):
-            with self.subTest(path=path.relative_to(self.root)):
-                original = path.read_bytes()
-                path.write_bytes(original + b"\n")
-                with self.assertRaisesRegex(lint.WorkflowSourceError, "differs from candidate"):
-                    lint._candidate_bytes(self.root, self.candidate, path)
-                path.write_bytes(original)
-
-        (self.root / ".git" / "info" / "attributes").write_text(FILTER_ATTRIBUTE, encoding="utf-8", newline="\n")
-        lint._git(self.root, "config", "filter.judged.clean", f"git cat-file blob HEAD:{ACTION_PATH}")
-        self.action.write_text(
-            ACTION.replace("echo ok", "echo changed"), encoding="utf-8", newline="\n")
-        lint._git(self.root, "add", "--", ACTION_PATH)
-        self.assertEqual(lint._git(self.root, "status", "--porcelain"), b"")
-        with self.assertRaisesRegex(lint.WorkflowSourceError, "differs from candidate"):
-            lint.snapshot(self.root, self.candidate)
-
-    def test_inventory_order_is_platform_independent(self) -> None:
-        for name in ("Z.yml", "a.yml"):
-            (self.workflow.parent / name).write_text("jobs: {}\n", encoding="utf-8", newline="\n")
-        candidate = commit(self, self.root)
-        projected, _ = lint.snapshot(self.root, candidate)
-        self.assertEqual({path.name for path in projected}, {"Z.yml", "a.yml", "check.yml"})
-
-    def test_rejects_ignored_inputs_absent_from_candidate(self) -> None:
-        for relative in (
-            Path(".github/workflows/check.yml"),
-            Path(".github/actions/sample/action.yml"),
-            Path(".github/actionlint.yaml"),
-        ):
-            with self.subTest(path=relative):
-                root, _, _ = fixture(self)
-                path = root / relative
-                source = path.read_bytes()
-                path.unlink()
-                candidate = commit(self, root)
-                exclude = root / ".git" / "info" / "exclude"
-                exclude.write_text(f"{relative.as_posix()}\n", encoding="utf-8", newline="\n")
-                path.write_bytes(source)
-                with self.assertRaises(lint.WorkflowSourceError):
-                    lint.snapshot(root, candidate)
 
     def test_rejects_malformed_yaml(self) -> None:
         with self.assertRaises(yaml.YAMLError):
