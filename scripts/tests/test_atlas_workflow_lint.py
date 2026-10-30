@@ -61,6 +61,18 @@ class WorkflowProjectionTests(unittest.TestCase):
         projected, _ = lint.project(block.encode(), self.workflow, self.root, "workflow")
         self.assertEqual(projected, block.replace("\n          $/", "\n          ./", 1).encode())
 
+        for spelling in (
+            "!!str $/.github/actions/sample",
+            '!!str "$/.github/actions/sample"',
+            "&ref $/.github/actions/sample",
+            '&ref "$/.github/actions/sample"',
+        ):
+            with self.subTest(spelling=spelling):
+                source = WORKFLOW.replace('"$/.github/actions/sample"', spelling).encode()
+                projected, targets = lint.project(source, self.workflow, self.root, "workflow")
+                self.assertEqual(projected, source.replace(b"$/", b"./", 1))
+                self.assertEqual(targets, [self.action])
+
     def test_rejects_ambiguous_or_invalid_references(self) -> None:
         cases = {
             "alias": "shared: &ref $/.github/actions/sample\njobs:\n  build:\n    uses: *ref\n",
@@ -101,6 +113,18 @@ class WorkflowProjectionTests(unittest.TestCase):
                 self.skipTest(f"{kind} symlinks are unavailable")
             with self.subTest(kind=kind), self.assertRaisesRegex(lint.WorkflowSourceError, "escapes|symlink"):
                 lint.project(WORKFLOW.encode(), workflow, root, "workflow")
+
+    def test_rejects_directory_action_metadata(self) -> None:
+        alternative = self.action.with_suffix(".yaml")
+        alternative.write_text(ACTION, encoding="utf-8", newline="\n")
+        _, targets = lint.project(WORKFLOW.encode(), self.workflow, self.root, "workflow")
+        self.assertEqual(targets, [self.action])
+
+        self.action.unlink()
+        self.action.mkdir()
+
+        with self.assertRaisesRegex(lint.WorkflowSourceError, "regular file"):
+            lint.project(WORKFLOW.encode(), self.workflow, self.root, "workflow")
 
     def test_rejects_malformed_yaml(self) -> None:
         with self.assertRaises(yaml.YAMLError):

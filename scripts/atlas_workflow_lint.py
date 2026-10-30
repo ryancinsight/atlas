@@ -5,6 +5,7 @@ from pathlib import Path
 
 import yaml
 from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
+from yaml.tokens import ScalarToken
 
 STRING_TAG = "tag:yaml.org,2002:str"
 
@@ -111,17 +112,36 @@ def _target(root: Path, reference: str, kind: str) -> Path:
         if target.parent != workflows or target.suffix not in (".yml", ".yaml"):
             raise WorkflowSourceError(f"unsupported reusable workflow target: {reference!r}")
         return target
-    metadata = [target / name for name in ("action.yml", "action.yaml") if os.path.lexists(target / name)]
-    if len(metadata) != 1:
-        raise WorkflowSourceError(f"action target needs exactly one metadata file: {reference!r}")
-    return _resolved(root, metadata[0], reference)
+    metadata = next(
+        (target / name for name in ("action.yml", "action.yaml") if os.path.lexists(target / name)), None
+    )
+    if metadata is None:
+        raise WorkflowSourceError(f"action target needs a metadata file: {reference!r}")
+    resolved = _resolved(root, metadata, reference)
+    if not resolved.is_file():
+        raise WorkflowSourceError(f"action metadata must be a regular file: {reference!r}")
+    return resolved
 
 
-def _sigil_offset(text: str, node: ScalarNode, path: Path) -> int:
-    span = text[node.start_mark.index : node.end_mark.index]
-    if node.style is None:
+def _scalar_token(node: ScalarNode, tokens: list[ScalarToken], path: Path) -> ScalarToken:
+    matches = [
+        token
+        for token in tokens
+        if token.value == node.value
+        and token.style == node.style
+        and node.start_mark.index <= token.start_mark.index
+        and token.end_mark.index == node.end_mark.index
+    ]
+    if len(matches) != 1:
+        raise WorkflowSourceError(f"cannot locate scalar spelling in {path}")
+    return matches[0]
+
+
+def _sigil_offset(text: str, token: ScalarToken, path: Path) -> int:
+    span = text[token.start_mark.index : token.end_mark.index]
+    if token.style is None:
         relative = 0
-    elif node.style in ("'", '"'):
+    elif token.style in ("'", '"'):
         relative = 1
     else:
         header = span.find("\n")
@@ -130,7 +150,7 @@ def _sigil_offset(text: str, node: ScalarNode, path: Path) -> int:
             relative += 1
     if relative < 0 or not span.startswith("$/", relative):
         raise WorkflowSourceError(f"unsupported leading self-reference spelling in {path}")
-    character = node.start_mark.index + relative
+    character = token.start_mark.index + relative
     return len(text[:character].encode("utf-8"))
 
 
@@ -144,6 +164,7 @@ def project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, li
     if document is None:
         raise WorkflowSourceError(f"empty YAML document: {path}")
     ambiguous = _ambiguous(document)
+    tokens = [token for token in yaml.scan(text, Loader=yaml.SafeLoader) if isinstance(token, ScalarToken)]
     offsets: list[int] = []
     targets: list[Path] = []
     for node, target_kind in _references(document, kind):
@@ -151,7 +172,7 @@ def project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, li
             continue
         if id(node) in ambiguous:
             raise WorkflowSourceError(f"aliased same-repository reference in {path}")
-        offsets.append(_sigil_offset(text, node, path))
+        offsets.append(_sigil_offset(text, _scalar_token(node, tokens, path), path))
         targets.append(_target(root, node.value, target_kind))
     projected = bytearray(source)
     for offset in offsets:
