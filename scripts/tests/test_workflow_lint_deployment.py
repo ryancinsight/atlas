@@ -66,6 +66,7 @@ class WorkflowLintDeploymentTests(unittest.TestCase):
         self.assertEqual(command.count("sha256sum --check --strict"), 2)
         for version in ("ACTIONLINT_VERSION", "SHELLCHECK_VERSION"):
             self.assertIn(version, command)
+        self.assertIn("actionlint_version%%$'\\n'*", command)
         self.assertNotIn("continue-on-error", self.action_source)
 
     def test_test_and_lint_commands_use_the_closed_source_bundle(self) -> None:

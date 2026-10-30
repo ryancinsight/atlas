@@ -41,7 +41,8 @@ runs:
         "$python/bin/python" -m pip install --disable-pip-version-check --no-input \
           "PyYAML==6.0.3" "pyflakes==4.0.0"
 
-        test "$("$tools/actionlint" -version)" = "$ACTIONLINT_VERSION"
+        actionlint_version="$("$tools/actionlint" -version)"
+        test "${actionlint_version%%$'\n'*}" = "$ACTIONLINT_VERSION"
         "$tools/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" --version \
           | grep --fixed-strings "version: $SHELLCHECK_VERSION"
         "$python/bin/pyflakes" --version | grep --extended-regexp '^4\.0\.0( |$)'
