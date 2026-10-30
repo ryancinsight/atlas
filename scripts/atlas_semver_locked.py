@@ -102,26 +102,75 @@ def inventory(manifest: Path, env: dict[str, str]) -> tuple[dict[str, dict], Pat
     packages = {item["name"]: item for item in metadata["packages"] if item["id"] in members}
     return packages, Path(metadata["workspace_root"]) / "Cargo.lock"
 
-def generate(manifest: Path, package: dict, output: Path, env: dict[str, str], config: dict) -> Path:
-    """Generate one locked Rustdoc artifact for supplemental comparison."""
-    targets = [target for target in package["targets"]
-               if {"lib", "rlib", "dylib", "cdylib", "staticlib"} & set(target["kind"])]
-    if len(targets) != 1:
-        raise ValueError(f"{package['name']} has {len(targets)} library targets")
+def compiled_packages(manifest: Path, package: str, env: dict[str, str],
+                      config: dict) -> tuple[dict, list[dict] | None]:
+    """Record Cargo packages emitted by the selected locked check."""
+    flags = cargo_features(config["feature_policy"], config["features"])
     command = [
-        "cargo", "rustdoc", "--locked", "--manifest-path", str(manifest),
-        "--package", package["name"], "--lib", "--target", config["target"],
-        *cargo_features(config["feature_policy"], config["features"]), "--",
-        "-Z", "unstable-options", "--output-format=json", "--document-private-items",
-        "--document-hidden-items",
+        "cargo", "check", "--locked", "--manifest-path", str(manifest),
+        "--package", package, "--target", config["target"], *flags,
+        "--message-format=json",
     ]
-    checked(command, manifest.parent, dict(env, RUSTC_BOOTSTRAP="1"))
-    generated = Path(env["CARGO_TARGET_DIR"]) / config["target"] / "doc" / f"{targets[0]['name']}.json"
-    data = json.loads(generated.read_text(encoding="utf-8"))
-    if data["crate_version"] != package["version"] or not data["includes_private"]:
-        raise ValueError(f"incomplete Rustdoc for {package['name']}")
-    shutil.copyfile(generated, output)
-    return output
+    try:
+        result = invoke(command, manifest.parent, env)
+    except (process_tree.ProcessTreeTimeout, process_tree.ProcessTreeCleanupError) as error:
+        messages = getattr(error, "stdout", None) or b""
+        diagnostics = getattr(error, "stderr", None) or str(error).encode()
+        return {"command": command, "status": type(error).__name__,
+                "messages_sha256": digest_bytes(messages),
+                "diagnostics_sha256": digest_bytes(diagnostics),
+                "evidence_error": str(error)}, None
+    messages, diagnostics = result.stdout or b"", result.stderr or b""
+    record = {
+        "command": command,
+        "exit_code": result.returncode,
+        "status": "pass" if result.returncode == 0 else "execution_error",
+        "messages_sha256": digest_bytes(messages),
+        "diagnostics_sha256": digest_bytes(diagnostics),
+    }
+    if result.returncode != 0:
+        record["evidence_error"] = "locked compilation failed"
+        return record, None
+    artifact_ids = set()
+    try:
+        for line in text(messages).splitlines():
+            value = json.loads(line)
+            if value.get("reason") == "compiler-artifact":
+                package_id = value["package_id"]
+                if not isinstance(package_id, str):
+                    raise TypeError("compiler-artifact package_id is not a string")
+                artifact_ids.add(package_id)
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        record["evidence_error"] = f"invalid Cargo message: {error}"
+        return record, None
+    record["compiler_artifact_package_ids"] = sorted(artifact_ids)
+    metadata_command = [
+        "cargo", "metadata", "--locked", "--format-version", "1",
+        "--manifest-path", str(manifest), "--filter-platform", config["target"], *flags,
+    ]
+    try:
+        metadata = json.loads(text(checked(
+            metadata_command, manifest.parent, env,
+        ).stdout))
+        identities = {item["id"]: item for item in metadata["packages"]}
+        selected = [item["id"] for item in metadata["packages"]
+                    if item["name"] == package and item["id"] in metadata["workspace_members"]]
+        if len(selected) != 1 or selected[0] not in artifact_ids:
+            raise ValueError(f"selected package artifact is missing for {package!r}")
+        record["selected_package_id"] = selected[0]
+        missing = artifact_ids.difference(identities)
+        if missing:
+            raise ValueError(f"metadata lacks artifact identities: {sorted(missing)!r}")
+    except Exception as error:
+        record["evidence_error"] = str(error)
+        return record, None
+    return record, sorted(
+        ({"id": item["id"], "name": item["name"], "version": item["version"],
+          "source": item["source"]}
+         for package_id in artifact_ids.difference(selected)
+         for item in (identities[package_id],)),
+        key=lambda item: item["id"],
+    )
 
 
 def native_command(manifest: Path, package: str, baseline: str, config: dict) -> list[str]:
@@ -162,34 +211,29 @@ def attempt(command: list[str], cwd: Path, env: dict[str, str], timeout: float =
                 "diagnostics_sha256": digest_bytes(diagnostics.encode())}
 
 
-def supplemental(roots: list[Path], manifests: list[Path], pair: list[dict], locks: list[Path],
-                 package: str, env: dict[str, str], config: dict, workspace: Path) -> dict:
-    """Collect locked consumer and prebuilt-Rustdoc evidence after a known native limitation."""
+def supplemental(manifests: list[Path], locks: list[Path], package: str,
+                 env: dict[str, str], config: dict) -> dict:
+    """Collect locked consumer evidence without claiming API compatibility."""
     before = [digest(lock) for lock in locks]
-    checks = []
-    cargo_flags = cargo_features(config["feature_policy"], config["features"])
-    for root, manifest in zip(roots, manifests):
-        command = ["cargo", "check", "--locked", "--manifest-path", str(manifest),
-                   "--package", package, "--target", config["target"], *cargo_flags]
-        checks.append(attempt(command, root, env))
-    docs = [generate(manifest, item, workspace / f"{arm}-{package}.json", env, config)
-            for arm, manifest, item in zip(("baseline", "current"), manifests, pair)]
+    checks, dependencies = [], []
+    for manifest in manifests:
+        check, compiled = compiled_packages(manifest, package, env, config)
+        checks.append(check)
+        dependencies.append(compiled)
     if before != [digest(lock) for lock in locks]:
-        raise RuntimeError(f"Cargo.lock changed while documenting {package}")
-    command = [
-        "cargo", "semver-checks", "--baseline-rustdoc", str(docs[0]),
-        "--current-rustdoc", str(docs[1]), "--release-type", config["change_class"],
-    ]
-    comparison = attempt(command, roots[1], env)
+        raise RuntimeError(f"Cargo.lock changed while checking {package}")
+    available = all(compiled is not None for compiled in dependencies)
     return {
         "kind": "SUPPLEMENTAL",
-        "disposition": "requires-review",
-        "consumer_contract": checks,
-        "comparison": comparison,
+        "disposition": "requires-review" if available else "failed",
+        "api_comparison": "unsupported",
+        "consumer_contract": {
+            "compilation": checks,
+            "cargo_package_coverage": "compiler-artifact" if available else "unsupported",
+            "compiled_dependencies": dependencies,
+        },
         "baseline_lock_sha256": before[0],
         "current_lock_sha256": before[1],
-        "baseline_rustdoc_sha256": digest(docs[0]),
-        "current_rustdoc_sha256": digest(docs[1]),
     }
 
 
@@ -256,13 +300,15 @@ def compare(args) -> int:
                     exit_code = max(exit_code, 100)
                 elif native["exit_code"] != 0:
                     exit_code = 101
-                    known = all(fragment in native["diagnostics"]
-                                for fragment in KNOWN_RESOLUTION_DIAGNOSTICS)
+                    known = native["exit_code"] == 101 and all(
+                        fragment in native["diagnostics"]
+                        for fragment in KNOWN_RESOLUTION_DIAGNOSTICS
+                    )
                     entry["known_resolution_limitation"] = known
                     if known:
                         try:
                             entry["supplemental"] = supplemental(
-                                roots, manifests, pair, list(locks), package, env, config, workspace,
+                                manifests, list(locks), package, env, config,
                             )
                         except Exception as error:
                             entry["supplemental"] = {
