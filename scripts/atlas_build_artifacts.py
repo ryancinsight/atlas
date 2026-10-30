@@ -29,13 +29,17 @@ ARTIFACT_SUFFIXES = frozenset(
         ".wasm",
     }
 )
+# A live 20-file moirai-utils census took 16.5383022 s; three charges are 49.6149066 s.
+ARTIFACT_CENSUS_SECONDS = 60.0
 
 
-def _file_digest(path: Path) -> str:
+def _file_digest(path: Path, deadline_ns: int | None = None) -> str:
     digest = hashlib.sha256()
     try:
         with path.open("rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                if deadline_ns is not None and time.monotonic_ns() >= deadline_ns:
+                    raise BuildIdentityError("artifact census did not converge before its deadline")
                 digest.update(chunk)
     except OSError as error:
         raise BuildIdentityError(f"cannot hash artifact {path}: {error}") from error
@@ -66,6 +70,7 @@ def artifact_identity(
     metadata_cwd: Path | None = None,
     related_packages: Sequence[str] = (),
     owners: dict[str, frozenset[str]] | None = None,
+    deadline_ns: int | None = None,
 ) -> dict[str, object]:
     _canonical(root, strict=True)
     target_dir = _canonical(target_dir)
@@ -81,6 +86,7 @@ def artifact_identity(
             manifest,
             metadata_cwd,
             owners,
+            deadline_ns=deadline_ns,
         )[package]
 
     relative = []
@@ -100,45 +106,86 @@ def artifact_identities(
     target: str = "host",
     manifest: Path | None = None,
     metadata_cwd: Path | None = None,
-    owners: dict[str, frozenset[str]] | None = None,
+    owners: dict[str, frozenset[str]] | None = None, *, deadline_ns: int | None = None,
 ) -> dict[str, dict[str, object]]:
-    """Discover several packages' overlapping artifact closures in one target census."""
+    """Prove stable artifact closures before returning their shared census."""
 
     _canonical(root, strict=True)
     target_dir = _canonical(target_dir)
     if not packages:
         return {}
+    if deadline_ns is None:
+        deadline_ns = time.monotonic_ns() + int(ARTIFACT_CENSUS_SECONDS * 1_000_000_000)
     if owners is None:
         if manifest is None:
-            owners = {
-                package: frozenset({_normalize_stem(package)}) for package in packages
-            }
+            owners = {package: frozenset({_normalize_stem(package)}) for package in packages}
         else:
             owners = _workspace_artifact_owners(manifest, metadata_cwd)
-    by_owner = _discover_artifacts_by_owner(target_dir, profile, target, owners)
-    selected = {
-        package: set().union(
-            *(by_owner.get(owner, set()) for owner in {package, *related})
-        )
-        for package, related in packages.items()
-    }
-    missing = [package for package, paths in selected.items() if not paths]
-    if missing:
-        raise BuildIdentityError(
-            f"no artifact found for {', '.join(sorted(missing))} in {target_dir / profile}"
-        )
-    digests = {
-        path: _file_digest(path)
-        for path in sorted(set().union(*(paths for paths in selected.values())))
-    }
-    results = {}
-    for package, paths in selected.items():
-        files = {
-            path.relative_to(target_dir).as_posix(): digests[path]
-            for path in sorted(paths)
+    required: set[Path] | None = None
+    previous: tuple[dict[str, set[Path]], dict[Path, str]] | None = None
+    while True:
+        if time.monotonic_ns() >= deadline_ns:
+            raise BuildIdentityError("artifact census did not converge before its deadline")
+        try:
+            by_owner = _discover_artifacts_by_owner(target_dir, profile, target, owners)
+        except OSError as error:
+            raise BuildIdentityError(f"cannot enumerate artifacts in {target_dir}: {error}") from error
+        selected = {
+            package: set().union(
+                *(by_owner.get(owner, set()) for owner in {package, *related})
+            )
+            for package, related in packages.items()
         }
-        results[package] = {"files": files, "digest": artifact_digest(files)}
-    return results
+        missing = [package for package, paths in selected.items() if not paths]
+        if missing:
+            names = ", ".join(sorted(missing))
+            raise BuildIdentityError(f"no artifact found for {names} in {target_dir / profile}")
+        paths = set(validate_artifact_paths(
+            target_dir, tuple(set().union(*(values for values in selected.values())))
+        ))
+        observed = {path for path in paths if not _optional_diagnostic(path, target_dir)}
+        if required is None:
+            required = observed
+        else:
+            retired = required - observed
+            if retired:
+                raise BuildIdentityError(f"required artifact disappeared: {min(retired)}")
+            added = observed - required
+            if added:
+                raise BuildIdentityError(f"artifact appeared after the first census: {min(added)}")
+        digests: dict[Path, str] = {}
+        restart = False
+        for path in sorted(paths):
+            try:
+                digests[path] = _file_digest(path, deadline_ns)
+            except BuildIdentityError as error:
+                retired_diagnostic = _optional_diagnostic(path, target_dir)
+                if retired_diagnostic and isinstance(error.__cause__, FileNotFoundError):
+                    restart = True
+                    break
+                raise
+        if restart:
+            continue
+        snapshot = (selected, digests)
+        if snapshot == previous:
+            if time.monotonic_ns() >= deadline_ns:
+                raise BuildIdentityError("artifact census did not converge before its deadline")
+            return {package: _identity_from_digests(target_dir, values, digests) for package, values in selected.items()}
+        previous = snapshot
+
+
+def _identity_from_digests(target_dir: Path, paths: set[Path], digests: dict[Path, str]) -> dict[str, object]:
+    files = {path.relative_to(target_dir).as_posix(): digests[path] for path in sorted(paths)}
+    return {"files": files, "digest": artifact_digest(files)}
+
+
+def _optional_diagnostic(path: Path, target_dir: Path) -> bool:
+    """Whether Cargo may retire this lazily-created diagnostic cache."""
+    parts = path.relative_to(target_dir).parts
+    # Cargo 1.97 lazily creates and retires OutputOptions caches:
+    # https://github.com/rust-lang/cargo/blob/rust-1.97.0/src/cargo/core/compiler/mod.rs#L2021-L2050
+    # Fingerprint `output-*` mapping: https://github.com/rust-lang/cargo/blob/rust-1.97.0/src/cargo/core/compiler/build_runner/compilation_files.rs#L340-L346
+    return ".fingerprint" in parts and len(parts) == parts.index(".fingerprint") + 3 and path.name.startswith("output-")
 
 
 def recorded_artifact_identity(target_dir: Path, relative_paths: Iterable[str]) -> dict[str, object]:
