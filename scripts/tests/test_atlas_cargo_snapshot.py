@@ -98,6 +98,11 @@ class CargoSnapshotTests(unittest.TestCase):
                 create_snapshot({name: selected}, self.root / f"unsafe-{index}")
         with self.assertRaisesRegex(CargoSnapshotError, "full commit ID"):
             create_snapshot({"valid": SelectedRepository(repo, "HEAD")}, self.root / "moving")
+        unlocked = self.fixture.repos / "unlocked"
+        self.fixture.package(unlocked, "unlocked")
+        selected = self.fixture.commit("unlocked", generate=False)
+        with self.assertRaisesRegex(CargoSnapshotError, "root Cargo.lock"):
+            create_snapshot({"unlocked": selected}, self.root / "unlocked")
 
     def test_external_workspace_and_dependency_inputs_are_rejected(self) -> None:
         workspace = self.root / "live-workspace"
