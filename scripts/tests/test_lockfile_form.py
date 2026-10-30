@@ -361,6 +361,62 @@ class LockManifestSelectionTestCase(unittest.TestCase):
             with self.assertRaisesRegex(OSError, "multiple directory entries"):
                 lockfile.disk_texts(root, ignored_directories=frozenset())
 
+    def test_cargo_names_follow_filesystem_identity(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            (root / "CARGO.TOML").write_text("[workspace]\n", encoding="utf-8")
+            (root / "CARGO.LOCK").write_text("version = 4\n", encoding="utf-8")
+            texts = lockfile.disk_texts(root, ignored_directories=frozenset())
+            insensitive = (root / "Cargo.toml").exists()
+        expected = {"Cargo.toml", "Cargo.lock"} if insensitive else set()
+        self.assertEqual(set(texts), expected)
+
+    def test_ancestor_links_precede_candidate_reads(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            base = Path(temp)
+            real = base / "real"
+            root = real / "candidate"
+            root.mkdir(parents=True)
+            alias = base / "alias"
+            try:
+                alias.symlink_to(real, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory symlink unavailable: {error}")
+            reads = []
+
+            def read_text(path: Path, *args, **kwargs) -> str:
+                reads.append(path)
+                raise AssertionError("ancestor inspection must precede candidate reads")
+
+            with mock.patch.object(Path, "read_text", read_text), \
+                    contextlib.redirect_stderr(stderr := io.StringIO()):
+                code = lockfile.check(alias / "candidate")
+        self.assertEqual((code, reads), (1, []))
+        self.assertIn("link or reparse point", stderr.getvalue())
+
+    def test_linked_external_workspace_is_not_followed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            base = Path(temp)
+            root = base / "candidate"
+            root.mkdir()
+            outside = base / "outside"
+            outside.write_text("[workspace]\n", encoding="utf-8")
+            try:
+                (base / "Cargo.toml").symlink_to(outside)
+            except OSError as error:
+                self.skipTest(f"file symlink unavailable: {error}")
+            reads = []
+
+            def read_text(path: Path, *args, **kwargs) -> str:
+                reads.append(path)
+                raise AssertionError("ancestor inspection must precede candidate reads")
+
+            with mock.patch.object(Path, "read_text", read_text), \
+                    contextlib.redirect_stderr(stderr := io.StringIO()):
+                code = lockfile.check(root)
+        self.assertEqual((code, reads), (1, []))
+        self.assertIn("external Cargo name is a link", stderr.getvalue())
+
     def test_candidate_surfaces_traversal_failure_before_cargo(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
             root = Path(temp)

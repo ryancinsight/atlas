@@ -349,6 +349,8 @@ def check(repository: Path | None = None) -> int:
     lockfile = repository / "Cargo.lock"
     manifest = repository / "Cargo.toml"
     try:
+        if explicit_candidate:
+            inspect_candidate_ancestors(repository)
         texts = disk_texts(repository, ignored_directories=ignored)
     except OSError as error:
         print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
@@ -1090,15 +1092,45 @@ def candidate_relative(root: Path, path: Path) -> str:
     return relative
 
 
+def inspect_candidate_ancestors(root: Path) -> None:
+    """Refuse links and workspace discovery above an immutable candidate."""
+    reparse = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    for ancestor in reversed(root.parents):
+        details = os.lstat(ancestor)
+        attributes = getattr(details, "st_file_attributes", 0)
+        if stat.S_ISLNK(details.st_mode) or attributes & reparse:
+            raise OSError(f"{ancestor}: candidate ancestor is a link or reparse point")
+        try:
+            workspace = os.lstat(ancestor / "Cargo.toml")
+        except FileNotFoundError:
+            continue
+        workspace_attributes = getattr(workspace, "st_file_attributes", 0)
+        if stat.S_ISLNK(workspace.st_mode) or workspace_attributes & reparse:
+            raise OSError(
+                f"{ancestor / 'Cargo.toml'}: external Cargo name is a link or reparse point"
+            )
+        if stat.S_ISREG(workspace.st_mode):
+            raise OSError(f"{ancestor / 'Cargo.toml'}: workspace manifest is outside the candidate")
+        raise OSError(f"{ancestor / 'Cargo.toml'}: external Cargo name is not a regular file")
+
+
+class CandidateMetadata(NamedTuple):
+    """One inventoried regular file under its Cargo canonical name."""
+
+    path: Path
+    relative: str
+
+
 def metadata_paths(
     repository: Path, *, ignored_directories: frozenset[str]
-) -> tuple[Path, ...]:
+) -> tuple[CandidateMetadata, ...]:
     """Return Cargo inputs after a complete non-following tree inspection."""
     own = SCRIPT_CHECKOUT.resolve()
     strict = not ignored_directories
-    candidates: list[Path] = []
+    candidates: list[CandidateMetadata] = []
+    regular: dict[Path, list[tuple[Path, os.stat_result]]] = {}
 
-    def inspect(path: Path, *, directory: bool) -> None:
+    def inspect(path: Path, *, directory: bool) -> os.stat_result:
         relative = candidate_relative(repository, path)
         details = os.lstat(path)
         attributes = getattr(details, "st_file_attributes", 0)
@@ -1111,6 +1143,7 @@ def metadata_paths(
             raise OSError(f"{relative}: candidate entry is not a {kind}")
         if not directory and details.st_nlink != 1:
             raise OSError(f"{relative}: candidate file has multiple directory entries")
+        return details
 
     if strict:
         inspect(repository, directory=True)
@@ -1121,6 +1154,8 @@ def metadata_paths(
     for directory, subdirectories, files in os.walk(
         repository, topdown=True, onerror=traversal_error, followlinks=False
     ):
+        directory_path = Path(directory)
+        regular.setdefault(directory_path, [])
         kept = []
         for name in subdirectories:
             path = Path(directory) / name
@@ -1138,9 +1173,23 @@ def metadata_paths(
         for name in files:
             path = Path(directory) / name
             if strict:
-                inspect(path, directory=False)
-            if name in {"Cargo.toml", "Cargo.lock"}:
-                candidates.append(path)
+                details = inspect(path, directory=False)
+                regular[directory_path].append((path, details))
+            elif name in {"Cargo.toml", "Cargo.lock"}:
+                candidates.append(CandidateMetadata(path, candidate_relative(repository, path)))
+    if strict:
+        for directory, files in regular.items():
+            for canonical in ("Cargo.toml", "Cargo.lock"):
+                try:
+                    identity = os.stat(directory / canonical)
+                except FileNotFoundError:
+                    continue
+                matches = [path for path, details in files if os.path.samestat(identity, details)]
+                if len(matches) != 1:
+                    relative = candidate_relative(repository, directory / canonical)
+                    raise OSError(f"{relative}: Cargo name has ambiguous filesystem identity")
+                actual = PurePosixPath(candidate_relative(repository, matches[0]))
+                candidates.append(CandidateMetadata(matches[0], str(actual.with_name(canonical))))
     return tuple(candidates)
 
 
@@ -1156,10 +1205,10 @@ def disk_texts(
     inside `repository` (`SCRIPT_CHECKOUT`).
     """
     return {
-        candidate_relative(repository, path): path.read_text(
+        entry.relative: entry.path.read_text(
             encoding="utf-8", errors="replace"
         )
-        for path in metadata_paths(repository, ignored_directories=ignored_directories)
+        for entry in metadata_paths(repository, ignored_directories=ignored_directories)
     }
 
 
@@ -1309,8 +1358,11 @@ def main() -> int:
         metavar="REPOSITORY",
         help="judge every tracked lock at HEAD of each repository, offline",
     )
-    parser.add_argument("--manifest-path", type=Path, default=None,
-                        help="path to Cargo.toml (overrides auto-detection from __file__)")
+    location = parser.add_mutually_exclusive_group()
+    location.add_argument("--manifest-path", type=Path, default=None,
+                          help="path to Cargo.toml (overrides auto-detection from __file__)")
+    location.add_argument("--check-tree", type=Path, default=None,
+                          help="immutable candidate tree containing lock owners")
     arguments = parser.parse_args()
     if arguments.manifest_path is not None:
         global REPOSITORY, LOCKFILE, MANIFEST
@@ -1323,6 +1375,8 @@ def main() -> int:
         return check_staged()
     if arguments.check_committed:
         return check_committed(arguments.check_committed)
+    if arguments.check_tree is not None:
+        return check(Path(os.path.abspath(arguments.check_tree)))
     return check(REPOSITORY if arguments.manifest_path is not None else None)
 
 
