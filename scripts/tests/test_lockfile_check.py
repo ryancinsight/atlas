@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """`--check` judges every lock under the repository by the one standalone rule.
 
-The push hook and the shared `lockfile-guard` workflow run `--check` on a tree
-that is not a repository to ask (a `git archive` export, a CI checkout), so the
-rule is applied to the manifests and locks on disk: the same `judge_locks` that
-`--check-staged` and `--check-committed` apply. These tests run `check()` over
-real files; only the `cargo metadata --locked` staleness arm is stood in for,
-since resolving needs a registry or a network.
+The push hook and the shared `lockfile-guard` workflow apply the same pure lock
+form rule as `--check-staged` and `--check-committed`. These tests isolate that
+rule over real files. Resolution coverage invokes Cargo against a local
+dependency-free package instead of manufacturing subprocess success.
 """
 
 from __future__ import annotations
@@ -15,7 +13,6 @@ import contextlib
 import importlib.util
 import io
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -63,7 +60,6 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
         self.original = (
-            lockfile.run_bounded,
             lockfile.REPOSITORY,
             lockfile.LOCKFILE,
             lockfile.SCRIPT_CHECKOUT,
@@ -72,20 +68,9 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         lockfile.REPOSITORY = self.root
         lockfile.LOCKFILE = self.root / "Cargo.lock"
         lockfile.SCRIPT_CHECKOUT = Path(self.temp.name) / "elsewhere"
-        self.resolves = True
-        self.resolution_calls = 0
-
-        def fake_run(command, **_kwargs):
-            self.resolution_calls += 1
-            return subprocess.CompletedProcess(
-                command, 0 if self.resolves else 101, "{}", "" if self.resolves else "stale"
-            )
-
-        lockfile.run_bounded = fake_run
 
     def _restore(self) -> None:
         (
-            lockfile.run_bounded,
             lockfile.REPOSITORY,
             lockfile.LOCKFILE,
             lockfile.SCRIPT_CHECKOUT,
@@ -99,7 +84,15 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
     def _check(self) -> tuple[int, str]:
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
-            code = lockfile.check()
+            code = lockfile.report_lock_form(
+                *lockfile.judge_locks(lockfile.disk_texts(self.root))
+            )
+        return code, stderr.getvalue()
+
+    def _check_candidate(self) -> tuple[int, str]:
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
+            code = lockfile.check(self.root)
         return code, stderr.getvalue()
 
     def test_a_workspace_without_git_dependencies_passes_with_no_git_sources(self) -> None:
@@ -118,7 +111,6 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         code, stderr = self._check()
         self.assertEqual(code, 1)
         self.assertIn("Cargo.lock: `themis` locked without a git source", stderr)
-        self.assertEqual(self.resolution_calls, 0, "a flattened lock is not resolved")
 
     def test_a_partly_stripped_lock_is_refused(self) -> None:
         """One surviving `git+` line used to pass the count; the rule names the
@@ -167,11 +159,12 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
 
     def test_a_workspace_depending_on_a_sibling_repository_is_exempt_not_judged(self) -> None:
         self._write(
-            "Cargo.toml",
-            '[package]\nname = "fixture"\nversion = "0.1.0"\n\n[dependencies]\n'
-            'sibling = { path = "../../hephaestus" }\n',
+            "contracts/atlas-device/Cargo.toml",
+            '[package]\nname = "melinoe-atlas-device-contract"\nversion = "0.1.0"\n'
+            'publish = false\n[workspace]\n[dependencies]\nsibling = { path = "../../../sibling" }\n'
+            '[patch.crates-io]\nsibling = { path = "../../../sibling" }\n',
         )
-        self._write("Cargo.lock", SERDE + residue("themis"))
+        self._write("contracts/atlas-device/Cargo.lock", SERDE + residue("themis"))
         self.assertEqual(self._check(), (0, ""))
 
     def test_the_checkout_the_script_runs_from_is_not_part_of_the_repository(self) -> None:
@@ -193,13 +186,19 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         self.assertEqual(self._check(), (0, ""))
 
     def test_a_sound_lock_that_does_not_resolve_is_stale_not_flattened(self) -> None:
-        self._write("Cargo.toml", TWO_GIT_DEPENDENCIES)
-        self._write("Cargo.lock", SERDE + git_package("themis") + git_package("leto"))
-        self.resolves = False
-        code, stderr = self._check()
+        self._write("Cargo.toml", NO_DEPENDENCIES)
+        self._write("src/lib.rs", "pub fn present() {}\n")
+        self._write("Cargo.lock", SERDE)
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
+            code = lockfile.check_resolution(
+                self.root / "Cargo.toml",
+                deadline=60,
+            )
+        message = stderr.getvalue()
         self.assertEqual(code, 1)
-        self.assertIn("stale rather than flattened", stderr)
-        self.assertIn("cargo said:\nstale", stderr)
+        self.assertIn("stale rather than flattened", message)
+        self.assertIn("cannot update the lock file", message)
 
     def test_an_unreadable_manifest_fails_the_check_closed(self) -> None:
         """A tree the checker cannot read must not be read as clean (K7)."""
@@ -215,10 +214,9 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
             return original(path, *arguments, **keywords)
 
         with mock.patch.object(Path, "read_text", read_text):
-            code, stderr = self._check()
+            code, stderr = self._check_candidate()
         self.assertEqual(code, 1)
         self.assertIn("could not be read", stderr)
-        self.assertEqual(self.resolution_calls, 0, "an unreadable tree is not resolved")
 
     def test_a_symlinked_directory_is_not_walked(self) -> None:
         """Following a link would judge manifests outside the repository (K8)."""
@@ -242,7 +240,8 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
 
     def test_a_missing_root_lock_is_an_error(self) -> None:
         self._write("Cargo.toml", NO_DEPENDENCIES)
-        code, stderr = self._check()
+        self._write("src/lib.rs", "pub fn present() {}\n")
+        code, stderr = self._check_candidate()
         self.assertEqual(code, 1)
         self.assertIn("does not exist", stderr)
 
