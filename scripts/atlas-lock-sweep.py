@@ -75,6 +75,7 @@ import sys
 import tarfile
 import tempfile
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -141,6 +142,18 @@ class Outcome:
 
 
 # --- pure functions (unit-tested) ---------------------------------------------
+
+
+class SourceOperation(Enum):
+    """How provider revisions and their lock representation change."""
+
+    UPDATE = "update"
+    RETARGET = "retarget"
+
+    def lock_bytes(self, base: bytes, updated: bytes) -> bytes:
+        """Keep a validated retarget exact; format a generated update like its base."""
+        return (updated if self is SourceOperation.RETARGET
+                else with_line_endings_of(base, updated))
 
 
 def normalize_repo_url(url: str) -> str:
@@ -433,6 +446,7 @@ def commit_lock(member: Path, base: str, lock: bytes, message: str, scratch: Pat
         done = subprocess.run(
             ["git", "-C", str(member), *arguments],
             input=data, env=environment, capture_output=True, check=True,
+            timeout=lockfile.GIT_DEADLINE_SECONDS,
         )
         return done.stdout.decode().strip()
 
@@ -544,8 +558,8 @@ def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | N
 
 
 def advance(plan: Plan, targets: dict[str, str], hooks: Path | None, item: str | None,
-            resolver: Callable[[Plan, dict[str, str], Path], Outcome | None] = resolve_lock) -> Outcome:
-    if resolver is resolve_lock:
+            operation: SourceOperation = SourceOperation.UPDATE) -> Outcome:
+    if operation is SourceOperation.UPDATE:
         resumed = resume(plan, targets, item, hooks is not None)
         if resumed is not None:
             return resumed
@@ -554,6 +568,7 @@ def advance(plan: Plan, targets: dict[str, str], hooks: Path | None, item: str |
         scratch = Path(scratch_name)
         export_tree(member, plan.base, scratch)
         tree = scratch / "tree"
+        resolver = retarget_lock if operation is SourceOperation.RETARGET else resolve_lock
         failure = resolver(plan, targets, tree)
         if failure is not None:
             return failure
@@ -561,6 +576,8 @@ def advance(plan: Plan, targets: dict[str, str], hooks: Path | None, item: str |
         check = cargo(tree, "check", "--workspace", "--locked")
         if check.returncode != 0:
             return Outcome(plan.name, "failed", failure_detail(plan.name, "cargo check", check.stderr), False)
+        if operation is SourceOperation.RETARGET and (tree / "Cargo.lock").read_bytes() != updated:
+            return Outcome(plan.name, "failed", "native check rewrote the exact source candidate", False)
         moved = ", ".join(plan.providers())
         if hooks is None:
             return Outcome(plan.name, "would", f"{moved} (dry run; check passed)", True)
@@ -569,7 +586,7 @@ def advance(plan: Plan, targets: dict[str, str], hooks: Path | None, item: str |
             capture_output=True, check=True,
         ).stdout
         commit = commit_lock(
-            member, plan.base, with_line_endings_of(base_lock, updated),
+            member, plan.base, operation.lock_bytes(base_lock, updated),
             commit_message(plan, targets, item), scratch,
         )
         branch = branch_name(targets)
@@ -664,6 +681,7 @@ def main() -> int:
             sys.exit("error: no stack config names build.target-dir; refusing to fork the cache")
         os.environ["CARGO_TARGET_DIR"] = str(shared)
 
+    operation = SourceOperation.RETARGET if arguments.retarget_sources else SourceOperation.UPDATE
     consumers = members
     if arguments.members:
         wanted = set(arguments.members.split(","))
@@ -680,15 +698,15 @@ def main() -> int:
             # predates its own earlier members' landings and any peer's.
             git(member, "fetch", "origin", "--quiet")
             plan = plan_member(member, targets,
-                               locked_packages if arguments.retarget_sources else first_party_packages)
+                               locked_packages if operation is SourceOperation.RETARGET else first_party_packages)
             if plan is None:
                 outcomes.append(Outcome(member.name, "current", "no Cargo.lock", True))
             elif not plan.stale:
-                outcomes.append(Outcome(member.name, "current", "every first-party source at its target", True))
+                outcomes.append(Outcome(member.name, "current", "every targeted source at its target", True))
             else:
                 outcomes.append(
                     advance(plan, targets, hooks, arguments.item,
-                            retarget_lock if arguments.retarget_sources else resolve_lock)
+                            operation)
                 )
             print(render_report(targets, outcomes[-1:]).splitlines()[-1], flush=True)
     print(render_report(targets, outcomes))

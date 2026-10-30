@@ -161,3 +161,23 @@ class RetargetMetadataTests(unittest.TestCase):
         self.assertIn("source retargeting", output.getvalue())
         self.assertIn("failed", output.getvalue())
         self.assertEqual(git(remote, "rev-parse", "refs/heads/" + branch), base)
+
+    def test_committed_retarget_preserves_untouched_mixed_line_endings(self) -> None:
+        revision = self.commit_provider({"src/lib.rs": "pub fn second() {}\n"})
+        self.cargo("update", "--package", "moving", "--precise", revision)
+        self.original += b"# untouched CRLF\r\n# untouched LF\n"
+        failure = self.retarget(revision)
+        candidate = (self.consumer / "Cargo.lock").read_bytes()
+        (self.consumer / "Cargo.lock").write_bytes(self.original)
+        git(self.consumer, "init", "-q", "-b", "main")
+        git(self.consumer, "add", "--", "Cargo.toml", "Cargo.lock", "src/lib.rs")
+        git(self.consumer, "commit", "-q", "-m", "original lock")
+        base = git(self.consumer, "rev-parse", "HEAD")
+        scratch = self.root / "commit"
+        scratch.mkdir()
+        encoded = sweep.SourceOperation.RETARGET.lock_bytes(self.original, candidate)
+        committed = sweep.commit_lock(self.consumer, base, encoded, "retarget\n", scratch)
+        actual = sweep.lockfile.run_git(["show", committed + ":Cargo.lock"], self.consumer)
+        self.assertEqual((failure, actual), (None, candidate))
+        self.assertEqual(actual[-len(b"# untouched CRLF\r\n# untouched LF\n"):],
+                         b"# untouched CRLF\r\n# untouched LF\n")
