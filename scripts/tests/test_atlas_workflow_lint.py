@@ -360,6 +360,33 @@ class NativeActionlintTests(unittest.TestCase):
         ]
         return lint.process_tree.run(command, cwd=self.root, timeout=60)
 
+    def restoring_actionlint(self, target: Path, changed: bytes) -> str:
+        original = self.root / ".git" / f"original-{target.name}"
+        replacement = self.root / ".git" / f"replacement-{target.name}"
+        original.write_bytes(target.read_bytes())
+        replacement.write_bytes(changed)
+        wrapper = self.root / ".git" / ("restoring-actionlint.cmd" if os.name == "nt" else "restoring-actionlint")
+        if os.name == "nt":
+            wrapper.write_text(
+                f'@echo off\r\nif "%1"=="-version" goto run\r\ncopy /y "{replacement}" "{target}" >NUL\r\n'
+                f'"{os.environ["ACTIONLINT"]}" %*\r\nset code=%errorlevel%\r\n'
+                f'copy /y "{original}" "{target}" >NUL\r\nexit /b %code%\r\n:run\r\n'
+                f'"{os.environ["ACTIONLINT"]}" %*\r\n',
+                encoding="utf-8",
+                newline="",
+            )
+        else:
+            wrapper.write_text(
+                "#!/bin/sh\n"
+                f'[ "$1" = "-version" ] && exec "{os.environ["ACTIONLINT"]}" "$@"\n'
+                f'cp "{replacement}" "{target}"\ntrap \'cp "{original}" "{target}"\' EXIT HUP INT TERM\n'
+                f'"{os.environ["ACTIONLINT"]}" "$@"\n',
+                encoding="utf-8",
+                newline="\n",
+            )
+            wrapper.chmod(0o755)
+        return str(wrapper)
+
     def test_native_project_checks_and_diagnostics(self) -> None:
         self.assertIn(".github/actions/nested/action.yml", lint.snapshot(self.root, self.candidate)[1])
         result = self.command()
@@ -379,14 +406,19 @@ class NativeActionlintTests(unittest.TestCase):
                 self.candidate = commit(self.root, f"test: reject {diagnostic}")
                 result = self.command()
                 self.assertEqual(result.returncode, 2, result.stdout)
-                self.assertIn(diagnostic, (result.stderr or b"").decode("utf-8", "replace"))
+                output = (result.stderr or b"").decode("utf-8", "replace")
+                self.assertIn(diagnostic, output)
+                self.assertIn("check.yml", output)
+                self.assertNotIn("atlas-workflow-lint-", output)
         self.workflow.write_text(self.valid, encoding="utf-8", newline="\n")
         reusable = self.workflow.with_name("reusable.yml")
         reusable.write_text(REUSABLE.replace("echo reusable", "echo '${{ unknown.value }}'"), encoding="utf-8")
         self.candidate = commit(self.root, "test: reject invalid reusable workflow")
         result = self.command()
         self.assertEqual(result.returncode, 2, result.stdout)
-        self.assertIn("unknown.value", (result.stderr or b"").decode())
+        output = (result.stderr or b"").decode()
+        self.assertIn("unknown.value", output)
+        self.assertIn("reusable.yml", output)
 
     def test_rejects_tool_failure_and_analysis_mutation(self) -> None:
         missing = str(self.root / ".git" / "missing-tool")
@@ -427,6 +459,29 @@ class NativeActionlintTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 2, result.stdout)
                 self.assertIn("candidate checkout is not clean", (result.stderr or b"").decode())
                 target.write_bytes(original)
+
+    def test_analyzes_captured_inputs_when_origin_is_restored(self) -> None:
+        original_action = self.action.read_bytes()
+        self.workflow.write_text(self.valid.replace("known: yes", "injected: yes"), encoding="utf-8")
+        self.candidate = commit(self.root, "test: reject transient action input")
+        changed_action = original_action.replace(
+            b"inputs:\n",
+            b"inputs:\n  injected:\n    description: transient input\n",
+        )
+        result = self.command(actionlint=self.restoring_actionlint(self.action, changed_action))
+        self.assertEqual(result.returncode, 2, result.stdout)
+        self.assertIn('input "injected"', (result.stderr or b"").decode())
+        self.assertEqual(self.action.read_bytes(), original_action)
+        self.assertEqual(lint._git(self.root, "status", "--porcelain"), b"")
+
+        self.workflow.write_text(self.valid.replace("custom-runner", "transient-runner"), encoding="utf-8")
+        self.candidate = commit(self.root, "test: reject transient runner config")
+        changed_config = CONFIG.replace("]", ", transient-runner]").encode()
+        result = self.command(actionlint=self.restoring_actionlint(self.config, changed_config))
+        self.assertEqual(result.returncode, 2, result.stdout)
+        self.assertIn("transient-runner", (result.stderr or b"").decode())
+        self.assertEqual(self.config.read_bytes(), CONFIG.encode())
+        self.assertEqual(lint._git(self.root, "status", "--porcelain"), b"")
 
 
 if __name__ == "__main__":

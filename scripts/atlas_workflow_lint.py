@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -369,6 +370,21 @@ def _output(result) -> str:
     return b"\n".join(part for part in (result.stdout, result.stderr) if part).decode("utf-8", "replace").strip()
 
 
+def _write_project(
+    root: Path,
+    projected: dict[str, bytes],
+    inputs: dict[str, bytes],
+    timeout: float,
+) -> None:
+    for relative, source in inputs.items():
+        target = root.joinpath(*relative.split("/"))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(projected.get(relative, source))
+    initialized = _invoke(["git", "init", "--quiet"], root, None, timeout, "git")
+    if initialized.returncode != 0:
+        raise WorkflowExecutionError(f"cannot initialize analysis project: {_output(initialized)}")
+
+
 def run(
     root: Path,
     candidate: str,
@@ -387,34 +403,39 @@ def run(
     initial = snapshot(root, candidate)
     failure: WorkflowExecutionError | None = None
     try:
-        version = _invoke([tools[0], "-version"], root, None, timeout, "actionlint")
-        first_line = (version.stdout or b"").decode("utf-8", "replace").splitlines()
-        if version.returncode != 0 or first_line[:1] != ["1.7.12"]:
-            failure = WorkflowExecutionError(f"actionlint must be version 1.7.12: {_output(version)}")
-        else:
-            diagnostics: list[str] = []
-            for relative, source in initial[0].items():
-                result = _invoke(
-                    [
-                        tools[0],
-                        "-no-color",
-                        "-shellcheck",
-                        tools[1],
-                        "-pyflakes",
-                        tools[2],
-                        "-stdin-filename",
-                        str(root.joinpath(*relative.split("/"))),
-                        "-",
-                    ],
-                    root,
-                    source,
-                    timeout,
-                    "actionlint",
-                )
-                if result.returncode != 0:
-                    diagnostics.append(_output(result))
-            if diagnostics:
-                failure = WorkflowExecutionError("actionlint rejected the candidate:\n" + "\n".join(diagnostics))
+        with tempfile.TemporaryDirectory(prefix="atlas-workflow-lint-") as directory:
+            analysis_root = Path(directory)
+            _write_project(analysis_root, initial[0], initial[1], timeout)
+            version = _invoke([tools[0], "-version"], analysis_root, None, timeout, "actionlint")
+            first_line = (version.stdout or b"").decode("utf-8", "replace").splitlines()
+            if version.returncode != 0 or first_line[:1] != ["1.7.12"]:
+                failure = WorkflowExecutionError(f"actionlint must be version 1.7.12: {_output(version)}")
+            else:
+                diagnostics: list[str] = []
+                for relative, source in initial[0].items():
+                    result = _invoke(
+                        [
+                            tools[0],
+                            "-no-color",
+                            "-shellcheck",
+                            tools[1],
+                            "-pyflakes",
+                            tools[2],
+                            "-stdin-filename",
+                            relative,
+                            "-",
+                        ],
+                        analysis_root,
+                        source,
+                        timeout,
+                        "actionlint",
+                    )
+                    if result.returncode != 0:
+                        diagnostics.append(_output(result))
+                if diagnostics:
+                    failure = WorkflowExecutionError(
+                        "actionlint rejected the candidate:\n" + "\n".join(diagnostics)
+                    )
     except WorkflowExecutionError as error:
         failure = error
     ending = snapshot(root, candidate)
