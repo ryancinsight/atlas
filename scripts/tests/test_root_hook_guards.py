@@ -477,6 +477,7 @@ class RootHookGuardTests(unittest.TestCase):
         self.assertIn('budget_gate "$tip" || exit 1', text)
         self.assertIn('secret_gate "$tip" || exit 1', text)
         self.assertIn('cast_baseline_gate "$tip" || exit 1', text)
+        self.assertIn('lock_gate "$tip" || exit 1', text)
 
     def test_cast_baseline_gate_refuses_a_raised_row(self) -> None:
         function = re.search(r"(?ms)^cast_baseline_gate\(\) \{\n.*?^\}\n",

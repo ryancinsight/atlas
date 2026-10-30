@@ -289,45 +289,12 @@ def run_outside_the_overlay(
         )
 
 
-def check() -> int:
-    """Judge every lock under the repository, then prove the root one resolves.
-
-    The overlay's signature is judged by the one rule ([`judge_locks`]) that
-    `--check-staged` and `--check-committed` apply, over every lock in the tree
-    (nested workspaces included), read from disk because the pre-push export
-    and a CI checkout are not always repositories to ask. Staleness, which
-    needs real resolution, is the `--locked` arm below.
-    """
-    if not LOCKFILE.is_file():
-        print(f"error: {LOCKFILE} does not exist", file=sys.stderr)
-        return 1
-
-    try:
-        texts = disk_texts(REPOSITORY)
-    except OSError as error:
-        print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
-        return 1
-    problems, exempt = judge_locks(texts)
-    for lock in exempt:
-        print(f"exempt (in-tree fixture, not standalone-consumable): {lock}")
-    if problems:
-        for problem in problems:
-            print(f"LOCK FORM VIOLATION: {problem}", file=sys.stderr)
-        print(
-            "\n"
-            "A lock regenerated with the Atlas stack overlay active resolves\n"
-            "first-party dependencies to local paths and drops their git\n"
-            "sources, and leaves [[patch.unused]] residue. CI has no overlay and\n"
-            "will fail every --locked job.\n"
-            "\n"
-            f"Fix: {REGENERATE_COMMAND}",
-            file=sys.stderr,
-        )
-        return 1
-
+def check_resolution(manifest: Path, lockfile: Path) -> int:
+    """Prove one selected lock resolves without the development overlay."""
     try:
         completed = run_outside_the_overlay(
-            ["metadata", "--locked", "--format-version", "1", "--all-features"]
+            ["metadata", "--locked", "--format-version", "1", "--all-features"],
+            manifest,
         )
     except CargoDeadlineExceeded as error:
         print(
@@ -343,7 +310,7 @@ def check() -> int:
         return 1
     if completed.returncode != 0:
         print(
-            "error: the committed Cargo.lock does not resolve under --locked "
+            f"error: {lockfile} does not resolve under --locked "
             "(its sources are intact, so it is stale rather than flattened).\n"
             "\n"
             "The pinned first-party revisions no longer satisfy the manifests'\n"
@@ -357,9 +324,70 @@ def check() -> int:
         )
         return 1
 
-    locks = sum(1 for path in texts if PurePosixPath(path).name == "Cargo.lock")
-    print(f"Cargo.lock resolves under --locked; {locks - len(exempt)} lock(s) in standalone form.")
-    return check_provider_identity()
+    print(f"{lockfile} resolves under --locked.")
+    return check_provider_identity(lockfile)
+
+
+def check(manifest: Path | None = None) -> int:
+    """Judge and resolve every owned lock under the candidate root.
+
+    The overlay's signature is judged by the one rule ([`judge_locks`]) that
+    `--check-staged` and `--check-committed` apply, over every lock in the tree
+    (nested workspaces included), read from disk because the pre-push export
+    and a CI checkout are not always repositories to ask. Staleness, which
+    needs real resolution, is the `--locked` arm below.
+    """
+    candidate = manifest is not None
+    if not candidate:
+        repository = REPOSITORY
+        lockfile = LOCKFILE
+        manifest = repository / "Cargo.toml"
+    else:
+        repository = manifest.parent
+        lockfile = repository / "Cargo.lock"
+    try:
+        ignored = frozenset() if candidate else IGNORED_DIRECTORIES
+        texts = disk_texts(repository, ignored_directories=ignored)
+    except OSError as error:
+        print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
+        return 1
+    if "Cargo.lock" not in texts:
+        print(f"error: {lockfile} does not exist", file=sys.stderr)
+        return 1
+
+    manifests, selected_exempt, ownership_problems = lock_manifests(texts)
+    problems, exempt = judge_locks(texts)
+    if selected_exempt != exempt:
+        print("error: lock ownership selection disagrees with lock form", file=sys.stderr)
+        return 1
+    for lock in exempt:
+        print(f"exempt (in-tree fixture, not standalone-consumable): {lock}")
+    if ownership_problems:
+        for problem in ownership_problems:
+            print(f"LOCK OWNERSHIP VIOLATION: {problem}", file=sys.stderr)
+        return 1
+    if problems:
+        for problem in problems:
+            print(f"LOCK FORM VIOLATION: {problem}", file=sys.stderr)
+        print(
+            "\n"
+            "A lock regenerated with the Atlas stack overlay active resolves\n"
+            "first-party dependencies to local paths and drops their git\n"
+            "sources, and leaves [[patch.unused]] residue. CI has no overlay and\n"
+            "will fail every --locked job.\n"
+            "\n"
+            f"Fix: {REGENERATE_COMMAND}",
+            file=sys.stderr,
+        )
+        return 1
+
+    failures = 0
+    for relative in manifests:
+        selected_manifest = repository / relative
+        selected_lock = selected_manifest.with_name("Cargo.lock")
+        print(f"checking lock owner {relative}")
+        failures += check_resolution(selected_manifest, selected_lock)
+    return int(failures != 0)
 
 
 def locked_package_records(lock_text: str) -> list[Mapping[str, object]]:
@@ -413,9 +441,11 @@ def provider_identities(lock_text: str) -> dict[str, set[str]]:
     return identities
 
 
-def provider_identity_baseline() -> int | None:
+def provider_identity_baseline(lockfile: Path | None = None) -> int | None:
     """Read the member's committed excess-source bound, or `None` when unset."""
-    path = LOCKFILE.parent / PROVIDER_IDENTITY_BASELINE_NAME
+    if lockfile is None:
+        lockfile = LOCKFILE
+    path = lockfile.parent / PROVIDER_IDENTITY_BASELINE_NAME
     if not path.is_file():
         return None
     try:
@@ -428,7 +458,7 @@ def provider_identity_baseline() -> int | None:
         return -1
 
 
-def check_provider_identity() -> int:
+def check_provider_identity(lockfile: Path | None = None) -> int:
     """Bound the first-party providers that resolve through more than one source.
 
     A provider reached by two sources is compiled twice, so its public types stop
@@ -445,7 +475,9 @@ def check_provider_identity() -> int:
     The bound is a ratchet, not a zero: these forks exist today and a check that
     fails on arrival gets disabled rather than fixed.
     """
-    identities = provider_identities(LOCKFILE.read_text(encoding="utf-8"))
+    if lockfile is None:
+        lockfile = LOCKFILE
+    identities = provider_identities(lockfile.read_text(encoding="utf-8"))
     forked = {name: sources for name, sources in identities.items() if len(sources) > 1}
     excess = sum(len(sources) - 1 for sources in forked.values())
 
@@ -454,7 +486,7 @@ def check_provider_identity() -> int:
         for source in sorted(sources):
             print(f"    {source.split('ryancinsight/', 1)[-1]}")
 
-    baseline = provider_identity_baseline()
+    baseline = provider_identity_baseline(lockfile)
     if baseline is None:
         print(
             f"Provider identity: {excess} source(s) in excess of one per "
@@ -836,6 +868,28 @@ def workspace_units(
     return units
 
 
+def lock_manifests(texts: Mapping[str, str]) -> tuple[list[str], list[str], list[str]]:
+    """Select Cargo manifests that own standalone-consumable committed locks.
+
+    Returns manifest paths, fixture locks exempt under the existing workspace
+    rule, and ownership problems. A lock without a sibling manifest is refused:
+    guessing a parent manifest would validate a different Cargo graph.
+    """
+    manifests: list[str] = []
+    exempt: list[str] = []
+    problems: list[str] = []
+    for lock, facts in workspace_units(texts).items():
+        if facts.fixture:
+            exempt.append(lock)
+            continue
+        manifest = str(PurePosixPath(lock).with_name("Cargo.toml"))
+        if manifest not in texts:
+            problems.append(f"{lock}: sibling Cargo.toml is missing")
+            continue
+        manifests.append(manifest)
+    return manifests, exempt, problems
+
+
 def judge_locks(
     texts: Mapping[str, str], locks: Iterable[str] | None = None
 ) -> tuple[list[str], list[str]]:
@@ -908,27 +962,46 @@ def read_blobs(repository: Path | None, blobs: Sequence[str]) -> dict[str, str]:
     return texts
 
 
-def disk_texts(repository: Path) -> dict[str, str]:
+def disk_texts(
+    repository: Path, *, ignored_directories: frozenset[str] = IGNORED_DIRECTORIES
+) -> dict[str, str]:
     """Text of every `Cargo.toml` and `Cargo.lock` under `repository`, by relative path.
 
     The filesystem counterpart of [`tracked_texts`], for a tree that is not a
     repository to ask: the pre-push export is `git archive` output, and a CI
     checkout is judged as it stands. Directories of build output and vendored
-    code are not entered, nor is the checkout this script runs from when it sits
-    inside `repository` (`SCRIPT_CHECKOUT`).
+    code are not entered by default, nor is the checkout this script runs from
+    when it sits inside `repository` (`SCRIPT_CHECKOUT`). An immutable exported
+    candidate passes no ignored directories because every archived pair is
+    committed input. Metadata links are refused rather than followed outside
+    that candidate.
     """
     texts: dict[str, str] = {}
     own = SCRIPT_CHECKOUT.resolve()
+
+    def linked(path: Path) -> bool:
+        return path.is_symlink() or getattr(path, "is_junction", lambda: False)()
+
+    if not ignored_directories and linked(repository):
+        raise OSError(f"{repository}: symbolic candidate root is not allowed")
     for directory, subdirectories, files in os.walk(repository):
-        subdirectories[:] = [
-            name
-            for name in subdirectories
-            if name.lower() not in IGNORED_DIRECTORIES
-            and (Path(directory) / name).resolve() != own
-        ]
+        kept = []
+        for name in subdirectories:
+            path = Path(directory) / name
+            if linked(path):
+                if not ignored_directories:
+                    relative = path.relative_to(repository).as_posix()
+                    raise OSError(f"{relative}: symbolic directory link is not allowed")
+                continue
+            if name.lower() not in ignored_directories and path.resolve() != own:
+                kept.append(name)
+        subdirectories[:] = kept
         for name in files:
             if name in {"Cargo.toml", "Cargo.lock"}:
                 path = Path(directory) / name
+                if path.is_symlink():
+                    relative = path.relative_to(repository).as_posix()
+                    raise OSError(f"{relative}: symbolic metadata link is not allowed")
                 texts[path.relative_to(repository).as_posix()] = path.read_text(
                     encoding="utf-8", errors="replace"
                 )
@@ -1086,7 +1159,7 @@ def main() -> int:
     arguments = parser.parse_args()
     if arguments.manifest_path is not None:
         global REPOSITORY, LOCKFILE, MANIFEST
-        MANIFEST = arguments.manifest_path.resolve()
+        MANIFEST = Path(os.path.abspath(arguments.manifest_path))
         REPOSITORY = MANIFEST.parent
         LOCKFILE = REPOSITORY / "Cargo.lock"
     if arguments.regenerate:
@@ -1095,7 +1168,7 @@ def main() -> int:
         return check_staged()
     if arguments.check_committed:
         return check_committed(arguments.check_committed)
-    return check()
+    return check(MANIFEST if arguments.manifest_path is not None else None)
 
 
 if __name__ == "__main__":

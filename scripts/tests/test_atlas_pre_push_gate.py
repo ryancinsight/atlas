@@ -183,8 +183,9 @@ _STACK_LOCKFILE_STUB = (
 _LOCK_READING_CHECKER = (
     "import pathlib, sys\n"
     "manifest = pathlib.Path(sys.argv[sys.argv.index('--manifest-path') + 1])\n"
-    "lock = (manifest.parent / 'Cargo.lock').read_text(encoding='utf-8')\n"
-    "sys.exit(1 if 'FLATTENED' in lock else 0)\n"
+    "root = manifest.parent\n"
+    "locks = [path.read_text(encoding='utf-8') for path in root.rglob('Cargo.lock')]\n"
+    "sys.exit(1 if any('FLATTENED' in lock for lock in locks) else 0)\n"
 )
 
 
@@ -2020,6 +2021,31 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
             self.assertEqual(code, 1, stderr)
             self.assertIn("does not resolve under --locked", stderr)
             self.assertIn("scripts/lockfile.py --regenerate --manifest-path Cargo.toml", stderr)
+
+    def test_manifest_change_checks_unchanged_standalone_lock(self) -> None:
+        """A root manifest change can stale an excluded fuzz lock without
+        changing that lock's bytes, so the immutable candidate is checked whole."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            _write(
+                fixture.root / "fuzz" / "Cargo.toml",
+                '[package]\nname = "fuzz"\nversion = "0.0.0"\n[workspace]\n',
+            )
+            _write(fixture.root / "fuzz" / "Cargo.lock", "# FLATTENED\n")
+            _commit_all(fixture.root, "standalone lock")
+            _git(fixture.root, "push", "-q", "origin", "HEAD:main")
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            with (fixture.root / "Cargo.toml").open("a", encoding="utf-8") as manifest:
+                manifest.write("\n# dependency state changed\n")
+            _commit_all(fixture.root, "manifest")
+            fixture.install_stack_lockfile(_LOCK_READING_CHECKER)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), {"SKIP_LOCAL_GATE": "1"}
+            )
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("the Cargo.lock", stderr)
 
     def test_a_member_copy_is_never_the_checker_that_runs(self) -> None:
         """A copy that accepts every lock cannot overrule the stack's verdict."""
