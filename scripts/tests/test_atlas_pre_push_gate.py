@@ -4599,8 +4599,7 @@ class CastGateTestCase(unittest.TestCase):
             self.assertNotIn("--base-sites", check)
             self.assertNotIn("--base-package", check)
 
-    def test_a_base_failure_other_than_a_compile_error_refuses(self) -> None:
-        cases = {
+    base_failures = {
             "gate error": "cast gate: could not run: no cargo metadata",
             "gate error beside a compile error": COMPILE_ERROR + "\ncast gate: could not run: x",
             "killed compiler": COMPILE_ERROR + "\nprocess didn't exit successfully: rustc (signal: 9, SIGKILL)",
@@ -4622,23 +4621,56 @@ class CastGateTestCase(unittest.TestCase):
                                                   + COMPILE_ERROR,
             "cargo's summary without a diagnostic count": "error[E0433]: failed to resolve\n"
                                                           "error: could not compile `foo` (lib)",
+            **{
+                f"crate metadata {code}": f"error[{code}]: crate `a`\n" + COMPILE_ERROR
+                for code in ("E0460", "E0461", "E0462", "E0463", "E0464", "E0514", "E0519", "E0786")
+            },
         }
-        for code in ("E0460", "E0461", "E0462", "E0463", "E0464", "E0514", "E0519", "E0786"):
-            cases[f"crate metadata {code}"] = f"error[{code}]: crate `a`\n" + COMPILE_ERROR
-        for name, says in cases.items():
-            with self.subTest(name), tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
-                fixture, _, cast_log = self._member(temp, 0, base_exit=101, base_says=says)
 
-                code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+    def _assert_base_failures(self, names: tuple[str, ...]) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _, cast_log = self._member(temp, 0)
+            for name in names:
+                with self.subTest(name):
+                    cast_log.unlink(missing_ok=True)
+                    _write(
+                        pathlib.Path(temp) / "scripts" / "atlas_cast_gate.py",
+                        _cast_gate_stub(cast_log, 0, 0, 101, self.base_failures[name]),
+                    )
+                    _publish_stack_scripts(pathlib.Path(temp))
 
-                self.assertEqual(code, 1, stderr)
-                # Refused by the cast gate or, for a failure outside the
-                # export, by the broken-graph report; never left to the rows.
-                self.assertNotIn("held to their rows alone", stderr)
-                self.assertTrue("for a reason other than a compile error" in stderr
-                                or "the local dependency graph is broken" in stderr, stderr)
-                calls = cast_log.read_text(encoding="utf-8").splitlines()
-                self.assertEqual([call.split()[0] for call in calls], ["clippy"])
+                    code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+                    self.assertEqual(code, 1, stderr)
+                    # Refused by the cast gate or, for a failure outside the
+                    # export, by the broken-graph report; never left to the rows.
+                    self.assertNotIn("held to their rows alone", stderr)
+                    self.assertTrue("for a reason other than a compile error" in stderr
+                                    or "the local dependency graph is broken" in stderr, stderr)
+                    calls = cast_log.read_text(encoding="utf-8").splitlines()
+                    self.assertEqual([call.split()[0] for call in calls], ["clippy"])
+
+    def test_runtime_base_failures_are_refused(self) -> None:
+        self._assert_base_failures((
+            "gate error", "gate error beside a compile error", "killed compiler",
+            "out of memory", "crashed compiler", "a compiler killed on Windows",
+            "a silent compiler",
+        ))
+
+    def test_diagnostic_base_failures_are_refused(self) -> None:
+        self._assert_base_failures((
+            "rustc errors without cargo's summary", "a dependency outside the base's packages",
+            "a dependency failing beside a local error", "an internal compiler error",
+            "an internal compiler error by name", "cargo's summary without a diagnostic count",
+        ))
+
+    def test_crate_resolution_metadata_failures_are_refused(self) -> None:
+        self._assert_base_failures(tuple(
+            f"crate metadata {code}" for code in ("E0460", "E0461", "E0462", "E0463")
+        ))
+
+    def test_crate_artifact_metadata_failures_are_refused(self) -> None:
+        self._assert_base_failures(tuple(f"crate metadata {code}" for code in ("E0464", "E0514", "E0519", "E0786")))
 
     def test_a_base_failing_on_a_denied_lint_leaves_the_rows_to_judge(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
