@@ -10,6 +10,7 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -59,6 +60,11 @@ RELEASE_JOB = {
 # A `continue-on-error` on the job or any step, or a changed condition, changes this table.
 RELEASE_STEPS = [
     {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"fetch-depth": 0}},
+    {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+     "with": {"repository": "ryancinsight/atlas", "ref": "${{ inputs.atlas-ref }}",
+              "path": "_atlas", "persist-credentials": False}},
+    {"env": {"PACKAGE": "${{ inputs.package }}",
+             "MANIFEST_PATH": "${{ inputs.manifest-path }}"}},
     {"id": "checkable",
      "env": {"PACKAGE": "${{ inputs.package }}", "MANIFEST": "${{ inputs.manifest-path }}"}},
     {"if": "inputs.apt-packages != ''"},
@@ -111,17 +117,69 @@ class ReleaseJobWiringTests(unittest.TestCase):
         self.assertEqual([{k: v for k, v in step.items() if k not in ("name", "run")}
                           for step in job["steps"]], RELEASE_STEPS)
 
+    def test_artifact_drift_blocks_before_semver(self) -> None:
+        steps = job_steps("semver-release")
+        drift = next(step for step in steps
+                     if step.get("name") == "Block release when a published artifact drifted")
+        self.assertIn("atlas-bump-guard.py --release", drift["run"])
+        self.assertIn('--head HEAD', drift["run"])
+        self.assertIn('--package "$PACKAGE"', drift["run"])
+        self.assertIn('--manifest-path "$MANIFEST_PATH"', drift["run"])
+        self.assertEqual(drift["env"]["MANIFEST_PATH"], "${{ inputs.manifest-path }}")
+        self.assertNotIn("continue-on-error", drift)
+        self.assertLess(steps.index(drift), next(
+            index for index, step in enumerate(steps) if step.get("id") == "semver"))
 
-class PullRequestBumpGuardWiringTests(unittest.TestCase):
+
+def job_steps(name: str) -> list[dict]:
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    return workflow["jobs"][name]["steps"]
+
+
+class PullRequestArtifactDriftWiringTests(unittest.TestCase):
     def test_caller_manifest_reaches_the_artifact_guard(self) -> None:
-        workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
         step = next(
-            item for item in workflow["jobs"]["bump-guard"]["steps"]
-            if item.get("name") == "Fail a published crate changed without a version bump"
+            item for item in job_steps("bump-guard")
+            if item.get("name") == "Report published artifact drift"
         )
         self.assertEqual(
             step["env"]["MANIFEST_PATH"], "${{ inputs.manifest-path }}")
         self.assertIn('--manifest-path "$MANIFEST_PATH"', step["run"])
+
+    def test_only_a_legitimate_drift_result_is_informational(self) -> None:
+        job = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["bump-guard"]
+        step = next(item for item in job["steps"]
+                    if item.get("name") == "Report published artifact drift")
+        self.assertNotIn("continue-on-error", job)
+        self.assertNotIn("continue-on-error", step)
+        self.assertIn('if [ "$status" -eq 3 ]; then', step["run"])
+        self.assertIn("exit 0", step["run"])
+        self.assertTrue(step["run"].rstrip().endswith('exit "$status"'))
+
+
+    @unittest.skipUnless(shutil.which("bash"), "the gate step is a bash script")
+    def test_python_startup_failure_remains_blocking(self) -> None:
+        job = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["bump-guard"]
+        step = next(item for item in job["steps"]
+                    if item.get("name") == "Report published artifact drift")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scripts = root / "_atlas" / "scripts"
+            scripts.mkdir(parents=True)
+            source = WORKFLOW.parents[2] / "scripts" / "atlas-bump-guard.py"
+            shutil.copyfile(source, scripts / source.name)
+            environment = {**os.environ, "BASE": "base", "HEAD": "HEAD", "PACKAGE": "alpha",
+                           "MANIFEST_PATH": "Cargo.toml",
+                           "RUNNER_TEMP": root.as_posix(),
+                           "GITHUB_STEP_SUMMARY": (root / "summary").as_posix(),
+                           "ATLAS_TEST_PYTHON": Path(sys.executable).as_posix()}
+            environment.pop("PYTHONPATH", None)
+            execution = subprocess.run(
+                ["bash", "-c", 'python3() { "$ATLAS_TEST_PYTHON" "$@"; }\n' + step["run"]],
+                cwd=root, env=environment, capture_output=True, text=True, timeout=60)
+            self.assertEqual(execution.returncode, 1, execution.stdout + execution.stderr)
+            self.assertIn("ModuleNotFoundError", execution.stderr)
+            self.assertNotIn("::notice::", execution.stdout)
 
 
 @unittest.skipUnless(shutil.which("bash"), "the gate step is a bash script")
