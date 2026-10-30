@@ -64,7 +64,6 @@ from __future__ import annotations
 
 import argparse
 import copy
-import json
 import tomllib
 from collections.abc import Callable
 import hashlib
@@ -709,16 +708,14 @@ def retarget_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | 
     except (OSError, UnicodeError, ValueError) as error:
         return Outcome(plan.name, "failed", f"source retargeting: {error}", False)
     lock.write_bytes(candidate)
-    metadata = cargo(tree, "metadata", "--locked", "--offline", "--all-features",
-                     "--format-version", "1")
-    if metadata.returncode:
+    try:
+        metadata = lockfile.locked_metadata(tree / "Cargo.toml")
+    except (lockfile.CargoDeadlineExceeded, lockfile.CargoMetadataError) as error:
         return Outcome(plan.name, "failed", failure_detail(
-            plan.name, "locked offline metadata", metadata.stderr), False)
-    if lock.read_bytes() != candidate:
-        return Outcome(plan.name, "failed", "Cargo rewrote the source-only candidate", False)
+            plan.name, "locked offline metadata", str(error)), False)
     try:
         packages = {(package["name"], package["version"], package.get("source"))
-                    for package in json.loads(metadata.stdout)["packages"]}
+                    for package in metadata["packages"]}
     except (KeyError, TypeError, ValueError) as error:
         return Outcome(plan.name, "failed", f"unreadable Cargo metadata: {error}", False)
     for package in plan.stale:
