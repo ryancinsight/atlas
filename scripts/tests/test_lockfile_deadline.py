@@ -126,11 +126,13 @@ class DeadlineReportingTests(unittest.TestCase):
             lockfile.run_outside_the_overlay,
             lockfile.REPOSITORY,
             lockfile.LOCKFILE,
+            lockfile.MANIFEST,
             lockfile.SCRIPT_CHECKOUT,
         )
         self.addCleanup(self._restore)
         lockfile.REPOSITORY = self.root
         lockfile.LOCKFILE = self.root / "Cargo.lock"
+        lockfile.MANIFEST = self.root / "Cargo.toml"
         lockfile.SCRIPT_CHECKOUT = self.root / "elsewhere"
 
         def expired(*_arguments, **_kwargs):
@@ -145,6 +147,7 @@ class DeadlineReportingTests(unittest.TestCase):
             lockfile.run_outside_the_overlay,
             lockfile.REPOSITORY,
             lockfile.LOCKFILE,
+            lockfile.MANIFEST,
             lockfile.SCRIPT_CHECKOUT,
         ) = self.original
 
