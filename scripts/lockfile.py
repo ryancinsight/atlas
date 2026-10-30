@@ -335,8 +335,7 @@ def check(repository: Path | None = None) -> int:
     if repository is None:
         repository = REPOSITORY
     try:
-        ignored = frozenset() if candidate else IGNORED_DIRECTORIES
-        texts = disk_texts(repository, ignored_directories=ignored)
+        texts = disk_texts(repository, ignored_directories=frozenset() if candidate else IGNORED_DIRECTORIES)
     except OSError as error:
         print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
         return 1
@@ -352,18 +351,12 @@ def check(repository: Path | None = None) -> int:
     for lock in exempt:
         print(f"exempt (in-tree fixture, not standalone-consumable): {lock}")
     if ownership_problems:
-        for problem in ownership_problems:
-            print(f"LOCK OWNERSHIP VIOLATION: {problem}", file=sys.stderr)
+        print("\n".join(f"LOCK OWNERSHIP VIOLATION: {problem}" for problem in ownership_problems), file=sys.stderr)
         return 1
     if problems:
-        for problem in problems:
-            print(f"LOCK FORM VIOLATION: {problem}", file=sys.stderr)
-        print(
-            "\nThe Atlas overlay can strip git sources and leave [[patch.unused]]\n"
-            "residue. CI has no overlay and will fail every --locked job.\n\n"
-            f"Fix: {REGENERATE_COMMAND}",
-            file=sys.stderr,
-        )
+        print("\n".join(f"LOCK FORM VIOLATION: {problem}" for problem in problems), file=sys.stderr)
+        print("\nThe Atlas overlay can strip git sources and leave [[patch.unused]] residue.\n"
+              f"CI will fail every --locked job.\n\nFix: {REGENERATE_COMMAND}", file=sys.stderr)
         return 1
 
     failures = sum(check_resolution(repository / relative, (repository / relative).with_name("Cargo.lock")) for relative in manifests)
@@ -519,7 +512,7 @@ class GitUnavailable(Exception):
 class WorkspaceFacts(NamedTuple):
     """What a workspace's manifests say about the lock it owns."""
 
-    manifests: frozenset[str]
+    owned_manifests: frozenset[str]
     local: frozenset[str]
     git_dependencies: frozenset[str]
     fixture: bool
@@ -662,8 +655,8 @@ def workspace_selection(
     parsed: Mapping[str, Mapping[str, object] | None],
     workspace: PurePosixPath,
     nested: Sequence[PurePosixPath],
-) -> set[str]:
-    """The manifests Cargo resolves in the workspace's lock.
+) -> tuple[set[str], set[str]]:
+    """The manifests Cargo owns and resolves in the workspace's lock.
 
     Cargo, not directory containment, decides membership: `members` names the
     packages (globs included), `exclude` removes paths from that set, path
@@ -673,11 +666,12 @@ def workspace_selection(
     let an excluded crate shadow a stripped source by name, and let a lockless
     nested workspace exempt the root lock through a path leaving the repository.
 
-    A package without `[workspace]` owns only itself and its local path closure.
+    The result separates lock ownership from the complete resolution closure.
     """
     root = (workspace / "Cargo.toml").as_posix()
     root_data = parsed.get(root)
-    table = root_data.get("workspace") if isinstance(root_data, dict) else {}
+    table = root_data.get("workspace") if isinstance(root_data, dict) else None
+    explicit_workspace = isinstance(table, dict)
     if not isinstance(table, dict):
         table = {}
 
@@ -732,8 +726,12 @@ def workspace_selection(
         if any(directory_pattern_matches(pattern, directory) for pattern in members):
             selected.add(name)
 
-    # Cargo joins every path dependency under the root to the workspace; one
-    # outside it is a separate package even when a member reaches it.
+    owned = {name for name in selected if name == root or
+             (not inside_boundary(PurePosixPath(name).parent) and not excluded_manifest(name))}
+    selected = set(owned)
+
+    # Resolution follows every local dependency. Only an explicit workspace
+    # also owns dependencies beneath its root as implicit members.
     changed = True
     while changed:
         changed = False
@@ -749,16 +747,13 @@ def workspace_selection(
                     target_manifest = (target / "Cargo.toml").as_posix()
                     if target_manifest in selected or target_manifest not in manifests:
                         continue
-                    if inside_boundary(target):
-                        continue
                     selected.add(target_manifest)
+                    if (explicit_workspace and (target == workspace or workspace in target.parents) and
+                            not inside_boundary(target) and not excluded_manifest(target_manifest)):
+                        owned.add(target_manifest)
                     changed = True
 
-    return {
-        name
-        for name in selected
-        if not inside_boundary(PurePosixPath(name).parent) and not excluded_manifest(name)
-    }
+    return owned, selected
 
 
 def workspace_facts(
@@ -788,7 +783,7 @@ def workspace_facts(
         except tomllib.TOMLDecodeError:
             parsed[name] = None
 
-    selected = workspace_selection(manifests, parsed, workspace, nested)
+    owned, selected = workspace_selection(manifests, parsed, workspace, nested)
 
     local: set[str] = set()
     git_dependencies: set[str] = set()
@@ -811,7 +806,7 @@ def workspace_facts(
                     git_dependencies.add(spec.get("package", dependency))
                 elif isinstance(spec.get("path"), str) and escapes_repository(manifest, spec["path"]):
                     fixture = True
-    return WorkspaceFacts(frozenset(selected), frozenset(local), frozenset(git_dependencies), fixture, tuple(unreadable))
+    return WorkspaceFacts(frozenset(owned), frozenset(local), frozenset(git_dependencies), fixture, tuple(unreadable))
 
 
 def workspace_units(
@@ -837,13 +832,12 @@ def workspace_units(
 
 def lock_manifests(texts: Mapping[str, str]) -> tuple[list[str], list[str], list[str]]:
     """Return owners, fixture exemptions, and refused missing siblings."""
-    manifest_texts = {path: text for path, text in texts.items()
-                      if PurePosixPath(path).name == "Cargo.toml"}
+    manifest_texts = {path: text for path, text in texts.items() if PurePosixPath(path).name == "Cargo.toml"}
     units = workspace_units(texts)
     manifests, exempt, problems = [], [], []
     owned: set[str] = set()
     for lock, facts in units.items():
-        owned.update(facts.manifests)
+        owned.update(facts.owned_manifests)
         manifest = str(PurePosixPath(lock).with_name("Cargo.toml"))
         if facts.fixture:
             exempt.append(lock)
@@ -854,7 +848,7 @@ def lock_manifests(texts: Mapping[str, str]) -> tuple[list[str], list[str], list
     for manifest in sorted(set(manifest_texts) - owned):
         if manifest not in owned:
             facts = workspace_facts(manifest_texts, PurePosixPath(manifest).parent, [PurePosixPath(lock).parent for lock in units])
-            owned.update(facts.manifests)
+            owned.update(facts.owned_manifests)
             if not facts.fixture:
                 problems.append(f"{manifest}: sibling Cargo.lock is missing")
     return manifests, exempt, problems
@@ -956,8 +950,7 @@ def disk_texts(
             path = Path(directory) / name
             if linked(path):
                 if not ignored_directories:
-                    relative = path.relative_to(repository).as_posix()
-                    raise OSError(f"{relative}: symbolic directory link is not allowed")
+                    raise OSError(f"{path.relative_to(repository).as_posix()}: symbolic directory link is not allowed")
                 continue
             if name.lower() not in ignored_directories and path.resolve() != own:
                 kept.append(name)
@@ -966,8 +959,7 @@ def disk_texts(
             if name in {"Cargo.toml", "Cargo.lock"}:
                 path = Path(directory) / name
                 if path.is_symlink():
-                    relative = path.relative_to(repository).as_posix()
-                    raise OSError(f"{relative}: symbolic metadata link is not allowed")
+                    raise OSError(f"{path.relative_to(repository).as_posix()}: symbolic metadata link is not allowed")
                 texts[path.relative_to(repository).as_posix()] = path.read_text(
                     encoding="utf-8", errors="replace"
                 )

@@ -250,15 +250,10 @@ class FixtureDetectionTestCase(unittest.TestCase):
 
 class LockManifestSelectionTestCase(unittest.TestCase):
     def test_root_and_excluded_workspace_locks_are_selected(self) -> None:
-        texts = {
-            "Cargo.toml": '[workspace]\nexclude = ["fuzz"]\n',
-            "Cargo.lock": STANDALONE,
-            "fuzz/Cargo.toml": '[package]\nname = "fuzz"\nversion = "0.0.0"\n[workspace]\n[dependencies]\npal = { path = "../pal" }\n',
-            "fuzz/Cargo.lock": STANDALONE,
-            "orphan/Cargo.toml": '[package]\nname = "orphan"\nversion = "0.1.0"\n',
-        }
-        expected = (["Cargo.toml", "fuzz/Cargo.toml"], [], ["orphan/Cargo.toml: sibling Cargo.lock is missing"])
-        self.assertEqual(lockfile.lock_manifests(texts), expected)
+        texts = {"Cargo.toml": '[workspace]\nexclude = ["fuzz"]\n', "Cargo.lock": STANDALONE,
+                 "fuzz/Cargo.toml": '[package]\nname = "fuzz"\nversion = "0.0.0"\n[workspace]\n[dependencies]\npal = { path = "../pal" }\n',
+                 "fuzz/Cargo.lock": STANDALONE, "orphan/Cargo.toml": '[package]\nname = "orphan"\nversion = "0.1.0"\n'}
+        self.assertEqual(lockfile.lock_manifests(texts), (["Cargo.toml", "fuzz/Cargo.toml"], [], ["orphan/Cargo.toml: sibling Cargo.lock is missing"]))
         self.assertEqual(lockfile.lock_manifests({"nested/Cargo.lock": STANDALONE}), ([], [], ["nested/Cargo.lock: sibling Cargo.toml is missing"]))
 
     def test_candidate_rejects_directory_links(self) -> None:
@@ -283,7 +278,6 @@ class LockManifestSelectionTestCase(unittest.TestCase):
                 self.assertNotEqual(path, manifest, "CLI resolved the requested manifest")
                 return original_resolve(path, *args, **kwargs)
             with (
-                mock.patch.multiple(lockfile, REPOSITORY=lockfile.REPOSITORY, LOCKFILE=lockfile.LOCKFILE, MANIFEST=lockfile.MANIFEST),
                 mock.patch.object(sys, "argv", ["lockfile.py", "--check", "--manifest-path", str(manifest)]),
                 mock.patch.object(Path, "resolve", resolve),
                 mock.patch.object(Path, "is_symlink", lambda path: path == manifest or original_link(path)),
@@ -327,8 +321,8 @@ class TreeCheckTestCase(unittest.TestCase):
         for directory, extra in cases:
             with self.subTest(directory), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
                 root = Path(temp)
-                self.cargo(root, self.package(root, "good", "good"))
                 self.package(root, directory, "orphan", extra)
+                self.cargo(root, self.package(root, "good", "good", '[dependencies]\norphan = { path = "../orphan" }\n' if directory == "orphan" else ""))
                 command = [sys.executable, str(SCRIPT), "--check", "--check-tree", str(root)]
                 completed = lockfile.run_bounded(command, cwd=root, env=os.environ, deadline=60)
             missing = f"{directory}/Cargo.toml: sibling Cargo.lock is missing"
@@ -353,8 +347,7 @@ class TreeCheckTestCase(unittest.TestCase):
                 bad = lockfile.check(root)
             self.assertEqual((bad, "fuzz" in stderr.getvalue(), "exempt" in stdout.getvalue()), (1, True, False))
             self.cargo(root, "fuzz/Cargo.toml")
-            fixed = lockfile.check(root)
-            self.assertEqual(fixed, 0)
+            self.assertEqual(lockfile.check(root), 0)
 
 
 class WorkspaceScopeTestCase(unittest.TestCase):
