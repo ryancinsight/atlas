@@ -66,19 +66,28 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
             lockfile.run_bounded,
             lockfile.REPOSITORY,
             lockfile.LOCKFILE,
+            lockfile.MANIFEST,
             lockfile.SCRIPT_CHECKOUT,
         )
         self.addCleanup(self._restore)
         lockfile.REPOSITORY = self.root
         lockfile.LOCKFILE = self.root / "Cargo.lock"
+        lockfile.MANIFEST = self.root / "Cargo.toml"
         lockfile.SCRIPT_CHECKOUT = Path(self.temp.name) / "elsewhere"
         self.resolves = True
         self.resolution_calls = 0
 
         def fake_run(command, **_kwargs):
             self.resolution_calls += 1
+            metadata = (
+                '{"packages": [], "workspace_members": [], '
+                '"resolve": {"nodes": []}}'
+            )
             return subprocess.CompletedProcess(
-                command, 0 if self.resolves else 101, "{}", "" if self.resolves else "stale"
+                command,
+                0 if self.resolves else 101,
+                metadata,
+                "" if self.resolves else "stale",
             )
 
         lockfile.run_bounded = fake_run
@@ -88,6 +97,7 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
             lockfile.run_bounded,
             lockfile.REPOSITORY,
             lockfile.LOCKFILE,
+            lockfile.MANIFEST,
             lockfile.SCRIPT_CHECKOUT,
         ) = self.original
 
@@ -199,7 +209,8 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         code, stderr = self._check()
         self.assertEqual(code, 1)
         self.assertIn("stale rather than flattened", stderr)
-        self.assertIn("cargo said:\nstale", stderr)
+        self.assertIn("cargo metadata --locked --offline failed", stderr)
+        self.assertIn(": stale", stderr)
 
     def test_an_unreadable_manifest_fails_the_check_closed(self) -> None:
         """A tree the checker cannot read must not be read as clean (K7)."""
