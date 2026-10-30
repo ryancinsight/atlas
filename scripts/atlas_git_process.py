@@ -9,6 +9,7 @@ import tarfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import BinaryIO
 
 import process_tree
 
@@ -25,7 +26,7 @@ class GitProcessError(RuntimeError):
 class GitProcessResult:
     command: tuple[str, ...]
     returncode: int
-    stdout: bytes
+    stdout: bytes | None
     stderr: bytes
 
 
@@ -75,6 +76,7 @@ def execute_process(
     cwd: Path | None = None,
     stdin: bytes | None = None,
     env: dict[str, str] | None = None,
+    stdout_destination: BinaryIO | None = None,
     timeout: int,
 ) -> GitProcessResult:
     """Run a process with a deadline and descendant cleanup.
@@ -106,6 +108,7 @@ def execute_process(
             env=environment,
             input=stdin,
             timeout=timeout,
+            stdout_destination=stdout_destination,
         )
     except process_tree.ProcessTreeTimeout as exc:
         raise _timeout_error(arguments, timeout, exc.cleanup_error) from exc
@@ -129,6 +132,7 @@ def execute(
     *,
     stdin: bytes | None = None,
     env: dict[str, str] | None = None,
+    stdout_destination: BinaryIO | None = None,
     timeout: int,
 ) -> GitProcessResult:
     """Run Git against one repository with a bounded process lifetime."""
@@ -136,6 +140,7 @@ def execute(
         ("git", "-C", str(repo), *args),
         stdin=stdin,
         env=env,
+        stdout_destination=stdout_destination,
         timeout=timeout,
     )
 

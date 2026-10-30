@@ -8,6 +8,7 @@ import os
 import pathlib
 import subprocess
 import sys
+import tempfile
 import unittest
 import uuid
 from unittest.mock import patch
@@ -52,6 +53,18 @@ class GitProcessTests(unittest.TestCase):
         self.assertEqual(result.returncode, 19)
         self.assertEqual(result.stdout, b"input\x00")
         self.assertEqual(result.stderr, b"error")
+
+    def test_execute_process_streams_to_caller_owned_binary_destination(self):
+        command = "import sys; sys.stdout.buffer.write(b'raw\\x00bytes')"
+        with tempfile.TemporaryFile(mode="w+b") as output:
+            result = atlas_git_process.execute_process(
+                [sys.executable, "-c", command], stdout_destination=output,
+                timeout=HANG_GUARD_SECONDS,
+            )
+            self.assertIsNone(result.stdout)
+            self.assertEqual(result.stderr, b"")
+            output.seek(0)
+            self.assertEqual(output.read(), b"raw\x00bytes")
 
     def test_explicit_private_index_is_preserved(self):
         completed = subprocess.CompletedProcess(
