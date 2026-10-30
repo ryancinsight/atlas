@@ -264,7 +264,7 @@ class LockManifestSelectionTestCase(unittest.TestCase):
                 )
                 (root / "Cargo.lock").write_text(STANDALONE, encoding="utf-8")
                 calls = []
-                with mock.patch.object(lockfile, "check_resolution", calls.append), \
+                with mock.patch.object(lockfile, "cargo_metadata", calls.append), \
                         contextlib.redirect_stderr(stderr := io.StringIO()):
                     code = lockfile.check(root)
             self.assertEqual((code, calls), (1, []))
@@ -284,7 +284,7 @@ class LockManifestSelectionTestCase(unittest.TestCase):
             (manifest.parent / "Cargo.lock").write_text(STANDALONE, encoding="utf-8")
             (root / "Cargo.lock").write_text(STANDALONE, encoding="utf-8")
             calls = []
-            with mock.patch.object(lockfile, "check_resolution", calls.append), \
+            with mock.patch.object(lockfile, "cargo_metadata", calls.append), \
                     contextlib.redirect_stderr(stderr := io.StringIO()):
                 code = lockfile.check(root)
         self.assertEqual((code, calls), (1, []))
@@ -675,10 +675,13 @@ class NativeOwnershipTestCase(unittest.TestCase):
                     '\n[target."cfg(loom)".dependencies]\nsupport={path="../support"}\n'
                 )
             self.cargo(root, "Cargo.toml")
-            stderr = io.StringIO()
-            with contextlib.redirect_stderr(stderr):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 bad = lockfile.check(root)
-            self.assertEqual((bad, "fuzz" in stderr.getvalue()), (1, True))
+            self.assertEqual(
+                (bad, "fuzz" in stderr.getvalue(), "exempt" in stdout.getvalue()),
+                (1, True, False),
+            )
             self.cargo(root, "fuzz/Cargo.toml")
             self.assertEqual(lockfile.check(root), 0)
 
@@ -693,7 +696,19 @@ class NativeOwnershipTestCase(unittest.TestCase):
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
                 code = lockfile.check(root)
+            self.write(
+                root,
+                "contracts/atlas-device/Cargo.toml",
+                fixture.replace('x={path="../../../sibling"}\n', 'x="0.1"\n', 1),
+            )
+            rejected_stderr = io.StringIO()
+            with contextlib.redirect_stderr(rejected_stderr):
+                rejected = lockfile.check(root)
         self.assertEqual((code, "exempt" in stdout.getvalue()), (0, True))
+        self.assertEqual(
+            (rejected, "leaves the candidate" in rejected_stderr.getvalue()),
+            (1, True),
+        )
 
     def test_excluded_and_path_dependencies_do_not_hide_missing_locks(self) -> None:
         cases = (("ws/excluded", '[workspace]\nexclude=["excluded"]\n'), ("external", "path"))
@@ -735,15 +750,23 @@ class NativeOwnershipTestCase(unittest.TestCase):
 
     def test_every_manifest_path_role_is_confined_before_cargo(self) -> None:
         declarations = (
-            'workspace="../../outside"', 'readme="../../outside"',
-            'license-file="../../outside"', 'build="../../outside"',
-            '[lib]\npath="../../outside"',
-            '[[bin]]\nname="a"\npath="../../outside"',
-            '[dependencies]\nx={path="../../outside"}',
-            '[replace]\n"x:1.0.0"={path="../../outside"}',
+            ('workspace="../../outside"', "package.workspace"),
+            ('readme="../../outside"', "package.readme"),
+            ('license-file="../../outside"', "package.license-file"),
+            ('build="../../outside"', "package.build"),
+            ('[lib]\npath="../../outside"', "lib.path"),
+            ('[[bin]]\nname="a"\npath="../../outside"', "bin.path"),
+            ('[[example]]\nname="a"\npath="../../outside"', "example.path"),
+            ('[[test]]\nname="a"\npath="../../outside"', "test.path"),
+            ('[[bench]]\nname="a"\npath="../../outside"', "bench.path"),
+            ('[dependencies]\nx={path="../../outside"}', "dependency.path"),
+            ('[patch.crates-io]\nx={path="../../outside"}', "patch.path"),
+            ('[replace]\n"x:1.0.0"={path="../../outside"}', "replace.path"),
+            ('[workspace]\nmembers=["../../outside"]', "workspace.members"),
+            ('[workspace]\nexclude=["../../outside"]', "workspace.exclude"),
         )
-        for declaration in declarations:
-            with self.subTest(declaration=declaration), \
+        for declaration, role in declarations:
+            with self.subTest(role=role), \
                     tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
                 root = Path(temp)
                 self.write(
@@ -757,7 +780,7 @@ class NativeOwnershipTestCase(unittest.TestCase):
                         contextlib.redirect_stderr(stderr := io.StringIO()):
                     code = lockfile.check(root)
             self.assertEqual((code, calls), (1, []))
-            self.assertIn("leaves the candidate", stderr.getvalue())
+            self.assertIn(f"`{role}` path", stderr.getvalue())
 
     def test_contained_file_and_replace_paths_preserve_ownership(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
