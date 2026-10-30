@@ -20,6 +20,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path, PurePosixPath
+from unittest import mock
 
 SCRIPT = Path(__file__).resolve().parent.parent / "lockfile.py"
 SPEC = importlib.util.spec_from_file_location("atlas_lockfile_form", SCRIPT)
@@ -244,6 +245,155 @@ class FixtureDetectionTestCase(unittest.TestCase):
         }
         problems, exempt = lockfile.judge_locks(manifests)
         self.assertEqual((problems, exempt), ([], ["Cargo.lock"]))
+
+
+class LockManifestSelectionTestCase(unittest.TestCase):
+    """Every standalone-consumable lock has one explicit manifest owner."""
+
+    def test_root_and_excluded_workspace_locks_are_selected(self) -> None:
+        texts = {
+            "Cargo.toml": '[workspace]\nexclude = ["fuzz"]\n',
+            "Cargo.lock": STANDALONE,
+            "fuzz/Cargo.toml": '[package]\nname = "fuzz"\nversion = "0.0.0"\n'
+            '[workspace]\n[dependencies]\npal = { path = "../pal" }\n',
+            "fuzz/Cargo.lock": STANDALONE,
+            "pal/Cargo.toml": '[package]\nname = "pal"\nversion = "0.1.0"\n',
+            "fixture/Cargo.toml": '[package]\nname = "fixture"\nversion = "0.0.0"\n'
+            '[dependencies]\noutside = { path = "../../outside" }\n',
+            "fixture/Cargo.lock": STANDALONE,
+            "lockless/Cargo.toml": '[package]\nname = "lockless"\nversion = "0.0.0"\n',
+        }
+        manifests, exempt, problems = lockfile.lock_manifests(texts)
+        self.assertEqual(
+            (manifests, exempt, problems),
+            (["Cargo.toml", "fuzz/Cargo.toml"], ["fixture/Cargo.lock"], []),
+        )
+
+    def test_a_lock_without_its_sibling_manifest_is_refused(self) -> None:
+        selected = lockfile.lock_manifests({"nested/Cargo.lock": STANDALONE})
+        self.assertEqual(
+            selected,
+            ([], [], ["nested/Cargo.lock: sibling Cargo.toml is missing"]),
+        )
+
+
+class CandidateEnumerationTestCase(unittest.TestCase):
+    """An exported candidate contributes every archived metadata input."""
+
+    def test_ignored_directory_names_are_included_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            for directory in ("target/tool", "node_modules/tool"):
+                path = root / directory
+                path.mkdir(parents=True)
+                (path / "Cargo.toml").write_text("[workspace]\n", encoding="utf-8")
+                (path / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
+            texts = lockfile.disk_texts(root, ignored_directories=frozenset())
+            manifests, _, _ = lockfile.lock_manifests(texts)
+            linked = root / "linked"
+            linked.mkdir()
+            original_link = Path.is_symlink
+            with (
+                mock.patch.object(Path, "is_symlink",
+                                  lambda path: path.name == "linked" or original_link(path)),
+                self.assertRaisesRegex(OSError, "symbolic directory link"),
+            ):
+                lockfile.disk_texts(root, ignored_directories=frozenset())
+        self.assertEqual(
+            (sorted(texts), manifests),
+            ([
+                "node_modules/tool/Cargo.lock",
+                "node_modules/tool/Cargo.toml",
+                "target/tool/Cargo.lock",
+                "target/tool/Cargo.toml",
+            ], ["node_modules/tool/Cargo.toml", "target/tool/Cargo.toml"]),
+        )
+
+    def test_cli_keeps_the_candidate_root_lexical(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            outside = root / "outside"
+            outside.mkdir()
+            for directory in (root, outside):
+                (directory / "Cargo.toml").write_text("[workspace]\n", encoding="utf-8")
+                (directory / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
+            originals = (lockfile.REPOSITORY, lockfile.LOCKFILE, lockfile.MANIFEST)
+            original_resolve, original_link = Path.resolve, Path.is_symlink
+            def resolve(path: Path, *args, **kwargs) -> Path:
+                if path == root / "Cargo.toml":
+                    return outside / "Cargo.toml"
+                return original_resolve(path, *args, **kwargs)
+            stderr = io.StringIO()
+            try:
+                with (
+                    mock.patch.object(sys, "argv", ["lockfile.py", "--check", "--manifest-path", str(root / "Cargo.toml")]),
+                    mock.patch.object(Path, "resolve", resolve),
+                    mock.patch.object(Path, "is_symlink", lambda path: path == root / "Cargo.toml" or original_link(path)),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    code = lockfile.main()
+            finally:
+                lockfile.REPOSITORY, lockfile.LOCKFILE, lockfile.MANIFEST = originals
+        self.assertEqual(code, 1)
+        self.assertIn("symbolic metadata link", stderr.getvalue())
+
+
+class TreeCheckTestCase(unittest.TestCase):
+    """The tree check executes Cargo for each selected manifest."""
+
+    @staticmethod
+    def write(root: Path, relative: str, text: str) -> None:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8", newline="\n")
+
+    def cargo(self, root: Path, manifest: str) -> None:
+        completed = lockfile.run_outside_the_overlay(["generate-lockfile"],
+                                                     root / manifest, deadline=60)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_target_dependency_stales_only_the_excluded_workspace_lock(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(
+                root,
+                "Cargo.toml",
+                '[workspace]\nresolver = "3"\nmembers = ["pal", "support"]\nexclude = ["fuzz"]\n',
+            )
+            for package in ("pal", "support"):
+                self.write(
+                    root,
+                    f"{package}/Cargo.toml",
+                    f'[package]\nname = "{package}"\nversion = "0.1.0"\nedition = "2024"\n',
+                )
+                self.write(root, f"{package}/src/lib.rs", "pub fn present() {}\n")
+            self.write(
+                root,
+                "fuzz/Cargo.toml",
+                '[package]\nname = "fuzz"\nversion = "0.0.0"\nedition = "2024"\n'
+                '[workspace]\n[dependencies]\npal = { path = "../pal" }\n',
+            )
+            self.write(root, "fuzz/src/lib.rs", "pub fn target() {}\n")
+            self.cargo(root, "Cargo.toml")
+            self.cargo(root, "fuzz/Cargo.toml")
+            with (root / "pal/Cargo.toml").open("a", encoding="utf-8") as manifest:
+                manifest.write(
+                    "\n[target.'cfg(loom)'.dependencies]\n"
+                    'support = { path = "../support" }\n'
+                )
+            self.cargo(root, "Cargo.toml")
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                bad = lockfile.check(root / "Cargo.toml")
+            self.assertEqual(bad, 1)
+            self.assertIn("fuzz", stderr.getvalue())
+            self.assertNotIn("exempt", stdout.getvalue())
+            self.cargo(root, "fuzz/Cargo.toml")
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                fixed = lockfile.check(root / "Cargo.toml")
+            self.assertEqual(fixed, 0)
 
 
 class WorkspaceScopeTestCase(unittest.TestCase):

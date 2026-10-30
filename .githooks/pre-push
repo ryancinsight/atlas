@@ -509,6 +509,34 @@ debt_gate() {
     return "$status"
 }
 
+lock_gate() {
+    local tip="$1" changed python_bin candidate status
+    [ -n "$gate_base" ] || return 1
+    changed="$(git -C "$atlas_root" diff --name-only "$gate_base".."$tip")" || return 1
+    printf '%s\n' "$changed" | grep -qE '(^|/)Cargo\.(toml|lock)$' || return 0
+    python_bin="${PYTHON:-}"
+    if [ -z "$python_bin" ]; then
+        for candidate in python3 python; do
+            command -v "$candidate" >/dev/null 2>&1 && { python_bin="$candidate"; break; }
+        done
+    fi
+    [ -n "$python_bin" ] || return 1
+    candidate="$(mktemp -d "${TMPDIR:-/tmp}/atlas-lock.XXXXXX")" || return 1
+    mkdir "$candidate/.checker"
+    if ! git -C "$atlas_root" archive "$tip" | tar -x -C "$candidate" \
+        || ! git -C "$atlas_root" archive "$trusted_rescue_ref" scripts/lockfile.py \
+            | tar -x -C "$candidate/.checker"; then
+        rm -rf "$candidate"
+        return 1
+    fi
+    CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$atlas_root/target}" "$python_bin" \
+        "$candidate/.checker/scripts/lockfile.py" --check \
+        --manifest-path "$candidate/Cargo.toml"
+    status=$?
+    rm -rf "$candidate"
+    return "$status"
+}
+
 # Atlas's own PM boards and tracked images, under the same budget gate the
 # members run (scripts/atlas-artifact-budget.py): an over-budget board may
 # not grow, an oversized image may not be added or touched.
@@ -619,6 +647,7 @@ case "$status" in
             tip="${pushed_tips[$i]}"
             gate_base="$(gate_base_for "$tip" "${pushed_bases[$i]}")"
             debt_gate "$tip" || exit 1
+            lock_gate "$tip" || exit 1
             budget_gate "$tip" || exit 1
             secret_gate "$tip" || exit 1
             refspec_gate "$tip" || exit 1
