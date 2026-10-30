@@ -244,7 +244,7 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         self._write("src/lib.rs", "pub fn present() {}\n")
         code, stderr = self._check_candidate()
         self.assertEqual(code, 1)
-        self.assertIn("does not exist", stderr)
+        self.assertIn("Cargo.toml: sibling Cargo.lock is missing", stderr)
 
 
 if __name__ == "__main__":
