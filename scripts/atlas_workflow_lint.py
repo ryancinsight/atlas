@@ -1,4 +1,4 @@
-"""Project same-repository workflow references from an exact Git candidate."""
+"""Project same-repository references; candidate bytes must exactly match stored Git blobs."""
 
 import os
 import re
@@ -12,7 +12,6 @@ import process_tree
 
 CONFIG_NAMES = ("actionlint.yaml", "actionlint.yml")
 FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
-Inventory = tuple[tuple[Path, ...], tuple[Path, ...]]
 
 
 class WorkflowSourceError(ValueError):
@@ -172,42 +171,32 @@ def _checkout(root: Path, candidate: str) -> None:
 
 def _candidate_bytes(root: Path, candidate: str, path: Path) -> bytes:
     relative = path.relative_to(root).as_posix()
-    expected = _git(root, "rev-parse", "--verify", f"{candidate}:{relative}").strip()
+    expected = _git(root, "cat-file", "blob", f"{candidate}:{relative}")
     source = _resolved(root, path, relative).read_bytes()
-    observed = _git(root, "hash-object", "--path", relative, "--stdin", input=source).strip()
-    if observed != expected:
+    if source != expected:
         raise WorkflowSourceError(f"lint input differs from candidate {candidate}: {relative}")
     return source
 
 
-def _inventory(root: Path, candidate: str) -> Inventory:
+def _inventory(root: Path, candidate: str) -> tuple[str, ...]:
     paths = _git(
         root, "ls-tree", "-r", "-z", "--name-only", candidate, "--",
         ".github/workflows",
         *(f".github/{name}" for name in CONFIG_NAMES),
     ).split(b"\0")
-    relative = [Path(value.decode("utf-8", "strict")) for value in paths if value]
-    workflows = tuple(
-        root / path
-        for path in relative
-        if path.parent == Path(".github/workflows") and path.suffix in (".yml", ".yaml")
-    )
-    configs = tuple(root / path for path in relative if path.name in CONFIG_NAMES)
-    return workflows, configs
+    return tuple(sorted(value.decode("utf-8", "strict") for value in paths if value))
 
 
-def _working_inventory(root: Path) -> Inventory:
-    workflows = tuple(
-        sorted(path for path in (root / ".github" / "workflows").glob("*") if path.suffix in (".yml", ".yaml"))
-    )
-    configs = tuple(
-        root / ".github" / name for name in CONFIG_NAMES if os.path.lexists(root / ".github" / name)
-    )
-    return workflows, configs
+def _working_inventory(root: Path) -> tuple[str, ...]:
+    paths = [path for path in (root / ".github" / "workflows").glob("*") if path.suffix in (".yml", ".yaml")]
+    paths.extend(root / ".github" / name for name in CONFIG_NAMES if os.path.lexists(root / ".github" / name))
+    return tuple(sorted(path.relative_to(root).as_posix() for path in paths))
 
 
-def _collect(root: Path, candidate: str, inventory: Inventory) -> tuple[dict[Path, bytes], dict[Path, bytes]]:
-    workflows, configs = inventory
+def _collect(root: Path, candidate: str, inventory: tuple[str, ...]) -> tuple[dict[Path, bytes], dict[Path, bytes]]:
+    paths = [root / relative for relative in inventory]
+    workflows = [path for path in paths if path.parent == root / ".github" / "workflows"]
+    configs = [path for path in paths if path.name in CONFIG_NAMES]
     pending = [(path, "workflow") for path in workflows]
     queued = set(workflows)
     inputs = {path: _candidate_bytes(root, candidate, path) for path in configs}

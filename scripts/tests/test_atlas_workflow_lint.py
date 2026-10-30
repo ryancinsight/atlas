@@ -1,4 +1,3 @@
-import shutil
 import sys
 import tempfile
 import unittest
@@ -30,17 +29,19 @@ runs:
     - shell: bash
       run: echo ok
 """
+ACTION_PATH = ".github/actions/sample/action.yml"
+CONFIG = "self-hosted-runner:\n  labels: [custom-runner]\n"
+FILTER_ATTRIBUTE = f"{ACTION_PATH} filter=judged\n"
+GIT_IDENTITY = ("-c", "user.email=workflow-lint@example.invalid", "-c", "user.name=workflow-lint")
 
 
 def fixture(test: unittest.TestCase) -> tuple[Path, Path, Path]:
-    temporary = tempfile.TemporaryDirectory()
-    test.addCleanup(temporary.cleanup)
-    root = Path(temporary.name).resolve()
+    root = Path(test.enterContext(tempfile.TemporaryDirectory())).resolve()
     workflow = root / ".github" / "workflows" / "check.yml"
     action = root / ".github" / "actions" / "sample" / "action.yml"
     workflow.parent.mkdir(parents=True)
     action.parent.mkdir(parents=True)
-    (root / ".github" / "actionlint.yaml").write_text("self-hosted-runner:\n  labels: [custom-runner]\n", encoding="utf-8", newline="\n")
+    (root / ".github" / "actionlint.yaml").write_text(CONFIG, encoding="utf-8", newline="\n")
     workflow.write_text(WORKFLOW, encoding="utf-8", newline="\n")
     action.write_text(ACTION, encoding="utf-8", newline="\n")
     return root, workflow, action
@@ -49,15 +50,12 @@ def fixture(test: unittest.TestCase) -> tuple[Path, Path, Path]:
 def commit(test: unittest.TestCase, root: Path) -> str:
     commands = (
         ("init", "--quiet"),
-        ("config", "user.email", "workflow-lint@example.invalid"),
-        ("config", "user.name", "workflow-lint"),
         ("config", "core.autocrlf", "false"),
         ("add", "--", ".github"),
-        ("commit", "--quiet", "-m", "test: add workflow fixture"),
+        (*GIT_IDENTITY, "commit", "--quiet", "-m", "test: add workflow fixture"),
     )
     for command in commands:
-        result = lint.process_tree.run(["git", *command], cwd=root, timeout=30)
-        test.assertEqual(result.returncode, 0, result.stderr)
+        lint._git(root, *command)
     return lint._git(root, "rev-parse", "HEAD").decode().strip()
 
 
@@ -87,9 +85,7 @@ class WorkflowProjectionTests(unittest.TestCase):
     def test_rejects_escaping_action_path_components(self) -> None:
         for kind in ("file", "directory"):
             root, workflow, action = fixture(self)
-            outside = root.parent / f"{root.name}-{kind}"
-            outside.mkdir()
-            self.addCleanup(shutil.rmtree, outside)
+            outside = Path(self.enterContext(tempfile.TemporaryDirectory()))
             target = outside / "action.yml"
             target.write_text(ACTION, encoding="utf-8", newline="\n")
             action.unlink()
@@ -114,10 +110,9 @@ class CandidateSnapshotTests(unittest.TestCase):
         projected, inputs = lint.snapshot(self.root, self.candidate)
 
         self.assertEqual(projected[self.workflow], WORKFLOW.replace('uses: "$/', 'uses: "./', 1).encode())
-        self.assertEqual(inputs[self.action], ACTION.encode())
         self.assertEqual(
-            set(inputs),
-            {self.workflow, self.action, self.root / ".github" / "actionlint.yaml"},
+            (inputs[self.action], set(inputs)),
+            (ACTION.encode(), {self.workflow, self.action, self.root / ".github" / "actionlint.yaml"}),
         )
 
     def test_rejects_changed_candidate_inputs(self) -> None:
@@ -128,6 +123,22 @@ class CandidateSnapshotTests(unittest.TestCase):
                 with self.assertRaisesRegex(lint.WorkflowSourceError, "differs from candidate"):
                     lint._candidate_bytes(self.root, self.candidate, path)
                 path.write_bytes(original)
+
+        (self.root / ".git" / "info" / "attributes").write_text(FILTER_ATTRIBUTE, encoding="utf-8", newline="\n")
+        lint._git(self.root, "config", "filter.judged.clean", f"git cat-file blob HEAD:{ACTION_PATH}")
+        self.action.write_text(
+            ACTION.replace("echo ok", "echo changed"), encoding="utf-8", newline="\n")
+        lint._git(self.root, "add", "--", ACTION_PATH)
+        self.assertEqual(lint._git(self.root, "status", "--porcelain"), b"")
+        with self.assertRaisesRegex(lint.WorkflowSourceError, "differs from candidate"):
+            lint.snapshot(self.root, self.candidate)
+
+    def test_inventory_order_is_platform_independent(self) -> None:
+        for name in ("Z.yml", "a.yml"):
+            (self.workflow.parent / name).write_text("jobs: {}\n", encoding="utf-8", newline="\n")
+        candidate = commit(self, self.root)
+        projected, _ = lint.snapshot(self.root, candidate)
+        self.assertEqual({path.name for path in projected}, {"Z.yml", "a.yml", "check.yml"})
 
     def test_rejects_ignored_inputs_absent_from_candidate(self) -> None:
         for relative in (
