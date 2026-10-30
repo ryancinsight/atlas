@@ -332,7 +332,7 @@ def check_resolution(manifest: Path, *, deadline: float) -> int:
     return 0
 
 
-def check() -> int:
+def check(repository: Path | None = None) -> int:
     """Judge every lock under the repository, then prove the root one resolves.
 
     The overlay's signature is judged by the one rule ([`judge_locks`]) that
@@ -341,12 +341,15 @@ def check() -> int:
     and a CI checkout are not always repositories to ask. Staleness, which
     needs real resolution, is the `--locked` arm below.
     """
-    if not LOCKFILE.is_file():
-        print(f"error: {LOCKFILE} does not exist", file=sys.stderr)
+    repository = REPOSITORY if repository is None else repository
+    lockfile = repository / "Cargo.lock"
+    manifest = repository / "Cargo.toml"
+    if not lockfile.is_file():
+        print(f"error: {lockfile} does not exist", file=sys.stderr)
         return 1
 
     try:
-        texts = disk_texts(REPOSITORY)
+        texts = disk_texts(repository)
     except OSError as error:
         print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
         return 1
@@ -354,12 +357,12 @@ def check() -> int:
     if report_lock_form(problems, exempt):
         return 1
 
-    if check_resolution(MANIFEST, deadline=CARGO_DEADLINE_SECONDS):
+    if check_resolution(manifest, deadline=CARGO_DEADLINE_SECONDS):
         return 1
 
     locks = sum(1 for path in texts if PurePosixPath(path).name == "Cargo.lock")
     print(f"Cargo.lock resolves under --locked; {locks - len(exempt)} lock(s) in standalone form.")
-    return check_provider_identity()
+    return check_provider_identity(lockfile)
 
 
 def locked_package_records(lock_text: str) -> list[Mapping[str, object]]:
@@ -608,6 +611,54 @@ def dependency_paths(manifest: Mapping[str, object]) -> Iterator[str]:
                 yield spec["path"]
 
 
+class ManifestPaths(NamedTuple):
+    """Path-bearing Cargo declarations grouped by ownership role."""
+
+    workspace: str | None
+    members: tuple[str, ...]
+    excluded: tuple[str, ...]
+    dependencies: tuple[str, ...]
+    patches: tuple[str, ...]
+
+    def references(self) -> Iterator[str]:
+        """Yield every path Cargo may follow from the manifest."""
+        if self.workspace is not None:
+            yield self.workspace
+        yield from self.members
+        yield from self.excluded
+        yield from self.dependencies
+        yield from self.patches
+
+
+def manifest_paths(manifest: Mapping[str, object]) -> ManifestPaths:
+    """Read every path-bearing Cargo declaration without resolving it."""
+    package = manifest.get("package")
+    workspace_path = package.get("workspace") if isinstance(package, dict) else None
+    workspace = manifest.get("workspace")
+
+    def entries(key: str) -> tuple[str, ...]:
+        listed = workspace.get(key) if isinstance(workspace, dict) else None
+        if not isinstance(listed, list):
+            return ()
+        return tuple(entry for entry in listed if isinstance(entry, str))
+
+    patches = manifest.get("patch")
+    patch_tables = patches.values() if isinstance(patches, dict) else ()
+    patch_paths = tuple(
+        path
+        for table in patch_tables
+        if isinstance(table, dict)
+        for path in dependency_paths({"dependencies": table})
+    )
+    return ManifestPaths(
+        workspace_path if isinstance(workspace_path, str) else None,
+        entries("members"),
+        entries("exclude"),
+        tuple(dependency_paths(manifest)),
+        patch_paths,
+    )
+
+
 def escapes_repository(manifest: PurePosixPath, path: str) -> bool:
     """Whether a manifest's `path` dependency leaves its repository.
 
@@ -681,18 +732,9 @@ def workspace_selection(
     if not isinstance(table, dict):
         return None
 
-    def entries(key: str) -> list[PurePosixPath]:
-        listed = table.get(key)
-        if not isinstance(listed, list):
-            return []
-        return [
-            workspace_relative(workspace, entry)
-            for entry in listed
-            if isinstance(entry, str)
-        ]
-
-    members = entries("members")
-    excluded = entries("exclude")
+    paths = manifest_paths(root_data)
+    members = [workspace_relative(workspace, entry) for entry in paths.members]
+    excluded = [workspace_relative(workspace, entry) for entry in paths.excluded]
     # Only workspaces *beneath* this one are boundaries. An ancestor's
     # `[workspace]` does not own this lock: this one declares its own, and may
     # itself be a `[workspace]` root under an umbrella that only lists other
@@ -744,7 +786,7 @@ def workspace_selection(
             data = parsed.get(name)
             if not isinstance(data, dict):
                 continue
-            for path in dependency_paths(data):
+            for path in manifest_paths(data).dependencies:
                 target = workspace_relative(PurePosixPath(name).parent, path)
                 target_manifest = (target / "Cargo.toml").as_posix()
                 if target_manifest in selected or target_manifest not in manifests:

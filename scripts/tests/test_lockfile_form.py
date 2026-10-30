@@ -20,6 +20,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path, PurePosixPath
+from unittest import mock
 
 SCRIPT = Path(__file__).resolve().parent.parent / "lockfile.py"
 SPEC = importlib.util.spec_from_file_location("atlas_lockfile_form", SCRIPT)
@@ -244,6 +245,19 @@ class FixtureDetectionTestCase(unittest.TestCase):
         }
         problems, exempt = lockfile.judge_locks(manifests)
         self.assertEqual((problems, exempt), ([], ["Cargo.lock"]))
+
+
+class LockManifestSelectionTestCase(unittest.TestCase):
+    def test_candidate_rejects_directory_links(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            (linked := root / "linked").mkdir()
+            original_link = Path.is_symlink
+            with (
+                mock.patch.object(Path, "is_symlink", lambda path: path.name == "linked" or original_link(path)),
+                self.assertRaisesRegex(OSError, "symbolic directory link"),
+            ):
+                lockfile.disk_texts(root, ignored_directories=frozenset())
 
 
 class WorkspaceScopeTestCase(unittest.TestCase):
