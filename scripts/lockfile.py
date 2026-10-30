@@ -341,6 +341,7 @@ def check(repository: Path | None = None) -> int:
     and a CI checkout are not always repositories to ask. Staleness, which
     needs real resolution, is the `--locked` arm below.
     """
+    ignored = IGNORED_DIRECTORIES if repository is None else frozenset()
     repository = REPOSITORY if repository is None else repository
     lockfile = repository / "Cargo.lock"
     manifest = repository / "Cargo.toml"
@@ -349,7 +350,7 @@ def check(repository: Path | None = None) -> int:
         return 1
 
     try:
-        texts = disk_texts(repository)
+        texts = disk_texts(repository, ignored_directories=ignored)
     except OSError as error:
         print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
         return 1
@@ -1202,7 +1203,7 @@ def main() -> int:
     arguments = parser.parse_args()
     if arguments.manifest_path is not None:
         global REPOSITORY, LOCKFILE, MANIFEST
-        MANIFEST = arguments.manifest_path.resolve()
+        MANIFEST = Path(os.path.abspath(arguments.manifest_path))
         REPOSITORY = MANIFEST.parent
         LOCKFILE = REPOSITORY / "Cargo.lock"
     if arguments.regenerate:
@@ -1211,7 +1212,7 @@ def main() -> int:
         return check_staged()
     if arguments.check_committed:
         return check_committed(arguments.check_committed)
-    return check()
+    return check(REPOSITORY if arguments.manifest_path is not None else None)
 
 
 if __name__ == "__main__":

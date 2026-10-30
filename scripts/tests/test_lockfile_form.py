@@ -259,6 +259,26 @@ class LockManifestSelectionTestCase(unittest.TestCase):
             ):
                 lockfile.disk_texts(root, ignored_directories=frozenset())
 
+    def test_cli_keeps_the_candidate_root_lexical(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            (manifest := root / "Cargo.toml").write_text("[workspace]\n", encoding="utf-8")
+            (root / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
+            original_resolve, original_link = Path.resolve, Path.is_symlink
+
+            def resolve(path: Path, *args, **kwargs) -> Path:
+                self.assertNotEqual(path, manifest, "CLI resolved the requested manifest")
+                return original_resolve(path, *args, **kwargs)
+            with (
+                mock.patch.object(sys, "argv", ["lockfile.py", "--check", "--manifest-path", str(manifest)]),
+                mock.patch.object(Path, "resolve", resolve),
+                mock.patch.object(Path, "is_symlink", lambda path: path == manifest or original_link(path)),
+                contextlib.redirect_stderr(stderr := io.StringIO()),
+            ):
+                code = lockfile.main()
+        self.assertEqual(code, 1)
+        self.assertIn("symbolic metadata link", stderr.getvalue())
+
 
 class WorkspaceScopeTestCase(unittest.TestCase):
     def test_a_nested_workspace_owns_its_manifests(self) -> None:
