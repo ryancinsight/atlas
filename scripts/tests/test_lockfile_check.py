@@ -193,6 +193,7 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
             code = lockfile.check_resolution(
                 self.root / "Cargo.toml",
+                self.root / "Cargo.lock",
                 deadline=60,
             )
         message = stderr.getvalue()

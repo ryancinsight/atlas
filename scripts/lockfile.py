@@ -296,8 +296,9 @@ def cargo_metadata(
     return run_outside_the_overlay(["metadata", *arguments], manifest, deadline=deadline)
 
 
-def check_resolution(manifest: Path, *, deadline: float) -> int:
+def check_resolution(manifest: Path, lockfile: Path, *, deadline: float) -> int:
     """Prove one selected lock resolves without the development overlay."""
+    print(f"checking lock owner {manifest}")
     try:
         completed = cargo_metadata(
             manifest, ["--locked", "--format-version", "1", "--all-features"], deadline=deadline
@@ -316,7 +317,7 @@ def check_resolution(manifest: Path, *, deadline: float) -> int:
         return 1
     if completed.returncode != 0:
         print(
-            "error: the committed Cargo.lock does not resolve under --locked "
+            f"error: {lockfile} does not resolve under --locked "
             "(its sources are intact, so it is stale rather than flattened).\n"
             "\n"
             "The pinned first-party revisions no longer satisfy the manifests'\n"
@@ -329,7 +330,8 @@ def check_resolution(manifest: Path, *, deadline: float) -> int:
             file=sys.stderr,
         )
         return 1
-    return 0
+    print(f"{lockfile} resolves under --locked.")
+    return check_provider_identity(lockfile)
 
 
 def check(repository: Path | None = None) -> int:
@@ -358,12 +360,12 @@ def check(repository: Path | None = None) -> int:
     if report_lock_form(problems, exempt):
         return 1
 
-    if check_resolution(manifest, deadline=CARGO_DEADLINE_SECONDS):
+    if check_resolution(manifest, lockfile, deadline=CARGO_DEADLINE_SECONDS):
         return 1
 
     locks = sum(1 for path in texts if PurePosixPath(path).name == "Cargo.lock")
     print(f"Cargo.lock resolves under --locked; {locks - len(exempt)} lock(s) in standalone form.")
-    return check_provider_identity(lockfile)
+    return 0
 
 
 def locked_package_records(lock_text: str) -> list[Mapping[str, object]]:
