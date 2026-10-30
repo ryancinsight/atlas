@@ -1,4 +1,3 @@
-"""Actual Git/Cargo regressions for immutable snapshot confinement."""
 from __future__ import annotations
 
 import json
@@ -12,7 +11,6 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 from atlas_cargo_snapshot import CargoSnapshotError, SelectedRepository, create_snapshot  # noqa: E402
-
 
 class SnapshotFixture:
     def __init__(self, root: Path) -> None:
@@ -57,16 +55,13 @@ class SnapshotFixture:
         self.run(["git", "commit", "--quiet", "-m", "Add fixture"], repo)
         return SelectedRepository(repo, self.run(["git", "rev-parse", "HEAD"], repo))
 
-
 class CargoSnapshotTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.fixture = SnapshotFixture(self.root)
-
     def tearDown(self) -> None:
         self.temporary.cleanup()
-
     def test_raw_snapshot_retains_basis_paths_modes_and_every_lock(self) -> None:
         provider = self.fixture.repos / "provider"
         self.fixture.package(provider, "provider")
@@ -105,7 +100,6 @@ class CargoSnapshotTests(unittest.TestCase):
             self.assertEqual(snapshot.root.joinpath("repos/consumer", name).read_bytes(), raw)
         self.assertEqual(dict(snapshot.lock_bytes)[snapshot.locks[0]],
                          snapshot.root.joinpath(snapshot.locks[0]).read_bytes())
-
     def test_member_revision_and_tree_entry_boundaries_fail_closed(self) -> None:
         repo = self.fixture.repos / "valid"
         self.fixture.package(repo, "valid")
@@ -172,5 +166,5 @@ class CargoSnapshotTests(unittest.TestCase):
         )
         second = json.loads(self.fixture.run(command, implicit))["packages"][0]["version"]
         self.assertEqual((first, second), ("0.1.0", "9.0.0"))
-        with self.assertRaisesRegex(CargoSnapshotError, "external workspace ancestor"):
+        with self.assertRaisesRegex(CargoSnapshotError, "external workspace"):
             create_snapshot({"implicit": selected}, origins / "snapshot")

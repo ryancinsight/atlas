@@ -19,6 +19,10 @@ object reads ignore local replacement refs and archive attributes.
 For every committed lock, run bounded `cargo metadata --locked --offline
 --no-deps --format-version 1` from a neutral directory. Cargo's records own
 package identity and dependency source, requirement, rename, kind, and target.
+Pinned and exact-revision callers use immutable selected exports. The overlay's
+working mode reads the registered canonical trees live with the same bounded
+native declaration parser and source-bound provider projection; its basis names
+each repository with no revision and makes no immutable-state claim.
 
 Retain same-name package facts. Provider eligibility is first bound to the Git
 repository declared by the dependency source, then exactly one matching
