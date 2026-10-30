@@ -63,6 +63,7 @@ import threading
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import BinaryIO
 
 import darwin_process
 import windows_process
@@ -559,12 +560,20 @@ def run(
     input: bytes | None = None,
     timeout: float,
     output_mode: OutputMode = OutputMode.CAPTURE,
+    stdout_destination: BinaryIO | None = None,
 ) -> subprocess.CompletedProcess[bytes | None]:
-    """Run ``command`` and retire its owned process tree within finite bounds."""
+    """Run ``command`` and retire its owned process tree within finite bounds.
+
+    ``stdout_destination`` streams standard output to a caller-owned binary
+    file. The returned and timeout-result standard output is then ``None``;
+    partial bytes remain available in that file after a timeout.
+    """
     if not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("process timeout must be finite and greater than zero")
     if not isinstance(output_mode, OutputMode):
         raise TypeError("output mode must be an OutputMode")
+    if stdout_destination is not None and output_mode is not OutputMode.CAPTURE:
+        raise ValueError("a stdout destination requires captured output mode")
     arguments = list(command)
     deadline = time.monotonic() + timeout
     job_handle: int | None = None
@@ -583,9 +592,12 @@ def run(
     cleanup_state = _CleanupState()
     with contextlib.ExitStack() as output_files:
         if output_mode is OutputMode.CAPTURE:
-            stdout = output_files.enter_context(tempfile.TemporaryFile(mode="w+b"))
+            capture_stdout = stdout_destination is None
+            stdout = (output_files.enter_context(tempfile.TemporaryFile(mode="w+b"))
+                      if capture_stdout else stdout_destination)
             stderr = output_files.enter_context(tempfile.TemporaryFile(mode="w+b"))
         else:
+            capture_stdout = False
             stdout = None
             stderr = None
         has_input = "1" if input is not None else "0"
@@ -699,7 +711,7 @@ def run(
                 if close_error is not None and caught_error is not None:
                     caught_error.add_note(f"process-tree cleanup failed: {close_error}")
 
-        captured_stdout = _read_output(stdout) if stdout is not None else None
+        captured_stdout = _read_output(stdout) if capture_stdout else None
         captured_stderr = _read_output(stderr) if stderr is not None else None
         if timed_out:
             raise ProcessTreeTimeout(
