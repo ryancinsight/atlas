@@ -609,21 +609,23 @@ class NativeOwnershipTestCase(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertIn(f"{directory}/Cargo.toml: sibling Cargo.lock is missing", stderr.getvalue())
 
-    def test_tracked_target_packages_follow_cargo_ownership(self) -> None:
-        for member in (False, True):
-            with self.subTest(member=member), \
+    def test_tracked_directory_names_follow_cargo_ownership(self) -> None:
+        for directory in ("target", "node_modules", "fuzz"):
+            for member in (False, True):
+                with self.subTest(directory=directory, member=member), \
                     tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
-                root = Path(temp)
-                manifest = self.package(root, "target/tool", "tool")
-                if member:
-                    self.write(
-                        root,
-                        "Cargo.toml",
-                        '[workspace]\nresolver="3"\nmembers=["target/tool"]\n',
-                    )
-                    manifest = "Cargo.toml"
-                self.cargo(root, manifest)
-                self.assertEqual(lockfile.check(root), 0)
+                    root = Path(temp)
+                    package = f"{directory}/tool"
+                    manifest = self.package(root, package, "tool")
+                    if member:
+                        self.write(
+                            root,
+                            "Cargo.toml",
+                            f'[workspace]\nresolver="3"\nmembers=["{package}"]\n',
+                        )
+                        manifest = "Cargo.toml"
+                    self.cargo(root, manifest)
+                    self.assertEqual(lockfile.check(root), 0)
 
     def test_workspace_membership_follows_cargo_metadata(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
@@ -692,6 +694,102 @@ class NativeOwnershipTestCase(unittest.TestCase):
             with contextlib.redirect_stdout(stdout):
                 code = lockfile.check(root)
         self.assertEqual((code, "exempt" in stdout.getvalue()), (0, True))
+
+    def test_excluded_and_path_dependencies_do_not_hide_missing_locks(self) -> None:
+        cases = (("ws/excluded", '[workspace]\nexclude=["excluded"]\n'), ("external", "path"))
+        for directory, root_manifest in cases:
+            with self.subTest(directory=directory), \
+                    tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                self.package(root, directory, "orphan")
+                dependency = (
+                    '[dependencies]\norphan={path="../external"}\n'
+                    if root_manifest == "path" else ""
+                )
+                good = self.package(root, "good", "good", dependency)
+                if root_manifest != "path":
+                    self.write(root, "ws/Cargo.toml", root_manifest)
+                    good = "ws/Cargo.toml"
+                self.cargo(root, good)
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = lockfile.check(root)
+            self.assertEqual(code, 1)
+            self.assertIn(f"{directory}/Cargo.toml: sibling Cargo.lock is missing", stderr.getvalue())
+
+    def test_lock_inventory_rejects_malformed_and_nonowner_locks(self) -> None:
+        for case in ("malformed", "orphan", "member"):
+            with self.subTest(case=case), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                if case == "member":
+                    self.write(root, "Cargo.toml", '[workspace]\nresolver="3"\nmembers=["a"]\n')
+                    self.package(root, "a", "a")
+                    self.cargo(root, "Cargo.toml")
+                    self.write(root, "a/Cargo.lock", STANDALONE)
+                elif case == "orphan":
+                    self.write(root, "Cargo.lock", STANDALONE)
+                else:
+                    self.package(root, "a", "a")
+                    self.write(root, "a/Cargo.lock", "not = [valid")
+                self.assertEqual(lockfile.check(root), 1)
+
+    def test_every_manifest_path_role_is_confined_before_cargo(self) -> None:
+        declarations = (
+            'workspace="../../outside"', 'readme="../../outside"',
+            'license-file="../../outside"', 'build="../../outside"',
+            '[lib]\npath="../../outside"',
+            '[[bin]]\nname="a"\npath="../../outside"',
+            '[dependencies]\nx={path="../../outside"}',
+            '[replace]\n"x:1.0.0"={path="../../outside"}',
+        )
+        for declaration in declarations:
+            with self.subTest(declaration=declaration), \
+                    tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                self.write(
+                    root,
+                    "a/Cargo.toml",
+                    f'[package]\nname="a"\nversion="0.1.0"\n{declaration}\n',
+                )
+                self.write(root, "a/Cargo.lock", STANDALONE)
+                calls = []
+                with mock.patch.object(lockfile, "cargo_metadata", calls.append), \
+                        contextlib.redirect_stderr(stderr := io.StringIO()):
+                    code = lockfile.check(root)
+            self.assertEqual((code, calls), (1, []))
+            self.assertIn("leaves the candidate", stderr.getvalue())
+
+    def test_contained_file_and_replace_paths_preserve_ownership(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.package(root, "bar", "bar")
+            self.package(
+                root,
+                "a",
+                "a",
+                'readme="README.md"\nbuild="build.rs"\n'
+                '[dependencies]\nbar="=0.1.0"\n'
+                '[replace]\n"bar:0.1.0"={path="../bar"}\n',
+            )
+            self.write(root, "a/README.md", "a\n")
+            self.write(root, "a/build.rs", "fn main() {}\n")
+            self.cargo(root, "a/Cargo.toml")
+            self.cargo(root, "bar/Cargo.toml")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                code = lockfile.check(root)
+        self.assertEqual((code, stdout.getvalue().count("checking lock owner")), (0, 2))
+
+    def test_check_preserves_candidate_bytes_and_creates_no_target(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            manifest = self.package(root, "good", "good")
+            self.cargo(root, manifest)
+            before = {path.relative_to(root): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+            self.assertEqual(lockfile.check(root), 0)
+            after = {path.relative_to(root): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+        self.assertEqual(after, before)
+        self.assertFalse(any(path.name == "target" for path in after))
 
 
 class CommittedSweepTestCase(unittest.TestCase):
