@@ -1,13 +1,14 @@
 """Immutable, path-confined Cargo source cohorts."""
 from __future__ import annotations
 
+import os
 import re
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from atlas_git_process import archive, execute, extract_archive
+from atlas_git_process import execute
 
 PROCESS_TIMEOUT_SECONDS = 60
 MEMBER_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*", re.ASCII)
@@ -42,12 +43,39 @@ def _selection(name: str, selected: SelectedRepository) -> None:
         raise CargoSnapshotError(f"selected revision is not a full commit ID: {name!r}")
     resolved = execute(
         selected.repository,
-        ("rev-parse", "--verify", f"{selected.revision}^{{commit}}"),
+        ("--no-replace-objects", "rev-parse", "--verify", f"{selected.revision}^{{commit}}"),
         timeout=PROCESS_TIMEOUT_SECONDS,
     )
     commit = resolved.stdout.decode("ascii", errors="replace").strip()
     if resolved.returncode or commit != selected.revision:
         raise CargoSnapshotError(f"selected revision is not that commit: {name!r}")
+
+
+def _export(selected: SelectedRepository, destination: Path, index: Path) -> None:
+    environment = dict(os.environ)
+    environment["GIT_INDEX_FILE"] = str(index)
+    try:
+        result = execute(
+            selected.repository,
+            ("--no-replace-objects", "--work-tree", str(destination),
+             "-c", "core.sparseCheckout=false", "-c", "core.symlinks=false",
+             "read-tree", "-u", "--reset", selected.revision),
+            env=environment,
+            timeout=PROCESS_TIMEOUT_SECONDS,
+        )
+    finally:
+        index.unlink(missing_ok=True)
+    if result.returncode:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise CargoSnapshotError(detail or "cannot read selected tree")
+
+
+def _reject_external_workspace(destination: Path) -> None:
+    for ancestor in destination.resolve().parents:
+        if ancestor.joinpath("Cargo.toml").is_file():
+            raise CargoSnapshotError(
+                f"snapshot destination has an external workspace ancestor: {ancestor}"
+            )
 
 
 def _inside(root: Path, manifest: Path, raw: str, field: str) -> None:
@@ -114,6 +142,7 @@ def create_snapshot(
     """Export and confine every selected input before Cargo can read it."""
     if destination.exists():
         raise CargoSnapshotError(f"snapshot destination already exists: {destination}")
+    _reject_external_workspace(destination)
     repos = destination / "repos"
     repos.mkdir(parents=True)
     for name, selected in sorted(selections.items()):
@@ -121,10 +150,7 @@ def create_snapshot(
         member = repos / name
         member.mkdir()
         try:
-            extract_archive(
-                archive(selected.repository, selected.revision, timeout=PROCESS_TIMEOUT_SECONDS),
-                member,
-            )
+            _export(selected, member, destination / f".{name}.index")
         except (OSError, RuntimeError) as error:
             raise CargoSnapshotError(f"cannot export selected member {name!r}: {error}") from error
         for required in ("Cargo.toml", "Cargo.lock"):

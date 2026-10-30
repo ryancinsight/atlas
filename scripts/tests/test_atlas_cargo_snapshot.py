@@ -73,6 +73,10 @@ class CargoSnapshotTests(unittest.TestCase):
         nested = consumer / "target" / "worktrees" / "leaf"
         self.fixture.package(nested, "tracked-leaf")
         consumer_selection = self.fixture.commit("consumer", locks=(nested,))
+        (consumer / ".gitattributes").write_text(
+            "target/worktrees export-ignore\n", encoding="utf-8"
+        )
+        consumer_selection = self.fixture.commit("consumer", locks=(nested,))
 
         snapshot = create_snapshot(
             {"provider": provider_selection, "consumer": consumer_selection},
@@ -98,6 +102,16 @@ class CargoSnapshotTests(unittest.TestCase):
                 create_snapshot({name: selected}, self.root / f"unsafe-{index}")
         with self.assertRaisesRegex(CargoSnapshotError, "full commit ID"):
             create_snapshot({"valid": SelectedRepository(repo, "HEAD")}, self.root / "moving")
+        original = selected
+        manifest = repo / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8").replace('name="valid"', 'name="replacement"'),
+            encoding="utf-8",
+        )
+        replacement = self.fixture.commit("valid")
+        self.fixture.run(["git", "replace", original.revision, replacement.revision], repo)
+        snapshot = create_snapshot({"valid": original}, self.root / "replace-neutral")
+        self.assertIn('name="valid"', snapshot.root.joinpath("repos/valid/Cargo.toml").read_text())
         unlocked = self.fixture.repos / "unlocked"
         self.fixture.package(unlocked, "unlocked")
         selected = self.fixture.commit("unlocked", generate=False)
@@ -136,6 +150,34 @@ class CargoSnapshotTests(unittest.TestCase):
         selected = self.fixture.commit("workspace-reader")
         with self.assertRaisesRegex(CargoSnapshotError, "absolute package.workspace"):
             create_snapshot({"workspace-reader": selected}, self.root / "workspace-snapshot")
+
+        implicit = self.fixture.repos / "implicit-reader"
+        origins = self.root / "origins"
+        origins.joinpath("Cargo.toml").write_text(
+            '[workspace]\nmembers=["repos/implicit-reader"]\nresolver="3"\n'
+            '[workspace.package]\nversion="0.1.0"\n', encoding="utf-8"
+        )
+        self.fixture.package(implicit, "implicit-reader")
+        implicit_manifest = implicit / "Cargo.toml"
+        implicit_manifest.write_text(
+            implicit_manifest.read_text().replace('version="0.1.0"', "version.workspace=true")
+        )
+        implicit_selected = self.fixture.commit("implicit-reader")
+        first = json.loads(self.fixture.run(
+            ["cargo", "metadata", "--locked", "--no-deps", "--format-version", "1",
+             "--manifest-path", str(implicit_manifest)], implicit
+        ))["packages"][0]["version"]
+        origins.joinpath("Cargo.toml").write_text(
+            origins.joinpath("Cargo.toml").read_text().replace("0.1.0", "9.0.0")
+        )
+        second = json.loads(self.fixture.run(
+            ["cargo", "metadata", "--no-deps", "--format-version", "1",
+             "--manifest-path", str(implicit_manifest)], implicit
+        ))["packages"][0]["version"]
+        self.assertEqual((first, second), ("0.1.0", "9.0.0"))
+        with self.assertRaisesRegex(CargoSnapshotError, "external workspace ancestor"):
+            create_snapshot({"implicit-reader": implicit_selected}, origins / "snapshot")
+        origins.joinpath("Cargo.toml").unlink()
 
         external = self.root / "external-dependency"
         self.fixture.package(external, "external-dependency")
