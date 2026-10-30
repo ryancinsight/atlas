@@ -188,6 +188,15 @@ class CargoSnapshotTests(unittest.TestCase):
         with self.assertRaisesRegex(CargoSnapshotError, "absolute dependency"):
             create_snapshot({"path-reader": selected}, self.root / "path-snapshot")
 
+        patch_reader = self.fixture.repos / "patch-reader"
+        self.fixture.package(
+            patch_reader, "patch-reader",
+            f'[patch.crates-io]\nexternal-dependency={{path="{external.as_posix()}"}}\n',
+        )
+        selected = self.fixture.commit("patch-reader")
+        with self.assertRaisesRegex(CargoSnapshotError, "absolute dependency"):
+            create_snapshot({"patch-reader": selected}, self.root / "patch-snapshot")
+
         member_reader = self.fixture.repos / "member-reader"
         member_reader.mkdir()
         (member_reader / "Cargo.toml").write_text(

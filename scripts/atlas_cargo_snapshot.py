@@ -126,6 +126,12 @@ def _manifest_paths(root: Path, manifest: Path) -> None:
         _dependency_paths(root, manifest, workspace.get("dependencies"), "workspace.dependencies")
     for field in DEPENDENCY_TABLES:
         _dependency_paths(root, manifest, document.get(field), field)
+    _dependency_paths(root, manifest, document.get("replace"), "replace")
+    patches = document.get("patch", {})
+    if not isinstance(patches, dict):
+        raise CargoSnapshotError(f"{manifest}: patch is not a table")
+    for source, table in patches.items():
+        _dependency_paths(root, manifest, table, f"patch.{source}")
     targets = document.get("target", {})
     if not isinstance(targets, dict):
         raise CargoSnapshotError(f"{manifest}: target is not a table")
