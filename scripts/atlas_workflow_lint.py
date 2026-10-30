@@ -15,6 +15,9 @@ class WorkflowLintError(Exception):
     pass
 
 
+ACTIONLINT_CONFIGS = ("actionlint.yaml", "actionlint.yml")
+
+
 def _children(node: Node) -> list[Node]:
     if isinstance(node, MappingNode):
         return [child for pair in node.value for child in pair]
@@ -115,13 +118,22 @@ def _target(root: Path, reference: str, kind: str) -> Path:
     metadata = [target / name for name in ("action.yml", "action.yaml") if (target / name).is_file()]
     if len(metadata) != 1:
         raise WorkflowLintError(f"action target needs exactly one metadata file: {reference!r}")
-    return metadata[0]
+    resolved = metadata[0].resolve()
+    try:
+        resolved.relative_to(root.resolve())
+    except ValueError as error:
+        raise WorkflowLintError(f"action metadata escapes the checkout: {reference!r}") from error
+    if metadata[0].is_symlink():
+        raise WorkflowLintError(f"action metadata must be a checkout file: {reference!r}")
+    return resolved
 
 
-def project(path: Path, root: Path, kind: str) -> tuple[bytes, list[Path]]:
-    """Validate one YAML document and project its same-repository references."""
-    source = path.read_text(encoding="utf-8")
-    document = yaml.compose(source, Loader=yaml.SafeLoader)
+def _project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, list[Path]]:
+    try:
+        text = source.decode("utf-8", "strict")
+    except UnicodeDecodeError as error:
+        raise WorkflowLintError(f"workflow is not UTF-8: {path}") from error
+    document = yaml.compose(text, Loader=yaml.SafeLoader)
     if document is None:
         raise WorkflowLintError(f"empty YAML document: {path}")
     ambiguous = _ambiguous_nodes(document)
@@ -133,16 +145,22 @@ def project(path: Path, root: Path, kind: str) -> tuple[bytes, list[Path]]:
             continue
         if id(node) in ambiguous:
             raise WorkflowLintError(f"aliased same-repository reference in {path}")
-        span = source[node.start_mark.index : node.end_mark.index]
+        span = text[node.start_mark.index : node.end_mark.index]
         relative = span.find("$/")
         if relative < 0 or span.find("$/", relative + 1) >= 0:
             raise WorkflowLintError(f"ambiguous scalar spelling for {node.value!r}")
-        offsets.append(node.start_mark.index + relative)
+        character_offset = node.start_mark.index + relative
+        offsets.append(len(text[:character_offset].encode("utf-8")))
         targets.append(_target(root, node.value, target_kind))
-    projected = source
-    for offset in reversed(offsets):
-        projected = projected[:offset] + "." + projected[offset + 1 :]
-    return projected.encode("utf-8"), targets
+    projected = bytearray(source)
+    for offset in offsets:
+        projected[offset] = ord(".")
+    return bytes(projected), targets
+
+
+def project(path: Path, root: Path, kind: str) -> tuple[bytes, list[Path]]:
+    """Validate one YAML document and project its same-repository references."""
+    return _project(path.read_bytes(), path, root, kind)
 
 
 def _git(root: Path, *arguments: str) -> str:
@@ -152,30 +170,68 @@ def _git(root: Path, *arguments: str) -> str:
     return result.stdout.decode("utf-8", "strict").strip()
 
 
-def run(root: Path, candidate: str, actionlint: str) -> int:
-    root = root.resolve()
+def _candidate_bytes(root: Path, candidate: str, path: Path) -> bytes:
+    try:
+        relative_path = path.relative_to(root)
+        current = root
+        for part in relative_path.parts:
+            current /= part
+            if current.is_symlink():
+                raise WorkflowLintError(f"lint input uses a symlink: {path}")
+        relative = path.resolve(strict=True).relative_to(root).as_posix()
+    except (FileNotFoundError, ValueError) as error:
+        raise WorkflowLintError(f"lint input escapes or is missing from the checkout: {path}") from error
+    expected = process_tree.run(["git", "rev-parse", "--verify", f"{candidate}:{relative}"], cwd=root, timeout=30)
+    if expected.returncode != 0:
+        raise WorkflowLintError(f"lint input does not belong to candidate {candidate}: {relative}")
+    actual = path.read_bytes()
+    observed = process_tree.run(
+        ["git", "hash-object", "--path", relative, "--stdin"], cwd=root, input=actual, timeout=30
+    )
+    if observed.returncode != 0 or observed.stdout.strip() != expected.stdout.strip():
+        raise WorkflowLintError(f"lint input differs from candidate {candidate}: {relative}")
+    return actual
+
+
+def _collect(root: Path, candidate: str) -> tuple[dict[Path, bytes], dict[Path, bytes]]:
+    configs = [root / ".github" / name for name in ACTIONLINT_CONFIGS if (root / ".github" / name).exists()]
+    workflows = sorted((root / ".github" / "workflows").glob("*.y*ml"))
+    queue: list[tuple[Path, str]] = [(path, "workflow") for path in workflows]
+    queued = {path.resolve() for path in workflows}
+    inputs = {path: _candidate_bytes(root, candidate, path) for path in configs}
+    projected: dict[Path, bytes] = {}
+    while queue:
+        path, kind = queue.pop(0)
+        source = _candidate_bytes(root, candidate, path)
+        inputs[path] = source
+        content, targets = _project(source, path, root, kind)
+        if kind == "workflow":
+            projected[path] = content
+        for target in targets:
+            source = _candidate_bytes(root, candidate, target)
+            inputs[target] = source
+            workflows_root = (root / ".github" / "workflows").resolve()
+            if target.suffix in (".yml", ".yaml") and target.parent != workflows_root and target not in queued:
+                queued.add(target)
+                queue.append((target, "action"))
+    return projected, inputs
+
+
+def _verify_checkout(root: Path, candidate: str) -> None:
     checkout = Path(_git(root, "rev-parse", "--show-toplevel")).resolve()
     if checkout != root or _git(root, "rev-parse", "HEAD") != candidate:
         raise WorkflowLintError("checkout does not match the declared candidate")
     if _git(root, "status", "--porcelain"):
         raise WorkflowLintError("candidate checkout is not clean")
+
+
+def run(root: Path, candidate: str, actionlint: str) -> int:
+    root = root.resolve()
+    _verify_checkout(root, candidate)
     for analyzer in ("shellcheck", "pyflakes"):
         if shutil.which(analyzer) is None:
             raise WorkflowLintError(f"required actionlint analyzer is unavailable: {analyzer}")
-    workflows = sorted((root / ".github" / "workflows").glob("*.y*ml"))
-    queue: list[tuple[Path, str]] = [(path, "workflow") for path in workflows]
-    queued = {path.resolve() for path in workflows}
-    projected: dict[Path, bytes] = {}
-    while queue:
-        path, kind = queue.pop(0)
-        content, targets = project(path, root, kind)
-        if kind == "workflow":
-            projected[path] = content
-        for target in targets:
-            workflows_root = (root / ".github" / "workflows").resolve()
-            if target.suffix in (".yml", ".yaml") and target.parent != workflows_root and target.resolve() not in queued:
-                queued.add(target.resolve())
-                queue.append((target, "action"))
+    projected, inputs = _collect(root, candidate)
     failed = False
     for path, content in projected.items():
         result = process_tree.run(
@@ -187,6 +243,9 @@ def run(root: Path, candidate: str, actionlint: str) -> int:
         sys.stdout.buffer.write(result.stdout or b"")
         sys.stderr.buffer.write(result.stderr or b"")
         failed |= result.returncode != 0
+    _verify_checkout(root, candidate)
+    if _collect(root, candidate) != (projected, inputs):
+        raise WorkflowLintError("candidate lint inputs changed during actionlint")
     return int(failed)
 
 

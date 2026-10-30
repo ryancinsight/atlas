@@ -51,6 +51,20 @@ def fixture(test: unittest.TestCase) -> tuple[Path, Path, Path]:
     return root, workflow, action
 
 
+def commit_fixture(test: unittest.TestCase, root: Path) -> str:
+    for arguments in (
+        ["init", "--quiet"],
+        ["config", "user.email", "workflow-lint@example.invalid"],
+        ["config", "user.name", "workflow-lint"],
+        ["config", "core.autocrlf", "false"],
+        ["add", "--", ".github"],
+        ["commit", "--quiet", "-m", "test: add workflow fixture"],
+    ):
+        result = lint.process_tree.run(["git", *arguments], cwd=root, timeout=30)
+        test.assertEqual(result.returncode, 0, result.stderr)
+    return lint._git(root, "rev-parse", "HEAD")
+
+
 class WorkflowProjectionTests(unittest.TestCase):
     def setUp(self) -> None:
         self.root, self.workflow, self.action = fixture(self)
@@ -61,6 +75,14 @@ class WorkflowProjectionTests(unittest.TestCase):
         expected = WORKFLOW.replace('uses: "$/', 'uses: "./', 1).encode()
         self.assertEqual(projected, expected)
         self.assertEqual(targets, [self.action.resolve()])
+
+    def test_projection_preserves_non_reference_bytes(self) -> None:
+        source = WORKFLOW.replace("name: test", "name: t\u00e9st").replace("\n", "\r\n").encode()
+        self.workflow.write_bytes(source)
+
+        projected, _ = lint.project(self.workflow, self.root, "workflow")
+
+        self.assertEqual(projected, source.replace(b'uses: "$/', b'uses: "./', 1))
 
     def test_rejects_ambiguous_and_invalid_references(self) -> None:
         cases = {
@@ -92,6 +114,56 @@ class WorkflowProjectionTests(unittest.TestCase):
             self.skipTest("directory symlinks are unavailable")
         with self.assertRaisesRegex(lint.WorkflowLintError, "escapes"):
             lint.project(self.workflow, self.root, "workflow")
+
+    def test_rejects_escaping_action_metadata(self) -> None:
+        outside = self.root.parent / f"{self.root.name}-metadata"
+        outside.mkdir()
+        self.addCleanup(shutil.rmtree, outside)
+        outside_action = outside / "action.yml"
+        outside_action.write_text(ACTION, encoding="utf-8", newline="\n")
+        self.action.unlink()
+        try:
+            self.action.symlink_to(outside_action)
+        except OSError:
+            self.skipTest("file symlinks are unavailable")
+
+        with self.assertRaisesRegex(lint.WorkflowLintError, "metadata escapes"):
+            lint.project(self.workflow, self.root, "workflow")
+
+
+class CandidateInputTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.root, self.workflow, self.action = fixture(self)
+        self.candidate = commit_fixture(self, self.root)
+
+    def test_collects_only_candidate_owned_inputs(self) -> None:
+        projected, inputs = lint._collect(self.root.resolve(), self.candidate)
+
+        self.assertEqual(projected[self.workflow.resolve()], WORKFLOW.replace('uses: "$/', 'uses: "./', 1).encode())
+        self.assertEqual(inputs[self.action.resolve()], ACTION.encode())
+        self.assertIn((self.root / ".github" / "actionlint.yaml").resolve(), inputs)
+
+    def test_rejects_changed_or_untracked_ignored_inputs(self) -> None:
+        cases = (self.workflow, self.action, self.root / ".github" / "actionlint.yaml")
+        for path in cases:
+            with self.subTest(path=path.relative_to(self.root)):
+                original = path.read_bytes()
+                path.write_bytes(original + b"\n")
+                with self.assertRaisesRegex(lint.WorkflowLintError, "differs from candidate"):
+                    lint._collect(self.root.resolve(), self.candidate)
+                path.write_bytes(original)
+
+        self.action.unlink()
+        excluded = self.root / ".git" / "info" / "exclude"
+        excluded.write_text(".github/actions/sample/action.yml\n", encoding="utf-8", newline="\n")
+        self.action.write_text(ACTION, encoding="utf-8", newline="\n")
+        tracked = lint.process_tree.run(["git", "rm", "--cached", "--quiet", "--", ".github/actions/sample/action.yml"], cwd=self.root, timeout=30)
+        self.assertEqual(tracked.returncode, 0, tracked.stderr)
+        removed = lint.process_tree.run(["git", "commit", "--quiet", "-m", "test: remove action metadata"], cwd=self.root, timeout=30)
+        self.assertEqual(removed.returncode, 0, removed.stderr)
+        candidate = lint._git(self.root, "rev-parse", "HEAD")
+        with self.assertRaisesRegex(lint.WorkflowLintError, "does not belong to candidate"):
+            lint._collect(self.root.resolve(), candidate)
 
 
 @unittest.skipUnless(os.environ.get("ACTIONLINT"), "ACTIONLINT is not configured")
