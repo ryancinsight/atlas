@@ -54,12 +54,11 @@ jobs:
           set -euo pipefail
           archive="actionlint_${VERSION}_linux_amd64.tar.gz"
           url="https://github.com/rhysd/actionlint/releases/download/v${VERSION}/${archive}"
-          curl --fail --silent --show-error --location --output "$archive" "$url"
-          tar --extract --gzip --file "$archive" actionlint
-          ./actionlint --version
-      # `-color` keeps the annotations readable in the job log; the default
-      # rule set is the whole point, so no rules are disabled here. A member
-      # that needs an exception carries its own `.github/actionlint.yaml`,
-      # which actionlint reads from the checkout.
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive" "$url"
+          tar --extract --gzip --directory "$RUNNER_TEMP" --file "$RUNNER_TEMP/$archive" actionlint
+          "$RUNNER_TEMP/actionlint" --version
       - name: Lint the workflows
-        run: ./actionlint -color
+        uses: $/.github/actions/workflow-lint
+        with:
+          candidate: ${{ github.sha }}
+          actionlint: ${{ runner.temp }}/actionlint
