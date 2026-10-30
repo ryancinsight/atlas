@@ -31,6 +31,7 @@ def git(repository: Path, *arguments: str) -> str:
         check=True,
         capture_output=True,
         text=True,
+        timeout=30,
     )
     return completed.stdout.strip()
 
