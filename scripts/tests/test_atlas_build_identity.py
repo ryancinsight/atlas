@@ -2271,10 +2271,22 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual((code, value["status"]), (2, "missing"))
 
     def test_toolchain_identity_runs_in_the_source_root(self) -> None:
-        completed = subprocess.CompletedProcess(["rustc"], 0, "rustc 1.95.0\n", "")
-        with patch.object(build_source.subprocess, "run", return_value=completed) as run:
-            self.assertEqual(build_source.toolchain_identity(self.root), "rustc 1.95.0")
-        self.assertEqual(run.call_args.kwargs["cwd"], self.root)
+        def command_result(command, **_kwargs):
+            if "config" in command:
+                return subprocess.CompletedProcess(command, 0, "{}\n", "")
+            return subprocess.CompletedProcess(command, 0, "rustc 1.95.0\n", "")
+
+        with patch.object(build_source.subprocess, "run", side_effect=command_result) as run:
+            self.assertEqual(
+                build_source.toolchain_identity(self.root, {}), "rustc 1.95.0"
+            )
+        self.assertEqual(
+            [call.kwargs["cwd"] for call in run.call_args_list],
+            [self.root, self.root],
+        )
+        self.assertEqual(
+            run.call_args_list[-1].args[0], ["rustc", "--version", "--verbose"]
+        )
 
     def test_command_cwd_is_used_without_changing_record_scope(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -2664,6 +2676,160 @@ class BuildIdentityTestCase(unittest.TestCase):
                 second = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
         self.assertNotEqual(first.environment_digest, second.environment_digest)
         self.assertNotEqual(build_records.record_path(first), build_records.record_path(second))
+
+    def test_an_ordinary_manifest_keeps_the_environment_unchanged(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        environment = {"CARGO_HOME": str(self.base / "cargo-home"), "RUSTFLAGS": "-Dwarnings"}
+        with patch.object(build_inputs.subprocess, "run") as cargo:
+            effective = build_inputs.effective_compiler_environment(
+                self.root / "Cargo.toml", self.root, environment=environment
+            )
+        self.assertEqual(effective, environment)
+        cargo.assert_not_called()
+
+    def test_fuzz_cfg_preserves_encoded_flags_and_is_idempotent(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        environment = {"CARGO_ENCODED_RUSTFLAGS": "-C\x1fdebuginfo=1"}
+        first = build_inputs.effective_compiler_environment(
+            manifest, self.root, environment=environment
+        )
+        second = build_inputs.effective_compiler_environment(
+            manifest, self.root, environment=first
+        )
+        self.assertEqual(
+            first["CARGO_ENCODED_RUSTFLAGS"],
+            "-C\x1fdebuginfo=1\x1f--cfg\x1ffuzzing",
+        )
+        self.assertEqual(second, first)
+
+    def test_inline_fuzz_flags_are_carried_into_the_executed_command(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        command = ["env", "RUSTFLAGS=--cfg original", "cargo", "check"]
+        effective = build_inputs.effective_compiler_environment(
+            manifest, self.root, command, environment={}
+        )
+        normalized = build_inputs.effective_compiler_command(command, effective)
+        self.assertEqual(
+            normalized,
+            ("env", "RUSTFLAGS=--cfg original --cfg fuzzing", "cargo", "check"),
+        )
+        self.assertEqual(
+            build_inputs.effective_compiler_command(normalized, effective), normalized
+        )
+
+    @unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+    def test_fuzz_cfg_preserves_cargo_config_flags(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        (self.root / ".cargo").mkdir()
+        (self.root / ".cargo" / "config.toml").write_text(
+            '[build]\nrustflags = ["-C", "debuginfo=1", "--cfg", "configured"]\n',
+            encoding="utf-8",
+        )
+        effective = build_inputs.effective_compiler_environment(
+            manifest,
+            self.root,
+            environment={
+                "CARGO_HOME": str(self.base / "cargo-home"),
+                "PATH": os.environ["PATH"],
+            },
+        )
+        self.assertEqual(
+            effective["CARGO_ENCODED_RUSTFLAGS"].split("\x1f"),
+            ["-C", "debuginfo=1", "--cfg", "configured", "--cfg", "fuzzing"],
+        )
+
+    @unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+    def test_target_qualified_fuzz_flags_fail_closed(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        (self.root / ".cargo").mkdir()
+        (self.root / ".cargo" / "config.toml").write_text(
+            '[target.x86_64-pc-windows-msvc]\nrustflags = ["-C", "debuginfo=1"]\n',
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(BuildIdentityError, "target-qualified rustflags"):
+            build_inputs.effective_compiler_environment(
+                manifest,
+                self.root,
+                environment={
+                    "CARGO_BUILD_RUSTFLAGS": "--cfg environment",
+                    "CARGO_HOME": str(self.base / "cargo-home"),
+                    "PATH": os.environ["PATH"],
+                },
+            )
+
+    def test_cargo_build_rustc_is_the_probed_compiler(self) -> None:
+        completed = subprocess.CompletedProcess(
+            ["selected-rustc", "--version", "--verbose"], 0, "rustc selected\n", ""
+        )
+        with (
+            patch.object(build_source, "_configured_rustc", return_value=None),
+            patch.object(build_source.subprocess, "run", return_value=completed) as run,
+        ):
+            selected = build_source.toolchain_identity(
+                self.root, {"CARGO_BUILD_RUSTC": "selected-rustc"}
+            )
+        self.assertEqual(selected, "rustc selected")
+        self.assertEqual(run.call_args.args[0][0], "selected-rustc")
+
+    def test_cargo_config_rustc_is_the_probed_compiler(self) -> None:
+        completed = subprocess.CompletedProcess(
+            ["configured-rustc", "--version", "--verbose"],
+            0,
+            "rustc configured\n",
+            "",
+        )
+        with (
+            patch.object(build_source, "_configured_rustc", return_value="configured-rustc"),
+            patch.object(build_source.subprocess, "run", return_value=completed) as run,
+        ):
+            selected = build_source.toolchain_identity(self.root, {})
+        self.assertEqual(selected, "rustc configured")
+        self.assertEqual(run.call_args.args[0][0], "configured-rustc")
+
+    def test_cargo_toolchain_argument_without_a_compiler_fails_closed(self) -> None:
+        with patch.object(build_source, "_configured_rustc", return_value=None):
+            with self.assertRaisesRegex(BuildIdentityError, "cannot resolve compiler"):
+                build_source.toolchain_identity(
+                    self.root, {}, command=["cargo", "+1.95.0", "check"]
+                )
+
+    def test_cargo_toolchain_argument_with_rustup_proxy_fails_closed(self) -> None:
+        compilers = ["rustc"]
+        installed = shutil.which("rustc")
+        if installed is not None:
+            compilers.append(installed)
+        for compiler in compilers:
+            with self.subTest(compiler=compiler):
+                with self.assertRaisesRegex(BuildIdentityError, "rustup proxies"):
+                    build_source.toolchain_identity(
+                        self.root,
+                        {"RUSTC": compiler},
+                        command=["cargo", "+1.95.0", "check"],
+                    )
 
     def test_toolchain_identity_uses_the_cargo_execution_directory(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -4086,6 +4252,290 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
 
     def test_a_build_rustflags_change_is_never_silently_reused(self) -> None:
         self.assert_reconfiguration_is_never_silently_reused("env")
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class EffectiveFuzzEnvironmentTestCase(unittest.TestCase):
+    """The fuzz cfg reaches discovery, dependencies, artifacts, and records."""
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-fuzz-environment-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.root = self.base / "fuzz"
+        self.target = self.base / "target"
+        for relative, text in {
+            "Cargo.toml": (
+                '[package]\nname = "fuzz-probe"\nversion = "0.1.0"\nedition = "2024"\n'
+                '[package.metadata]\ncargo-fuzz = true\n'
+                '[dependencies]\nfuzz-dependency = { path = "dependency" }\n'
+                '[workspace]\nmembers = ["dependency"]\n'
+            ),
+            "src/lib.rs": (
+                "pub const VALUE: u32 = fuzz_dependency::VALUE + 1;\n"
+                "const _: () = assert!(VALUE == 42);\n"
+            ),
+            "dependency/Cargo.toml": (
+                '[package]\nname = "fuzz-dependency"\nversion = "0.1.0"\nedition = "2024"\n'
+            ),
+            "dependency/src/lib.rs": (
+                '#[cfg(not(fuzzing))]\ncompile_error!("dependency requires cfg(fuzzing)");\n'
+                "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n"
+            ),
+        }.items():
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        self.environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in {
+                "CARGO_BUILD_RUSTFLAGS",
+                "CARGO_ENCODED_RUSTFLAGS",
+                "CARGO_TARGET_DIR",
+                "RUSTFLAGS",
+            }
+        }
+        self.environment["CARGO_HOME"] = str(self.base / "cargo-home")
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.root,
+            env=self.environment,
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
+        init_git(self.root)
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-qm", "fuzz fixture")
+
+    def _run_build(self):
+        with patch.dict(os.environ, self.environment, clear=True):
+            return identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+
+    def test_real_fuzz_cfg_build_reuses_and_flag_changes_rebuild(self) -> None:
+        first = self._run_build()
+        second = self._run_build()
+        self.assertEqual([first.status, second.status], ["rebuilt", "reused"])
+        self.assertEqual(first.record_path, second.record_path)
+        changed_environment = dict(self.environment)
+        changed_environment["CARGO_ENCODED_RUSTFLAGS"] = "-C\x1fdebuginfo=1"
+        with patch.dict(os.environ, changed_environment, clear=True):
+            changed = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                ["cargo", "check", "--workspace", "--all-targets", "--locked", "--offline"],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(changed.status, "rebuilt")
+        self.assertNotEqual(changed.record_path, second.record_path)
+
+    def test_tampered_effective_environment_record_is_rejected(self) -> None:
+        result = self._run_build()
+        record = json.loads(result.record_path.read_text(encoding="utf-8"))
+        record["build"]["environment_digest"] = "0" * 64
+        result.record_path.write_text(json.dumps(record), encoding="utf-8")
+        with patch.dict(os.environ, self.environment, clear=True):
+            status, value = check.check_record(
+                self.root,
+                "fuzz-probe",
+                self.target,
+                manifest=self.root / "Cargo.toml",
+                command=[
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )
+        self.assertEqual((status, value["status"]), (2, "stale"))
+
+    def test_cargo_build_and_command_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(environment_marker))]\ncompile_error!("missing environment cfg");\n'
+            '#[cfg(not(command_marker))]\ncompile_error!("missing command cfg");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require merged flags")
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        with patch.dict(os.environ, environment, clear=True):
+            result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "cargo",
+                    "--config",
+                    'build.rustflags=["--cfg","command_marker"]',
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(result.status, "rebuilt")
+
+    def test_cargo_build_and_string_command_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(command_marker))]\ncompile_error!("missing command cfg");\n'
+            '#[cfg(environment_marker)]\ncompile_error!("environment cfg was not replaced");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require string config flags")
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        with patch.dict(os.environ, environment, clear=True):
+            result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "cargo",
+                    "--config",
+                    'build.rustflags="--cfg command_marker"',
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(result.status, "rebuilt")
+
+    def test_cargo_build_and_file_string_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(file_marker))]\ncompile_error!("missing file cfg");\n'
+            '#[cfg(environment_marker)]\ncompile_error!("environment cfg was not replaced");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require file config flags")
+        config = self.base / "string-flags.toml"
+        config.write_text(
+            '[build]\nrustflags = "--cfg file_marker"\n', encoding="utf-8"
+        )
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        arguments = (
+            str(config),
+            f"include=[{json.dumps(config.as_posix())}]",
+        )
+        for argument in arguments:
+            with self.subTest(argument=argument), patch.dict(
+                os.environ, environment, clear=True
+            ):
+                result = identity.run_build(
+                    self.root,
+                    self.root / "Cargo.toml",
+                    ("fuzz-probe",),
+                    self.target,
+                    [
+                        "cargo",
+                        "--config",
+                        argument,
+                        "check",
+                        "--workspace",
+                        "--all-targets",
+                        "--locked",
+                        "--offline",
+                    ],
+                    command_cwd=self.root,
+                )[0]
+            self.assertEqual(result.status, "rebuilt")
+
+    @unittest.skipUnless(shutil.which("env"), "needs env")
+    def test_inline_env_options_fail_before_the_child_runs(self) -> None:
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            self.assertRaisesRegex(BuildIdentityError, "cannot normalize env options"),
+        ):
+            identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "env",
+                    "-u",
+                    "CARGO_ENCODED_RUSTFLAGS",
+                    "RUSTFLAGS=--cfg original",
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )
+
+    @unittest.skipUnless(shutil.which("env"), "needs env")
+    def test_inline_rustflags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(original))]\ncompile_error!("missing inline cfg");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require inline flags")
+        with patch.dict(os.environ, self.environment, clear=True):
+            result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "env",
+                    "RUSTFLAGS=--cfg original",
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(result.status, "rebuilt")
 
 
 @pytest.mark.slow
