@@ -14,12 +14,14 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import os
 import subprocess
 import sys
 import tempfile
 import textwrap
 import unittest
 from pathlib import Path, PurePosixPath
+from unittest import mock
 
 SCRIPT = Path(__file__).resolve().parent.parent / "lockfile.py"
 SPEC = importlib.util.spec_from_file_location("atlas_lockfile_form", SCRIPT)
@@ -156,7 +158,6 @@ class DependencyTablesTestCase(unittest.TestCase):
             "[dependencies]": "regular",
             "[dev-dependencies]": "development",
             "[build-dependencies]": "build",
-            "[workspace.dependencies]": "shared",
             "[target.'cfg(unix)'.dependencies]": "unix",
             "[target.'cfg(unix)'.dev-dependencies]": "unixdev",
             "[target.'cfg(unix)'.build-dependencies]": "unixbuild",
@@ -165,6 +166,68 @@ class DependencyTablesTestCase(unittest.TestCase):
             with self.subTest(header):
                 manifest = f'[package]\nname = "m"\nversion = "0.1.0"\n\n{header}\n{name} = {git}\n'
                 self.assertEqual(self.declared(manifest), {name})
+
+    def test_only_consumed_workspace_dependencies_are_read(self) -> None:
+        manifest = textwrap.dedent(
+            """\
+            [workspace]
+            members = ["member"]
+
+            [workspace.dependencies]
+            used = { package = "real", version = "^1", git = "https://github.com/ryancinsight/p" }
+            idle = { git = "https://github.com/ryancinsight/idle" }
+
+            [package]
+            name = "root"
+            version = "0.1.0"
+            """
+        )
+        member = textwrap.dedent(
+            """\
+            [package]
+            name = "member"
+            version = "0.1.0"
+
+            [target.'cfg(unix)'.build-dependencies]
+            used = { workspace = true }
+            """
+        )
+        facts = lockfile.workspace_facts(
+            {"Cargo.toml": manifest, "member/Cargo.toml": member}, ROOT_WORKSPACE, []
+        )
+        self.assertEqual(facts.git_dependencies, {"real"})
+
+    def test_missing_inherited_dependency_fails_closed(self) -> None:
+        manifest = textwrap.dedent(
+            """\
+            [workspace]
+            members = ["member"]
+
+            [package]
+            name = "root"
+            version = "0.1.0"
+            """
+        )
+        member = textwrap.dedent(
+            """\
+            [package]
+            name = "member"
+            version = "0.1.0"
+
+            [dependencies]
+            absent = { workspace = true }
+            """
+        )
+        problems, _ = lockfile.judge_locks(
+            {
+                "Cargo.toml": manifest,
+                "member/Cargo.toml": member,
+                "Cargo.lock": STANDALONE,
+            }
+        )
+        self.assertIn(
+            "Cargo.lock: workspace dependency 'absent' is missing or unreadable", problems
+        )
 
     def test_a_renamed_dependency_is_declared_under_its_package_name(self) -> None:
         manifest = (
@@ -188,6 +251,101 @@ class DependencyTablesTestCase(unittest.TestCase):
         problems, exempt = lockfile.judge_locks({"Cargo.toml": manifest, "Cargo.lock": STRIPPED})
         self.assertIn("Cargo.lock: `eunomia` locked without a git source (stripped)", problems)
         self.assertEqual(exempt, [])
+
+class CargoDependencyDifferentialTestCase(unittest.TestCase):
+    """Cargo, not a manifest scan, owns actual package reachability."""
+
+    def test_full_locked_graph_owns_path_and_nested_reachability(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-cargo-") as directory:
+            root = Path(directory)
+            provider = root / "provider"
+            (provider / "src").mkdir(parents=True)
+            (provider / "Cargo.toml").write_text(
+                '[package]\nname = "provider"\nversion = "0.1.0"\nedition = "2024"\n',
+                encoding="utf-8",
+            )
+            (provider / "src/lib.rs").write_text(
+                "pub fn value() -> u8 { 1 }\n", encoding="utf-8"
+            )
+            git(provider, "init", "-q", "-b", "main")
+            git(provider, "add", ".")
+            git(provider, "commit", "-q", "-m", "provider")
+
+            consumer = root / "consumer"
+            leaf = consumer / "leaf"
+            unrelated = consumer / "unrelated"
+            for package in (consumer, leaf, unrelated):
+                (package / "src").mkdir(parents=True, exist_ok=True)
+            manifest = (
+                '[workspace]\nresolver = "3"\nexclude = ["leaf", "unrelated"]\n\n'
+                '[package]\nname = "consumer"\nversion = "0.1.0"\nedition = "2024"\n'
+                '\n[dependencies]\nleaf = { path = "leaf" }\n'
+            )
+            leaf_manifest = (
+                '[package]\nname = "leaf"\nversion = "0.1.0"\nedition = "2024"\n'
+                f'\n[dependencies]\nupstream = {{ package = "provider", git = "{provider.as_uri()}" }}\n'
+            )
+            unrelated_manifest = (
+                '[package]\nname = "unrelated"\nversion = "0.1.0"\nedition = "2024"\n'
+                f'\n[dependencies]\nghost = {{ package = "absent", git = "{provider.as_uri()}" }}\n'
+            )
+            (consumer / "Cargo.toml").write_text(manifest, encoding="utf-8")
+            (leaf / "Cargo.toml").write_text(leaf_manifest, encoding="utf-8")
+            (unrelated / "Cargo.toml").write_text(unrelated_manifest, encoding="utf-8")
+            (consumer / "src/lib.rs").write_text(
+                "pub fn value() -> u8 { leaf::value() }\n", encoding="utf-8"
+            )
+            (leaf / "src/lib.rs").write_text(
+                "pub fn value() -> u8 { upstream::value() }\n", encoding="utf-8"
+            )
+            (unrelated / "src/lib.rs").write_text("pub fn value() {}\n", encoding="utf-8")
+            environment = {
+                **os.environ,
+                "CARGO_TARGET_DIR": "D:/atlas/target",
+                "CARGO_BUILD_BUILD_DIR": "D:/atlas/target",
+            }
+            generated = subprocess.run(
+                ["cargo", "generate-lockfile"],
+                cwd=consumer,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            lock = consumer / "Cargo.lock"
+            original = lock.read_bytes()
+            with mock.patch.dict(os.environ, environment):
+                resolved = lockfile.locked_metadata(consumer / "Cargo.toml", deadline=60)
+            self.assertEqual(
+                {package["name"] for package in resolved["packages"]},
+                {"consumer", "leaf", "provider"},
+            )
+            self.assertEqual(lock.read_bytes(), original)
+
+            blocks = original.decode("utf-8").split("[[package]]")
+            missing = "[[package]]".join(
+                block for block in blocks if 'name = "provider"' not in block
+            )
+            lock.write_text(missing, encoding="utf-8")
+            missing_bytes = lock.read_bytes()
+            with mock.patch.dict(os.environ, environment), self.assertRaisesRegex(
+                lockfile.CargoMetadataError, "locked --offline failed"
+            ):
+                lockfile.locked_metadata(consumer / "Cargo.toml", deadline=60)
+            self.assertEqual(lock.read_bytes(), missing_bytes)
+
+            lock.write_bytes(original)
+            (leaf / "Cargo.toml").write_text(
+                leaf_manifest.replace('package = "provider"', 'package = "absent"'),
+                encoding="utf-8",
+            )
+            with mock.patch.dict(os.environ, environment), self.assertRaisesRegex(
+                lockfile.CargoMetadataError, "locked --offline failed"
+            ):
+                lockfile.locked_metadata(consumer / "Cargo.toml", deadline=60)
+            self.assertEqual(lock.read_bytes(), original)
 
 
 class FixtureDetectionTestCase(unittest.TestCase):

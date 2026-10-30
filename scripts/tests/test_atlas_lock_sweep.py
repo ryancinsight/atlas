@@ -15,6 +15,7 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -39,6 +40,46 @@ def package(name: str, version: str, source: str | None) -> str:
     if source is not None:
         lines.append(f'source = "{source}"')
     return NL.join(lines) + NL
+
+
+def run_git(repository: Path, *arguments: str) -> str:
+    command = ["git", "-C", str(repository), *arguments]
+    return subprocess.run(command, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def commit_repository(repository: Path, files: dict[str, str]) -> str:
+    repository.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "--quiet", str(repository)], check=True)
+    run_git(repository, "config", "user.email", "test@example.com")
+    run_git(repository, "config", "user.name", "Test")
+    for name, text in files.items():
+        path = repository / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    run_git(repository, "add", *files)
+    run_git(repository, "commit", "--quiet", "-m", "fixture")
+    return run_git(repository, "rev-parse", "HEAD")
+
+
+def commit_meta(repository: Path, modules: str, pins: dict[str, str | None]) -> str:
+    base = commit_repository(repository, {".gitmodules": modules})
+    for name, pin in pins.items():
+        path = name if "/" in name else f"repos/{name}"
+        entry = f"160000,{pin or base},{path}"
+        run_git(repository, "update-index", "--add", "--cacheinfo", entry)
+    if pins:
+        run_git(repository, "commit", "--quiet", "-m", "meta fixture")
+    return run_git(repository, "rev-parse", "HEAD")
+
+
+def gitmodules(*names: str) -> str:
+    return "".join(f'[submodule "repos/{name}"]\npath = repos/{name}\nurl = local-{name}\n' for name in names)
+
+
+PROVIDER_MANIFEST = '[package]\nname = "provider"\nversion = "0.1.0"\n'
+PROVIDER_LOCK = 'version = 4\n\n[[package]]\nname = "provider"\nversion = "0.1.0"\n'
+CONSUMER_MANIFEST = (PROVIDER_MANIFEST.replace('name = "provider"', 'name = "consumer"') +
+                     '[dependencies]\nprovider = { git = "https://github.com/ryancinsight/provider" }\n')
 
 
 LOCK = NL.join(
@@ -215,6 +256,152 @@ class LockTests(unittest.TestCase):
         lock = "version = 4\n" + package("unknown", "1.0.0", source)
         self.assertEqual(sweep.locked_packages(lock)[0].provider, "not-registered")
 
+
+class RevisionIdentityTests(unittest.TestCase):
+    targets = {"hermes": (NEW, {"hermes-simd": frozenset({"0.5.0"})}), "mnemosyne": (NEW, {"mnemosyne-memory": frozenset({"0.8.0"})})}
+
+    def finding(self, path: str, lock: str, fixture: bool = False):
+        return sweep.revision_lock_findings("consumer", path, lock, self.targets, fixture)
+
+    def test_drift_findings_preserve_path_revision_and_registration(self) -> None:
+        lock = "version = 4\n" + package("hermes-simd", "0.5.0", f"git+https://github.com/ryancinsight/hermes#{OLD}")
+        report, problems = self.finding("Cargo.lock", lock)
+        expected = f"consumer/Cargo.lock: hermes-simd locks hermes@{OLD}; selected {NEW}"
+        _, nested = self.finding("fuzz/Cargo.lock", lock)
+        unknown = f"git+https://github.com/ryancinsight/not-registered#{NEW}"
+        _, unregistered = self.finding("Cargo.lock", "version = 4\n" + package("unknown", "0.1.0", unknown))
+        self.assertEqual((report, problems), ("consumer/Cargo.lock: measured 1 first-party package(s)", [expected]))
+        self.assertTrue(nested[0].startswith("consumer/fuzz/Cargo.lock:"))
+        self.assertIn("unknown registered first-party identity not-registered", unregistered[0])
+
+    def test_queried_alias_resolves_without_disclosing_query(self) -> None:
+        for query in (f"rev={OLD}", "branch=main", "tag=v0.8.0", "token=SYNTHETIC_SECRET"):
+            with self.subTest(query=query):
+                source = f"git+https://GitHub.com/RyAnCiNsIgHt/Mnemosyne.GIT?{query}#{OLD}"
+                _, problems = self.finding(
+                    "Cargo.lock", "version = 4\n" + package("mnemosyne-memory", "0.8.0", source)
+                )
+                expected = f"consumer/Cargo.lock: mnemosyne-memory locks mnemosyne@{OLD}; selected {NEW}"
+                self.assertEqual((problems, query in repr(problems)), ([expected], False))
+
+    def test_exact_source_is_reported_aligned(self) -> None:
+        source = f"git+https://github.com/ryancinsight/hermes.git#{NEW}"
+        report, problems = self.finding("Cargo.lock", "version = 4\n" + package("hermes-simd", "0.5.0", source))
+        self.assertEqual((report, problems), ("consumer/Cargo.lock: aligned 1 first-party package(s)", []))
+
+    def test_structural_path_fixture_with_git_identity_requires_unification(self) -> None:
+        source = f"git+https://github.com/ryancinsight/hermes#{NEW}"
+        lock = "version = 4\n" + package("hermes-simd", "0.5.0", source)
+        manifest = ('[package]\nname = "fixture"\nversion = "0.1.0"\n[dependencies]\n'
+                    'sibling = { path = "../../sibling" }\n')
+        texts = {"Cargo.toml": manifest, "Cargo.lock": lock}
+        standalone, exempt = sweep.lockfile.judge_locks(texts)
+        self.assertEqual((standalone, exempt), ([], ["Cargo.lock"]))
+        report, problems = self.finding("Cargo.lock", lock, "Cargo.lock" in exempt)
+        self.assertEqual(report, "consumer/Cargo.lock: path fixture (1 first-party Git identities)")
+        self.assertIn("path-unification required for hermes-simd", problems[0])
+
+class RevisionRepositoryTests(unittest.TestCase):
+    def check_meta(self, modules: str, pins: dict[str, str | None],
+                   plain_members: tuple[str, ...] = ()) -> sweep.RevisionCheck:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            commit_meta(root, modules, pins)
+            for member in plain_members:
+                (root / "repos" / member).mkdir(parents=True)
+            return sweep.check_revision(root, "HEAD")
+
+    def fixture(self, root: Path, locked_version: str = "0.1.0", query: str = "",
+                provider_files: dict[str, str] | None = None,
+                package_name: str = "provider", root_lock: bool = True) -> tuple[str, str]:
+        provider = root / "repos" / "provider"
+        provider_files = provider_files or {"Cargo.toml": PROVIDER_MANIFEST, "Cargo.lock": PROVIDER_LOCK}
+        provider_pin = commit_repository(provider, provider_files)
+        consumer = root / "repos" / "consumer"
+        aligned_source = f"git+https://github.com/ryancinsight/provider{query}#{provider_pin}"
+        aligned = package(package_name, locked_version, aligned_source)
+        drift_source = f"git+https://github.com/ryancinsight/provider#{OLD}"
+        drift = package(package_name, "0.1.0", drift_source)
+        consumer_files = {"Cargo.toml": CONSUMER_MANIFEST,
+                          "Cargo.lock": PROVIDER_LOCK.replace('name = "provider"', 'name = "consumer"') + aligned,
+                          "fuzz/Cargo.toml": CONSUMER_MANIFEST.replace("consumer", "consumer-fuzz"),
+                          "fuzz/Cargo.lock": PROVIDER_LOCK.replace('name = "provider"', 'name = "consumer-fuzz"') + drift}
+        if not root_lock: consumer_files.pop("Cargo.lock")
+        consumer_pin = commit_repository(consumer, consumer_files)
+        pins = {"provider": provider_pin, "consumer": consumer_pin}
+        meta_pin = commit_meta(root, gitmodules("provider", "consumer"), pins)
+        return provider_pin, meta_pin
+
+    def checked_fixture(self, **arguments) -> tuple[str, str, sweep.RevisionCheck]:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider, meta = self.fixture(root, **arguments)
+            return provider, meta, sweep.check_revision(root, meta)
+
+    def test_exact_revision_reads_every_nested_committed_lock(self) -> None:
+        provider_pin, meta_pin, result = self.checked_fixture()
+        _, _, rootless = self.checked_fixture(root_lock=False)
+        self.assertEqual((result.revision, result.locks), (meta_pin, 3))
+        self.assertIn("consumer/Cargo.lock: aligned 1 first-party package(s)", result.reports)
+        self.assertEqual(result.problems, (f"consumer/fuzz/Cargo.lock: provider locks provider@{OLD}; selected {provider_pin}",))
+        self.assertIn("no committed root Cargo.lock", "\n".join(rootless.problems))
+
+    def test_exact_revision_checks_version_and_redacts_query(self) -> None:
+        _, _, result = self.checked_fixture(locked_version="9.9.9", query="?token=SYNTHETIC_SECRET")
+        evidence = repr((result.reports, result.problems))
+        self.assertEqual(("locks version 9.9.9; selected provider manifests declare 0.1.0" in evidence,
+                          "SYNTHETIC_SECRET" in evidence), (True, False))
+
+    def test_provider_package_facts_fail_closed_without_dropping_duplicates(self) -> None:
+        missing = {"Cargo.toml": '[workspace]\nmembers = ["crates/missing"]\n',
+                   "Cargo.lock": "version = 4\n"}
+        duplicates = {"Cargo.toml": '[workspace]\nmembers = ["one", "two"]\n',
+                      "Cargo.lock": "version = 4\n",
+                      "one/Cargo.toml": PROVIDER_MANIFEST.replace("provider", "shared"),
+                      "two/Cargo.toml": PROVIDER_MANIFEST.replace("provider", "shared").replace("0.1.0", "9.9.9")}
+        _, _, missing_result = self.checked_fixture(provider_files=missing)
+        _, _, duplicate_result = self.checked_fixture(provider_files=duplicates, package_name="shared")
+        _, _, manifest_result = self.checked_fixture(provider_files={"Cargo.lock": "version = 4\n"})
+        self.assertIn("declares workspace member 'crates/missing'", repr(missing_result.problems))
+        self.assertNotIn("locks version", repr(duplicate_result.problems))
+        self.assertIn("workspace has no committed Cargo.toml", repr(manifest_result.problems))
+
+    def test_unreadable_selected_member_object_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.fixture(root)
+            run_git(root, "update-index", "--cacheinfo", f"160000,{'f' * 40},repos/provider")
+            run_git(root, "commit", "--quiet", "-m", "missing provider object")
+            result = sweep.check_revision(root, "HEAD")
+        self.assertTrue(any("selected object cannot be read" in problem for problem in result.problems))
+
+    def test_native_git_quoted_member_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            commit_meta(root, '[submodule "provider"]\npath = "repos/provider"\nurl = local\n', {})
+            self.assertEqual(sweep.committed_member_names(root, "HEAD"), {"provider"})
+
+    def test_invalid_member_topologies_fail_closed(self) -> None:
+        cases = (
+            (gitmodules("provider"), {"provider": None}, ("provider",), "no independent object repository"),
+            (gitmodules(".."), {}, (), "unsafe registered member name '..'"),
+            ("", {}, (), "no registered members"),
+            (gitmodules("provider") + '[submodule "outside"]\npath = ../outside\nurl = local\n', {"provider": None}, (),
+             "unsupported submodule path '../outside'"),
+            ('[submodule "x"]\npath = repos/provider/../outside\nurl = local\n', {}, (), "unsupported submodule path 'repos/provider/../outside'"),
+            ('[submodule "missing"]\nurl = local\n', {}, (), "has no path"),
+            ('[submodule "missing"]\npath = repos/provider\n', {"provider": None}, (), "has no url"),
+            ('[submodule "x"]\npath = repos/provider\npath = repos/other\nurl = local\n', {}, (), "has multiple paths"),
+            (gitmodules("provider") + '[submodule "alias"]\npath = repos/provider\nurl = local\n', {}, (), "duplicate registered submodule path repos/provider"),
+            ('[submodule "provider"\npath = repos/provider\n', {}, (), "cannot parse .gitmodules"),
+            (gitmodules("provider"), {"provider": None, "aaa-extra": None}, (), "unregistered gitlink repos/aaa-extra"),
+            (gitmodules("provider"), {"provider": None, "repos/nested/extra": None}, (), "unsupported gitlink repos/nested/extra"),
+            (gitmodules("provider"), {"provider": None, "outside/provider": None}, (), "unsupported gitlink outside/provider"),
+        )
+        for modules, pins, plain_members, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic):
+                result = self.check_meta(modules, pins, plain_members)
+            self.assertIn(diagnostic, result.problems[0])
 
 class PlanTests(unittest.TestCase):
     def test_entries_behind_their_target_are_stale_and_entries_at_it_are_not(self) -> None:
