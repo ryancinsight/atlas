@@ -182,9 +182,9 @@ def _identity_from_digests(target_dir: Path, paths: set[Path], digests: dict[Pat
 def _optional_diagnostic(path: Path, target_dir: Path) -> bool:
     """Whether Cargo may retire this lazily-created diagnostic cache."""
     parts = path.relative_to(target_dir).parts
-    # Cargo 1.97 maps optional compiler output caches to fingerprint
-    # `output-*` files and removes stale caches before recreating them:
-    # https://github.com/rust-lang/cargo/blob/rust-1.97.0/src/cargo/core/compiler/mod.rs#L1883-L1911
+    # Cargo 1.97 lazily creates and retires OutputOptions caches:
+    # https://github.com/rust-lang/cargo/blob/rust-1.97.0/src/cargo/core/compiler/mod.rs#L2021-L2050
+    # Fingerprint `output-*` mapping: https://github.com/rust-lang/cargo/blob/rust-1.97.0/src/cargo/core/compiler/build_runner/compilation_files.rs#L340-L346
     return ".fingerprint" in parts and len(parts) == parts.index(".fingerprint") + 3 and path.name.startswith("output-")
 
 
