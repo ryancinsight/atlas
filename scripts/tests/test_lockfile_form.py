@@ -404,6 +404,31 @@ class TreeCheckTestCase(unittest.TestCase):
                 completed = self.check(root)
             self.assertEqual((completed.returncode, "leaves the candidate" in completed.stderr), (1, True))
 
+    def test_replace_path_is_confined_before_cargo_runs(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(root, "a/Cargo.toml", '[package]\nname="a"\nversion="0.1.0"\n'
+                       '[replace]\n"bar:1.0.2"={path="../../outside"}\n')
+            self.write(root, "a/Cargo.lock", STANDALONE)
+            calls = []
+            with mock.patch.object(lockfile, "cargo_metadata", calls.append), \
+                    contextlib.redirect_stderr(stderr := io.StringIO()):
+                code = lockfile.check(root)
+        self.assertEqual((code, calls), (1, []))
+        self.assertIn("leaves the candidate", stderr.getvalue())
+
+    def test_contained_replace_package_uses_the_owner_lock(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.package(root, "bar", "bar")
+            self.package(root, "a", "a", '[dependencies]\nbar="=0.1.0"\n'
+                         '[replace]\n"bar:0.1.0"={path="../bar"}\n')
+            self.cargo(root, "a/Cargo.toml")
+            self.cargo(root, "bar/Cargo.toml")
+            completed = self.check(root)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout.count("checking lock owner"), 2)
+
     def test_only_the_named_atlas_device_fixture_is_exempt(self) -> None:
         fixture = ('[package]\nname="melinoe-atlas-device-contract"\nversion="0.1.0"\n'
                    'publish=false\n[workspace]\n[dependencies]\nx={path="../../../sibling"}\n'

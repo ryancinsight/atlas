@@ -623,6 +623,7 @@ class ManifestPaths(NamedTuple):
     excluded: tuple[str, ...]
     dependencies: tuple[str, ...]
     patches: tuple[str, ...]
+    replacements: tuple[str, ...]
 
     def references(self) -> Iterator[str]:
         """Yield every path Cargo may follow from the manifest."""
@@ -632,6 +633,7 @@ class ManifestPaths(NamedTuple):
         yield from self.excluded
         yield from self.dependencies
         yield from self.patches
+        yield from self.replacements
 
 
 def manifest_paths(manifest: Mapping[str, object]) -> ManifestPaths:
@@ -654,12 +656,17 @@ def manifest_paths(manifest: Mapping[str, object]) -> ManifestPaths:
         if isinstance(table, dict)
         for path in dependency_paths({"dependencies": table})
     )
+    replacements = manifest.get("replace")
+    replacement_paths = tuple(
+        dependency_paths({"dependencies": replacements})
+    ) if isinstance(replacements, dict) else ()
     return ManifestPaths(
         workspace_path if isinstance(workspace_path, str) else None,
         entries("members"),
         entries("exclude"),
         tuple(dependency_paths(manifest)),
         patch_paths,
+        replacement_paths,
     )
 
 
