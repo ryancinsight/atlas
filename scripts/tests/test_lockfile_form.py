@@ -309,13 +309,12 @@ class LockManifestSelectionTestCase(unittest.TestCase):
                 if path == manifest:
                     raise AssertionError("CLI resolved the requested manifest")
                 return original_resolve(path, *args, **kwargs)
-            stderr = io.StringIO()
             try:
                 with (
                     mock.patch.object(sys, "argv", ["lockfile.py", "--check", "--manifest-path", str(manifest)]),
                     mock.patch.object(Path, "resolve", resolve),
                     mock.patch.object(Path, "is_symlink", lambda path: path == manifest or original_link(path)),
-                    contextlib.redirect_stderr(stderr),
+                    contextlib.redirect_stderr(stderr := io.StringIO()),
                 ):
                     code = lockfile.main()
             finally:
@@ -332,8 +331,7 @@ class TreeCheckTestCase(unittest.TestCase):
         path.write_text(text, encoding="utf-8", newline="\n")
 
     def cargo(self, root: Path, manifest: str) -> None:
-        completed = lockfile.run_outside_the_overlay(["generate-lockfile"],
-                                                     root / manifest, deadline=60)
+        completed = lockfile.run_outside_the_overlay(["generate-lockfile"], root / manifest, deadline=60)
         self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def package(self, root: Path, directory: str, name: str, extra: str = "") -> str:
@@ -349,9 +347,8 @@ class TreeCheckTestCase(unittest.TestCase):
             owners = ("checkout-path-dependencies", "criterion-regression", "gitlink-coherence", "version-guard")
             for owner in owners:
                 self.cargo(root, self.package(root, f"tools/{owner}", owner))
-            completed = lockfile.run_bounded(
-                [sys.executable, str(SCRIPT), "--check", "--check-tree", str(root)],
-                cwd=root, env=os.environ, deadline=60)
+            command = [sys.executable, str(SCRIPT), "--check", "--check-tree", str(root)]
+            completed = lockfile.run_bounded(command, cwd=root, env=os.environ, deadline=60)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(completed.stdout.count("checking lock owner"), len(owners))
 
