@@ -1,12 +1,11 @@
 """Immutable, path-confined Cargo source cohorts."""
 from __future__ import annotations
 
-import os
 import re
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from atlas_git_process import execute
 
@@ -51,23 +50,52 @@ def _selection(name: str, selected: SelectedRepository) -> None:
         raise CargoSnapshotError(f"selected revision is not that commit: {name!r}")
 
 
-def _export(selected: SelectedRepository, destination: Path, index: Path) -> None:
-    environment = dict(os.environ)
-    environment["GIT_INDEX_FILE"] = str(index)
+def _export(selected: SelectedRepository, destination: Path) -> None:
+    listing = execute(
+        selected.repository,
+        ("--no-replace-objects", "ls-tree", "-r", "-z", "--full-tree", selected.revision),
+        timeout=PROCESS_TIMEOUT_SECONDS,
+    )
+    if listing.returncode:
+        detail = listing.stderr.decode("utf-8", errors="replace").strip()
+        raise CargoSnapshotError(detail or "cannot list selected tree")
+    entries = []
     try:
-        result = execute(
-            selected.repository,
-            ("--no-replace-objects", "--work-tree", str(destination),
-             "-c", "core.sparseCheckout=false", "-c", "core.symlinks=false",
-             "read-tree", "-u", "--reset", selected.revision),
-            env=environment,
-            timeout=PROCESS_TIMEOUT_SECONDS,
-        )
-    finally:
-        index.unlink(missing_ok=True)
-    if result.returncode:
-        detail = result.stderr.decode("utf-8", errors="replace").strip()
-        raise CargoSnapshotError(detail or "cannot read selected tree")
+        records = listing.stdout.decode("utf-8").split("\0")
+    except UnicodeDecodeError as error:
+        raise CargoSnapshotError("selected tree has a non-UTF-8 path") from error
+    for record in filter(None, records):
+        head, separator, name = record.partition("\t")
+        fields = head.split()
+        path = PurePosixPath(name)
+        if (not separator or len(fields) != 3 or fields[1] != "blob"
+                or fields[0] not in {"100644", "100755"}):
+            raise CargoSnapshotError(f"selected tree has an unsupported entry: {name!r}")
+        if (path.is_absolute() or PureWindowsPath(name).is_absolute()
+                or any(part in {"", ".", ".."} or "\\" in part for part in path.parts)):
+            raise CargoSnapshotError(f"selected tree has an unsafe path: {name!r}")
+        entries.append((fields[0], fields[2], path))
+    request = b"".join(f"{blob}\n".encode("ascii") for _, blob, _ in entries)
+    objects = execute(
+        selected.repository, ("--no-replace-objects", "cat-file", "--batch"),
+        stdin=request, timeout=PROCESS_TIMEOUT_SECONDS,
+    )
+    if objects.returncode:
+        raise CargoSnapshotError("cannot read selected tree blobs")
+    stream = objects.stdout
+    for mode, blob, path in entries:
+        header, separator, stream = stream.partition(b"\n")
+        fields = header.split()
+        if not separator or len(fields) != 3 or fields[:2] != [blob.encode(), b"blob"]:
+            raise CargoSnapshotError(f"cannot read selected blob: {path}")
+        size = int(fields[2])
+        if len(stream) <= size or stream[size:size + 1] != b"\n":
+            raise CargoSnapshotError(f"selected blob is truncated: {path}")
+        payload, stream = stream[:size], stream[size + 1:]
+        target = destination.joinpath(*path.parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+        target.chmod(0o755 if mode == "100755" else 0o644)
 
 
 def _reject_external_workspace(destination: Path) -> None:
@@ -82,7 +110,7 @@ def _inside(root: Path, manifest: Path, raw: str, field: str) -> None:
     if not raw or "\\" in raw:
         raise CargoSnapshotError(f"{manifest}: unsafe {field} path")
     path = Path(raw)
-    if path.is_absolute():
+    if PurePosixPath(raw).is_absolute() or PureWindowsPath(raw).drive:
         raise CargoSnapshotError(f"{manifest}: absolute {field} path escapes the snapshot")
     target = (manifest.parent / path).resolve()
     try:
@@ -104,6 +132,16 @@ def _dependency_paths(root: Path, manifest: Path, table: object, field: str) -> 
             _inside(root, manifest, path, f"dependency {dependency!r}")
 
 
+def _source_path(root: Path, manifest: Path, target: object, field: str) -> None:
+    if not isinstance(target, dict):
+        raise CargoSnapshotError(f"{manifest}: {field} is not a table")
+    if "path" in target:
+        path = target["path"]
+        if not isinstance(path, str):
+            raise CargoSnapshotError(f"{manifest}: {field}.path is not text")
+        _inside(root, manifest, path, f"{field}.path")
+
+
 def _manifest_paths(root: Path, manifest: Path) -> None:
     try:
         document = tomllib.loads(manifest.read_text(encoding="utf-8"))
@@ -115,6 +153,8 @@ def _manifest_paths(root: Path, manifest: Path) -> None:
         if not isinstance(workspace, str):
             raise CargoSnapshotError(f"{manifest}: package.workspace is not text")
         _inside(root, manifest, workspace, "package.workspace")
+    if isinstance(package, dict) and isinstance(package.get("build"), str):
+        _inside(root, manifest, package["build"], "package.build")
     workspace = document.get("workspace")
     if isinstance(workspace, dict):
         for field in ("members", "exclude"):
@@ -132,6 +172,14 @@ def _manifest_paths(root: Path, manifest: Path) -> None:
         raise CargoSnapshotError(f"{manifest}: patch is not a table")
     for source, table in patches.items():
         _dependency_paths(root, manifest, table, f"patch.{source}")
+    if "lib" in document:
+        _source_path(root, manifest, document["lib"], "lib")
+    for field in ("bin", "test", "bench", "example"):
+        targets = document.get(field, [])
+        if not isinstance(targets, list):
+            raise CargoSnapshotError(f"{manifest}: {field} is not an array")
+        for index, target in enumerate(targets):
+            _source_path(root, manifest, target, f"{field}[{index}]")
     targets = document.get("target", {})
     if not isinstance(targets, dict):
         raise CargoSnapshotError(f"{manifest}: target is not a table")
@@ -156,7 +204,7 @@ def create_snapshot(
         member = repos / name
         member.mkdir()
         try:
-            _export(selected, member, destination / f".{name}.index")
+            _export(selected, member)
         except (OSError, RuntimeError) as error:
             raise CargoSnapshotError(f"cannot export selected member {name!r}: {error}") from error
         for required in ("Cargo.toml", "Cargo.lock"):
