@@ -13,13 +13,18 @@ revisions without the working-tree overlay or lock mutation.
 ## Decision
 
 Export every selected Git tree into one immutable `repos/<member>` topology.
+Before Cargo executes, reject any implicit ancestor workspace, discovered
+manifest, or manifest path input outside those selected exports. Immutable
+object reads ignore local replacement refs and archive attributes.
 For every committed lock, run bounded `cargo metadata --locked --offline
 --no-deps --format-version 1` from a neutral directory. Cargo's records own
 package identity and dependency source, requirement, rename, kind, and target.
 
-Retain same-name package facts. A consumed first-party package must project to
-exactly one selected provider; zero or multiple candidates fail closed. Export
-complete source trees rather than fabricating targets for incomplete snapshots.
+Retain same-name package facts. Provider eligibility is first bound to the Git
+repository declared by the dependency source, then exactly one matching
+package must exist in that selected export; zero or multiple candidates fail
+closed. Export complete source trees rather than fabricating targets for
+incomplete snapshots.
 
 ## Rejected alternatives
 
