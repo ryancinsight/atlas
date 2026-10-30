@@ -282,12 +282,13 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          MANIFEST_PATH: ${{ inputs.manifest-path }}
           PACKAGE: ${{ inputs.package }}
         run: |
           set -euo pipefail
           status=0
           python3 _atlas/scripts/atlas-bump-guard.py --repo . --base "$BASE" --head "$HEAD" \
-            --package "$PACKAGE" >"$RUNNER_TEMP/bump-guard.out" 2>"$RUNNER_TEMP/bump-guard.err" \
+            --package "$PACKAGE" --manifest-path "$MANIFEST_PATH" >"$RUNNER_TEMP/bump-guard.out" 2>"$RUNNER_TEMP/bump-guard.err" \
             || status=$?
           cat "$RUNNER_TEMP/bump-guard.out"
           cat "$RUNNER_TEMP/bump-guard.err" >&2
