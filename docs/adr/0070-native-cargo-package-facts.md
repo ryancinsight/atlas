@@ -29,9 +29,11 @@ complete source trees rather than fabricating targets for incomplete snapshots.
 
 ## Consequences
 
-Every selected tree and lock must resolve offline with the pinned Cargo. The
-pass performs no compilation, creates no target cache, and verifies lock bytes
-remain unchanged. Incomplete cohorts fail rather than produce partial facts.
+Every selected manifest and committed lock root must be readable by the pinned
+Cargo without mutation. `--no-deps` extracts declarations; it does not prove
+that unavailable dependencies, stale locks, or APIs resolve. Separate locked
+graph and consumer gates own those claims. This pass performs no compilation,
+creates no target cache, and verifies lock bytes remain unchanged.
 
 Revision note (2026-10-29): executable Cargo fixtures disproved the manual
 workspace model, so native metadata replaces it.
