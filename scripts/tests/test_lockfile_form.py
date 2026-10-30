@@ -204,7 +204,7 @@ class FixtureDetectionTestCase(unittest.TestCase):
                 f'[package]\nname = "sub"\nversion = "0.1.0"\n\n[dependencies]\n{dependency}\n'
             ),
         }
-        return lockfile.workspace_facts(manifests, ROOT_WORKSPACE, [])
+        return lockfile.workspace_facts(manifests, PurePosixPath(directory), [])
 
     def test_intra_repo_parent_path_is_not_a_fixture(self) -> None:
         self.assertFalse(self.facts('member = { path = ".." }').fixture)
@@ -253,66 +253,45 @@ class LockManifestSelectionTestCase(unittest.TestCase):
         texts = {
             "Cargo.toml": '[workspace]\nexclude = ["fuzz"]\n',
             "Cargo.lock": STANDALONE,
-            "fuzz/Cargo.toml": '[package]\nname = "fuzz"\nversion = "0.0.0"\n'
-            '[workspace]\n[dependencies]\npal = { path = "../pal" }\n',
+            "fuzz/Cargo.toml": '[package]\nname = "fuzz"\nversion = "0.0.0"\n[workspace]\n[dependencies]\npal = { path = "../pal" }\n',
             "fuzz/Cargo.lock": STANDALONE,
-            "fixture/Cargo.toml": '[package]\nname = "fixture"\nversion = "0.0.0"\n'
-            '[dependencies]\noutside = { path = "../../outside" }\n',
+            "fixture/Cargo.toml": '[package]\nname = "fixture"\nversion = "0.0.0"\n[dependencies]\noutside = { path = "../../outside" }\n',
             "fixture/Cargo.lock": STANDALONE,
             "orphan/Cargo.toml": '[package]\nname = "orphan"\nversion = "0.1.0"\n',
         }
-        expected = (["Cargo.toml", "fuzz/Cargo.toml"], ["fixture/Cargo.lock"],
-                    ["orphan/Cargo.toml: sibling Cargo.lock is missing"])
+        expected = (["Cargo.toml", "fuzz/Cargo.toml"], ["fixture/Cargo.lock"], ["orphan/Cargo.toml: sibling Cargo.lock is missing"])
         self.assertEqual(lockfile.lock_manifests(texts), expected)
-        self.assertEqual(lockfile.lock_manifests({"nested/Cargo.lock": STANDALONE}),
-                         ([], [], ["nested/Cargo.lock: sibling Cargo.toml is missing"]))
+        self.assertEqual(lockfile.lock_manifests({"nested/Cargo.lock": STANDALONE}), ([], [], ["nested/Cargo.lock: sibling Cargo.toml is missing"]))
 
-    def test_ignored_directory_names_are_included_when_requested(self) -> None:
+    def test_candidate_rejects_directory_links(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
             root = Path(temp)
-            for directory in ("target/tool", "node_modules/tool"):
-                path = root / directory
-                path.mkdir(parents=True)
-                (path / "Cargo.toml").write_text("[workspace]\n", encoding="utf-8")
-                (path / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
-            texts = lockfile.disk_texts(root, ignored_directories=frozenset())
-            manifests, _, _ = lockfile.lock_manifests(texts)
-            linked = root / "linked"
-            linked.mkdir()
+            (linked := root / "linked").mkdir()
             original_link = Path.is_symlink
             with (
-                mock.patch.object(Path, "is_symlink",
-                                  lambda path: path.name == "linked" or original_link(path)),
+                mock.patch.object(Path, "is_symlink", lambda path: path.name == "linked" or original_link(path)),
                 self.assertRaisesRegex(OSError, "symbolic directory link"),
             ):
                 lockfile.disk_texts(root, ignored_directories=frozenset())
-        expected = ([f"{d}/tool/{n}" for d in ("node_modules", "target")
-                     for n in ("Cargo.lock", "Cargo.toml")],
-                    ["node_modules/tool/Cargo.toml", "target/tool/Cargo.toml"])
-        self.assertEqual((sorted(texts), manifests), expected)
 
     def test_cli_keeps_the_candidate_root_lexical(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
             root = Path(temp)
-            manifest = root / "Cargo.toml"
-            manifest.write_text("[workspace]\n", encoding="utf-8")
+            (manifest := root / "Cargo.toml").write_text("[workspace]\n", encoding="utf-8")
             (root / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
-            originals = (lockfile.REPOSITORY, lockfile.LOCKFILE, lockfile.MANIFEST)
             original_resolve, original_link = Path.resolve, Path.is_symlink
 
             def resolve(path: Path, *args, **kwargs) -> Path:
                 self.assertNotEqual(path, manifest, "CLI resolved the requested manifest")
                 return original_resolve(path, *args, **kwargs)
-            try:
-                with (
-                    mock.patch.object(sys, "argv", ["lockfile.py", "--check", "--manifest-path", str(manifest)]),
-                    mock.patch.object(Path, "resolve", resolve),
-                    mock.patch.object(Path, "is_symlink", lambda path: path == manifest or original_link(path)),
-                    contextlib.redirect_stderr(stderr := io.StringIO()),
-                ):
-                    code = lockfile.main()
-            finally:
-                lockfile.REPOSITORY, lockfile.LOCKFILE, lockfile.MANIFEST = originals
+            with (
+                mock.patch.multiple(lockfile, REPOSITORY=lockfile.REPOSITORY, LOCKFILE=lockfile.LOCKFILE, MANIFEST=lockfile.MANIFEST),
+                mock.patch.object(sys, "argv", ["lockfile.py", "--check", "--manifest-path", str(manifest)]),
+                mock.patch.object(Path, "resolve", resolve),
+                mock.patch.object(Path, "is_symlink", lambda path: path == manifest or original_link(path)),
+                contextlib.redirect_stderr(stderr := io.StringIO()),
+            ):
+                code = lockfile.main()
         self.assertEqual(code, 1)
         self.assertIn("symbolic metadata link", stderr.getvalue())
 
@@ -341,21 +320,22 @@ class TreeCheckTestCase(unittest.TestCase):
             owners = ("checkout-path-dependencies", "criterion-regression", "gitlink-coherence", "version-guard")
             for owner in owners:
                 self.cargo(root, self.package(root, f"tools/{owner}", owner))
+            self.cargo(root, self.package(root, "target/tool", "ignored-name-owner"))
             command = [sys.executable, str(SCRIPT), "--check", "--check-tree", str(root)]
             completed = lockfile.run_bounded(command, cwd=root, env=os.environ, deadline=60)
-        self.assertEqual((completed.returncode, completed.stdout.count("checking lock owner")),
-                         (0, len(owners)), completed.stderr)
+        self.assertEqual((completed.returncode, completed.stdout.count("checking lock owner")), (0, len(owners) + 1), completed.stderr)
 
-    def test_tree_cli_rejects_an_independent_package_without_a_lock(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
-            root = Path(temp)
-            self.cargo(root, self.package(root, "good", "good"))
-            self.package(root, "orphan", "orphan")
-            command = [sys.executable, str(SCRIPT), "--check", "--check-tree", str(root)]
-            completed = lockfile.run_bounded(command, cwd=root, env=os.environ, deadline=60)
-        self.assertEqual((completed.returncode,
-                          "orphan/Cargo.toml: sibling Cargo.lock is missing" in completed.stderr),
-                         (1, True), completed.stdout)
+    def test_tree_cli_rejects_each_independent_package_without_a_lock(self) -> None:
+        cases = (("orphan", ""), ("good/nested", "[workspace]\n"))
+        for directory, extra in cases:
+            with self.subTest(directory), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                self.cargo(root, self.package(root, "good", "good"))
+                self.package(root, directory, "orphan", extra)
+                command = [sys.executable, str(SCRIPT), "--check", "--check-tree", str(root)]
+                completed = lockfile.run_bounded(command, cwd=root, env=os.environ, deadline=60)
+            missing = f"{directory}/Cargo.toml: sibling Cargo.lock is missing"
+            self.assertEqual((completed.returncode, missing in completed.stderr), (1, True), completed.stdout)
 
     def test_target_dependency_stales_only_the_excluded_workspace_lock(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
@@ -364,8 +344,8 @@ class TreeCheckTestCase(unittest.TestCase):
                        'members = ["pal", "support"]\nexclude = ["fuzz"]\n')
             for package in ("pal", "support"):
                 self.package(root, package, package)
-            self.package(root, "fuzz", "fuzz", '[workspace]\n[dependencies]\n'
-                         'pal = { path = "../pal" }\n')
+            self.package(root, "fuzz", "fuzz",
+                         '[workspace]\n[dependencies]\npal = { path = "../pal" }\n')
             self.cargo(root, "Cargo.toml")
             self.cargo(root, "fuzz/Cargo.toml")
             with (root / "pal/Cargo.toml").open("a", encoding="utf-8") as manifest:

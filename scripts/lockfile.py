@@ -665,8 +665,8 @@ def workspace_selection(
     parsed: Mapping[str, Mapping[str, object] | None],
     workspace: PurePosixPath,
     nested: Sequence[PurePosixPath],
-) -> set[str] | None:
-    """The manifests cargo resolves in the workspace's lock, or None when it declares none.
+) -> set[str]:
+    """The manifests Cargo resolves in the workspace's lock.
 
     Cargo, not directory containment, decides membership: `members` names the
     packages (globs included), `exclude` removes paths from that set, path
@@ -676,14 +676,13 @@ def workspace_selection(
     let an excluded crate shadow a stripped source by name, and let a lockless
     nested workspace exempt the root lock through a path leaving the repository.
 
-    `None` means the root declares no `[workspace]` table; the caller then keeps
-    the directory-based reading, which is all a single-package manifest has.
+    A package without `[workspace]` owns only itself and its local path closure.
     """
     root = (workspace / "Cargo.toml").as_posix()
     root_data = parsed.get(root)
-    table = root_data.get("workspace") if isinstance(root_data, dict) else None
+    table = root_data.get("workspace") if isinstance(root_data, dict) else {}
     if not isinstance(table, dict):
-        return None
+        table = {}
 
     def entries(key: str) -> list[PurePosixPath]:
         listed = table.get(key)
@@ -765,7 +764,7 @@ def workspace_selection(
         name
         for name in selected
         if not inside_boundary(PurePosixPath(name).parent)
-        and not ignored(PurePosixPath(name).parent)
+        and (name == root or not ignored(PurePosixPath(name).parent))
         and not excluded_manifest(name)
     }
 
@@ -798,14 +797,6 @@ def workspace_facts(
             parsed[name] = None
 
     selected = workspace_selection(manifests, parsed, workspace, nested)
-    if selected is None:
-        selected = {
-            name
-            for name in manifests
-            if workspace in PurePosixPath(name).parents
-            and not ({part.lower() for part in PurePosixPath(name).parts} & IGNORED_DIRECTORIES)
-            and not any(other in PurePosixPath(name).parents for other in nested)
-        }
 
     local: set[str] = set()
     git_dependencies: set[str] = set()
@@ -861,22 +852,19 @@ def lock_manifests(texts: Mapping[str, str]) -> tuple[list[str], list[str], list
     owned: set[str] = set()
     for lock, facts in units.items():
         owned.update(facts.manifests)
+        manifest = str(PurePosixPath(lock).with_name("Cargo.toml"))
         if facts.fixture:
             exempt.append(lock)
-            continue
-        manifest = str(PurePosixPath(lock).with_name("Cargo.toml"))
-        if manifest not in texts:
+        elif manifest in texts:
+            manifests.append(manifest)
+        else:
             problems.append(f"{lock}: sibling Cargo.toml is missing")
-            continue
-        manifests.append(manifest)
     for manifest in sorted(set(manifest_texts) - owned):
-        if manifest in owned:
-            continue
-        facts = workspace_facts(manifest_texts, PurePosixPath(manifest).parent,
-                                [PurePosixPath(lock).parent for lock in units])
-        owned.update(facts.manifests)
-        if not facts.fixture:
-            problems.append(f"{manifest}: sibling Cargo.lock is missing")
+        if manifest not in owned:
+            facts = workspace_facts(manifest_texts, PurePosixPath(manifest).parent, [PurePosixPath(lock).parent for lock in units])
+            owned.update(facts.manifests)
+            if not facts.fixture:
+                problems.append(f"{manifest}: sibling Cargo.lock is missing")
     return manifests, exempt, problems
 
 
