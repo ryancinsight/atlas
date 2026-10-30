@@ -123,11 +123,16 @@ def artifact_identities(
             owners = _workspace_artifact_owners(manifest, metadata_cwd)
     required: set[Path] | None = None
     previous: tuple[dict[str, set[Path]], dict[Path, str]] | None = None
+    requested = frozenset(
+        owner for package, related in packages.items() for owner in (package, *related)
+    )
     while True:
         if time.monotonic_ns() >= deadline_ns:
             raise BuildIdentityError("artifact census did not converge before its deadline")
         try:
-            by_owner = _discover_artifacts_by_owner(target_dir, profile, target, owners)
+            by_owner = _discover_artifacts_by_owner(
+                target_dir, profile, target, owners, requested
+            )
         except OSError as error:
             raise BuildIdentityError(f"cannot enumerate artifacts in {target_dir}: {error}") from error
         selected = {
@@ -250,7 +255,7 @@ def artifact_package(relative: str, owners: dict[str, frozenset[str]]) -> str | 
         unit = parts[-2]
     else:
         unit = parts[-1]
-    return _artifact_owner(unit, owners, "")
+    return _artifact_owner(unit, _artifact_owners_by_stem(owners))
 
 
 # Recorded in place of a digest when a dependency file never read the same
@@ -403,7 +408,20 @@ def metadata_artifact_owners(
 _METADATA_HASH = re.compile(r"-[0-9a-f]+$")
 
 
-def _artifact_owner(filename: str, owners: dict[str, frozenset[str]], requested: str) -> str | None:
+def _artifact_owners_by_stem(
+    owners: dict[str, frozenset[str]],
+) -> dict[str, frozenset[str]]:
+    """Index every target stem by all packages that declare it."""
+    by_stem: dict[str, set[str]] = {}
+    for owner, stems in owners.items():
+        for stem in stems:
+            by_stem.setdefault(stem, set()).add(owner)
+    return {stem: frozenset(packages) for stem, packages in by_stem.items()}
+
+
+def _artifact_owner(
+    filename: str, owners_by_stem: dict[str, frozenset[str]]
+) -> str | None:
     """The package whose target the artifact names exactly.
 
     Cargo names an artifact `<target>-<hex metadata hash>` (a library
@@ -417,8 +435,8 @@ def _artifact_owner(filename: str, owners: dict[str, frozenset[str]], requested:
     names = {_normalize_stem(base)}
     if base.startswith("lib"):
         names.add(_normalize_stem(base[3:]))
-    matches = [owner for owner, stems in owners.items() if names & stems]
-    return matches[0] if len(matches) == 1 else None
+    matches = set().union(*(owners_by_stem.get(name, ()) for name in names))
+    return next(iter(matches)) if len(matches) == 1 else None
 
 
 def discover_artifacts(
@@ -439,7 +457,9 @@ def discover_artifacts(
             else {package: frozenset({_normalize_stem(package)})}
         )
     requested_packages = {package, *related_packages}
-    by_owner = _discover_artifacts_by_owner(target_dir, profile, target, owners)
+    by_owner = _discover_artifacts_by_owner(
+        target_dir, profile, target, owners, frozenset(requested_packages)
+    )
     return tuple(
         sorted(set().union(*(by_owner.get(owner, set()) for owner in requested_packages)))
     )
@@ -450,10 +470,12 @@ def _discover_artifacts_by_owner(
     profile: str,
     target: str,
     owners: dict[str, frozenset[str]],
+    requested: frozenset[str],
 ) -> dict[str, set[Path]]:
     """Enumerate one target directory once and group every artifact by package."""
 
     selected: dict[str, set[Path]] = {}
+    owners_by_stem = _artifact_owners_by_stem(owners)
     dep_dirs = [target_dir / profile / "deps"]
     if target != "host":
         dep_dirs.append(target_dir / target / profile / "deps")
@@ -461,8 +483,10 @@ def _discover_artifacts_by_owner(
         if not deps.is_dir():
             continue
         for path in deps.iterdir():
-            owner = _artifact_owner(path.name, owners, "")
-            if path.is_file() and path.suffix in ARTIFACT_SUFFIXES and owner is not None:
+            if path.suffix not in ARTIFACT_SUFFIXES:
+                continue
+            owner = _artifact_owner(path.name, owners_by_stem)
+            if owner in requested and path.is_file():
                 selected.setdefault(owner, set()).add(path.resolve())
     # A build script's dep-info and the paths it asked Cargo to watch
     # (`output`), which `atlas_build_dep_info` reads; its binary and
@@ -474,12 +498,12 @@ def _discover_artifacts_by_owner(
         if not builds.is_dir():
             continue
         for directory in builds.iterdir():
-            owner = _artifact_owner(directory.name, owners, "")
-            if directory.is_dir() and owner is not None:
+            owner = _artifact_owner(directory.name, owners_by_stem)
+            if owner in requested and directory.is_dir():
                 selected.setdefault(owner, set()).update(
                     path.resolve()
                     for path in directory.iterdir()
-                    if path.is_file() and (path.name == "output" or path.suffix == ".d")
+                    if (path.name == "output" or path.suffix == ".d") and path.is_file()
                 )
 
     fingerprint_dirs = [
@@ -492,8 +516,8 @@ def _discover_artifacts_by_owner(
         if not fingerprints.is_dir():
             continue
         for directory in fingerprints.iterdir():
-            owner = _artifact_owner(directory.name, owners, "")
-            if directory.is_dir() and owner is not None:
+            owner = _artifact_owner(directory.name, owners_by_stem)
+            if owner in requested and directory.is_dir():
                 selected.setdefault(owner, set()).update(
                     path.resolve() for path in directory.rglob("*") if path.is_file()
                 )
