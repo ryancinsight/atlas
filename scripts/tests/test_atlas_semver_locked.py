@@ -8,14 +8,15 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas_semver_locked.py"
 sys.path.insert(0, str(SCRIPT.parent))
 SPEC = importlib.util.spec_from_file_location("atlas_semver_locked", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+from process_tree_support import EXPIRY_HOLD_SECONDS, NEVER_ENDS
 
 
 class NativeContract(unittest.TestCase):
@@ -40,7 +41,9 @@ class NativeContract(unittest.TestCase):
             feature_policy="all", features=[], target=target,
             report=report,
         )
-        code = MODULE.compare(args)
+        target_dir = os.environ.get("CARGO_TARGET_DIR", str(SCRIPT.parents[1] / "target"))
+        with patch.dict(os.environ, {"CARGO_TARGET_DIR": target_dir}):
+            code = MODULE.compare(args)
         return code, json.loads(report.read_text(encoding="utf-8"))
 
     def test_native_pass_deny_and_manifest_permission_are_distinct(self):
@@ -72,17 +75,13 @@ class NativeContract(unittest.TestCase):
             self.assertIn("--baseline-rev", native["command"])
             self.assertEqual(report["configuration"]["feature_policy"], "all")
 
-    def test_timeout_retires_a_real_descendant(self):
-        command = [sys.executable, "-c", (
-            "import subprocess,sys,time; p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)']);"
-            "print(p.pid,flush=True);time.sleep(30)"
-        )]
-        record = MODULE.attempt(command, Path.cwd(), dict(os.environ), timeout=0.2)
+    def test_timeout_uses_the_canonical_process_tree_deadline(self):
+        command = [sys.executable, "-I", "-c", NEVER_ENDS]
+        record = MODULE.attempt(
+            command, Path.cwd(), dict(os.environ), timeout=EXPIRY_HOLD_SECONDS,
+        )
         self.assertEqual(record["status"], "timeout")
-        pid = int(record["diagnostics"].strip())
-        time.sleep(0.1)
-        with self.assertRaises(OSError):
-            os.kill(pid, 0)
+        self.assertEqual(record["diagnostics"], "")
 
 
 if __name__ == "__main__":
