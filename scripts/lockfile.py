@@ -329,14 +329,7 @@ def check_resolution(manifest: Path, lockfile: Path) -> int:
 
 
 def check(repository: Path | None = None) -> int:
-    """Judge and resolve every owned lock under the candidate root.
-
-    The overlay's signature is judged by the one rule ([`judge_locks`]) that
-    `--check-staged` and `--check-committed` apply, over every lock in the tree
-    (nested workspaces included), read from disk because the pre-push export
-    and a CI checkout are not always repositories to ask. Staleness, which
-    needs real resolution, is the `--locked` arm below.
-    """
+    """Judge and resolve every lock owner under an immutable candidate root."""
     candidate = repository is not None
     if repository is None:
         repository = REPOSITORY
@@ -365,24 +358,19 @@ def check(repository: Path | None = None) -> int:
         for problem in problems:
             print(f"LOCK FORM VIOLATION: {problem}", file=sys.stderr)
         print(
-            "\n"
-            "A lock regenerated with the Atlas stack overlay active resolves\n"
-            "first-party dependencies to local paths and drops their git\n"
-            "sources, and leaves [[patch.unused]] residue. CI has no overlay and\n"
-            "will fail every --locked job.\n"
-            "\n"
+            "\nThe Atlas overlay can strip git sources and leave [[patch.unused]]\n"
+            "residue. CI has no overlay and will fail every --locked job.\n\n"
             f"Fix: {REGENERATE_COMMAND}",
             file=sys.stderr,
         )
         return 1
 
-    failures = 0
+    failures = []
     for relative in manifests:
         selected_manifest = repository / relative
-        selected_lock = selected_manifest.with_name("Cargo.lock")
         print(f"checking lock owner {relative}")
-        failures += check_resolution(selected_manifest, selected_lock)
-    return int(failures != 0)
+        failures.append(check_resolution(selected_manifest, selected_manifest.with_name("Cargo.lock")))
+    return int(any(failures))
 
 
 def locked_package_records(lock_text: str) -> list[Mapping[str, object]]:
@@ -534,6 +522,7 @@ class GitUnavailable(Exception):
 class WorkspaceFacts(NamedTuple):
     """What a workspace's manifests say about the lock it owns."""
 
+    manifests: frozenset[str]
     local: frozenset[str]
     git_dependencies: frozenset[str]
     fixture: bool
@@ -839,7 +828,7 @@ def workspace_facts(
                     git_dependencies.add(spec.get("package", dependency))
                 elif isinstance(spec.get("path"), str) and escapes_repository(manifest, spec["path"]):
                     fixture = True
-    return WorkspaceFacts(frozenset(local), frozenset(git_dependencies), fixture, tuple(unreadable))
+    return WorkspaceFacts(frozenset(selected), frozenset(local), frozenset(git_dependencies), fixture, tuple(unreadable))
 
 
 def workspace_units(
@@ -864,16 +853,14 @@ def workspace_units(
 
 
 def lock_manifests(texts: Mapping[str, str]) -> tuple[list[str], list[str], list[str]]:
-    """Select Cargo manifests that own standalone-consumable committed locks.
-
-    Returns manifest paths, fixture locks exempt under the existing workspace
-    rule, and ownership problems. A lock without a sibling manifest is refused:
-    guessing a parent manifest would validate a different Cargo graph.
-    """
-    manifests: list[str] = []
-    exempt: list[str] = []
-    problems: list[str] = []
-    for lock, facts in workspace_units(texts).items():
+    """Return owners, fixture exemptions, and refused missing siblings."""
+    manifest_texts = {path: text for path, text in texts.items()
+                      if PurePosixPath(path).name == "Cargo.toml"}
+    units = workspace_units(texts)
+    manifests, exempt, problems = [], [], []
+    owned: set[str] = set()
+    for lock, facts in units.items():
+        owned.update(facts.manifests)
         if facts.fixture:
             exempt.append(lock)
             continue
@@ -882,6 +869,14 @@ def lock_manifests(texts: Mapping[str, str]) -> tuple[list[str], list[str], list
             problems.append(f"{lock}: sibling Cargo.toml is missing")
             continue
         manifests.append(manifest)
+    for manifest in sorted(set(manifest_texts) - owned):
+        if manifest in owned:
+            continue
+        facts = workspace_facts(manifest_texts, PurePosixPath(manifest).parent,
+                                [PurePosixPath(lock).parent for lock in units])
+        owned.update(facts.manifests)
+        if not facts.fixture:
+            problems.append(f"{manifest}: sibling Cargo.lock is missing")
     return manifests, exempt, problems
 
 
@@ -964,12 +959,8 @@ def disk_texts(
 
     The filesystem counterpart of [`tracked_texts`], for a tree that is not a
     repository to ask: the pre-push export is `git archive` output, and a CI
-    checkout is judged as it stands. Directories of build output and vendored
-    code are not entered by default, nor is the checkout this script runs from
-    when it sits inside `repository` (`SCRIPT_CHECKOUT`). An immutable exported
-    candidate passes no ignored directories because every archived pair is
-    committed input. Metadata links are refused rather than followed outside
-    that candidate.
+    checkout is judged as it stands. Default scans omit derived/vendor trees;
+    immutable candidate scans include every committed path and refuse links.
     """
     texts: dict[str, str] = {}
     own = SCRIPT_CHECKOUT.resolve()
