@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import json
 import os
 import signal
 import stat
@@ -61,6 +62,7 @@ import subprocess
 import posixpath
 import sys
 import tempfile
+import time
 import tomllib
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path, PurePosixPath
@@ -330,24 +332,17 @@ def check_resolution(manifest: Path, lockfile: Path, *, deadline: float) -> int:
             file=sys.stderr,
         )
         return 1
+
     print(f"{lockfile} resolves under --locked.")
     return check_provider_identity(lockfile)
 
 
 def check(repository: Path | None = None) -> int:
-    """Judge every lock under the repository, then prove the root one resolves.
-
-    The overlay's signature is judged by the one rule ([`judge_locks`]) that
-    `--check-staged` and `--check-committed` apply, over every lock in the tree
-    (nested workspaces included), read from disk because the pre-push export
-    and a CI checkout are not always repositories to ask. Staleness, which
-    needs real resolution, is the `--locked` arm below.
-    """
+    """Judge and resolve every lock owner under an immutable candidate root."""
+    started = time.monotonic()
     explicit_candidate = repository is not None
     ignored = IGNORED_DIRECTORIES if repository is None else frozenset()
     repository = REPOSITORY if repository is None else repository
-    lockfile = repository / "Cargo.lock"
-    manifest = repository / "Cargo.toml"
     try:
         if explicit_candidate:
             inspect_candidate_ancestors(repository)
@@ -355,26 +350,33 @@ def check(repository: Path | None = None) -> int:
     except OSError as error:
         print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
         return 1
-    path_problems = manifest_path_problems(texts) if explicit_candidate else []
+    path_problems = manifest_path_problems(texts)
     if path_problems:
         print(
             "\n".join(f"LOCK OWNERSHIP VIOLATION: {problem}" for problem in path_problems),
             file=sys.stderr,
         )
         return 1
-    if "Cargo.lock" not in texts:
-        print(f"error: {lockfile} does not exist", file=sys.stderr)
+    units, ownership_problems = native_candidate_units(
+        repository, texts, deadline=CARGO_DEADLINE_SECONDS, started=started
+    )
+    if ownership_problems:
+        print("\n".join(f"LOCK OWNERSHIP VIOLATION: {problem}" for problem in ownership_problems), file=sys.stderr)
         return 1
-    problems, exempt = judge_locks(texts)
-    if report_lock_form(problems, exempt):
+    if report_lock_form(*judge_units(texts, units)):
         return 1
 
-    if check_resolution(manifest, lockfile, deadline=CARGO_DEADLINE_SECONDS):
-        return 1
-
-    locks = sum(1 for path in texts if PurePosixPath(path).name == "Cargo.lock")
-    print(f"Cargo.lock resolves under --locked; {locks - len(exempt)} lock(s) in standalone form.")
-    return 0
+    failures = 0
+    for lock, facts in units.items():
+        if facts.fixture:
+            continue
+        manifest = str(PurePosixPath(lock).with_name("Cargo.toml"))
+        remaining = CARGO_DEADLINE_SECONDS - (time.monotonic() - started)
+        if remaining <= 0:
+            print(f"error: lock checks exceeded the {CARGO_DEADLINE_SECONDS:g}s deadline", file=sys.stderr)
+            return 1
+        failures += check_resolution(repository / manifest, repository / lock, deadline=remaining)
+    return int(failures != 0)
 
 
 def locked_package_records(lock_text: str) -> list[Mapping[str, object]]:
@@ -642,7 +644,7 @@ class ManifestPaths(NamedTuple):
     files: tuple[ManifestReference, ...]
 
     def references(self) -> Iterator[ManifestReference]:
-        """Yield declared paths with the field role that may direct Cargo."""
+        """Yield declared paths that can direct Cargo outside the manifest tree."""
         if self.workspace is not None:
             yield ManifestReference(self.workspace, "package.workspace")
         yield from (ManifestReference(path, "workspace.members") for path in self.members)
@@ -691,9 +693,10 @@ def manifest_paths(manifest: Mapping[str, object]) -> ManifestPaths:
             for key in ("readme", "license-file")
             if isinstance(workspace_package.get(key), str)
         )
-    target = manifest.get("lib")
-    if isinstance(target, dict) and isinstance(target.get("path"), str):
-        file_paths.append(ManifestReference(target["path"], "lib.path"))
+    for key in ("lib",):
+        target = manifest.get(key)
+        if isinstance(target, dict) and isinstance(target.get("path"), str):
+            file_paths.append(ManifestReference(target["path"], f"{key}.path"))
     for key in ("bin", "example", "test", "bench"):
         targets = manifest.get(key)
         for target in targets if isinstance(targets, list) else ():
@@ -721,28 +724,6 @@ def escapes_repository(manifest: PurePosixPath, path: str) -> bool:
         return True
     resolved = posixpath.normpath(posixpath.join(manifest.parent.as_posix(), path))
     return resolved == ".." or resolved.startswith("../")
-
-
-def atlas_device_fixture(
-    manifest: str, data: Mapping[str, object], paths: ManifestPaths
-) -> bool:
-    """Whether this is ADR-0044's one sibling-repository contract fixture."""
-    package = data.get("package")
-    return (
-        PurePosixPath(manifest).parts[-3:] == ("contracts", "atlas-device", "Cargo.toml")
-        and isinstance(package, dict)
-        and package.get("name") == "melinoe-atlas-device-contract"
-        and package.get("publish") is False
-        and isinstance(data.get("workspace"), dict)
-        and any(
-            escapes_repository(PurePosixPath(manifest), path)
-            for path in paths.dependencies
-        )
-        and any(
-            escapes_repository(PurePosixPath(manifest), path)
-            for path in paths.patches
-        )
-    )
 
 
 def manifest_path_problems(texts: Mapping[str, str]) -> list[str]:
@@ -1029,6 +1010,165 @@ def report_lock_form(problems: Sequence[str], exempt: Sequence[str]) -> int:
     return 1
 
 
+class NativePackage(NamedTuple):
+    """One candidate package and the dependency facts Cargo resolved for it."""
+
+    name: str
+    dependencies: tuple[tuple[str, str | None, str | None], ...]
+
+
+def atlas_device_fixture(
+    manifest: str, data: Mapping[str, object], paths: ManifestPaths
+) -> bool:
+    """Whether this is ADR-0044's one sibling-repository contract fixture."""
+    package = data.get("package")
+    return (
+        PurePosixPath(manifest).parts[-3:] == ("contracts", "atlas-device", "Cargo.toml")
+        and isinstance(package, dict)
+        and package.get("name") == "melinoe-atlas-device-contract"
+        and package.get("publish") is False
+        and isinstance(data.get("workspace"), dict)
+        and any(escapes_repository(PurePosixPath(manifest), path)
+                for path in paths.dependencies)
+        and any(escapes_repository(PurePosixPath(manifest), path)
+                for path in paths.patches)
+    )
+
+
+def native_candidate_units(
+    root: Path, texts: Mapping[str, str], *, deadline: float, started: float
+) -> tuple[dict[str, WorkspaceFacts], list[str]]:
+    """Derive every lock owner from Cargo's frozen-tree workspace metadata."""
+    manifests = sorted(path for path in texts if PurePosixPath(path).name == "Cargo.toml")
+    locks = sorted(path for path in texts if PurePosixPath(path).name == "Cargo.lock")
+    parsed: dict[str, Mapping[str, object]] = {}
+    fixtures: set[str] = set()
+    problems: list[str] = []
+    for manifest in manifests:
+        try:
+            data = tomllib.loads(texts[manifest])
+        except tomllib.TOMLDecodeError as error:
+            problems.append(f"{manifest}: does not parse: {error}")
+            continue
+        parsed[manifest] = data
+        paths = manifest_paths(data)
+        fixture = atlas_device_fixture(manifest, data, paths)
+        if fixture:
+            fixtures.add(manifest)
+    if problems:
+        return {}, problems
+
+    owner_members: dict[str, set[str]] = {fixture: {fixture} for fixture in fixtures}
+    owner_of: dict[str, str] = {fixture: fixture for fixture in fixtures}
+    packages: dict[str, NativePackage] = {}
+    accounted = set(fixtures)
+    while pending := sorted(set(manifests) - accounted):
+        manifest = pending[0]
+        remaining = deadline - (time.monotonic() - started)
+        if remaining <= 0:
+            return {}, [f"{manifest}: workspace discovery exceeded the {deadline:g}s deadline"]
+        try:
+            completed = cargo_metadata(
+                root / manifest,
+                ["--no-deps", "--locked", "--offline", "--format-version", "1"],
+                deadline=remaining,
+            )
+        except CargoDeadlineExceeded as error:
+            return {}, [
+                f"{manifest}: workspace discovery did not finish within "
+                f"{error.timeout:g}s, so ownership is unknown, not a flattened "
+                f"lock; cargo said: {(error.stderr or '').strip()}"
+            ]
+        if completed.returncode != 0:
+            detail = completed.stderr.strip()
+            return {}, [f"{manifest}: cargo metadata could not determine lock ownership: {detail}"]
+        try:
+            metadata = json.loads(completed.stdout)
+            root_directory = metadata["workspace_root"]
+            records = metadata["packages"]
+            member_ids = metadata["workspace_members"]
+            if not isinstance(root_directory, str) or not isinstance(records, list) or not isinstance(member_ids, list):
+                raise ValueError("metadata fields have the wrong type")
+            owner = candidate_relative(root, Path(root_directory) / "Cargo.toml")
+            if owner not in parsed:
+                raise ValueError(f"workspace owner {owner} is not inventoried")
+            by_id: dict[str, str] = {}
+            for record in records:
+                if not isinstance(record, dict):
+                    raise ValueError("package record is not a table")
+                package_id, name, package_manifest = record.get("id"), record.get("name"), record.get("manifest_path")
+                dependencies = record.get("dependencies")
+                if not all(isinstance(value, str) for value in (package_id, name, package_manifest)) or not isinstance(dependencies, list):
+                    raise ValueError("package identity fields have the wrong type")
+                relative = candidate_relative(root, Path(package_manifest))
+                if relative not in parsed:
+                    raise ValueError(f"package manifest {relative} is not inventoried")
+                native_dependencies: list[tuple[str, str | None, str | None]] = []
+                for dependency in dependencies:
+                    if not isinstance(dependency, dict) or not isinstance(dependency.get("name"), str):
+                        raise ValueError("dependency record has the wrong type")
+                    path, source = dependency.get("path"), dependency.get("source")
+                    target = candidate_relative(root, Path(path) / "Cargo.toml") if isinstance(path, str) else None
+                    if target is not None and target not in parsed:
+                        raise ValueError(f"dependency manifest {target} is not inventoried")
+                    if source is not None and not isinstance(source, str):
+                        raise ValueError("dependency source has the wrong type")
+                    native_dependencies.append((dependency["name"], source, target))
+                packages[relative] = NativePackage(name, tuple(native_dependencies))
+                by_id[package_id] = relative
+            members = {by_id[member] for member in member_ids if isinstance(member, str) and member in by_id}
+            if len(members) != len(member_ids):
+                raise ValueError("workspace member ID is unknown")
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            return {}, [f"{manifest}: cargo metadata was not a confined workspace description: {error}"]
+        owned = owner_members.setdefault(owner, {owner})
+        owned.update(members)
+        for member in owned:
+            previous = owner_of.setdefault(member, owner)
+            if previous != owner:
+                return {}, [f"{member}: conflicting lock owners {previous} and {owner}"]
+        accounted.update(owned)
+
+    expected_locks = {str(PurePosixPath(owner).with_name("Cargo.lock")): owner for owner in owner_members}
+    for lock, owner in expected_locks.items():
+        if lock not in texts:
+            problems.append(f"{owner}: sibling Cargo.lock is missing")
+    for lock in locks:
+        if lock not in expected_locks:
+            sibling = str(PurePosixPath(lock).with_name("Cargo.toml"))
+            owner = owner_of.get(sibling)
+            problems.append(f"{lock}: is not an owner lock" + (f"; {sibling} belongs to {owner}" if owner else ""))
+    if problems:
+        return {}, problems
+
+    units: dict[str, WorkspaceFacts] = {}
+    for owner, owned in owner_members.items():
+        lock = str(PurePosixPath(owner).with_name("Cargo.lock"))
+        if owner in fixtures:
+            units[lock] = WorkspaceFacts(frozenset(), frozenset(), True, ())
+            continue
+        local: set[str] = set()
+        git_dependencies: set[str] = set()
+        pending_packages = [manifest for manifest in owned if manifest in packages]
+        visited: set[str] = set()
+        while pending_packages:
+            manifest = pending_packages.pop()
+            if manifest in visited:
+                continue
+            visited.add(manifest)
+            package = packages.get(manifest)
+            if package is None:
+                return {}, [f"{manifest}: local dependency has no Cargo package record"]
+            local.add(package.name)
+            for name, source, target in package.dependencies:
+                if source is not None and source.startswith("git+"):
+                    git_dependencies.add(name)
+                if target is not None:
+                    pending_packages.append(target)
+        units[lock] = WorkspaceFacts(frozenset(local), frozenset(git_dependencies), False, ())
+    return units, []
+
+
 def tracked_texts(
     repository: Path | None, *, staged: bool, revision: str = "HEAD"
 ) -> dict[str, str]:
@@ -1093,7 +1233,7 @@ def candidate_relative(root: Path, path: Path) -> str:
 
 
 def inspect_candidate_ancestors(root: Path) -> None:
-    """Refuse links and workspace discovery above an immutable candidate."""
+    """Refuse external workspace discovery above an immutable candidate."""
     reparse = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
     for ancestor in reversed(root.parents):
         details = os.lstat(ancestor)
@@ -1200,9 +1340,8 @@ def disk_texts(
 
     The filesystem counterpart of [`tracked_texts`], for a tree that is not a
     repository to ask: the pre-push export is `git archive` output, and a CI
-    checkout is judged as it stands. Directories of build output and vendored
-    code are not entered, nor is the checkout this script runs from when it sits
-    inside `repository` (`SCRIPT_CHECKOUT`).
+    checkout is judged as it stands. Default scans omit derived/vendor trees;
+    immutable candidate scans include every committed path and refuse links.
     """
     return {
         entry.relative: entry.path.read_text(

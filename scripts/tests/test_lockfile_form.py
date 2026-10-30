@@ -572,6 +572,128 @@ def git(repository: Path, *arguments: str) -> None:
     )
 
 
+class NativeOwnershipTestCase(unittest.TestCase):
+    @staticmethod
+    def write(root: Path, relative: str, text: str) -> None:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8", newline="\n")
+
+    def package(self, root: Path, directory: str, name: str, extra: str = "") -> str:
+        manifest = f"{directory}/Cargo.toml"
+        self.write(
+            root,
+            manifest,
+            f'[package]\nname="{name}"\nversion="0.1.0"\nedition="2024"\n{extra}',
+        )
+        self.write(root, f"{directory}/src/lib.rs", "pub fn present() {}\n")
+        return manifest
+
+    def cargo(self, root: Path, manifest: str) -> None:
+        completed = lockfile.run_outside_the_overlay(
+            ["generate-lockfile"], root / manifest, deadline=60
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_rootless_packages_each_require_their_own_lock(self) -> None:
+        for directory, extra in (("orphan", ""), ("good/nested", "[workspace]\n")):
+            with self.subTest(directory=directory), \
+                    tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                self.package(root, directory, "orphan", extra)
+                good = self.package(root, "good", "good")
+                self.cargo(root, good)
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = lockfile.check(root)
+            self.assertEqual(code, 1)
+            self.assertIn(f"{directory}/Cargo.toml: sibling Cargo.lock is missing", stderr.getvalue())
+
+    def test_tracked_target_packages_follow_cargo_ownership(self) -> None:
+        for member in (False, True):
+            with self.subTest(member=member), \
+                    tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                manifest = self.package(root, "target/tool", "tool")
+                if member:
+                    self.write(
+                        root,
+                        "Cargo.toml",
+                        '[workspace]\nresolver="3"\nmembers=["target/tool"]\n',
+                    )
+                    manifest = "Cargo.toml"
+                self.cargo(root, manifest)
+                self.assertEqual(lockfile.check(root), 0)
+
+    def test_workspace_membership_follows_cargo_metadata(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(root, "ws/Cargo.toml", '[workspace]\nresolver="3"\nmembers=["a"]\n')
+            self.package(root, "ws/a", "a", '[dependencies]\norphan={path="../../orphan"}\n')
+            self.package(root, "orphan", "orphan", 'workspace="../ws"\n')
+            self.cargo(root, "ws/Cargo.toml")
+            self.assertEqual(lockfile.check(root), 0)
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(
+                root,
+                "ws/Cargo.toml",
+                '[workspace]\nresolver="3"\nmembers=["a"]\n'
+                '[workspace.dependencies]\norphan={path="orphan"}\n',
+            )
+            self.package(root, "ws/a", "a")
+            self.package(root, "ws/orphan", "orphan")
+            self.cargo(root, "ws/Cargo.toml")
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                code = lockfile.check(root)
+        self.assertEqual(code, 1)
+        self.assertIn("ws/orphan/Cargo.toml", stderr.getvalue())
+
+    def test_target_dependency_stales_only_the_excluded_lock(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(
+                root,
+                "Cargo.toml",
+                '[workspace]\nresolver="3"\nmembers=["pal","support"]\nexclude=["fuzz"]\n',
+            )
+            for package in ("pal", "support"):
+                self.package(root, package, package)
+            self.package(
+                root,
+                "fuzz",
+                "fuzz",
+                '[workspace]\n[dependencies]\npal={path="../pal"}\n',
+            )
+            self.cargo(root, "Cargo.toml")
+            self.cargo(root, "fuzz/Cargo.toml")
+            with (root / "pal/Cargo.toml").open("a", encoding="utf-8") as manifest:
+                manifest.write(
+                    '\n[target."cfg(loom)".dependencies]\nsupport={path="../support"}\n'
+                )
+            self.cargo(root, "Cargo.toml")
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                bad = lockfile.check(root)
+            self.assertEqual((bad, "fuzz" in stderr.getvalue()), (1, True))
+            self.cargo(root, "fuzz/Cargo.toml")
+            self.assertEqual(lockfile.check(root), 0)
+
+    def test_exact_atlas_device_fixture_is_the_only_external_exemption(self) -> None:
+        fixture = ('[package]\nname="melinoe-atlas-device-contract"\nversion="0.1.0"\n'
+                   'publish=false\n[workspace]\n[dependencies]\nx={path="../../../sibling"}\n'
+                   '[patch.crates-io]\nx={path="../../../sibling"}\n')
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(root, "contracts/atlas-device/Cargo.toml", fixture)
+            self.write(root, "contracts/atlas-device/Cargo.lock", STANDALONE)
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                code = lockfile.check(root)
+        self.assertEqual((code, "exempt" in stdout.getvalue()), (0, True))
+
+
 class CommittedSweepTestCase(unittest.TestCase):
     """Drive `check_committed` over synthetic repositories."""
 
