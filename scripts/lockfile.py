@@ -1007,7 +1007,11 @@ def native_candidate_units(
                 deadline=remaining,
             )
         except CargoDeadlineExceeded as error:
-            return {}, [f"{manifest}: workspace discovery exceeded {error.timeout:g}s"]
+            return {}, [
+                f"{manifest}: workspace discovery did not finish within "
+                f"{error.timeout:g}s, so ownership is unknown, not a flattened "
+                f"lock; cargo said: {(error.stderr or '').strip()}"
+            ]
         if completed.returncode != 0:
             detail = completed.stderr.strip()
             return {}, [f"{manifest}: cargo metadata could not determine lock ownership: {detail}"]
