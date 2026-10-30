@@ -14,6 +14,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from atlas_cargo_package_facts import (  # noqa: E402
     PackageFactError,
+    ProviderIdentity,
     SelectedRepository,
     load_selected,
 )
@@ -154,7 +155,12 @@ class NativePackageFactTests(unittest.TestCase):
 
         catalog = load_selected(self.fixture.selections(*names), destination)
 
-        self.assertEqual(set(catalog.providers), {"native-provider"})
+        identity = ProviderIdentity("native-provider", "provider")
+        self.assertEqual(set(catalog.providers), {identity})
+        self.assertEqual(catalog.providers[identity].manifest.parts[1], "provider")
+        self.assertEqual(catalog.basis, tuple(
+            (name, self.fixture.selections(name)[name].revision) for name in sorted(names)
+        ))
         consumer = next(package for package in catalog.packages if package.name == "consumer-crate")
         self.assertEqual(
             {(dependency.rename, dependency.kind, dependency.target) for dependency in consumer.dependencies},
@@ -169,26 +175,37 @@ class NativePackageFactTests(unittest.TestCase):
         self.assertEqual((cross.dependencies[0].package, cross.dependencies[0].source), ("path-provider", None))
         self.assertFalse(any(destination.rglob("target")))
 
-    def test_consumed_excluded_or_duplicate_provider_fails_closed(self) -> None:
+    def test_consumed_provider_is_bound_to_its_declared_repository(self) -> None:
         self.fixture._create_consumer("excluded-consumer", "excluded-provider")
         with self.assertRaisesRegex(PackageFactError, "excluded-provider.*0 selected providers"):
             load_selected(
                 self.fixture.selections("provider", "excluded-consumer"),
                 self.root / "missing-selected",
             )
-
         duplicate = self.fixture.repos / "duplicate"
         self.fixture.package(duplicate, "native-provider")
         self.fixture.commit(duplicate)
-        with self.assertRaisesRegex(PackageFactError, "native-provider.*2 selected providers"):
+        catalog = load_selected(
+            self.fixture.selections("provider", "consumer", "duplicate"),
+            self.root / "unrelated-duplicate-selected",
+        )
+        identity = ProviderIdentity("native-provider", "provider")
+        self.assertEqual(catalog.providers[identity].manifest.parts[1], "provider")
+        with self.assertRaisesRegex(PackageFactError, "native-provider.*0 selected providers"):
             load_selected(
-                self.fixture.selections("provider", "consumer", "duplicate"),
-                self.root / "duplicate-selected",
+                {"consumer": self.fixture.selections("consumer")["consumer"],
+                 "wrong": self.fixture.selections("duplicate")["duplicate"]},
+                self.root / "wrong-selected",
             )
 
-    def test_every_selected_member_requires_its_root_lock(self) -> None:
-        unlocked = self.fixture.repos / "unlocked"
-        self.fixture.package(unlocked, "unlocked")
-        self.fixture.commit(unlocked, locked=False)
-        with self.assertRaisesRegex(PackageFactError, "root lock"):
-            load_selected(self.fixture.selections("unlocked"), self.root / "unlocked-selected")
+        ambiguous = self.fixture.repos / "ambiguous"
+        self.fixture.package(ambiguous, "native-provider", '[workspace]\nexclude=["nested"]\n')
+        self.fixture.package(ambiguous / "nested", "native-provider")
+        self.fixture.run(["cargo", "generate-lockfile"], ambiguous / "nested")
+        revision = self.fixture.commit(ambiguous)
+        with self.assertRaisesRegex(PackageFactError, "native-provider.*2 selected providers"):
+            load_selected(
+                {"provider": SelectedRepository(ambiguous, revision),
+                 "consumer": self.fixture.selections("consumer")["consumer"]},
+                self.root / "ambiguous-selected",
+            )

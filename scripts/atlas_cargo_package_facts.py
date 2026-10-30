@@ -9,21 +9,14 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
-from atlas_git_process import archive, execute_process, extract_archive
+from atlas_cargo_snapshot import SelectedRepository, create_snapshot
+from atlas_git_process import execute_process
 
 PROCESS_TIMEOUT_SECONDS = 60
-IGNORED_DIRECTORIES = frozenset({".git", "node_modules", "target", "worktrees"})
 
 
 class PackageFactError(RuntimeError):
     """The selected source cohort cannot produce complete Cargo facts."""
-
-
-@dataclass(frozen=True)
-class SelectedRepository:
-    """One immutable repository tree selected for the source cohort."""
-    repository: Path
-    revision: str
 
 
 @dataclass(frozen=True)
@@ -46,52 +39,19 @@ class PackageFact:
     dependencies: tuple[DependencyFact, ...]
 
 
+@dataclass(frozen=True, order=True)
+class ProviderIdentity:
+    """A consumed package bound to its declared first-party repository."""
+    package: str
+    repository: str
+
+
 @dataclass(frozen=True)
 class PackageCatalog:
-    """Selected packages and unique providers for consumed stack packages."""
+    """Selected package declarations and source-bound providers."""
+    basis: tuple[tuple[str, str], ...]
     packages: tuple[PackageFact, ...]
-    providers: Mapping[str, PackageFact]
-
-
-def _member_name(name: str) -> str:
-    path = PurePosixPath(name)
-    if not name or path.is_absolute() or path.parts != (name,) or name in {".", ".."}:
-        raise PackageFactError(f"unsafe selected repository name: {name!r}")
-    return name
-
-
-def export_selected(selections: Mapping[str, SelectedRepository], destination: Path) -> Path:
-    """Export selected Git trees under one ``repos/<member>`` topology."""
-    if destination.exists():
-        raise PackageFactError(f"snapshot destination already exists: {destination}")
-    repos = destination / "repos"
-    repos.mkdir(parents=True)
-    for name, selected in sorted(selections.items()):
-        member = repos / _member_name(name)
-        member.mkdir()
-        try:
-            payload = archive(selected.repository, selected.revision,
-                              timeout=PROCESS_TIMEOUT_SECONDS)
-            extract_archive(payload, member)
-        except (OSError, RuntimeError) as error:
-            raise PackageFactError(f"cannot export selected member {name!r}: {error}") from error
-    return destination
-
-
-def _lock_roots(topology: Path) -> tuple[Path, ...]:
-    for member in topology.joinpath("repos").iterdir():
-        if not member.joinpath("Cargo.toml").is_file():
-            raise PackageFactError(f"selected member has no root manifest: repos/{member.name}")
-        if not member.joinpath("Cargo.lock").is_file():
-            raise PackageFactError(f"selected member has no root lock: repos/{member.name}")
-    locks = tuple(sorted(path for path in topology.joinpath("repos").rglob("Cargo.lock")
-                         if not ({part.lower() for part in path.parts} & IGNORED_DIRECTORIES)))
-    if not locks:
-        raise PackageFactError("selected cohort contains no committed Cargo.lock")
-    for lock in locks:
-        if not lock.with_name("Cargo.toml").is_file():
-            raise PackageFactError(f"lock has no root manifest: {lock.relative_to(topology)}")
-    return locks
+    providers: Mapping[ProviderIdentity, PackageFact]
 
 
 def _string(record: dict, field: str, *, optional: bool = False) -> str | None:
@@ -113,15 +73,16 @@ def _dependency(record: object) -> DependencyFact:
     )
 
 
-def _metadata(topology: Path, lock: Path) -> tuple[PackageFact, ...]:
+def _metadata(topology: Path, lock: PurePosixPath) -> tuple[PackageFact, ...]:
+    manifest = topology.joinpath(lock).with_name("Cargo.toml")
     command = ("cargo", "metadata", "--locked", "--offline", "--no-deps",
-               "--format-version", "1", "--manifest-path", str(lock.with_name("Cargo.toml")))
+               "--format-version", "1", "--manifest-path", str(manifest))
     with tempfile.TemporaryDirectory(prefix="atlas-cargo-facts-") as neutral:
         result = execute_process(command, cwd=Path(neutral), env=dict(os.environ),
                                  timeout=PROCESS_TIMEOUT_SECONDS)
     if result.returncode:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
-        raise PackageFactError(f"cargo metadata failed for {lock.relative_to(topology)}: {detail}")
+        raise PackageFactError(f"cargo metadata failed for {lock}: {detail}")
     try:
         document = json.loads(result.stdout)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -134,12 +95,12 @@ def _metadata(topology: Path, lock: Path) -> tuple[PackageFact, ...]:
         if not isinstance(package, dict) or not isinstance(package.get("dependencies"), list):
             raise PackageFactError("cargo metadata returned an invalid package")
         try:
-            manifest = Path(_string(package, "manifest_path")).resolve().relative_to(topology.resolve())
+            path = Path(_string(package, "manifest_path")).resolve().relative_to(topology.resolve())
         except ValueError as error:
             raise PackageFactError("cargo metadata returned a manifest outside the cohort") from error
         facts.append(PackageFact(
             _string(package, "name"), _string(package, "version"),
-            PurePosixPath(manifest.as_posix()),
+            PurePosixPath(path.as_posix()),
             tuple(_dependency(item) for item in package["dependencies"]),
         ))
     return tuple(facts)
@@ -159,29 +120,33 @@ def _first_party_repository(source: str | None) -> str | None:
 
 def load_selected(selections: Mapping[str, SelectedRepository],
                   destination: Path) -> PackageCatalog:
-    """Export and ask Cargo for complete facts at every committed lock root."""
-    topology = export_selected(selections, destination)
-    locks = _lock_roots(topology)
-    lock_bytes = {lock: lock.read_bytes() for lock in locks}
+    """Extract Cargo declarations from every confined committed lock root."""
+    snapshot = create_snapshot(selections, destination)
     by_manifest: dict[PurePosixPath, PackageFact] = {}
-    for lock in locks:
-        for fact in _metadata(topology, lock):
+    for lock in snapshot.locks:
+        for fact in _metadata(snapshot.root, lock):
             previous = by_manifest.setdefault(fact.manifest, fact)
             if previous != fact:
                 raise PackageFactError(f"conflicting Cargo facts for {fact.manifest}")
-    changed = [lock.relative_to(topology) for lock, before in lock_bytes.items()
-               if lock.read_bytes() != before]
+    before = dict(snapshot.lock_bytes)
+    changed = [lock for lock in snapshot.locks
+               if snapshot.root.joinpath(lock).read_bytes() != before[lock]]
     if changed:
         raise PackageFactError(f"cargo metadata changed committed locks: {changed!r}")
     packages = tuple(sorted(by_manifest.values(), key=lambda fact: fact.manifest.as_posix()))
-    consumed = {dependency.package for package in packages for dependency in package.dependencies
-                if _first_party_repository(dependency.source) is not None}
+    consumed = {
+        ProviderIdentity(dependency.package, repository)
+        for package in packages for dependency in package.dependencies
+        if (repository := _first_party_repository(dependency.source)) is not None
+    }
     providers = {}
-    for name in sorted(consumed):
-        candidates = [package for package in packages if package.name == name]
+    for identity in sorted(consumed):
+        candidates = [package for package in packages
+                      if package.name == identity.package
+                      and package.manifest.parts[1].lower() == identity.repository]
         if len(candidates) != 1:
             raise PackageFactError(
-                f"consumed first-party package {name!r} has {len(candidates)} selected providers"
+                f"consumed first-party {identity!r} has {len(candidates)} selected providers"
             )
-        providers[name] = candidates[0]
-    return PackageCatalog(packages, providers)
+        providers[identity] = candidates[0]
+    return PackageCatalog(snapshot.basis, packages, providers)
