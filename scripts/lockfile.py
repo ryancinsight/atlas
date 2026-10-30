@@ -289,45 +289,18 @@ def run_outside_the_overlay(
         )
 
 
-def check() -> int:
-    """Judge every lock under the repository, then prove the root one resolves.
+def cargo_metadata(
+    manifest: Path, arguments: Sequence[str], *, deadline: float
+) -> subprocess.CompletedProcess[str]:
+    """Run Cargo metadata with the common machine-readable format."""
+    return run_outside_the_overlay(["metadata", *arguments], manifest, deadline=deadline)
 
-    The overlay's signature is judged by the one rule ([`judge_locks`]) that
-    `--check-staged` and `--check-committed` apply, over every lock in the tree
-    (nested workspaces included), read from disk because the pre-push export
-    and a CI checkout are not always repositories to ask. Staleness, which
-    needs real resolution, is the `--locked` arm below.
-    """
-    if not LOCKFILE.is_file():
-        print(f"error: {LOCKFILE} does not exist", file=sys.stderr)
-        return 1
 
+def check_resolution(manifest: Path, *, deadline: float) -> int:
+    """Prove one selected lock resolves without the development overlay."""
     try:
-        texts = disk_texts(REPOSITORY)
-    except OSError as error:
-        print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
-        return 1
-    problems, exempt = judge_locks(texts)
-    for lock in exempt:
-        print(f"exempt (in-tree fixture, not standalone-consumable): {lock}")
-    if problems:
-        for problem in problems:
-            print(f"LOCK FORM VIOLATION: {problem}", file=sys.stderr)
-        print(
-            "\n"
-            "A lock regenerated with the Atlas stack overlay active resolves\n"
-            "first-party dependencies to local paths and drops their git\n"
-            "sources, and leaves [[patch.unused]] residue. CI has no overlay and\n"
-            "will fail every --locked job.\n"
-            "\n"
-            f"Fix: {REGENERATE_COMMAND}",
-            file=sys.stderr,
-        )
-        return 1
-
-    try:
-        completed = run_outside_the_overlay(
-            ["metadata", "--locked", "--format-version", "1", "--all-features"]
+        completed = cargo_metadata(
+            manifest, ["--locked", "--format-version", "1", "--all-features"], deadline=deadline
         )
     except CargoDeadlineExceeded as error:
         print(
@@ -355,6 +328,33 @@ def check() -> int:
             f"cargo said:\n{completed.stderr.strip()}",
             file=sys.stderr,
         )
+        return 1
+    return 0
+
+
+def check() -> int:
+    """Judge every lock under the repository, then prove the root one resolves.
+
+    The overlay's signature is judged by the one rule ([`judge_locks`]) that
+    `--check-staged` and `--check-committed` apply, over every lock in the tree
+    (nested workspaces included), read from disk because the pre-push export
+    and a CI checkout are not always repositories to ask. Staleness, which
+    needs real resolution, is the `--locked` arm below.
+    """
+    if not LOCKFILE.is_file():
+        print(f"error: {LOCKFILE} does not exist", file=sys.stderr)
+        return 1
+
+    try:
+        texts = disk_texts(REPOSITORY)
+    except OSError as error:
+        print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
+        return 1
+    problems, exempt = judge_locks(texts)
+    if report_lock_form(problems, exempt):
+        return 1
+
+    if check_resolution(MANIFEST, deadline=CARGO_DEADLINE_SECONDS):
         return 1
 
     locks = sum(1 for path in texts if PurePosixPath(path).name == "Cargo.lock")
@@ -413,9 +413,11 @@ def provider_identities(lock_text: str) -> dict[str, set[str]]:
     return identities
 
 
-def provider_identity_baseline() -> int | None:
+def provider_identity_baseline(lockfile: Path | None = None) -> int | None:
     """Read the member's committed excess-source bound, or `None` when unset."""
-    path = LOCKFILE.parent / PROVIDER_IDENTITY_BASELINE_NAME
+    if lockfile is None:
+        lockfile = LOCKFILE
+    path = lockfile.parent / PROVIDER_IDENTITY_BASELINE_NAME
     if not path.is_file():
         return None
     try:
@@ -428,7 +430,7 @@ def provider_identity_baseline() -> int | None:
         return -1
 
 
-def check_provider_identity() -> int:
+def check_provider_identity(lockfile: Path | None = None) -> int:
     """Bound the first-party providers that resolve through more than one source.
 
     A provider reached by two sources is compiled twice, so its public types stop
@@ -445,7 +447,9 @@ def check_provider_identity() -> int:
     The bound is a ratchet, not a zero: these forks exist today and a check that
     fails on arrival gets disabled rather than fixed.
     """
-    identities = provider_identities(LOCKFILE.read_text(encoding="utf-8"))
+    if lockfile is None:
+        lockfile = LOCKFILE
+    identities = provider_identities(lockfile.read_text(encoding="utf-8"))
     forked = {name: sources for name, sources in identities.items() if len(sources) > 1}
     excess = sum(len(sources) - 1 for sources in forked.values())
 
@@ -454,7 +458,7 @@ def check_provider_identity() -> int:
         for source in sorted(sources):
             print(f"    {source.split('ryancinsight/', 1)[-1]}")
 
-    baseline = provider_identity_baseline()
+    baseline = provider_identity_baseline(lockfile)
     if baseline is None:
         print(
             f"Provider identity: {excess} source(s) in excess of one per "
@@ -596,6 +600,14 @@ def dependency_tables(manifest: Mapping[str, object]) -> Iterator[Mapping[str, o
                     yield target[kind]
 
 
+def dependency_paths(manifest: Mapping[str, object]) -> Iterator[str]:
+    """Yield declared dependency paths from every Cargo dependency table."""
+    for table in dependency_tables(manifest):
+        for spec in table.values():
+            if isinstance(spec, dict) and isinstance(spec.get("path"), str):
+                yield spec["path"]
+
+
 def escapes_repository(manifest: PurePosixPath, path: str) -> bool:
     """Whether a manifest's `path` dependency leaves its repository.
 
@@ -732,18 +744,15 @@ def workspace_selection(
             data = parsed.get(name)
             if not isinstance(data, dict):
                 continue
-            for table_of_dependencies in dependency_tables(data):
-                for spec in table_of_dependencies.values():
-                    if not isinstance(spec, dict) or not isinstance(spec.get("path"), str):
-                        continue
-                    target = workspace_relative(PurePosixPath(name).parent, spec["path"])
-                    target_manifest = (target / "Cargo.toml").as_posix()
-                    if target_manifest in selected or target_manifest not in manifests:
-                        continue
-                    if inside_boundary(target) or ignored(target):
-                        continue
-                    selected.add(target_manifest)
-                    changed = True
+            for path in dependency_paths(data):
+                target = workspace_relative(PurePosixPath(name).parent, path)
+                target_manifest = (target / "Cargo.toml").as_posix()
+                if target_manifest in selected or target_manifest not in manifests:
+                    continue
+                if inside_boundary(target) or ignored(target):
+                    continue
+                selected.add(target_manifest)
+                changed = True
 
     return {
         name
@@ -844,9 +853,16 @@ def judge_locks(
     A manifest that does not parse leaves the workspace's declarations unknown,
     and an unknown is refused rather than read as none declared.
     """
+    return judge_units(texts, workspace_units(texts, locks))
+
+
+def judge_units(
+    texts: Mapping[str, str], units: Mapping[str, WorkspaceFacts]
+) -> tuple[list[str], list[str]]:
+    """Return overlay-form violations and fixture exemptions for lock units."""
     problems: list[str] = []
     exempt: list[str] = []
-    for lock, facts in workspace_units(texts, locks).items():
+    for lock, facts in units.items():
         if facts.fixture:
             exempt.append(lock)
             continue
@@ -855,6 +871,27 @@ def judge_locks(
         for manifest in facts.unreadable:
             problems.append(f"{lock}: {manifest} does not parse, so the lock cannot be judged")
     return problems, exempt
+
+
+def report_lock_form(problems: Sequence[str], exempt: Sequence[str]) -> int:
+    """Report lock-form findings and return whether a violation exists."""
+    for lock in exempt:
+        print(f"exempt (in-tree fixture, not standalone-consumable): {lock}")
+    if not problems:
+        return 0
+    for problem in problems:
+        print(f"LOCK FORM VIOLATION: {problem}", file=sys.stderr)
+    print(
+        "\n"
+        "A lock regenerated with the Atlas stack overlay active resolves\n"
+        "first-party dependencies to local paths and drops their git\n"
+        "sources, and leaves [[patch.unused]] residue. CI has no overlay and\n"
+        "will fail every --locked job.\n"
+        "\n"
+        f"Fix: {REGENERATE_COMMAND}",
+        file=sys.stderr,
+    )
+    return 1
 
 
 def tracked_texts(
@@ -908,7 +945,54 @@ def read_blobs(repository: Path | None, blobs: Sequence[str]) -> dict[str, str]:
     return texts
 
 
-def disk_texts(repository: Path) -> dict[str, str]:
+def candidate_relative(root: Path, path: Path) -> str:
+    """Return a path relative to the candidate without following links."""
+    try:
+        relative = os.path.relpath(os.path.abspath(path), os.path.abspath(root))
+    except ValueError as error:
+        raise ValueError(f"{path}: path leaves the candidate") from error
+    relative = relative.replace("\\", "/")
+    if relative == ".." or relative.startswith("../"):
+        raise ValueError(f"{path}: path leaves the candidate")
+    return relative
+
+
+def metadata_paths(
+    repository: Path, *, ignored_directories: frozenset[str]
+) -> Iterator[Path]:
+    """Yield Cargo metadata inputs without entering links or derived trees."""
+    own = SCRIPT_CHECKOUT.resolve()
+
+    def linked(path: Path) -> bool:
+        return path.is_symlink() or getattr(path, "is_junction", lambda: False)()
+
+    if not ignored_directories and linked(repository):
+        raise OSError(f"{repository}: symbolic candidate root is not allowed")
+    for directory, subdirectories, files in os.walk(repository):
+        kept = []
+        for name in subdirectories:
+            path = Path(directory) / name
+            if linked(path):
+                if not ignored_directories:
+                    relative = candidate_relative(repository, path)
+                    raise OSError(f"{relative}: symbolic directory link is not allowed")
+                continue
+            if name.lower() not in ignored_directories and path.resolve() != own:
+                kept.append(name)
+        subdirectories[:] = kept
+        for name in files:
+            if name not in {"Cargo.toml", "Cargo.lock"}:
+                continue
+            path = Path(directory) / name
+            if not ignored_directories and path.is_symlink():
+                relative = candidate_relative(repository, path)
+                raise OSError(f"{relative}: symbolic metadata link is not allowed")
+            yield path
+
+
+def disk_texts(
+    repository: Path, *, ignored_directories: frozenset[str] = IGNORED_DIRECTORIES
+) -> dict[str, str]:
     """Text of every `Cargo.toml` and `Cargo.lock` under `repository`, by relative path.
 
     The filesystem counterpart of [`tracked_texts`], for a tree that is not a
@@ -917,22 +1001,12 @@ def disk_texts(repository: Path) -> dict[str, str]:
     code are not entered, nor is the checkout this script runs from when it sits
     inside `repository` (`SCRIPT_CHECKOUT`).
     """
-    texts: dict[str, str] = {}
-    own = SCRIPT_CHECKOUT.resolve()
-    for directory, subdirectories, files in os.walk(repository):
-        subdirectories[:] = [
-            name
-            for name in subdirectories
-            if name.lower() not in IGNORED_DIRECTORIES
-            and (Path(directory) / name).resolve() != own
-        ]
-        for name in files:
-            if name in {"Cargo.toml", "Cargo.lock"}:
-                path = Path(directory) / name
-                texts[path.relative_to(repository).as_posix()] = path.read_text(
-                    encoding="utf-8", errors="replace"
-                )
-    return texts
+    return {
+        candidate_relative(repository, path): path.read_text(
+            encoding="utf-8", errors="replace"
+        )
+        for path in metadata_paths(repository, ignored_directories=ignored_directories)
+    }
 
 
 def check_staged() -> int:
