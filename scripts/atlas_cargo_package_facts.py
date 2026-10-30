@@ -1,4 +1,4 @@
-"""Cargo-owned package and dependency facts from immutable stack snapshots."""
+"""Cargo-owned package and dependency facts from stack source cohorts."""
 from __future__ import annotations
 
 import json
@@ -7,7 +7,7 @@ import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from atlas_cargo_snapshot import SelectedRepository, create_snapshot
 from atlas_git_process import execute_process
@@ -28,6 +28,8 @@ class DependencyFact:
     requirement: str
     kind: str | None
     target: str | None
+    provider: ProviderIdentity | None
+    repository_url: str | None
 
 
 @dataclass(frozen=True)
@@ -49,7 +51,7 @@ class ProviderIdentity:
 @dataclass(frozen=True)
 class PackageCatalog:
     """Selected package declarations and source-bound providers."""
-    basis: tuple[tuple[str, str], ...]
+    basis: tuple[tuple[str, str | None], ...]
     packages: tuple[PackageFact, ...]
     providers: Mapping[ProviderIdentity, PackageFact]
 
@@ -66,10 +68,14 @@ def _string(record: dict, field: str, *, optional: bool = False) -> str | None:
 def _dependency(record: object) -> DependencyFact:
     if not isinstance(record, dict):
         raise PackageFactError("cargo metadata returned a non-table dependency")
+    package = _string(record, "name")
+    source = _string(record, "source", optional=True)
+    binding = _first_party_source(source)
     return DependencyFact(
-        _string(record, "name"), _string(record, "rename", optional=True),
-        _string(record, "source", optional=True), _string(record, "req"),
+        package, _string(record, "rename", optional=True), source, _string(record, "req"),
         _string(record, "kind", optional=True), _string(record, "target", optional=True),
+        ProviderIdentity(package, binding[0]) if binding is not None else None,
+        binding[1] if binding is not None else None,
     )
 
 
@@ -106,7 +112,7 @@ def _metadata(topology: Path, lock: PurePosixPath) -> tuple[PackageFact, ...]:
     return tuple(facts)
 
 
-def _first_party_repository(source: str | None) -> str | None:
+def _first_party_source(source: str | None) -> tuple[str, str] | None:
     if source is None or not source.startswith("git+"):
         return None
     parsed = urlsplit(source.removeprefix("git+").split("#", 1)[0])
@@ -115,30 +121,25 @@ def _first_party_repository(source: str | None) -> str | None:
         return None
     if parsed.scheme != "https" or parsed.port not in (None, 443) or len(parts) != 2:
         raise PackageFactError("unsupported first-party Git source identity")
-    return parts[1].removesuffix(".git").lower()
+    repository = parts[1].removesuffix(".git").lower()
+    location = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+    return repository, location
 
 
-def load_selected(selections: Mapping[str, SelectedRepository],
-                  destination: Path) -> PackageCatalog:
-    """Extract Cargo declarations from every confined committed lock root."""
-    snapshot = create_snapshot(selections, destination)
+def _declarations(topology: Path, locks: tuple[PurePosixPath, ...]) -> tuple[PackageFact, ...]:
     by_manifest: dict[PurePosixPath, PackageFact] = {}
-    for lock in snapshot.locks:
-        for fact in _metadata(snapshot.root, lock):
+    for lock in locks:
+        for fact in _metadata(topology, lock):
             previous = by_manifest.setdefault(fact.manifest, fact)
             if previous != fact:
                 raise PackageFactError(f"conflicting Cargo facts for {fact.manifest}")
-    before = dict(snapshot.lock_bytes)
-    changed = [lock for lock in snapshot.locks
-               if snapshot.root.joinpath(lock).read_bytes() != before[lock]]
-    if changed:
-        raise PackageFactError(f"cargo metadata changed committed locks: {changed!r}")
-    packages = tuple(sorted(by_manifest.values(), key=lambda fact: fact.manifest.as_posix()))
-    consumed = {
-        ProviderIdentity(dependency.package, repository)
-        for package in packages for dependency in package.dependencies
-        if (repository := _first_party_repository(dependency.source)) is not None
-    }
+    return tuple(sorted(by_manifest.values(), key=lambda fact: fact.manifest.as_posix()))
+
+
+def _catalog(basis: tuple[tuple[str, str | None], ...],
+             packages: tuple[PackageFact, ...]) -> PackageCatalog:
+    consumed = {dependency.provider for package in packages for dependency in package.dependencies
+                if dependency.provider is not None}
     providers = {}
     for identity in sorted(consumed):
         candidates = [package for package in packages
@@ -149,4 +150,42 @@ def load_selected(selections: Mapping[str, SelectedRepository],
                 f"consumed first-party {identity!r} has {len(candidates)} selected providers"
             )
         providers[identity] = candidates[0]
-    return PackageCatalog(snapshot.basis, packages, providers)
+    return PackageCatalog(basis, packages, providers)
+
+
+def load_selected(selections: Mapping[str, SelectedRepository],
+                  destination: Path) -> PackageCatalog:
+    """Extract Cargo declarations from every confined committed lock root."""
+    snapshot = create_snapshot(selections, destination)
+    packages = _declarations(snapshot.root, snapshot.locks)
+    before = dict(snapshot.lock_bytes)
+    changed = [lock for lock in snapshot.locks
+               if snapshot.root.joinpath(lock).read_bytes() != before[lock]]
+    if changed:
+        raise PackageFactError(f"cargo metadata changed committed locks: {changed!r}")
+    return _catalog(snapshot.basis, packages)
+
+
+def load_working(repositories: Mapping[str, Path]) -> PackageCatalog:
+    """Extract live declarations from canonical ``repos/<member>`` trees."""
+    resolved = {name: repository.resolve() for name, repository in repositories.items()}
+    roots = set()
+    for name, repository in resolved.items():
+        if repository.name != name or repository.parent.name != "repos":
+            raise PackageFactError("working repository is not a canonical repos member")
+        roots.add(repository.parent.parent)
+    if not resolved or len(roots) != 1:
+        raise PackageFactError("working repositories are not one canonical repos topology")
+    topology = roots.pop()
+    locks = tuple(sorted(
+        PurePosixPath(lock.relative_to(topology).as_posix())
+        for repository in resolved.values() for lock in repository.rglob("Cargo.lock")
+    ))
+    for name, repository in resolved.items():
+        if not repository.joinpath("Cargo.toml").is_file() or not repository.joinpath("Cargo.lock").is_file():
+            raise PackageFactError(f"working repository {name!r} lacks a root manifest or lock")
+    before = {lock: topology.joinpath(lock).read_bytes() for lock in locks}
+    packages = _declarations(topology, locks)
+    if any(topology.joinpath(lock).read_bytes() != content for lock, content in before.items()):
+        raise PackageFactError("cargo metadata changed a working lock")
+    return _catalog(tuple((name, None) for name in sorted(resolved)), packages)
