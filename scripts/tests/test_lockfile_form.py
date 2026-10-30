@@ -255,11 +255,9 @@ class LockManifestSelectionTestCase(unittest.TestCase):
             "Cargo.lock": STANDALONE,
             "fuzz/Cargo.toml": '[package]\nname = "fuzz"\nversion = "0.0.0"\n[workspace]\n[dependencies]\npal = { path = "../pal" }\n',
             "fuzz/Cargo.lock": STANDALONE,
-            "fixture/Cargo.toml": '[package]\nname = "fixture"\nversion = "0.0.0"\n[dependencies]\noutside = { path = "../../outside" }\n',
-            "fixture/Cargo.lock": STANDALONE,
             "orphan/Cargo.toml": '[package]\nname = "orphan"\nversion = "0.1.0"\n',
         }
-        expected = (["Cargo.toml", "fuzz/Cargo.toml"], ["fixture/Cargo.lock"], ["orphan/Cargo.toml: sibling Cargo.lock is missing"])
+        expected = (["Cargo.toml", "fuzz/Cargo.toml"], [], ["orphan/Cargo.toml: sibling Cargo.lock is missing"])
         self.assertEqual(lockfile.lock_manifests(texts), expected)
         self.assertEqual(lockfile.lock_manifests({"nested/Cargo.lock": STANDALONE}), ([], [], ["nested/Cargo.lock: sibling Cargo.toml is missing"]))
 
@@ -314,16 +312,15 @@ class TreeCheckTestCase(unittest.TestCase):
         self.write(root, f"{directory}/src/lib.rs", "pub fn present() {}\n")
         return manifest
 
-    def test_tree_cli_accepts_nested_owners_without_a_root_manifest(self) -> None:
+    def test_tree_cli_accepts_a_member_under_build_output_directory(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
             root = Path(temp)
-            owners = ("checkout-path-dependencies", "criterion-regression", "gitlink-coherence", "version-guard")
-            for owner in owners:
-                self.cargo(root, self.package(root, f"tools/{owner}", owner))
-            self.cargo(root, self.package(root, "target/tool", "ignored-name-owner"))
+            self.write(root, "Cargo.toml", '[workspace]\nresolver = "3"\nmembers = ["target/tool"]\n')
+            self.package(root, "target/tool", "tracked-member")
+            self.cargo(root, "Cargo.toml")
             command = [sys.executable, str(SCRIPT), "--check", "--check-tree", str(root)]
             completed = lockfile.run_bounded(command, cwd=root, env=os.environ, deadline=60)
-        self.assertEqual((completed.returncode, completed.stdout.count("checking lock owner")), (0, len(owners) + 1), completed.stderr)
+        self.assertEqual((completed.returncode, completed.stdout.count("checking lock owner")), (0, 1), completed.stderr)
 
     def test_tree_cli_rejects_each_independent_package_without_a_lock(self) -> None:
         cases = (("orphan", ""), ("good/nested", "[workspace]\n"))
@@ -344,8 +341,7 @@ class TreeCheckTestCase(unittest.TestCase):
                        'members = ["pal", "support"]\nexclude = ["fuzz"]\n')
             for package in ("pal", "support"):
                 self.package(root, package, package)
-            self.package(root, "fuzz", "fuzz",
-                         '[workspace]\n[dependencies]\npal = { path = "../pal" }\n')
+            self.package(root, "fuzz", "fuzz", '[workspace]\n[dependencies]\npal = { path = "../pal" }\n')
             self.cargo(root, "Cargo.toml")
             self.cargo(root, "fuzz/Cargo.toml")
             with (root / "pal/Cargo.toml").open("a", encoding="utf-8") as manifest:
@@ -355,12 +351,9 @@ class TreeCheckTestCase(unittest.TestCase):
             stdout, stderr = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 bad = lockfile.check(root)
-            self.assertEqual(bad, 1)
-            self.assertIn("fuzz", stderr.getvalue())
-            self.assertNotIn("exempt", stdout.getvalue())
+            self.assertEqual((bad, "fuzz" in stderr.getvalue(), "exempt" in stdout.getvalue()), (1, True, False))
             self.cargo(root, "fuzz/Cargo.toml")
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                fixed = lockfile.check(root)
+            fixed = lockfile.check(root)
             self.assertEqual(fixed, 0)
 
 

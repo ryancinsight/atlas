@@ -291,6 +291,7 @@ def run_outside_the_overlay(
 
 def check_resolution(manifest: Path, lockfile: Path) -> int:
     """Prove one selected lock resolves without the development overlay."""
+    print(f"checking lock owner {manifest}")
     try:
         completed = run_outside_the_overlay(
             ["metadata", "--locked", "--format-version", "1", "--all-features"],
@@ -365,12 +366,8 @@ def check(repository: Path | None = None) -> int:
         )
         return 1
 
-    failures = []
-    for relative in manifests:
-        selected_manifest = repository / relative
-        print(f"checking lock owner {relative}")
-        failures.append(check_resolution(selected_manifest, selected_manifest.with_name("Cargo.lock")))
-    return int(any(failures))
+    failures = sum(check_resolution(repository / relative, (repository / relative).with_name("Cargo.lock")) for relative in manifests)
+    return int(failures != 0)
 
 
 def locked_package_records(lock_text: str) -> list[Mapping[str, object]]:
@@ -709,9 +706,6 @@ def workspace_selection(
     }
     boundaries.update(boundary for boundary in nested if workspace in boundary.parents)
 
-    def ignored(directory: PurePosixPath) -> bool:
-        return bool({part.lower() for part in directory.parts} & IGNORED_DIRECTORIES)
-
     def inside_boundary(directory: PurePosixPath) -> bool:
         return any(
             boundary == directory or boundary in directory.parents
@@ -733,7 +727,7 @@ def workspace_selection(
     selected = {root}
     for name in manifests:
         directory = PurePosixPath(name).parent
-        if inside_boundary(directory) or ignored(directory):
+        if inside_boundary(directory):
             continue
         if any(directory_pattern_matches(pattern, directory) for pattern in members):
             selected.add(name)
@@ -755,7 +749,7 @@ def workspace_selection(
                     target_manifest = (target / "Cargo.toml").as_posix()
                     if target_manifest in selected or target_manifest not in manifests:
                         continue
-                    if inside_boundary(target) or ignored(target):
+                    if inside_boundary(target):
                         continue
                     selected.add(target_manifest)
                     changed = True
@@ -763,9 +757,7 @@ def workspace_selection(
     return {
         name
         for name in selected
-        if not inside_boundary(PurePosixPath(name).parent)
-        and (name == root or not ignored(PurePosixPath(name).parent))
-        and not excluded_manifest(name)
+        if not inside_boundary(PurePosixPath(name).parent) and not excluded_manifest(name)
     }
 
 
