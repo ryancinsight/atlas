@@ -49,7 +49,9 @@ neither may substitute a module the supervisor imports.
 
 from __future__ import annotations
 
+import contextlib
 import errno
+import enum
 import math
 import os
 import selectors
@@ -85,6 +87,15 @@ WAIT_SLICE_SECONDS = 0.1
 # signal either, so the pause is a tenth of the slice that bounds interrupt
 # latency, and an exiting group is noticed within it.
 GROUP_POLL_SECONDS = WAIT_SLICE_SECONDS / 10
+
+
+class OutputMode(enum.Enum):
+    """Select whether command output is captured or inherited by the child."""
+
+    CAPTURE = enum.auto()
+    INHERIT = enum.auto()
+
+
 # The supervisor leads the command's process group and bounds it on its own: a
 # watcher thread retires the whole group, itself included, when the pipe the
 # caller holds reaches end of file (the caller exited or was killed) and another
@@ -190,8 +201,8 @@ class ProcessTreeTimeout(subprocess.TimeoutExpired):
         self,
         command: Sequence[str],
         timeout: float,
-        stdout: bytes,
-        stderr: bytes,
+        stdout: bytes | None,
+        stderr: bytes | None,
         cleanup_error: str | None,
     ) -> None:
         super().__init__(command, timeout, output=stdout, stderr=stderr)
@@ -547,10 +558,13 @@ def run(
     env: Mapping[str, str] | None = None,
     input: bytes | None = None,
     timeout: float,
-) -> subprocess.CompletedProcess[bytes]:
+    output_mode: OutputMode = OutputMode.CAPTURE,
+) -> subprocess.CompletedProcess[bytes | None]:
     """Run ``command`` and retire its owned process tree within finite bounds."""
     if not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("process timeout must be finite and greater than zero")
+    if not isinstance(output_mode, OutputMode):
+        raise TypeError("output mode must be an OutputMode")
     arguments = list(command)
     deadline = time.monotonic() + timeout
     job_handle: int | None = None
@@ -567,9 +581,13 @@ def run(
     input_writer: _InputWriter | None = None
     caught_error: BaseException | None = None
     cleanup_state = _CleanupState()
-    with tempfile.TemporaryFile(mode="w+b") as stdout, tempfile.TemporaryFile(
-        mode="w+b"
-    ) as stderr:
+    with contextlib.ExitStack() as output_files:
+        if output_mode is OutputMode.CAPTURE:
+            stdout = output_files.enter_context(tempfile.TemporaryFile(mode="w+b"))
+            stderr = output_files.enter_context(tempfile.TemporaryFile(mode="w+b"))
+        else:
+            stdout = None
+            stderr = None
         has_input = "1" if input is not None else "0"
         if sys.platform == "win32":
             launch_command = arguments
@@ -681,8 +699,8 @@ def run(
                 if close_error is not None and caught_error is not None:
                     caught_error.add_note(f"process-tree cleanup failed: {close_error}")
 
-        captured_stdout = _read_output(stdout)
-        captured_stderr = _read_output(stderr)
+        captured_stdout = _read_output(stdout) if stdout is not None else None
+        captured_stderr = _read_output(stderr) if stderr is not None else None
         if timed_out:
             raise ProcessTreeTimeout(
                 arguments,
