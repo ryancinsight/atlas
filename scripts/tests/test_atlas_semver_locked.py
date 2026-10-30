@@ -188,13 +188,13 @@ class NativeContract(unittest.TestCase):
                 f'[package]\nname="{consumer_name}"\nversion="0.1.0"\nedition="2024"\n'
                 f'[features]\ndefault=["extra"]\nextra=["dep:{optional_name}"]\n'
                 f'[dependencies]\n{optional_name}={{git="{optional.as_uri()}",optional=true}}\n'
-                f'[target.\'cfg(target_os = "windows")\'.dependencies]\n'
+                f'[target.\'cfg(target_arch = "x86_64")\'.dependencies]\n'
                 f'{platform_name}={{git="{platform.as_uri()}"}}\n'
-                f'[target.\'cfg(target_os = "linux")\'.dependencies]\n'
+                f'[target.\'cfg(target_arch = "wasm32")\'.dependencies]\n'
                 f'{excluded_name}={{git="{excluded.as_uri()}"}}\n', encoding="utf-8")
             (consumer / "src/lib.rs").write_text(
                 f'#[cfg(feature="extra")]\npub fn extra() -> usize {{ {optional_name}::value() }}\n'
-                f'#[cfg(target_os="windows")]\npub fn platform() -> usize {{ {platform_name}::value() }}\n',
+                f'#[cfg(target_arch="x86_64")]\npub fn platform() -> usize {{ {platform_name}::value() }}\n',
                 encoding="utf-8")
             self.command(["cargo", "generate-lockfile"], consumer)
             self.commit(consumer, "consumer")
