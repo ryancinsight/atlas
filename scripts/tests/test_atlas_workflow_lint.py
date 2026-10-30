@@ -1,3 +1,4 @@
+import os
 import sys
 import tempfile
 import unittest
@@ -32,6 +33,14 @@ runs:
 ACTION_PATH = ".github/actions/sample/action.yml"
 CONFIG = "self-hosted-runner:\n  labels: [custom-runner]\n"
 GIT_IDENTITY = ("-c", "user.email=workflow-lint@example.invalid", "-c", "user.name=workflow-lint")
+REUSABLE = """name: reusable
+on: workflow_call
+jobs:
+  verify:
+    runs-on: custom-runner
+    steps:
+      - run: echo reusable
+"""
 
 
 def fixture(test: unittest.TestCase) -> tuple[Path, Path, Path]:
@@ -291,6 +300,133 @@ class CandidateSnapshotTests(unittest.TestCase):
             lint.snapshot(self.root, self.candidate)
         self.assertEqual((self.root / ".git" / "fsmonitor-count").read_text().strip(), "3")
         self.assertIn(b"echo changed", self.action.read_bytes())
+
+
+@unittest.skipUnless(
+    all(os.environ.get(name) for name in ("ACTIONLINT", "SHELLCHECK", "PYFLAKES")),
+    "native workflow analyzers are not configured",
+)
+class NativeActionlintTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.root, self.workflow, self.action = fixture(self)
+        self.config = self.root / ".github" / "actionlint.yaml"
+        self.config.write_text(CONFIG, encoding="utf-8", newline="\n")
+        nested = self.root / ".github" / "actions" / "nested" / "action.yml"
+        nested.parent.mkdir()
+        nested.write_text(ACTION.replace("sample", "nested"), encoding="utf-8", newline="\n")
+        self.action.write_text(
+            ACTION.replace(
+                "description: sample action",
+                "description: sample action\ninputs:\n  known:\n    description: known input",
+            ).replace("    - shell: bash", '    - uses: "$/.github/actions/nested"\n    - shell: bash'),
+            encoding="utf-8",
+            newline="\n",
+        )
+        reusable = self.workflow.with_name("reusable.yml")
+        reusable.write_text(REUSABLE, encoding="utf-8", newline="\n")
+        self.valid = WORKFLOW.replace(
+            '      - uses: "$/.github/actions/sample" # keep this comment',
+            '      - uses: "$/.github/actions/sample" # keep this comment\n        with:\n          known: yes',
+        ).replace(
+            "  build:\n",
+            '  reuse:\n    uses: "$/.github/workflows/reusable.yml"\n  build:\n',
+        )
+        self.workflow.write_text(self.valid, encoding="utf-8", newline="\n")
+        self.candidate = commit(self.root)
+
+    def command(self, *extra: str, actionlint: str | None = None):
+        command = [
+            sys.executable,
+            "-I",
+            str(SCRIPTS / "python_source_loader.py"),
+            "--module",
+            f"process_tree={SCRIPTS / 'process_tree.py'}",
+            "--module",
+            f"windows_process={SCRIPTS / 'windows_process.py'}",
+            "--module",
+            f"darwin_process={SCRIPTS / 'darwin_process.py'}",
+            str(SCRIPTS / "atlas_workflow_lint.py"),
+            "--root",
+            str(self.root),
+            "--candidate",
+            self.candidate,
+            "--actionlint",
+            actionlint or os.environ["ACTIONLINT"],
+            "--shellcheck",
+            os.environ["SHELLCHECK"],
+            "--pyflakes",
+            os.environ["PYFLAKES"],
+            *extra,
+        ]
+        return lint.process_tree.run(command, cwd=self.root, timeout=60)
+
+    def test_native_project_checks_and_diagnostics(self) -> None:
+        self.assertIn(".github/actions/nested/action.yml", lint.snapshot(self.root, self.candidate)[1])
+        result = self.command()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        cases = {
+            "SC2086": self.valid.replace("echo '$/not-a-reference'", "echo $UNQUOTED"),
+            "unknown.value": self.valid.replace("echo '$/not-a-reference'", "echo '${{ unknown.value }}'"),
+            "undefined_name": self.valid.replace(
+                "- run: echo '$/not-a-reference'",
+                "- shell: python\n        run: print(undefined_name)",
+            ),
+            'input "unknown"': self.valid.replace("known: yes", "unknown: yes"),
+        }
+        for diagnostic, source in cases.items():
+            with self.subTest(diagnostic=diagnostic):
+                self.workflow.write_text(source, encoding="utf-8", newline="\n")
+                self.candidate = commit(self.root, f"test: reject {diagnostic}")
+                result = self.command()
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn(diagnostic, (result.stderr or b"").decode("utf-8", "replace"))
+        self.workflow.write_text(self.valid, encoding="utf-8", newline="\n")
+        reusable = self.workflow.with_name("reusable.yml")
+        reusable.write_text(REUSABLE.replace("echo reusable", "echo '${{ unknown.value }}'"), encoding="utf-8")
+        self.candidate = commit(self.root, "test: reject invalid reusable workflow")
+        result = self.command()
+        self.assertEqual(result.returncode, 2, result.stdout)
+        self.assertIn("unknown.value", (result.stderr or b"").decode())
+
+    def test_rejects_tool_failure_and_analysis_mutation(self) -> None:
+        missing = str(self.root / ".git" / "missing-tool")
+        for option in ("--shellcheck", "--pyflakes"):
+            with self.subTest(option=option):
+                result = self.command(option, missing)
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("executable is unavailable", (result.stderr or b"").decode())
+        result = self.command(actionlint=missing)
+        self.assertEqual(result.returncode, 2, result.stdout)
+        self.assertIn("required actionlint executable", (result.stderr or b"").decode())
+
+        timed_out = self.command("--timeout", "0.000001")
+        self.assertEqual(timed_out.returncode, 2, timed_out.stdout)
+        self.assertIn("deadline", (timed_out.stderr or b"").decode())
+
+        wrapper = self.root / ".git" / ("actionlint.cmd" if os.name == "nt" else "actionlint")
+        for target in (self.config, self.action):
+            with self.subTest(mutation=target.relative_to(self.root)):
+                original = target.read_bytes()
+                if os.name == "nt":
+                    wrapper.write_text(
+                        f'@echo off\r\nif not "%1"=="-version" echo changed: true>"{target}"\r\n'
+                        f'"{os.environ["ACTIONLINT"]}" %*\r\n',
+                        encoding="utf-8",
+                        newline="",
+                    )
+                else:
+                    wrapper.write_text(
+                        "#!/bin/sh\n"
+                        f'[ "$1" = "-version" ] || printf "changed: true\\n" > "{target}"\n'
+                        f'exec "{os.environ["ACTIONLINT"]}" "$@"\n',
+                        encoding="utf-8",
+                        newline="\n",
+                    )
+                    wrapper.chmod(0o755)
+                result = self.command(actionlint=str(wrapper))
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("candidate checkout is not clean", (result.stderr or b"").decode())
+                target.write_bytes(original)
 
 
 if __name__ == "__main__":
