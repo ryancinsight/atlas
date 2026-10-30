@@ -1,7 +1,8 @@
-# ADR 0068: Crates publish when their manifest version changes
+# ADR 0068: Authorized version changes publish automatically
 
 - Status: Accepted
 - Date: 2026-09-30
+- Revised: 2026-10-29 — Separate development/release authority; block artifact drift.
 - Item: ATLAS-PUB-009 (delivered by this ADR's PR; the caller rollout is [ATLAS-PUB-010](../../backlog.md#atlas-pub-010))
 - Relates to: [ADR 0035](0035-shared-publication-pipelines.md),
   [ADR 0037](0037-facade-crates-and-registry-naming.md),
@@ -17,7 +18,8 @@ The same audit found a defect in `semver-gate.yml`. Its release gate asked crate
 
 ## Decision
 
-A version bump that merges to the default branch triggers its own publication.
+Only an authorized version-changing default-branch merge publishes; development
+merge authority grants no version, tag, or publication authority. PRs inform on drift; releases block.
 
 1. **Shared action `crates-pending`** (`.github/actions/crates-pending`, Python standard library only). It holds all the selection, verification, publish, and tag logic once:
    - `plan` selects each publishable package whose manifest version is missing from the sparse index and whose crates.io owners include `owner`.
@@ -55,7 +57,9 @@ A version bump that merges to the default branch triggers its own publication.
    Inspect any already-running publisher before adoption; changing the new
    commit's workflow does not retroactively constrain an older in-flight run.
 3. **Member callers.** Each member's `rust-release.yml` adds `push` (default branch) and a daily `schedule` to its triggers, and calls `crates-publish-pending.yml` from a job of its own. That job alone grants `contents: write`. The release-event and `workflow_dispatch` jobs keep calling `crates-publish.yml` unchanged, so the manual route and the dry-run route keep their permissions. Trusted publishers are keyed by the caller's filename, and on 2026-09-30 every sampled registration, ritk's included, named `rust-release.yml`. Adopting the new path therefore needs no registry change.
-4. **SemVer gate fix.** The release gate asks crates.io once per listed name, spaced one second apart (the crawler policy). It checks the subset that is already published, gives a notice for each first publication, and fails on any other status. The new workflow pins the commit that carries this fix.
+4. **Release gates.** Before SemVer, `measure_crate` checks every named HEAD package.
+   Drift blocks; current and unpublished artifacts pass; malformed inputs and unavailable registry, Git, or Cargo fail closed.
+   PRs inform only on drift. SemVer retains published-subset and crawler pacing rules.
 
 ## Rejected alternatives
 
@@ -67,10 +71,10 @@ A version bump that merges to the default branch triggers its own publication.
 
 ## Consequences
 
-- Merging a version bump to the default branch is the release decision, so release review happens in the PR that bumps a manifest.
+- An authorized version-changing merge executes a prior reviewed release decision.
 - Cross-repository order converges without coordination. A consumer bumped before its provider waits, and publishes on the first run after the provider's version is indexed. The daily schedule bounds that delay when no push arrives.
 - First publishes stay manual: one API-token publish per new name, after which the trusted publisher applies (ATLAS-PUB-003).
-- The gate compares versions only. Source that changed under an unchanged, already-published version is invisible to it; ATLAS-PUB-011 carries that guard.
+- Unversioned artifact drift remains visible in development and blocks release.
 - Publishing several packages in one `cargo publish` needs cargo 1.90 or later. Every member pins a toolchain above that floor, and a caller's `rust-toolchain` input must stay there.
 - Python wheels still publish from release events. Moving them to the same trigger is a separate decision.
 

@@ -530,6 +530,10 @@ class GateFixture:
             "#!/usr/bin/env bash\n"
             f'FIXTURE_ROOT="{self.root}"\n'
             'here="$(pwd -W 2>/dev/null || pwd)"\n'
+            'if [ "$*" = "-Z unstable-options config get --format=json" ]; then\n'
+            "  printf '{}\\n'\n"
+            "  exit 0\n"
+            "fi\n"
             'if [ "$1" = "metadata" ]; then\n'
             '  echo "$@" >> "$FIXTURE_ROOT/metadata-calls.log"\n'
             '  case "$*" in */base-*)\n'
