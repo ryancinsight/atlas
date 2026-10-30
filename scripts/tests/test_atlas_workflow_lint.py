@@ -211,6 +211,27 @@ class CandidateSnapshotTests(unittest.TestCase):
         with self.assertRaisesRegex(lint.WorkflowSourceError, "missing"):
             lint.snapshot(root, wrong_case)
 
+    def test_validates_candidate_entry_modes(self) -> None:
+        lint._git(self.root, "config", "core.filemode", "false")
+        lint._git(self.root, "update-index", "--chmod=+x", ACTION_PATH)
+        executable = commit(self.root, "test: use executable metadata")
+        self.assertEqual(lint.snapshot(self.root, executable)[1][ACTION_PATH], self.action.read_bytes())
+
+        link_source = self.root / ".git" / "link-source"
+        link_source.write_text("ordinary/action.yml", encoding="utf-8", newline="\n")
+        blob = lint._git(self.root, "hash-object", "-w", link_source.as_posix()).decode().strip()
+        lint._git(self.root, "update-index", "--add", "--cacheinfo", f"120000,{blob},{ACTION_PATH}")
+        lint._git(self.root, *GIT_IDENTITY, "commit", "--quiet", "-m", "test: add symlink entry")
+        candidate = lint._git(self.root, "rev-parse", "HEAD").decode().strip()
+        lint._git(self.root, "config", "core.symlinks", "false")
+        lint._git(self.root, "checkout-index", "--force", "--", ACTION_PATH)
+
+        self.assertTrue(lint._git(self.root, "ls-tree", "HEAD", ACTION_PATH).startswith(b"120000 blob "))
+        self.assertFalse(self.action.is_symlink())
+        self.assertEqual(lint._git(self.root, "status", "--porcelain"), b"")
+        with self.assertRaisesRegex(lint.WorkflowSourceError, "not a regular Git file"):
+            lint.snapshot(self.root, candidate)
+
     def test_rejects_ignored_metadata_and_config(self) -> None:
         for relative in (Path(".github/actionlint.yaml"), Path(ACTION_PATH)):
             with self.subTest(path=relative):

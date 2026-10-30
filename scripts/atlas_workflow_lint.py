@@ -217,12 +217,19 @@ def _checkout(root: Path, candidate: str) -> str:
     return tree
 
 
-def _tree_paths(root: Path, candidate: str, recursive: bool, *paths: str) -> tuple[str, ...]:
+def _tree_paths(
+    root: Path, candidate: str, recursive: bool, *paths: str
+) -> tuple[tuple[str, str], ...]:
     arguments = ["ls-tree"]
     if recursive:
         arguments.append("-r")
-    data = _git(root, *arguments, "-z", "--name-only", candidate, "--", *paths)
-    return tuple(sorted(value.decode("utf-8", "strict") for value in data.split(b"\0") if value))
+    data = _git(root, *arguments, "-z", candidate, "--", *paths)
+    entries = (
+        (record.partition(b"\t")[2].decode("utf-8", "strict"), record.partition(b" ")[0].decode("ascii"))
+        for record in data.split(b"\0")
+        if record
+    )
+    return tuple(sorted(entries))
 
 
 def _workflow_paths(root: Path) -> tuple[str, ...]:
@@ -243,7 +250,9 @@ def _named_paths(root: Path, paths: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(path for path in paths if os.path.lexists(root.joinpath(*path.split("/"))))
 
 
-def _candidate_bytes(root: Path, candidate: str, relative: str) -> bytes:
+def _candidate_bytes(root: Path, candidate: str, relative: str, mode: str) -> bytes:
+    if mode not in ("100644", "100755"):
+        raise WorkflowSourceError(f"candidate input is not a regular Git file: {relative}")
     path = _resolved(root, root.joinpath(*relative.split("/")), relative)
     if not path.is_file():
         raise WorkflowSourceError(f"candidate input is not a regular file: {relative}")
@@ -254,43 +263,48 @@ def _candidate_bytes(root: Path, candidate: str, relative: str) -> bytes:
     return source
 
 
-def _inventory(root: Path, candidate: str) -> tuple[str, ...]:
+def _inventory(root: Path, candidate: str) -> tuple[tuple[str, str], ...]:
     workflows = tuple(
-        path
-        for path in _tree_paths(root, candidate, True, ".github/workflows")
-        if path.endswith((".yml", ".yaml"))
+        entry
+        for entry in _tree_paths(root, candidate, True, ".github/workflows")
+        if entry[0].endswith((".yml", ".yaml"))
     )
     configs = tuple(f".github/{name}" for name in CONFIG_NAMES)
     candidate_configs = _tree_paths(root, candidate, False, *configs)
     working = _workflow_paths(root) + _named_paths(root, configs)
-    candidate_paths = tuple(sorted(workflows + candidate_configs))
-    if tuple(sorted(working)) != candidate_paths:
+    candidate_entries = tuple(sorted(workflows + candidate_configs))
+    if tuple(sorted(working)) != tuple(path for path, _ in candidate_entries):
         raise WorkflowSourceError("workflow or actionlint config inventory differs from candidate")
-    return candidate_paths
+    return candidate_entries
 
 
-def _metadata(root: Path, candidate: str, directory: str) -> tuple[str, ...]:
+def _metadata(root: Path, candidate: str, directory: str) -> tuple[tuple[str, str], ...]:
     names = tuple(f"{directory}/{name}" for name in ("action.yml", "action.yaml"))
-    stored = set(_tree_paths(root, candidate, False, *names))
-    candidate_paths = tuple(name for name in names if name in stored)
-    if _named_paths(root, names) != candidate_paths:
+    stored = dict(_tree_paths(root, candidate, False, *names))
+    candidate_entries = tuple((name, stored[name]) for name in names if name in stored)
+    if _named_paths(root, names) != tuple(name for name, _ in candidate_entries):
         raise WorkflowSourceError(f"action metadata inventory differs from candidate: {directory}")
-    return candidate_paths
+    return candidate_entries
 
 
 def _collect(
-    root: Path, candidate: str, inventory: tuple[str, ...]
-) -> tuple[dict[str, bytes], dict[str, bytes]]:
-    workflows = tuple(path for path in inventory if path.startswith(".github/workflows/"))
+    root: Path, candidate: str, inventory: tuple[tuple[str, str], ...]
+) -> tuple[dict[str, bytes], dict[str, bytes], tuple[tuple[str, str], ...]]:
+    modes = dict(inventory)
+    workflows = tuple(path for path in modes if path.startswith(".github/workflows/"))
     configs = tuple(f".github/{name}" for name in CONFIG_NAMES)
-    selected_config = next((path for path in configs if path in inventory), None)
-    inputs = {} if selected_config is None else {selected_config: _candidate_bytes(root, candidate, selected_config)}
+    selected_config = next((path for path in configs if path in modes), None)
+    inputs = (
+        {}
+        if selected_config is None
+        else {selected_config: _candidate_bytes(root, candidate, selected_config, modes[selected_config])}
+    )
     pending = [(path, "workflow") for path in workflows]
     queued = set(workflows)
     projected: dict[str, bytes] = {}
     while pending:
         relative, kind = pending.pop(0)
-        source = _candidate_bytes(root, candidate, relative)
+        source = _candidate_bytes(root, candidate, relative, modes[relative])
         inputs[relative] = source
         content, targets = project(source, root.joinpath(*relative.split("/")), root, kind)
         if kind == "workflow":
@@ -300,12 +314,13 @@ def _collect(
             if target_relative in workflows:
                 continue
             directory = target.parent.relative_to(root).as_posix()
-            for metadata in _metadata(root, candidate, directory):
-                inputs[metadata] = _candidate_bytes(root, candidate, metadata)
+            for metadata, mode in _metadata(root, candidate, directory):
+                modes[metadata] = mode
+                inputs[metadata] = _candidate_bytes(root, candidate, metadata, mode)
                 if metadata not in queued:
                     queued.add(metadata)
                     pending.append((metadata, "action"))
-    return projected, inputs
+    return projected, inputs, tuple(sorted(modes.items()))
 
 
 def snapshot(root: Path, candidate: str) -> tuple[dict[str, bytes], dict[str, bytes]]:
@@ -324,4 +339,4 @@ def snapshot(root: Path, candidate: str) -> tuple[dict[str, bytes], dict[str, by
         raise WorkflowSourceError("candidate lint bytes changed during ending checks")
     if _identity(root, candidate) != tree or _inventory(root, candidate) != inventory:
         raise WorkflowSourceError("candidate source changed after ending byte checks")
-    return first
+    return first[0], first[1]
