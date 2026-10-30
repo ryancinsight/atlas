@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -10,7 +11,9 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
-from atlas_cargo_snapshot import CargoSnapshotError, SelectedRepository, create_snapshot  # noqa: E402
+from atlas_cargo_snapshot import (  # noqa: E402
+    READ_BATCH_BYTES, CargoSnapshotError, SelectedRepository, create_snapshot,
+)
 
 class SnapshotFixture:
     def __init__(self, root: Path) -> None:
@@ -28,6 +31,37 @@ class SnapshotFixture:
         if result.returncode:
             raise AssertionError(f"{' '.join(command)} failed:\n{result.stderr.decode(errors='replace')}")
         return result.stdout.decode("utf-8", errors="replace").strip()
+
+    def input(self, command: list[str], cwd: Path, payload: bytes) -> str:
+        result = subprocess.run(command, cwd=cwd, env=self.environment, input=payload,
+                                capture_output=True, timeout=30, check=False)
+        if result.returncode:
+            raise AssertionError(f"{' '.join(command)} failed:\n{result.stderr.decode(errors='replace')}")
+        return result.stdout.decode().strip()
+
+    def raw_repository(self, name: str) -> tuple[Path, list[str]]:
+        repo = self.repos / name
+        repo.mkdir()
+        self.run(["git", "init", "--quiet"], repo)
+        self.run(["git", "config", "user.name", "Snapshot fixture"], repo)
+        self.run(["git", "config", "user.email", "fixture@example.invalid"], repo)
+        manifest = b'[package]\nname="raw"\nversion="0.1.0"\nedition="2024"\n'
+        lock = b'version=4\n[[package]]\nname="raw"\nversion="0.1.0"\n'
+        source = self.tree(repo, [self.row(repo, "lib.rs", b"pub fn value() {}\n")])
+        return repo, [self.row(repo, "Cargo.toml", manifest), self.row(repo, "Cargo.lock", lock),
+                      f"040000 tree {source}\tsrc\n"]
+
+    def row(self, repo: Path, name: str, payload: bytes) -> str:
+        blob = self.input(["git", "hash-object", "-w", "--stdin"], repo, payload)
+        return f"100644 blob {blob}\t{name}\n"
+
+    def tree(self, repo: Path, rows: list[str]) -> str:
+        return self.input(["git", "mktree"], repo, "".join(rows).encode())
+
+    def raw_selection(self, repo: Path, rows: list[str]) -> SelectedRepository:
+        tree = self.tree(repo, rows)
+        revision = self.run(["git", "commit-tree", tree, "-m", "Raw fixture"], repo)
+        return SelectedRepository(repo, revision)
 
     def package(self, root: Path, name: str, extra: str = "") -> None:
         (root / "src").mkdir(parents=True)
@@ -128,6 +162,40 @@ class CargoSnapshotTests(unittest.TestCase):
         with self.assertRaisesRegex(CargoSnapshotError, "root Cargo.lock"):
             create_snapshot({"unlocked": self.fixture.commit("unlocked", generate=False)},
                             self.root / "unlocked")
+
+    def test_host_alias_traversal_and_blob_resource_boundaries_fail_closed(self) -> None:
+        repo, base = self.fixture.raw_repository("raw-boundaries")
+        payload = b"different raw object\n"
+        subtree = self.fixture.tree(repo, [self.fixture.row(repo, "first", payload)])
+        alias = self.fixture.tree(repo, [self.fixture.row(repo, "second", payload)])
+        nested = self.fixture.tree(repo, [self.fixture.row(repo, "escaped", payload)])
+        for _ in range(3):
+            nested = self.fixture.tree(repo, [f"040000 tree {nested}\tc:..\n"])
+        cases = {
+            "case-file": [self.fixture.row(repo, "cargo.toml", payload)],
+            "trailing-period": [self.fixture.row(repo, "cargo.toml.", payload)],
+            "drive-relative": [self.fixture.row(repo, "c:Cargo.toml", payload)],
+            "alternate-stream": [self.fixture.row(repo, "Cargo.toml:stream", payload)],
+            "device": [self.fixture.row(repo, "con.rs", payload)],
+            "case-directory": [f"040000 tree {subtree}\tFolder\n",
+                               f"040000 tree {alias}\tfolder\n"],
+            "nested-drive": [f"040000 tree {nested}\tc:..\n"],
+        }
+        for index, (name, rows) in enumerate(cases.items()):
+            selected = self.fixture.raw_selection(repo, [*base, *rows])
+            with self.subTest(name=name), self.assertRaisesRegex(
+                CargoSnapshotError, "unsafe|collision|resource limit"
+            ):
+                create_snapshot({"raw-boundaries": selected}, self.root / f"raw-{index}")
+        large = b"x" * (READ_BATCH_BYTES + 1)
+        selected = self.fixture.raw_selection(
+            repo, [*base, self.fixture.row(repo, "large.bin", large)]
+        )
+        snapshot = create_snapshot({"raw-boundaries": selected}, self.root / "raw-large")
+        output = snapshot.root / "repos/raw-boundaries/large.bin"
+        with output.open("rb") as stream:
+            self.assertEqual(hashlib.file_digest(stream, "sha256").digest(),
+                             hashlib.sha256(large).digest())
 
     def test_external_workspace_dependency_and_target_paths_are_rejected(self) -> None:
         external = self.root / "external.rs"
