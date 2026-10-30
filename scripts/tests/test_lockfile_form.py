@@ -14,6 +14,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import os
 import subprocess
 import sys
 import tempfile
@@ -248,23 +249,109 @@ class FixtureDetectionTestCase(unittest.TestCase):
 
 
 class LockManifestSelectionTestCase(unittest.TestCase):
-    def test_candidate_rejects_directory_links(self) -> None:
+    def test_candidate_rejects_every_file_link_before_reading_contents(self) -> None:
+        for relative in (
+            "Cargo.toml", "CARGO.LOCK", ".cargo/CONFIG.TOML",
+            "owner/.PROVIDER-IDENTITY-BASELINE", "late/unrecognized.input",
+        ):
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                parent = Path(temp)
+                root = parent / "candidate"
+                root.mkdir()
+                (root / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
+                outside = parent / "outside"
+                outside.write_text("outside", encoding="utf-8")
+                linked = root / relative
+                linked.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    linked.symlink_to(outside)
+                except OSError as error:
+                    self.skipTest(f"file symlink unavailable: {error}")
+                reads = []
+                cargo_calls = []
+                original_read = Path.read_text
+
+                def read_text(path: Path, *args, **kwargs) -> str:
+                    reads.append(path)
+                    return original_read(path, *args, **kwargs)
+
+                def cargo(*args, **kwargs):
+                    cargo_calls.append((args, kwargs))
+                    raise AssertionError("candidate inspection must precede Cargo")
+
+                with (
+                    mock.patch.object(Path, "read_text", read_text),
+                    mock.patch.object(lockfile, "cargo_metadata", cargo),
+                    contextlib.redirect_stderr(stderr := io.StringIO()),
+                ):
+                    code = lockfile.check(root)
+                self.assertEqual((code, reads, cargo_calls), (1, [], []))
+                self.assertIn(f"{relative}: link or reparse point", stderr.getvalue())
+
+    def test_candidate_rejects_root_and_directory_links(self) -> None:
+        for root_link in (True, False):
+            with self.subTest(root_link=root_link), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                parent = Path(temp)
+                real = parent / "real"
+                real.mkdir()
+                linked = parent / "candidate" if root_link else real / "linked"
+                try:
+                    linked.symlink_to(real, target_is_directory=True)
+                except OSError as error:
+                    self.skipTest(f"directory symlink unavailable: {error}")
+                root = linked if root_link else real
+                with self.assertRaisesRegex(OSError, "link or reparse point"):
+                    lockfile.disk_texts(root, ignored_directories=frozenset())
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "FIFO creation unavailable")
+    def test_candidate_rejects_non_regular_entries(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
             root = Path(temp)
-            (linked := root / "linked").mkdir()
-            original_link = Path.is_symlink
-            with (
-                mock.patch.object(Path, "is_symlink", lambda path: path.name == "linked" or original_link(path)),
-                self.assertRaisesRegex(OSError, "symbolic directory link"),
-            ):
+            os.mkfifo(root / "unexpected")
+            with self.assertRaisesRegex(OSError, "not a regular file"):
                 lockfile.disk_texts(root, ignored_directories=frozenset())
+
+    def test_candidate_rejects_hard_link_aliases(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            original = root / "Cargo.toml"
+            original.write_text("[workspace]\n", encoding="utf-8")
+            os.link(original, root / "alias")
+            with self.assertRaisesRegex(OSError, "multiple directory entries"):
+                lockfile.disk_texts(root, ignored_directories=frozenset())
+
+    def test_candidate_surfaces_traversal_failure_before_cargo(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            cargo_calls = []
+
+            def denied(*args, **kwargs):
+                kwargs["onerror"](PermissionError("candidate traversal denied"))
+                return ()
+
+            with (
+                mock.patch.object(os, "walk", denied),
+                mock.patch.object(lockfile, "cargo_metadata", cargo_calls.append),
+                contextlib.redirect_stderr(stderr := io.StringIO()),
+            ):
+                code = lockfile.check(root)
+        self.assertEqual((code, cargo_calls), (1, []))
+        self.assertIn("candidate traversal denied", stderr.getvalue())
 
     def test_cli_keeps_the_candidate_root_lexical(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
-            root = Path(temp)
-            (manifest := root / "Cargo.toml").write_text("[workspace]\n", encoding="utf-8")
+            parent = Path(temp)
+            root = parent / "candidate"
+            root.mkdir()
+            outside = parent / "outside.toml"
+            outside.write_text("[workspace]\n", encoding="utf-8")
+            manifest = root / "Cargo.toml"
+            try:
+                manifest.symlink_to(outside)
+            except OSError as error:
+                self.skipTest(f"file symlink unavailable: {error}")
             (root / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
-            original_resolve, original_link = Path.resolve, Path.is_symlink
+            original_resolve = Path.resolve
 
             def resolve(path: Path, *args, **kwargs) -> Path:
                 self.assertNotEqual(path, manifest, "CLI resolved the requested manifest")
@@ -272,12 +359,12 @@ class LockManifestSelectionTestCase(unittest.TestCase):
             with (
                 mock.patch.object(sys, "argv", ["lockfile.py", "--check", "--manifest-path", str(manifest)]),
                 mock.patch.object(Path, "resolve", resolve),
-                mock.patch.object(Path, "is_symlink", lambda path: path == manifest or original_link(path)),
                 contextlib.redirect_stderr(stderr := io.StringIO()),
             ):
                 code = lockfile.main()
         self.assertEqual(code, 1)
-        self.assertIn("symbolic metadata link", stderr.getvalue())
+        self.assertIn("link or reparse point", stderr.getvalue())
+
 
 
 class WorkspaceScopeTestCase(unittest.TestCase):

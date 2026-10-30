@@ -57,6 +57,7 @@ import fnmatch
 import os
 import re
 import signal
+import stat
 import subprocess
 import posixpath
 import sys
@@ -347,14 +348,13 @@ def check(repository: Path | None = None) -> int:
     repository = REPOSITORY if repository is None else repository
     lockfile = repository / "Cargo.lock"
     manifest = repository / "Cargo.toml"
-    if not lockfile.is_file():
-        print(f"error: {lockfile} does not exist", file=sys.stderr)
-        return 1
-
     try:
         texts = disk_texts(repository, ignored_directories=ignored)
     except OSError as error:
         print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
+        return 1
+    if "Cargo.lock" not in texts:
+        print(f"error: {lockfile} does not exist", file=sys.stderr)
         return 1
     problems, exempt = judge_locks(texts)
     if report_lock_form(problems, exempt):
@@ -1004,35 +1004,56 @@ def candidate_relative(root: Path, path: Path) -> str:
 
 def metadata_paths(
     repository: Path, *, ignored_directories: frozenset[str]
-) -> Iterator[Path]:
-    """Yield Cargo metadata inputs without entering links or derived trees."""
+) -> tuple[Path, ...]:
+    """Return Cargo inputs after a complete non-following tree inspection."""
     own = SCRIPT_CHECKOUT.resolve()
+    strict = not ignored_directories
+    candidates: list[Path] = []
 
-    def linked(path: Path) -> bool:
-        return path.is_symlink() or getattr(path, "is_junction", lambda: False)()
+    def inspect(path: Path, *, directory: bool) -> None:
+        relative = candidate_relative(repository, path)
+        details = os.lstat(path)
+        attributes = getattr(details, "st_file_attributes", 0)
+        reparse = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+        if stat.S_ISLNK(details.st_mode) or attributes & reparse:
+            raise OSError(f"{relative}: link or reparse point is not allowed")
+        expected = stat.S_ISDIR(details.st_mode) if directory else stat.S_ISREG(details.st_mode)
+        if not expected:
+            kind = "directory" if directory else "regular file"
+            raise OSError(f"{relative}: candidate entry is not a {kind}")
+        if not directory and details.st_nlink != 1:
+            raise OSError(f"{relative}: candidate file has multiple directory entries")
 
-    if not ignored_directories and linked(repository):
-        raise OSError(f"{repository}: symbolic candidate root is not allowed")
-    for directory, subdirectories, files in os.walk(repository):
+    if strict:
+        inspect(repository, directory=True)
+
+    def traversal_error(error: OSError) -> None:
+        raise error
+
+    for directory, subdirectories, files in os.walk(
+        repository, topdown=True, onerror=traversal_error, followlinks=False
+    ):
         kept = []
         for name in subdirectories:
             path = Path(directory) / name
-            if linked(path):
-                if not ignored_directories:
-                    relative = candidate_relative(repository, path)
-                    raise OSError(f"{relative}: symbolic directory link is not allowed")
-                continue
-            if name.lower() not in ignored_directories and path.resolve() != own:
+            if strict:
+                inspect(path, directory=True)
+                kept.append(name)
+            elif (
+                not path.is_symlink()
+                and not getattr(path, "is_junction", lambda: False)()
+                and name.lower() not in ignored_directories
+                and path.resolve() != own
+            ):
                 kept.append(name)
         subdirectories[:] = kept
         for name in files:
-            if name not in {"Cargo.toml", "Cargo.lock"}:
-                continue
             path = Path(directory) / name
-            if not ignored_directories and path.is_symlink():
-                relative = candidate_relative(repository, path)
-                raise OSError(f"{relative}: symbolic metadata link is not allowed")
-            yield path
+            if strict:
+                inspect(path, directory=False)
+            if name in {"Cargo.toml", "Cargo.lock"}:
+                candidates.append(path)
+    return tuple(candidates)
 
 
 def disk_texts(
