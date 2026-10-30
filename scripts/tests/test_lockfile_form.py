@@ -14,7 +14,6 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
-import json
 import os
 import subprocess
 import sys
@@ -22,6 +21,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path, PurePosixPath
+from unittest import mock
 
 SCRIPT = Path(__file__).resolve().parent.parent / "lockfile.py"
 SPEC = importlib.util.spec_from_file_location("atlas_lockfile_form", SCRIPT)
@@ -196,14 +196,6 @@ class DependencyTablesTestCase(unittest.TestCase):
             {"Cargo.toml": manifest, "member/Cargo.toml": member}, ROOT_WORKSPACE, []
         )
         self.assertEqual(facts.git_dependencies, {"real"})
-        self.assertEqual(
-            facts.consumed_git_dependencies,
-            (
-                lockfile.GitDependency(
-                    "real", "https://github.com/ryancinsight/p", "^1", "member/Cargo.toml"
-                ),
-            ),
-        )
 
     def test_missing_inherited_dependency_fails_closed(self) -> None:
         manifest = textwrap.dedent(
@@ -260,70 +252,53 @@ class DependencyTablesTestCase(unittest.TestCase):
         self.assertIn("Cargo.lock: `eunomia` locked without a git source (stripped)", problems)
         self.assertEqual(exempt, [])
 
-    def test_consumed_alias_absent_from_the_lock_fails_closed(self) -> None:
-        manifest = (
-            '[package]\nname = "member"\nversion = "0.1.0"\n\n[dependencies]\n'
-            'alias = { package = "absent", git = "https://github.com/ryancinsight/p" }\n'
-        )
-        problems, exempt = lockfile.judge_locks(
-            {"Cargo.toml": manifest, "Cargo.lock": STANDALONE}
-        )
-        self.assertEqual(
-            (problems, exempt),
-            (["Cargo.lock: `absent` consumed as a Git dependency but absent from the lock"], []),
-        )
-
-
 class CargoDependencyDifferentialTestCase(unittest.TestCase):
-    """Compare the lexical completeness rule with Cargo's real resolver."""
+    """Cargo, not a manifest scan, owns actual package reachability."""
 
-    def test_consumed_package_presence_matches_real_locked_metadata(self) -> None:
+    def test_full_locked_graph_owns_path_and_nested_reachability(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-cargo-") as directory:
             root = Path(directory)
             provider = root / "provider"
-            provider.mkdir()
-            provider_names = ("normal", "development", "build", "targeted")
+            (provider / "src").mkdir(parents=True)
             (provider / "Cargo.toml").write_text(
-                '[workspace]\nresolver = "3"\nmembers = ["normal", "development", "build", "targeted"]\n',
+                '[package]\nname = "provider"\nversion = "0.1.0"\nedition = "2024"\n',
                 encoding="utf-8",
             )
-            for name in provider_names:
-                package = provider / name
-                (package / "src").mkdir(parents=True)
-                (package / "Cargo.toml").write_text(
-                    f'[package]\nname = "provider-{name}"\nversion = "0.1.0"\nedition = "2024"\n',
-                    encoding="utf-8",
-                )
-                (package / "src/lib.rs").write_text(
-                    "pub fn value() -> u8 { 1 }\n", encoding="utf-8"
-                )
+            (provider / "src/lib.rs").write_text(
+                "pub fn value() -> u8 { 1 }\n", encoding="utf-8"
+            )
             git(provider, "init", "-q", "-b", "main")
             git(provider, "add", ".")
             git(provider, "commit", "-q", "-m", "provider")
 
             consumer = root / "consumer"
-            member = consumer / "member"
-            (member / "src").mkdir(parents=True)
+            leaf = consumer / "leaf"
+            unrelated = consumer / "unrelated"
+            for package in (consumer, leaf, unrelated):
+                (package / "src").mkdir(parents=True, exist_ok=True)
             manifest = (
-                '[workspace]\nresolver = "3"\nmembers = ["member"]\n\n[workspace.dependencies]\n'
-                + "\n".join(
-                    f'{name} = {{ package = "provider-{name}", git = "{provider.as_uri()}" }}'
-                    for name in provider_names
-                )
-                + f'\nidle = {{ package = "absent", git = "{provider.as_uri()}" }}\n'
-            )
-            member_manifest = (
+                '[workspace]\nresolver = "3"\nexclude = ["leaf", "unrelated"]\n\n'
                 '[package]\nname = "consumer"\nversion = "0.1.0"\nedition = "2024"\n'
-                '\n[dependencies]\nnormal = { workspace = true }\n'
-                '\n[dev-dependencies]\ndevelopment = { workspace = true }\n'
-                '\n[build-dependencies]\nbuild = { workspace = true }\n'
-                "\n[target.'cfg(windows)'.dependencies]\ntargeted = { workspace = true }\n"
+                '\n[dependencies]\nleaf = { path = "leaf" }\n'
+            )
+            leaf_manifest = (
+                '[package]\nname = "leaf"\nversion = "0.1.0"\nedition = "2024"\n'
+                f'\n[dependencies]\nupstream = {{ package = "provider", git = "{provider.as_uri()}" }}\n'
+            )
+            unrelated_manifest = (
+                '[package]\nname = "unrelated"\nversion = "0.1.0"\nedition = "2024"\n'
+                f'\n[dependencies]\nghost = {{ package = "absent", git = "{provider.as_uri()}" }}\n'
             )
             (consumer / "Cargo.toml").write_text(manifest, encoding="utf-8")
-            (member / "Cargo.toml").write_text(member_manifest, encoding="utf-8")
-            (member / "src/lib.rs").write_text(
-                "pub fn value() -> u8 { normal::value() }\n", encoding="utf-8"
+            (leaf / "Cargo.toml").write_text(leaf_manifest, encoding="utf-8")
+            (unrelated / "Cargo.toml").write_text(unrelated_manifest, encoding="utf-8")
+            (consumer / "src/lib.rs").write_text(
+                "pub fn value() -> u8 { leaf::value() }\n", encoding="utf-8"
             )
+            (leaf / "src/lib.rs").write_text(
+                "pub fn value() -> u8 { upstream::value() }\n", encoding="utf-8"
+            )
+            (unrelated / "src/lib.rs").write_text("pub fn value() {}\n", encoding="utf-8")
             environment = {
                 **os.environ,
                 "CARGO_TARGET_DIR": "D:/atlas/target",
@@ -339,79 +314,38 @@ class CargoDependencyDifferentialTestCase(unittest.TestCase):
                 timeout=60,
             )
             self.assertEqual(generated.returncode, 0, generated.stderr)
-            metadata = subprocess.run(
-                ["cargo", "metadata", "--locked", "--offline", "--format-version", "1"],
-                cwd=consumer,
-                env=environment,
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=60,
-            )
-            self.assertEqual(metadata.returncode, 0, metadata.stderr)
-            resolved = json.loads(metadata.stdout)
-            consumer_package = next(
-                package for package in resolved["packages"] if package["name"] == "consumer"
-            )
+            lock = consumer / "Cargo.lock"
+            original = lock.read_bytes()
+            with mock.patch.dict(os.environ, environment):
+                resolved = lockfile.locked_metadata(consumer / "Cargo.toml", deadline=60)
             self.assertEqual(
-                {dependency["name"] for dependency in consumer_package["dependencies"]},
-                {f"provider-{name}" for name in provider_names},
+                {package["name"] for package in resolved["packages"]},
+                {"consumer", "leaf", "provider"},
             )
-            lock = (consumer / "Cargo.lock").read_text(encoding="utf-8")
-            self.assertEqual(
-                lockfile.judge_locks(
-                    {
-                        "Cargo.toml": manifest,
-                        "member/Cargo.toml": member_manifest,
-                        "Cargo.lock": lock,
-                    }
-                ),
-                ([], []),
-            )
+            self.assertEqual(lock.read_bytes(), original)
 
-            blocks = lock.split("[[package]]")
+            blocks = original.decode("utf-8").split("[[package]]")
             missing = "[[package]]".join(
-                block for block in blocks if 'name = "provider-normal"' not in block
+                block for block in blocks if 'name = "provider"' not in block
             )
-            missing_problems, _ = lockfile.judge_locks(
-                {
-                    "Cargo.toml": manifest,
-                    "member/Cargo.toml": member_manifest,
-                    "Cargo.lock": missing,
-                }
-            )
-            self.assertEqual(
-                missing_problems,
-                ["Cargo.lock: `provider-normal` consumed as a Git dependency but absent from the lock"],
-            )
+            lock.write_text(missing, encoding="utf-8")
+            missing_bytes = lock.read_bytes()
+            with mock.patch.dict(os.environ, environment), self.assertRaisesRegex(
+                lockfile.CargoMetadataError, "locked --offline failed"
+            ):
+                lockfile.locked_metadata(consumer / "Cargo.toml", deadline=60)
+            self.assertEqual(lock.read_bytes(), missing_bytes)
 
-            absent_manifest = manifest.replace(
-                'package = "provider-normal"', 'package = "absent"'
+            lock.write_bytes(original)
+            (leaf / "Cargo.toml").write_text(
+                leaf_manifest.replace('package = "provider"', 'package = "absent"'),
+                encoding="utf-8",
             )
-            absent_problems, _ = lockfile.judge_locks(
-                {
-                    "Cargo.toml": absent_manifest,
-                    "member/Cargo.toml": member_manifest,
-                    "Cargo.lock": lock,
-                }
-            )
-            self.assertEqual(
-                absent_problems,
-                ["Cargo.lock: `absent` consumed as a Git dependency but absent from the lock"],
-            )
-            (consumer / "Cargo.toml").write_text(absent_manifest, encoding="utf-8")
-            (consumer / "Cargo.lock").unlink()
-            rejected = subprocess.run(
-                ["cargo", "generate-lockfile", "--offline"],
-                cwd=consumer,
-                env=environment,
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=60,
-            )
-            self.assertNotEqual(rejected.returncode, 0)
-            self.assertIn("absent", rejected.stderr)
+            with mock.patch.dict(os.environ, environment), self.assertRaisesRegex(
+                lockfile.CargoMetadataError, "locked --offline failed"
+            ):
+                lockfile.locked_metadata(consumer / "Cargo.toml", deadline=60)
+            self.assertEqual(lock.read_bytes(), original)
 
 
 class FixtureDetectionTestCase(unittest.TestCase):

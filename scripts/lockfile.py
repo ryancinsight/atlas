@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import json
 import os
 import re
 import signal
@@ -124,6 +125,10 @@ class CargoDeadlineExceeded(subprocess.TimeoutExpired):
     ran and refused, while an expired deadline is a run that never finished.
     Reporting the second as the first would blame the lock for a hung fetch.
     """
+
+
+class CargoMetadataError(RuntimeError):
+    """A locked Cargo graph is unavailable, mutable, or structurally unreadable."""
 
 
 def _kill_process_tree(process: subprocess.Popen[str]) -> None:
@@ -289,6 +294,64 @@ def run_outside_the_overlay(
         )
 
 
+def locked_metadata(
+    manifest: Path, *, deadline: float = CARGO_DEADLINE_SECONDS
+) -> dict[str, object]:
+    """Read one complete locked Cargo graph without changing its lock bytes.
+
+    Cargo owns workspace membership, path-dependency reachability, target and
+    feature resolution. The command therefore uses the full graph rather than
+    reconstructing those semantics from manifests. Offline mode fixes the
+    available source set; callers prepare the selected immutable sources first.
+    """
+    lock = manifest.with_name("Cargo.lock")
+    try:
+        before = lock.read_bytes()
+    except OSError as error:
+        raise CargoMetadataError(f"cannot read {lock}: {error}") from error
+    try:
+        completed = run_outside_the_overlay(
+            [
+                "metadata",
+                "--locked",
+                "--offline",
+                "--all-features",
+                "--format-version",
+                "1",
+            ],
+            manifest=manifest,
+            deadline=deadline,
+        )
+    finally:
+        try:
+            after = lock.read_bytes()
+        except OSError as error:
+            raise CargoMetadataError(f"cannot reread {lock}: {error}") from error
+        if after != before:
+            raise CargoMetadataError(f"cargo metadata changed locked bytes in {lock}")
+    if completed.returncode:
+        detail = completed.stderr.strip()
+        raise CargoMetadataError(
+            f"cargo metadata --locked --offline failed for {manifest}: {detail}"
+        )
+    try:
+        document = json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        raise CargoMetadataError(
+            f"cargo metadata returned unreadable JSON for {manifest}"
+        ) from error
+    if (
+        not isinstance(document, dict)
+        or not isinstance(document.get("packages"), list)
+        or not isinstance(document.get("workspace_members"), list)
+        or not isinstance(document.get("resolve"), dict)
+    ):
+        raise CargoMetadataError(
+            f"cargo metadata returned an incomplete graph for {manifest}"
+        )
+    return document
+
+
 def check() -> int:
     """Judge every lock under the repository, then prove the root one resolves.
 
@@ -326,9 +389,7 @@ def check() -> int:
         return 1
 
     try:
-        completed = run_outside_the_overlay(
-            ["metadata", "--locked", "--format-version", "1", "--all-features"]
-        )
+        locked_metadata(MANIFEST)
     except CargoDeadlineExceeded as error:
         print(
             f"error: cargo metadata --locked did not finish within "
@@ -341,7 +402,7 @@ def check() -> int:
             file=sys.stderr,
         )
         return 1
-    if completed.returncode != 0:
+    except CargoMetadataError as error:
         print(
             "error: the committed Cargo.lock does not resolve under --locked "
             "(its sources are intact, so it is stale rather than flattened).\n"
@@ -352,7 +413,7 @@ def check() -> int:
             "\n"
             f"Fix: {REGENERATE_COMMAND}\n"
             "\n"
-            f"cargo said:\n{completed.stderr.strip()}",
+            f"cargo said:\n{error}",
             file=sys.stderr,
         )
         return 1
@@ -504,21 +565,11 @@ class GitUnavailable(Exception):
     """
 
 
-class GitDependency(NamedTuple):
-    """One Git dependency an actual workspace package consumes."""
-
-    package: str
-    url: str
-    requirement: str | None
-    manifest: str
-
-
 class WorkspaceFacts(NamedTuple):
     """What a workspace's manifests say about the lock it owns."""
 
     local: frozenset[str]
     git_dependencies: frozenset[str]
-    consumed_git_dependencies: tuple[GitDependency, ...]
     fixture: bool
     unreadable: tuple[str, ...]
     problems: tuple[str, ...]
@@ -588,30 +639,6 @@ def violations(
         if not any(source and source.startswith("git+") for source in entries):
             found.append(f"`{name}` locked without a git source (stripped)")
     return found
-
-
-def consumed_dependency_violations(
-    lock_text: str, consumed_git_dependencies: Iterable[GitDependency]
-) -> list[str]:
-    """Find consumed Git package identities absent from the lock.
-
-    This lexical completeness rule proves only that a record carries each
-    consumed package name. [`violations`] separately checks a declared Git
-    package's source form. Native ``cargo metadata --locked`` remains the
-    authority for URL, requirement, feature, and target resolution; the
-    development-overlay owner separately checks selected versions against
-    manifest requirements.
-    """
-    try:
-        packages = locked_package_records(lock_text)
-    except ValueError:
-        return []
-    locked = {package["name"] for package in packages}
-    consumed = {dependency.package for dependency in consumed_git_dependencies}
-    return [
-        f"`{name}` consumed as a Git dependency but absent from the lock"
-        for name in sorted(consumed - locked)
-    ]
 
 
 def package_dependency_tables(manifest: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
@@ -858,7 +885,7 @@ def workspace_facts(
         selected = workspace_selection(manifests, parsed, workspace, nested)
     except ValueError as error:
         return WorkspaceFacts(
-            frozenset(), frozenset(), (), False, (), (str(error),)
+            frozenset(), frozenset(), False, (), (str(error),)
         )
     if selected is None:
         selected = {
@@ -870,7 +897,7 @@ def workspace_facts(
         }
 
     local: set[str] = set()
-    consumed: set[GitDependency] = set()
+    git_dependencies: set[str] = set()
     unreadable: list[str] = []
     fixture = False
     root_data = parsed.get((workspace / "Cargo.toml").as_posix())
@@ -900,20 +927,14 @@ def workspace_facts(
                 if not isinstance(package_name, str) or not package_name:
                     problems.append(f"{name}: dependency {dependency!r} has unreadable package identity")
                     continue
-                requirement = spec.get("version")
-                if requirement is not None and not isinstance(requirement, str):
-                    problems.append(f"{name}: dependency {dependency!r} has unreadable requirement")
-                    continue
-                consumed.add(GitDependency(package_name, spec["git"], requirement, name))
+                git_dependencies.add(package_name)
             elif isinstance(spec.get("path"), str):
                 owner = workspace / "Cargo.toml" if inherited else manifest
                 if escapes_repository(owner, spec["path"]):
                     fixture = True
-    ordered = tuple(sorted(consumed))
     return WorkspaceFacts(
         frozenset(local),
-        frozenset(dependency.package for dependency in ordered),
-        ordered,
+        frozenset(git_dependencies),
         fixture,
         tuple(unreadable),
         tuple(problems),
@@ -955,11 +976,7 @@ def judge_locks(
         if facts.fixture:
             exempt.append(lock)
             continue
-        problems_for_lock = violations(texts[lock], facts.local, facts.git_dependencies)
-        problems_for_lock.extend(
-            consumed_dependency_violations(texts[lock], facts.consumed_git_dependencies)
-        )
-        for problem in problems_for_lock:
+        for problem in violations(texts[lock], facts.local, facts.git_dependencies):
             problems.append(f"{lock}: {problem}")
         for manifest in facts.unreadable:
             problems.append(f"{lock}: {manifest} does not parse, so the lock cannot be judged")
