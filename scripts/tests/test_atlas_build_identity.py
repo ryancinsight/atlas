@@ -3299,8 +3299,21 @@ class BuildIdentityTestCase(unittest.TestCase):
             set(paths),
             {owned_library.resolve(), owned_output.resolve(), owned_fingerprint_file.resolve()},
         )
-        self.assertEqual(len(file_probes), 3)
-        self.assertEqual(len(directory_probes), 6)
+        self.assertEqual(
+            file_probes,
+            [owned_library, owned_output, owned_fingerprint_file],
+        )
+        self.assertEqual(
+            set(directory_probes),
+            {
+                deps,
+                builds,
+                fingerprints,
+                self.target / ".fingerprint",
+                owned_build,
+                owned_fingerprint,
+            },
+        )
         self.assertTrue(unselected.isdisjoint(file_probes))
         self.assertTrue(unselected.isdisjoint(directory_probes))
 
