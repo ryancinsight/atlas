@@ -55,7 +55,6 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import os
-import re
 import signal
 import stat
 import subprocess
@@ -344,6 +343,7 @@ def check(repository: Path | None = None) -> int:
     and a CI checkout are not always repositories to ask. Staleness, which
     needs real resolution, is the `--locked` arm below.
     """
+    explicit_candidate = repository is not None
     ignored = IGNORED_DIRECTORIES if repository is None else frozenset()
     repository = REPOSITORY if repository is None else repository
     lockfile = repository / "Cargo.lock"
@@ -352,6 +352,13 @@ def check(repository: Path | None = None) -> int:
         texts = disk_texts(repository, ignored_directories=ignored)
     except OSError as error:
         print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
+        return 1
+    path_problems = manifest_path_problems(texts) if explicit_candidate else []
+    if path_problems:
+        print(
+            "\n".join(f"LOCK OWNERSHIP VIOLATION: {problem}" for problem in path_problems),
+            file=sys.stderr,
+        )
         return 1
     if "Cargo.lock" not in texts:
         print(f"error: {lockfile} does not exist", file=sys.stderr)
@@ -614,6 +621,13 @@ def dependency_paths(manifest: Mapping[str, object]) -> Iterator[str]:
                 yield spec["path"]
 
 
+class ManifestReference(NamedTuple):
+    """A Cargo path together with the declaration role that owns it."""
+
+    path: str
+    role: str
+
+
 class ManifestPaths(NamedTuple):
     """Path-bearing Cargo declarations grouped by ownership role."""
 
@@ -622,15 +636,19 @@ class ManifestPaths(NamedTuple):
     excluded: tuple[str, ...]
     dependencies: tuple[str, ...]
     patches: tuple[str, ...]
+    replacements: tuple[str, ...]
+    files: tuple[ManifestReference, ...]
 
-    def references(self) -> Iterator[str]:
-        """Yield every path Cargo may follow from the manifest."""
+    def references(self) -> Iterator[ManifestReference]:
+        """Yield declared paths with the field role that may direct Cargo."""
         if self.workspace is not None:
-            yield self.workspace
-        yield from self.members
-        yield from self.excluded
-        yield from self.dependencies
-        yield from self.patches
+            yield ManifestReference(self.workspace, "package.workspace")
+        yield from (ManifestReference(path, "workspace.members") for path in self.members)
+        yield from (ManifestReference(path, "workspace.exclude") for path in self.excluded)
+        yield from (ManifestReference(path, "dependency.path") for path in self.dependencies)
+        yield from (ManifestReference(path, "patch.path") for path in self.patches)
+        yield from (ManifestReference(path, "replace.path") for path in self.replacements)
+        yield from self.files
 
 
 def manifest_paths(manifest: Mapping[str, object]) -> ManifestPaths:
@@ -653,12 +671,40 @@ def manifest_paths(manifest: Mapping[str, object]) -> ManifestPaths:
         if isinstance(table, dict)
         for path in dependency_paths({"dependencies": table})
     )
+    replacements = manifest.get("replace")
+    replacement_paths = tuple(
+        dependency_paths({"dependencies": replacements})
+    ) if isinstance(replacements, dict) else ()
+    file_paths: list[ManifestReference] = []
+    if isinstance(package, dict):
+        file_paths.extend(
+            ManifestReference(package[key], f"package.{key}")
+            for key in ("readme", "license-file", "build")
+            if isinstance(package.get(key), str)
+        )
+    workspace_package = workspace.get("package") if isinstance(workspace, dict) else None
+    if isinstance(workspace_package, dict):
+        file_paths.extend(
+            ManifestReference(workspace_package[key], f"workspace.package.{key}")
+            for key in ("readme", "license-file")
+            if isinstance(workspace_package.get(key), str)
+        )
+    target = manifest.get("lib")
+    if isinstance(target, dict) and isinstance(target.get("path"), str):
+        file_paths.append(ManifestReference(target["path"], "lib.path"))
+    for key in ("bin", "example", "test", "bench"):
+        targets = manifest.get(key)
+        for target in targets if isinstance(targets, list) else ():
+            if isinstance(target, dict) and isinstance(target.get("path"), str):
+                file_paths.append(ManifestReference(target["path"], f"{key}.path"))
     return ManifestPaths(
         workspace_path if isinstance(workspace_path, str) else None,
         entries("members"),
         entries("exclude"),
         tuple(dependency_paths(manifest)),
         patch_paths,
+        replacement_paths,
+        tuple(file_paths),
     )
 
 
@@ -673,6 +719,48 @@ def escapes_repository(manifest: PurePosixPath, path: str) -> bool:
         return True
     resolved = posixpath.normpath(posixpath.join(manifest.parent.as_posix(), path))
     return resolved == ".." or resolved.startswith("../")
+
+
+def atlas_device_fixture(
+    manifest: str, data: Mapping[str, object], paths: ManifestPaths
+) -> bool:
+    """Whether this is ADR-0044's one sibling-repository contract fixture."""
+    package = data.get("package")
+    return (
+        PurePosixPath(manifest).parts[-3:] == ("contracts", "atlas-device", "Cargo.toml")
+        and isinstance(package, dict)
+        and package.get("name") == "melinoe-atlas-device-contract"
+        and package.get("publish") is False
+        and isinstance(data.get("workspace"), dict)
+        and any(
+            escapes_repository(PurePosixPath(manifest), path)
+            for path in paths.dependencies
+        )
+        and any(
+            escapes_repository(PurePosixPath(manifest), path)
+            for path in paths.patches
+        )
+    )
+
+
+def manifest_path_problems(texts: Mapping[str, str]) -> list[str]:
+    """Reject candidate paths Cargo could follow beyond the frozen tree."""
+    problems: list[str] = []
+    manifests = sorted(path for path in texts if PurePosixPath(path).name == "Cargo.toml")
+    for manifest in manifests:
+        try:
+            data = tomllib.loads(texts[manifest])
+        except tomllib.TOMLDecodeError:
+            continue
+        paths = manifest_paths(data)
+        fixture = atlas_device_fixture(manifest, data, paths)
+        for reference in paths.references():
+            exempt = fixture and reference.role in {"dependency.path", "patch.path"}
+            if escapes_repository(PurePosixPath(manifest), reference.path) and not exempt:
+                problems.append(
+                    f"{manifest}: `{reference.role}` path `{reference.path}` leaves the candidate"
+                )
+    return problems
 
 
 def directory_pattern_matches(pattern: PurePosixPath, directory: PurePosixPath) -> bool:

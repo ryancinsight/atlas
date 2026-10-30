@@ -249,6 +249,47 @@ class FixtureDetectionTestCase(unittest.TestCase):
 
 
 class LockManifestSelectionTestCase(unittest.TestCase):
+    def test_inherited_workspace_paths_are_rejected_before_resolution(self) -> None:
+        for field in ("readme", "license-file"):
+            with self.subTest(field=field), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                (root / "member").mkdir()
+                (root / "Cargo.toml").write_text(
+                    '[workspace]\nmembers=["member"]\n'
+                    f'[workspace.package]\n{field}="../outside.md"\n', encoding="utf-8"
+                )
+                (root / "member/Cargo.toml").write_text(
+                    f'[package]\nname="member"\nversion="0.1.0"\n{field}.workspace=true\n',
+                    encoding="utf-8",
+                )
+                (root / "Cargo.lock").write_text(STANDALONE, encoding="utf-8")
+                calls = []
+                with mock.patch.object(lockfile, "check_resolution", calls.append), \
+                        contextlib.redirect_stderr(stderr := io.StringIO()):
+                    code = lockfile.check(root)
+            self.assertEqual((code, calls), (1, []))
+            self.assertIn(f"workspace.package.{field}", stderr.getvalue())
+
+    def test_fixture_permission_is_bound_to_the_dependency_field(self) -> None:
+        shared = "../../../outside"
+        fixture = ('[package]\nname="melinoe-atlas-device-contract"\nversion="0.1.0"\n'
+                   f'publish=false\nbuild="{shared}"\n[workspace]\n'
+                   f'[dependencies]\nx={{path="{shared}"}}\n'
+                   f'[patch.crates-io]\nx={{path="{shared}"}}\n')
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            manifest = root / "contracts/atlas-device/Cargo.toml"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(fixture, encoding="utf-8")
+            (manifest.parent / "Cargo.lock").write_text(STANDALONE, encoding="utf-8")
+            (root / "Cargo.lock").write_text(STANDALONE, encoding="utf-8")
+            calls = []
+            with mock.patch.object(lockfile, "check_resolution", calls.append), \
+                    contextlib.redirect_stderr(stderr := io.StringIO()):
+                code = lockfile.check(root)
+        self.assertEqual((code, calls), (1, []))
+        self.assertIn("package.build", stderr.getvalue())
+
     def test_candidate_rejects_every_file_link_before_reading_contents(self) -> None:
         for relative in (
             "Cargo.toml", "CARGO.LOCK", ".cargo/CONFIG.TOML",
