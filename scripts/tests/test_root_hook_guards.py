@@ -50,6 +50,7 @@ class RootLockGateTests(unittest.TestCase):
             ("local_attributes", "hidden/tool", "", 'version = "0.0.1"', 1),
             ("substituted", "tool", "**/Cargo.lock export-subst\n", 'version = "$Format:%s$"', 1),
             ("quoted", "caf\u00e9", "", 'version = "0.0.1"', 1),
+            ("ideographs", "\u6e2c\u8a66", "", 'version = "0.0.1"', 1),
             ("textconv", "tool", "tool/Cargo.lock diff=hidden\n", 'version = "0.0.1"', 1),
         )
         for case, directory, attributes, version, expected in cases:
@@ -59,6 +60,9 @@ class RootLockGateTests(unittest.TestCase):
                 environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
                 environment.update(PYTHON=sys.executable, PYTHONUTF8="1", TMPDIR=temporary,
                                    GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+
+                if case == "ideographs":
+                    environment.update(PYTHONUTF8="0", PYTHONIOENCODING="cp1252")
 
                 def git(*args: str) -> str:
                     return subprocess.run(

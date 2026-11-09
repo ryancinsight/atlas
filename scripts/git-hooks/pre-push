@@ -114,6 +114,7 @@ repo_store="$(git rev-parse --path-format=absolute --git-common-dir)"
 # been refused, and such a PATH need not carry `env`.
 outside_checkout() {
   (
+    export GIT_NO_REPLACE_OBJECTS=1
     unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR
     "$@"
   )
@@ -464,7 +465,7 @@ if [ "${#content_lines[@]}" -eq 1 ]; then
       gate_tip="$local_sha"
       gate_range_base="$base"
     fi
-    if git diff --quiet --no-ext-diff --no-textconv "$base" "$local_sha" -- \
+    if git --no-replace-objects diff --quiet --no-ext-diff --no-textconv "$base" "$local_sha" -- \
       ':(glob)**/Cargo.toml' ':(glob)**/Cargo.lock'; then
       continue
     else
@@ -548,7 +549,7 @@ export_revision() (
     && git -C "$directory" config core.longpaths true \
     && git -C "$directory" config gc.auto 0 \
     && git -C "$directory" config maintenance.auto false \
-    && GIT_DIR="$repo_git_dir" GIT_WORK_TREE="$directory" GIT_INDEX_FILE="$directory/.git/index" \
+    && GIT_DIR="$repo_git_dir" GIT_WORK_TREE="$directory" GIT_INDEX_FILE="$directory/.git/index" GIT_NO_REPLACE_OBJECTS=1 \
       git -c core.longpaths=true -c core.sparseCheckout=false -c gc.auto=0 -c maintenance.auto=false \
         read-tree -u --reset "$sha" \
     && git -C "$directory" update-ref HEAD "$sha" \
@@ -731,7 +732,8 @@ if [ "$skip_lockfile" = "0" ]; then
 lock_rev="${pushed_tip:-${gate_tip:-HEAD}}"
 new_run_temp lock_root pl
 lock_export="$lock_root/tree"
-if ! export_revision "$(git rev-parse --verify "$lock_rev^{commit}")" "$lock_export"; then
+if ! lock_commit="$(git --no-replace-objects rev-parse --verify "$lock_rev^{commit}")" \
+  || ! export_revision "$lock_commit" "$lock_export"; then
   echo "pre-push: could not export $lock_rev for the lockfile check" >&2
   exit 1
 fi
@@ -758,7 +760,7 @@ elif [ ! -f "$checker" ]; then
 elif [ -z "$python_bin" ]; then
   echo "pre-push: no python interpreter found; lockfile not verified" >&2
   exit 1
-elif ! (cd "$lock_export" && "$python_bin" "$checker" --check --check-tree "$lock_export"); then
+elif ! (cd "$lock_export" && "$python_bin" "$checker" --check --check-tree "$lock_export" --tree-source "$repo_root" "$lock_commit"); then
   cat >&2 <<MESSAGE
 
 pre-push: the Cargo.lock in $lock_rev does not resolve under --locked, so

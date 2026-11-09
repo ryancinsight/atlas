@@ -78,11 +78,12 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
 
         def fake_run(command, **_kwargs):
             self.resolution_calls += 1
+            resolves = self.resolves or "locate-project" in command
             return subprocess.CompletedProcess(
-                command, 0 if self.resolves else 101,
+                command, 0 if resolves else 101,
                 json.dumps({"workspace_root": str(Path(command[command.index("--manifest-path") + 1]).parent),
                             "root": command[command.index("--manifest-path") + 1]}),
-                "" if self.resolves else "stale"
+                "" if resolves else "stale"
             )
 
         lockfile.run_bounded = fake_run

@@ -511,6 +511,7 @@ debt_gate() {
 
 lock_gate() {
     local tip="$1" python_bin candidate checker status source_git
+    local -x GIT_NO_REPLACE_OBJECTS=1
     [ -n "$gate_base" ] || return 1
     if git -C "$atlas_root" diff --quiet --no-ext-diff --no-textconv "$gate_base" "$tip" -- \
         ':(glob)**/Cargo.toml' ':(glob)**/Cargo.lock'; then
@@ -546,7 +547,8 @@ lock_gate() {
         return 1
     fi
     CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$atlas_root/target}" "$python_bin" \
-        "$checker/lockfile.py" --check --check-tree "$candidate"
+        "$checker/lockfile.py" --check --check-tree "$candidate" \
+        --tree-source "$atlas_root" "$tip"
     status=$?
     rm -rf "$candidate" "$checker"
     return "$status"

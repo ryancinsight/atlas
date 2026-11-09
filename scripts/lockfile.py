@@ -87,6 +87,7 @@ FIRST_PARTY_GIT = "git+https://github.com/ryancinsight/"
 # check reports and does not fail -- a member that has never measured its graph
 # is not failed by a guard it has not adopted.
 PROVIDER_IDENTITY_BASELINE_NAME = ".provider-identity-baseline"
+LOCK_INPUT_NAMES = frozenset({"Cargo.toml", "Cargo.lock", PROVIDER_IDENTITY_BASELINE_NAME})
 
 # What a failing check tells the reader to run: the stack's copy of this script,
 # which every member can reach whether or not it carries one of its own.
@@ -347,14 +348,18 @@ def check_resolution(manifest: Path, lockfile: Path) -> int:
     return check_provider_identity(lockfile)
 
 
-def check_fixture_owner(manifest: Path) -> int:
-    """Let Cargo establish fixture ownership without resolving external dependencies."""
+def check_lock_owner(manifest: Path) -> int:
+    """Let Cargo establish lock ownership without resolving dependency graphs."""
     try:
         completed = run_outside_the_overlay(
             ["locate-project", "--workspace", "--message-format", "json"], manifest
         )
     except CargoDeadlineExceeded as error:
-        print(f"error: fixture ownership exceeded {error.timeout:g}s: {manifest}", file=sys.stderr)
+        print(
+            f"error: cargo lock ownership did not finish within {error.timeout:g}s; "
+            "its process tree was killed. This is a stalled check, not a flattened lock.\n"
+            f"{(error.stderr or '').strip()}", file=sys.stderr,
+        )
         return 1
     if completed.returncode != 0:
         print(f"LOCK OWNERSHIP VIOLATION: {manifest}: {completed.stderr.strip()}", file=sys.stderr)
@@ -435,7 +440,14 @@ def local_source_problems(texts: Mapping[str, str], standalone: Iterable[str]) -
                            if isinstance(spec.get("path"), str))
     return problems
 
-def check(repository: Path | None = None) -> int:
+class GitTree(NamedTuple):
+    """Immutable source of the metadata exported for a lock check."""
+
+    repository: Path
+    revision: str
+
+
+def check(repository: Path | None = None, source: GitTree | None = None) -> int:
     """Judge and resolve every lock owner under an immutable candidate root."""
     candidate = repository is not None
     if repository is None:
@@ -449,6 +461,18 @@ def check(repository: Path | None = None) -> int:
         print(f"error: Cargo.lock does not exist under {repository}", file=sys.stderr)
         return 1
 
+    if source is not None:
+        try:
+            committed = tracked_texts(source.repository, staged=False, revision=source.revision)
+        except GitUnavailable as error:
+            print(f"error: committed lock inputs could not be read: {error}", file=sys.stderr)
+            return 1
+        # Checkout may normalize line endings, but cannot omit or change inputs.
+        committed = {path: text.replace("\r\n", "\n").replace("\r", "\n") for path, text in committed.items()}
+        mismatched = sorted(path for path in committed.keys() | texts.keys() if committed.get(path) != texts.get(path))
+        if mismatched:
+            print("exported lock inputs differ from the committed tree: " + ", ".join(mismatched), file=sys.stderr)
+            return 1
     manifests, selected_exempt, ownership_problems = lock_manifests(texts)
     ownership_problems.extend(local_source_problems(texts, manifests))
     problems, exempt = judge_locks(texts)
@@ -465,9 +489,12 @@ def check(repository: Path | None = None) -> int:
         return 1
 
     for lock in exempt:
-        if check_fixture_owner(repository / PurePosixPath(lock).with_name("Cargo.toml")):
+        if check_lock_owner(repository / PurePosixPath(lock).with_name("Cargo.toml")):
             return 1
         print(f"exempt (in-tree fixture, not standalone-consumable): {lock}")
+    for relative in manifests:
+        if check_lock_owner(repository / relative):
+            return 1
     failures = sum(check_resolution(repository / relative, (repository / relative).with_name("Cargo.lock")) for relative in manifests)
     return int(failures != 0)
 
@@ -639,9 +666,15 @@ def run_git(
     that stages through a private index is judged by what it stages.
     """
     prefix = ["-C", str(repository)] if repository is not None else []
+    environment = dict(os.environ)
+    if repository is not None:
+        for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
+                    "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX"):
+            environment.pop(key, None)
     try:
         completed = subprocess.run(
-            ["git", *prefix, *arguments],
+            ["git", "--no-replace-objects", *prefix, *arguments],
+            env=environment,
             input=stdin,
             capture_output=True,
             check=False,
@@ -970,8 +1003,8 @@ def workspace_selection(
     selected = set(owned)
     feature_requests: dict[str, set[str]] = {}
 
-    # Resolution follows every local dependency. Only an explicit workspace
-    # also owns dependencies beneath its root as implicit members.
+    # Only edges of workspace members create implicit members. Required local
+    # inputs reached through excluded packages remain dependencies, not members.
     changed = True
     while changed:
         changed = False
@@ -1152,7 +1185,7 @@ def judge_locks(
 def tracked_texts(
     repository: Path | None, *, staged: bool, revision: str = "HEAD"
 ) -> dict[str, str]:
-    """Text of every tracked `Cargo.toml` and `Cargo.lock`, by repository-relative path.
+    """Text of tracked Cargo inputs and provider baselines, by repository-relative path.
 
     `staged` reads the index, which is what becomes the commit; otherwise the
     tree at `revision`, so the answer is a function of that commit alone and no
@@ -1161,11 +1194,11 @@ def tracked_texts(
     if staged:
         listing = run_git(["ls-files", "--stage", "-z"], repository)
     else:
-        listing = run_git(["ls-tree", "-r", "-z", revision], repository)
+        listing = run_git(["ls-tree", "--full-tree", "-r", "-z", revision], repository)
     blobs: dict[str, str] = {}
     for record in listing.decode("utf-8", errors="replace").split("\0"):
         head, _, path = record.partition("\t")
-        if not path or PurePosixPath(path).name not in {"Cargo.toml", "Cargo.lock"}:
+        if not path or PurePosixPath(path).name not in LOCK_INPUT_NAMES:
             continue
         fields = head.split()
         if staged:
@@ -1173,9 +1206,11 @@ def tracked_texts(
             if mode == "160000" or stage != "0":
                 continue
         else:
-            _, kind, blob = fields
+            mode, kind, blob = fields
             if kind != "blob":
                 continue
+        if mode == "120000":
+            raise GitUnavailable(f"{path}: symbolic metadata input is not allowed")
         blobs[path] = blob
     texts = read_blobs(repository, sorted(set(blobs.values())))
     return {path: texts[blob] for path, blob in blobs.items()}
@@ -1203,7 +1238,7 @@ def read_blobs(repository: Path | None, blobs: Sequence[str]) -> dict[str, str]:
 def disk_texts(
     repository: Path, *, ignored_directories: frozenset[str] = IGNORED_DIRECTORIES
 ) -> dict[str, str]:
-    """Text of every `Cargo.toml` and `Cargo.lock` under `repository`, by relative path.
+    """Text of Cargo inputs and provider baselines under `repository`, by relative path.
 
     The filesystem counterpart of [`tracked_texts`], for a tree that is not a
     repository to ask: the pre-push export is `git archive` output, and a CI
@@ -1230,12 +1265,10 @@ def disk_texts(
                 kept.append(name)
         subdirectories[:] = kept
         for name in files:
-            if name in {"Cargo.toml", "Cargo.lock", PROVIDER_IDENTITY_BASELINE_NAME}:
+            if name in LOCK_INPUT_NAMES:
                 path = Path(directory) / name
                 if path.is_symlink():
                     raise OSError(f"{path.relative_to(repository).as_posix()}: symbolic metadata link is not allowed")
-                if name == PROVIDER_IDENTITY_BASELINE_NAME:
-                    continue
                 texts[path.relative_to(repository).as_posix()] = path.read_text(
                     encoding="utf-8", errors="replace"
                 )
@@ -1372,6 +1405,11 @@ def regenerate() -> int:
 
 
 def main() -> int:
+    # Use UTF-8 for path diagnostics even when Windows pipes use a legacy page.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true", help="verify the committed lock")
@@ -1393,7 +1431,17 @@ def main() -> int:
                           help="path to Cargo.toml (overrides auto-detection from __file__)")
     location.add_argument("--check-tree", type=Path, default=None,
                           help="immutable candidate tree containing lock owners")
+    parser.add_argument("--tree-source", nargs=2, metavar=("REPOSITORY", "COMMIT"),
+                        help="compare exported metadata to its immutable Git source")
     arguments = parser.parse_args()
+    source = None
+    if arguments.tree_source is not None:
+        if not arguments.check or arguments.check_tree is None:
+            parser.error("--tree-source requires --check --check-tree")
+        source_repository, revision = arguments.tree_source
+        if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", revision) is None:
+            parser.error("--tree-source requires a full immutable commit object ID")
+        source = GitTree(Path(source_repository), revision)
     if arguments.manifest_path is not None:
         global REPOSITORY, LOCKFILE, MANIFEST
         MANIFEST = Path(os.path.abspath(arguments.manifest_path))
@@ -1406,7 +1454,7 @@ def main() -> int:
     if arguments.check_committed:
         return check_committed(arguments.check_committed)
     if arguments.check_tree is not None:
-        return check(Path(os.path.abspath(arguments.check_tree)))
+        return check(Path(os.path.abspath(arguments.check_tree)), source)
     return check(REPOSITORY if arguments.manifest_path is not None else None)
 
 
