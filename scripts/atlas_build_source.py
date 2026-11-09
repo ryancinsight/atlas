@@ -5,8 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tomllib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -665,3 +668,138 @@ def cargo_config_digest(
                 f"inline --config argument {text!r}",
             )
     return digest.hexdigest()
+
+
+def _config_text_without_patch(data: dict[str, object]) -> str:
+    """Serialize a cargo config TOML without its `[patch]` tables."""
+
+    def config_key(name: str) -> str:
+        return json.dumps(name, ensure_ascii=False)
+
+    def config_value(item: object) -> str:
+        if isinstance(item, bool):
+            return 'true' if item else 'false'
+        if isinstance(item, (int, float)):
+            return repr(item)
+        if isinstance(item, str):
+            return json.dumps(item, ensure_ascii=False)
+        if isinstance(item, list):
+            return '[' + ', '.join(config_value(entry) for entry in item) + ']'
+        if isinstance(item, dict):
+            return (
+                '{' + ', '.join(f'{config_key(k)} = {config_value(v)}' for k, v in item.items()) + '}'
+            )
+        return json.dumps(str(item))
+
+    def write_table(prefix: list[str], body: dict[str, object], lines: list[str]) -> None:
+        scalars = {k: v for k, v in body.items() if not isinstance(v, dict)}
+        if prefix and (scalars or not body):
+            lines.append('[' + '.'.join(config_key(part) for part in prefix) + ']')
+        lines.extend(f'{config_key(k)} = {config_value(v)}' for k, v in scalars.items())
+        for name, child in body.items():
+            if isinstance(child, dict):
+                write_table([*prefix, name], child, lines)
+
+    lines: list[str] = []
+    write_table([], data, lines)
+    return '\n'.join(lines) + '\n'
+
+
+def _patch_target_missing(config: Path, data: dict[str, object]) -> bool:
+    """Whether a config names an export-empty registered submodule path.
+
+    An immutable Atlas export retains gitlink directories but not their
+    contents. Only those registered paths are export artifacts; an empty
+    ordinary directory or a nonexistent path is a broken patch target and
+    must remain visible to Cargo.
+    """
+    patch = data.get('patch')
+    if not isinstance(patch, dict):
+        return False
+    config_dir = config.parent.parent
+    gitmodules = config_dir / '.gitmodules'
+    try:
+        registered = {
+            match.group(1).strip().replace('\\', '/')
+            for line in gitmodules.read_text(encoding='utf-8').splitlines()
+            if (match := re.match(r'^\s*path\s*=\s*(.+?)\s*$', line))
+        }
+    except (OSError, UnicodeError):
+        return False
+    entries = 0
+    empty = 0
+    for source in patch.values():
+        if not isinstance(source, dict):
+            continue
+        for entry in source.values():
+            if not isinstance(entry, dict):
+                continue
+            raw = entry.get('path')
+            if not isinstance(raw, str):
+                continue
+            entries += 1
+            target = config_dir / raw
+            try:
+                relative = target.resolve(strict=False).relative_to(config_dir.resolve()).as_posix()
+            except ValueError:
+                return False
+            if relative not in registered or not target.is_dir():
+                return False
+            if not (target / 'Cargo.toml').is_file():
+                empty += 1
+    return entries > 0 and empty > 0
+
+
+@contextmanager
+def overlay_stripped_configs(execution_root: Path) -> Iterator[None]:
+    """Strip `[patch]` overlay entries whose targets are absent on disk.
+
+    The Atlas pre-push gate exports a revision to a temporary tree whose
+    submodule checkouts are empty directories (`read-tree` writes gitlink
+    entries without cloning), while the root `.cargo/config.toml` overlay
+    patches point inside those empty directories. Any cargo invocation with
+    dependency resolution (`metadata` without `--no-deps`, `clippy`,
+    `nextest`) then fails to load the patched source even when the patched
+    packages are unused. This context strips the whole `[patch]` table from
+    every cargo config that cargo would discover from `execution_root`
+    upward, but only when at least one patched `Cargo.toml` is absent (so
+    live checkouts with populated submodules keep their overlay), and
+    restores the original bytes on exit. Files with `include` directives,
+    unparsable TOML, or no `[patch]` table are left untouched.
+    """
+    saved: list[tuple[Path, bytes]] = []
+    try:
+        directory = execution_root
+        while True:
+            for name in ('config.toml', 'config'):
+                config = directory / '.cargo' / name
+                if not config.is_file():
+                    continue
+                try:
+                    raw = config.read_bytes()
+                    text = raw[3:] if raw.startswith(b'\xef\xbb\xbf') else raw
+                    data = tomllib.loads(text.decode('utf-8'))
+                except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+                    continue
+                if 'patch' not in data or 'include' in data:
+                    continue
+                if not _patch_target_missing(config, data):
+                    continue
+                data = dict(data)
+                data.pop('patch', None)
+                stripped = _config_text_without_patch(data).encode('utf-8')
+                if stripped == raw:
+                    continue
+                saved.append((config, raw))
+                config.write_bytes(stripped)
+            parent = directory.parent
+            if parent == directory:
+                break
+            directory = parent
+        yield
+    finally:
+        for config, raw in reversed(saved):
+            try:
+                config.write_bytes(raw)
+            except OSError:
+                continue

@@ -15,6 +15,7 @@ from atlas_build_source import (
     _is_within,
     cargo_config_digest,
     environment_digest,
+    overlay_stripped_configs,
 )
 
 
@@ -104,62 +105,63 @@ def _cargo_metadata(
     no_deps: bool = True,
 ) -> dict[str, object]:
     cwd = metadata_cwd or manifest.parent
-    key = (
-        os.path.abspath(manifest),
-        os.path.abspath(cwd),
-        no_deps,
-        cargo_config_digest(cwd),
-        environment_digest(),
-    )
-    cached = _METADATA_CACHE.get(key)
-    if cached is not None:
-        fingerprint, text = cached
-        inputs = tuple(Path(entry) for entry, _ in fingerprint)
-        if _metadata_fingerprint(inputs) == fingerprint:
-            try:
-                value = json.loads(text)
-            except json.JSONDecodeError:
-                value = None
-            if isinstance(value, dict):
-                return value
-    cargo = (os.environ["CARGO"],) if os.environ.get("CARGO") else ("cargo",)
-    arguments = [
-        *cargo,
-        "metadata",
-        "--format-version",
-        "1",
-        "--locked",
-        "--manifest-path",
-        str(manifest),
-    ]
-    if no_deps:
-        arguments.append("--no-deps")
-    try:
-        result = subprocess.run(
-            arguments,
-            cwd=cwd,
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=60,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
+    with overlay_stripped_configs(cwd):
+        key = (
+            os.path.abspath(manifest),
+            os.path.abspath(cwd),
+            no_deps,
+            cargo_config_digest(cwd),
+            environment_digest(),
         )
-    except (OSError, subprocess.SubprocessError) as error:
-        raise BuildIdentityError(f"cannot read package metadata from {manifest}: {error}") from error
-    if result.returncode != 0:
-        detail = result.stderr.strip()
-        raise BuildIdentityError(f"cargo metadata failed for {manifest}: {detail}")
-    try:
-        value = json.loads(result.stdout)
-    except json.JSONDecodeError as error:
-        raise BuildIdentityError(f"malformed cargo metadata for {manifest}") from error
-    if not isinstance(value, dict):
-        raise BuildIdentityError(f"malformed cargo metadata for {manifest}")
-    inputs = _metadata_inputs(manifest, value, cwd)
-    _METADATA_CACHE[key] = (_metadata_fingerprint(inputs), result.stdout)
-    return value
+        cached = _METADATA_CACHE.get(key)
+        if cached is not None:
+            fingerprint, text = cached
+            inputs = tuple(Path(entry) for entry, _ in fingerprint)
+            if _metadata_fingerprint(inputs) == fingerprint:
+                try:
+                    value = json.loads(text)
+                except json.JSONDecodeError:
+                    value = None
+                if isinstance(value, dict):
+                    return value
+        cargo = (os.environ["CARGO"],) if os.environ.get("CARGO") else ("cargo",)
+        arguments = [
+            *cargo,
+            "metadata",
+            "--format-version",
+            "1",
+            "--locked",
+            "--manifest-path",
+            str(manifest),
+        ]
+        if no_deps:
+            arguments.append("--no-deps")
+        try:
+            result = subprocess.run(
+                arguments,
+                cwd=cwd,
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=60,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            raise BuildIdentityError(f"cannot read package metadata from {manifest}: {error}") from error
+        if result.returncode != 0:
+            detail = result.stderr.strip()
+            raise BuildIdentityError(f"cargo metadata failed for {manifest}: {detail}")
+        try:
+            value = json.loads(result.stdout)
+        except json.JSONDecodeError as error:
+            raise BuildIdentityError(f"malformed cargo metadata for {manifest}") from error
+        if not isinstance(value, dict):
+            raise BuildIdentityError(f"malformed cargo metadata for {manifest}")
+        inputs = _metadata_inputs(manifest, value, cwd)
+        _METADATA_CACHE[key] = (_metadata_fingerprint(inputs), result.stdout)
+        return value
 
 
 def _stable_package_ids(
