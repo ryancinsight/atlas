@@ -548,7 +548,57 @@ export_revision() (
       git -c core.longpaths=true -c core.sparseCheckout=false -c gc.auto=0 -c maintenance.auto=false \
         read-tree -u --reset "$sha" \
     && git -C "$directory" update-ref HEAD "$sha" \
-    && git -C "$directory" clean -ffdxq
+    && git -C "$directory" clean -ffdxq \
+    && if [ -n "${python_bin:-}" ]; then
+         for export_cargo_config in "$directory/.cargo/config.toml" "$directory/.cargo/config"; do
+           if [ -f "$export_cargo_config" ]; then
+             "$python_bin" - "$export_cargo_config" <<'PY'
+import json
+import pathlib
+import sys
+import tomllib
+
+path = pathlib.Path(sys.argv[1])
+try:
+    data = tomllib.load(path.open('rb'))
+except Exception:
+    raise SystemExit(0)
+if 'patch' not in data:
+    raise SystemExit(0)
+data.pop('patch', None)
+
+def key(name):
+    return json.dumps(name, ensure_ascii=False)
+
+def value(item):
+    if isinstance(item, bool):
+        return 'true' if item else 'false'
+    if isinstance(item, (int, float)):
+        return repr(item)
+    if isinstance(item, str):
+        return json.dumps(item, ensure_ascii=False)
+    if isinstance(item, list):
+        return '[' + ', '.join(value(entry) for entry in item) + ']'
+    if isinstance(item, dict):
+        return '{' + ', '.join(f'{key(k)} = {value(v)}' for k, v in item.items()) + '}'
+    return json.dumps(item.isoformat())
+
+def table(prefix, body, lines):
+    scalars = {k: v for k, v in body.items() if not isinstance(v, dict)}
+    if prefix and (scalars or not body):
+        lines.append('[' + '.'.join(key(part) for part in prefix) + ']')
+    lines.extend(f'{key(k)} = {value(v)}' for k, v in scalars.items())
+    for name, child in body.items():
+        if isinstance(child, dict):
+            table([*prefix, name], child, lines)
+
+lines = []
+table([], data, lines)
+path.write_bytes(('\n'.join(lines) + '\n').encode())
+PY
+           fi
+         done
+       fi
 )
 
 # Exports a killed push left behind (ritk's reached 1.5 GB each). A directory
