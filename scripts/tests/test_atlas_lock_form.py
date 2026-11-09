@@ -1614,10 +1614,9 @@ class HookInstallTestCase(unittest.TestCase):
         blob = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main:scripts/git-hooks/pre-push")
         blob_dir = shims / "blobs"
         # The part-written copy sits beside the cache, in the same directory,
-        # so the rename that publishes it is one directory-entry swap.
+        # so publication can link it without exposing the partial path.
         (partial,) = blob_dir.iterdir()
         self.assertTrue(partial.name.startswith(f"{blob}."), partial.name)
-        partial_id = partial.stat().st_ino
         second = self.run_shim(shims)
         out, err = second.communicate(b"line\n", timeout=60)
         self.assertEqual((second.returncode, out.decode().strip()),
@@ -1628,9 +1627,9 @@ class HookInstallTestCase(unittest.TestCase):
                          (0, "owned argc=2 [origin] [url] <line>"), err.decode())
         (cached,) = blob_dir.iterdir()
         self.assertEqual(cached.read_bytes(), owned_hook("owned"))
-        # The first run's file was renamed into place, not copied: a copy
-        # writes the cache path in place, visible part-written.
-        self.assertEqual((cached.name, cached.stat().st_ino), (blob, partial_id))
+        # Publication is first-writer-wins: either completed writer may own
+        # the inode, but the cache is never a visible part-written copy.
+        self.assertEqual([path.name for path in blob_dir.iterdir()], [blob])
 
     def test_a_failed_write_runs_nothing_and_leaves_no_partial(self) -> None:
         """origin/main names a hook blob the object store lacks, and the cache
@@ -1660,6 +1659,23 @@ class HookInstallTestCase(unittest.TestCase):
         out, _ = run.communicate(b"", timeout=60)
         self.assertEqual((run.returncode, out.decode()), (1, ""))
         self.assertEqual(sorted(p.name for p in (shims / "blobs").iterdir()), [missing])
+
+    def test_an_unexpected_cache_directory_is_preserved_and_refused(self) -> None:
+        """A cache key owned by a directory is not removable cache corruption."""
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        blob = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main:scripts/git-hooks/pre-push")
+        cache_dir = shims / "blobs" / blob
+        cache_dir.mkdir(parents=True)
+        marker = cache_dir / "user-data"
+        marker.write_bytes(b"preserve")
+
+        run = self.run_shim(shims)
+        out, _ = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, out.decode()), (1, ""))
+        self.assertTrue(cache_dir.is_dir())
+        self.assertEqual(marker.read_bytes(), b"preserve")
+        self.assertEqual([path.name for path in (shims / "blobs").iterdir()], [blob])
 
     def test_an_exported_common_dir_does_not_redirect_the_lookup(self) -> None:
         self.publish({"pre-push": owned_hook("owned")})

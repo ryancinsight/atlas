@@ -942,9 +942,38 @@ if [ ! -f "$__atlas_shim_cache" ] || [ "$(__atlas_shim_lookup hash-object --no-f
   # give a CRLF copy the id of its LF blob.
   if ! {{ __atlas_shim_lookup cat-file blob "$__atlas_shim_blob" >| "$__atlas_shim_partial" &&
          [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_partial")" = "$__atlas_shim_blob" ] &&
-         chmod +x "$__atlas_shim_partial" && mv -f "$__atlas_shim_partial" "$__atlas_shim_cache"; }}; then
+         chmod +x "$__atlas_shim_partial"; }}; then
     rm -f "$__atlas_shim_partial"
     exit 1
+  fi
+  # Publish without replacement. Concurrent first runs may all prepare the
+  # same blob; the first hard-link wins, and later writers reuse it after
+  # validating its id. A bad pre-existing file or symlink is removed only
+  # after that validation fails, so repair remains possible without exposing
+  # a partial cache or replacing a valid publication. An actual directory is
+  # never cache content and is preserved rather than recursively removed.
+  if [ -d "$__atlas_shim_cache" ] && [ ! -L "$__atlas_shim_cache" ]; then
+    rm -f "$__atlas_shim_partial"
+    exit 1
+  elif ln -n "$__atlas_shim_partial" "$__atlas_shim_cache" 2>/dev/null; then
+    rm -f "$__atlas_shim_partial"
+  elif [ -f "$__atlas_shim_cache" ] &&
+       [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_cache")" = "$__atlas_shim_blob" ]; then
+    rm -f "$__atlas_shim_partial"
+  else
+    if [ -d "$__atlas_shim_cache" ] && [ ! -L "$__atlas_shim_cache" ]; then
+      rm -f "$__atlas_shim_partial"
+      exit 1
+    fi
+    rm -f "$__atlas_shim_cache"
+    if ln -n "$__atlas_shim_partial" "$__atlas_shim_cache" 2>/dev/null ||
+       {{ [ -f "$__atlas_shim_cache" ] &&
+          [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_cache")" = "$__atlas_shim_blob" ]; }}; then
+      rm -f "$__atlas_shim_partial"
+    else
+      rm -f "$__atlas_shim_partial"
+      exit 1
+    fi
   fi
 fi
 set +euo pipefail

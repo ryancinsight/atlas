@@ -229,7 +229,30 @@ class MetadataCacheTests(unittest.TestCase):
         config.write_bytes(original)
         with self.assertRaises(snapshot.BuildIdentityError) as caught:
             self._metadata()
-        self.assertIn("metadata", str(caught.exception).lower())
+        self.assertIn("invalid type: integer", str(caught.exception))
+        self.assertEqual(config.read_bytes(), original)
+
+    def test_toml_dates_remain_native_and_invalid_cargo_types_surface(self) -> None:
+        """Selective serialization preserves TOML date/time values for Cargo."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir()
+        original = (
+            '[env]\nDATE = 2024-01-01\nSTAMP = 2024-01-01T12:30:00Z\nCLOCK = 12:30:00\n'
+            '[patch.crates-io]\nmember = { path = "repos/member" }\n'
+        ).encode()
+        config.write_bytes(original)
+        values = tomllib.loads(original.decode())
+        rendered = source._config_text(values).encode()
+        round_trip = tomllib.loads(rendered.decode())
+        self.assertEqual(round_trip["env"], values["env"])
+        with self.assertRaises(snapshot.BuildIdentityError) as caught:
+            self._metadata()
+        self.assertIn("unsupported TOML configuration type", str(caught.exception))
         self.assertEqual(config.read_bytes(), original)
 
     def test_mixed_patch_keeps_local_git_override(self) -> None:

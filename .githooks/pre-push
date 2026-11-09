@@ -47,6 +47,9 @@
 # re-exec forever. `_ATLAS_HOOK_TRAMPOLINE_DEFERRED` is that marker: set
 # only immediately before the exec below, inherited by the child, and
 # checked first on every entry.
+# The trampoline, rescue dispatch, and every later guard read raw objects.
+export GIT_NO_REPLACE_OBJECTS=1
+
 _atlas_hook_trampoline() {
     [ -n "${_ATLAS_HOOK_TRAMPOLINE_DEFERRED:-}" ] && return 0
 

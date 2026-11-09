@@ -12,6 +12,7 @@ import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -680,6 +681,8 @@ def _config_text(data: dict[str, object]) -> str:
     def config_value(item: object) -> str:
         if isinstance(item, bool):
             return 'true' if item else 'false'
+        if isinstance(item, (datetime, date, time)):
+            return item.isoformat()
         if isinstance(item, (int, float)):
             return repr(item)
         if isinstance(item, str):
@@ -690,7 +693,7 @@ def _config_text(data: dict[str, object]) -> str:
             return (
                 '{' + ', '.join(f'{config_key(k)} = {config_value(v)}' for k, v in item.items()) + '}'
             )
-        return json.dumps(str(item))
+        raise TypeError(f'unsupported TOML value type: {type(item).__name__}')
 
     def write_table(prefix: list[str], body: dict[str, object], lines: list[str]) -> None:
         scalars = {k: v for k, v in body.items() if not isinstance(v, dict)}

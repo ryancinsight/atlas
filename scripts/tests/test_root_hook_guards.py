@@ -41,6 +41,51 @@ def install_hook(repo: Path) -> None:
 
 
 class RootLockGateTests(unittest.TestCase):
+    def test_rescue_dispatch_ignores_blob_replacement_before_lock_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            environment = {key: value for key, value in os.environ.items()
+                           if not key.startswith("GIT_")}
+            environment.update(PYTHON=sys.executable, PYTHONUTF8="1", TMPDIR=temporary,
+                               GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+            def git(*args: str, data: str | None = None) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(repo), "-c", "user.name=Test",
+                     "-c", "user.email=test@example.invalid", *args],
+                    input=data, env=environment, check=True, capture_output=True,
+                    text=True, encoding="utf-8", timeout=60,
+                ).stdout.strip()
+            git("init", "-q", "-b", "main")
+            paths = [".githooks/pre-push", "scripts/git-hooks/rescue-push",
+                     "scripts/atlas-secret-scan.py", "scripts/process_tree.py",
+                     "scripts/windows_process.py", "scripts/darwin_process.py"]
+            for path in paths:
+                destination = repo / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / path, destination)
+            git("add", *paths)
+            git("commit", "-qm", "trusted hooks")
+            base = git("rev-parse", "HEAD")
+            git("update-ref", "refs/remotes/origin/main", base)
+            (repo / "README.md").write_text("A topic change.\n")
+            git("add", "README.md")
+            git("commit", "-qm", "topic")
+            tip = git("rev-parse", "HEAD")
+            classifier = (repo / "scripts/git-hooks/rescue-push").read_text()
+            redirected = classifier.replace("refs/heads/rescue/*)", "refs/heads/topic)")
+            self.assertNotEqual(classifier, redirected)
+            replacement = git("hash-object", "-w", "--stdin", data=redirected)
+            original = git("rev-parse", f"{base}:scripts/git-hooks/rescue-push")
+            git("replace", original, replacement)
+            result = subprocess.run(
+                ["bash", str(repo / ".githooks/pre-push"), "origin", "fixture"],
+                cwd=repo, env=environment, input=(
+                    f"refs/heads/topic {tip} refs/heads/topic {'0' * 40}\n"
+                ), text=True, encoding="utf-8", capture_output=True, timeout=60,
+            )
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("no gitlink auditor source", result.stderr)
+
     def test_lock_gate_checks_raw_committed_inputs(self) -> None:
         function = re.search(r"(?ms)^lock_gate\(\) \{\n.*?^\}\n", PRE_PUSH.read_text())
         self.assertIsNotNone(function)
