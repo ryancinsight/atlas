@@ -192,7 +192,7 @@ class ProcessTreeCleanupError(RuntimeError):
 
 
 class ProcessTreeTimeout(subprocess.TimeoutExpired):
-    """A command exceeded its deadline after bounded process-tree cleanup.
+    """A deadline expired; any launched process tree underwent bounded cleanup.
 
     A cleanup failure is part of the message and the ``__cause__`` as well as
     ``cleanup_error``, so a consumer that only prints the exception sees it.
@@ -569,6 +569,7 @@ def run(
     caller's logical position. The caller must not access the file until this
     call returns. The returned and timeout-result standard output is then
     ``None``; partial bytes remain available in that file after a timeout.
+    If synchronization exhausts the budget, no child is launched.
     """
     if not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("process timeout must be finite and greater than zero")
@@ -580,6 +581,8 @@ def run(
     deadline = time.monotonic() + timeout
     if stdout_destination is not None:
         stdout_destination.flush()
+        if time.monotonic() >= deadline:
+            raise ProcessTreeTimeout(arguments, timeout, None, b"", None)
     job_handle: int | None = None
     windows_job: int | None = None
     process: subprocess.Popen[bytes] | None = None

@@ -7,6 +7,7 @@ import pathlib
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from unittest.mock import patch
@@ -116,3 +117,20 @@ def budget_from_readiness(listener: socket.socket):
             )
         )
         yield
+
+
+@contextlib.contextmanager
+def destination_that_exhausts_budget():
+    """Flush real buffered bytes, then hold the caller for one timeout budget."""
+    with tempfile.TemporaryFile(mode="w+b") as output:
+        flush = output.flush
+
+        def consume_budget():
+            flush()
+            threading.Event().wait(EXPIRY_HOLD_SECONDS)
+
+        output.flush = consume_budget
+        try:
+            yield output
+        finally:
+            output.flush = flush

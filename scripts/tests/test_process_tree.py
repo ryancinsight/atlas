@@ -29,6 +29,7 @@ from process_tree_support import (  # noqa: E402
     HANG_GUARD_SECONDS,
     NEVER_ENDS,
     budget_from_readiness,
+    destination_that_exhausts_budget,
 )
 
 
@@ -268,6 +269,27 @@ class ProcessTreeTests(unittest.TestCase):
                     self.assertFalse(output.closed)
                     output.seek(0)
                     self.assertEqual(output.read(), expected)
+
+    def test_destination_flush_expiry_does_not_launch_a_process(self):
+        command = [sys.executable, "-c", "print('must not launch')"]
+        with destination_that_exhausts_budget() as output:
+            output.write(b"caller-owned\x00prefix")
+            # Observe the actual launcher rather than replace its behavior.
+            with patch.object(subprocess, "Popen", wraps=subprocess.Popen) as launch:
+                with self.assertRaises(process_tree.ProcessTreeTimeout) as raised:
+                    process_tree.run(
+                        command, timeout=EXPIRY_HOLD_SECONDS,
+                        stdout_destination=output,
+                    )
+            self.assertEqual(launch.call_count, 0)
+            self.assertEqual(raised.exception.cmd, command)
+            self.assertEqual(raised.exception.timeout, EXPIRY_HOLD_SECONDS)
+            self.assertIsNone(raised.exception.output)
+            self.assertEqual(raised.exception.stderr, b"")
+            self.assertIsNone(raised.exception.cleanup_error)
+            self.assertFalse(output.closed)
+            output.seek(0)
+            self.assertEqual(output.read(), b"caller-owned\x00prefix")
 
     def test_nonzero_exit_preserves_status(self):
         result = process_tree.run(

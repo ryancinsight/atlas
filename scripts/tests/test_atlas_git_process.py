@@ -19,7 +19,11 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import atlas_git_process  # noqa: E402
 import process_tree  # noqa: E402
-from process_tree_support import HANG_GUARD_SECONDS  # noqa: E402
+from process_tree_support import (  # noqa: E402
+    EXPIRY_HOLD_SECONDS,
+    HANG_GUARD_SECONDS,
+    destination_that_exhausts_budget,
+)
 
 
 class GitProcessTests(unittest.TestCase):
@@ -65,6 +69,28 @@ class GitProcessTests(unittest.TestCase):
             self.assertEqual(result.stderr, b"")
             output.seek(0)
             self.assertEqual(output.read(), b"raw\x00bytes")
+
+    def test_destination_flush_expiry_is_a_typed_git_timeout(self):
+        command = [sys.executable, "-c", "print('must not launch')"]
+        with destination_that_exhausts_budget() as output:
+            output.write(b"preserved\x00input")
+            with patch.object(subprocess, "Popen", wraps=subprocess.Popen) as launch:
+                with self.assertRaises(atlas_git_process.GitProcessError) as raised:
+                    atlas_git_process.execute_process(
+                        command, timeout=EXPIRY_HOLD_SECONDS,
+                        stdout_destination=output,
+                    )
+            self.assertEqual(launch.call_count, 0)
+            self.assertTrue(raised.exception.timed_out)
+            cause = raised.exception.__cause__
+            self.assertIsInstance(cause, process_tree.ProcessTreeTimeout)
+            self.assertEqual(cause.cmd, command)
+            self.assertIsNone(cause.output)
+            self.assertEqual(cause.stderr, b"")
+            self.assertIsNone(cause.cleanup_error)
+            self.assertFalse(output.closed)
+            output.seek(0)
+            self.assertEqual(output.read(), b"preserved\x00input")
 
     def test_explicit_private_index_is_preserved(self):
         completed = subprocess.CompletedProcess(
