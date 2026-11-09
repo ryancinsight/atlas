@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Advance all 28 stack gitlinks to their fetched default heads plus three
+  provider improvements: leto 0.48.0 adds `concat_into` / `stack_into`
+  zero-copy caller-owned assembly and `CooMatrix::into_csr`; hermes 0.10.0
+  adds `Copy` for borrowed sparse views and bounded bench budgets;
+  mnemosyne fixes a flaky leak-detector temp-dir race. Version lags for
+  eunomia 0.11 / leto 0.46-0.47 / hermes 0.9 remain as consumer-advance
+  requirements on the overlay.
+
 - Catch a quantity accessor whose name claims a unit the returned value does
   not carry: the Aequitas audit compares the final scale token of a public
   getter's name with the canonical unit of the quantity it returns, so an
