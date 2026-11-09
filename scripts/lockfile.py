@@ -34,7 +34,9 @@ discovery.
 
 # Usage
 
-    scripts/lockfile.py --check          # verify the committed lock resolves
+    scripts/lockfile.py --check          # verify committed lock owners resolve
+    scripts/lockfile.py --check --check-tree EXPORT
+                                         # include every path in an immutable tree
     scripts/lockfile.py --check-staged   # judge the staged locks, index only
     scripts/lockfile.py --check-committed REPOSITORY...
                                          # judge every tracked lock at HEAD
@@ -45,8 +47,7 @@ standalone lock lives (ADR-0044): `--check`, `--check-staged` and
 `--check-committed` all judge a lock by `judge_locks`. The `pre-commit` hook
 runs `--check-staged`, `pre-push` and the shared `lockfile-guard` workflow run
 `--check --manifest-path`, and the conformance workflow runs
-`--check-committed`. The hooks run the copy of this script that the repository
-they guard carries. The file imports nothing beside the standard library because
+`--check-committed`. The hooks run the fetched Atlas default branch's copy of this script. The file imports nothing beside the standard library because
 the hooks export it alone, which is why it stays one file.
 """
 
@@ -54,6 +55,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import json
 import os
 import re
 import signal
@@ -290,7 +292,7 @@ def run_outside_the_overlay(
 
 
 def check_resolution(manifest: Path, lockfile: Path) -> int:
-    """Prove one selected lock resolves without the development overlay."""
+    """Resolve the selected lock and verify Cargo actually owns it here."""
     print(f"checking lock owner {manifest}")
     try:
         completed = run_outside_the_overlay(
@@ -325,6 +327,21 @@ def check_resolution(manifest: Path, lockfile: Path) -> int:
         )
         return 1
 
+    try:
+        metadata = json.loads(completed.stdout)
+        workspace = metadata.get("workspace_root") if isinstance(metadata, dict) else None
+        if not isinstance(workspace, str):
+            raise ValueError("Cargo metadata has no workspace_root")
+    except (ValueError, TypeError) as error:
+        print(f"error: {lockfile}: {error}", file=sys.stderr)
+        return 1
+    resolved_lock = Path(workspace) / "Cargo.lock"
+    if resolved_lock.resolve() != lockfile.resolve():
+        print(
+            f"LOCK OWNERSHIP VIOLATION: {lockfile}: Cargo uses {resolved_lock} instead",
+            file=sys.stderr,
+        )
+        return 1
     print(f"{lockfile} resolves under --locked.")
     return check_provider_identity(lockfile)
 

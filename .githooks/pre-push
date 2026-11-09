@@ -510,10 +510,15 @@ debt_gate() {
 }
 
 lock_gate() {
-    local tip="$1" changed python_bin candidate checker status
+    local tip="$1" python_bin candidate checker status source_git
     [ -n "$gate_base" ] || return 1
-    changed="$(git -C "$atlas_root" diff --name-only "$gate_base".."$tip")" || return 1
-    printf '%s\n' "$changed" | grep -qE '(^|/)Cargo\.(toml|lock)$' || return 0
+    if git -C "$atlas_root" diff --quiet "$gate_base" "$tip" -- \
+        ':(glob)**/Cargo.toml' ':(glob)**/Cargo.lock'; then
+        return 0
+    else
+        status=$?
+        [ "$status" -eq 1 ] || return 1
+    fi
     python_bin="${PYTHON:-}"
     if [ -z "$python_bin" ]; then
         for candidate in python3 python; do
@@ -523,14 +528,25 @@ lock_gate() {
     [ -n "$python_bin" ] || return 1
     candidate="$(mktemp -d "${TMPDIR:-/tmp}/atlas-lock.XXXXXX")" || return 1
     checker="$(mktemp -d "${TMPDIR:-/tmp}/atlas-checker.XXXXXX")" || { rm -rf "$candidate"; return 1; }
-    if ! git -C "$atlas_root" archive "$tip" | tar -x -C "$candidate" \
-        || ! git -C "$atlas_root" archive "$trusted_rescue_ref" scripts/lockfile.py \
-            | tar -x -C "$checker"; then
+    source_git="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir)" || { rm -rf "$candidate" "$checker"; return 1; }
+    # No candidate, repository-local, global, or system archive attributes apply.
+    printf '* -export-ignore -export-subst\n' > "$checker/.gitattributes"
+    if ! (
+        unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY \
+            GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_ATTR_SOURCE
+        git init --bare --template= -q "$checker/objects.git" \
+            && printf '%s/objects\n' "$source_git" > "$checker/objects.git/objects/info/alternates" \
+            && cd "$checker" \
+            && GIT_ATTR_NOSYSTEM=1 GIT_INDEX_FILE="$checker/index" \
+                git --git-dir="$checker/objects.git" --work-tree="$checker" \
+                    -c core.attributesFile=/dev/null archive --worktree-attributes "$tip"
+        ) | tar -x -C "$candidate" \
+        || ! git -C "$atlas_root" show "$trusted_rescue_ref:scripts/lockfile.py" > "$checker/lockfile.py"; then
         rm -rf "$candidate" "$checker"
         return 1
     fi
     CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$atlas_root/target}" "$python_bin" \
-        "$checker/scripts/lockfile.py" --check --check-tree "$candidate"
+        "$checker/lockfile.py" --check --check-tree "$candidate"
     status=$?
     rm -rf "$candidate" "$checker"
     return "$status"

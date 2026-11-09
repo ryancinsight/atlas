@@ -464,11 +464,15 @@ if [ "${#content_lines[@]}" -eq 1 ]; then
       gate_tip="$local_sha"
       gate_range_base="$base"
     fi
-    if ! changed="$(git diff --name-only "$base" "$local_sha" 2>/dev/null)"; then
-      touches_dependency_state=unknown
-      break
-    fi
-    if printf '%s\n' "$changed" | grep -qE '(^|/)Cargo\.(lock|toml)$'; then
+    if git diff --quiet "$base" "$local_sha" -- \
+      ':(glob)**/Cargo.toml' ':(glob)**/Cargo.lock'; then
+      continue
+    else
+      dependency_diff_status=$?
+      if [ "$dependency_diff_status" -ne 1 ]; then
+        touches_dependency_state=unknown
+        break
+      fi
       touches_dependency_state=yes
       pushed_tip="$local_sha"
       break

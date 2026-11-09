@@ -328,6 +328,20 @@ class TreeCheckTestCase(unittest.TestCase):
             missing = f"{directory}/Cargo.toml: sibling Cargo.lock is missing"
             self.assertEqual((completed.returncode, missing in completed.stderr), (1, True), completed.stdout)
 
+    def test_a_member_lock_is_not_checked_through_its_parent_lock(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(root, "Cargo.toml", '[workspace]\nresolver = "3"\nmembers = ["member"]\n')
+            self.package(root, "member", "member")
+            self.cargo(root, "Cargo.toml")
+            self.write(root, "member/Cargo.lock", 'version = 4\n[[package]]\nname = "member"\nversion = "0.0.1"\n')
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
+                code = lockfile.check(root)
+            self.assertEqual(code, 1)
+            self.assertIn("LOCK OWNERSHIP VIOLATION", stderr.getvalue())
+            self.assertIn("Cargo uses", stderr.getvalue())
+            self.assertEqual((root / "member/Cargo.lock").read_text(), 'version = 4\n[[package]]\nname = "member"\nversion = "0.0.1"\n')
+
     def test_target_dependency_stales_only_the_excluded_workspace_lock(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
             root = Path(temp)

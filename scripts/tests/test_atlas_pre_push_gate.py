@@ -2009,14 +2009,27 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             arguments = fixture.lockfile_calls.read_text(encoding="utf-8").split()
             self.assertEqual(arguments[0], "--check")
-            self.assertEqual(arguments[1], "--manifest-path")
+            self.assertEqual(arguments[1], "--check-tree")
             manifest = pathlib.Path(arguments[2])
-            self.assertEqual(manifest.name, "Cargo.toml")
+            self.assertNotEqual(manifest.name, "Cargo.toml")
             self.assertNotIn(
                 os.path.normcase(str(fixture.root.resolve())),
                 os.path.normcase(str(manifest.resolve())),
-                "the manifest is the export's, never the checkout's",
+                "the candidate root is the export's, never the checkout's",
             )
+
+    def test_a_quoted_manifest_path_runs_the_lock_stage(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            _git(fixture.root, "switch", "-q", "-c", "quoted-manifest")
+            _write(fixture.root / "caf\u00e9" / "Cargo.toml", '[workspace]\n')
+            _commit_all(fixture.root, "manifest")
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("quoted-manifest"), {"SKIP_LOCAL_GATE": "1", "LOCKFILE_EXIT": "1"}
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("does not resolve under --locked", stderr)
+            self.assertEqual(fixture.lockfile_calls.read_text().split()[0:2], ["--check", "--check-tree"])
 
     def test_a_lock_the_stack_checker_rejects_refuses_the_push(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:

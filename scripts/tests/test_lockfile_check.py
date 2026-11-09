@@ -14,6 +14,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import json
 import shutil
 import subprocess
 import sys
@@ -78,7 +79,9 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         def fake_run(command, **_kwargs):
             self.resolution_calls += 1
             return subprocess.CompletedProcess(
-                command, 0 if self.resolves else 101, "{}", "" if self.resolves else "stale"
+                command, 0 if self.resolves else 101,
+                json.dumps({"workspace_root": str(Path(command[command.index("--manifest-path") + 1]).parent)}),
+                "" if self.resolves else "stale"
             )
 
         lockfile.run_bounded = fake_run
