@@ -241,6 +241,43 @@ class HookBranchPushTestCase(unittest.TestCase):
             )
             self.assertEqual(listing, b"")
 
+    def test_push_materializes_and_runs_the_committed_process_owner(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-runtime-") as temporary:
+            root = Path(temporary)
+            atlas, member, remote = root / "atlas", root / "member", root / "remote.git"
+            atlas.mkdir()
+            member.mkdir()
+            self._commit_after_init(atlas)
+            self._commit_after_init(member)
+            for name in ("pre_push_gate.py", "process_tree.py", "windows_process.py", "darwin_process.py"):
+                target = atlas / "scripts" / name
+                target.parent.mkdir(exist_ok=True)
+                target.write_bytes((SCRIPT.parent / name).read_bytes())
+                self._git(atlas, "add", "scripts/" + name)
+            self._git(atlas, "commit", "-qm", "Process owner")
+            source = self._git(atlas, "rev-parse", "HEAD")
+            self._git(root, "init", "-q", "--bare", str(remote))
+            self._git(member, "remote", "add", "origin", str(remote))
+            self._git(member, "push", "-q", "origin", "main")
+            desired = self._commit(member, "published")
+            hook = b"""#!/bin/sh
+if [ "${1:-}" = --bounded-entry ]; then
+  shift
+  cat > hook-stdin.txt
+  printf '%s\\n' "$ATLAS_PRE_PUSH_RUNTIME" > runtime-path.txt
+  exit 0
+fi
+exec "$ATLAS_PRE_PUSH_PYTHON" -I "$ATLAS_PRE_PUSH_RUNTIME/pre_push_gate.py" direct push "$0" "$@"
+"""
+            with patch.object(_lock_form, "ROOT", atlas):
+                _lock_form.push_hook_branch(member, desired, "ci/sync-stack-hooks", hook, source)
+            self.assertEqual(self._git(remote, "rev-parse", "refs/heads/ci/sync-stack-hooks"), desired)
+            self.assertEqual((member / "hook-stdin.txt").read_text().split(),
+                             [desired, desired, "refs/heads/ci/sync-stack-hooks", "0" * 40])
+            runtime = Path((member / "runtime-path.txt").read_text().strip())
+            self.assertEqual(runtime.name, source)
+            self.assertFalse(runtime.exists(), "publication runtime was not retired")
+
     def test_push_uses_exact_ref_and_observed_oid(self) -> None:
         ref = "refs/heads/ci/sync-stack-hooks"
         observed = "a" * 40

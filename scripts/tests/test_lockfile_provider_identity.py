@@ -25,9 +25,45 @@ SPEC.loader.exec_module(lockfile)
 def lock(*sources: str) -> str:
     """A minimal lock body carrying one `source` line per argument."""
     return "\n".join(
-        f'[[package]]\nname = "p{index}"\nsource = "{source}"\n'
+        f'[[package]]\nname = "p{index}"\nversion = "1.0.0"\nsource = "{source}"\n'
         for index, source in enumerate(sources)
     )
+
+
+class PackageRecordTestCase(unittest.TestCase):
+    def test_missing_package_collection_is_empty(self) -> None:
+        self.assertEqual(lockfile.locked_package_records("version = 4\n"), [])
+
+    def test_absent_source_is_legitimate(self) -> None:
+        text = '[[package]]\nname = "local"\nversion = "1.0.0"\n'
+        self.assertIsNone(lockfile.locked_package_records(text)[0].get("source"))
+
+    def test_required_fields_fail_before_consumers_filter_records(self) -> None:
+        malformed = (
+            ('package = [1]\n', "package 0 is not a table"),
+            ('[[package]]\nversion = "1"\n', "missing, empty, or non-string name"),
+            ('[[package]]\nname = ""\nversion = "1"\n', "empty, or non-string name"),
+            ('[[package]]\nname = 1\nversion = "1"\n', "non-string name"),
+            ('[[package]]\nname = "p"\n', "missing, empty, or non-string version"),
+            ('[[package]]\nname = "p"\nversion = ""\n', "empty, or non-string version"),
+            ('[[package]]\nname = "p"\nversion = 1\n', "non-string version"),
+            ('[[package]]\nname = "p"\nversion = "1"\nsource = ""\n', "empty or non-string source"),
+            ('[[package]]\nname = "p"\nversion = "1"\nsource = 1\n', "non-string source"),
+        )
+        for text, diagnostic in malformed:
+            with self.subTest(diagnostic=diagnostic), self.assertRaisesRegex(ValueError, diagnostic):
+                lockfile.locked_package_records(text)
+
+    def test_nonempty_values_remain_opaque_to_cargo_semantics(self) -> None:
+        text = (
+            '[[package]]\nname = "a\u0345"\nversion = "cargo-owned"\n'
+            'source = "vendor+opaque payload"\n'
+        )
+        record = lockfile.locked_package_records(text)[0]
+        self.assertEqual(
+            (record["name"], record["version"], record["source"]),
+            ("a\u0345", "cargo-owned", "vendor+opaque payload"),
+        )
 
 
 class ProviderIdentityTestCase(unittest.TestCase):

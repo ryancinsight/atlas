@@ -2271,10 +2271,22 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual((code, value["status"]), (2, "missing"))
 
     def test_toolchain_identity_runs_in_the_source_root(self) -> None:
-        completed = subprocess.CompletedProcess(["rustc"], 0, "rustc 1.95.0\n", "")
-        with patch.object(build_source.subprocess, "run", return_value=completed) as run:
-            self.assertEqual(build_source.toolchain_identity(self.root), "rustc 1.95.0")
-        self.assertEqual(run.call_args.kwargs["cwd"], self.root)
+        def command_result(command, **_kwargs):
+            if "config" in command:
+                return subprocess.CompletedProcess(command, 0, "{}\n", "")
+            return subprocess.CompletedProcess(command, 0, "rustc 1.95.0\n", "")
+
+        with patch.object(build_source.subprocess, "run", side_effect=command_result) as run:
+            self.assertEqual(
+                build_source.toolchain_identity(self.root, {}), "rustc 1.95.0"
+            )
+        self.assertEqual(
+            [call.kwargs["cwd"] for call in run.call_args_list],
+            [self.root, self.root],
+        )
+        self.assertEqual(
+            run.call_args_list[-1].args[0], ["rustc", "--version", "--verbose"]
+        )
 
     def test_command_cwd_is_used_without_changing_record_scope(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -2664,6 +2676,160 @@ class BuildIdentityTestCase(unittest.TestCase):
                 second = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
         self.assertNotEqual(first.environment_digest, second.environment_digest)
         self.assertNotEqual(build_records.record_path(first), build_records.record_path(second))
+
+    def test_an_ordinary_manifest_keeps_the_environment_unchanged(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        environment = {"CARGO_HOME": str(self.base / "cargo-home"), "RUSTFLAGS": "-Dwarnings"}
+        with patch.object(build_inputs.subprocess, "run") as cargo:
+            effective = build_inputs.effective_compiler_environment(
+                self.root / "Cargo.toml", self.root, environment=environment
+            )
+        self.assertEqual(effective, environment)
+        cargo.assert_not_called()
+
+    def test_fuzz_cfg_preserves_encoded_flags_and_is_idempotent(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        environment = {"CARGO_ENCODED_RUSTFLAGS": "-C\x1fdebuginfo=1"}
+        first = build_inputs.effective_compiler_environment(
+            manifest, self.root, environment=environment
+        )
+        second = build_inputs.effective_compiler_environment(
+            manifest, self.root, environment=first
+        )
+        self.assertEqual(
+            first["CARGO_ENCODED_RUSTFLAGS"],
+            "-C\x1fdebuginfo=1\x1f--cfg\x1ffuzzing",
+        )
+        self.assertEqual(second, first)
+
+    def test_inline_fuzz_flags_are_carried_into_the_executed_command(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        command = ["env", "RUSTFLAGS=--cfg original", "cargo", "check"]
+        effective = build_inputs.effective_compiler_environment(
+            manifest, self.root, command, environment={}
+        )
+        normalized = build_inputs.effective_compiler_command(command, effective)
+        self.assertEqual(
+            normalized,
+            ("env", "RUSTFLAGS=--cfg original --cfg fuzzing", "cargo", "check"),
+        )
+        self.assertEqual(
+            build_inputs.effective_compiler_command(normalized, effective), normalized
+        )
+
+    @unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+    def test_fuzz_cfg_preserves_cargo_config_flags(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        (self.root / ".cargo").mkdir()
+        (self.root / ".cargo" / "config.toml").write_text(
+            '[build]\nrustflags = ["-C", "debuginfo=1", "--cfg", "configured"]\n',
+            encoding="utf-8",
+        )
+        effective = build_inputs.effective_compiler_environment(
+            manifest,
+            self.root,
+            environment={
+                "CARGO_HOME": str(self.base / "cargo-home"),
+                "PATH": os.environ["PATH"],
+            },
+        )
+        self.assertEqual(
+            effective["CARGO_ENCODED_RUSTFLAGS"].split("\x1f"),
+            ["-C", "debuginfo=1", "--cfg", "configured", "--cfg", "fuzzing"],
+        )
+
+    @unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+    def test_target_qualified_fuzz_flags_fail_closed(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        (self.root / ".cargo").mkdir()
+        (self.root / ".cargo" / "config.toml").write_text(
+            '[target.x86_64-pc-windows-msvc]\nrustflags = ["-C", "debuginfo=1"]\n',
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(BuildIdentityError, "target-qualified rustflags"):
+            build_inputs.effective_compiler_environment(
+                manifest,
+                self.root,
+                environment={
+                    "CARGO_BUILD_RUSTFLAGS": "--cfg environment",
+                    "CARGO_HOME": str(self.base / "cargo-home"),
+                    "PATH": os.environ["PATH"],
+                },
+            )
+
+    def test_cargo_build_rustc_is_the_probed_compiler(self) -> None:
+        completed = subprocess.CompletedProcess(
+            ["selected-rustc", "--version", "--verbose"], 0, "rustc selected\n", ""
+        )
+        with (
+            patch.object(build_source, "_configured_rustc", return_value=None),
+            patch.object(build_source.subprocess, "run", return_value=completed) as run,
+        ):
+            selected = build_source.toolchain_identity(
+                self.root, {"CARGO_BUILD_RUSTC": "selected-rustc"}
+            )
+        self.assertEqual(selected, "rustc selected")
+        self.assertEqual(run.call_args.args[0][0], "selected-rustc")
+
+    def test_cargo_config_rustc_is_the_probed_compiler(self) -> None:
+        completed = subprocess.CompletedProcess(
+            ["configured-rustc", "--version", "--verbose"],
+            0,
+            "rustc configured\n",
+            "",
+        )
+        with (
+            patch.object(build_source, "_configured_rustc", return_value="configured-rustc"),
+            patch.object(build_source.subprocess, "run", return_value=completed) as run,
+        ):
+            selected = build_source.toolchain_identity(self.root, {})
+        self.assertEqual(selected, "rustc configured")
+        self.assertEqual(run.call_args.args[0][0], "configured-rustc")
+
+    def test_cargo_toolchain_argument_without_a_compiler_fails_closed(self) -> None:
+        with patch.object(build_source, "_configured_rustc", return_value=None):
+            with self.assertRaisesRegex(BuildIdentityError, "cannot resolve compiler"):
+                build_source.toolchain_identity(
+                    self.root, {}, command=["cargo", "+1.95.0", "check"]
+                )
+
+    def test_cargo_toolchain_argument_with_rustup_proxy_fails_closed(self) -> None:
+        compilers = ["rustc"]
+        installed = shutil.which("rustc")
+        if installed is not None:
+            compilers.append(installed)
+        for compiler in compilers:
+            with self.subTest(compiler=compiler):
+                with self.assertRaisesRegex(BuildIdentityError, "rustup proxies"):
+                    build_source.toolchain_identity(
+                        self.root,
+                        {"RUSTC": compiler},
+                        command=["cargo", "+1.95.0", "check"],
+                    )
 
     def test_toolchain_identity_uses_the_cargo_execution_directory(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -3073,6 +3239,84 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertEqual(set(paths), {artifact.resolve(), output.resolve()})
 
+    def test_discovery_probes_only_owned_artifact_candidates(self) -> None:
+        deps = self.target / "debug" / "deps"
+        builds = self.target / "debug" / "build"
+        fingerprints = self.target / "debug" / ".fingerprint"
+        owned_build = builds / "wanted-222"
+        owned_fingerprint = fingerprints / "wanted-333"
+        for directory in (deps, owned_build, owned_fingerprint):
+            directory.mkdir(parents=True, exist_ok=True)
+        owned_library = deps / "libwanted-111.rlib"
+        owned_output = owned_build / "output"
+        owned_fingerprint_file = owned_fingerprint / "lib-wanted"
+        for path in (owned_library, owned_output, owned_fingerprint_file):
+            path.write_bytes(path.name.encode())
+        unselected = {
+            deps / "libother-111.rlib",
+            builds / "other-222",
+            fingerprints / "other-333",
+            deps / "libshared-444.rlib",
+            builds / "shared-555",
+            fingerprints / "shared-666",
+        }
+        (deps / "libother-111.rlib").write_bytes(b"other")
+        (builds / "other-222").mkdir()
+        (fingerprints / "other-333").mkdir()
+        (deps / "libshared-444.rlib").write_bytes(b"shared")
+        (builds / "shared-555").mkdir()
+        (fingerprints / "shared-666").mkdir()
+        file_probes: list[Path] = []
+        directory_probes: list[Path] = []
+        original_is_file = Path.is_file
+        original_is_dir = Path.is_dir
+
+        def count_file(path: Path) -> bool:
+            file_probes.append(path)
+            return original_is_file(path)
+
+        def count_directory(path: Path) -> bool:
+            directory_probes.append(path)
+            return original_is_dir(path)
+
+        with (
+            patch.object(Path, "is_file", count_file),
+            patch.object(Path, "is_dir", count_directory),
+        ):
+            paths = artifacts.discover_artifacts(
+                self.target,
+                "wanted",
+                "debug",
+                owners={
+                    "wanted": frozenset({"wanted"}),
+                    "other": frozenset({"other"}),
+                    "shared-a": frozenset({"shared"}),
+                    "shared-b": frozenset({"shared"}),
+                },
+            )
+
+        self.assertEqual(
+            set(paths),
+            {owned_library.resolve(), owned_output.resolve(), owned_fingerprint_file.resolve()},
+        )
+        self.assertEqual(
+            file_probes,
+            [owned_library, owned_output, owned_fingerprint_file],
+        )
+        self.assertEqual(
+            set(directory_probes),
+            {
+                deps,
+                builds,
+                fingerprints,
+                self.target / ".fingerprint",
+                owned_build,
+                owned_fingerprint,
+            },
+        )
+        self.assertTrue(unselected.isdisjoint(file_probes))
+        self.assertTrue(unselected.isdisjoint(directory_probes))
+
     def test_batch_artifact_identity_preserves_each_overlapping_closure(self) -> None:
         self.root.mkdir()
         deps = self.target / "debug" / "deps"
@@ -3088,6 +3332,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             directory = fingerprints / f"{name}-111"
             directory.mkdir(parents=True)
             (directory / "output").write_bytes(f"fingerprint-{name}".encode())
+        deadline_ns = time.monotonic_ns() + 1_000_000_000
 
         separate = {
             package: artifacts.artifact_identity(
@@ -3098,6 +3343,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 (),
                 related_packages=("shared",),
                 owners=owners,
+                deadline_ns=deadline_ns,
             )
             for package in ("a", "b")
         }
@@ -3107,6 +3353,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             {"a": ("shared",), "b": ("shared",)},
             "debug",
             owners=owners,
+            deadline_ns=deadline_ns,
         )
 
         self.assertEqual(
@@ -3116,6 +3363,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 {},
                 "debug",
                 owners=owners,
+                deadline_ns=deadline_ns,
             ),
             {},
         )
@@ -3123,6 +3371,244 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertIn("debug/deps/libshared-111.rlib", batch["a"]["files"])
         self.assertNotIn("debug/deps/libb-111.rlib", batch["a"]["files"])
         self.assertNotIn("debug/deps/liba-111.rlib", batch["b"]["files"])
+
+    def _artifact_census(self, packages=None, owners=None, deadline_ns=None):
+        return artifacts.artifact_identities(
+            self.root, self.target, packages or {"a": ()}, "debug",
+            owners=owners or {"a": frozenset({"a"})}, deadline_ns=deadline_ns,
+        )
+
+    def test_artifact_census_restarts_when_an_optional_diagnostic_retires(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        library = deps / "liba-111.rlib"
+        diagnostic = fingerprint / "output-lib-a"
+        library.write_bytes(b"library")
+        diagnostic.write_bytes(b"warning")
+        original = artifacts._file_digest
+
+        def retire(path: Path, deadline_ns: int | None = None) -> str:
+            if path == diagnostic.resolve():
+                diagnostic.unlink()
+            return original(path, deadline_ns)
+
+        with patch.object(artifacts, "_file_digest", side_effect=retire):
+            result = self._artifact_census()
+        files = {"debug/deps/liba-111.rlib": hashlib.sha256(b"library").hexdigest()}
+        self.assertEqual(result, {"a": {"files": files, "digest": artifacts.artifact_digest(files)}})
+
+    def test_artifact_census_accepts_stable_diagnostic_rename_and_addition(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        library = deps / "liba-111.rlib"
+        old = fingerprint / "output-lib-a"
+        new = fingerprint / "output-test-a"
+        added = fingerprint / "output-bin-a"
+        library.write_bytes(b"library")
+        old.write_bytes(b"old")
+        original = artifacts._file_digest
+        changed = False
+
+        def rename(path: Path, deadline_ns: int | None = None) -> str:
+            nonlocal changed
+            digest = original(path, deadline_ns)
+            if path == old.resolve() and not changed:
+                old.rename(new)
+                added.write_bytes(b"added")
+                changed = True
+            return digest
+
+        with patch.object(artifacts, "_file_digest", side_effect=rename):
+            result = self._artifact_census()["a"]["files"]
+        expected = {
+            "debug/.fingerprint/a-111/output-bin-a": hashlib.sha256(b"added").hexdigest(),
+            "debug/.fingerprint/a-111/output-test-a": hashlib.sha256(b"old").hexdigest(),
+            "debug/deps/liba-111.rlib": hashlib.sha256(b"library").hexdigest(),
+        }
+        self.assertEqual(result, expected)
+
+    def test_artifact_census_repeats_after_content_changes(self) -> None:
+        self.root.mkdir()
+        library = self.target / "debug" / "deps" / "liba-111.rlib"
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.write_bytes(b"before")
+        original = artifacts._file_digest
+        reads = 0
+
+        def change(path: Path, deadline_ns: int | None = None) -> str:
+            nonlocal reads
+            reads += 1
+            if reads == 2:
+                path.write_bytes(b"after")
+            return original(path, deadline_ns)
+
+        with patch.object(artifacts, "_file_digest", side_effect=change):
+            result = self._artifact_census()["a"]["files"]
+        self.assertEqual(
+            result,
+            {"debug/deps/liba-111.rlib": hashlib.sha256(b"after").hexdigest()},
+        )
+        self.assertEqual(reads, 3)
+
+    def test_artifact_census_rejects_observed_product_retirement(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        diagnostic = fingerprint / "output-lib-a"
+        diagnostic.write_bytes(b"warning")
+        products = (
+            deps / "liba-111.rlib",
+            deps / "liba-111.rmeta",
+            deps / "a-111.exe",
+            fingerprint / "lib-a",
+        )
+        for product in products:
+            with self.subTest(product=product.name):
+                product.write_bytes(product.name.encode())
+                original = artifacts._file_digest
+
+                def retire(path: Path, deadline_ns: int | None = None) -> str:
+                    digest = original(path, deadline_ns)
+                    if path == product.resolve():
+                        product.unlink()
+                    return digest
+
+                with (
+                    patch.object(artifacts, "_file_digest", side_effect=retire),
+                    self.assertRaisesRegex(BuildIdentityError, "required artifact disappeared") as caught,
+                ):
+                    self._artifact_census()
+                self.assertIn(product.name, str(caught.exception))
+
+    def test_artifact_census_does_not_claim_a_late_product(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        deps.mkdir(parents=True, exist_ok=True)
+        first = deps / "liba-111.rlib"
+        late = deps / "liba-222.rlib"
+        first.write_bytes(b"first")
+        original = artifacts._file_digest
+
+        def add(path: Path, deadline_ns: int | None = None) -> str:
+            digest = original(path, deadline_ns)
+            late.write_bytes(b"late")
+            return digest
+
+        with (
+            patch.object(artifacts, "_file_digest", side_effect=add),
+            self.assertRaisesRegex(BuildIdentityError, "artifact appeared after the first census") as caught,
+        ):
+            self._artifact_census()
+        self.assertIn(late.name, str(caught.exception))
+
+    def test_artifact_census_shares_overlapping_reads_and_ignores_other_owners(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        deps.mkdir(parents=True, exist_ok=True)
+        paths = {name: deps / f"lib{name}-111.rlib" for name in ("a", "b", "shared")}
+        for name, path in paths.items():
+            path.write_bytes(name.encode())
+        owners = {name: frozenset({name}) for name in paths}
+        original_digest = artifacts._file_digest
+        original_discover = artifacts._discover_artifacts_by_owner
+        reads: dict[Path, int] = {}
+        other_versions = 0
+
+        def count(path: Path, deadline_ns: int | None = None) -> str:
+            reads[path] = reads.get(path, 0) + 1
+            return original_digest(path, deadline_ns)
+
+        def mutate_other(*args: object, **kwargs: object):
+            nonlocal other_versions
+            other_versions += 1
+            paths["b"].write_bytes(f"b-{other_versions}".encode())
+            return original_discover(*args, **kwargs)
+
+        with (
+            patch.object(artifacts, "_file_digest", side_effect=count),
+            patch.object(artifacts, "_discover_artifacts_by_owner", side_effect=mutate_other),
+        ):
+            result = self._artifact_census({"a": ("shared",), "shared": ()}, owners)
+        self.assertEqual(reads, {paths["a"].resolve(): 2, paths["shared"].resolve(): 2})
+        self.assertEqual(other_versions, 2)
+        self.assertNotIn("debug/deps/libb-111.rlib", result["a"]["files"])
+
+    def test_artifact_census_content_churn_exhausts_one_deadline(self) -> None:
+        self.root.mkdir()
+        library = self.target / "debug" / "deps" / "liba-111.rlib"
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.write_bytes(b"a")
+        original = artifacts._file_digest
+        ticks = iter(range(100))
+
+        def churn(path: Path, deadline_ns: int | None = None) -> str:
+            digest = original(path, deadline_ns)
+            path.write_bytes(b"b" if path.read_bytes() == b"a" else b"a")
+            return digest
+
+        with (
+            patch.object(artifacts.time, "monotonic_ns", side_effect=lambda: next(ticks)),
+            patch.object(artifacts, "_file_digest", side_effect=churn),
+            self.assertRaisesRegex(BuildIdentityError, "did not converge before its deadline") as caught,
+        ):
+            self._artifact_census(deadline_ns=5)
+        self.assertIsNone(caught.exception.__cause__)
+
+    def test_artifact_census_diagnostic_name_churn_exhausts_one_deadline(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        (deps / "liba-111.rlib").write_bytes(b"library")
+        diagnostic = fingerprint / "output-lib-a"
+        diagnostic.write_bytes(b"warning")
+        original = artifacts._discover_artifacts_by_owner
+        ticks = iter(range(100))
+
+        def rename(*args: object, **kwargs: object):
+            nonlocal diagnostic
+            result = original(*args, **kwargs)
+            replacement = fingerprint / (
+                "output-test-a" if diagnostic.name == "output-lib-a" else "output-lib-a"
+            )
+            diagnostic.rename(replacement)
+            diagnostic = replacement
+            return result
+
+        with (
+            patch.object(artifacts.time, "monotonic_ns", side_effect=lambda: next(ticks)),
+            patch.object(artifacts, "_discover_artifacts_by_owner", side_effect=rename),
+            self.assertRaisesRegex(BuildIdentityError, "did not converge before its deadline") as caught,
+        ):
+            self._artifact_census(deadline_ns=5)
+        self.assertIsNone(caught.exception.__cause__)
+        self.assertEqual([path.read_bytes() for path in fingerprint.glob("output-*")], [b"warning"])
+
+    def test_artifact_census_preserves_unreadable_error_cause(self) -> None:
+        self.root.mkdir()
+        library = self.target / "debug" / "deps" / "liba-111.rlib"
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.write_bytes(b"artifact")
+
+        def unreadable(path: Path, deadline_ns: int | None = None) -> str:
+            error = PermissionError(f"locked: {path}")
+            raise BuildIdentityError(f"cannot hash artifact {path}: {error}") from error
+
+        with (
+            patch.object(artifacts, "_file_digest", side_effect=unreadable),
+            self.assertRaisesRegex(BuildIdentityError, "cannot hash artifact") as caught,
+        ):
+            self._artifact_census()
+        self.assertEqual(type(caught.exception.__cause__), PermissionError)
 
     def test_dependency_snapshot_tracks_reachable_path_sources(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -3182,9 +3668,16 @@ class BuildIdentityTestCase(unittest.TestCase):
             "mnemosyne_memory-0123456789abcdef.d": "mnemosyne-memory",
             "libmnemosyne_extra-0123456789abcdef.rlib": None,
         }
+        owners_by_stem = artifacts._artifact_owners_by_stem(owners)
         for filename, owner in cases.items():
             with self.subTest(filename=filename):
-                self.assertEqual(artifacts._artifact_owner(filename, owners, "mnemosyne-build-util"), owner)
+                self.assertEqual(artifacts._artifact_owner(filename, owners_by_stem), owner)
+        ambiguous = artifacts._artifact_owners_by_stem(
+            {**owners, "mnemosyne-alias": frozenset({"libmnemosyne"})}
+        )
+        self.assertIsNone(
+            artifacts._artifact_owner("libmnemosyne-0123456789abcdef.rmeta", ambiguous)
+        )
 
     def test_dependency_snapshot_is_independent_of_the_export_path(self) -> None:
         """Cargo spells a path package's ID with its absolute directory."""
@@ -3711,10 +4204,10 @@ class CommandLeaseModeTestCase(unittest.TestCase):
         owners = {name: frozenset({name}) for name in self.PACKAGES}
         file_digest = artifacts._file_digest
 
-        def digest(path: Path) -> str:
+        def digest(path: Path, deadline_ns: int | None = None) -> str:
             if unreadable is not None and Path(path) == unreadable and self.answers.exists():
                 raise BuildIdentityError(f"cannot hash artifact {path}: Permission denied")
-            return file_digest(path)
+            return file_digest(path, deadline_ns)
 
         recorded_artifact = identity._recorded_artifact
         reads = []
@@ -4086,6 +4579,290 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
 
     def test_a_build_rustflags_change_is_never_silently_reused(self) -> None:
         self.assert_reconfiguration_is_never_silently_reused("env")
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class EffectiveFuzzEnvironmentTestCase(unittest.TestCase):
+    """The fuzz cfg reaches discovery, dependencies, artifacts, and records."""
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-fuzz-environment-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.root = self.base / "fuzz"
+        self.target = self.base / "target"
+        for relative, text in {
+            "Cargo.toml": (
+                '[package]\nname = "fuzz-probe"\nversion = "0.1.0"\nedition = "2024"\n'
+                '[package.metadata]\ncargo-fuzz = true\n'
+                '[dependencies]\nfuzz-dependency = { path = "dependency" }\n'
+                '[workspace]\nmembers = ["dependency"]\n'
+            ),
+            "src/lib.rs": (
+                "pub const VALUE: u32 = fuzz_dependency::VALUE + 1;\n"
+                "const _: () = assert!(VALUE == 42);\n"
+            ),
+            "dependency/Cargo.toml": (
+                '[package]\nname = "fuzz-dependency"\nversion = "0.1.0"\nedition = "2024"\n'
+            ),
+            "dependency/src/lib.rs": (
+                '#[cfg(not(fuzzing))]\ncompile_error!("dependency requires cfg(fuzzing)");\n'
+                "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n"
+            ),
+        }.items():
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        self.environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in {
+                "CARGO_BUILD_RUSTFLAGS",
+                "CARGO_ENCODED_RUSTFLAGS",
+                "CARGO_TARGET_DIR",
+                "RUSTFLAGS",
+            }
+        }
+        self.environment["CARGO_HOME"] = str(self.base / "cargo-home")
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.root,
+            env=self.environment,
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
+        init_git(self.root)
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-qm", "fuzz fixture")
+
+    def _run_build(self):
+        with patch.dict(os.environ, self.environment, clear=True):
+            return identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+
+    def test_real_fuzz_cfg_build_reuses_and_flag_changes_rebuild(self) -> None:
+        first = self._run_build()
+        second = self._run_build()
+        self.assertEqual([first.status, second.status], ["rebuilt", "reused"])
+        self.assertEqual(first.record_path, second.record_path)
+        changed_environment = dict(self.environment)
+        changed_environment["CARGO_ENCODED_RUSTFLAGS"] = "-C\x1fdebuginfo=1"
+        with patch.dict(os.environ, changed_environment, clear=True):
+            changed = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                ["cargo", "check", "--workspace", "--all-targets", "--locked", "--offline"],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(changed.status, "rebuilt")
+        self.assertNotEqual(changed.record_path, second.record_path)
+
+    def test_tampered_effective_environment_record_is_rejected(self) -> None:
+        result = self._run_build()
+        record = json.loads(result.record_path.read_text(encoding="utf-8"))
+        record["build"]["environment_digest"] = "0" * 64
+        result.record_path.write_text(json.dumps(record), encoding="utf-8")
+        with patch.dict(os.environ, self.environment, clear=True):
+            status, value = check.check_record(
+                self.root,
+                "fuzz-probe",
+                self.target,
+                manifest=self.root / "Cargo.toml",
+                command=[
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )
+        self.assertEqual((status, value["status"]), (2, "stale"))
+
+    def test_cargo_build_and_command_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(environment_marker))]\ncompile_error!("missing environment cfg");\n'
+            '#[cfg(not(command_marker))]\ncompile_error!("missing command cfg");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require merged flags")
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        with patch.dict(os.environ, environment, clear=True):
+            result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "cargo",
+                    "--config",
+                    'build.rustflags=["--cfg","command_marker"]',
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(result.status, "rebuilt")
+
+    def test_cargo_build_and_string_command_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(command_marker))]\ncompile_error!("missing command cfg");\n'
+            '#[cfg(environment_marker)]\ncompile_error!("environment cfg was not replaced");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require string config flags")
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        with patch.dict(os.environ, environment, clear=True):
+            result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "cargo",
+                    "--config",
+                    'build.rustflags="--cfg command_marker"',
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(result.status, "rebuilt")
+
+    def test_cargo_build_and_file_string_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(file_marker))]\ncompile_error!("missing file cfg");\n'
+            '#[cfg(environment_marker)]\ncompile_error!("environment cfg was not replaced");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require file config flags")
+        config = self.base / "string-flags.toml"
+        config.write_text(
+            '[build]\nrustflags = "--cfg file_marker"\n', encoding="utf-8"
+        )
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        arguments = (
+            str(config),
+            f"include=[{json.dumps(config.as_posix())}]",
+        )
+        for argument in arguments:
+            with self.subTest(argument=argument), patch.dict(
+                os.environ, environment, clear=True
+            ):
+                result = identity.run_build(
+                    self.root,
+                    self.root / "Cargo.toml",
+                    ("fuzz-probe",),
+                    self.target,
+                    [
+                        "cargo",
+                        "--config",
+                        argument,
+                        "check",
+                        "--workspace",
+                        "--all-targets",
+                        "--locked",
+                        "--offline",
+                    ],
+                    command_cwd=self.root,
+                )[0]
+            self.assertEqual(result.status, "rebuilt")
+
+    @unittest.skipUnless(shutil.which("env"), "needs env")
+    def test_inline_env_options_fail_before_the_child_runs(self) -> None:
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            self.assertRaisesRegex(BuildIdentityError, "cannot normalize env options"),
+        ):
+            identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "env",
+                    "-u",
+                    "CARGO_ENCODED_RUSTFLAGS",
+                    "RUSTFLAGS=--cfg original",
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )
+
+    @unittest.skipUnless(shutil.which("env"), "needs env")
+    def test_inline_rustflags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(original))]\ncompile_error!("missing inline cfg");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require inline flags")
+        with patch.dict(os.environ, self.environment, clear=True):
+            result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "env",
+                    "RUSTFLAGS=--cfg original",
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(result.status, "rebuilt")
 
 
 @pytest.mark.slow

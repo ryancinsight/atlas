@@ -59,7 +59,10 @@ LOCK = NL.join(
 
 class UrlTests(unittest.TestCase):
     def test_provider_name_ignores_suffix_case_and_trailing_slash(self) -> None:
-        for url in ("https://github.com/ryancinsight/Mnemosyne.git", "https://github.com/ryancinsight/mnemosyne/"):
+        for url in (
+            "https://github.com/ryancinsight/Mnemosyne.GIT?branch=main",
+            "https://github.com/ryancinsight/mnemosyne/",
+        ):
             self.assertEqual(sweep.provider_repo_name(url), "mnemosyne")
 
 
@@ -85,6 +88,132 @@ class LockTests(unittest.TestCase):
                 "git+https://github.com/ryancinsight/Mnemosyne.git#mnemosyne-memory@0.7.0",
             },
         )
+
+    def test_query_pins_are_parsed_but_excluded_from_update_mode(self) -> None:
+        source = f"git+https://GitHub.com/RyAnCiNsIgHt/Leto.GIT?tag=v1#{NEW}"
+        lock = "version = 4\n" + package("pinned", "1.0.0", source)
+        self.assertEqual(sweep.locked_packages(lock)[0].provider, "leto")
+        self.assertEqual(sweep.first_party_packages(lock), [])
+
+    def test_default_https_port_preserves_the_exact_identity_tuple(self) -> None:
+        location = "https://GitHub.com:443/RyAnCiNsIgHt/Leto.GIT?branch=main"
+        lock = "version = 4\n" + package("leto-ops", "0.9.0", f"git+{location}#{NEW}")
+        identity = sweep.locked_packages(lock)[0]
+        self.assertEqual(
+            (identity.name, identity.version, identity.url, identity.rev, identity.provider),
+            ("leto-ops", "0.9.0", location, NEW, "leto"),
+        )
+
+    def test_missing_source_is_a_valid_local_package(self) -> None:
+        lock = "version = 4\n" + package("local", "1.0.0", None)
+        self.assertEqual(sweep.locked_packages(lock), [])
+
+    def test_malformed_first_party_identity_fails_closed(self) -> None:
+        malformed = (
+            "git+https://github.com/ryancinsight/hermes#not-a-commit",
+            "git+https://github.com/ryancinsight/hermes",
+        )
+        for source in malformed:
+            with self.subTest(source=source), self.assertRaisesRegex(
+                ValueError, "unreadable first-party Git source identity"
+            ):
+                sweep.first_party_packages(
+                    "version = 4\n" + package("hermes-simd", "0.5.0", source)
+                )
+
+    def test_first_party_path_shape_matrix(self) -> None:
+        for path in ("/ryancinsight/leto", "/RyAnCiNsIgHt/Leto.GIT/"):
+            source = f"git+https://github.com{path}#{OLD}"
+            lock = "version = 4\n" + package("leto-ops", "0.9.0", source)
+            with self.subTest(path=path):
+                self.assertEqual(sweep.locked_packages(lock)[0].provider, "leto")
+
+        malformed = (
+            "/ryancinsight",
+            "/ryancinsight//leto",
+            "//ryancinsight/leto",
+            "/ryancinsight/leto//",
+            "/ryancinsight/leto/extra",
+            "/ryancinsight/./leto",
+            "/ryancinsight/../leto",
+            "/%72yancinsight/leto",
+            "/ryancinsight/Kwavers",
+        )
+        for path in malformed:
+            source = f"git+https://github.com{path}#{OLD}"
+            lock = "version = 4\n" + package("leto-ops", "0.9.0", source)
+            with self.subTest(path=path), self.assertRaisesRegex(
+                ValueError, "first-party Git source (?:identity|path)"
+            ) as error:
+                sweep.locked_packages(lock)
+            self.assertNotIn(source, str(error.exception))
+
+    def test_first_party_identity_rejects_raw_controls(self) -> None:
+        locations = (
+            r"ht\ntps://github.com/ryancinsight/leto",
+            r"https://git\rhub.com/ryancinsight/leto",
+            r"https://github.com/ryan\tcinsight/leto",
+            r"https://github.com/ryancinsight/le\nto",
+            r"\u0000https://github.com/ryancinsight/leto",
+        )
+        for location in locations:
+            source = f"git+{location}#{OLD}"
+            lock = "version = 4\n" + package("leto-ops", "0.9.0", source)
+            with self.subTest(location=location), self.assertRaisesRegex(
+                ValueError, "unreadable first-party Git source identity"
+            ) as error:
+                sweep.locked_packages(lock)
+            self.assertNotIn(source, str(error.exception))
+
+    def test_unsupported_first_party_transport_fails_without_echoing_source(self) -> None:
+        for source in (
+            f"git+ssh://git@github.com/ryancinsight/hermes#{OLD}",
+            f"git+http://github.com/ryancinsight/hermes#{OLD}",
+        ):
+            lock = "version = 4\n" + package("hermes-simd", "0.5.0", source)
+            with self.subTest(source=source), self.assertRaisesRegex(
+                ValueError, "unsupported first-party Git source authority"
+            ) as error:
+                sweep.locked_packages(lock)
+            self.assertNotIn(source, str(error.exception))
+
+    def test_nondefault_or_malformed_first_party_port_fails_redacted(self) -> None:
+        for port in ("444", "not-a-port"):
+            source = f"git+https://github.com:{port}/ryancinsight/hermes#{OLD}"
+            lock = "version = 4\n" + package("hermes-simd", "0.5.0", source)
+            with self.subTest(port=port), self.assertRaisesRegex(
+                ValueError, "first-party Git source authority"
+            ) as error:
+                sweep.locked_packages(lock)
+            self.assertNotIn(source, str(error.exception))
+
+    def test_similar_hosts_and_owners_are_not_first_party(self) -> None:
+        lock = "version = 4\n" + "".join(
+            (
+                package("host", "cargo-owned", f"git+https://github.com.evil/ryancinsight/x#{OLD}"),
+                package("owner", "cargo-owned", f"git+https://github.com/ryancinsight.evil/x#{OLD}"),
+                package(
+                    "path",
+                    "cargo-owned",
+                    f"git+https://example.invalid/github.com/ryancinsight/tool#{OLD}",
+                ),
+            )
+        )
+        self.assertEqual(sweep.locked_packages(lock), [])
+
+    def test_third_party_source_payloads_are_opaque(self) -> None:
+        lock = "version = 4\n" + "".join(
+            (
+                package("registry", "cargo-owned", "registry+https://exa mple.invalid/index"),
+                package("other", "also-cargo-owned", f"git+https://example.invalid/other#{OLD}"),
+            )
+        )
+        self.assertEqual(sweep.locked_packages(lock), [])
+
+    def test_unknown_first_party_provider_is_preserved_for_caller_diagnosis(self) -> None:
+        source = f"git+https://github.com/ryancinsight/not-registered#{OLD}"
+        lock = "version = 4\n" + package("unknown", "1.0.0", source)
+        self.assertEqual(sweep.locked_packages(lock)[0].provider, "not-registered")
 
 
 class PlanTests(unittest.TestCase):

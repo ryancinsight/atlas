@@ -188,14 +188,7 @@ _STACK_LOCKFILE_STUB = (
 )
 
 
-# A stack checker that reads the lock beside the manifest it is handed, so a
-# verdict names the content that was judged.
-_LOCK_READING_CHECKER = (
-    "import pathlib, sys\n"
-    "manifest = pathlib.Path(sys.argv[sys.argv.index('--manifest-path') + 1])\n"
-    "lock = (manifest.parent / 'Cargo.lock').read_text(encoding='utf-8')\n"
-    "sys.exit(1 if 'FLATTENED' in lock else 0)\n"
-)
+_VALID_LOCK, _STALE_LOCK = "version = 4\n\n[[package]]\nname = \"foo\"\nversion = \"0.1.0\"\n", "version = 4\n\n[[patch.unused]]\nname = \"unused\"\nversion = \"0.1.0\"\n"
 
 
 def _remove_tree(path: str) -> None:
@@ -549,6 +542,10 @@ class GateFixture:
             "#!/usr/bin/env bash\n"
             f'FIXTURE_ROOT="{self.root}"\n'
             'here="$(pwd -W 2>/dev/null || pwd)"\n'
+            'if [ "$*" = "-Z unstable-options config get --format=json" ]; then\n'
+            "  printf '{}\\n'\n"
+            "  exit 0\n"
+            "fi\n"
             'if [ "$1" = "metadata" ]; then\n'
             '  echo "$@" >> "$FIXTURE_ROOT/metadata-calls.log"\n'
             '  case "$*" in */base-*)\n'
@@ -1370,6 +1367,18 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             self.assertEqual(len(content_log.read_text(encoding="utf-8").splitlines()), 3)
             self.assertFalse(identity_log.exists())
             self.assertFalse(fixture.calls.exists())
+
+    def test_skip_local_gate_still_checks_the_complete_meta_tree(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, _ = self._fixture(temp)
+            lock = "tools/criterion-regression/Cargo.lock"
+            _write(fixture.root / lock, _STALE_LOCK)
+            checker = (SCRIPT.parents[1] / "lockfile.py").read_text(encoding="utf-8")
+            fixture.install_stack_lockfile(checker)
+            self._commit(fixture, lock)
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch(), {"SKIP_LOCAL_GATE": "1"})
+            self.assertEqual(code, 1, stderr)
+            self.assertIn(lock, stderr.replace("\\", "/"))
 
     def test_nested_workspace_uses_its_manifest_cwd_and_complete_sequence(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
@@ -2281,14 +2290,27 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             arguments = fixture.lockfile_calls.read_text(encoding="utf-8").split()
             self.assertEqual(arguments[0], "--check")
-            self.assertEqual(arguments[1], "--manifest-path")
+            self.assertEqual(arguments[1], "--check-tree")
             manifest = pathlib.Path(arguments[2])
-            self.assertEqual(manifest.name, "Cargo.toml")
+            self.assertNotEqual(manifest.name, "Cargo.toml")
             self.assertNotIn(
                 os.path.normcase(str(fixture.root.resolve())),
                 os.path.normcase(str(manifest.resolve())),
-                "the manifest is the export's, never the checkout's",
+                "the candidate root is the export's, never the checkout's",
             )
+
+    def test_a_quoted_manifest_path_runs_the_lock_stage(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            _git(fixture.root, "switch", "-q", "-c", "quoted-manifest")
+            _write(fixture.root / "caf\u00e9" / "Cargo.toml", '[workspace]\n')
+            _commit_all(fixture.root, "manifest")
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("quoted-manifest"), {"SKIP_LOCAL_GATE": "1", "LOCKFILE_EXIT": "1"}
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("does not resolve under --locked", stderr)
+            self.assertEqual(fixture.lockfile_calls.read_text().split()[0:2], ["--check", "--check-tree"])
 
     def test_a_lock_the_stack_checker_rejects_refuses_the_push(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -2605,7 +2627,7 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
             with self.subTest(committed=committed):
                 with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
                     fixture = GateFixture.in_stack(pathlib.Path(temp))
-                    push_line = self._lock_revisions(fixture, "# FLATTENED\n", "# sound\n")
+                    push_line = self._lock_revisions(fixture, _STALE_LOCK, _VALID_LOCK)
                     _write(
                         fixture.stack / "scripts" / "lockfile.py",
                         "import sys\nsys.exit(0)\n",
@@ -2622,7 +2644,9 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
     ) -> str:
         """Push a branch holding `pushed_lock` while the checkout's HEAD holds
         `head_lock`, and return the push line."""
-        fixture.install_stack_lockfile(_LOCK_READING_CHECKER)
+        checker = (SCRIPT.parents[1] / "lockfile.py").read_text(encoding="utf-8")
+        fixture.install_stack_lockfile(checker)
+        fixture.set_cargo_behavior("missing"); fixture.cargo_launcher.unlink(missing_ok=True)
         _git(fixture.root, "switch", "-q", "-c", "feat")
         (fixture.root / "Cargo.lock").write_text(pushed_lock, encoding="utf-8")
         _commit_all(fixture.root, "pushed lock")
@@ -2638,14 +2662,15 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
         flattened one, and a flattened push is refused while HEAD is sound."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture.in_stack(pathlib.Path(temp))
-            push_line = self._lock_revisions(fixture, "# sound\n", "# FLATTENED\n")
+            push_line = self._lock_revisions(fixture, _VALID_LOCK, _STALE_LOCK)
             code, stderr = fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1"})
             self.assertEqual(code, 0, stderr)
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = GateFixture.in_stack(pathlib.Path(temp))
-            push_line = self._lock_revisions(fixture, "# FLATTENED\n", "# sound\n")
+            push_line = self._lock_revisions(fixture, _STALE_LOCK, _VALID_LOCK)
             code, stderr = fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1"})
             self.assertEqual(code, 1, stderr)
+            self.assertIn("Cargo.lock: 1 [[patch.unused]] table(s): overlay residue", stderr)
             self.assertIn("does not resolve under --locked", stderr)
 
 
@@ -4266,7 +4291,7 @@ exit "$status"
                 0,
             )
             block = self._export_block(
-                'if ! export_revision "$(git rev-parse --verify "$lock_rev^{commit}")" "$lock_export"; then',
+                'if ! lock_commit=',
                 '\nfi\nif [ -n "$unmatched_stack" ]',
             ) + "\nfi"
             script = self._export_function() + "\n" + block

@@ -169,17 +169,6 @@ def test_cargo_directory_keeps_the_exported_overlay_out_of_resolution(tmp_path, 
     assert (export / ".cargo" / "config.toml").read_text() == config
 
 
-def test_a_cargo_fuzz_crate_builds_with_the_fuzzing_cfg(monkeypatch):
-    fuzz = [{"id": "f", "name": "f", "metadata": {"cargo-fuzz": True}}]
-    plain = [{"id": "p", "name": "p", "metadata": None}, {"id": "q", "name": "q"}]
-    monkeypatch.setenv("RUSTFLAGS", "-Dwarnings")
-    assert gate.clippy_environment(fuzz)["RUSTFLAGS"] == "-Dwarnings --cfg fuzzing"
-    assert gate.clippy_environment(plain)["RUSTFLAGS"] == "-Dwarnings"
-    monkeypatch.delenv("RUSTFLAGS")
-    assert gate.clippy_environment(fuzz)["RUSTFLAGS"] == "--cfg fuzzing"
-    assert "RUSTFLAGS" not in gate.clippy_environment(plain)
-
-
 @pytest.mark.parametrize("command", ["clippy", "measure"])
 @pytest.mark.parametrize("compiles", [True, False])
 def test_cli_uses_the_command_directory_for_every_cargo_step(tmp_path, monkeypatch, capsys,
@@ -236,6 +225,11 @@ def test_cli_uses_the_command_directory_for_every_cargo_step(tmp_path, monkeypat
 
 
 def test_clippy_runs_a_fuzz_manifest_and_names_its_packages(tmp_path, monkeypatch):
+    (tmp_path / "fuzz").mkdir()
+    (tmp_path / "fuzz" / "Cargo.toml").write_text(
+        '[package]\nname = "member-fuzz"\nversion = "0.1.0"\n'
+        '[package.metadata]\ncargo-fuzz = true\n'
+    )
     seen = tmp_path / "seen.txt"
     stub = tmp_path / "cargo_stub.py"
     stub.write_text(
@@ -248,18 +242,25 @@ def test_clippy_runs_a_fuzz_manifest_and_names_its_packages(tmp_path, monkeypatc
         "    print(json.dumps({'workspace_root': os.path.dirname(sys.argv[sys.argv.index('--manifest-path') + 1]), 'packages': [{'id': 'id-root', 'name': 'root'}]}))\n"
         "else:\n"
         f"    pathlib.Path({str(seen)!r}).write_text(\n"
-        "        sys.argv[sys.argv.index('--manifest-path') + 1] + '|' + os.environ.get('RUSTFLAGS', ''))\n"
+        "        sys.argv[sys.argv.index('--manifest-path') + 1] + '|' + "
+        "os.environ.get('CARGO_ENCODED_RUSTFLAGS', ''))\n"
     )
     monkeypatch.setattr(gate, "cargo", lambda config: [sys.executable, str(stub)])
+    monkeypatch.setenv("CARGO_ENCODED_RUSTFLAGS", "-C\x1fdebuginfo=1")
     monkeypatch.delenv("RUSTFLAGS", raising=False)
     names = tmp_path / "names.txt"
     assert gate.main(["clippy", "--export", str(tmp_path), "--sites", str(tmp_path / "s.json"),
                       "--manifest", "fuzz/Cargo.toml", "--packages-out", str(names)]) == 0
-    assert seen.read_text() == f"{tmp_path / 'fuzz' / 'Cargo.toml'}|--cfg fuzzing"
+    assert seen.read_text() == (
+        f"{tmp_path / 'fuzz' / 'Cargo.toml'}|-C\x1fdebuginfo=1\x1f--cfg\x1ffuzzing"
+    )
     assert names.read_text(encoding="utf-8") == "member-fuzz\n"
 
 
 def test_a_failing_clippy_fails_the_step(tmp_path, monkeypatch):
+    (tmp_path / "Cargo.toml").write_text(
+        '[package]\nname = "core"\nversion = "0.1.0"\n'
+    )
     stub = tmp_path / "cargo_stub.py"
     stub.write_text(
         "import json, os, sys\n"
@@ -276,6 +277,9 @@ def test_a_failing_clippy_fails_the_step(tmp_path, monkeypatch):
 
 
 def test_clippy_forwards_each_rendered_diagnostic(tmp_path, monkeypatch, capsys):
+    (tmp_path / "Cargo.toml").write_text(
+        '[package]\nname = "core"\nversion = "0.1.0"\n'
+    )
     record = json.loads(message("id-core", "src/lib.rs", 3))
     record["message"]["rendered"] = "warning: using a potentially dangerous silent `as` conversion\n"
     (tmp_path / "clippy.jsonl").write_text(json.dumps(record) + "\n")

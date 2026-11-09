@@ -51,6 +51,7 @@ from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lockfile  # noqa: E402
+import pre_push_gate  # noqa: E402
 from atlas_git_process import (  # noqa: E402
     GitProcessError,
     GitProcessResult,
@@ -330,6 +331,8 @@ def git_result(
     *args: str,
     stdin: bytes | None = None,
     index: Path | None = None,
+    env: dict[str, str] | None = None,
+    timeout: int = GIT_DEADLINE_SECONDS,
 ) -> GitProcessResult:
     """Run bounded git in `repo` with the inherited repository selection removed.
 
@@ -343,7 +346,7 @@ def git_result(
     member's fetched default without reading or touching its working tree or
     its real index -- which may belong to a peer mid-edit.
     """
-    env = clean_process_env()
+    env = clean_process_env(env)
     if index is not None:
         env["GIT_INDEX_FILE"] = str(index)
     try:
@@ -352,7 +355,7 @@ def git_result(
             tuple(args),
             stdin=stdin,
             env=env,
-            timeout=GIT_DEADLINE_SECONDS,
+            timeout=timeout,
         )
     except GitProcessError as error:
         raise RuntimeError(str(error)) from error
@@ -363,6 +366,8 @@ def git_bytes(
     *args: str,
     stdin: bytes | None = None,
     index: Path | None = None,
+    env: dict[str, str] | None = None,
+    timeout: int = GIT_DEADLINE_SECONDS,
 ) -> bytes:
     """Run bounded git in `repo`; raise with git's message on failure.
 
@@ -370,7 +375,7 @@ def git_bytes(
     member's fetched default without reading or touching its working tree or
     its real index -- which may belong to a peer mid-edit.
     """
-    result = git_result(repo, *args, stdin=stdin, index=index)
+    result = git_result(repo, *args, stdin=stdin, index=index, env=env, timeout=timeout)
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(f"git {' '.join(args)} in {repo.name}: {detail}")
@@ -382,9 +387,11 @@ def git_in(
     *args: str,
     stdin: bytes | None = None,
     index: Path | None = None,
+    env: dict[str, str] | None = None,
+    timeout: int = GIT_DEADLINE_SECONDS,
 ) -> str:
     """Run bounded git and decode its output as replacement-tolerant UTF-8."""
-    return git_bytes(repo, *args, stdin=stdin, index=index).decode(
+    return git_bytes(repo, *args, stdin=stdin, index=index, env=env, timeout=timeout).decode(
         "utf-8", errors="replace"
     ).strip()
 
@@ -590,7 +597,11 @@ def push_hook_branch(
         hook_path.write_bytes(pre_push_hook)
         hook_path.chmod(0o755)
         command_config = ["-c", f"core.hooksPath={temporary}"]
+        environment = clean_process_env()
         if prepared_tools is not None:
+            runtime = write_pre_push_runtime(ROOT, prepared_tools, Path(temporary) / "runtime")
+            environment["ATLAS_PRE_PUSH_RUNTIME"] = runtime.as_posix()
+            environment["ATLAS_PRE_PUSH_PYTHON"] = Path(sys.executable).resolve().as_posix()
             command_config.extend(("-c", f"atlas.preparedTools={prepared_tools}"))
         git_in(
             repo,
@@ -600,6 +611,8 @@ def push_hook_branch(
             f"--force-with-lease={ref}:{expected}",
             "origin",
             f"{commit}:{ref}",
+            env=environment,
+            timeout=pre_push_gate.DEADLINE_SECONDS,
         )
 
 
@@ -1006,24 +1019,12 @@ def common_git_dir(repo: Path) -> Path:
     return Path(git_in(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"))
 
 
-def write_hook_shims(atlas: Path) -> Path:
-    """The shim directory for `atlas`'s owned hooks, written in its git directory.
-
-    The common git directory, so a linked Atlas tree and the main one share
-    one set, and no checkout, branch switch or `git clean` of any Atlas tree
-    touches it. Each shim's bytes are written exactly (LF), whatever
-    `core.autocrlf` says.
-    """
-    commit = hook_source_commit(atlas)
-    if commit is None:
-        raise RuntimeError(f"{atlas} has no {HOOK_SOURCE_REF}; fetch it first")
-    git_dir = common_git_dir(atlas)
-    shims = git_dir / "atlas-hooks"
-    shims.mkdir(parents=True, exist_ok=True)
+def write_pre_push_runtime(atlas: Path, commit: str, destination: Path) -> Path:
+    """Materialize one committed process-owner family without changing live shims."""
     # A source-keyed directory makes the runner family one immutable unit. An
     # interrupted install cannot leave a live shim importing a mixture of old
     # and new process-owner modules.
-    runtime = shims / "pre-push-runtime" / commit
+    runtime = destination / commit
     runtime_existed = runtime.is_dir()
     runtime.mkdir(parents=True, exist_ok=True)
     try:
@@ -1053,6 +1054,24 @@ def write_hook_shims(atlas: Path) -> Path:
             if next(runtime.parent.iterdir(), None) is None:
                 runtime.parent.rmdir()
         raise
+    return runtime
+
+
+def write_hook_shims(atlas: Path) -> Path:
+    """The shim directory for `atlas`'s owned hooks, written in its git directory.
+
+    The common git directory, so a linked Atlas tree and the main one share
+    one set, and no checkout, branch switch or `git clean` of any Atlas tree
+    touches it. Each shim's bytes are written exactly (LF), whatever
+    `core.autocrlf` says.
+    """
+    commit = hook_source_commit(atlas)
+    if commit is None:
+        raise RuntimeError(f"{atlas} has no {HOOK_SOURCE_REF}; fetch it first")
+    git_dir = common_git_dir(atlas)
+    shims = git_dir / "atlas-hooks"
+    shims.mkdir(parents=True, exist_ok=True)
+    runtime = write_pre_push_runtime(atlas, commit, shims / "pre-push-runtime")
     # Read as the shim reads it: replace refs ignored.
     listing = git_in(
         atlas, "--no-replace-objects", "ls-tree", "--name-only", f"{commit}:scripts/git-hooks"

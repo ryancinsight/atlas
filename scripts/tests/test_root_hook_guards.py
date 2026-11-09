@@ -40,6 +40,95 @@ def install_hook(repo: Path) -> None:
     (repo / ".githooks" / "pre-commit").chmod(0o755)
 
 
+class RootLockGateTests(unittest.TestCase):
+    def test_lock_gate_checks_raw_committed_inputs(self) -> None:
+        function = re.search(r"(?ms)^lock_gate\(\) \{\n.*?^\}\n", PRE_PUSH.read_text())
+        self.assertIsNotNone(function)
+        cases = (
+            ("valid", "tool", "", 'version = "0.1.0"', 0),
+            ("ignored", "hidden/tool", "hidden export-ignore\n", 'version = "0.0.1"', 1),
+            ("local_attributes", "hidden/tool", "", 'version = "0.0.1"', 1),
+            ("substituted", "tool", "**/Cargo.lock export-subst\n", 'version = "$Format:%s$"', 1),
+            ("quoted", "caf\u00e9", "", 'version = "0.0.1"', 1),
+            ("ideographs", "\u6e2c\u8a66", "", 'version = "0.0.1"', 1),
+            ("textconv", "tool", "tool/Cargo.lock diff=hidden\n", 'version = "0.0.1"', 1),
+        )
+        for case, directory, attributes, version, expected in cases:
+            with self.subTest(case), tempfile.TemporaryDirectory() as temporary:
+                repo = Path(temporary) / "repo"
+                repo.mkdir()
+                environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+                environment.update(PYTHON=sys.executable, PYTHONUTF8="1", TMPDIR=temporary,
+                                   GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+
+                if case == "ideographs":
+                    environment.update(PYTHONUTF8="0", PYTHONIOENCODING="cp1252")
+
+                def git(*args: str) -> str:
+                    return subprocess.run(
+                        ["git", "-C", str(repo), "-c", "user.name=Test",
+                         "-c", "user.email=test@example.invalid", *args],
+                        env=environment, check=True, capture_output=True, text=True,
+                        encoding="utf-8", timeout=60,
+                    ).stdout.strip()
+
+                git("init", "-q", "-b", "main")
+                (repo / "scripts").mkdir()
+                checker = repo / "scripts/lockfile.py"
+                shutil.copyfile(ROOT / "scripts/lockfile.py", checker)
+                git("add", "scripts/lockfile.py")
+                git("commit", "-qm", "checker")
+                base = git("rev-parse", "HEAD")
+                owner = repo / directory
+                (owner / "src").mkdir(parents=True)
+                (owner / "src/lib.rs").write_text("")
+                (owner / "Cargo.toml").write_text(
+                    '[package]\nname = "tool"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n'
+                )
+                lock = 'version = 4\n[[package]]\nname = "tool"\n' + version + "\n"
+                (owner / "Cargo.lock").write_text(lock)
+                (repo / ".gitattributes").write_text(attributes)
+                if case == "local_attributes":
+                    (repo / ".git/info/attributes").write_text("hidden export-ignore\n")
+                good = repo / "good"
+                (good / "src").mkdir(parents=True)
+                (good / "src/lib.rs").write_text("")
+                (good / "Cargo.toml").write_text('[package]\nname = "good"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n')
+                (good / "Cargo.lock").write_text('version = 4\n[[package]]\nname = "good"\nversion = "0.1.0"\n')
+                if case == "textconv":
+                    git("config", "diff.hidden.textconv", "true")
+                    (owner / "Cargo.lock").write_text(lock.replace('version = "0.0.1"', 'version = "0.1.0"'))
+                    git("add", directory, "good", ".gitattributes", "scripts/lockfile.py")
+                    git("commit", "-qm", "initial lock")
+                    base = git("rev-parse", "HEAD")
+                    (owner / "Cargo.lock").write_text(lock)
+                # An untrusted candidate cannot supply its own passing checker.
+                checker.write_text("raise SystemExit(0)\n")
+                git("add", directory, "good", ".gitattributes", "scripts/lockfile.py")
+                git("commit", "-qm", "0.1.0")
+                tip = git("rev-parse", "HEAD")
+                (owner / "Cargo.lock").write_text("unrelated working lock\n")
+                script = function.group(0) + (
+                    '\natlas_root="$1"; gate_base="$2"; trusted_rescue_ref="$2"\n'
+                    'lock_gate "$3"\n'
+                )
+                result = subprocess.run(
+                    ["bash", "-o", "pipefail", "-c", script, "lock_gate", repo.as_posix(), base, tip],
+                    env=dict(environment, GIT_DIR=str(repo / ".git"), GIT_WORK_TREE=str(repo),
+                             GIT_INDEX_FILE=str(repo / ".git/index")),
+                    capture_output=True, text=True, encoding="utf-8", timeout=60,
+                )
+                self.assertEqual(git("write-tree"), git("rev-parse", f"{tip}^{{tree}}"))
+                self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+                self.assertIn("checking lock owner", result.stdout)
+                if expected:
+                    self.assertIn("does not resolve under --locked", result.stderr)
+                else:
+                    self.assertIn("resolves under --locked", result.stdout)
+                self.assertEqual((owner / "Cargo.lock").read_text(), "unrelated working lock\n")
+                self.assertEqual(sorted(path.name for path in Path(temporary).iterdir()), ["repo"])
+
+
 class RootHookGuardTests(unittest.TestCase):
     def test_provider_config_change_runs_without_book_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

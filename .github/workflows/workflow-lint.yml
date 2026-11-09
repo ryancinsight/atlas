@@ -24,12 +24,6 @@ name: Workflow lint (shared guard)
 
 on:
   workflow_call:
-    inputs:
-      version:
-        description: actionlint release to run
-        required: false
-        default: "1.7.12"
-        type: string
 
 permissions:
   contents: read
@@ -43,23 +37,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # Pinned by release tag. The version matters beyond reproducibility:
-      # actionlint carries GitHub's permission scopes and context tables in its
-      # own source, so an older release reports a newer scope as unknown —
-      # 1.7.7 rejected `artifact-metadata: write`, which is valid.
-      - name: Install actionlint
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
-          archive="actionlint_${VERSION}_linux_amd64.tar.gz"
-          url="https://github.com/rhysd/actionlint/releases/download/v${VERSION}/${archive}"
-          curl --fail --silent --show-error --location --output "$archive" "$url"
-          tar --extract --gzip --file "$archive" actionlint
-          ./actionlint --version
-      # `-color` keeps the annotations readable in the job log; the default
-      # rule set is the whole point, so no rules are disabled here. A member
-      # that needs an exception carries its own `.github/actionlint.yaml`,
-      # which actionlint reads from the checkout.
-      - name: Lint the workflows
-        run: ./actionlint -color
+      # The self-reference resolves to this called workflow's repository and
+      # exact revision, including when a member repository invokes it.
+      - name: Run the native workflow analyzers
+        uses: $/.github/actions/workflow-lint
+        with:
+          candidate: ${{ github.sha }}

@@ -12,14 +12,15 @@
 name: atlas-conformance
 
 on:
-  # No `paths` filter on pull requests, deliberately. Both jobs below are
-  # required status checks named in the `main` ruleset, and a required check
+  # No `paths` filter on pull requests, deliberately. The workflow-lint and
+  # aggregate jobs below are required checks in the `main` ruleset, and a check
   # that does not run never reports -- so a pull request touching only an
   # unlisted path (a `.gitignore` edit, say) is blocked forever rather than
   # merged unverified. That is the ruleset working as intended; the filter
   # was the defect. A filter belongs on a job that is *not* required, or on
   # the push trigger below, where nothing waits on the report.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
     paths:
@@ -67,15 +68,12 @@ jobs:
       contents: read
 
   conformance-check:
-    name: Debt-class ratchet (counts non-increasing vs committed baseline)
-    if: github.event_name != 'schedule'
+    name: Debt-class inventory
+    if: github.event_name != 'schedule' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
-    # The bundled script suite below is the budget blowout under runner
-    # contention: a 20-minute job cap plus the runner's kill grace ended every
-    # saturated attempt at exactly 25:00 mid-suite, so the ratchet verdict
-    # never reported and no gate PR could merge. 45 covers the suite at
-    # contention multiples while a genuinely hung run is still reclaimed.
-    timeout-minutes: 45
+    # The stack scan and focused audits finish in about four minutes on the
+    # hosted runner. The script suite runs once, partitioned, in `script-tests`.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -191,18 +189,6 @@ jobs:
         shell: bash
         run: python3 scripts/atlas-book-gate-audit.py --check
 
-      - name: Script regression tests
-        shell: bash
-        # The whole suite under its own runner (pytest.ini, requirements-test.txt);
-        # the previous single-file unittest call gated 1 of 35 files. No pipe on
-        # the pytest line: the step's verdict is pytest's exit code, unmasked.
-        # Reports even when the ratchet step above fails: the test suite and the
-        # debt ratchet are independent verdicts, and a fleet debt regression must
-        # not hide whether the scripts still pass their tests.
-        if: always()
-        run: |
-          python3 -m pytest scripts/tests -q -p no:cacheprovider
-
       - name: Committed Cargo.lock form (standalone, not overlay-stripped)
         shell: bash
         run: |
@@ -293,6 +279,39 @@ jobs:
           name: conformance-check-log
           path: ${{ runner.temp }}/conformance-check.log
           if-no-files-found: ignore
+
+  script-tests:
+    if: github.event_name != 'schedule' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    uses: ./.github/workflows/python-tests.yml
+    permissions:
+      contents: read
+
+  conformance-result:
+    name: Debt-class ratchet (counts non-increasing vs committed baseline)
+    if: always() && github.event_name != 'schedule'
+    needs: [workflow-lint, conformance-check, script-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require every conformance verdict
+        shell: bash
+        env:
+          PULL_REQUEST_DRAFT: ${{ github.event.pull_request.draft || false }}
+          WORKFLOW_LINT_RESULT: ${{ needs.workflow-lint.result }}
+          CONFORMANCE_RESULT: ${{ needs.conformance-check.result }}
+          SCRIPT_TESTS_RESULT: ${{ needs.script-tests.result }}
+        run: |
+          set -euo pipefail
+          if [ "$PULL_REQUEST_DRAFT" = "true" ]; then
+            echo "::error::Draft pull requests are not eligible for the required conformance verdict."
+            exit 1
+          fi
+          for result in "$WORKFLOW_LINT_RESULT" "$CONFORMANCE_RESULT" "$SCRIPT_TESTS_RESULT"; do
+            if [ "$result" != "success" ]; then
+              echo "::error::A required conformance dependency ended with '$result'."
+              exit 1
+            fi
+          done
 
   pin-drift:
     name: Gitlink pins at their members' default branches

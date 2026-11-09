@@ -141,6 +141,7 @@ class Workspace:
 
     root: pathlib.Path
     packages: list[dict]
+    environment: dict[str, str]
 
     def names(self) -> dict[str, str]:
         """Package id to package name, for the workspace members."""
@@ -154,31 +155,22 @@ def workspace(export: pathlib.Path, config: pathlib.Path | None = None,
 
     Omission runs Cargo from the export, preserving the legacy invocation.
     """
+    from atlas_build_inputs import effective_compiler_environment
+
+    directory = command_cwd or export
+    manifest_path = export / manifest
+    cargo_command = cargo(config)
+    environment = effective_compiler_environment(
+        manifest_path, directory, cargo_command
+    )
     out = subprocess.run(
-        [*cargo(config), "metadata", "--no-deps", "--format-version", "1",
-         "--manifest-path", str(export / manifest)],
-        cwd=command_cwd or export,
+        [*cargo_command, "metadata", "--no-deps", "--format-version", "1",
+         "--manifest-path", str(manifest_path)],
+        cwd=directory, env=environment,
         capture_output=True, text=True, encoding="utf-8", check=True,
     ).stdout
     record = json.loads(out)
-    return Workspace(pathlib.Path(record["workspace_root"]), record["packages"])
-
-
-FUZZ_CFG = "--cfg fuzzing"
-
-
-def clippy_environment(packages: list[dict]) -> dict[str, str]:
-    """The environment clippy runs in: `--cfg fuzzing` for a cargo-fuzz crate.
-
-    `cargo fuzz` compiles its targets with `--cfg fuzzing`, and fuzz-only
-    hooks in the crates under test sit behind that cfg, so a fuzz target does
-    not compile without it. `RUSTFLAGS` replaces config `build.rustflags`; the
-    stack config sets none.
-    """
-    env = dict(os.environ)
-    if any((p.get("metadata") or {}).get("cargo-fuzz") is True for p in packages):
-        env["RUSTFLAGS"] = f"{env.get('RUSTFLAGS', '')} {FUZZ_CFG}".strip()
-    return env
+    return Workspace(pathlib.Path(record["workspace_root"]), record["packages"], environment)
 
 
 def sites(messages: Iterable[str], export: pathlib.Path,
@@ -235,7 +227,7 @@ def run_clippy(export: pathlib.Path, packages: Iterable[str],
     names = space.names()
     proc = subprocess.Popen(
         clippy_command(export, packages, config, manifest), cwd=command_cwd or export,
-        env=clippy_environment(space.packages),
+        env=space.environment,
         stdout=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
     )
     assert proc.stdout is not None

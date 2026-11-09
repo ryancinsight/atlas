@@ -60,7 +60,8 @@ EXPECTED_JOBS = {
                "permissions": {"contents": "read"},
                "with": {"release-gate": True, "package": "${{ needs.plan.outputs.packages }}",
                         "rust-toolchain": "${{ inputs.semver-toolchain || inputs.rust-toolchain }}",
-                        "apt-packages": "${{ inputs.apt-packages }}"}},
+                        "apt-packages": "${{ inputs.apt-packages }}",
+                        "atlas-ref": "3714b5d6ff6618b319263fd676817603c8a998f1"}},
     "publish": {"needs": ["plan", "semver"], "if": "needs.plan.outputs.count != '0'",
                 "runs-on": "ubuntu-latest", "timeout-minutes": 30,
                 "concurrency": {"group": "crates-publish-pending-${{ github.repository }}",
@@ -167,7 +168,9 @@ class PendingWorkflowTests(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         pins = set(re.findall(r"ryancinsight/atlas/\.github/(?:actions/crates-pending|workflows/semver-gate\.yml)@(\S+)", text))
         self.assertEqual(len(pins), 1, pins)
-        self.assertRegex(pins.pop(), r"^[0-9a-f]{40}$")
+        pin = pins.pop()
+        self.assertRegex(pin, r"^[0-9a-f]{40}$")
+        self.assertEqual(self.jobs["semver"]["with"]["atlas-ref"], pin)
 
     def test_the_pinned_revision_carries_this_tree_s_action_and_gate(self) -> None:
         # CI runs the copies at the pin, not the files these tests read, so a pin

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Sequence
 
 from atlas_build_artifacts import (
+    ARTIFACT_CENSUS_SECONDS,
     artifact_identities,
     artifact_identity,
     artifact_owners,
@@ -20,7 +21,13 @@ from atlas_build_artifacts import (
     validate_artifact_paths,
 )
 from atlas_build_dep_info import current_inputs, package_layout, record_inputs
-from atlas_build_inputs import _dependency_data, build_spec
+from atlas_build_inputs import (
+    _dependency_data,
+    build_spec,
+    compiler_environment,
+    effective_compiler_command,
+    effective_compiler_environment,
+)
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
@@ -94,6 +101,50 @@ def _run_checked(command: Sequence[str], root: Path, environment: dict[str, str]
 
 
 def run_build(
+    root: Path,
+    manifest: Path,
+    packages: Sequence[str],
+    target_dir: Path,
+    command: Sequence[str],
+    profile: str = "debug",
+    target: str = "host",
+    features: str = "",
+    artifact_paths: Sequence[Path] = (),
+    clean_command: Sequence[str] | None = None,
+    lease_seconds: int = DEFAULT_LEASE_SECONDS,
+    command_cwd: Path | None = None,
+    command_key: str | None = None,
+    ignore_paths: Sequence[Path] = (),
+    lease_wait_seconds: float = 0,
+    selection: Sequence[str] = (),
+) -> tuple[BuildResult, ...]:
+    """Run a build under the manifest's effective compiler environment."""
+    execution_root = _canonical(command_cwd or root, strict=True)
+    environment = effective_compiler_environment(manifest, execution_root, command)
+    command = effective_compiler_command(command, environment)
+    environment["CARGO_TARGET_DIR"] = _canonical(target_dir).as_posix()
+    with compiler_environment(environment):
+        return _run_build(
+            root,
+            manifest,
+            packages,
+            target_dir,
+            command,
+            profile,
+            target,
+            features,
+            artifact_paths,
+            clean_command,
+            lease_seconds,
+            command_cwd,
+            command_key,
+            ignore_paths,
+            lease_wait_seconds,
+            selection,
+        )
+
+
+def _run_build(
     root: Path,
     manifest: Path,
     packages: Sequence[str],
@@ -432,6 +483,9 @@ def run_build(
             _write_git_stamps(dependencies, directory, git_built[package], building=False)
         # A file several packages' records list is read once per run.
         settled: dict[str, str] = {}
+        census_deadline_ns = time.monotonic_ns() + int(
+            ARTIFACT_CENSUS_SECONDS * 1_000_000_000
+        )
         discovered = {}
         if not artifact_paths:
             discovered = artifact_identities(
@@ -448,8 +502,9 @@ def run_build(
                 manifest,
                 execution_root,
                 workspace_owners(),
+                deadline_ns=census_deadline_ns,
             )
-        results = []
+        prepared = []
         for package in packages:
             dependencies, spec = inputs[package]
             if shared_recorded[package] and not artifact_paths:
@@ -475,7 +530,7 @@ def run_build(
                     named[package]["files"],
                     workspace_owners(),
                     settled,
-                    deadline_ns,
+                    census_deadline_ns,
                     discovered[package],
                 )
             else:
@@ -497,22 +552,31 @@ def run_build(
                     if artifact_paths
                     else discovered[package]
                 )
-            _write_atomic(
-                records[package],
-                {
-                    "version": VERSION,
-                    "source": spec.source.as_dict(),
-                    "build": spec.as_dict(),
-                    "dependencies": dependencies,
-                    "artifact": artifact,
-                    # Declared paths are not a closure: the repository decides.
-                    "inputs": {}
-                    if artifact_paths
-                    else record_inputs(
-                        target_dir, artifact["files"], recorded_packages[package], layout
-                    ),
-                },
+            prepared.append(
+                (
+                    package,
+                    spec,
+                    artifact,
+                    {
+                        "version": VERSION,
+                        "source": spec.source.as_dict(),
+                        "build": spec.as_dict(),
+                        "dependencies": dependencies,
+                        "artifact": artifact,
+                        # Declared paths are not a closure: the repository decides.
+                        "inputs": {}
+                        if artifact_paths
+                        else record_inputs(
+                            target_dir, artifact["files"], recorded_packages[package], layout
+                        ),
+                    },
+                )
             )
+        if time.monotonic_ns() >= census_deadline_ns:
+            raise IdentityError("artifact census did not converge before its deadline")
+        results = []
+        for package, spec, artifact, record in prepared:
+            _write_atomic(records[package], record)
             # Cleaned by its own rule or by another package's in this run.
             cleaned = stale[package] or package in rebuilt
             results.append(

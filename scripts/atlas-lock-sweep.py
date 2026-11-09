@@ -43,6 +43,11 @@ For each registered member, read from its fetched default branch:
 No working tree is created or switched, so a member at its two-worktree bound
 is swept like any other: the bound governs lanes, and this tool needs none.
 
+`--retarget-sources` constructs a source-only candidate instead of consulting
+provider branch heads. It accepts only an unchanged package graph validated by
+full locked offline Cargo metadata, then runs the ordinary native check. Missing
+cached commits or graph changes fail; this mode never falls back to an update.
+
 A rerun with the same targets resumes: a member whose sweep branch is already
 pushed reports its open PR as pending, or opens the PR an interrupted run did
 not, without resolving or pushing again. Each member is fetched again just
@@ -58,6 +63,10 @@ runner is spent.
 from __future__ import annotations
 
 import argparse
+import copy
+import json
+import tomllib
+from collections.abc import Callable
 import hashlib
 import os
 import re
@@ -66,7 +75,9 @@ import sys
 import tarfile
 import tempfile
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
@@ -76,11 +87,9 @@ from atlas_pull_request import open_pull_request  # noqa: E402
 from atlas_stack import ROOT, git, registered_members  # noqa: E402
 
 LOG_ROOT = ROOT / "output" / "lock-sweep"
-FIRST_PARTY_GIT = "git+https://github.com/ryancinsight/"
 # A pushed member branch runs the member's whole pre-push gate, which can queue
 # on the shared build-identity lease (900 s) before it builds.
 PUSH_TIMEOUT_SECONDS = 3000
-SOURCE_LINE = re.compile(r'^source = "(?P<source>[^"]+)"$', re.M)
 
 
 @dataclass(frozen=True)
@@ -135,9 +144,24 @@ class Outcome:
 # --- pure functions (unit-tested) ---------------------------------------------
 
 
+class SourceOperation(Enum):
+    """How provider revisions and their lock representation change."""
+
+    UPDATE = "update"
+    RETARGET = "retarget"
+
+    def lock_bytes(self, base: bytes, updated: bytes) -> bytes:
+        """Keep a validated retarget exact; format a generated update like its base."""
+        return (updated if self is SourceOperation.RETARGET
+                else with_line_endings_of(base, updated))
+
+
 def normalize_repo_url(url: str) -> str:
-    """Canonical form for a first-party GitHub URL: lower-case, no `.git`."""
-    return url.rstrip("/").removesuffix(".git").lower()
+    """Canonical provider URL: lower-case, without query or `.git`."""
+    base = url.split("?", 1)[0].rstrip("/")
+    if base.lower().endswith(".git"):
+        base = base[:-4]
+    return base.lower()
 
 
 def provider_repo_name(url: str) -> str:
@@ -145,31 +169,87 @@ def provider_repo_name(url: str) -> str:
     return normalize_repo_url(url).rsplit("/", 1)[-1]
 
 
+def supported_first_party_location(location: str, package_index: int) -> bool:
+    """Whether a Git location has the supported first-party authority and path."""
+    try:
+        parsed = urlsplit(location)
+    except ValueError:
+        return False
+    if (parsed.hostname or "").lower() != "github.com":
+        return False
+
+    owner = next((component for component in parsed.path.split("/") if component), None)
+    if owner is None or unquote(owner).lower() != "ryancinsight":
+        return False
+    if any(ord(character) < 0x20 or ord(character) == 0x7F for character in location):
+        raise ValueError(
+            f"lock package {package_index} has unreadable first-party Git source identity"
+        )
+    if owner.lower() != "ryancinsight":
+        raise ValueError(
+            f"lock package {package_index} has unsupported first-party Git source path"
+        )
+    if parsed.scheme.lower() != "https" or parsed.username is not None or parsed.password is not None:
+        raise ValueError(
+            f"lock package {package_index} has unsupported first-party Git source authority"
+        )
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError(
+            f"lock package {package_index} has unreadable first-party Git source authority"
+        ) from error
+    if port not in (None, 443):
+        raise ValueError(
+            f"lock package {package_index} has unsupported first-party Git source authority"
+        )
+    if not re.fullmatch(
+        r"/ryancinsight/[A-Za-z0-9][A-Za-z0-9._-]*/?",
+        parsed.path,
+        re.IGNORECASE | re.ASCII,
+    ):
+        raise ValueError(
+            f"lock package {package_index} has unreadable first-party Git source identity"
+        )
+    return True
+
+
+def locked_packages(lock_text: str) -> list[LockedPackage]:
+    """Read every complete Git identity in the supported first-party namespace."""
+    locked: list[LockedPackage] = []
+    for index, package in enumerate(lockfile.locked_package_records(lock_text)):
+        source = package.get("source")
+        if not isinstance(source, str):
+            continue
+        if not source.lower().startswith("git+"):
+            continue
+        payload = source[4:]
+        location, separator, revision = payload.rpartition("#")
+        candidate = location if separator else payload
+        if not supported_first_party_location(candidate, index):
+            continue
+        if not separator or "#" in location or not re.fullmatch(r"[0-9a-fA-F]{40}", revision):
+            raise ValueError(
+                f"lock package {index} has unreadable first-party Git source identity"
+            )
+        locked.append(
+            LockedPackage(package["name"], package["version"], location, revision.lower())
+        )
+    return locked
+
+
 def first_party_packages(lock_text: str) -> list[LockedPackage]:
-    """Every lock entry resolved through an unpinned first-party git source.
-
-    A source carrying a query (`?rev=`, `?branch=`, `?tag=`) is a pin the
-    manifest states; advancing it is a manifest change, not a lock sweep."""
-    packages = []
-    for block in lock_text.split("[[package]]")[1:]:
-        source = SOURCE_LINE.search(block)
-        if not source or not source.group("source").startswith(FIRST_PARTY_GIT):
-            continue
-        location, _, rev = source.group("source").removeprefix("git+").partition("#")
-        if "?" in location or not rev:
-            continue
-        name = re.search(r'^name = "([^"]+)"$', block, re.M)
-        version = re.search(r'^version = "([^"]+)"$', block, re.M)
-        if name and version:
-            packages.append(LockedPackage(name.group(1), version.group(1), location, rev))
-    return packages
+    """First-party packages update mode may move: explicit query pins excluded."""
+    return [package for package in locked_packages(lock_text) if "?" not in package.url]
 
 
-def stale_packages(lock_text: str, targets: dict[str, str]) -> tuple[LockedPackage, ...]:
+def stale_packages(lock_text: str, targets: dict[str, str],
+                   read_packages: Callable[[str], list[LockedPackage]] = first_party_packages
+                   ) -> tuple[LockedPackage, ...]:
     """The first-party entries whose provider is a target they are not at."""
     return tuple(
         package
-        for package in first_party_packages(lock_text)
+        for package in read_packages(lock_text)
         if package.provider in targets and package.rev != targets[package.provider]
     )
 
@@ -319,14 +399,16 @@ def resolve_targets(members: list[Path], requested: list[str], heads: bool) -> d
     return targets
 
 
-def plan_member(member: Path, targets: dict[str, str]) -> Plan | None:
+def plan_member(member: Path, targets: dict[str, str],
+                read_packages: Callable[[str], list[LockedPackage]] = first_party_packages
+                ) -> Plan | None:
     """The member's stale sources at its fetched default branch; None without a lock."""
     base = git(member, "rev-parse", "--verify", f"origin/{default_branch(member)}^{{commit}}").strip()
     try:
         lock_text = git(member, "show", f"{base}:Cargo.lock")
     except RuntimeError:
         return None
-    return Plan(member, base, stale_packages(lock_text, targets))
+    return Plan(member, base, stale_packages(lock_text, targets, read_packages))
 
 
 def export_tree(member: Path, base: str, directory: Path) -> None:
@@ -364,6 +446,7 @@ def commit_lock(member: Path, base: str, lock: bytes, message: str, scratch: Pat
         done = subprocess.run(
             ["git", "-C", str(member), *arguments],
             input=data, env=environment, capture_output=True, check=True,
+            timeout=lockfile.GIT_DEADLINE_SECONDS,
         )
         return done.stdout.decode().strip()
 
@@ -382,6 +465,71 @@ def cargo(tree: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
         # deadline is a failed row like any other, with the runner's note as
         # the detail.
         return subprocess.CompletedProcess(error.cmd, 124, "", str(error))
+
+
+def retarget_sources(text: str, revisions: dict[str, str]) -> str:
+    """Change only existing unqueried Git source revision fields.
+
+    Package/dependency records remain identical apart from their source SHA.
+    This constructs a candidate; locked offline Cargo metadata must establish
+    that the selected commits still resolve the unchanged package graph.
+    """
+    records = lockfile.locked_package_records(text)
+    sources = {record.get("source") for record in records}
+    replacements = {}
+    for source, revision in revisions.items():
+        location, separator, old = source.rpartition("#")
+        if (source not in sources or not location.startswith("git+") or not separator
+                or "?" in location or not re.fullmatch(r"[0-9a-fA-F]{40}", old)
+                or not re.fullmatch(r"[0-9a-fA-F]{40}", revision)):
+            raise ValueError("retargeting requires an existing unqueried Git identity and full SHA")
+        replacements[source] = location + "#" + revision.lower()
+    expected = copy.deepcopy(tomllib.loads(text))
+    for package in expected.get("package", []):
+        if package.get("source") in replacements:
+            package["source"] = replacements[package["source"]]
+    pattern = re.compile(r"""(?m)^([ \t]*source[ \t]*=[ \t]*)(["'])([^"'\r\n]*)\2""")
+    candidate = pattern.sub(
+        lambda match: (match[1] + match[2] + replacements[match[3]] + match[2]
+                       if match[3] in replacements else match[0]), text)
+    if tomllib.loads(candidate) != expected:
+        raise ValueError("source retargeting cannot preserve this lock representation")
+    return candidate
+
+
+def retarget_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | None:
+    """Validate an exact-source candidate in the sweep's private export.
+
+    No floating update runs. A changed package graph, unavailable cached commit,
+    missing selected package, or Cargo lock write rejects the candidate.
+    """
+    lock = tree / "Cargo.lock"
+    try:
+        original = lock.read_bytes().decode("utf-8")
+        revisions = {f"git+{package.url}#{package.rev}": targets[package.provider]
+                     for package in plan.stale}
+        candidate = retarget_sources(original, revisions).encode("utf-8")
+    except (OSError, UnicodeError, ValueError) as error:
+        return Outcome(plan.name, "failed", f"source retargeting: {error}", False)
+    lock.write_bytes(candidate)
+    metadata = cargo(tree, "metadata", "--locked", "--offline", "--all-features",
+                     "--format-version", "1")
+    if metadata.returncode:
+        return Outcome(plan.name, "failed", failure_detail(
+            plan.name, "locked offline metadata", metadata.stderr), False)
+    if lock.read_bytes() != candidate:
+        return Outcome(plan.name, "failed", "Cargo rewrote the source-only candidate", False)
+    try:
+        packages = {(package["name"], package["version"], package.get("source"))
+                    for package in json.loads(metadata.stdout)["packages"]}
+    except (KeyError, TypeError, ValueError) as error:
+        return Outcome(plan.name, "failed", f"unreadable Cargo metadata: {error}", False)
+    for package in plan.stale:
+        source = f"git+{package.url}#{targets[package.provider]}"
+        if (package.name, package.version, source) not in packages:
+            return Outcome(plan.name, "failed", "selected package absent from locked metadata: "
+                           + package.name + " " + package.version, False)
+    return None
 
 
 def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | None:
@@ -409,19 +557,27 @@ def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | N
     return None
 
 
-def advance(plan: Plan, targets: dict[str, str], hooks: Path | None, item: str | None) -> Outcome:
+def advance(plan: Plan, targets: dict[str, str], hooks: Path | None, item: str | None,
+            operation: SourceOperation = SourceOperation.UPDATE) -> Outcome:
+    if operation is SourceOperation.UPDATE:
+        resumed = resume(plan, targets, item, hooks is not None)
+        if resumed is not None:
+            return resumed
     member = plan.member
     with tempfile.TemporaryDirectory(prefix=f"lock-sweep-{plan.name}-") as scratch_name:
         scratch = Path(scratch_name)
         export_tree(member, plan.base, scratch)
         tree = scratch / "tree"
-        failure = resolve_lock(plan, targets, tree)
+        resolver = retarget_lock if operation is SourceOperation.RETARGET else resolve_lock
+        failure = resolver(plan, targets, tree)
         if failure is not None:
             return failure
         updated = (tree / "Cargo.lock").read_bytes()
         check = cargo(tree, "check", "--workspace", "--locked")
         if check.returncode != 0:
             return Outcome(plan.name, "failed", failure_detail(plan.name, "cargo check", check.stderr), False)
+        if operation is SourceOperation.RETARGET and (tree / "Cargo.lock").read_bytes() != updated:
+            return Outcome(plan.name, "failed", "native check rewrote the exact source candidate", False)
         moved = ", ".join(plan.providers())
         if hooks is None:
             return Outcome(plan.name, "would", f"{moved} (dry run; check passed)", True)
@@ -430,7 +586,7 @@ def advance(plan: Plan, targets: dict[str, str], hooks: Path | None, item: str |
             capture_output=True, check=True,
         ).stdout
         commit = commit_lock(
-            member, plan.base, with_line_endings_of(base_lock, updated),
+            member, plan.base, operation.lock_bytes(base_lock, updated),
             commit_message(plan, targets, item), scratch,
         )
         branch = branch_name(targets)
@@ -503,7 +659,11 @@ def main() -> int:
     parser.add_argument("--members", help="comma-separated member names to restrict the sweep to")
     parser.add_argument("--item", help="board item ID for the commits' Item: trailer")
     parser.add_argument("--open-prs", action="store_true", help="commit, push, and open one PR per consumer (default: dry run)")
+    parser.add_argument("--retarget-sources", action="store_true",
+                        help="preserve the package graph and validate exact source SHAs offline")
     arguments = parser.parse_args()
+    if arguments.retarget_sources and arguments.heads:
+        parser.error("--retarget-sources requires explicit --target revisions, not --heads")
     if not arguments.target and not arguments.heads:
         parser.error("name the merges: --target PROVIDER=REV (repeatable) or --heads")
 
@@ -521,6 +681,7 @@ def main() -> int:
             sys.exit("error: no stack config names build.target-dir; refusing to fork the cache")
         os.environ["CARGO_TARGET_DIR"] = str(shared)
 
+    operation = SourceOperation.RETARGET if arguments.retarget_sources else SourceOperation.UPDATE
     consumers = members
     if arguments.members:
         wanted = set(arguments.members.split(","))
@@ -536,15 +697,16 @@ def main() -> int:
             # A sweep outlives many merges: a base fetched when it started
             # predates its own earlier members' landings and any peer's.
             git(member, "fetch", "origin", "--quiet")
-            plan = plan_member(member, targets)
+            plan = plan_member(member, targets,
+                               locked_packages if operation is SourceOperation.RETARGET else first_party_packages)
             if plan is None:
                 outcomes.append(Outcome(member.name, "current", "no Cargo.lock", True))
             elif not plan.stale:
-                outcomes.append(Outcome(member.name, "current", "every first-party source at its target", True))
+                outcomes.append(Outcome(member.name, "current", "every targeted source at its target", True))
             else:
                 outcomes.append(
-                    resume(plan, targets, arguments.item, arguments.open_prs)
-                    or advance(plan, targets, hooks, arguments.item)
+                    advance(plan, targets, hooks, arguments.item,
+                            operation)
                 )
             print(render_report(targets, outcomes[-1:]).splitlines()[-1], flush=True)
     print(render_report(targets, outcomes))
