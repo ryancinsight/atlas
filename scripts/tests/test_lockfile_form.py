@@ -170,6 +170,14 @@ class DependencyTablesTestCase(unittest.TestCase):
                     manifest += f'[dependencies]\n{name} = {{ workspace = true }}\n'
                 self.assertEqual(self.declared(manifest), {name})
 
+    def test_strong_and_weak_features_have_distinct_source_requirements(self) -> None:
+        dependencies = [(name, {"optional": True}, PurePosixPath("Cargo.toml")) for name in ("inside", "outside")]
+        for reference, expected in (("inside/extra", {"inside", "outside"}), ("inside?/extra", {"inside"})):
+            with self.subTest(reference):
+                manifest = {"features": {"bundle": [reference], "inside": ["dep:inside", "dep:outside"]}}
+                active, forwarded = lockfile.active_dependencies(manifest, dependencies, {"bundle"})
+                self.assertEqual((active, forwarded), (expected, {"inside": {"extra"}}))
+
     def test_a_renamed_dependency_is_declared_under_its_package_name(self) -> None:
         manifest = (
             '[package]\nname = "m"\nversion = "0.1.0"\n\n[dependencies]\n'
@@ -458,6 +466,54 @@ class TreeCheckTestCase(unittest.TestCase):
             with mock.patch.object(lockfile, "CARGO_COMMAND", ("missing-cargo-boundary-probe",)), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
                 self.assertEqual(lockfile.check(root), 1)
             self.assertIn("source override path leaves the candidate: ../../outside", stderr.getvalue())
+
+    def test_optional_external_edges_match_cargo_features(self) -> None:
+        cases = (
+            ("", "", False),
+            ("", '[features]\ndefault = ["outside"]\n', True),
+            ('default-features = false', '[features]\ndefault = ["outside"]\n', False),
+            ('features = ["bundle"]', '[features]\nbundle = ["dep:outside"]\n', True),
+            ("", '[features]\ndefault = ["outside?/extra"]\n', True),
+            ("", '[features]\ndefault = ["outside/extra"]\n', True),
+        )
+        for options, features, active in cases:
+            with self.subTest(options=options, features=features), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                parent = Path(temp)
+                root = parent / "tree"
+                outside = parent / "outside"
+                self.write(outside, "Cargo.toml", '[package]\nname = "outside"\nversion = "0.1.0"\nedition = "2024"\n[features]\nextra = []\n')
+                self.write(outside, "src/lib.rs", "")
+                suffix = f", {options}" if options else ""
+                self.write(root, "Cargo.toml", '[package]\nname = "consumer"\nversion = "0.1.0"\nedition = "2024"\n'
+                           f'[workspace]\nexclude = ["dep"]\n[dependencies]\ndep = {{ path = "dep"{suffix} }}\n')
+                self.write(root, "src/lib.rs", "")
+                self.package(root, "dep", "dep", '[workspace]\n[dependencies]\noutside = { path = "../../outside", optional = true }\n' + features)
+                self.cargo(root, "Cargo.toml")
+                self.cargo(root, "dep/Cargo.toml")
+                (outside / "Cargo.toml").unlink()
+                metadata = lockfile.run_outside_the_overlay(["metadata", "--offline", "--locked", "--all-features", "--format-version", "1"],
+                                                           root / "Cargo.toml", deadline=60)
+                self.assertEqual(metadata.returncode, 101 if active else 0, metadata.stderr)
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
+                    self.assertEqual(lockfile.check(root), 0, stderr.getvalue())
+                lock = root / "Cargo.lock"
+                lock.write_text(lock.read_text().replace('name = "consumer"\nversion = "0.1.0"',
+                                                         'name = "consumer"\nversion = "0.0.1"'))
+                with contextlib.redirect_stdout(stdout := io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
+                    self.assertEqual(lockfile.check(root), 0 if active else 1, stderr.getvalue())
+                self.assertEqual("exempt (in-tree fixture, not standalone-consumable): Cargo.lock" in stdout.getvalue(), active)
+
+    def test_excluded_dependencies_do_not_add_workspace_members(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(root, "Cargo.toml", '[package]\nname = "consumer"\nversion = "0.1.0"\nedition = "2024"\n'
+                       '[workspace]\nexclude = ["dep"]\n[dependencies]\ndep = { path = "dep" }\n')
+            self.write(root, "src/lib.rs", "")
+            self.package(root, "dep", "dep", '[workspace]\n[dependencies]\nchild = { path = "../child" }\n')
+            self.package(root, "child", "child", '[dependencies]\noutside = { path = "../../outside", optional = true }\n')
+            self.cargo(root, "Cargo.toml")
+            self.cargo(root, "dep/Cargo.toml")
+            self.assert_stale_consumer_lock(root)
 
     def test_a_member_lock_is_not_checked_through_its_parent_lock(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:

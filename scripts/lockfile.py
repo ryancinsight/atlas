@@ -753,12 +753,91 @@ def resolved_dependency_specs(
             elif isinstance(inherited, dict) and isinstance(inherited.get(dependency), dict):
                 # Inheritance permits feature/optional settings, never source overrides:
                 # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace
-                yield dependency, inherited[dependency], owner
+                resolved = dict(inherited[dependency])
+                if "optional" in spec:
+                    resolved["optional"] = spec["optional"]
+                if "features" in spec:
+                    base_features = resolved.get("features", [])
+                    extra_features = spec["features"]
+                    if not isinstance(base_features, list) or not isinstance(extra_features, list):
+                        raise ValueError(f"{name}: dependency features must be arrays")
+                    resolved["features"] = base_features + extra_features
+                default_key = "default-features" if "default-features" in spec else "default_features"
+                if default_key in spec:
+                    edition = package.get("edition", "2015") if isinstance(package, dict) else "2015"
+                    if isinstance(edition, dict) and edition.get("workspace") is True:
+                        package_defaults = workspace.get("package", {}) if isinstance(workspace, dict) else {}
+                        edition = package_defaults.get("edition") if isinstance(package_defaults, dict) else None
+                    if spec[default_key] is True or edition == "2024" or resolved.get("default-features") is False:
+                        resolved["default-features"] = spec[default_key]
+                yield dependency, resolved, owner
             elif isinstance(inherited, dict) and isinstance(inherited.get(dependency), str):
                 # A version-only registry declaration has no path or Git source.
                 continue
             else:
                 raise ValueError(f"{name}: inherited dependency {dependency!r} is missing")
+
+
+def feature_edges(
+    manifest: Mapping[str, object], dependencies: Sequence[tuple[str, Mapping[str, object], PurePosixPath]]
+) -> tuple[Mapping[str, Sequence[str]], set[str], set[str]]:
+    """Declared feature edges, optional aliases, and implicit feature names."""
+    definitions = manifest.get("features", {})
+    if not isinstance(definitions, dict) or any(
+        not isinstance(tokens, list) or any(not isinstance(token, str) for token in tokens)
+        for tokens in definitions.values()
+    ):
+        raise ValueError("package features must map names to string arrays")
+    optional = {name for name, spec, _ in dependencies if spec.get("optional") is True}
+    suppressed = {token.removeprefix("dep:") for tokens in definitions.values()
+                  for token in tokens if token.startswith("dep:")}
+    return definitions, optional, optional - set(definitions) - suppressed
+
+
+def all_package_features(
+    manifest: Mapping[str, object], dependencies: Sequence[tuple[str, Mapping[str, object], PurePosixPath]]
+) -> set[str]:
+    """Feature names selected by --all-features for a workspace package."""
+    definitions, _, implicit = feature_edges(manifest, dependencies)
+    return set(definitions) | implicit
+
+def active_dependencies(
+    manifest: Mapping[str, object],
+    dependencies: Sequence[tuple[str, Mapping[str, object], PurePosixPath]],
+    requested: Iterable[str],
+) -> tuple[set[str], dict[str, set[str]]]:
+    """Compute the dependency resolver's source and feature requirements.
+
+    The finite feature/alias sets grow monotonically, so the fixed point
+    terminates. Cargo's dependency resolver follows weak feature references;
+    its later compilation resolver narrows them without changing lock inputs.
+    https://github.com/rust-lang/cargo/blob/rust-1.97.0/src/cargo/core/resolver/dep_cache.rs#L439-L499
+    """
+    definitions, optional, implicit = feature_edges(manifest, dependencies)
+    features = set(requested)
+    active = {name for name, spec, _ in dependencies if spec.get("optional") is not True}
+    forwarded: dict[str, set[str]] = {}
+    while True:
+        previous = len(features) + len(active) + sum(map(len, forwarded.values()))
+        for feature in tuple(features):
+            if feature in implicit:
+                active.add(feature)
+            for token in definitions.get(feature, []):
+                if token.startswith("dep:"):
+                    active.add(token.removeprefix("dep:"))
+                elif "/" in token:
+                    dependency, child_feature = token.split("/", 1)
+                    weak = dependency.endswith("?")
+                    dependency = dependency.removesuffix("?")
+                    if not weak and dependency in optional and (dependency in definitions or dependency in implicit):
+                        features.add(dependency)
+                    active.add(dependency)
+                    forwarded.setdefault(dependency, set()).add(child_feature)
+                else:
+                    features.add(token)
+        if previous == len(features) + len(active) + sum(map(len, forwarded.values())):
+            break
+    return active, forwarded
 
 
 def escapes_repository(manifest: PurePosixPath, path: str) -> bool:
@@ -814,8 +893,8 @@ def workspace_selection(
     parsed: Mapping[str, Mapping[str, object] | None],
     workspace: PurePosixPath,
     nested: Sequence[PurePosixPath],
-) -> tuple[set[str], set[str]]:
-    """The manifests Cargo owns and resolves in the workspace's lock.
+) -> tuple[set[str], set[str], dict[str, set[str]]]:
+    """The owned manifests, selected path closure, and requested package features.
 
     Cargo, not directory containment, decides membership: `members` names the
     packages (globs included), `exclude` removes paths from that set, path
@@ -888,6 +967,7 @@ def workspace_selection(
     owned = {name for name in selected if name == root or
              (not inside_boundary(PurePosixPath(name).parent) and not excluded_manifest(name))}
     selected = set(owned)
+    feature_requests: dict[str, set[str]] = {}
 
     # Resolution follows every local dependency. Only an explicit workspace
     # also owns dependencies beneath its root as implicit members.
@@ -901,22 +981,38 @@ def workspace_selection(
             kinds = DEPENDENCY_KINDS if name in owned else TRANSITIVE_DEPENDENCY_KINDS
             try:
                 dependencies = tuple(resolved_dependency_specs(name, parsed, kinds))
+                requested = (all_package_features(data, dependencies) if name in owned
+                             else feature_requests.get(name, set()))
+                active, forwarded = active_dependencies(data, dependencies, requested)
             except ValueError:
-                continue  # workspace_facts reports the unreadable inheritance.
-            for _, spec, origin in dependencies:
-                if not isinstance(spec.get("path"), str):
+                continue  # workspace_facts reports unreadable declarations.
+            for dependency, spec, origin in dependencies:
+                if dependency not in active or not isinstance(spec.get("path"), str):
                     continue
                 target = workspace_relative(origin.parent, spec["path"])
                 target_manifest = (target / "Cargo.toml").as_posix()
-                if target_manifest in selected or target_manifest not in manifests:
+                if target_manifest not in manifests:
                     continue
-                selected.add(target_manifest)
-                if (explicit_workspace and (target == workspace or workspace in target.parents) and
-                        not inside_boundary(target) and not excluded_manifest(target_manifest)):
+                if target_manifest not in selected:
+                    selected.add(target_manifest)
+                    changed = True
+                if (explicit_workspace and name in owned and (target == workspace or workspace in target.parents) and
+                        not inside_boundary(target) and not excluded_manifest(target_manifest)
+                        and target_manifest not in owned):
                     owned.add(target_manifest)
-                changed = True
+                    changed = True
+                declared = spec.get("features", [])
+                if not isinstance(declared, list) or any(not isinstance(feature, str) for feature in declared):
+                    continue  # Cargo rejects malformed edge features before resolution.
+                requested = set(declared) | forwarded.get(dependency, set())
+                if spec.get("default-features", spec.get("default_features", True)) is not False:
+                    requested.add("default")
+                previous_features = feature_requests.setdefault(target_manifest, set())
+                if not requested <= previous_features:
+                    previous_features.update(requested)
+                    changed = True
 
-    return owned, selected
+    return owned, selected, feature_requests
 
 
 def workspace_facts(
@@ -947,7 +1043,7 @@ def workspace_facts(
         except tomllib.TOMLDecodeError:
             parsed[name] = None
 
-    owned, selected = workspace_selection(manifests, parsed, workspace, nested)
+    owned, selected, feature_requests = workspace_selection(manifests, parsed, workspace, nested)
 
     local: set[str] = set()
     git_dependencies: set[str] = set()
@@ -965,10 +1061,15 @@ def workspace_facts(
         kinds = DEPENDENCY_KINDS if name in owned else TRANSITIVE_DEPENDENCY_KINDS
         try:
             dependencies = tuple(resolved_dependency_specs(name, parsed, kinds))
+            requested = (all_package_features(data, dependencies) if name in owned
+                         else feature_requests.get(name, set()))
+            active, _ = active_dependencies(data, dependencies, requested)
         except ValueError as error:
             problems.append(str(error))
             continue
         for dependency, spec, origin in dependencies:
+            if dependency not in active:
+                continue
             if isinstance(spec.get("git"), str):
                 git_dependencies.add(spec.get("package", dependency))
             elif isinstance(spec.get("path"), str) and escapes_repository(origin, spec["path"]):
