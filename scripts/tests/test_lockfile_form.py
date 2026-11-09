@@ -831,6 +831,21 @@ class ExportedInputsTestCase(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn("tree-source must be a commit object", result.stderr)
 
+    def test_unrelated_path_bytes_do_not_change_lock_inputs(self) -> None:
+        self.inputs(
+            b'[package]\nname = "tool"\nversion = "0.1.0"\n',
+            b'version = 4\n[[package]]\nname = "tool"\nversion = "0.1.0"\n',
+        )
+        blob = git(self.root, "rev-parse", "HEAD:Cargo.toml")
+        subprocess.run(
+            ["git", "-C", str(self.root), "update-index", "-z", "--index-info"],
+            input=b"100644 " + blob.encode("ascii") + b"\tunrelated-\xff.bin\0",
+            check=True, capture_output=True, timeout=60,
+        )
+        git(self.root, "commit", "-qm", "Unrelated binary path")
+        source = lockfile.GitTree(self.root, git(self.root, "rev-parse", "HEAD"))
+        self.assertEqual(self.check(source), (0, ""))
+
     def test_invalid_utf8_cannot_match_a_reencoded_export(self) -> None:
         source = self.inputs(
             b'[package]\nname = "tool"\nversion = "0.1.0"\n# invalid \xff\n',

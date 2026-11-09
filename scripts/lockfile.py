@@ -1171,15 +1171,16 @@ def tracked_texts(
     else:
         listing = run_git(["ls-tree", "--full-tree", "-r", "-z", revision], repository)
     blobs: dict[str, str] = {}
-    try:
-        records = listing.decode("utf-8").split("\0")
-    except UnicodeError as error:
-        raise GitUnavailable("Cargo input paths are not valid UTF-8") from error
-    for record in records:
-        head, _, path = record.partition("\t")
-        if not path or PurePosixPath(path).name not in LOCK_INPUT_NAMES:
+    input_names = {name.encode("ascii") for name in LOCK_INPUT_NAMES}
+    for record in listing.split(b"\0"):
+        head, _, raw_path = record.partition(b"\t")
+        if raw_path.rsplit(b"/", 1)[-1] not in input_names:
             continue
-        fields = head.split()
+        try:
+            path = raw_path.decode("utf-8")
+        except UnicodeError as error:
+            raise GitUnavailable("Cargo input path is not valid UTF-8") from error
+        fields = head.decode("ascii").split()
         if staged:
             mode, blob, stage = fields
             if mode == "160000" or stage != "0":
@@ -1281,9 +1282,9 @@ def check_staged() -> int:
             ["diff", "--cached", "--name-only", "--diff-filter=d", "-z", "--", "*Cargo.lock"]
         )
         staged = [
-            path
-            for path in changed.decode("utf-8").split("\0")
-            if path and PurePosixPath(path).name == "Cargo.lock"
+            raw_path.decode("utf-8")
+            for raw_path in changed.split(b"\0")
+            if raw_path.rsplit(b"/", 1)[-1] == b"Cargo.lock"
         ]
         if not staged:
             return 0
