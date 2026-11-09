@@ -864,7 +864,7 @@ class ProcessTreeTests(unittest.TestCase):
         for observed in process_tree.darwin_process.GroupState:
             active = observed is not process_tree.darwin_process.GroupState.INACTIVE
             with (
-                self.subTest(observed=observed),
+                self.subTest(observed=observed.name),
                 patch.object(process_tree.sys, "platform", "darwin"),
                 patch.object(process_tree.subprocess, "Popen") as launch,
                 patch.object(
@@ -887,7 +887,7 @@ class ProcessTreeTests(unittest.TestCase):
         )
         for readings, times, expected, sleeps in cases:
             with (
-                self.subTest(readings=readings),
+                self.subTest(readings=tuple(state.name for state in readings)),
                 patch.object(process_tree.darwin_process, "group_state", side_effect=readings) as probe,
                 patch.object(process_tree.time, "monotonic", side_effect=times),
                 patch.object(process_tree.time, "sleep") as pause,
