@@ -4,7 +4,9 @@
 
 - Advance all 28 stack gitlinks to their fetched default heads plus three
   provider improvements: leto 0.48.0 adds `concat_into` / `stack_into`
-  zero-copy caller-owned assembly and `CooMatrix::into_csr`; hermes 0.10.0
+  zero-copy caller-owned assembly, `CooMatrix::into_csr`, and a flattened
+  contiguous `amd_order` adjacency buffer (single allocation, no per-vertex
+  heap headers); hermes 0.10.0
   adds `Copy` for borrowed sparse views and bounded bench budgets;
   mnemosyne fixes a flaky leak-detector temp-dir race. Version lags for
   eunomia 0.11 / leto 0.46-0.47 / hermes 0.9 remain as consumer-advance
