@@ -80,7 +80,8 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
             self.resolution_calls += 1
             return subprocess.CompletedProcess(
                 command, 0 if self.resolves else 101,
-                json.dumps({"workspace_root": str(Path(command[command.index("--manifest-path") + 1]).parent)}),
+                json.dumps({"workspace_root": str(Path(command[command.index("--manifest-path") + 1]).parent),
+                            "root": command[command.index("--manifest-path") + 1]}),
                 "" if self.resolves else "stale"
             )
 

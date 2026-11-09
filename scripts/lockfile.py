@@ -347,6 +347,32 @@ def check_resolution(manifest: Path, lockfile: Path) -> int:
     return check_provider_identity(lockfile)
 
 
+def check_fixture_owner(manifest: Path) -> int:
+    """Let Cargo establish fixture ownership without resolving external dependencies."""
+    try:
+        completed = run_outside_the_overlay(
+            ["locate-project", "--workspace", "--message-format", "json"], manifest
+        )
+    except CargoDeadlineExceeded as error:
+        print(f"error: fixture ownership exceeded {error.timeout:g}s: {manifest}", file=sys.stderr)
+        return 1
+    if completed.returncode != 0:
+        print(f"LOCK OWNERSHIP VIOLATION: {manifest}: {completed.stderr.strip()}", file=sys.stderr)
+        return 1
+    try:
+        document = json.loads(completed.stdout)
+        owner = document.get("root") if isinstance(document, dict) else None
+        if not isinstance(owner, str):
+            raise ValueError("Cargo locate-project has no root")
+    except (ValueError, TypeError) as error:
+        print(f"LOCK OWNERSHIP VIOLATION: {manifest}: {error}", file=sys.stderr)
+        return 1
+    if Path(owner).resolve() != manifest.resolve():
+        print(f"LOCK OWNERSHIP VIOLATION: {manifest}: Cargo uses {owner} instead", file=sys.stderr)
+        return 1
+    return 0
+
+
 def check(repository: Path | None = None) -> int:
     """Judge and resolve every lock owner under an immutable candidate root."""
     candidate = repository is not None
@@ -366,8 +392,6 @@ def check(repository: Path | None = None) -> int:
     if selected_exempt != exempt:
         print("error: lock ownership selection disagrees with lock form", file=sys.stderr)
         return 1
-    for lock in exempt:
-        print(f"exempt (in-tree fixture, not standalone-consumable): {lock}")
     if ownership_problems:
         print("\n".join(f"LOCK OWNERSHIP VIOLATION: {problem}" for problem in ownership_problems), file=sys.stderr)
         return 1
@@ -377,6 +401,10 @@ def check(repository: Path | None = None) -> int:
               f"CI will fail every --locked job.\n\nFix: {REGENERATE_COMMAND}", file=sys.stderr)
         return 1
 
+    for lock in exempt:
+        if check_fixture_owner(repository / PurePosixPath(lock).with_name("Cargo.toml")):
+            return 1
+        print(f"exempt (in-tree fixture, not standalone-consumable): {lock}")
     failures = sum(check_resolution(repository / relative, (repository / relative).with_name("Cargo.lock")) for relative in manifests)
     return int(failures != 0)
 

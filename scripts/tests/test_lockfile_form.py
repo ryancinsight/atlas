@@ -384,6 +384,23 @@ class TreeCheckTestCase(unittest.TestCase):
                     self.cargo(root, "dep/Cargo.toml")
                 self.assert_stale_consumer_lock(root)
 
+    def test_excluded_inheritance_cannot_create_a_fixture_exemption(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(root, "Cargo.toml", '[workspace]\nmembers = ["app"]\nexclude = ["fixture"]\n'
+                       '[workspace.dependencies]\noutside = { path = "../outside" }\n')
+            self.package(root, "app", "app")
+            self.package(root, "fixture", "fixture", '[dependencies]\noutside.workspace = true\n')
+            self.cargo(root, "Cargo.toml")
+            self.write(root, "fixture/Cargo.lock", 'version = 4\n[[package]]\nname = "fixture"\nversion = "0.1.0"\n')
+            ownership = lockfile.run_outside_the_overlay(["locate-project", "--workspace", "--message-format", "json"],
+                                                        root / "fixture/Cargo.toml", deadline=60)
+            self.assertEqual(ownership.returncode, 101, ownership.stderr)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
+                self.assertEqual(lockfile.check(root), 1)
+            self.assertIn("LOCK OWNERSHIP VIOLATION", stderr.getvalue())
+            self.assertIn("failed to find a workspace root", stderr.getvalue())
+
     def test_a_member_lock_is_not_checked_through_its_parent_lock(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
             root = Path(temp)
