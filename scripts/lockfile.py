@@ -661,9 +661,12 @@ def resolved_dependency_specs(
             if spec.get("workspace") is not True:
                 yield dependency, spec, manifest
             elif isinstance(inherited, dict) and isinstance(inherited.get(dependency), dict):
-                resolved = dict(inherited[dependency])
-                resolved.update({key: value for key, value in spec.items() if key != "workspace"})
-                yield dependency, resolved, owner
+                # Inheritance permits feature/optional settings, never source overrides:
+                # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace
+                yield dependency, inherited[dependency], owner
+            elif isinstance(inherited, dict) and isinstance(inherited.get(dependency), str):
+                # A version-only registry declaration has no path or Git source.
+                continue
             else:
                 raise ValueError(f"{name}: inherited dependency {dependency!r} is missing")
 

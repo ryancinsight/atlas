@@ -340,6 +340,37 @@ class TreeCheckTestCase(unittest.TestCase):
             missing = f"{directory}/Cargo.toml: sibling Cargo.lock is missing"
             self.assertEqual((completed.returncode, missing in completed.stderr), (1, True), completed.stdout)
 
+    def assert_stale_consumer_lock(self, root: Path) -> None:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(lockfile.check(root), 0)
+        lock = root / "Cargo.lock"
+        lock.write_text(lock.read_text().replace('name = "consumer"\nversion = "0.1.0"',
+                                                 'name = "consumer"\nversion = "0.0.1"'))
+        metadata = lockfile.run_outside_the_overlay(["metadata", "--offline", "--locked", "--format-version", "1"],
+                                                   root / "Cargo.toml", deadline=60)
+        self.assertEqual(metadata.returncode, 101, metadata.stderr)
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
+            self.assertEqual(lockfile.check(root), 1)
+        self.assertIn("does not resolve under --locked", stderr.getvalue())
+
+    def test_inherited_sources_match_cargo(self) -> None:
+        cases = (('{ path = "dep" }', 'workspace = true, path = "../missing"', ""),
+                 ('"0.1.0"', 'workspace = true', '[patch.crates-io]\ndep = { path = "dep" }\n'))
+        for default, declaration, patch in cases:
+            with self.subTest(default), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                self.write(root, "Cargo.toml", '[package]\nname = "consumer"\nversion = "0.1.0"\nedition = "2024"\n'
+                           '[workspace]\nexclude = ["dep"]\n[workspace.dependencies]\n'
+                           f'dep = {default}\n[dependencies]\ndep = {{ {declaration} }}\n{patch}')
+                self.write(root, "src/lib.rs", "")
+                self.package(root, "dep", "dep", '[workspace]\n')
+                for manifest in ("Cargo.toml", "dep/Cargo.toml"):
+                    generated = lockfile.run_outside_the_overlay(["generate-lockfile", "--offline"],
+                                                                 root / manifest, deadline=60)
+                    self.assertEqual(generated.returncode, 0, generated.stderr)
+                self.assert_stale_consumer_lock(root)
+
+
     def test_unused_dependency_edges_do_not_exempt_a_stale_consuming_lock(self) -> None:
         for kind in ("dev-dependencies", "target.'cfg(unix)'.dev-dependencies", "workspace.dependencies"):
             with self.subTest(kind), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
@@ -351,17 +382,7 @@ class TreeCheckTestCase(unittest.TestCase):
                 self.cargo(root, "Cargo.toml")
                 if kind == "workspace.dependencies":
                     self.cargo(root, "dep/Cargo.toml")
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                    self.assertEqual(lockfile.check(root), 0)
-                lock = root / "Cargo.lock"
-                lock.write_text(lock.read_text().replace('name = "consumer"\nversion = "0.1.0"',
-                                                         'name = "consumer"\nversion = "0.0.1"'))
-                native = lockfile.run_outside_the_overlay(["metadata", "--locked", "--format-version", "1"],
-                                                           root / "Cargo.toml", deadline=60)
-                self.assertEqual(native.returncode, 101, native.stderr)
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
-                    self.assertEqual(lockfile.check(root), 1)
-                self.assertIn("does not resolve under --locked", stderr.getvalue())
+                self.assert_stale_consumer_lock(root)
 
     def test_a_member_lock_is_not_checked_through_its_parent_lock(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
