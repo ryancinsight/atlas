@@ -212,14 +212,14 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         self._write("Cargo.lock", SERDE)
         self._write("sealed/Cargo.toml", NO_DEPENDENCIES)
 
-        original = Path.read_text
+        original = Path.open
 
-        def read_text(path, *arguments, **keywords):
+        def open_input(path, *arguments, **keywords):
             if path.name == "Cargo.toml" and path.parent.name == "sealed":
                 raise PermissionError(13, "Permission denied", str(path))
             return original(path, *arguments, **keywords)
 
-        with mock.patch.object(Path, "read_text", read_text):
+        with mock.patch.object(Path, "open", open_input):
             code, stderr = self._check()
         self.assertEqual(code, 1)
         self.assertIn("could not be read", stderr)
