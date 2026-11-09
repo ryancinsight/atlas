@@ -2,6 +2,13 @@ pub(crate) fn matches_requirement(requirement: &str, actual: &str) -> bool {
     // Prerelease and hyphen-range semantics are intentionally not approximated
     // by this small parser. Rejecting them is fail-closed; silently stripping
     // the prerelease would make an incoherent requirement appear clean.
+    //
+    // Zero-copy fast path: exact equality against the bare requirement (the
+    // common pinned-edge case) short-circuits before any `Version` parse or
+    // `||`/`,` split allocates.
+    if requirement.trim() == actual.trim() {
+        return true;
+    }
     if requirement.contains('-') || actual.contains('-') {
         return false;
     }

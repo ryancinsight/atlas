@@ -120,31 +120,60 @@ impl GitmodulesTable {
     /// Look up a submodule by its bare name (e.g. `coeus` matches
     /// `repos/coeus`). Returns `None` if the bare name is not a unique
     /// submodule match.
+    ///
+    /// Zero-copy fast path: a single linear scan with no intermediate
+    /// collection in the common unique-match case. Only the ambiguous
+    /// disambiguation path allocates, and then at most two refs.
     #[must_use]
     pub fn find_by_bare_name(&self, bare: &str) -> Option<&Submodule> {
         // Prefer a fully-qualified name/path when one is supplied. This lets
         // callers disambiguate repositories that share a final component.
-        let exact: Vec<&Submodule> = self
-            .submodules
-            .iter()
-            .filter(|s| s.name == bare || s.path == bare)
-            .collect();
-        if exact.len() == 1 {
-            return exact.into_iter().next();
+        // Single pass: track the first exact hit and whether a second
+        // exists, instead of collecting every exact match.
+        let mut exact: Option<&Submodule> = None;
+        let mut exact_ambiguous = false;
+        for s in &self.submodules {
+            if s.name == bare || s.path == bare {
+                if exact.is_some() {
+                    exact_ambiguous = true;
+                    break;
+                }
+                exact = Some(s);
+            }
         }
-        if !exact.is_empty() {
+        if exact_ambiguous {
             return None;
+        }
+        if let Some(hit) = exact {
+            return Some(hit);
         }
 
         // Atlas convention: the section name is the full path, so a bare
         // name matches only when exactly one registered path ends with it.
-        let suffix: Vec<&Submodule> = self
-            .submodules
-            .iter()
-            .filter(|s| s.name.ends_with(&format!("/{bare}")))
-            .collect();
-        (suffix.len() == 1).then(|| suffix[0])
+        // Same single-pass shape: first suffix hit wins unless a second
+        // appears.
+        let mut suffix: Option<&Submodule> = None;
+        for s in &self.submodules {
+            if ends_with_slash_bare(&s.name, bare) {
+                if suffix.is_some() {
+                    return None;
+                }
+                suffix = Some(s);
+            }
+        }
+        suffix
     }
+}
+
+/// Zero-copy suffix check for `"{name}/{bare}"` without allocating the
+/// `format!("/{bare}")` needle per submodule (the old hot loop formatted one
+/// needle per candidate — O(names) allocations per lookup).
+#[must_use]
+#[inline]
+fn ends_with_slash_bare(name: &str, bare: &str) -> bool {
+    name.len() > bare.len()
+        && name.as_bytes()[name.len() - bare.len() - 1] == b'/'
+        && name.ends_with(bare)
 }
 
 impl FromStr for GitmodulesTable {

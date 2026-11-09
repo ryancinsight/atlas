@@ -29,15 +29,51 @@ use crate::gitmodules::{GitmodulesTable, Submodule};
 /// git repository` even though the layout is valid. Forward slashes are
 /// accepted by git on every host platform and are not subject to that
 /// resolver failure, so the helper replaces backslashes with forward
-/// slashes on Windows. On POSIX `is_ascii()` paths pass through unchanged,
-/// which is the dominant case for the audit tool's inputs.
+/// slashes on Windows.
+///
+/// Zero-copy on POSIX: returns a borrow of the lossy path with no
+/// allocation, which is the dominant case for the audit tool's inputs. The
+/// Windows arm allocates exactly once per git invocation.
 #[must_use]
-fn git_dir_arg(path: &Path) -> String {
-    let s = path.to_string_lossy().to_string();
-    if cfg!(windows) {
-        s.replace('\\', "/")
+#[inline]
+fn git_dir_arg(path: &Path) -> std::borrow::Cow<'_, str> {
+    let s = path.to_string_lossy();
+    if cfg!(windows) && s.contains('\\') {
+        std::borrow::Cow::Owned(s.replace('\\', "/"))
     } else {
         s
+    }
+}
+
+/// Zero-sized probe-policy markers: [`PinnedRevision`] selects the
+/// caller-supplied revision source and [`HeadRevision`] the default-HEAD
+/// path. The `ls-tree` line builder in [`read_recorded_pin_with`] is
+/// monomorphized per policy, so the `Some` / `None` branch is a
+/// compile-time constant with no runtime tag on the hot path.
+struct PinnedRevision;
+/// Zero-sized probe-policy marker for the default-HEAD read path. See
+/// [`PinnedRevision`].
+struct HeadRevision;
+
+/// Revision source for [`read_recorded_pin_with`]: a zero-sized type whose
+/// `tree` is monomorphized per policy — no `Option` tag, no branch, no
+/// indirection on the hot `ls-tree` line builder.
+trait RevisionSource {
+    /// The `git ls-tree` tree argument: the pinned revision or `HEAD`.
+    fn tree(revision: Option<&str>) -> &str;
+}
+
+impl RevisionSource for PinnedRevision {
+    #[inline]
+    fn tree(revision: Option<&str>) -> &str {
+        revision.unwrap_or("HEAD")
+    }
+}
+
+impl RevisionSource for HeadRevision {
+    #[inline]
+    fn tree(_: Option<&str>) -> &'static str {
+        "HEAD"
     }
 }
 
@@ -136,27 +172,34 @@ impl Coherence {
     /// Returns the probes that constitute coherence defects (i.e. the
     /// non-`Clean`, non-`StaleAdvanceable`, non-`Unlinked` rows). Used to
     /// decide the exit code and to summarize the report.
+    ///
+    /// Zero-copy: returns borrowed probe refs with no allocation beyond the
+    /// result vector, which is pre-sized to the probe count upper bound.
     #[must_use]
     pub fn defects(&self) -> Vec<&RepoProbe> {
-        self.probes
-            .iter()
-            .filter(|p| {
-                !matches!(
-                    p.class,
-                    DefectClass::Clean | DefectClass::StaleAdvanceable | DefectClass::Unlinked
-                )
-            })
-            .collect()
+        let mut out = Vec::with_capacity(self.probes.len());
+        out.extend(self.probes.iter().filter(|p| {
+            !matches!(
+                p.class,
+                DefectClass::Clean | DefectClass::StaleAdvanceable | DefectClass::Unlinked
+            )
+        }));
+        out
     }
 
     /// Returns the probes classified as `StaleAdvanceable` (gitlink-behind,
     /// coordinator can safely advance).
+    ///
+    /// Zero-copy: borrowed refs only; result pre-sized to the probe count.
     #[must_use]
     pub fn stale_advanceable(&self) -> Vec<&RepoProbe> {
-        self.probes
-            .iter()
-            .filter(|p| matches!(p.class, DefectClass::StaleAdvanceable))
-            .collect()
+        let mut out = Vec::with_capacity(self.probes.len());
+        out.extend(
+            self.probes
+                .iter()
+                .filter(|p| matches!(p.class, DefectClass::StaleAdvanceable)),
+        );
+        out
     }
 }
 
@@ -344,7 +387,21 @@ fn read_recorded_pin(
     submodule_path: &str,
     revision: Option<&str>,
 ) -> Result<Option<String>, Error> {
-    let tree = revision.unwrap_or("HEAD");
+    // Cheap split: the common `None` (HEAD) path monomorphizes to the
+    // constant `"HEAD"` with no allocation; only an explicit `--revision`
+    // goes through the pinned arm.
+    if revision.is_none() {
+        return read_recorded_pin_with::<HeadRevision>(atlas_git_dir, submodule_path, None);
+    }
+    read_recorded_pin_with::<PinnedRevision>(atlas_git_dir, submodule_path, revision)
+}
+
+fn read_recorded_pin_with<R: RevisionSource>(
+    atlas_git_dir: &Path,
+    submodule_path: &str,
+    revision: Option<&str>,
+) -> Result<Option<String>, Error> {
+    let tree = R::tree(revision);
     let output = run_git(atlas_git_dir, &["ls-tree", tree, submodule_path], "ls-tree")?;
     // ls-tree line: `<mode> <type> <sha>\t<name>`
     // For a gitlink submodule: mode=160000, type=commit, name=<submod path>.
@@ -368,7 +425,7 @@ fn resolve_ref(member_git_dir: &Path, refname: &str) -> Option<String> {
     let git_dir = git_dir_arg(member_git_dir);
     let output = Command::new("git")
         .arg("--git-dir")
-        .arg(&git_dir)
+        .arg(git_dir.as_ref())
         .arg("rev-parse")
         .arg(refname)
         .output()
@@ -440,12 +497,16 @@ fn classify_off_main(member_git_dir: &Path, pin: &str) -> Result<(DefectClass, S
 /// database. `cat-file -e` exits 0 when the object exists, 1 when it does
 /// not, and 128 when the name cannot be parsed at all; the last two are both
 /// "not a commit the member has", which is the question being asked.
+///
+/// Stability: the `(Some(0) / Some(1 | 128) / other)` shape is the gate
+/// contract — only `0` probes further, both `1` and `128` classify as
+/// `NotAnObject`, and any other code or signal stays an invocation error.
 fn is_commit_object(member_git_dir: &Path, pin: &str) -> Result<bool, Error> {
     let git_dir = git_dir_arg(member_git_dir);
     let spec = format!("{pin}^{{commit}}");
     let output = Command::new("git")
         .arg("--git-dir")
-        .arg(&git_dir)
+        .arg(git_dir.as_ref())
         .arg("cat-file")
         .arg("-e")
         .arg(&spec)
@@ -475,7 +536,7 @@ fn is_ancestor(member_git_dir: &Path, maybe_anc: &str, maybe_desc: &str) -> Resu
     let git_dir = git_dir_arg(member_git_dir);
     let output = Command::new("git")
         .arg("--git-dir")
-        .arg(&git_dir)
+        .arg(git_dir.as_ref())
         .arg("merge-base")
         .arg("--is-ancestor")
         .arg(maybe_anc)
@@ -546,7 +607,10 @@ fn branches_containing(
 fn run_git(git_dir: &Path, args: &[&str], context: &'static str) -> Result<String, Error> {
     let normalized = git_dir_arg(git_dir);
     let mut cmd = Command::new("git");
-    cmd.arg("--git-dir").arg(&normalized);
+    // `Cow<str>` derefs to `str` either way: one `&*normalized` covers the
+    // borrowed (POSIX, zero-copy) and owned (Windows, one alloc) arms with
+    // no extra copy.
+    cmd.arg("--git-dir").arg(normalized.as_ref());
     for a in args {
         cmd.arg(a);
     }

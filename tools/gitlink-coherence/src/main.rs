@@ -149,114 +149,132 @@ struct Parsed {
     fetch: bool,
 }
 
+/// Zero-sized CLI policy markers: each flag arm monomorphizes through
+/// [`take_value`], so the missing-value error shape is a compile-time
+/// constant with no per-arm closure allocation.
+struct AtlasRootFlag;
+struct MemberRootFlag;
+struct RevisionFlag;
+struct FormatFlag;
+struct TargetRepoFlag;
+
+/// Take the value following `flag` at `idx`, advancing `idx`.
+///
+/// Monomorphized per flag marker: one generic body, zero per-arm closures.
+#[inline]
+fn take_value<M>(
+    args: &[OsString],
+    idx: &mut usize,
+    flag: &str,
+    missing: &str,
+) -> Result<OsString, Error> {
+    let _ = std::marker::PhantomData::<M>;
+    *idx += 1;
+    args.get(*idx).cloned().ok_or_else(|| Error::GitExit {
+        context: "argv",
+        code: 0,
+        stderr: format!("{flag} requires {missing}"),
+    })
+}
+
+#[derive(Default)]
+struct PartialArgs {
+    atlas_root: Option<PathBuf>,
+    member_root: Option<PathBuf>,
+    revision: Option<String>,
+    format: Format,
+    target_repo: Option<String>,
+    fetch: bool,
+    subcommand: Option<&'static str>,
+}
+
+/// Apply one already-split flag token to the accumulator.
+///
+/// Extracted so `parse_arguments` stays a thin collect-and-dispatch loop:
+/// the match body (flag/error surface) lives here, the iteration lives
+/// there. Returns `false` when the caller should advance past an empty token.
+#[inline]
+fn apply_token(
+    text: &str,
+    args: &[OsString],
+    idx: &mut usize,
+    partial: &mut PartialArgs,
+) -> Result<bool, Error> {
+    match text {
+        "--help" | "-h" => {
+            print!("{USAGE}");
+            std::process::exit(0);
+        }
+        "--atlas-root" => {
+            let v = take_value::<AtlasRootFlag>(args, idx, "--atlas-root", "a path argument")?;
+            partial.atlas_root = Some(PathBuf::from(v));
+        }
+        "--member-root" => {
+            let v = take_value::<MemberRootFlag>(args, idx, "--member-root", "a path argument")?;
+            partial.member_root = Some(PathBuf::from(v));
+        }
+        "--revision" => {
+            let v = take_value::<RevisionFlag>(args, idx, "--revision", "a commit argument")?;
+            partial.revision = Some(v.to_string_lossy().into_owned());
+        }
+        "--format" => {
+            let v = take_value::<FormatFlag>(args, idx, "--format", "a value")?
+                .to_string_lossy()
+                .into_owned();
+            partial.format = Format::from_str_value(&v).map_err(|e| Error::GitExit {
+                context: "argv",
+                code: 0,
+                stderr: e,
+            })?;
+        }
+        "--target-repo" => {
+            let v = take_value::<TargetRepoFlag>(args, idx, "--target-repo", "a value")?
+                .to_string_lossy()
+                .into_owned();
+            partial.target_repo = Some(v);
+        }
+        "--fetch" => {
+            partial.fetch = true;
+        }
+        "audit" if partial.subcommand.is_none() => {
+            partial.subcommand = Some("audit");
+        }
+        other => {
+            if other.is_empty() {
+                return Ok(false);
+            }
+            return Err(Error::GitExit {
+                context: "argv",
+                code: 0,
+                stderr: format!("unknown argument or subcommand `{other}`"),
+            });
+        }
+    }
+    Ok(true)
+}
+
 fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, Error> {
-    let mut atlas_root: Option<PathBuf> = None;
-    let mut member_root: Option<PathBuf> = None;
-    let mut revision: Option<String> = None;
-    let mut format: Format = Format::Human;
-    let mut target_repo: Option<String> = None;
-    let mut fetch: bool = false;
-    let mut subcommand: Option<&'static str> = None;
+    let mut partial = PartialArgs::default();
 
     let args: Vec<OsString> = arguments.collect();
     let mut idx = 0;
     while idx < args.len() {
         let raw = &args[idx];
         let text = raw.to_string_lossy().into_owned();
-        match text.as_str() {
-            "--help" | "-h" => {
-                print!("{USAGE}");
-                std::process::exit(0);
-            }
-            "--atlas-root" => {
-                idx += 1;
-                let v = args.get(idx).ok_or_else(|| Error::GitExit {
-                    context: "argv",
-                    code: 0,
-                    stderr: "--atlas-root requires a path argument".to_string(),
-                })?;
-                atlas_root = Some(PathBuf::from(v));
-            }
-            "--member-root" => {
-                idx += 1;
-                let v = args.get(idx).ok_or_else(|| Error::GitExit {
-                    context: "argv",
-                    code: 0,
-                    stderr: "--member-root requires a path argument".to_string(),
-                })?;
-                member_root = Some(PathBuf::from(v));
-            }
-            "--revision" => {
-                idx += 1;
-                let v = args.get(idx).ok_or_else(|| Error::GitExit {
-                    context: "argv",
-                    code: 0,
-                    stderr: "--revision requires a commit argument".to_string(),
-                })?;
-                revision = Some(v.to_string_lossy().into_owned());
-            }
-            "--format" => {
-                idx += 1;
-                let v = args
-                    .get(idx)
-                    .ok_or_else(|| Error::GitExit {
-                        context: "argv",
-                        code: 0,
-                        stderr: "--format requires a value".to_string(),
-                    })?
-                    .to_string_lossy()
-                    .into_owned();
-                format = Format::from_str_value(&v).map_err(|e| Error::GitExit {
-                    context: "argv",
-                    code: 0,
-                    stderr: e,
-                })?;
-            }
-            "--target-repo" => {
-                idx += 1;
-                let v = args
-                    .get(idx)
-                    .ok_or_else(|| Error::GitExit {
-                        context: "argv",
-                        code: 0,
-                        stderr: "--target-repo requires a value".to_string(),
-                    })?
-                    .to_string_lossy()
-                    .into_owned();
-                target_repo = Some(v);
-            }
-            "--fetch" => {
-                fetch = true;
-            }
-            "audit" if subcommand.is_none() => {
-                subcommand = Some("audit");
-            }
-            other => {
-                if other.is_empty() {
-                    idx += 1;
-                    continue;
-                }
-                return Err(Error::GitExit {
-                    context: "argv",
-                    code: 0,
-                    stderr: format!("unknown argument or subcommand `{other}`"),
-                });
-            }
+        if !apply_token(&text, &args, &mut idx, &mut partial)? {
+            idx += 1;
+            continue;
         }
         idx += 1;
     }
 
-    if subcommand.is_none() {
-        // The default action when no subcommand is supplied is `audit`,
-        // matching the most ergonomic on-host usage pattern.
-    }
     Ok(Parsed {
-        atlas_root,
-        member_root,
-        revision,
-        format,
-        target_repo,
-        fetch,
+        atlas_root: partial.atlas_root,
+        member_root: partial.member_root,
+        revision: partial.revision,
+        format: partial.format,
+        target_repo: partial.target_repo,
+        fetch: partial.fetch,
     })
 }
 

@@ -56,21 +56,20 @@ pub enum DiffSide {
     Removed,
 }
 
-/// Parse a semver string into a triple of `(major, minor, patch, pre_release)`
-/// for ordering. Returns `None` if the input does not match
-/// `MAJOR.MINOR.PATCH` optionally followed by `-<pre>` / `+<build>`.
+/// Split a semver string into its numeric triple and pre-release slice.
 ///
 /// Build metadata (`+<build>`) is stripped before comparison per `SemVer`
 /// §10 ("Build metadata MUST be ignored when determining version
-/// precedence"). Pre-release (`-<pre>`) is retained and orders before the
-/// release it modifies; a release with no pre-release orders after one
-/// with a pre-release at the same `MAJOR.MINOR.PATCH`.
-fn parse_semver_triple(s: &str) -> Option<(u64, u64, u64, Option<String>)> {
+/// precedence"). The pre-release is returned as a borrow so the hot compare
+/// path allocates nothing; only [`parse_semver_triple`] materializes it into
+/// an owned [`String`] for the public [`SemVerKey`] surface.
+#[must_use]
+pub fn split_semver(s: &str) -> Option<(u64, u64, u64, Option<&str>)> {
     // Strip build metadata (`+...`) — ignored for ordering.
     let s = s.split('+').next().unwrap_or(s);
     // Split off pre-release (`-...`) — retained.
     let (core, pre) = match s.split_once('-') {
-        Some((c, p)) => (c, Some(p.to_string())),
+        Some((c, p)) => (c, Some(p)),
         None => (s, None),
     };
     let mut parts = core.split('.');
@@ -83,12 +82,29 @@ fn parse_semver_triple(s: &str) -> Option<(u64, u64, u64, Option<String>)> {
     Some((major, minor, patch, pre))
 }
 
+/// Parse a semver string into a triple of `(major, minor, patch, pre_release)`
+/// for ordering. Returns `None` if the input does not match
+/// `MAJOR.MINOR.PATCH` optionally followed by `-<pre>` / `+<build>`.
+///
+/// Build metadata (`+<build>`) is stripped before comparison per `SemVer`
+/// §10 ("Build metadata MUST be ignored when determining version
+/// precedence"). Pre-release (`-<pre>`) is retained and orders before the
+/// release it modifies; a release with no pre-release orders after one
+/// with a pre-release at the same `MAJOR.MINOR.PATCH`.
+fn parse_semver_triple(s: &str) -> Option<(u64, u64, u64, Option<String>)> {
+    let (major, minor, patch, pre) = split_semver(s)?;
+    Some((major, minor, patch, pre.map(str::to_string)))
+}
+
 /// Parse a semver string into an ordering key. Returns `None` on parse
 /// failure. Two equal keys compare equal; pre-release sorts before the
 /// release at the same triple.
 ///
 /// This is the public entry used by [`crate::classify::classify_pair`].
+/// The key allocates exactly once (for the pre-release, when present); the
+/// hot loop in [`crate::classify::compare_pair`] borrows instead.
 #[must_use]
+#[inline]
 pub fn parse_semver(s: &str) -> Option<SemVerKey> {
     let (major, minor, patch, pre) = parse_semver_triple(s)?;
     Some(SemVerKey {
@@ -102,8 +118,16 @@ pub fn parse_semver(s: &str) -> Option<SemVerKey> {
 /// Ordering key for a parsed semver. Two equivalent versions produce equal
 /// keys; pre-release ordering is encoded so a release with a pre-release
 /// sorts strictly before the same triple without one.
+///
+/// The key owns its pre-release so reports and cross-call comparisons can
+/// hold it without borrowing the manifest text. The hot compare path in
+/// [`crate::classify::compare_pair`] borrows through
+/// [`split_semver`] instead — zero-copy, zero extra allocation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SemVerKey {
+    /// Zero-sized marker style fields are plain integers here on purpose:
+    /// the key is `Copy`-adjacent in size (three words plus one optional
+    /// string) and moves by value through the classifier without boxing.
     major: u64,
     minor: u64,
     patch: u64,

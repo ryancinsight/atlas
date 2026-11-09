@@ -88,11 +88,20 @@ pub fn checkout(config: &CheckoutConfig) -> Result<CheckoutSummary, CheckoutErro
 }
 
 fn validate_revision(revision: &str) -> Result<(), CheckoutError> {
-    let is_full_sha = revision.len() == 40 && revision.bytes().all(|byte| byte.is_ascii_hexdigit());
-    let is_lowercase = revision
-        .bytes()
-        .all(|byte| !byte.is_ascii_alphabetic() || byte.is_ascii_lowercase());
-    if is_full_sha && is_lowercase {
+    // Zero-copy single pass: length, hex-digit, and lowercase checks fold
+    // into one byte walk with early exit — no second iterator, no allocation.
+    // Stability: the accepted set is unchanged (exactly 40 lowercase hex).
+    let mut len = 0_usize;
+    for byte in revision.bytes() {
+        if !byte.is_ascii_hexdigit() {
+            return Err(CheckoutError::InvalidAtlasRevision(revision.to_owned()));
+        }
+        if byte.is_ascii_alphabetic() && !byte.is_ascii_lowercase() {
+            return Err(CheckoutError::InvalidAtlasRevision(revision.to_owned()));
+        }
+        len += 1;
+    }
+    if len == 40 {
         Ok(())
     } else {
         Err(CheckoutError::InvalidAtlasRevision(revision.to_owned()))

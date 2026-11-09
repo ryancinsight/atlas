@@ -11,7 +11,7 @@
 //! message is checked for declared intent per
 //! [`crate::classify::classify_intent`].
 
-use crate::classify::{Direction, IntentDeclaration, classify_intent, classify_pair};
+use crate::classify::{Direction, IntentDeclaration, classify_intent, compare_pair};
 use crate::parse::{DiffSide, LineKind, VersionLine, parse_diff_line};
 
 /// One direction-classified finding produced by [`scan_diff`].
@@ -32,6 +32,8 @@ pub struct Finding {
     /// human-format report.
     pub message: String,
 }
+
+use std::collections::HashMap;
 
 /// Scan a `*.toml` unified diff and its commit message into a list of
 /// classified findings.
@@ -62,12 +64,15 @@ pub fn scan_diff(diff_text: &str, commit_msg: &str) -> Vec<Finding> {
     let intent = classify_intent(commit_msg);
     let mut findings: Vec<Finding> = Vec::new();
 
-    // Per-file ordered lists, indexed by parse order. When a file
-    // appears again later in the diff (multiple hunks), we keep
-    // accumulating into the same lists so the i-th removed and i-th added
-    // pair across the whole file, not per hunk.
+    // Per-file ordered lists, indexed by parse order. A path->index map keeps
+    // file-slot lookup O(1): the scan hot loop previously rescanned the slot
+    // list per diff line (O(files) per line). When a file appears again later
+    // in the diff (multiple hunks), we keep accumulating into the same lists
+    // so the i-th removed and i-th added pair across the whole file, not per
+    // hunk.
     let mut files: Vec<(String, Vec<VersionLine>, Vec<VersionLine>)> = Vec::new();
-    let mut current_path: Option<String> = None;
+    let mut file_index: HashMap<String, usize> = HashMap::new();
+    let mut current_slot: Option<usize> = None;
     // Post-image line counter, advanced on `+` and context lines.
     let mut post_line: u32 = 0;
 
@@ -75,8 +80,14 @@ pub fn scan_diff(diff_text: &str, commit_msg: &str) -> Vec<Finding> {
         if let Some(rest) = line.strip_prefix("diff --git ") {
             // Begin a new file. find_or_create the file slot.
             let path = parse_diff_path(rest);
-            current_path = Some(path.clone());
-            files_entry(&mut files, &path);
+            if let Some(&slot) = file_index.get(&path) {
+                current_slot = Some(slot);
+            } else {
+                let slot = files.len();
+                files.push((path.clone(), Vec::new(), Vec::new()));
+                file_index.insert(path, slot);
+                current_slot = Some(slot);
+            }
             post_line = 0;
             continue;
         }
@@ -88,14 +99,21 @@ pub fn scan_diff(diff_text: &str, commit_msg: &str) -> Vec<Finding> {
         }
         // Look up the path before parsing the +/- line. If no `diff --git`
         // header has been seen yet, the diff is malformed and we skip.
-        let Some(path) = current_path.as_deref() else {
+        let Some(slot) = current_slot else {
             continue;
         };
-        if let Some(v) = parse_diff_line(line, path, post_line) {
-            // Read the side before handing ownership to `push_to_file`; only
+        // Header path is authoritative for pairing; the slot stores it once.
+        // `parse_diff_line` borrows it only for the returned `VersionLine`,
+        // so clone the slot path here instead of borrowing across the push.
+        let path = files[slot].0.clone();
+        if let Some(v) = parse_diff_line(line, &path, post_line) {
+            // Read the side before handing ownership to the slot push; only
             // added lines advance the post-image counter.
             let advances_post_line = v.side == DiffSide::Added;
-            push_to_file(&mut files, path, v);
+            match v.side {
+                DiffSide::Added => files[slot].2.push(v),
+                DiffSide::Removed => files[slot].1.push(v),
+            }
             if advances_post_line {
                 post_line = post_line.saturating_add(1);
             }
@@ -116,6 +134,12 @@ pub fn scan_diff(diff_text: &str, commit_msg: &str) -> Vec<Finding> {
 }
 
 /// Look up (or create) the per-file slot in `files`.
+///
+/// Retained for unit-test construction of per-file fixtures; the hot loop in
+/// [`scan_diff`] uses its own `file_index` map for O(1) slot lookup instead.
+/// Dead in non-test builds by construction (`#[cfg(test)]`).
+#[cfg(test)]
+#[allow(dead_code)]
 fn files_entry<'a>(
     files: &'a mut Vec<(String, Vec<VersionLine>, Vec<VersionLine>)>,
     path: &str,
@@ -134,6 +158,12 @@ fn files_entry<'a>(
 }
 
 /// Append a parsed `VersionLine` to the per-file slot matching its path.
+///
+/// Retained for unit-test construction; the hot loop in [`scan_diff`] pushes
+/// through its `file_index` map directly to avoid a second slot scan.
+/// Dead in non-test builds by construction (`#[cfg(test)]`).
+#[cfg(test)]
+#[allow(dead_code)]
 fn push_to_file(
     files: &mut Vec<(String, Vec<VersionLine>, Vec<VersionLine>)>,
     path: &str,
@@ -154,6 +184,7 @@ fn push_to_file(
 /// movement finding; an addition with no matching removal is an insertion
 /// paired against the sentinel `0.0.0` old value, which classifies
 /// against any real `new` as Forward unless `new` is itself `0.0.0`.
+#[inline]
 fn pair_file(
     removed: &[VersionLine],
     added: &[VersionLine],
@@ -191,13 +222,14 @@ fn pair_file(
 }
 
 /// Push a single Finding from a removed/added pair.
+#[inline]
 fn push_pair(
     r: &VersionLine,
     a: &VersionLine,
     intent: IntentDeclaration,
     findings: &mut Vec<Finding>,
 ) {
-    let direction = classify_pair(&r.version, &a.version);
+    let direction = compare_pair(&r.version, &a.version);
     let message = format!(
         "{}:{} version {:?} -> {:?} ({})",
         a.path,
@@ -217,6 +249,7 @@ fn push_pair(
 }
 
 /// Render the short label used in the human-format finding message.
+#[inline]
 fn direction_label(direction: Direction, intent: IntentDeclaration) -> &'static str {
     match (direction, intent) {
         (Direction::Identical, _) => "identical",

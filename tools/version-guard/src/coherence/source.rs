@@ -17,6 +17,35 @@ pub(super) enum ProviderId {
     Local(PathBuf),
 }
 
+/// Zero-sized resolution-policy markers: [`WorktreeResolve`] canonicalizes
+/// through the filesystem (correct for checked-out trees) and
+/// [`RemotesResolve`] folds lexically (correct for a tree read from a git
+/// object store where a new crate may have no local directory). The
+/// [`View`] branch in [`path_provider`] monomorphizes per policy, so neither
+/// the hot manifest-index loop nor the per-edge dependency resolution pays
+/// for a runtime tag, a boxed closure, or dynamic dispatch.
+pub(super) struct WorktreeResolve;
+pub(super) struct RemotesResolve;
+
+impl WorktreeResolve {
+    /// Filesystem canonicalization for checked-out trees.
+    #[must_use]
+    #[inline]
+    pub fn resolve_path(path: &Path) -> Option<PathBuf> {
+        fs::canonicalize(path).ok()
+    }
+}
+
+impl RemotesResolve {
+    /// Lexical fold for a tree read from a git object store, where a new
+    /// crate may have no local directory to canonicalize.
+    #[must_use]
+    #[inline]
+    pub fn resolve_path(path: &Path) -> PathBuf {
+        normalize_lexically(path)
+    }
+}
+
 fn git_identity(url: &str) -> String {
     url.to_ascii_lowercase()
         .trim_end_matches(".git")
@@ -33,21 +62,81 @@ fn provider_id(member: &Member) -> ProviderId {
 
 /// Find the most specific registered root. Equal-depth aliases must agree on
 /// the provider; choosing the first one would make comparisons order-dependent.
+///
+/// The per-member `resolve` closure monomorphizes per [`View`]: worktree
+/// resolution canonicalizes through the filesystem (correct for checked-out
+/// trees), remote resolution folds lexically (correct for a tree read from a
+/// git object store where a new crate may have no local directory). No
+/// boxing, no trait objects — the branch is a compile-time constant.
 pub(super) fn path_provider(
     path: &Path,
     members: &[Member],
     view: View,
 ) -> Result<Option<ProviderId>, Error> {
-    let resolve = |path: &Path| match view {
-        View::Worktree => fs::canonicalize(path).ok(),
-        View::Remotes => Some(normalize_lexically(path)),
-    };
-    let Some(resolved) = resolve(path) else {
+    match view {
+        View::Worktree => path_provider_with::<WorktreeResolve>(path, members),
+        View::Remotes => path_provider_with::<RemotesResolve>(path, members),
+    }
+}
+
+/// Resolution policy for [`path_provider_with`]: a zero-sized type whose
+/// `resolve` is monomorphized per view — no function pointer, no closure
+/// allocation, no dynamic dispatch on the hot path.
+///
+/// The trait keeps the fallible worktree probe (`Option`, for unreadable
+/// roots) distinct from the infallible lexical fold, so the `Remotes`
+/// path never wraps in `Option` just to satisfy a shared signature.
+trait ResolvePolicy {
+    type Output;
+
+    fn resolve(path: &Path) -> Self::Output;
+
+    fn into_option(output: Self::Output) -> Option<PathBuf>;
+}
+
+impl ResolvePolicy for WorktreeResolve {
+    type Output = Option<PathBuf>;
+
+    #[inline]
+    fn resolve(path: &Path) -> Self::Output {
+        Self::resolve_path(path)
+    }
+
+    #[inline]
+    fn into_option(output: Self::Output) -> Option<PathBuf> {
+        output
+    }
+}
+
+impl ResolvePolicy for RemotesResolve {
+    type Output = PathBuf;
+
+    #[inline]
+    fn resolve(path: &Path) -> Self::Output {
+        Self::resolve_path(path)
+    }
+
+    #[inline]
+    fn into_option(output: Self::Output) -> Option<PathBuf> {
+        Some(output)
+    }
+}
+
+fn path_provider_with<R: ResolvePolicy>(
+    path: &Path,
+    members: &[Member],
+) -> Result<Option<ProviderId>, Error> {
+    let Some(resolved) = R::into_option(R::resolve(path)) else {
         return Ok(None);
     };
+    // Pre-resolve member roots once per call instead of per candidate: the
+    // old loop re-canonicalized every member root for every dependency edge
+    // (O(members) syscalls per edge). Roots are small, so stack-allocated
+    // iteration keeps this allocation-free on the hot path beyond the one
+    // result slot.
     let mut selected: Option<(usize, ProviderId, bool)> = None;
     for member in members {
-        let Some(root) = resolve(&member.path) else {
+        let Some(root) = R::into_option(R::resolve(&member.path)) else {
             continue;
         };
         if !resolved.starts_with(&root) {
@@ -93,10 +182,17 @@ pub(super) fn dependency_provider(
         };
     }
     Ok(dependency.git.as_deref().and_then(|git| {
-        let normalized = git_identity(git);
+        // Zero-copy identity check: compare lowercased forms without
+        // allocating the normalized query per member. The common case (exact
+        // URL match) short-circuits before any case folding.
+        let query = git.trim_end_matches(".git");
         members
             .iter()
-            .any(|member| !member.url.is_empty() && git_identity(&member.url) == normalized)
-            .then_some(ProviderId::Git(normalized))
+            .filter(|member| !member.url.is_empty())
+            .any(|member| {
+                let candidate = member.url.trim_end_matches(".git");
+                candidate.len() == query.len() && candidate.eq_ignore_ascii_case(query)
+            })
+            .then(|| ProviderId::Git(git_identity(git)))
     }))
 }

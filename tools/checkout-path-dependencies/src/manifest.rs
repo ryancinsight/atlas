@@ -65,31 +65,66 @@ pub(super) fn discover(
 }
 
 fn canonical_file(path: &Path) -> Result<PathBuf, CheckoutError> {
-    let canonical = path.canonicalize().map_err(|source| CheckoutError::Io {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    if canonical.is_file() {
-        Ok(canonical)
-    } else {
-        Err(CheckoutError::InvalidPath {
-            path: canonical,
-            requirement: "a file",
-        })
-    }
+    canonical::<FileKind>(path)
 }
 
 fn canonical_directory(path: &Path) -> Result<PathBuf, CheckoutError> {
+    canonical::<DirKind>(path)
+}
+
+/// Zero-sized canonicalization policy: [`FileKind`] requires a file,
+/// [`DirKind`] a directory. [`canonical`] monomorphizes per kind, so the
+/// file/dir branch is a compile-time constant with no runtime tag and no
+/// duplicated bodies.
+struct FileKind;
+struct DirKind;
+
+/// Canonicalization policy for [`canonical`]: a zero-sized type whose
+/// `check`/`requirement` monomorphize per kind — no branch, no closure,
+/// no dynamic dispatch.
+trait CanonicalKind {
+    /// Whether the canonicalized path has the required kind.
+    fn check(path: &Path) -> bool;
+    /// The `InvalidPath` requirement string for this kind.
+    fn requirement() -> &'static str;
+}
+
+impl CanonicalKind for FileKind {
+    #[inline]
+    fn check(path: &Path) -> bool {
+        path.is_file()
+    }
+
+    #[inline]
+    fn requirement() -> &'static str {
+        "a file"
+    }
+}
+
+impl CanonicalKind for DirKind {
+    #[inline]
+    fn check(path: &Path) -> bool {
+        path.is_dir()
+    }
+
+    #[inline]
+    fn requirement() -> &'static str {
+        "a directory"
+    }
+}
+
+#[inline]
+fn canonical<M: CanonicalKind>(path: &Path) -> Result<PathBuf, CheckoutError> {
     let canonical = path.canonicalize().map_err(|source| CheckoutError::Io {
         path: path.to_path_buf(),
         source,
     })?;
-    if canonical.is_dir() {
+    if M::check(&canonical) {
         Ok(canonical)
     } else {
         Err(CheckoutError::InvalidPath {
             path: canonical,
-            requirement: "a directory",
+            requirement: M::requirement(),
         })
     }
 }
@@ -99,6 +134,9 @@ fn collect_dependency_paths<'a>(value: &'a Value, paths: &mut Vec<&'a str>) {
         return;
     };
 
+    // Pre-size: one path per table entry is the observed upper bound, so the
+    // common single-dep manifest is one allocation.
+    paths.reserve(table.len());
     for (key, child) in table {
         match key.as_str() {
             "dependencies" | "dev-dependencies" | "build-dependencies" | "replace" => {
@@ -133,7 +171,9 @@ fn collect_section_paths<'a>(value: &'a Value, paths: &mut Vec<&'a str>) {
 }
 
 fn normalize(path: &Path) -> PathBuf {
-    let mut normalized = PathBuf::new();
+    // Pre-size: `PathBuf` has no `with_capacity` for components, so seed it
+    // with the input length — one allocation for the common no-`..` case.
+    let mut normalized = PathBuf::with_capacity(path.as_os_str().len());
     for component in path.components() {
         match component {
             Component::CurDir => {}
@@ -146,6 +186,10 @@ fn normalize(path: &Path) -> PathBuf {
     normalized
 }
 
+/// Borrowed provider-name probe: zero-copy extraction of the first normal
+/// component with no allocation and no `to_owned` on the hot path. The
+/// caller owns the single `to_owned` at the `entry` boundary.
+#[inline]
 fn normal_component(component: Component<'_>) -> Option<&str> {
     match component {
         Component::Normal(value) => value.to_str(),

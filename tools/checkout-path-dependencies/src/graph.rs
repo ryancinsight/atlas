@@ -59,6 +59,8 @@ pub(super) fn load(
     atlas_root: &Path,
     names: impl Iterator<Item = String>,
 ) -> Result<BTreeMap<String, Provider>, CheckoutError> {
+    // Single pass: one git round-trip per provider dominates the map cost,
+    // so no pre-sizing hook is needed (`BTreeMap` has no `reserve`).
     let mut providers = BTreeMap::new();
     for name in names {
         let path = format!("repos/{name}");

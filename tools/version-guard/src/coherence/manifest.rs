@@ -120,6 +120,34 @@ pub(crate) fn package_index(
             ))
         })
         .collect();
+    // Member roots are resolved once here, not per manifest: the old code
+    // re-canonicalized every member root for every package-bearing manifest
+    // (O(members) syscalls per manifest). The index itself stays a BTreeMap —
+    // deterministic report order is part of the gate contract.
+    //
+    // Safety: `canonicalize` failures skip the member rather than aborting —
+    // an unreadable member root is `unscanned`, never a silent pass. The
+    // fallback `path_provider` probe below still owns the authoritative
+    // outside-tree verdict, so a skipped root can only narrow to `None`
+    // (unmeasured), never misattribute a package.
+    let member_roots: Vec<(PathBuf, ProviderId)> = members
+        .iter()
+        .filter_map(|member| {
+            let root = std::fs::canonicalize(&member.path).ok()?;
+            let provider = if member.url.is_empty() {
+                ProviderId::Local(super::member::normalize_lexically(&member.path))
+            } else {
+                ProviderId::Git(
+                    member
+                        .url
+                        .to_ascii_lowercase()
+                        .trim_end_matches(".git")
+                        .to_string(),
+                )
+            };
+            Some((root, provider))
+        })
+        .collect();
     let mut index: BTreeMap<(ProviderId, String), PackageVersion> = BTreeMap::new();
     for manifest in manifests {
         let Some(name) = manifest.package_name.as_deref() else {
@@ -135,13 +163,29 @@ pub(crate) fn package_index(
         if let Some(version) = version {
             // Manifest paths identify their registered tree even when their
             // contents came from an origin commit newer than the checkout.
-            let provider =
-                path_provider(&manifest.path, members, View::Remotes)?.ok_or_else(|| {
-                    Error::Manifest {
-                        path: manifest.display_path.clone(),
-                        message: String::from("package is outside registered providers"),
-                    }
-                })?;
+            // Resolved against the pre-canonicalized member roots so each
+            // manifest costs one `starts_with` scan, not one syscall per
+            // member root.
+            let resolved = std::fs::canonicalize(&manifest.path)
+                .ok()
+                .and_then(|candidate| {
+                    member_roots
+                        .iter()
+                        .filter(|(root, _)| candidate.starts_with(root))
+                        .max_by_key(|(root, _)| root.components().count())
+                        .map(|(_, provider)| provider.clone())
+                });
+            let provider = match resolved {
+                Some(provider) => provider,
+                None => {
+                    path_provider(&manifest.path, members, View::Remotes)?.ok_or_else(|| {
+                        Error::Manifest {
+                            path: manifest.display_path.clone(),
+                            message: String::from("package is outside registered providers"),
+                        }
+                    })?
+                }
+            };
             let key = (provider, name.to_string());
             if let Some(existing) = index.get(&key) {
                 if existing.version != version {

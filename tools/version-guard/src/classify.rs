@@ -12,7 +12,42 @@
 //! Backward movement is always a defect (quarantine by `git_discipline`),
 //! regardless of declared intent.
 
-use crate::parse::parse_semver;
+use crate::parse::split_semver;
+
+/// Compare two semver strings without allocating.
+///
+/// Returns [`Direction::Backward`] when either side fails to parse, so the
+/// guard fails loudly rather than silently accepting a malformed version.
+/// This is the zero-copy fast path for the diff-pairing hot loop; the owned
+/// [`SemVerKey`] comparison remains the public ordering surface.
+#[must_use]
+#[inline]
+pub fn compare_pair(old: &str, new: &str) -> Direction {
+    use std::cmp::Ordering;
+    let (Some(a), Some(b)) = (split_semver(old), split_semver(new)) else {
+        return Direction::Backward;
+    };
+    // Match `SemVerKey::cmp` exactly: the comparison is old-vs-new, so
+    // `new > old` (Greater) is Forward. Numeric triple first, then
+    // pre-release where the release (None) orders *after* any pre-release
+    // (Some). A bare tuple compare would invert that last leg
+    // (None < Some).
+    let order =
+        b.0.cmp(&a.0)
+            .then_with(|| b.1.cmp(&a.1))
+            .then_with(|| b.2.cmp(&a.2))
+            .then_with(|| match (&b.3, &a.3) {
+                (None, None) => Ordering::Equal,
+                (None, Some(_)) => Ordering::Greater,
+                (Some(_), None) => Ordering::Less,
+                (Some(x), Some(y)) => x.cmp(y),
+            });
+    match order {
+        Ordering::Equal => Direction::Identical,
+        Ordering::Greater => Direction::Forward,
+        Ordering::Less => Direction::Backward,
+    }
+}
 
 /// Direction of version movement between two semver strings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,11 +80,7 @@ pub enum IntentDeclaration {
 /// an ill-formed value.
 #[must_use]
 pub fn classify_pair(old: &str, new: &str) -> Direction {
-    match (parse_semver(old), parse_semver(new)) {
-        (Some(a), Some(b)) if a == b => Direction::Identical,
-        (Some(a), Some(b)) if b > a => Direction::Forward,
-        _ => Direction::Backward,
-    }
+    compare_pair(old, new)
 }
 
 /// Inspect a commit message body and report whether it declares release/bump

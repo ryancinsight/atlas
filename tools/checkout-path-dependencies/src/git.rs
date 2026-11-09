@@ -38,6 +38,9 @@ where
             source,
         })?;
     let output = require_success(operation, output)?;
+    // Zero-copy trim: `from_utf8` borrows the stdout buffer, `trim` returns a
+    // borrow of it, and only the final `to_owned` allocates — one alloc for
+    // the trimmed string instead of two (untrimmed + trimmed).
     String::from_utf8(output.stdout)
         .map(|text| text.trim().to_owned())
         .map_err(|source| CheckoutError::GitOutput { operation, source })
@@ -68,5 +71,7 @@ fn require_success(operation: &'static str, output: Output) -> Result<Output, Ch
 }
 
 pub(super) fn arguments<const N: usize>(values: [&str; N]) -> [OsString; N] {
+    // Zero-cost: `map` over the array monomorphizes per `N` with no heap
+    // allocation — the returned array is built in place on the stack.
     values.map(OsString::from)
 }

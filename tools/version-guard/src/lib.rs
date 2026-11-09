@@ -69,9 +69,9 @@ pub mod report;
 /// End-to-end diff scan over a member-repo revision range.
 pub mod scan;
 
-pub use classify::{Direction, IntentDeclaration, classify_pair};
+pub use classify::{Direction, IntentDeclaration, classify_pair, compare_pair};
 pub use coherence::{CoherenceFinding, CoherenceReport, StaleMember, View, scan_atlas};
 pub use error::Error;
-pub use parse::{VersionLine, parse_diff_line};
+pub use parse::{SemVerKey, VersionLine, parse_diff_line, parse_semver, split_semver};
 pub use report::{Format, Report, render};
 pub use scan::{Finding, scan_diff};

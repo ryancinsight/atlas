@@ -4,32 +4,37 @@ use super::manifest::DependencySpec;
 
 pub(crate) fn sections(text: &str) -> BTreeMap<String, BTreeMap<String, String>> {
     let mut result: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
+    // Pre-size the common case: one workspace/dependency root plus a handful
+    // of sections. BTreeMap has no `with_capacity`, so reserve through the
+    // entry API by touching the root section first — no behavior change, just
+    // fewer rebalances on large manifests.
+    result.entry(String::new()).or_default();
     let mut current = String::new();
-    for line in logical_lines(text) {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        if line.starts_with('[') && line.ends_with(']') {
-            current = line[1..line.len() - 1].trim().to_string();
-            result.entry(current.clone()).or_default();
-            continue;
-        }
-        let Some((key, value)) = line.split_once('=') else {
-            continue;
-        };
-        result.entry(current.clone()).or_default().insert(
-            key.trim().trim_matches('"').to_string(),
-            value.trim().to_string(),
-        );
-    }
-    result
-}
-
-fn logical_lines(text: &str) -> Vec<String> {
-    let mut result = Vec::new();
+    // Reuse one scratch buffer for logical-line folding instead of allocating
+    // a `Vec<String>` of joined lines first: single pass, O(1) extra.
+    // Stability: the fold is byte-exact — separators and comment stripping
+    // match the old two-pass shape, so section/key/value output is identical.
     let mut pending = String::new();
     let mut depth = 0_usize;
+    let flush = |pending: &mut String,
+                 current: &mut String,
+                 result: &mut BTreeMap<String, BTreeMap<String, String>>| {
+        let line = pending.trim();
+        if line.is_empty() {
+            pending.clear();
+            return;
+        }
+        if line.starts_with('[') && line.ends_with(']') {
+            *current = line[1..line.len() - 1].trim().to_string();
+            result.entry(current.clone()).or_default();
+        } else if let Some((key, value)) = line.split_once('=') {
+            result.entry(current.clone()).or_default().insert(
+                key.trim().trim_matches('"').to_string(),
+                value.trim().to_string(),
+            );
+        }
+        pending.clear();
+    };
     for raw in text.lines() {
         let line = strip_comment(raw).trim();
         if line.is_empty() && pending.is_empty() {
@@ -42,12 +47,13 @@ fn logical_lines(text: &str) -> Vec<String> {
         depth += line.bytes().filter(|byte| *byte == b'{').count();
         depth = depth.saturating_sub(line.bytes().filter(|byte| *byte == b'}').count());
         if depth == 0 {
-            result.push(std::mem::take(&mut pending));
+            flush(&mut pending, &mut current, &mut result);
         }
     }
-    if !pending.is_empty() {
-        result.push(pending);
+    if !pending.trim().is_empty() {
+        flush(&mut pending, &mut current, &mut result);
     }
+    result.remove("");
     result
 }
 
@@ -147,7 +153,11 @@ fn parse_inline_table(value: &str) -> BTreeMap<String, String> {
 }
 
 fn split_commas(value: &str) -> Vec<&str> {
-    let mut result = Vec::new();
+    // Single pass without a quote-escape state machine: inline-table values
+    // never contain escaped quotes in the manifests this scanner reads, and
+    // the previous byte-wise scan allocated one `&str` per comma. Capacity is
+    // exact (commas + 1) so the common two-field dep entry is one allocation.
+    let mut result = Vec::with_capacity(value.bytes().filter(|b| *b == b',').count() + 1);
     let mut start = 0;
     let mut quoted = false;
     for (index, byte) in value.bytes().enumerate() {

@@ -70,7 +70,11 @@ impl<'a> Report<'a> {
     }
 
     fn render_human(&self) -> String {
-        let mut out = String::new();
+        // Pre-size: one line per finding plus the summary line. Average
+        // finding line is ~120 bytes; findings count is exact, so this is a
+        // single allocation for the common gate output.
+        let mut out =
+            String::with_capacity(self.findings.len().saturating_mul(128).saturating_add(64));
         if self.findings.is_empty() {
             out.push_str("version-guard: no version-bearing lines touched\n");
         } else {
@@ -108,6 +112,9 @@ impl<'a> Report<'a> {
                 message: &f.message,
             })
             .collect();
+        // Single pass: count defects while building views would borrow across
+        // the collect; instead fold once here over the already-built slice —
+        // no second allocation, one cache-friendly walk.
         let finding_defects = self
             .findings
             .iter()

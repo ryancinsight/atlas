@@ -109,7 +109,8 @@ impl Report {
     }
 
     fn render_human(&self) -> String {
-        let mut out = String::new();
+        // Pre-size: header (~80) plus roughly one short row per probe.
+        let mut out = String::with_capacity(96 + self.probes.len().saturating_mul(96));
         writeln!(
             out,
             "gitlink-coherence: {} probed | {} defects | {} stale-advanceable | {} clean",
@@ -160,7 +161,8 @@ impl Report {
     }
 
     fn render_markdown(&self) -> String {
-        let mut out = String::new();
+        // Pre-size: header + separator (~110) plus one table row per probe.
+        let mut out = String::with_capacity(128 + self.probes.len().saturating_mul(128));
         writeln!(out, "| # | submodule | class | pin | origin/main | note |").ok();
         writeln!(out, "|---|-----------|-------|-----|-------------|------|").ok();
         for (idx, p) in self.probes.iter().enumerate() {
@@ -224,12 +226,21 @@ fn origin_or_empty(p: &RepoProbe) -> &str {
 }
 
 /// Shortens a 40-char SHA to the canonical 8-char prefix for tabular viewing.
+///
+/// Zero-copy: returns a borrow of the input with no allocation.
+#[must_use]
+#[inline]
 fn short_sha(sha: &str) -> &str {
     if sha.len() >= 8 { &sha[..8] } else { sha }
 }
 
 /// Map a [`DefectClass`] to a stable label suitable for the human/markdown
 /// output column.
+///
+/// Zero-cost: a `const`-evaluable match returning `&'static str` with no
+/// allocation and no indirection.
+#[must_use]
+#[inline]
 fn class_label(c: &DefectClass) -> &'static str {
     match c {
         DefectClass::Clean => "clean",
