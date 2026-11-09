@@ -507,9 +507,14 @@ class HookInstallTestCase(unittest.TestCase):
                 f"{mode},{blob},{path}", env=environment,
             )
         tree = self.git(self.atlas, "write-tree", env=environment)
+        parent = subprocess.run(
+            ["git", "-C", str(self.atlas), "rev-parse", "--verify",
+             "refs/remotes/origin/main"], capture_output=True, text=True,
+        )
+        parents = ["-p", parent.stdout.strip()] if parent.returncode == 0 else []
         commit = self.git(
             self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
-            "commit-tree", tree, "-m", "publish",
+            "commit-tree", tree, *parents, "-m", "publish",
         )
         self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
 
@@ -565,14 +570,15 @@ class HookInstallTestCase(unittest.TestCase):
 
     def test_staged_bootstrap_supports_source_landing_and_rollback(self) -> None:
         self.publish({"pre-push": owned_hook("old-source")})
-        old_source = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        incompatible_source = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
         index = Path(self._tmp.name) / "old-source-index"
         environment = {**os.environ, "GIT_INDEX_FILE": str(index)}
-        self.git(self.atlas, "read-tree", old_source, env=environment)
+        self.git(self.atlas, "read-tree", incompatible_source, env=environment)
         self.git(self.atlas, "update-index", "--force-remove", "scripts/pre_push_gate.py", env=environment)
         tree = self.git(self.atlas, "write-tree", env=environment)
         old_source = self.git(self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
-                              "commit-tree", tree, "-m", "Old source without bootstrap")
+                              "commit-tree", tree, "-p", incompatible_source, "-m", "Old source without bootstrap")
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", old_source)
         self.publish({"pre-push": owned_hook("new-source")})
         future_source = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
         self.git(self.atlas, "update-ref", "refs/remotes/origin/main", old_source)
@@ -583,11 +589,22 @@ class HookInstallTestCase(unittest.TestCase):
               contextlib.redirect_stdout(io.StringIO())):
             self.assertEqual(_lock_form.cmd_install_hooks(Namespace(source_ref=future_source)), 0)
         self.assertEqual(self.git(self.atlas, "rev-parse", "refs/remotes/origin/main"), old_source)
-        self.assertIn("old-source", self.run_hook(member))
+        with self.assertRaises(subprocess.CalledProcessError) as prelanding:
+            self.run_hook(member)
+        self.assertEqual(prelanding.exception.returncode, 1)
+        self.assertIn("predates the installed process-owner floor", prelanding.exception.stderr)
         self.git(self.atlas, "update-ref", "refs/remotes/origin/main", future_source)
         self.assertIn("new-source", self.run_hook(member))
-        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", old_source)
-        self.assertIn("old-source", self.run_hook(member))
+        self.publish({"pre-push": owned_hook("later-source")})
+        self.assertIn("later-source", self.run_hook(member))
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", future_source)
+        self.assertIn("new-source", self.run_hook(member))
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", incompatible_source)
+        with self.assertRaises(subprocess.CalledProcessError) as refused:
+            self.run_hook(member)
+        self.assertEqual(refused.exception.returncode, 1)
+        self.assertIn("predates the installed process-owner floor", refused.exception.stderr)
+        self.assertNotIn("old-source", refused.exception.stderr)
 
     def test_members_run_origin_main_hooks_and_custom_paths_stay(self) -> None:
         self.publish({

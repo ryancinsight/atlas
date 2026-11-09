@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
+import shutil
 import subprocess
 import sys
+import tomllib
 import unittest
 from unittest.mock import patch
 
@@ -49,7 +51,7 @@ class MetadataCacheTests(unittest.TestCase):
             "pub fn demo() {}\n", encoding="utf-8"
         )
         subprocess.run(
-            ["cargo", "generate-lockfile", "--offline"],
+            ["cargo", "generate-lockfile"],
             cwd=self.workspace,
             check=True,
             capture_output=True,
@@ -181,6 +183,105 @@ class MetadataCacheTests(unittest.TestCase):
             pathlib.Path(packages[0]["manifest_path"]).resolve(),
             (self.workspace / "demo" / "Cargo.toml").resolve(),
         )
+
+    def test_mixed_patch_table_preserves_unrelated_entries(self) -> None:
+        """Only the export-empty path entry is removed from a mixed table."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir()
+        config.write_text(
+            '[patch.crates-io]\n'
+            'member = { path = "repos/member" }\n'
+            'other = { git = "https://example.invalid/other" }\n'
+            'versioned = { path = "repos/member", version = "1.0.0" }\n'
+            'malformed = 42\n',
+            encoding="utf-8",
+        )
+        original = config.read_bytes()
+        with source.overlay_stripped_configs(self.workspace):
+            value = tomllib.loads(config.read_text(encoding="utf-8"))
+            patch = value["patch"]["crates-io"]
+            self.assertNotIn("member", patch)
+            self.assertEqual(patch["other"]["git"], "https://example.invalid/other")
+            self.assertEqual(patch["versioned"]["version"], "1.0.0")
+            self.assertEqual(patch["versioned"]["path"], "repos/member")
+            self.assertEqual(patch["malformed"], 42)
+        self.assertEqual(config.read_bytes(), original)
+
+    def test_mixed_patch_invalid_entry_reaches_cargo(self) -> None:
+        """Removing an export path must not hide Cargo's invalid-entry error."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir()
+        original = (
+            '[patch.crates-io]\n'
+            'member = { path = "repos/member" }\n'
+            'malformed = 42\n'
+        ).encode()
+        config.write_bytes(original)
+        with self.assertRaises(snapshot.BuildIdentityError) as caught:
+            self._metadata()
+        self.assertIn("metadata", str(caught.exception).lower())
+        self.assertEqual(config.read_bytes(), original)
+
+    def test_mixed_patch_keeps_local_git_override(self) -> None:
+        """A valid file Git patch remains active after export filtering."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        provider = self.workspace / "provider"
+        (provider / "src").mkdir(parents=True)
+        (provider / "Cargo.toml").write_text(
+            '[package]\nname = "provider"\nversion = "0.1.0"\nedition = "2021"\n',
+            encoding="utf-8",
+        )
+        (provider / "src" / "lib.rs").write_text("pub fn value() {}\n", encoding="utf-8")
+        git = ["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid"]
+        for args in (("init",), ("add", "."), ("commit", "-m", "provider")):
+            subprocess.run(git + list(args), cwd=provider, check=True, capture_output=True, timeout=30)
+        alternate = self.workspace / "provider-alt"
+        shutil.copytree(provider, alternate, ignore=shutil.ignore_patterns(".git"))
+        for args in (("init",), ("add", "."), ("commit", "-m", "provider-alt")):
+            subprocess.run(git + list(args), cwd=alternate, check=True, capture_output=True, timeout=30)
+        demo_manifest = self.workspace / "demo" / "Cargo.toml"
+        demo_manifest.write_text(
+            '[package]\nname = "demo"\nversion = "0.1.0"\nedition = "2021"\n'
+            f'[dependencies]\nprovider = {{ git = "{provider.as_uri()}" }}\n', encoding="utf-8"
+        )
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir(exist_ok=True)
+        original = (
+            f'[patch."{provider.as_uri()}"]\n'
+            'member = { path = "repos/member" }\n'
+            f'provider = {{ git = "{alternate.as_uri()}" }}\n'
+        ).encode()
+        subprocess.run(
+            ["cargo", "generate-lockfile"],
+            cwd=self.workspace, check=True, capture_output=True, timeout=120,
+        )
+        config.write_text(
+            f'[patch."{provider.as_uri()}"]\n'
+            f'provider = {{ git = "{alternate.as_uri()}" }}\n', encoding="utf-8"
+        )
+        subprocess.run(
+            ["cargo", "generate-lockfile"],
+            cwd=self.workspace, check=True, capture_output=True, timeout=120,
+        )
+        config.write_bytes(original)
+        value = self._metadata()
+        package = next(item for item in value["packages"] if item["name"] == "provider")
+        self.assertTrue(package["source"].startswith("git+file:"))
+        self.assertEqual(config.read_bytes(), original)
 
     def test_registered_nonempty_root_keeps_the_patch_error(self) -> None:
         """A registered directory with files is not an export artifact."""

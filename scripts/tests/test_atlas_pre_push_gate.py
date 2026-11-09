@@ -1581,6 +1581,18 @@ class PhaseOwnershipTestCase(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             self.assertIn("documentation phase passed", stderr)
 
+            # With fetched default at the candidate, push ancestry fallback
+            # would replace this divergent base with the candidate itself and
+            # erase the Rust diff, hiding its broken public link.
+            _git(fixture.root, "update-ref", "refs/remotes/origin/main", bad)
+            _git(fixture.root, "symbolic-ref", "refs/remotes/origin/HEAD",
+                 "refs/remotes/origin/main")
+            code, stderr = fixture.run_hook(
+                "", extra_env=environment, arguments=("documentation", bad, good)
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("unresolved link to `MissingType`", stderr)
+
             for arguments in (
                 ("documentation",),
                 ("documentation", good, "missing-base"),
@@ -2763,6 +2775,27 @@ class StackLockfileCheckerTestCase(unittest.TestCase):
                     code, stderr = fixture.run_hook(push_line, {"SKIP_LOCAL_GATE": "1"})
                     self.assertEqual(code, 1, stderr)
                     self.assertIn("does not resolve under --locked", stderr)
+
+    def test_a_frozen_hook_source_survives_default_movement(self) -> None:
+        """A shim snapshot owns companion lookup after fetched default moves."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-source-snapshot-") as temp:
+            fixture = GateFixture.in_stack(pathlib.Path(temp))
+            push_line = self._lock_revisions(fixture, _STALE_LOCK, _VALID_LOCK)
+            frozen = _git(fixture.stack, "rev-parse", "refs/remotes/origin/main")
+            checker = (SCRIPT.parents[1] / "lockfile.py").read_text(encoding="utf-8")
+            _write(fixture.stack / "scripts" / "lockfile.py",
+                   checker.replace("overlay residue", "new fetched-source residue"),
+                   executable=True)
+            _publish_stack_scripts(fixture.stack)
+            self.assertNotEqual(
+                _git(fixture.stack, "rev-parse", "refs/remotes/origin/main"), frozen
+            )
+            code, stderr = fixture.run_hook(
+                push_line, {"SKIP_LOCAL_GATE": "1", "ATLAS_HOOK_SOURCE_COMMIT": frozen}
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("Cargo.lock: 1 [[patch.unused]] table(s): overlay residue", stderr)
+            self.assertNotIn("new fetched-source residue", stderr)
 
     def _lock_revisions(
         self, fixture: GateFixture, pushed_lock: str, head_lock: str

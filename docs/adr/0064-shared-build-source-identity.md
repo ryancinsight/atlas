@@ -24,7 +24,8 @@ Prepared member source never selects credential or secret scanners, artifact-bud
 
 Hook installation and publication use one source-keyed materializer for the complete immutable runner family: `pre_push_gate.py`, platform process-tree modules, and the exact Python interpreter.
 Installation stores that family beside the immutable shims under the Git common directory, keyed by hook-source commit; the installed pre-push shim enters it before source-ref lookup.
-`install-hooks --source-ref <full-commit>` stages a judged future bootstrap before landing; its shims still load fetched default hooks, so the old source, new source, and a fetched-source rollback all run through the staged owner without moving the trust ref.
+`install-hooks --source-ref <full-commit>` stages a judged future bootstrap immediately before landing, without moving the fetched trust ref. The pre-push shim rejects fetched sources outside the staged commit's descendants; prelanding invocation and rollback below that floor refuse before hook execution. After landing, rollback to the staged commit remains supported.
+The shim snapshots the fetched commit once; the hook and its default-owned companions use that same immutable source. Publication uses its own committed runtime and does not require staging the installed shims first.
 Publication materializes the same family in its temporary hook directory and passes that runtime only to that one Git invocation.
 Publication does not change installed shims, installed runtime references, or the live fetched hook-source ref to select prepared tools.
 A missing, mixed, or incomplete runner family fails closed; setup never occurs inside the supervised push.
@@ -52,8 +53,8 @@ One snapshot memoizes each package or repository root, while every later snapsho
 
 The environment digest covers Cargo profile/build/target/unstable/host/alias namespaces; Cargo, encoded Rust flags, incremental mode, compiler/bootstrap, wrappers, Rust flags, `__CARGO_DEFAULT_LIB_METADATA`; and a leading `env NAME=VALUE` overlay.
 `CARGO_TARGET_DIR` is already the canonical target dimension. Rustdoc-only variables are excluded so Clippy, Nextest, and Rustdoc share one record; Cargo's doc-unit fingerprints force Rustdoc freshness and the run adopts the resulting fingerprint bytes.
-The configuration digest covers both config filenames from execution root to filesystem root, Cargo home, explicit file or inline `--config`, and recursively cycle-guarded include lists of strings or `{ path, optional }` tables; Cargo rejects a bare-string include and so does this parser.
-Relative config paths resolve against Cargo's execution root; framing uses directory depth and filename, not export-specific absolute paths. UTF-8 BOM, trailing inline-table commas, multiline inline tables, and `\e`/`\xHH` escapes are accepted; every other parse/read failure is a source-identity failure and cannot create a record.
+The configuration digest covers both config filenames from execution root to filesystem root, Cargo home, explicit file or inline `--config`, and recursively cycle-guarded include lists of strings or `{ path, optional }` tables. Non-list includes are not traversed; Cargo remains responsible for rejecting them.
+Relative config paths resolve against Cargo's execution root; framing uses directory depth and filename, not export-specific absolute paths. UTF-8 BOM is removed before Python's `tomllib` parses configuration. Unsupported TOML syntax and read failures are source-identity failures and cannot create a record.
 
 ### Artifacts, cleaning, and leases
 

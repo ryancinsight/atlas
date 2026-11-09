@@ -931,6 +931,7 @@ if ! __atlas_shim_commit="$(__atlas_shim_lookup show-ref --verify --hash '{ref}'
   echo "atlas hooks: {ref} in $__atlas_shim_git has no scripts/git-hooks/{name}; fetch the Atlas repository, then run scripts/atlas-lock-form.py install-hooks there" >&2
   exit 1
 fi
+{source_guard}
 __atlas_shim_cache="$__atlas_shim_git/atlas-hooks/blobs/$__atlas_shim_blob"
 if [ ! -f "$__atlas_shim_cache" ] || [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_cache")" != "$__atlas_shim_blob" ]; then
   mkdir -p "${{__atlas_shim_cache%/*}}"
@@ -965,9 +966,6 @@ exec "$@"
 # denial (WinError 5) until every reader closes it. One hook start reads it in
 # milliseconds; overlapping runs can keep it open past the bound, and the
 # install then fails rather than leave a member half-installed.
-SHIM_REPLACE_ATTEMPTS = 50
-SHIM_REPLACE_BACKOFF_SECONDS = 0.1
-
 SHIM_REPLACE_ATTEMPTS = 50
 SHIM_REPLACE_BACKOFF_SECONDS = 0.1
 
@@ -1106,6 +1104,15 @@ def write_hook_shims(atlas: Path, source_commit: str | None = None) -> Path:
                 ref=HOOK_SOURCE_REF,
                 git_dir=_shell_word(git_dir.as_posix()),
                 bootstrap=bootstrap,
+                source_guard=(
+                    f'if ! __atlas_shim_lookup merge-base --is-ancestor {commit} '
+                    '"$__atlas_shim_commit"; then\n'
+                    '  echo "atlas hooks: fetched source predates the installed '
+                    'process-owner floor; fetch a compatible Atlas source" >&2\n'
+                    '  exit 1\nfi\n'
+                    'export ATLAS_HOOK_SOURCE_COMMIT="$__atlas_shim_commit"'
+                    if name == "pre-push" else ""
+                ),
             ).encode(),
         )
     return shims

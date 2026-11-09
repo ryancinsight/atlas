@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import copy
 import json
 import os
 import re
@@ -670,8 +671,8 @@ def cargo_config_digest(
     return digest.hexdigest()
 
 
-def _config_text_without_patch(data: dict[str, object]) -> str:
-    """Serialize a cargo config TOML without its `[patch]` tables."""
+def _config_text(data: dict[str, object]) -> str:
+    """Serialize a cargo config TOML after selective overlay filtering."""
 
     def config_key(name: str) -> str:
         return json.dumps(name, ensure_ascii=False)
@@ -705,17 +706,13 @@ def _config_text_without_patch(data: dict[str, object]) -> str:
     return '\n'.join(lines) + '\n'
 
 
-def _patch_target_missing(config: Path, data: dict[str, object]) -> bool:
-    """Whether a config names an export-empty registered submodule path.
-
-    An immutable Atlas export retains gitlink directories but not their
-    contents. Only those registered paths are export artifacts; an empty
-    ordinary directory or a nonexistent path is a broken patch target and
-    must remain visible to Cargo.
-    """
+def _without_missing_patch_entries(
+    config: Path, data: dict[str, object]
+) -> tuple[dict[str, object], bool]:
+    """Remove only path-only entries targeting empty exported gitlinks."""
     patch = data.get('patch')
     if not isinstance(patch, dict):
-        return False
+        return data, False
     config_dir = config.parent.parent
     gitmodules = config_dir / '.gitmodules'
     try:
@@ -725,31 +722,38 @@ def _patch_target_missing(config: Path, data: dict[str, object]) -> bool:
             if (match := re.match(r'^\s*path\s*=\s*(.+?)\s*$', line))
         }
     except (OSError, UnicodeError):
-        return False
-    entries = 0
-    empty = 0
-    for source in patch.values():
+        return data, False
+    if not registered:
+        return data, False
+    result = copy.deepcopy(data)
+    result_patch = result.get('patch')
+    if not isinstance(result_patch, dict):
+        return data, False
+    changed = False
+    for source_name, source in list(result_patch.items()):
         if not isinstance(source, dict):
             continue
-        for entry in source.values():
-            if not isinstance(entry, dict):
+        source_changed = False
+        for package, entry in list(source.items()):
+            if not isinstance(entry, dict) or set(entry) != {'path'}:
                 continue
             raw = entry.get('path')
             if not isinstance(raw, str):
                 continue
-            entries += 1
             target = config_dir / raw
-            try:
-                target.resolve(strict=False).relative_to(config_dir.resolve())
-            except ValueError:
-                return False
-            if not any(
+            if any(
                 _is_empty_registered_ancestor(config_dir, target, path)
                 for path in registered
             ):
-                return False
-            empty += 1
-    return entries > 0 and empty > 0
+                del source[package]
+                source_changed = True
+        if source_changed:
+            changed = True
+        if source_changed and not source:
+            del result_patch[source_name]
+    if changed and not result_patch:
+        result.pop('patch', None)
+    return result, changed
 
 
 def _is_empty_registered_ancestor(config_dir: Path, target: Path, relative: str) -> bool:
@@ -772,20 +776,17 @@ def _is_empty_registered_ancestor(config_dir: Path, target: Path, relative: str)
 
 @contextmanager
 def overlay_stripped_configs(execution_root: Path) -> Iterator[None]:
-    """Strip `[patch]` overlay entries whose targets are absent on disk.
+    """Strip export-empty `[patch]` entries while preserving Cargo inputs.
 
     The Atlas pre-push gate exports a revision to a temporary tree whose
     submodule checkouts are empty directories (`read-tree` writes gitlink
     entries without cloning), while the root `.cargo/config.toml` overlay
     patches point inside those empty directories. Any cargo invocation with
-    dependency resolution (`metadata` without `--no-deps`, `clippy`,
-    `nextest`) then fails to load the patched source even when the patched
-    packages are unused. This context strips the whole `[patch]` table from
-    every cargo config that cargo would discover from `execution_root`
-    upward, but only when at least one patched `Cargo.toml` is absent (so
-    live checkouts with populated submodules keep their overlay), and
-    restores the original bytes on exit. Files with `include` directives,
-    unparsable TOML, or no `[patch]` table are left untouched.
+    dependency resolution then fails to load the patched source even when the
+    patched packages are unused. Only path-only entries under empty registered
+    gitlinks are export artifacts; independent overrides and malformed entries
+    remain visible to Cargo. Files with `include` directives, unparsable TOML,
+    or no `[patch]` table are left untouched.
     """
     saved: list[tuple[Path, bytes]] = []
     body_error: BaseException | None = None
@@ -804,11 +805,10 @@ def overlay_stripped_configs(execution_root: Path) -> Iterator[None]:
                     continue
                 if 'patch' not in data or 'include' in data:
                     continue
-                if not _patch_target_missing(config, data):
+                data, changed = _without_missing_patch_entries(config, data)
+                if not changed:
                     continue
-                data = dict(data)
-                data.pop('patch', None)
-                stripped = _config_text_without_patch(data).encode('utf-8')
+                stripped = _config_text(data).encode('utf-8')
                 if stripped == raw:
                     continue
                 saved.append((config, raw))

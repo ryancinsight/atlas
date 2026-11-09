@@ -479,17 +479,34 @@ case "$located" in
   *) exit 1 ;;
 esac
 
+# A staged hook pins the stack source it was validated against. Freeze that
+# identity before any rescue or checker lookup so a fetched-default movement
+# cannot change the source during this invocation (or its bounded re-entry).
+hook_source_commit="${ATLAS_HOOK_SOURCE_COMMIT:-}"
+unset ATLAS_HOOK_SOURCE_COMMIT
+if [ -z "$hook_source_commit" ] && [ -n "$stack_root" ]; then
+  for source_ref in origin/HEAD origin/main; do
+    hook_source_commit="$(outside_checkout git -C "$stack_root" rev-parse --verify --quiet "$source_ref^{commit}" 2>/dev/null || true)"
+    [ -n "$hook_source_commit" ] && break
+  done
+fi
+if [ -n "$hook_source_commit" ]; then
+  if [[ ! "$hook_source_commit" =~ ^[0-9a-f]{40}$ ]] \
+    || [ -z "$stack_root" ] \
+    || ! outside_checkout git -C "$stack_root" cat-file -e \
+      "$hook_source_commit^{commit}" 2>/dev/null; then
+    echo "pre-push: BLOCKED -- ATLAS_HOOK_SOURCE_COMMIT is not an available full Atlas commit." >&2
+    exit 1
+  fi
+fi
+
 # Both Atlas and member hooks dispatch to the classifier committed at the
 # fetched stack default. The member revision cannot broaden its own exception.
 if [ "${ATLAS_RESCUE_MIXED:-0}" != 1 ] && [ "${#push_lines[@]}" -gt 0 ]; then
   rescue_stack_root="$stack_root"
   rescue_stack_ref=""
   rescue_allowlist_ref=""
-  for rescue_ref in origin/HEAD origin/main; do
-    [ -n "$rescue_stack_root" ] || break
-    rescue_stack_ref="$(outside_checkout git -C "$rescue_stack_root" rev-parse --verify --quiet "$rescue_ref^{commit}" 2>/dev/null || true)"
-    [ -n "$rescue_stack_ref" ] && break
-  done
+  rescue_stack_ref="$hook_source_commit"
   for rescue_ref in origin/HEAD origin/main; do
     rescue_allowlist_ref="$(outside_checkout git -C "$repo_root" rev-parse --verify --quiet "$rescue_ref^{commit}" 2>/dev/null || true)"
     [ -n "$rescue_allowlist_ref" ] && break
@@ -517,7 +534,13 @@ gate_range_base=""
 if [ "${#content_lines[@]}" -eq 1 ]; then
   touches_dependency_state=no
   while read -r _local_ref local_sha _remote_ref remote_sha; do
-    if [ "$remote_sha" = "$zero" ]; then
+    if [ "$gate_phase" = "documentation" ] \
+      && [ "$local_sha" = "$documentation_tip" ]; then
+      # An explicit documentation invocation supplies the comparison base.
+      # Preserve that exact revision even when it is not an ancestor of the
+      # candidate; ordinary push ancestry recovery would silently replace it.
+      base="$remote_sha"
+    elif [ "$remote_sha" = "$zero" ]; then
       # New branch: compare against the merge-base with the default branch,
       # so a long series is not read as touching everything. Comparing
       # against HEAD instead is vacuous exactly when it matters: pushing
@@ -702,10 +725,7 @@ done
 # Every such process runs through `outside_checkout` (defined at the top).
 stack_baseline=""
 if [ -n "$stack_root" ]; then
-  for ref in origin/HEAD origin/main; do
-    stack_baseline="$(outside_checkout git -C "$stack_root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null || true)"
-    [ -n "$stack_baseline" ] && break
-  done
+  stack_baseline="$hook_source_commit"
 fi
 member_baseline=""
 for ref in origin/HEAD origin/main; do
@@ -789,11 +809,11 @@ if [ "${#push_lines[@]}" -gt 1 ]; then
   for push_line in "${content_lines[@]}"; do
     echo "pre-push: judging ${push_line%% *}" >&2
     if [ "$gate_bounded" -eq 1 ]; then
-      printf '%s\n' "$push_line" | bash "${BASH_SOURCE[0]}" \
+      printf '%s\n' "$push_line" | ATLAS_HOOK_SOURCE_COMMIT="$hook_source_commit" bash "${BASH_SOURCE[0]}" \
         --bounded-phase "$gate_phase" "$prepared_tools_selected" "$prepared_tools" \
         || refs_status=1
     else
-      printf '%s\n' "$push_line" | bash "${BASH_SOURCE[0]}" "$@" || refs_status=1
+      printf '%s\n' "$push_line" | ATLAS_HOOK_SOURCE_COMMIT="$hook_source_commit" bash "${BASH_SOURCE[0]}" "$@" || refs_status=1
     fi
   done
   exit "$refs_status"
