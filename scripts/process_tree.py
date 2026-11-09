@@ -565,8 +565,10 @@ def run(
     """Run ``command`` and retire its owned process tree within finite bounds.
 
     ``stdout_destination`` streams standard output to a caller-owned binary
-    file. The returned and timeout-result standard output is then ``None``;
-    partial bytes remain available in that file after a timeout.
+    file. Its buffers are synchronized before launch, so output starts at the
+    caller's logical position. The caller must not access the file until this
+    call returns. The returned and timeout-result standard output is then
+    ``None``; partial bytes remain available in that file after a timeout.
     """
     if not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("process timeout must be finite and greater than zero")
@@ -576,6 +578,8 @@ def run(
         raise ValueError("a stdout destination requires captured output mode")
     arguments = list(command)
     deadline = time.monotonic() + timeout
+    if stdout_destination is not None:
+        stdout_destination.flush()
     job_handle: int | None = None
     windows_job: int | None = None
     process: subprocess.Popen[bytes] | None = None

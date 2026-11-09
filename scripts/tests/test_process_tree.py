@@ -243,6 +243,32 @@ class ProcessTreeTests(unittest.TestCase):
             remaining -= len(chunk)
         self.assertEqual(actual, expected.digest())
 
+    def test_caller_owned_stdout_synchronizes_buffered_destination(self):
+        initial = bytes(range(256)) * 32
+        payload = b"\xff\x00suffix"
+        producer = "import sys; sys.stdout.buffer.write(bytes.fromhex(sys.argv[1]))"
+        for buffered_read in (False, True):
+            with self.subTest(buffered_read=buffered_read):
+                with tempfile.TemporaryFile(mode="w+b") as output:
+                    output.write(initial)
+                    if buffered_read:
+                        output.seek(0)
+                        self.assertEqual(output.read(3), initial[:3])
+                        expected = initial[:3] + payload + initial[3 + len(payload):]
+                    else:
+                        expected = initial + payload
+                    result = process_tree.run(
+                        [sys.executable, "-c", producer, payload.hex()],
+                        timeout=HANG_GUARD_SECONDS,
+                        stdout_destination=output,
+                    )
+                    self.assertEqual(result.returncode, 0)
+                    self.assertIsNone(result.stdout)
+                    self.assertEqual(result.stderr, b"")
+                    self.assertFalse(output.closed)
+                    output.seek(0)
+                    self.assertEqual(output.read(), expected)
+
     def test_nonzero_exit_preserves_status(self):
         result = process_tree.run(
             [sys.executable, "-c", "raise SystemExit(23)"],
