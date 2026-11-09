@@ -509,6 +509,60 @@ debt_gate() {
     return "$status"
 }
 
+lock_gate() {
+    local tip="$1" python_bin candidate checker status source_git
+    local -x GIT_NO_REPLACE_OBJECTS=1
+    [ -n "$gate_base" ] || return 1
+    if git -C "$atlas_root" diff --quiet --no-ext-diff --no-textconv "$gate_base" "$tip" -- \
+        ':(glob)**/Cargo.toml' ':(glob)**/Cargo.lock'; then
+        return 0
+    else
+        status=$?
+        [ "$status" -eq 1 ] || return 1
+    fi
+    python_bin="${PYTHON:-}"
+    if [ -z "$python_bin" ]; then
+        for candidate in python3 python; do
+            command -v "$candidate" >/dev/null 2>&1 && { python_bin="$candidate"; break; }
+        done
+    fi
+    [ -n "$python_bin" ] || return 1
+    candidate="$(mktemp -d "${TMPDIR:-/tmp}/atlas-lock.XXXXXX")" || return 1
+    checker="$(mktemp -d "${TMPDIR:-/tmp}/atlas-checker.XXXXXX")" || { rm -rf "$candidate"; return 1; }
+    source_git="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir)" || { rm -rf "$candidate" "$checker"; return 1; }
+    printf '* -export-ignore -export-subst\n' > "$checker/.gitattributes"
+    if ! (
+        unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY \
+            GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_ATTR_SOURCE
+        git init --bare --template= -q "$checker/objects.git" \
+            && printf '%s/objects\n' "$source_git" > "$checker/objects.git/objects/info/alternates" \
+            && cd "$checker" \
+            && GIT_ATTR_NOSYSTEM=1 GIT_INDEX_FILE="$checker/index" \
+                git --git-dir="$checker/objects.git" --work-tree="$checker" \
+                    -c core.attributesFile=/dev/null archive --worktree-attributes "$tip"
+        ) | tar -x -C "$candidate"; then
+        rm -rf "$candidate" "$checker"
+        return 1
+    fi
+    local checker_ref tool
+    checker_ref="$(git --no-replace-objects -C "$atlas_root" rev-parse --verify "$trusted_rescue_ref^{commit}")" || {
+        rm -rf "$candidate" "$checker"
+        return 1
+    }
+    for tool in lockfile.py process_tree.py windows_process.py darwin_process.py; do
+        if ! git --no-replace-objects -C "$atlas_root" cat-file blob "$checker_ref:scripts/$tool" > "$checker/$tool"; then
+            rm -rf "$candidate" "$checker"
+            return 1
+        fi
+    done
+    CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$atlas_root/target}" "$python_bin" -I \
+        "$checker/lockfile.py" --check --check-tree "$candidate" \
+        --tree-source "$atlas_root" "$tip"
+    status=$?
+    rm -rf "$candidate" "$checker"
+    return "$status"
+}
+
 # Atlas's own PM boards and tracked images, under the same budget gate the
 # members run (scripts/atlas-artifact-budget.py): an over-budget board may
 # not grow, an oversized image may not be added or touched.
@@ -619,6 +673,7 @@ case "$status" in
             tip="${pushed_tips[$i]}"
             gate_base="$(gate_base_for "$tip" "${pushed_bases[$i]}")"
             debt_gate "$tip" || exit 1
+            lock_gate "$tip" || exit 1
             budget_gate "$tip" || exit 1
             secret_gate "$tip" || exit 1
             refspec_gate "$tip" || exit 1

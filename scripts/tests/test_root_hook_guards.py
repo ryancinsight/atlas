@@ -40,6 +40,17 @@ def install_hook(repo: Path) -> None:
     (repo / ".githooks" / "pre-commit").chmod(0o755)
 
 
+class RootLockGateTests(unittest.TestCase):
+    def test_lock_gate_exports_and_uses_same_revision_companions(self) -> None:
+        source = PRE_PUSH.read_text(encoding="utf-8")
+        function = re.search(r"(?ms)^lock_gate\(\) \{\n.*?^\}\n", source)
+        self.assertIsNotNone(function)
+        body = function.group(0)
+        for tool in ("lockfile.py", "process_tree.py", "windows_process.py", "darwin_process.py"):
+            self.assertIn(f"scripts/$tool", body)
+        self.assertIn('"$checker/lockfile.py"', body)
+
+
 class RootHookGuardTests(unittest.TestCase):
     def test_provider_config_change_runs_without_book_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
