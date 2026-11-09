@@ -164,6 +164,11 @@ class CheckStagedTests(StagedFixture):
             '[workspace]\nmembers = ["crates/a"]\n\n[workspace.dependencies]\n'
             f"provider = {GIT}\n",
         )
+        self.stage(
+            "crates/a/Cargo.toml",
+            '[package]\nname = "a"\nversion = "0.1.0"\n\n[dependencies]\n'
+            "provider = { workspace = true }\n",
+        )
         self.stage("Cargo.lock", FLATTENED)
         self.refused(check_staged(self.repo))
 

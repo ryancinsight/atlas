@@ -166,6 +166,8 @@ class DependencyTablesTestCase(unittest.TestCase):
         for header, name in tables.items():
             with self.subTest(header):
                 manifest = f'[package]\nname = "m"\nversion = "0.1.0"\n\n{header}\n{name} = {git}\n'
+                if header == "[workspace.dependencies]":
+                    manifest += f'[dependencies]\n{name} = {{ workspace = true }}\n'
                 self.assertEqual(self.declared(manifest), {name})
 
     def test_a_renamed_dependency_is_declared_under_its_package_name(self) -> None:
@@ -237,6 +239,16 @@ class FixtureDetectionTestCase(unittest.TestCase):
 
     def test_a_path_resolving_to_the_repository_root_is_not_a_fixture(self) -> None:
         self.assertFalse(self.facts('other = { path = "../.." }', "a/b").fixture)
+
+    def test_inherited_external_paths_keep_their_workspace_origin(self) -> None:
+        texts = {
+            "Cargo.toml": '[workspace]\nmembers = ["member"]\n[workspace.dependencies]\n'
+                          'outside = { path = "../outside" }\n',
+            "member/Cargo.toml": '[package]\nname = "member"\nversion = "0.1.0"\n'
+                                 '[dependencies]\noutside = { workspace = true }\n',
+            "Cargo.lock": STANDALONE,
+        }
+        self.assertEqual(lockfile.judge_locks(texts), ([], ["Cargo.lock"]))
 
     def test_a_fixture_lock_is_exempt_and_reported(self) -> None:
         manifests = {
@@ -327,6 +339,29 @@ class TreeCheckTestCase(unittest.TestCase):
                 completed = lockfile.run_bounded(command, cwd=root, env=os.environ, deadline=60)
             missing = f"{directory}/Cargo.toml: sibling Cargo.lock is missing"
             self.assertEqual((completed.returncode, missing in completed.stderr), (1, True), completed.stdout)
+
+    def test_unused_dependency_edges_do_not_exempt_a_stale_consuming_lock(self) -> None:
+        for kind in ("dev-dependencies", "target.'cfg(unix)'.dev-dependencies", "workspace.dependencies"):
+            with self.subTest(kind), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                self.write(root, "Cargo.toml", '[package]\nname = "consumer"\nversion = "0.1.0"\nedition = "2024"\n'
+                           '[workspace]\nexclude = ["dep"]\n[dependencies]\ndep = { path = "dep" }\n')
+                self.write(root, "src/lib.rs", "")
+                self.package(root, "dep", "dep", f'[workspace]\n[{kind}]\nmissing = {{ path = "../../missing" }}\n')
+                self.cargo(root, "Cargo.toml")
+                if kind == "workspace.dependencies":
+                    self.cargo(root, "dep/Cargo.toml")
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    self.assertEqual(lockfile.check(root), 0)
+                lock = root / "Cargo.lock"
+                lock.write_text(lock.read_text().replace('name = "consumer"\nversion = "0.1.0"',
+                                                         'name = "consumer"\nversion = "0.0.1"'))
+                native = lockfile.run_outside_the_overlay(["metadata", "--locked", "--format-version", "1"],
+                                                           root / "Cargo.toml", deadline=60)
+                self.assertEqual(native.returncode, 101, native.stderr)
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
+                    self.assertEqual(lockfile.check(root), 1)
+                self.assertIn("does not resolve under --locked", stderr.getvalue())
 
     def test_a_member_lock_is_not_checked_through_its_parent_lock(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
