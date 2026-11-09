@@ -47,7 +47,7 @@ from atlas_build_records import (
     read_record,
     record_path,
 )
-from atlas_build_source import _canonical, source_identity
+from atlas_build_source import _canonical, overlay_stripped_configs, source_identity
 from atlas_build_stale_packages import PackageState, _path_packages, _stale_packages
 from atlas_build_stamps import (
     BuildDirectory,
@@ -124,24 +124,25 @@ def run_build(
     command = effective_compiler_command(command, environment)
     environment["CARGO_TARGET_DIR"] = _canonical(target_dir).as_posix()
     with compiler_environment(environment):
-        return _run_build(
-            root,
-            manifest,
-            packages,
-            target_dir,
-            command,
-            profile,
-            target,
-            features,
-            artifact_paths,
-            clean_command,
-            lease_seconds,
-            command_cwd,
-            command_key,
-            ignore_paths,
-            lease_wait_seconds,
-            selection,
-        )
+        with overlay_stripped_configs(execution_root):
+            return _run_build(
+                root,
+                manifest,
+                packages,
+                target_dir,
+                command,
+                profile,
+                target,
+                features,
+                artifact_paths,
+                clean_command,
+                lease_seconds,
+                command_cwd,
+                command_key,
+                ignore_paths,
+                lease_wait_seconds,
+                selection,
+            )
 
 
 def _run_build(
