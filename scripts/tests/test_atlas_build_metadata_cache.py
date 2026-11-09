@@ -21,6 +21,7 @@ from unittest.mock import patch
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 import atlas_build_snapshot as snapshot  # noqa: E402
+import atlas_build_source as source  # noqa: E402
 
 SPEC = importlib.util.spec_from_file_location(
     "atlas_build_snapshot_probe", SCRIPTS / "atlas_build_snapshot.py"
@@ -139,6 +140,37 @@ class MetadataCacheTests(unittest.TestCase):
         with self.assertRaises(snapshot.BuildIdentityError):
             self._metadata()
         self.assertEqual(len(self.calls), 2, "a changed cargo config must be read again")
+
+    def test_an_export_empty_registered_submodule_overlay_is_stripped(self) -> None:
+        """An exported gitlink directory is the one permitted absent target."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir()
+        original = (
+            '[build]\ntarget-dir = "target"\n'
+            '[patch.crates-io]\nmember = { path = "repos/member" }\n'
+        ).encode()
+        config.write_bytes(original)
+
+        with source.overlay_stripped_configs(self.workspace):
+            self.assertNotIn(b"[patch", config.read_bytes())
+        self.assertEqual(config.read_bytes(), original)
+
+    def test_an_empty_unregistered_directory_keeps_the_patch_error(self) -> None:
+        """An ordinary empty directory must not be mistaken for a gitlink."""
+        (self.workspace / "empty").mkdir()
+        (self.workspace / ".cargo").mkdir()
+        config = self.workspace / ".cargo" / "config.toml"
+        config.write_text(
+            '[patch.crates-io]\nmissing = { path = "empty" }\n', encoding="utf-8"
+        )
+        original = config.read_bytes()
+        with source.overlay_stripped_configs(self.workspace):
+            self.assertEqual(config.read_bytes(), original)
 
     def test_a_new_toolchain_file_is_read_again(self) -> None:
         """Cargo reads `rust-toolchain.toml` upward from the directory it
