@@ -743,11 +743,31 @@ def _patch_target_missing(config: Path, data: dict[str, object]) -> bool:
                 relative = target.resolve(strict=False).relative_to(config_dir.resolve()).as_posix()
             except ValueError:
                 return False
-            if relative not in registered or not target.is_dir():
+            if not any(
+                _is_empty_registered_ancestor(config_dir, target, path)
+                for path in registered
+            ):
                 return False
-            if not (target / 'Cargo.toml').is_file():
-                empty += 1
+            empty += 1
     return entries > 0 and empty > 0
+
+
+def _is_empty_registered_ancestor(config_dir: Path, target: Path, relative: str) -> bool:
+    """Whether ``target`` lies below an empty registered gitlink directory."""
+    ancestor = config_dir / relative
+    try:
+        target.resolve(strict=False).relative_to(ancestor.resolve())
+    except ValueError:
+        return False
+    if not ancestor.is_dir():
+        return False
+    try:
+        next(ancestor.iterdir())
+    except StopIteration:
+        return True
+    except OSError:
+        return False
+    return False
 
 
 @contextmanager
@@ -768,6 +788,7 @@ def overlay_stripped_configs(execution_root: Path) -> Iterator[None]:
     unparsable TOML, or no `[patch]` table are left untouched.
     """
     saved: list[tuple[Path, bytes]] = []
+    body_error: BaseException | None = None
     try:
         directory = execution_root
         while True:
@@ -797,9 +818,23 @@ def overlay_stripped_configs(execution_root: Path) -> Iterator[None]:
                 break
             directory = parent
         yield
+    except BaseException as error:
+        body_error = error
     finally:
+        restore_errors: list[OSError] = []
         for config, raw in reversed(saved):
             try:
                 config.write_bytes(raw)
-            except OSError:
-                continue
+            except OSError as error:
+                restore_errors.append(error)
+        if restore_errors:
+            if body_error is None:
+                raise BuildIdentityError(
+                    f"cannot restore Cargo configuration {saved[0][0]}"
+                ) from restore_errors[0]
+            raise ExceptionGroup(
+                "Cargo operation and configuration restoration failed",
+                [body_error, *restore_errors],
+            )
+        if body_error is not None:
+            raise body_error

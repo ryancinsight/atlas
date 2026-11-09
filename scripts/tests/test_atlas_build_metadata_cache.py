@@ -160,6 +160,45 @@ class MetadataCacheTests(unittest.TestCase):
             self.assertNotIn(b"[patch", config.read_bytes())
         self.assertEqual(config.read_bytes(), original)
 
+    def test_nested_overlay_target_strips_when_registered_root_is_empty(self) -> None:
+        """Nested package paths resolve through an empty exported gitlink."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir()
+        config.write_text(
+            '[patch.crates-io]\nmember = { path = "repos/member/crates/core" }\n',
+            encoding="utf-8",
+        )
+        value = self._metadata()
+        packages = value["packages"]
+        self.assertEqual(len(packages), 1)
+        self.assertEqual(packages[0]["name"], "demo")
+        self.assertEqual(
+            pathlib.Path(packages[0]["manifest_path"]).resolve(),
+            (self.workspace / "demo" / "Cargo.toml").resolve(),
+        )
+
+    def test_registered_nonempty_root_keeps_the_patch_error(self) -> None:
+        """A registered directory with files is not an export artifact."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (member / "README.md").write_text("not a package\n", encoding="utf-8")
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir()
+        config.write_text(
+            '[patch.crates-io]\nmember = { path = "repos/member/crates/core" }\n',
+            encoding="utf-8",
+        )
+        with self.assertRaises(snapshot.BuildIdentityError):
+            self._metadata()
+
     def test_an_empty_unregistered_directory_keeps_the_patch_error(self) -> None:
         """An ordinary empty directory must not be mistaken for a gitlink."""
         (self.workspace / "empty").mkdir()
@@ -171,6 +210,41 @@ class MetadataCacheTests(unittest.TestCase):
         original = config.read_bytes()
         with source.overlay_stripped_configs(self.workspace):
             self.assertEqual(config.read_bytes(), original)
+
+    def test_restore_failure_is_reported_after_all_configs_are_attempted(self) -> None:
+        """A failed restore is surfaced without skipping other saved files."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        nested = self.workspace / "nested"
+        (nested / ".cargo").mkdir(parents=True)
+        (nested / "member").mkdir()
+        (nested / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = member\n', encoding="utf-8"
+        )
+        root_config = self.workspace / ".cargo" / "config.toml"
+        root_config.parent.mkdir()
+        root_original = b'[patch.crates-io]\nmember = { path = "repos/member" }\n'
+        root_config.write_bytes(root_original)
+        nested_config = nested / ".cargo" / "config.toml"
+        nested_original = b'[patch.crates-io]\nmember = { path = "member" }\n'
+        nested_config.write_bytes(nested_original)
+        real_write = pathlib.Path.write_bytes
+
+        def fail_root_restore(path: pathlib.Path, data: bytes) -> int:
+            if path == root_config and data == root_original:
+                raise OSError("injected restore failure")
+            return real_write(path, data)
+
+        with patch.object(pathlib.Path, "write_bytes", fail_root_restore):
+            with self.assertRaises(source.BuildIdentityError):
+                with source.overlay_stripped_configs(nested):
+                    self.assertNotIn(b"[patch", root_config.read_bytes())
+                    self.assertNotIn(b"[patch", nested_config.read_bytes())
+        self.assertNotEqual(root_config.read_bytes(), root_original)
+        self.assertEqual(nested_config.read_bytes(), nested_original)
 
     def test_a_new_toolchain_file_is_read_again(self) -> None:
         """Cargo reads `rust-toolchain.toml` upward from the directory it
