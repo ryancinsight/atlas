@@ -3981,7 +3981,7 @@ exit "$status"
                 0,
             )
             block = self._export_block(
-                'if ! export_revision "$(git rev-parse --verify "$lock_rev^{commit}")" "$lock_export"; then',
+                'if ! lock_commit=',
                 '\nfi\nif [ -n "$unmatched_stack" ]',
             ) + "\nfi"
             script = self._export_function() + "\n" + block
