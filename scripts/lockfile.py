@@ -373,6 +373,67 @@ def check_fixture_owner(manifest: Path) -> int:
     return 0
 
 
+def local_source_problems(texts: Mapping[str, str], standalone: Iterable[str]) -> list[str]:
+    """Refuse unversioned ownership and override inputs outside the candidate.
+
+    Existing full-root fixtures never resolve their override graphs. Other
+    locks must keep root patch/replacement inputs and their normal/build
+    dependency closure within the candidate. Cargo ignores member overrides.
+    """
+    problems: list[str] = []
+    parsed: dict[str, Mapping[str, object] | None] = {}
+    for name, text in texts.items():
+        if PurePosixPath(name).name != "Cargo.toml":
+            continue
+        try:
+            parsed[name] = data = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
+            parsed[name] = None
+            continue
+        paths: list[tuple[str, object]] = []
+        package = data.get("package")
+        if isinstance(package, dict) and "workspace" in package:
+            paths.append(("package.workspace", package["workspace"]))
+        workspace = data.get("workspace")
+        if isinstance(workspace, dict):
+            for key in ("members", "default-members"):
+                entries = workspace.get(key)
+                if isinstance(entries, list):
+                    paths.extend((f"workspace.{key}", entry) for entry in entries)
+        for role, path in paths:
+            if isinstance(path, str) and escapes_repository(PurePosixPath(name), path):
+                problems.append(f"{name}: {role} path leaves the candidate: {path}")
+    for name in standalone:
+        data = parsed.get(name)
+        if not isinstance(data, dict):
+            continue
+        patches = data.get("patch")
+        overrides = list(patches.values()) if isinstance(patches, dict) else []
+        replacements = data.get("replace")
+        if isinstance(replacements, dict):
+            overrides.append(replacements)
+        pending = [(PurePosixPath(name), spec["path"]) for table in overrides
+                   if isinstance(table, dict) for spec in table.values()
+                   if isinstance(spec, dict) and isinstance(spec.get("path"), str)]
+        visited: set[str] = set()
+        while pending:
+            origin, path = pending.pop()
+            if escapes_repository(origin, path):
+                problems.append(f"{origin}: source override path leaves the candidate: {path}")
+                continue
+            target = (workspace_relative(origin.parent, path) / "Cargo.toml").as_posix()
+            if target in visited or not isinstance(parsed.get(target), dict):
+                continue
+            visited.add(target)
+            try:
+                dependencies = tuple(resolved_dependency_specs(target, parsed, TRANSITIVE_DEPENDENCY_KINDS))
+            except ValueError as error:
+                problems.append(str(error))
+                continue
+            pending.extend((owner, spec["path"]) for _, spec, owner in dependencies
+                           if isinstance(spec.get("path"), str))
+    return problems
+
 def check(repository: Path | None = None) -> int:
     """Judge and resolve every lock owner under an immutable candidate root."""
     candidate = repository is not None
@@ -388,6 +449,7 @@ def check(repository: Path | None = None) -> int:
         return 1
 
     manifests, selected_exempt, ownership_problems = lock_manifests(texts)
+    ownership_problems.extend(local_source_problems(texts, manifests))
     problems, exempt = judge_locks(texts)
     if selected_exempt != exempt:
         print("error: lock ownership selection disagrees with lock form", file=sys.stderr)
@@ -1066,10 +1128,12 @@ def disk_texts(
                 kept.append(name)
         subdirectories[:] = kept
         for name in files:
-            if name in {"Cargo.toml", "Cargo.lock"}:
+            if name in {"Cargo.toml", "Cargo.lock", PROVIDER_IDENTITY_BASELINE_NAME}:
                 path = Path(directory) / name
                 if path.is_symlink():
                     raise OSError(f"{path.relative_to(repository).as_posix()}: symbolic metadata link is not allowed")
+                if name == PROVIDER_IDENTITY_BASELINE_NAME:
+                    continue
                 texts[path.relative_to(repository).as_posix()] = path.read_text(
                     encoding="utf-8", errors="replace"
                 )

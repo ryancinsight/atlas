@@ -279,6 +279,22 @@ class LockManifestSelectionTestCase(unittest.TestCase):
             ):
                 lockfile.disk_texts(root, ignored_directories=frozenset())
 
+    def test_candidate_rejects_file_metadata_links(self) -> None:
+        for name in ("Cargo.toml", "Cargo.lock", lockfile.PROVIDER_IDENTITY_BASELINE_NAME):
+            with self.subTest(name), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                outside = root / "outside"
+                outside.write_text("outside input")
+                candidate = root / "tree"
+                candidate.mkdir()
+                try:
+                    (candidate / name).symlink_to(outside)
+                except OSError as error:
+                    self.skipTest(f"this host cannot create a file symlink: {error}")
+                with self.assertRaisesRegex(OSError, "symbolic metadata link"):
+                    lockfile.disk_texts(candidate, ignored_directories=frozenset())
+                self.assertEqual(outside.read_text(), "outside input")
+
     def test_cli_keeps_the_candidate_root_lexical(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
             root = Path(temp)
@@ -400,6 +416,48 @@ class TreeCheckTestCase(unittest.TestCase):
                 self.assertEqual(lockfile.check(root), 1)
             self.assertIn("LOCK OWNERSHIP VIOLATION", stderr.getvalue())
             self.assertIn("failed to find a workspace root", stderr.getvalue())
+
+    def test_external_owner_and_override_paths_fail_before_cargo(self) -> None:
+        cases = ('[patch.crates-io]\ndep = { path = "../outside" }\n',
+                 '[replace]\n"dep:0.1.0" = { path = "../outside" }\n',
+                 '[package]\nname = "app"\nversion = "0.1.0"\nworkspace = "../outside"\n',
+                 '[workspace]\nmembers = ["../outside"]\n')
+        for manifest in cases:
+            with self.subTest(manifest), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                self.write(root, "Cargo.toml", manifest)
+                self.write(root, "Cargo.lock", 'version = 4\n')
+                # Any Cargo attempt uses a missing executable and raises immediately.
+                with mock.patch.object(lockfile, "CARGO_COMMAND", ("missing-cargo-boundary-probe",)), contextlib.redirect_stdout(stdout := io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
+                    self.assertEqual(lockfile.check(root), 1)
+                self.assertEqual(stdout.getvalue(), "")
+                self.assertIn("path leaves the candidate: ../outside", stderr.getvalue())
+
+    def test_fixture_overrides_are_not_resolved(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(root, "Cargo.toml", '[package]\nname = "fixture"\nversion = "0.1.0"\nedition = "2024"\n'
+                       '[workspace]\n[dependencies]\noutside = { path = "../outside" }\n'
+                       '[patch.crates-io]\npatched = { path = "../patched" }\n')
+            self.write(root, "src/lib.rs", "")
+            self.write(root, "Cargo.lock", 'version = 4\n')
+            with contextlib.redirect_stdout(stdout := io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
+                self.assertEqual(lockfile.check(root), 0, stderr.getvalue())
+            self.assertIn("exempt (in-tree fixture", stdout.getvalue())
+            self.assertNotIn("resolves under --locked", stdout.getvalue())
+
+    def test_internal_overrides_cannot_load_external_dependency_graphs(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+            root = Path(temp)
+            self.write(root, "Cargo.toml", '[package]\nname = "app"\nversion = "0.1.0"\nedition = "2024"\n'
+                       '[workspace]\nexclude = ["dep"]\n[dependencies]\ndep = "0.1.0"\n'
+                       '[patch.crates-io]\ndep = { path = "dep" }\n')
+            self.write(root, "src/lib.rs", "")
+            self.package(root, "dep", "dep", '[workspace]\n[dependencies]\noutside = { path = "../../outside" }\n')
+            self.write(root, "Cargo.lock", 'version = 4\n')
+            with mock.patch.object(lockfile, "CARGO_COMMAND", ("missing-cargo-boundary-probe",)), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
+                self.assertEqual(lockfile.check(root), 1)
+            self.assertIn("source override path leaves the candidate: ../../outside", stderr.getvalue())
 
     def test_a_member_lock_is_not_checked_through_its_parent_lock(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
