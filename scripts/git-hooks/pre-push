@@ -464,7 +464,7 @@ if [ "${#content_lines[@]}" -eq 1 ]; then
       gate_tip="$local_sha"
       gate_range_base="$base"
     fi
-    if git diff --quiet "$base" "$local_sha" -- \
+    if git diff --quiet --no-ext-diff --no-textconv "$base" "$local_sha" -- \
       ':(glob)**/Cargo.toml' ':(glob)**/Cargo.lock'; then
       continue
     else

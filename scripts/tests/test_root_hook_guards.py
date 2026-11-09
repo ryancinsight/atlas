@@ -50,6 +50,7 @@ class RootLockGateTests(unittest.TestCase):
             ("local_attributes", "hidden/tool", "", 'version = "0.0.1"', 1),
             ("substituted", "tool", "**/Cargo.lock export-subst\n", 'version = "$Format:%s$"', 1),
             ("quoted", "caf\u00e9", "", 'version = "0.0.1"', 1),
+            ("textconv", "tool", "tool/Cargo.lock diff=hidden\n", 'version = "0.0.1"', 1),
         )
         for case, directory, attributes, version, expected in cases:
             with self.subTest(case), tempfile.TemporaryDirectory() as temporary:
@@ -90,6 +91,13 @@ class RootLockGateTests(unittest.TestCase):
                 (good / "src/lib.rs").write_text("")
                 (good / "Cargo.toml").write_text('[package]\nname = "good"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n')
                 (good / "Cargo.lock").write_text('version = 4\n[[package]]\nname = "good"\nversion = "0.1.0"\n')
+                if case == "textconv":
+                    git("config", "diff.hidden.textconv", "true")
+                    (owner / "Cargo.lock").write_text(lock.replace('version = "0.0.1"', 'version = "0.1.0"'))
+                    git("add", directory, "good", ".gitattributes", "scripts/lockfile.py")
+                    git("commit", "-qm", "initial lock")
+                    base = git("rev-parse", "HEAD")
+                    (owner / "Cargo.lock").write_text(lock)
                 # An untrusted candidate cannot supply its own passing checker.
                 checker.write_text("raise SystemExit(0)\n")
                 git("add", directory, "good", ".gitattributes", "scripts/lockfile.py")

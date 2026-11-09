@@ -512,7 +512,7 @@ debt_gate() {
 lock_gate() {
     local tip="$1" python_bin candidate checker status source_git
     [ -n "$gate_base" ] || return 1
-    if git -C "$atlas_root" diff --quiet "$gate_base" "$tip" -- \
+    if git -C "$atlas_root" diff --quiet --no-ext-diff --no-textconv "$gate_base" "$tip" -- \
         ':(glob)**/Cargo.toml' ':(glob)**/Cargo.lock'; then
         return 0
     else
