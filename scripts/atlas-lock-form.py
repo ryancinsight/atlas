@@ -352,7 +352,7 @@ def git_result(
     try:
         return execute_git(
             repo,
-            tuple(args),
+            ("--no-replace-objects", *args),
             stdin=stdin,
             env=env,
             timeout=timeout,
@@ -1057,7 +1057,7 @@ def write_pre_push_runtime(atlas: Path, commit: str, destination: Path) -> Path:
     return runtime
 
 
-def write_hook_shims(atlas: Path) -> Path:
+def write_hook_shims(atlas: Path, source_commit: str | None = None) -> Path:
     """The shim directory for `atlas`'s owned hooks, written in its git directory.
 
     The common git directory, so a linked Atlas tree and the main one share
@@ -1065,9 +1065,16 @@ def write_hook_shims(atlas: Path) -> Path:
     touches it. Each shim's bytes are written exactly (LF), whatever
     `core.autocrlf` says.
     """
-    commit = hook_source_commit(atlas)
-    if commit is None:
-        raise RuntimeError(f"{atlas} has no {HOOK_SOURCE_REF}; fetch it first")
+    if source_commit is None:
+        commit = hook_source_commit(atlas)
+        if commit is None:
+            raise RuntimeError(f"{atlas} has no {HOOK_SOURCE_REF}; fetch it first")
+    else:
+        if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", source_commit) is None:
+            raise RuntimeError("bootstrap source must be a full immutable commit ID")
+        commit = git_in(atlas, "rev-parse", "--verify", "--end-of-options", f"{source_commit}^{{commit}}")
+        if commit != source_commit:
+            raise RuntimeError("bootstrap source must name that exact commit")
     git_dir = common_git_dir(atlas)
     shims = git_dir / "atlas-hooks"
     shims.mkdir(parents=True, exist_ok=True)
@@ -1125,7 +1132,7 @@ def _same_directory(first: str | Path, second: str | Path) -> bool:
         return False
 
 
-def cmd_install_hooks(_args) -> int:
+def cmd_install_hooks(args) -> int:
     """Point every member's `core.hooksPath` at the owned-hook shims.
 
     Local git config, so it is a per-clone bootstrap rather than committed
@@ -1151,7 +1158,8 @@ def cmd_install_hooks(_args) -> int:
     retarget the umbrella's hooks.
     """
     try:
-        hooks = write_hook_shims(ROOT).as_posix()
+        source_commit = getattr(args, "source_ref", None)
+        hooks = write_hook_shims(ROOT, source_commit).as_posix()
     except (RuntimeError, OSError) as err:
         print(f"install-hooks: shims not all written, members left unchanged: {err}")
         return 1
@@ -1285,7 +1293,12 @@ def main() -> int:
     publish.set_defaults(func=cmd_publish_hooks)
     sub.add_parser("status").set_defaults(func=cmd_status)
     sub.add_parser("restore").set_defaults(func=cmd_restore)
-    sub.add_parser("install-hooks").set_defaults(func=cmd_install_hooks)
+    install = sub.add_parser("install-hooks")
+    install.add_argument(
+        "--source-ref", metavar="COMMIT",
+        help="full immutable commit supplying the staged runtime; shims still load fetched default hooks",
+    )
+    install.set_defaults(func=cmd_install_hooks)
     args = parser.parse_args()
     return args.func(args)
 

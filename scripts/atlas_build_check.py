@@ -16,7 +16,7 @@ from atlas_build_inputs import (
 from atlas_build_lease import BuildIdentityError as IdentityError
 from atlas_build_lease import LeaseProbe, package_target_lease_scopes
 from atlas_build_records import _record_matches, _recorded_artifact, read_record, record_path
-from atlas_build_source import _canonical
+from atlas_build_source import _canonical, overlay_stripped_configs
 
 
 def check_record(
@@ -39,21 +39,22 @@ def check_record(
     command = effective_compiler_command(command, environment)
     environment["CARGO_TARGET_DIR"] = _canonical(target_dir).as_posix()
     with compiler_environment(environment):
-        return _check_record(
-            root,
-            package,
-            target_dir,
-            profile,
-            target,
-            features,
-            artifact_paths,
-            manifest,
-            command,
-            command_cwd,
-            command_key,
-            ignore_paths,
-            selection,
-        )
+        with overlay_stripped_configs(execution_root):
+            return _check_record(
+                root,
+                package,
+                target_dir,
+                profile,
+                target,
+                features,
+                artifact_paths,
+                manifest,
+                command,
+                command_cwd,
+                command_key,
+                ignore_paths,
+                selection,
+            )
 
 
 def _check_record(

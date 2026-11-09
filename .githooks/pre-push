@@ -541,12 +541,22 @@ lock_gate() {
             && GIT_ATTR_NOSYSTEM=1 GIT_INDEX_FILE="$checker/index" \
                 git --git-dir="$checker/objects.git" --work-tree="$checker" \
                     -c core.attributesFile=/dev/null archive --worktree-attributes "$tip"
-        ) | tar -x -C "$candidate" \
-        || ! git -C "$atlas_root" show "$trusted_rescue_ref:scripts/lockfile.py" > "$checker/lockfile.py"; then
+        ) | tar -x -C "$candidate"; then
         rm -rf "$candidate" "$checker"
         return 1
     fi
-    CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$atlas_root/target}" "$python_bin" \
+    local checker_ref tool
+    checker_ref="$(git --no-replace-objects -C "$atlas_root" rev-parse --verify "$trusted_rescue_ref^{commit}")" || {
+        rm -rf "$candidate" "$checker"
+        return 1
+    }
+    for tool in lockfile.py process_tree.py windows_process.py darwin_process.py; do
+        if ! git --no-replace-objects -C "$atlas_root" cat-file blob "$checker_ref:scripts/$tool" > "$checker/$tool"; then
+            rm -rf "$candidate" "$checker"
+            return 1
+        fi
+    done
+    CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$atlas_root/target}" "$python_bin" -I \
         "$checker/lockfile.py" --check --check-tree "$candidate" \
         --tree-source "$atlas_root" "$tip"
     status=$?

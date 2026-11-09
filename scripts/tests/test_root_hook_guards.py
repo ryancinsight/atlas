@@ -46,6 +46,7 @@ class RootLockGateTests(unittest.TestCase):
         self.assertIsNotNone(function)
         cases = (
             ("valid", "tool", "", 'version = "0.1.0"', 0),
+            ("runtime_shadow", "tool", "", 'version = "0.1.0"', 0),
             ("ignored", "hidden/tool", "hidden export-ignore\n", 'version = "0.0.1"', 1),
             ("local_attributes", "hidden/tool", "", 'version = "0.0.1"', 1),
             ("substituted", "tool", "**/Cargo.lock export-subst\n", 'version = "$Format:%s$"', 1),
@@ -75,8 +76,9 @@ class RootLockGateTests(unittest.TestCase):
                 git("init", "-q", "-b", "main")
                 (repo / "scripts").mkdir()
                 checker = repo / "scripts/lockfile.py"
-                shutil.copyfile(ROOT / "scripts/lockfile.py", checker)
-                git("add", "scripts/lockfile.py")
+                for tool in ("lockfile.py", "process_tree.py", "windows_process.py", "darwin_process.py"):
+                    shutil.copyfile(ROOT / "scripts" / tool, repo / "scripts" / tool)
+                    git("add", "scripts/" + tool)
                 git("commit", "-qm", "checker")
                 base = git("rev-parse", "HEAD")
                 owner = repo / directory
@@ -104,6 +106,9 @@ class RootLockGateTests(unittest.TestCase):
                     (owner / "Cargo.lock").write_text(lock)
                 # An untrusted candidate cannot supply its own passing checker.
                 checker.write_text("raise SystemExit(0)\n")
+                if case == "runtime_shadow":
+                    (repo / "scripts/process_tree.py").write_text("raise RuntimeError('untrusted runtime imported')\n")
+                    git("add", "scripts/process_tree.py")
                 git("add", directory, "good", ".gitattributes", "scripts/lockfile.py")
                 git("commit", "-qm", "0.1.0")
                 tip = git("rev-parse", "HEAD")

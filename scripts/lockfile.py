@@ -47,18 +47,20 @@ standalone lock lives (ADR-0044): `--check`, `--check-staged` and
 `--check-committed` all judge a lock by `judge_locks`. The `pre-commit` hook
 runs `--check-staged`, `pre-push` and the shared `lockfile-guard` workflow run
 `--check --manifest-path`, and the conformance workflow runs
-`--check-committed`. The hooks run the fetched Atlas default branch's copy of this script. The file imports nothing beside the standard library because
-the hooks export it alone, which is why it stays one file.
+`--check-committed`. The hooks run the fetched Atlas default branch's checker
+with immutable `process_tree.py`, `windows_process.py`, and
+`darwin_process.py` companions from that same revision. The shared
+process-tree owner supplies nested timeout and caller-death cleanup.
 """
 
 from __future__ import annotations
 
 import argparse
 import fnmatch
+import io
 import json
 import os
 import re
-import signal
 import subprocess
 import posixpath
 import sys
@@ -67,6 +69,9 @@ import tomllib
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import NamedTuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import process_tree
 
 REPOSITORY = Path(__file__).resolve().parent.parent
 # The checkout this script belongs to. The shared `lockfile-guard` workflow
@@ -112,16 +117,21 @@ GIT_DEADLINE_SECONDS = 60
 # bounds the same run at five minutes from the outside; this is the deadline
 # the runner itself owns, so it also holds where no workflow wraps it.
 CARGO_DEADLINE_SECONDS = 600
-# A killed tree is already dead; this bounds only the wait to reap the launcher
-# and collect the output it wrote before the deadline.
-PROCESS_TREE_CLEANUP_SECONDS = 10.0
 # What the runner launches. A test replaces this with a stand-in so the
 # deadline and the tree kill are exercised without cargo.
 CARGO_COMMAND: tuple[str, ...] = ("cargo",)
 
 
+def _decode_output(data: bytes | None) -> str:
+    """Decode captured UTF-8 with the universal-newline text contract."""
+    if not data:
+        return ""
+    with io.TextIOWrapper(io.BytesIO(data), encoding="utf-8", errors="replace") as stream:
+        return stream.read()
+
+
 class CargoDeadlineExceeded(subprocess.TimeoutExpired):
-    """cargo outlived its deadline; its process tree has been killed.
+    """Cargo outlived its deadline; any cleanup failure remains attached.
 
     A typed timeout rather than a return code, because the two failures cargo
     produces here mean different things: a nonzero exit is a resolution that
@@ -129,36 +139,10 @@ class CargoDeadlineExceeded(subprocess.TimeoutExpired):
     Reporting the second as the first would blame the lock for a hung fetch.
     """
 
-
-def _kill_process_tree(process: subprocess.Popen[str]) -> None:
-    """Kill `process` and every descendant it started.
-
-    The tree is the point: `cargo metadata` starts a rustc and git fetches, and
-    killing only the launcher leaves them holding the network and the lock.
-    POSIX starts the launcher in its own session, so one `killpg` retires the
-    group. Windows has no equivalent without a job object, and this file is
-    exported alone to the hooks, so it uses `taskkill /T` instead.
-    """
-    if os.name == "nt":
-        try:
-            subprocess.run(
-                ["taskkill", "/T", "/F", "/PID", str(process.pid)],
-                capture_output=True,
-                check=False,
-                timeout=PROCESS_TREE_CLEANUP_SECONDS,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-    else:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-            return
-        except ProcessLookupError:
-            return
-        except OSError:
-            pass
-    if process.poll() is None:
-        process.kill()
+    def __init__(self, command: Sequence[str], timeout: float, output: str | None = None,
+                 stderr: str | None = None, *, cleanup_error: str | None = None) -> None:
+        super().__init__(command, timeout, output=output, stderr=stderr)
+        self.cleanup_error = cleanup_error
 
 
 def run_bounded(
@@ -166,45 +150,32 @@ def run_bounded(
 ) -> subprocess.CompletedProcess[str]:
     """Run `command`, killing its whole process tree if it outlives `deadline`.
 
-    `subprocess.run(timeout=...)` kills the launcher only, so the runner owns
-    the launch: a timeout is followed by [`_kill_process_tree`] and only then by
-    a collected result. A timeout raises [`CargoDeadlineExceeded`] carrying the
-    output the command managed to write before it was stopped.
+    The first-party process-tree runner owns the launch and its descendants,
+    including cleanup when the caller is killed. A timeout raises
+    [`CargoDeadlineExceeded`] carrying the output the command managed to write
+    before it was stopped.
     """
-    process = subprocess.Popen(
-        tuple(command),
-        cwd=cwd,
-        env=dict(env),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        # `text=True` alone decodes with the locale codepage. Cargo emits UTF-8,
-        # so on a Windows console (cp1252) subprocess's reader thread dies on
-        # the first byte it cannot map and the captured stream is lost. The
-        # verdict survives -- it comes from `returncode` -- but the message
-        # explaining a failure does not, which is the one moment it is needed.
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        # The POSIX tree is the process group: the launcher must lead its own
-        # session for `killpg` to reach a descendant cargo did not reap.
-        start_new_session=os.name != "nt",
-    )
     try:
-        stdout, stderr = process.communicate(timeout=deadline)
-    except subprocess.TimeoutExpired:
-        _kill_process_tree(process)
-        try:
-            stdout, stderr = process.communicate(timeout=PROCESS_TREE_CLEANUP_SECONDS)
-        except subprocess.TimeoutExpired:
-            stdout, stderr = "", ""
-        note = (
-            f"cargo did not finish within {deadline:g}s; "
-            "its process tree was killed."
+        completed = process_tree.run(
+            command,
+            cwd=cwd,
+            env=env,
+            timeout=deadline,
+            output_mode=process_tree.OutputMode.CAPTURE,
         )
+    except process_tree.ProcessTreeTimeout as error:
+        stdout = _decode_output(error.output)
+        stderr = _decode_output(error.stderr)
+        retirement = ("its process tree was killed" if error.cleanup_error is None
+                      else f"process-tree cleanup failed: {error.cleanup_error}")
+        note = f"cargo did not finish within {deadline:g}s; {retirement}."
         raise CargoDeadlineExceeded(
-            tuple(command), deadline, output=stdout, stderr=(stderr + "\n" + note).strip()
-        ) from None
-    return subprocess.CompletedProcess(tuple(command), process.returncode, stdout, stderr)
+            tuple(command), deadline, output=stdout,
+            stderr=(stderr + "\n" + note).strip(), cleanup_error=error.cleanup_error,
+        ) from error
+    stdout = _decode_output(completed.stdout)
+    stderr = _decode_output(completed.stderr)
+    return subprocess.CompletedProcess(tuple(command), completed.returncode, stdout, stderr)
 
 
 def shared_target_dir(manifest: Path) -> Path | None:
@@ -304,7 +275,7 @@ def check_resolution(manifest: Path, lockfile: Path) -> int:
     except CargoDeadlineExceeded as error:
         print(
             f"error: cargo metadata --locked did not finish within "
-            f"{error.timeout:g}s, so its process tree was killed.\n"
+            f"{error.timeout:g}s.\n"
             "\n"
             "The lock form is intact; this is a resolution that never finished\n"
             "(usually a stalled first-party fetch), not a flattened lock.\n"
@@ -357,7 +328,7 @@ def check_lock_owner(manifest: Path) -> int:
     except CargoDeadlineExceeded as error:
         print(
             f"error: cargo lock ownership did not finish within {error.timeout:g}s; "
-            "its process tree was killed. This is a stalled check, not a flattened lock.\n"
+            "This is a stalled check, not a flattened lock.\n"
             f"{(error.stderr or '').strip()}", file=sys.stderr,
         )
         return 1
@@ -1392,8 +1363,8 @@ def regenerate() -> int:
         completed = run_outside_the_overlay(["metadata", "--format-version", "1"])
     except CargoDeadlineExceeded as error:
         print(
-            f"error: regeneration did not finish within {error.timeout:g}s; its "
-            f"process tree was killed.\n{(error.stderr or '').strip()}",
+            f"error: regeneration did not finish within {error.timeout:g}s.\n"
+            f"{(error.stderr or '').strip()}",
             file=sys.stderr,
         )
         return 1

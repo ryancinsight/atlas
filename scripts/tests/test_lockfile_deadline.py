@@ -16,11 +16,15 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import inspect
 import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
+
+import process_tree
 
 SCRIPTS = Path(__file__).resolve().parent.parent
 SCRIPT = SCRIPTS / "lockfile.py"
@@ -108,6 +112,17 @@ class BoundedRunnerTests(unittest.TestCase):
         self.assertEqual(completed.stdout, "metadata\n")
         self.assertEqual(completed.stderr, "note\n")
 
+    def test_cleanup_failure_is_retained_in_the_typed_timeout(self) -> None:
+        failure = process_tree.ProcessTreeTimeout(["cargo"], 1, b"partial", b"fetch", "owned group survived")
+        with mock.patch.object(process_tree, "run", side_effect=failure):
+            with self.assertRaises(lockfile.CargoDeadlineExceeded) as caught:
+                lockfile.run_bounded(["cargo"], cwd=self.root, env={}, deadline=1)
+        self.assertEqual(caught.exception.output, "partial")
+        self.assertEqual(caught.exception.cleanup_error, "owned group survived")
+        self.assertIn("process-tree cleanup failed: owned group survived", caught.exception.stderr)
+        self.assertNotIn("tree was killed", caught.exception.stderr)
+        self.assertIs(caught.exception.__cause__, failure)
+
     def test_the_default_deadline_is_bounded(self) -> None:
         self.assertGreater(lockfile.CARGO_DEADLINE_SECONDS, 0)
         self.assertLessEqual(lockfile.CARGO_DEADLINE_SECONDS, 600)
@@ -160,6 +175,14 @@ class DeadlineReportingTests(unittest.TestCase):
 
 
 class OneRunnerTests(unittest.TestCase):
+    def test_the_lockfile_runner_uses_the_shared_process_tree_owner(self) -> None:
+        self.assertIs(lockfile.process_tree, process_tree)
+        self.assertEqual(
+            Path(process_tree.__file__).resolve(),
+            SCRIPTS / "process_tree.py",
+        )
+        self.assertNotIn("start_new_session", inspect.getsource(lockfile.run_bounded))
+
     def test_the_drift_scan_has_no_cargo_runner_of_its_own(self) -> None:
         source = (SCRIPTS / "atlas-published-drift.py").read_text(encoding="utf-8")
         self.assertNotIn("run_cargo_metadata", source)

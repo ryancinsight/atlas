@@ -4,11 +4,12 @@
 - Date: 2026-08-17
 - Revision 2026-10-02: the rule, the committed sweep, the staged check and
   regeneration moved from `atlas-lock-form.py` into `scripts/lockfile.py`, the
-  stack's one checker (the hooks export that file alone), and the push and CI
+  stack's one checker (the hooks export it with its same-revision process-owner modules), and the push and CI
   check (`--check`) now judges a lock by the same rule instead of counting
   `git+` lines, nested locks included. The decision is unchanged: repair still
   uses `cargo metadata`, which advances no pin, and the committed form is the
   same.
+- Revision 2026-11-09: lock checks reuse the shared process-tree owner so a nested Cargo session cannot survive its checker; hook bootstraps export all owner modules from the same immutable fetched revision.
 - Driver: backlog ATLAS-LOCK-CONVENTION-079
 
 ## Context

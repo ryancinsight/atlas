@@ -21,6 +21,7 @@ from unittest.mock import patch
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 import atlas_build_snapshot as snapshot  # noqa: E402
+import atlas_build_source as source  # noqa: E402
 
 SPEC = importlib.util.spec_from_file_location(
     "atlas_build_snapshot_probe", SCRIPTS / "atlas_build_snapshot.py"
@@ -139,6 +140,135 @@ class MetadataCacheTests(unittest.TestCase):
         with self.assertRaises(snapshot.BuildIdentityError):
             self._metadata()
         self.assertEqual(len(self.calls), 2, "a changed cargo config must be read again")
+
+    def test_an_export_empty_registered_submodule_overlay_is_stripped(self) -> None:
+        """An exported gitlink directory is the one permitted absent target."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir()
+        original = (
+            '[build]\ntarget-dir = "target"\n'
+            '[patch.crates-io]\nmember = { path = "repos/member" }\n'
+        ).encode()
+        config.write_bytes(original)
+
+        with source.overlay_stripped_configs(self.workspace):
+            self.assertNotIn(b"[patch", config.read_bytes())
+        self.assertEqual(config.read_bytes(), original)
+
+    def test_nested_overlay_target_strips_when_registered_root_is_empty(self) -> None:
+        """Nested package paths resolve through an empty exported gitlink."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir()
+        config.write_text(
+            '[patch.crates-io]\nmember = { path = "repos/member/crates/core" }\n',
+            encoding="utf-8",
+        )
+        value = self._metadata()
+        packages = value["packages"]
+        self.assertEqual(len(packages), 1)
+        self.assertEqual(packages[0]["name"], "demo")
+        self.assertEqual(
+            pathlib.Path(packages[0]["manifest_path"]).resolve(),
+            (self.workspace / "demo" / "Cargo.toml").resolve(),
+        )
+
+    def test_registered_nonempty_root_keeps_the_patch_error(self) -> None:
+        """A registered directory with files is not an export artifact."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (member / "README.md").write_text("not a package\n", encoding="utf-8")
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir()
+        config.write_text(
+            '[patch.crates-io]\nmember = { path = "repos/member/crates/core" }\n',
+            encoding="utf-8",
+        )
+        with self.assertRaises(snapshot.BuildIdentityError):
+            self._metadata()
+
+    def test_an_empty_unregistered_directory_keeps_the_patch_error(self) -> None:
+        """An ordinary empty directory must not be mistaken for a gitlink."""
+        (self.workspace / "empty").mkdir()
+        (self.workspace / ".cargo").mkdir()
+        config = self.workspace / ".cargo" / "config.toml"
+        config.write_text(
+            '[patch.crates-io]\nmissing = { path = "empty" }\n', encoding="utf-8"
+        )
+        original = config.read_bytes()
+        with source.overlay_stripped_configs(self.workspace):
+            self.assertEqual(config.read_bytes(), original)
+
+    def test_restore_failure_is_reported_after_all_configs_are_attempted(self) -> None:
+        """A failed restore is surfaced without skipping other saved files."""
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n', encoding="utf-8"
+        )
+        nested = self.workspace / "nested"
+        (nested / ".cargo").mkdir(parents=True)
+        (nested / "member").mkdir()
+        (nested / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = member\n', encoding="utf-8"
+        )
+        root_config = self.workspace / ".cargo" / "config.toml"
+        root_config.parent.mkdir()
+        root_original = b'[patch.crates-io]\nmember = { path = "repos/member" }\n'
+        root_config.write_bytes(root_original)
+        nested_config = nested / ".cargo" / "config.toml"
+        nested_original = b'[patch.crates-io]\nmember = { path = "member" }\n'
+        nested_config.write_bytes(nested_original)
+        real_write = pathlib.Path.write_bytes
+
+        def fail_root_restore(path: pathlib.Path, data: bytes) -> int:
+            if path == root_config and data == root_original:
+                raise OSError("injected restore failure")
+            return real_write(path, data)
+
+        with patch.object(pathlib.Path, "write_bytes", fail_root_restore):
+            with self.assertRaises(source.BuildIdentityError):
+                with source.overlay_stripped_configs(nested):
+                    self.assertNotIn(b"[patch", root_config.read_bytes())
+                    self.assertNotIn(b"[patch", nested_config.read_bytes())
+        self.assertNotEqual(root_config.read_bytes(), root_original)
+        self.assertEqual(nested_config.read_bytes(), nested_original)
+
+    def test_interruption_and_restore_failure_preserve_both_errors(self) -> None:
+        member = self.workspace / "repos" / "member"
+        member.mkdir(parents=True)
+        (self.workspace / ".gitmodules").write_text('[submodule "member"]\n path = repos/member\n')
+        config = self.workspace / ".cargo" / "config.toml"
+        config.parent.mkdir()
+        original = b'[patch.crates-io]\nmember = { path = "repos/member" }\n'
+        config.write_bytes(original)
+        operation = KeyboardInterrupt("cancel Cargo")
+        restoration = OSError("restore denied")
+        real_write = pathlib.Path.write_bytes
+        def write(path, data):
+            if path == config and data == original:
+                raise restoration
+            return real_write(path, data)
+        with patch.object(pathlib.Path, "write_bytes", write):
+            with self.assertRaises(BaseExceptionGroup) as caught:
+                with source.overlay_stripped_configs(self.workspace):
+                    raise operation
+        self.assertEqual(len(caught.exception.exceptions), 2)
+        self.assertIs(caught.exception.exceptions[0], operation)
+        self.assertEqual(str(caught.exception.exceptions[1]), f"cannot restore Cargo configuration {config}")
+        self.assertIs(caught.exception.exceptions[1].__cause__, restoration)
 
     def test_a_new_toolchain_file_is_read_again(self) -> None:
         """Cargo reads `rust-toolchain.toml` upward from the directory it

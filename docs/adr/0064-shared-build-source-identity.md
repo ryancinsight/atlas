@@ -24,6 +24,7 @@ Prepared member source never selects credential or secret scanners, artifact-bud
 
 Hook installation and publication use one source-keyed materializer for the complete immutable runner family: `pre_push_gate.py`, platform process-tree modules, and the exact Python interpreter.
 Installation stores that family beside the immutable shims under the Git common directory, keyed by hook-source commit; the installed pre-push shim enters it before source-ref lookup.
+`install-hooks --source-ref <full-commit>` stages a judged future bootstrap before landing; its shims still load fetched default hooks, so the old source, new source, and a fetched-source rollback all run through the staged owner without moving the trust ref.
 Publication materializes the same family in its temporary hook directory and passes that runtime only to that one Git invocation.
 Publication does not change installed shims, installed runtime references, or the live fetched hook-source ref to select prepared tools.
 A missing, mixed, or incomplete runner family fails closed; setup never occurs inside the supervised push.

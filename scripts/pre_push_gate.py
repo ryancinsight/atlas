@@ -70,9 +70,17 @@ def main() -> int:
             if log.is_file():
                 print("pre-push: final bounded gate log bytes:", file=sys.stderr)
                 _emit(log.read_bytes()[-LOG_TAIL_BYTES:], sys.stderr)
+            cleanup_error = error.cleanup_error
+            if cleanup_error is None:
+                retirement = "its process tree was retired"
+            else:
+                retirement = (
+                    "process-tree retirement failed: "
+                    f"{cleanup_error}"
+                )
             print(
                 f"pre-push: BLOCKED -- {phase} phase exceeded "
-                f"{DEADLINE_SECONDS} seconds; its process tree was retired",
+                f"{DEADLINE_SECONDS} seconds; {retirement}",
                 file=sys.stderr,
             )
             return 124

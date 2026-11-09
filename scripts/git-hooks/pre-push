@@ -93,6 +93,10 @@ case "${1:-}" in
       echo "pre-push: usage: pre-push documentation <candidate> [<base>]" >&2
       exit 2
     }
+    [ -n "$documentation_tip" ] || {
+      echo "pre-push: usage: pre-push documentation <candidate> [<base>]" >&2
+      exit 2
+    }
     ;;
   --bounded-phase)
     gate_bounded=1
@@ -405,7 +409,7 @@ default_branch_base() {
 # leading to it. Judging the first ref alone let a later ref carry anything.
 zero="$(printf '0%.0s' $(seq 40))"
 push_lines=()
-if [ "$gate_phase" = "documentation" ] && [ "$gate_bounded" -eq 0 ]; then
+if [ "$gate_phase" = "documentation" ] && [ -n "$documentation_tip" ]; then
   if [ -z "$documentation_tip" ] \
     || ! documentation_tip="$(git rev-parse --verify --quiet "$documentation_tip^{commit}")"; then
     echo "pre-push: BLOCKED -- documentation candidate does not resolve to a commit" >&2
@@ -866,7 +870,7 @@ elif [ ! -f "$checker" ]; then
 elif [ -z "$python_bin" ]; then
   echo "pre-push: no python interpreter found; lockfile not verified" >&2
   exit 1
-elif ! (cd "$lock_export" && "$python_bin" "$checker" --check --check-tree "$lock_export" --tree-source "$repo_root" "$lock_commit"); then
+elif ! (cd "$lock_export" && "$python_bin" -I "$checker" --check --check-tree "$lock_export" --tree-source "$repo_root" "$lock_commit"); then
   cat >&2 <<MESSAGE
 
 pre-push: the Cargo.lock in $lock_rev does not resolve under --locked, so

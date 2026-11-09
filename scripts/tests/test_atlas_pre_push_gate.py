@@ -32,6 +32,7 @@ import pytest
 
 from readonly_tree import clear_readonly_tree
 from identity_fixture import PASSTHROUGH_IDENTITY
+from root_hook_support import shared_target_directory
 
 SCRIPT = (
     pathlib.Path(__file__).resolve().parents[1] / "git-hooks" / "pre-push"
@@ -747,16 +748,26 @@ def _recording_tool(log: pathlib.Path, exit_code: int) -> str:
     )
 
 
-def _recording_process_tree(deadline_log: pathlib.Path) -> str:
+def _recording_process_tree(
+    deadline_log: pathlib.Path, cleanup_error: str | None = None
+) -> str:
     """A process-tree owner that records each requested wall deadline."""
     return (
         "import pathlib, subprocess\n"
-        "class ProcessTreeTimeout(Exception):\n    pass\n"
+        "class ProcessTreeTimeout(Exception):\n"
+        "    def __init__(self, cleanup_error=None):\n"
+        "        self.cleanup_error = cleanup_error\n"
+        "        self.output = None\n"
+        "        self.stderr = None\n"
         "class ProcessTreeCleanupError(Exception):\n    pass\n"
         "def run(command, *, input=None, timeout, env=None):\n"
         f"    with pathlib.Path({str(deadline_log)!r}).open('a', encoding='utf-8') as stream:\n"
         "        stream.write(f'{timeout}\\n')\n"
-        "    return subprocess.run(command, input=input, env=env, capture_output=True)\n"
+        + (
+            f"    raise ProcessTreeTimeout({cleanup_error!r})\n"
+            if cleanup_error is not None
+            else "    return subprocess.run(command, input=input, env=env, capture_output=True)\n"
+        )
     )
 
 
@@ -1485,6 +1496,120 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
 class PhaseOwnershipTestCase(unittest.TestCase):
     """Git push and readiness own disjoint native build phases."""
 
+    def test_documentation_phase_uses_supplied_candidate_and_base(self) -> None:
+        """The public entry point documents its exact revisions, not HEAD."""
+        cargo = shutil.which("cargo", path=os.environ.get("PATH"))
+        self.assertIsNotNone(
+            cargo, "the Rust toolchain is required for this end-to-end test"
+        )
+        with tempfile.TemporaryDirectory(
+            prefix="atlas-gate-rustdoc-revisions-"
+        ) as temp:
+            fixture = _stacked_fixture(temp)
+            (fixture.root / "Cargo.toml").write_text(
+                '[workspace]\nresolver = "2"\nmembers = ["crates/foo"]\n'
+                '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n',
+                encoding="utf-8",
+            )
+            fixture.set_workspace_packages(["foo"])
+            source = fixture.root / "crates" / "foo" / "src" / "lib.rs"
+            source.write_text(
+                "/// A documented type.\n"
+                "pub struct PresentType;\n\n"
+                "/// Returns a [`PresentType`].\n"
+                "pub fn documented() -> PresentType { PresentType }\n",
+                encoding="utf-8",
+            )
+            subprocess.run(
+                [
+                    cargo,
+                    "generate-lockfile",
+                    "--manifest-path",
+                    str(fixture.root / "Cargo.toml"),
+                ],
+                cwd=fixture.root,
+                check=True,
+                timeout=60,
+            )
+            _commit_all(fixture.root, "documented base")
+            base = _git(fixture.root, "rev-parse", "HEAD")
+            _git(fixture.root, "switch", "-q", "-c", "good-doc")
+            source.write_text(
+                "/// A documented type.\n"
+                "pub struct PresentType;\n\n"
+                "/// Returns a [`PresentType`].\n"
+                "pub fn documented() -> PresentType { PresentType }\n"
+                "\n/// A second documented item.\n"
+                "pub fn additional() {}\n",
+                encoding="utf-8",
+            )
+            _commit_all(fixture.root, "good documentation")
+            good = _git(fixture.root, "rev-parse", "HEAD")
+            _git(fixture.root, "switch", "-q", "main")
+            source.write_text(
+                "/// Returns a [`MissingType`].\n"
+                "pub fn documented() {}\n",
+                encoding="utf-8",
+            )
+            _commit_all(fixture.root, "bad documentation")
+            bad = _git(fixture.root, "rev-parse", "HEAD")
+            self.assertNotEqual(good, bad)
+            environment = {
+                "CARGO": cargo,
+                "CARGO_ENCODED_RUSTDOCFLAGS": "-Awarnings",
+                "CARGO_TARGET_DIR": str(shared_target_directory()),
+                "PATH": os.environ.get("PATH", ""),
+            }
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("main"), extra_env=environment,
+                arguments=("origin", "fixture"),
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("rustdoc started", stderr)
+            _git(fixture.root, "switch", "-q", "good-doc")
+            code, stderr = fixture.run_hook(
+                "", extra_env=environment, arguments=("documentation", bad, base)
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("unresolved link to `MissingType`", stderr)
+
+            _git(fixture.root, "switch", "-q", "main")
+            code, stderr = fixture.run_hook(
+                "", extra_env=environment, arguments=("documentation", good, base)
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("documentation phase passed", stderr)
+
+            for arguments in (
+                ("documentation",),
+                ("documentation", good, "missing-base"),
+            ):
+                code, stderr = fixture.run_hook(
+                    "", extra_env=environment, arguments=arguments
+                )
+                self.assertEqual(code, 2, stderr)
+                self.assertIn("documentation", stderr)
+
+    def test_timeout_reports_cleanup_failure_instead_of_retired_tree(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-timeout-cleanup-") as temp:
+            fixture = _stacked_fixture(temp)
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            deadline_log = fixture.stack / "deadline.log"
+            _write(
+                fixture.stack / "scripts" / "process_tree.py",
+                _recording_process_tree(deadline_log, "kill denied"),
+            )
+            _publish_stack_scripts(fixture.stack)
+
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(), arguments=("origin", "fixture")
+            )
+
+            self.assertEqual(code, 124, stderr)
+            self.assertIn("process-tree retirement failed: kill denied", stderr)
+            self.assertNotIn("its process tree was retired", stderr)
+
     def test_production_push_uses_the_committed_deadline_without_rustdoc(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-phase-") as temp:
             fixture = _stacked_fixture(temp)
@@ -1666,7 +1791,7 @@ class PhaseOwnershipTestCase(unittest.TestCase):
             environment = {
                 "CARGO": cargo,
                 "CARGO_ENCODED_RUSTDOCFLAGS": "-Awarnings",
-                "CARGO_TARGET_DIR": str(fixture.stack / "target"),
+                "CARGO_TARGET_DIR": str(shared_target_directory()),
                 "PATH": os.environ.get("PATH", ""),
             }
 

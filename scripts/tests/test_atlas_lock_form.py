@@ -563,6 +563,32 @@ class HookInstallTestCase(unittest.TestCase):
         )
         return shims / "pre-push-runtime" / source
 
+    def test_staged_bootstrap_supports_source_landing_and_rollback(self) -> None:
+        self.publish({"pre-push": owned_hook("old-source")})
+        old_source = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        index = Path(self._tmp.name) / "old-source-index"
+        environment = {**os.environ, "GIT_INDEX_FILE": str(index)}
+        self.git(self.atlas, "read-tree", old_source, env=environment)
+        self.git(self.atlas, "update-index", "--force-remove", "scripts/pre_push_gate.py", env=environment)
+        tree = self.git(self.atlas, "write-tree", env=environment)
+        old_source = self.git(self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+                              "commit-tree", tree, "-m", "Old source without bootstrap")
+        self.publish({"pre-push": owned_hook("new-source")})
+        future_source = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", old_source)
+        member = self.member("member")
+        with (patch.object(_lock_form, "ROOT", self.atlas),
+              patch.object(_lock_form, "REPOS", self.repos),
+              patch.object(_lock_form, "registered_member_names", return_value=["member"]),
+              contextlib.redirect_stdout(io.StringIO())):
+            self.assertEqual(_lock_form.cmd_install_hooks(Namespace(source_ref=future_source)), 0)
+        self.assertEqual(self.git(self.atlas, "rev-parse", "refs/remotes/origin/main"), old_source)
+        self.assertIn("old-source", self.run_hook(member))
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", future_source)
+        self.assertIn("new-source", self.run_hook(member))
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", old_source)
+        self.assertIn("old-source", self.run_hook(member))
+
     def test_members_run_origin_main_hooks_and_custom_paths_stay(self) -> None:
         self.publish({
             "pre-push": owned_hook("owned-1"),

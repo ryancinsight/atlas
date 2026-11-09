@@ -241,6 +241,24 @@ class HookBranchPushTestCase(unittest.TestCase):
             )
             self.assertEqual(listing, b"")
 
+    def test_committed_hooks_ignore_replacement_objects(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-replacements-") as temporary:
+            repo = Path(temporary)
+            self._commit_after_init(repo)
+            hook = repo / "scripts" / "git-hooks" / "pre-push"
+            hook.parent.mkdir(parents=True)
+            hook.write_bytes(b"#!/bin/sh\nexit 7\n")
+            self._git(repo, "add", "scripts/git-hooks/pre-push")
+            self._git(repo, "commit", "-qm", "Trusted hook")
+            trusted = self._git(repo, "rev-parse", "HEAD")
+            hook.write_bytes(b"#!/bin/sh\nexit 0\n")
+            self._git(repo, "add", "scripts/git-hooks/pre-push")
+            self._git(repo, "commit", "-qm", "Replacement hook")
+            replacement = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "replace", trusted, replacement)
+            self.assertEqual(_lock_form.committed_hooks(repo, trusted),
+                             [("pre-push", b"#!/bin/sh\nexit 7\n")])
+
     def test_push_materializes_and_runs_the_committed_process_owner(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-runtime-") as temporary:
             root = Path(temporary)
