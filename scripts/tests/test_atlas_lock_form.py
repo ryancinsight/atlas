@@ -14,6 +14,7 @@ import contextlib
 import importlib.util
 import json
 import shutil
+import socket
 import io
 import subprocess
 import time
@@ -487,6 +488,7 @@ class HookInstallTestCase(unittest.TestCase):
         }
         for name in (
             "pre_push_gate.py",
+            "atlas_build_lock.py",
             "process_tree.py",
             "windows_process.py",
             "darwin_process.py",
@@ -644,6 +646,7 @@ class HookInstallTestCase(unittest.TestCase):
         self.assertEqual(
             sorted(path.name for path in runtime.iterdir()),
             [
+                "atlas_build_lock.py",
                 "darwin_process.py",
                 "pre_push_gate.py",
                 "process_tree.py",
@@ -671,7 +674,7 @@ class HookInstallTestCase(unittest.TestCase):
         self.install(list(initial), code=1)
         self.assertEqual(
             sorted(p.name for p in shims.iterdir()),
-            ["blobs", "pre-push", "pre-push-runtime"],
+            [".cache-locks", "blobs", "pre-push", "pre-push-runtime"],
         )
 
     def test_pre_push_refuses_before_git_when_the_supervisor_is_missing(self) -> None:
@@ -1573,63 +1576,109 @@ class HookInstallTestCase(unittest.TestCase):
         _, err = run.communicate(b"", timeout=60)
         self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
 
-    def test_a_cache_being_written_is_never_visible_or_run(self) -> None:
-        """A first run stalls mid-write; the cache path stays absent, and a
-        second run executes the whole hook rather than the part written."""
+    def _assert_concurrent_cache_publication(self, initial_cache: bytes | None = None) -> None:
+        """A stalled writer cannot expose partial bytes or replace a winner."""
         self.publish({"pre-push": owned_hook("owned")})
         shims = _lock_form.write_hook_shims(self.atlas)
+        if initial_cache is not None:
+            blob = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main:scripts/git-hooks/pre-push")
+            blob_path = shims / "blobs" / blob
+            blob_path.parent.mkdir(parents=True, exist_ok=True)
+            blob_path.write_bytes(initial_cache)
         fake = Path(self._tmp.name) / "fake-bin"
         fake.mkdir()
-        stalled, release = Path(self._tmp.name) / "stalled", Path(self._tmp.name) / "release"
-        # The stalled write waits on `release` for at most STALL_SECONDS of
-        # wall-clock time (bash's `SECONDS`, not an iteration count, which
-        # `sleep` and process start cost stretch many times over); a failing
-        # assertion releases it at cleanup, so no run outlives the test.
+        server = self.enterContext(socket.socket())
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        server.settimeout(60)
+        endpoint = server.getsockname()
         real = shutil.which("git")
-        (fake / "git").write_bytes(
-            (
-                "#!/usr/bin/env bash\n"
-                f"real={_lock_form._shell_word(Path(real).as_posix())}\n"
-                'if [[ " $* " == *" cat-file "* ]]; then\n'
-                '  "$real" "$@" | head -c 40\n'
-                f"  : > {_lock_form._shell_word(stalled.as_posix())}\n"
-                f"  until=$((SECONDS + {STALL_SECONDS}))\n"
-                f"  while [ $SECONDS -lt $until ] && [ ! -f {_lock_form._shell_word(release.as_posix())} ]; do\n"
-                "    sleep 0.05\n"
-                "  done\n"
-                '  "$real" "$@" | tail -c +41\n'
-                "  exit 0\n"
-                "fi\n"
-                'exec "$real" "$@"\n'
-            ).encode()
+        probe = fake / "git_probe.py"
+        probe.write_text(
+            "import socket, subprocess, sys\n"
+            "result = subprocess.run(sys.argv[1:], capture_output=True, timeout=60)\n"
+            "sys.stderr.buffer.write(result.stderr)\n"
+            "if 'cat-file' in sys.argv[2:] and result.returncode == 0:\n"
+            "    sys.stdout.buffer.write(result.stdout[:40]); sys.stdout.buffer.flush()\n"
+            f"    with socket.create_connection({endpoint!r}, timeout=60) as signal:\n"
+            "        signal.sendall(b'ready')\n"
+            "        if signal.recv(1) != b'g': raise RuntimeError('publication release closed')\n"
+            "    sys.stdout.buffer.write(result.stdout[40:])\n"
+            "else:\n"
+            "    sys.stdout.buffer.write(result.stdout)\n"
+            "raise SystemExit(result.returncode)\n",
+            encoding="utf-8",
+        )
+        (fake / "git").write_text(
+            "#!/usr/bin/env bash\nexec " + _lock_form._shell_word(sys.executable)
+            + " -I " + _lock_form._shell_word(probe.as_posix()) + " "
+            + _lock_form._shell_word(Path(real).as_posix()) + ' "$@"\n',
+            encoding="utf-8",
         )
         (fake / "git").chmod(0o755)
         first = self.run_shim(shims, path=fake.as_posix())
-        self.addCleanup(release.write_text, "go", encoding="utf-8")
-        deadline = time.monotonic() + 60
-        while not stalled.exists():
-            self.assertIsNone(first.poll(), "the first run ended before its write stalled")
-            self.assertLess(time.monotonic(), deadline, "the first run never reached its write")
-            time.sleep(0.02)
+        connection, _ = server.accept()
+        signal = self.enterContext(connection)
+        signal.settimeout(60)
+        reader = self.enterContext(signal.makefile("rb"))
+        self.assertEqual(reader.read(5), b"ready")
         blob = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main:scripts/git-hooks/pre-push")
         blob_dir = shims / "blobs"
-        # The part-written copy sits beside the cache, in the same directory,
-        # so publication can link it without exposing the partial path.
-        (partial,) = blob_dir.iterdir()
-        self.assertTrue(partial.name.startswith(f"{blob}."), partial.name)
+        # Ready is sent after the prefix reaches the private partial file.
+        partial = next(path for path in blob_dir.iterdir() if path.name.startswith(f"{blob}."))
+        self.assertEqual(partial.read_bytes(), owned_hook("owned")[:40])
         second = self.run_shim(shims)
         out, err = second.communicate(b"line\n", timeout=60)
         self.assertEqual((second.returncode, out.decode().strip()),
                          (0, "owned argc=2 [origin] [url] <line>"), err.decode())
-        release.write_text("go", encoding="utf-8")
+        winner = blob_dir / blob
+        winner_inode = winner.stat().st_ino
+        signal.sendall(b"g")
         out, err = first.communicate(b"line\n", timeout=60)
         self.assertEqual((first.returncode, out.decode().strip()),
                          (0, "owned argc=2 [origin] [url] <line>"), err.decode())
         (cached,) = blob_dir.iterdir()
         self.assertEqual(cached.read_bytes(), owned_hook("owned"))
-        # Publication is first-writer-wins: either completed writer may own
-        # the inode, but the cache is never a visible part-written copy.
+        # The completed publication remains the same file when the first
+        # writer resumes; checking bytes alone would miss a replacement.
         self.assertEqual([path.name for path in blob_dir.iterdir()], [blob])
+        self.assertEqual((blob_dir / blob).stat().st_ino, winner_inode)
+
+    def test_a_cache_being_written_is_never_visible_or_run(self) -> None:
+        self._assert_concurrent_cache_publication()
+
+    def test_a_corrupt_cache_is_repaired_by_the_concurrent_publisher(self) -> None:
+        self._assert_concurrent_cache_publication(b"corrupt cache")
+
+    def test_cache_lookup_ignores_shell_startup_output(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        startup = Path(self._tmp.name) / "shell-startup"
+        startup.write_text('printf "startup:%s\\n" "${BASH_SOURCE[0]}"\n', encoding="utf-8")
+        run = self.run_shim(shims, BASH_ENV=str(startup))
+        out, err = run.communicate(b"line\n", timeout=60)
+        self.assertEqual(run.returncode, 0, err.decode())
+        self.assertIn("owned argc=2 [origin] [url] <line>", out.decode())
+
+    def test_cache_worker_ignores_python_startup_hooks(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        untrusted = Path(self._tmp.name) / "python-path"
+        untrusted.mkdir()
+        marker = untrusted / "marker"
+        (untrusted / "sitecustomize.py").write_text(
+            "from pathlib import Path\n"
+            f"Path({str(marker)!r}).write_text('startup hook executed')\n", encoding="utf-8",
+        )
+        environment = {**os.environ, "PYTHONPATH": str(untrusted)}
+        subprocess.run([sys.executable, "-c", "pass"], env=environment, check=True, timeout=60)
+        self.assertEqual(marker.read_text(), "startup hook executed")
+        marker.write_text("untouched")
+        run = self.run_shim(shims, PYTHONPATH=str(untrusted))
+        out, err = run.communicate(b"line\n", timeout=60)
+        self.assertEqual((run.returncode, out.decode().strip()),
+                         (0, "owned argc=2 [origin] [url] <line>"), err.decode())
+        self.assertEqual(marker.read_text(), "untouched")
 
     def test_a_failed_write_runs_nothing_and_leaves_no_partial(self) -> None:
         """origin/main names a hook blob the object store lacks, and the cache
@@ -1649,15 +1698,18 @@ class HookInstallTestCase(unittest.TestCase):
         scripts = mktree(f"040000 tree {hooks}\tgit-hooks\n")
         top = mktree(f"040000 tree {scripts}\tscripts\n")
         commit = self.git(
-            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", top, "-m", "gone",
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", top, "-p", self.git(self.atlas, "rev-parse", "refs/remotes/origin/main"),
+            "-m", "gone",
         )
         self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
         corrupt = shims / "blobs" / missing
         corrupt.parent.mkdir()
         corrupt.write_bytes(b"#!/usr/bin/env bash\necho CORRUPT-CACHE-RAN\n")
         run = self.run_shim(shims)
-        out, _ = run.communicate(b"", timeout=60)
+        out, error = run.communicate(b"", timeout=60)
         self.assertEqual((run.returncode, out.decode()), (1, ""))
+        self.assertIn("git cat-file", error.decode())
+        self.assertNotIn("process-owner floor", error.decode())
         self.assertEqual(sorted(p.name for p in (shims / "blobs").iterdir()), [missing])
 
     def test_an_unexpected_cache_directory_is_preserved_and_refused(self) -> None:

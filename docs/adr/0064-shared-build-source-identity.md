@@ -22,13 +22,14 @@ The value occurs once, is a full 40-character commit ID in the registered Atlas 
 Prepared member source never selects credential or secret scanners, artifact-budget or lockfile checkers, or conformance baselines; those remain fetched-default inputs.
 `publish-hooks --source-ref` passes its resolved immutable source as `atlas.preparedTools` only to the publication push; without it all tools come from fetched default.
 
-Hook installation and publication use one source-keyed materializer for the complete immutable runner family: `pre_push_gate.py`, platform process-tree modules, and the exact Python interpreter.
+Hook installation and publication use one source-keyed materializer for the complete immutable runner family: `pre_push_gate.py`, `process_tree.py`, platform process-tree modules, `atlas_build_lock.py`, and the exact Python interpreter.
 Installation stores that family beside the immutable shims under the Git common directory, keyed by hook-source commit; the installed pre-push shim enters it before source-ref lookup.
 `install-hooks --source-ref <full-commit>` stages a judged future bootstrap immediately before landing, without moving the fetched trust ref. The pre-push shim rejects fetched sources outside the staged commit's descendants; prelanding invocation and rollback below that floor refuse before hook execution. After landing, rollback to the staged commit remains supported.
 The shim snapshots the fetched commit once; the hook and its default-owned companions use that same immutable source. Publication uses its own committed runtime and does not require staging the installed shims first.
 Publication materializes the same family in its temporary hook directory and passes that runtime only to that one Git invocation.
 Publication does not change installed shims, installed runtime references, or the live fetched hook-source ref to select prepared tools.
 A missing, mixed, or incomplete runner family fails closed; setup never occurs inside the supervised push.
+Hook cache writers prepare verified bytes privately, then hold the same native OS blob lock across revalidation and publication. A completed matching publication is reused; cache directories refuse without deletion. Kernel lock release covers normal exit and caller death.
 One 600-second process-tree deadline covers every pushed ref, helper, ref guard, interpreter probe, cache cleanup, archive, and gate stage; timeout identifies the active stage and bounded final log bytes.
 
 ### Source-identity invariant and records

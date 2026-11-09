@@ -267,7 +267,7 @@ class HookBranchPushTestCase(unittest.TestCase):
             member.mkdir()
             self._commit_after_init(atlas)
             self._commit_after_init(member)
-            for name in ("pre_push_gate.py", "process_tree.py", "windows_process.py", "darwin_process.py"):
+            for name in ("pre_push_gate.py", "atlas_build_lock.py", "process_tree.py", "windows_process.py", "darwin_process.py"):
                 target = atlas / "scripts" / name
                 target.parent.mkdir(exist_ok=True)
                 target.write_bytes((SCRIPT.parent / name).read_bytes())

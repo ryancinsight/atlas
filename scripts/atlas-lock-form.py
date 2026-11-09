@@ -920,6 +920,16 @@ HOOK_SHIM = """#!/usr/bin/env bash
 {bootstrap}
 set -euo pipefail
 __atlas_shim_git={git_dir}
+__atlas_shim_runtime={runtime}
+__atlas_shim_python=""
+if [ -f "$__atlas_shim_runtime/python" ]; then
+  IFS= read -r __atlas_shim_python < "$__atlas_shim_runtime/python" || true
+fi
+__atlas_shim_supervisor="$__atlas_shim_runtime/pre_push_gate.py"
+if [ -z "$__atlas_shim_python" ] || [ ! -f "$__atlas_shim_supervisor" ]; then
+  echo "atlas hooks: the installed process-tree bootstrap is unavailable; rerun scripts/atlas-lock-form.py install-hooks" >&2
+  exit 1
+fi
 __atlas_shim_lookup() {{
   env -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES \\
     -u GIT_REPLACE_REF_BASE git --no-replace-objects --git-dir="$__atlas_shim_git" "$@"
@@ -933,53 +943,15 @@ if ! __atlas_shim_commit="$(__atlas_shim_lookup show-ref --verify --hash '{ref}'
 fi
 {source_guard}
 __atlas_shim_cache="$__atlas_shim_git/atlas-hooks/blobs/$__atlas_shim_blob"
-if [ ! -f "$__atlas_shim_cache" ] || [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_cache")" != "$__atlas_shim_blob" ]; then
-  mkdir -p "${{__atlas_shim_cache%/*}}"
-  __atlas_shim_partial="$(mktemp "$__atlas_shim_cache.XXXXXX")"
-  # `cat-file` does not check an object against its id, so the copy is
-  # hashed before it can run: an altered blob object refuses instead of
-  # running. `--no-filters` on every hash: `core.autocrlf` would otherwise
-  # give a CRLF copy the id of its LF blob.
-  if ! {{ __atlas_shim_lookup cat-file blob "$__atlas_shim_blob" >| "$__atlas_shim_partial" &&
-         [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_partial")" = "$__atlas_shim_blob" ] &&
-         chmod +x "$__atlas_shim_partial"; }}; then
-    rm -f "$__atlas_shim_partial"
-    exit 1
-  fi
-  # Publish without replacement. Concurrent first runs may all prepare the
-  # same blob; the first hard-link wins, and later writers reuse it after
-  # validating its id. A bad pre-existing file or symlink is removed only
-  # after that validation fails, so repair remains possible without exposing
-  # a partial cache or replacing a valid publication. An actual directory is
-  # never cache content and is preserved rather than recursively removed.
-  if [ -d "$__atlas_shim_cache" ] && [ ! -L "$__atlas_shim_cache" ]; then
-    rm -f "$__atlas_shim_partial"
-    exit 1
-  elif ln -n "$__atlas_shim_partial" "$__atlas_shim_cache" 2>/dev/null; then
-    rm -f "$__atlas_shim_partial"
-  elif [ -f "$__atlas_shim_cache" ] &&
-       [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_cache")" = "$__atlas_shim_blob" ]; then
-    rm -f "$__atlas_shim_partial"
-  else
-    if [ -d "$__atlas_shim_cache" ] && [ ! -L "$__atlas_shim_cache" ]; then
-      rm -f "$__atlas_shim_partial"
-      exit 1
-    fi
-    rm -f "$__atlas_shim_cache"
-    if ln -n "$__atlas_shim_partial" "$__atlas_shim_cache" 2>/dev/null ||
-       {{ [ -f "$__atlas_shim_cache" ] &&
-          [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_cache")" = "$__atlas_shim_blob" ]; }}; then
-      rm -f "$__atlas_shim_partial"
-    else
-      rm -f "$__atlas_shim_partial"
-      exit 1
-    fi
-  fi
+if ! __atlas_shim_cache="$("$__atlas_shim_python" -I "$__atlas_shim_supervisor" cache \
+    "$__atlas_shim_git" "$__atlas_shim_blob" "$__atlas_shim_cache")"; then
+  exit 1
 fi
 set +euo pipefail
 set -- "$__atlas_shim_cache" "$@"
 unset -f __atlas_shim_lookup
-unset __atlas_shim_git __atlas_shim_commit __atlas_shim_blob __atlas_shim_cache __atlas_shim_partial
+unset __atlas_shim_git __atlas_shim_commit __atlas_shim_blob __atlas_shim_cache
+unset __atlas_shim_runtime __atlas_shim_python __atlas_shim_supervisor
 case $__atlas_shim_options in *:errexit:*) set -e ;; esac
 case $__atlas_shim_options in *:nounset:*) set -u ;; esac
 case $__atlas_shim_options in *:pipefail:*) set -o pipefail ;; esac
@@ -1057,6 +1029,7 @@ def write_pre_push_runtime(atlas: Path, commit: str, destination: Path) -> Path:
     try:
         for name in (
             "pre_push_gate.py",
+            "atlas_build_lock.py",
             "process_tree.py",
             "windows_process.py",
             "darwin_process.py",
@@ -1132,6 +1105,7 @@ def write_hook_shims(atlas: Path, source_commit: str | None = None) -> Path:
                 name=name,
                 ref=HOOK_SOURCE_REF,
                 git_dir=_shell_word(git_dir.as_posix()),
+                runtime=_shell_word(runtime.as_posix()),
                 bootstrap=bootstrap,
                 source_guard=(
                     f'if ! __atlas_shim_lookup merge-base --is-ancestor {commit} '

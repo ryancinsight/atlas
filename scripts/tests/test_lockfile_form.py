@@ -665,12 +665,12 @@ class WorkspaceScopeTestCase(unittest.TestCase):
         )
 
 
-def git(repository: Path, *arguments: str) -> None:
-    subprocess.run(
-        ["git", "-C", str(repository), "-c", "user.email=t@t", "-c", "user.name=t", *arguments],
-        check=True,
-        capture_output=True,
-    )
+def git(repository: Path, *arguments: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repository), "-c", "user.email=t@t", "-c", "user.name=t",
+         "-c", "core.autocrlf=false", *arguments],
+        check=True, capture_output=True, text=True, encoding="utf-8", timeout=60,
+    ).stdout.strip()
 
 
 class CommittedSweepTestCase(unittest.TestCase):
@@ -770,63 +770,112 @@ class CommittedSweepTestCase(unittest.TestCase):
         self.assertIn("LOCK FORM VIOLATION", completed.stdout)
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 class ExportedInputsTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        self.root = Path(self.enterContext(tempfile.TemporaryDirectory(prefix="atlas-lock-inputs-")))
+        git(self.root, "init", "-q")
+
+    def inputs(self, manifest: bytes, lock: bytes = b'version = 4\n') -> lockfile.GitTree:
+        for name, content in (("Cargo.toml", manifest), ("Cargo.lock", lock), ("src/lib.rs", b"")):
+            path = self.root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+        git(self.root, "add", "Cargo.toml", "Cargo.lock", "src/lib.rs")
+        git(self.root, "commit", "-qm", "Inputs")
+        return lockfile.GitTree(self.root, git(self.root, "rev-parse", "HEAD"))
+
+    def check(self, source: lockfile.GitTree) -> tuple[int, str]:
+        with (contextlib.redirect_stderr(stderr := io.StringIO()),
+              contextlib.redirect_stdout(io.StringIO())):
+            code = lockfile.check(self.root, source)
+        return code, stderr.getvalue()
+
     def test_source_tree_rejects_changed_missing_and_link_inputs(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-lock-inputs-") as temp:
-            root = Path(temp)
-            def git(*arguments: str) -> str:
-                result = subprocess.run(["git", "-C", str(root), "-c", "user.name=test",
-                                         "-c", "user.email=test@example.invalid", *arguments],
-                                        check=True, capture_output=True, text=True)
-                return result.stdout.strip()
-            git("init", "-q")
-            manifest = root / "Cargo.toml"
-            manifest.write_text('[workspace]\n', encoding="utf-8")
-            (root / "Cargo.lock").write_text('version = 4\n', encoding="utf-8")
-            git("add", "Cargo.toml", "Cargo.lock")
-            git("commit", "-qm", "Inputs")
-            source = lockfile.GitTree(root, git("rev-parse", "HEAD"))
-            for changed in ('[workspace]\nresolver = "3"\n', None):
-                with self.subTest(changed=changed):
-                    if changed is None:
-                        manifest.unlink()
-                    else:
-                        manifest.write_text(changed, encoding="utf-8")
-                    with contextlib.redirect_stderr(stderr := io.StringIO()):
-                        self.assertEqual(lockfile.check(root, source), 1)
-                    self.assertIn("exported lock inputs differ", stderr.getvalue())
-            manifest.write_text('[workspace]\n', encoding="utf-8")
-            blob = git("rev-parse", "HEAD:Cargo.toml")
-            git("update-index", "--cacheinfo", f"120000,{blob},Cargo.toml")
-            git("commit", "-qm", "Linked metadata")
-            with contextlib.redirect_stderr(stderr := io.StringIO()):
-                self.assertEqual(lockfile.check(root, lockfile.GitTree(root, git("rev-parse", "HEAD"))), 1)
-            self.assertIn("symbolic metadata input", stderr.getvalue())
+        source = self.inputs(b'[workspace]\n')
+        manifest = self.root / "Cargo.toml"
+        for changed in ('[workspace]\nresolver = "3"\n', '[workspace]\r', None):
+            with self.subTest(changed=changed):
+                if changed is None:
+                    manifest.unlink()
+                else:
+                    manifest.write_text(changed, encoding="utf-8")
+                code, error = self.check(source)
+                self.assertEqual(code, 1)
+                self.assertIn("exported lock inputs differ", error)
+        manifest.write_text('[workspace]\n', encoding="utf-8")
+        blob = git(self.root, "rev-parse", "HEAD:Cargo.toml")
+        git(self.root, "update-index", "--cacheinfo", f"120000,{blob},Cargo.toml")
+        git(self.root, "commit", "-qm", "Linked metadata")
+        code, error = self.check(lockfile.GitTree(self.root, git(self.root, "rev-parse", "HEAD")))
+        self.assertEqual(code, 1)
+        self.assertIn("symbolic metadata input", error)
 
     def test_source_tree_accepts_checkout_line_endings(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-lock-inputs-") as temp:
-            root = Path(temp)
-            for name, content in (("Cargo.toml", b'[package]\r\nname = "tool"\r\nversion = "0.1.0"\r\n'),
-                                  ("Cargo.lock", b'version = 4\r\n[[package]]\r\nname = "tool"\r\nversion = "0.1.0"\r\n'),
-                                  ("src/lib.rs", b'')):
-                path = root / name
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(content)
-            def git(*arguments: str) -> str:
-                result = subprocess.run(["git", "-C", str(root), "-c", "core.autocrlf=false",
-                                         "-c", "user.name=test", "-c", "user.email=test@example.invalid", *arguments],
-                                        check=True, capture_output=True, text=True)
-                return result.stdout.strip()
-            git("init", "-q")
-            git("add", "Cargo.toml", "Cargo.lock", "src/lib.rs")
-            git("commit", "-qm", "Inputs")
-            for name in ("Cargo.toml", "Cargo.lock"):
-                path = root / name
-                path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n"))
-            source = lockfile.GitTree(root, git("rev-parse", "HEAD"))
-            with (contextlib.redirect_stderr(stderr := io.StringIO()),
-                  contextlib.redirect_stdout(io.StringIO())):
-                self.assertEqual(lockfile.check(root, source), 0, stderr.getvalue())
+        source = self.inputs(
+            b'[package]\r\nname = "tool"\r\nversion = "0.1.0"\r\n',
+            b'version = 4\r\n[[package]]\r\nname = "tool"\r\nversion = "0.1.0"\r\n',
+        )
+        for name in ("Cargo.toml", "Cargo.lock"):
+            path = self.root / name
+            path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n"))
+        self.assertEqual(self.check(source), (0, ""))
+
+    def test_tree_source_requires_a_commit_object(self) -> None:
+        self.inputs(b'[workspace]\n')
+        tree = git(self.root, "rev-parse", "HEAD^{tree}")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--check", "--check-tree", str(self.root),
+             "--tree-source", str(self.root), tree], capture_output=True, text=True, timeout=60,
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("tree-source must be a commit object", result.stderr)
+
+    def test_unrelated_path_bytes_do_not_change_lock_inputs(self) -> None:
+        self.inputs(
+            b'[package]\nname = "tool"\nversion = "0.1.0"\n',
+            b'version = 4\n[[package]]\nname = "tool"\nversion = "0.1.0"\n',
+        )
+        blob = git(self.root, "rev-parse", "HEAD:Cargo.toml")
+        subprocess.run(
+            ["git", "-C", str(self.root), "update-index", "-z", "--index-info"],
+            input=b"100644 " + blob.encode("ascii") + b"\tunrelated-\xff.bin\0",
+            check=True, capture_output=True, timeout=60,
+        )
+        git(self.root, "commit", "-qm", "Unrelated binary path")
+        source = lockfile.GitTree(self.root, git(self.root, "rev-parse", "HEAD"))
+        self.assertEqual(self.check(source), (0, ""))
+
+    def test_invalid_utf8_cannot_match_a_reencoded_export(self) -> None:
+        source = self.inputs(
+            b'[package]\nname = "tool"\nversion = "0.1.0"\n# invalid \xff\n',
+            b'version = 4\n[[package]]\nname = "tool"\nversion = "0.1.0"\n',
+        )
+        original = lockfile.run_bounded(
+            ["cargo", "metadata", "--format-version", "1", "--manifest-path",
+             str(self.root / "Cargo.toml"), "--locked", "--no-deps"],
+            cwd=self.root, env=dict(os.environ), deadline=60,
+        )
+        self.assertEqual(original.returncode, 101)
+        self.assertIn("not valid utf-8", original.stderr.lower())
+        manifest = self.root / "Cargo.toml"
+        manifest.write_bytes(manifest.read_bytes().replace(b"\xff", b"\xef\xbf\xbd"))
+        code, error = self.check(source)
+        self.assertEqual(code, 1)
+        self.assertIn("Cargo.toml: Cargo input is not valid UTF-8", error)
+        manifest.write_bytes(manifest.read_bytes().replace(b"\xef\xbf\xbd", b"\xff"))
+        with contextlib.redirect_stderr(stderr := io.StringIO()):
+            self.assertEqual(lockfile.check(self.root), 1)
+        self.assertIn("Cargo.toml: Cargo input is not valid UTF-8", stderr.getvalue())
+        (self.root / "Cargo.lock").write_text('version = 4\n[[package]]\nname = "tool"\nversion = "0.1.0"\n# staged\n')
+        git(self.root, "add", "Cargo.lock")
+        staged = subprocess.run(
+            [sys.executable, str(SCRIPT), "--check-staged"], cwd=self.root,
+            capture_output=True, text=True, timeout=60,
+        )
+        self.assertEqual(staged.returncode, 1, staged.stdout + staged.stderr)
+        self.assertIn("Cargo.toml: Cargo input is not valid UTF-8", staged.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
