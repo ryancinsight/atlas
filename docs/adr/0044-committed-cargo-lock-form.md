@@ -2,162 +2,94 @@
 
 - Status: Accepted
 - Date: 2026-08-17
-- Revision 2026-10-02: the rule, the committed sweep, the staged check and
-  regeneration moved from `atlas-lock-form.py` into `scripts/lockfile.py`, the
-  stack's one checker (the hooks export it with its same-revision process-owner modules), and the push and CI
-  check (`--check`) now judges a lock by the same rule instead of counting
-  `git+` lines, nested locks included. The decision is unchanged: repair still
-  uses `cargo metadata`, which advances no pin, and the committed form is the
-  same.
-- Revision 2026-11-09: lock checks reuse the shared process-tree owner so a nested Cargo session cannot survive its checker; hook bootstraps export all owner modules from the same immutable fetched revision.
-- Driver: backlog ATLAS-LOCK-CONVENTION-079
+- Revision: 2026-11-09 - Compact the decision; bind complete lock checks to
+  immutable input bytes and the shared process owner.
+- Driver: [PR #616](https://github.com/ryancinsight/atlas/pull/616),
+  [PR #588](https://github.com/ryancinsight/atlas/pull/588), and
+  [PR #622](https://github.com/ryancinsight/atlas/pull/622).
 
 ## Context
 
-Two forms of a member `Cargo.lock` circulate in this stack.
+The development overlay redirects first-party Git dependencies to local paths.
+Cargo can then remove their Git sources from working locks and add
+`[[patch.unused]]` entries. Those locks describe the overlay, while standalone
+consumers and CI resolve without it. Local build success cannot establish
+standalone lock correctness.
 
-The **standalone form** is what `cargo` writes when it resolves the repository
-on its own: every git dependency carries
-`source = "git+https://github.com/ryancinsight/…#<rev>"`, and there are no
-`[[patch.unused]]` tables.
-
-The **stripped form** is what the stack development overlay produces. The
-`[patch]` block in the root `.cargo/config.toml` (ADR-0027,
-`scripts/atlas-stack-overlay.py`) redirects first-party git dependencies to the
-local working trees. Cargo records that by *dropping* the `source` line of every
-redirected package and appending a `[[patch.unused]]` table for each patch entry
-the build did not consume. Patching one crate to a path makes its whole
-workspace resolve by path, so siblings the patch table never names lose their
-source too.
-
-The overlay applies to every build rooted anywhere beneath `D:\atlas`. It is
-therefore not an occasional event: **every local build rewrites the lock of the
-member it builds.** The measured consequence is that `Cargo.lock` is dirty in
-most members most of the time, which trains everyone to skip past it in
-`git status` — and that is how the stripped form reaches HEAD.
-
-It had reached HEAD in ten of twenty-eight tracked locks when this was measured
-(2026-08-17): asclepius, eunomia, harmonia, hermes, iris, mnemosyne, proteus,
-themis, tyche, and `melinoe/contracts/atlas-device`. Three of those — hermes,
-mnemosyne, tyche — had a correct committed lock a fortnight earlier and
-regressed during the current sweep, two of them inside commits whose subject was
-about something else entirely.
-
-The stripped form is not a stylistic variant. It is unresolvable anywhere the
-overlay does not exist:
-
-```
-$ cd /d/tmp && cargo metadata --locked --manifest-path D:/atlas/repos/hermes/Cargo.toml
-error: cannot update the lock file … because --locked was passed
-```
-
-That is every CI job, every `cargo publish` sandbox, and every clean checkout.
+A repository can contain several independent lock owners, including excluded
+fuzz workspaces and tools. Checking only its root manifest misses those inputs.
+A shared checkout can also hold another branch or overlay-derived lock changes,
+so the pushed commit, rather than the live tree, is the input being certified.
 
 ## Decision
 
-**A committed `Cargo.lock` is the standalone form.** Concretely, for every
-tracked lock in every registered member:
+Commit the standalone lock form throughout the stack:
 
-1. Any package the lock resolves from a git dependency carries its
-   `source = "git+…"` line.
-2. The lock contains no `[[patch.unused]]` table.
+1. A package resolved through a Git dependency retains its Git source.
+2. No standalone lock contains `[[patch.unused]]` overlay residue.
 
-The overlay's rewrite is **derived state, never an edit**. It is expected in the
-working tree and is restored, not committed.
+The rule matches actual lock packages against resolved manifest declarations;
+counting Git source lines alone is insufficient. Unused workspace dependencies
+need not appear in a lock, and packages defined within the workspace are local.
+Dependency renames, inherited declarations, target/build/development edges, and
+local dependency closure participate in owner classification.
 
-### Why standalone rather than stripped
+The checker retains full-root fixture classification for owners whose active
+path dependencies require files outside the repository. It reports each exempt
+lock explicitly. Such fixtures receive no standalone Cargo resolution evidence.
+Missing sibling metadata, unparseable inputs, and candidate directory or metadata
+links fail closed. Immutable candidate scans include committed pairs beneath
+normally ignored directory names.
 
-The lock exists to make resolution reproducible for a consumer who does not
-share the author's environment. The overlay is precisely an environment the
-consumer does not share; a lock shaped by it reproduces nothing. The stripped
-form's only advantage — matching what a local build happens to leave behind —
-is an artifact-of-convenience argument, and the `restore` command removes even
-that friction.
+### Input and process ownership
 
-### What is *not* a violation
+`scripts/lockfile.py` owns the rule, staged and committed sweeps, standalone
+resolution, and regeneration. Hooks do not maintain independent predicates.
 
-Two shapes look like a stripped lock to a naive `git+` line count and are
-correct:
+The staged check reads the index and performs no Cargo resolution. The committed
+sweep reads Git objects and establishes lock form. Push and CI checks additionally
+run native `cargo metadata --locked` for every selected standalone lock owner.
 
-- **A member with no git dependencies.** eunomia, iris, and melinoe legitimately
-  resolve zero git sources. Zero `git+` lines is the right answer for them; the
-  rule is quantified over the git dependencies a lock actually resolves, not
-  over a threshold.
-- **A `[workspace.dependencies]` row no crate consumes.** It never reaches the
-  lock at all. helios declares `ritk-core`/`ritk-io`/`ritk-registration` and
-  kwavers declares `horae` this way; their absence from the lock is correct, not
-  a dropped source.
+`--check --check-tree` selects an immutable candidate export. `--tree-source`
+binds its metadata to an actual commit object, with replacement objects ignored.
+Cargo inputs decode as strict UTF-8; comparison permits CRLF/LF checkout
+normalization only. It neither replaces invalid bytes nor normalizes bare CR.
+An export cannot omit or alter committed metadata through archive attributes,
+text conversion, symlinks, or an unrelated working tree.
 
-The gate therefore flags only a package that is **present in the lock yet
-resolved without a source** although no manifest in the workspace defines it —
-a state reachable only through a `[patch]` — plus the `[[patch.unused]]`
-signature, which no standalone resolve can produce.
+Cargo runs outside the development overlay and uses the shared target. The
+canonical process-tree runner bounds each command and owns its descendants,
+including caller-death cleanup. Timeout diagnostics preserve cleanup failures.
+Hook exporters materialize `lockfile.py`, `process_tree.py`, `windows_process.py`,
+and `darwin_process.py` from the same trusted revision.
 
-### The one exemption
+### Repair
 
-`melinoe/contracts/atlas-device` is a `publish = false` cross-repo contract
-fixture whose dependencies are relative paths into *sibling repositories*
-(`../../../hephaestus/crates/…`) and which carries its own `[patch]` table. It
-cannot resolve outside a full Atlas checkout by construction, so the standalone
-rule does not apply to it. The gate detects this structurally — a workspace with
-a path dependency escaping its own repository — and prints the exemption rather
-than skipping silently.
+Treat a working lock produced solely by the overlay as derived state. The restore
+command replaces only a proven pure overlay rewrite; it refuses unique changes.
+Regeneration uses `cargo metadata`, rather than `cargo generate-lockfile`, to
+reuse valid locked choices while repairing resolution. Review the resulting
+standalone diff and rerun the checker before committing it.
 
-## Consequences
+## Rejected alternatives
 
-- Ten members need their committed lock repaired. Repair is
-  `python scripts/lockfile.py --regenerate --manifest-path <member>/Cargo.toml`,
-  which runs `cargo metadata` from a scratch directory **outside** the Atlas
-  tree. Cargo discovers `.cargo/config.toml` upward from the current directory,
-  not from `--manifest-path`, so this resolves against git without toggling the
-  shared overlay out from under concurrent agents. `cargo metadata` rather than
-  `cargo generate-lockfile`: it re-resolves only what the lock cannot supply, so
-  a restored source does not drag every unrelated pin forward with it.
-  `restore` is the narrower route, for a lock whose only difference from HEAD is
-  the overlay rewrite; a lock already committed in the stripped form is repaired
-  by regeneration.
-- Repairing a lock **by rebuilding it under the overlay produces exactly the
-  defect**. This is the single most likely wrong fix and is called out here for
-  that reason.
-- The working tree stays noisy between builds. `restore` collapses it: it
-  reverts a lock whose only difference from HEAD is the overlay rewrite, and
-  refuses on anything else, so what remains dirty is real.
+- Commit the stripped form: it depends on a development-only overlay.
+- Stop committing locks: standalone builds lose their reproducible source set.
+- Hide locks through per-worktree index exceptions: unverified state persists
+  across branch changes and shared-tree operations.
+- Rely on documentation or Git source counts: neither selects every owner nor
+  distinguishes legitimate local packages from stripped Git dependencies.
 
-## Alternatives rejected
+## Consequences and verification
 
-- **Commit the stripped form uniformly.** It is the form local builds already
-  produce, so the churn would vanish. Rejected: it makes every member
-  unresolvable on a clean checkout, which is the lock's entire purpose.
-- **Stop committing member locks.** Removes the conflict outright, but the stack
-  publishes to crates.io and pins first-party dependencies by git rev;
-  reproducible CI resolution needs the lock.
-- **Untrack the locks with `skip-worktree`.** Hides the churn completely and
-  makes it unstageable, which addresses the training-to-ignore problem at its
-  root. Rejected as the default: it is per-clone index state that silently
-  survives branch switches and confuses merges, and this stack has several
-  agents switching branches in shared trees. Available to an individual who
-  wants it; not the convention.
-- **Document the churn and rely on review.** That is the status quo, and it
-  produced ten violations and three mid-sweep regressions.
+One predicate serves index, committed-tree, and filesystem inputs. Static lock
+form evidence and native locked-resolution evidence remain distinct.
 
-## Verification
+The hook, staged, parser, and committed-tree suites cover independent and nested
+owners, fixture boundaries, inherited/renamed declarations, altered exports,
+non-commit source IDs, invalid UTF-8, checkout line endings, symlinks, and process
+cleanup. Native Cargo cases assert resolution results and diagnostic failures.
 
-- `python scripts/lockfile.py --check-committed . <member>...` fails on any
-  committed lock in the stripped form. Wired into
-  `.github/workflows/atlas-conformance.yml`, which already triggers on
-  `repos/**`, so every gitlink advance re-measures.
-- `python scripts/lockfile.py --check-staged` is the member-side pre-commit arm,
-  run by the owned hook from the copy the repository carries. It rejects the
-  `git add` that would create the violation, rather than catching it after
-  integration, and reads the index, never the working tree. `--check
-  --manifest-path`, run by `pre-push` and the shared `lockfile-guard` workflow,
-  applies the same rule to every lock on disk and then proves each standalone
-  lock owner resolves under `--locked`. Immutable source binding requires a
-  commit object and lossless UTF-8 inputs; only CRLF/LF normalization is allowed.
-- `scripts/tests/test_lockfile_form.py` and
-  `scripts/tests/test_lockfile_check_staged.py` assert both directions,
-  including an end-to-end run over a synthetic repository observed **failing**
-  on a committed stripped lock and passing on a standalone one, and cover the
-  two false positives named above.
-- A repaired member is confirmed with `cargo metadata --locked` executed from
-  outside the Atlas tree — the only place the committed form's claim is real.
+Overturn this decision only if standalone consumers no longer require committed
+locks, or if a replacement mechanism provides the same exact-source and native
+resolution evidence for every owner.
