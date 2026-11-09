@@ -455,17 +455,18 @@ class TreeCheckTestCase(unittest.TestCase):
             self.assertNotIn("resolves under --locked", stdout.getvalue())
 
     def test_internal_overrides_cannot_load_external_dependency_graphs(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
-            root = Path(temp)
-            self.write(root, "Cargo.toml", '[package]\nname = "app"\nversion = "0.1.0"\nedition = "2024"\n'
-                       '[workspace]\nexclude = ["dep"]\n[dependencies]\ndep = "0.1.0"\n'
-                       '[patch.crates-io]\ndep = { path = "dep" }\n')
-            self.write(root, "src/lib.rs", "")
-            self.package(root, "dep", "dep", '[workspace]\n[dependencies]\noutside = { path = "../../outside" }\n')
-            self.write(root, "Cargo.lock", 'version = 4\n')
-            with mock.patch.object(lockfile, "CARGO_COMMAND", ("missing-cargo-boundary-probe",)), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
-                self.assertEqual(lockfile.check(root), 1)
-            self.assertIn("source override path leaves the candidate: ../../outside", stderr.getvalue())
+        for optional in ("", ", optional = true"):
+            with self.subTest(optional), tempfile.TemporaryDirectory(prefix="atlas-lock-tree-") as temp:
+                root = Path(temp)
+                self.write(root, "Cargo.toml", '[package]\nname = "app"\nversion = "0.1.0"\nedition = "2024"\n'
+                           '[workspace]\nexclude = ["dep"]\n[dependencies]\ndep = "0.1.0"\n'
+                           '[patch.crates-io]\ndep = { path = "dep" }\n')
+                self.write(root, "src/lib.rs", "")
+                self.package(root, "dep", "dep", f'[workspace]\n[dependencies]\noutside = {{ path = "../../outside"{optional} }}\n')
+                self.write(root, "Cargo.lock", 'version = 4\n')
+                with mock.patch.object(lockfile, "CARGO_COMMAND", ("missing-cargo-boundary-probe",)), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr := io.StringIO()):
+                    self.assertEqual(lockfile.check(root), 1)
+                self.assertIn("source override path leaves the candidate: ../../outside", stderr.getvalue())
 
     def test_optional_external_edges_match_cargo_features(self) -> None:
         cases = (

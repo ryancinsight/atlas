@@ -377,8 +377,9 @@ def local_source_problems(texts: Mapping[str, str], standalone: Iterable[str]) -
     """Refuse unversioned ownership and override inputs outside the candidate.
 
     Existing full-root fixtures never resolve their override graphs. Other
-    locks must keep root patch/replacement inputs and their normal/build
-    dependency closure within the candidate. Cargo ignores member overrides.
+    locks must keep root patch/replacement inputs and their declared normal/
+    build path closure, including optional declarations, within the candidate.
+    Cargo ignores member overrides.
     """
     problems: list[str] = []
     parsed: dict[str, Mapping[str, object] | None] = {}
