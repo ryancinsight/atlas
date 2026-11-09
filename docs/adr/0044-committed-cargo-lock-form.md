@@ -18,7 +18,7 @@ Two forms of a member `Cargo.lock` circulate in this stack.
 
 The **standalone form** is what `cargo` writes when it resolves the repository
 on its own: every git dependency carries
-`source = "git+https://github.com/ryancinsight/â€¦#<rev>"`, and there are no
+`source = "git+https://github.com/ryancinsight/…#<rev>"`, and there are no
 `[[patch.unused]]` tables.
 
 The **stripped form** is what the stack development overlay produces. The
@@ -34,12 +34,12 @@ The overlay applies to every build rooted anywhere beneath `D:\atlas`. It is
 therefore not an occasional event: **every local build rewrites the lock of the
 member it builds.** The measured consequence is that `Cargo.lock` is dirty in
 most members most of the time, which trains everyone to skip past it in
-`git status` â€” and that is how the stripped form reaches HEAD.
+`git status` — and that is how the stripped form reaches HEAD.
 
 It had reached HEAD in ten of twenty-eight tracked locks when this was measured
 (2026-08-17): asclepius, eunomia, harmonia, hermes, iris, mnemosyne, proteus,
-themis, tyche, and `melinoe/contracts/atlas-device`. Three of those â€” hermes,
-mnemosyne, tyche â€” had a correct committed lock a fortnight earlier and
+themis, tyche, and `melinoe/contracts/atlas-device`. Three of those — hermes,
+mnemosyne, tyche — had a correct committed lock a fortnight earlier and
 regressed during the current sweep, two of them inside commits whose subject was
 about something else entirely.
 
@@ -48,7 +48,7 @@ overlay does not exist:
 
 ```
 $ cd /d/tmp && cargo metadata --locked --manifest-path D:/atlas/repos/hermes/Cargo.toml
-error: cannot update the lock file â€¦ because --locked was passed
+error: cannot update the lock file … because --locked was passed
 ```
 
 That is every CI job, every `cargo publish` sandbox, and every clean checkout.
@@ -59,7 +59,7 @@ That is every CI job, every `cargo publish` sandbox, and every clean checkout.
 tracked lock in every registered member:
 
 1. Any package the lock resolves from a git dependency carries its
-   `source = "git+â€¦"` line.
+   `source = "git+…"` line.
 2. The lock contains no `[[patch.unused]]` table.
 
 The overlay's rewrite is **derived state, never an edit**. It is expected in the
@@ -70,7 +70,7 @@ working tree and is restored, not committed.
 The lock exists to make resolution reproducible for a consumer who does not
 share the author's environment. The overlay is precisely an environment the
 consumer does not share; a lock shaped by it reproduces nothing. The stripped
-form's only advantage â€” matching what a local build happens to leave behind â€”
+form's only advantage — matching what a local build happens to leave behind —
 is an artifact-of-convenience argument, and the `restore` command removes even
 that friction.
 
@@ -89,18 +89,18 @@ correct:
   a dropped source.
 
 The gate therefore flags only a package that is **present in the lock yet
-resolved without a source** although no manifest in the workspace defines it â€”
-a state reachable only through a `[patch]` â€” plus the `[[patch.unused]]`
+resolved without a source** although no manifest in the workspace defines it —
+a state reachable only through a `[patch]` — plus the `[[patch.unused]]`
 signature, which no standalone resolve can produce.
 
 ### The one exemption
 
 `melinoe/contracts/atlas-device` is a `publish = false` cross-repo contract
 fixture whose dependencies are relative paths into *sibling repositories*
-(`../../../hephaestus/crates/â€¦`) and which carries its own `[patch]` table. It
+(`../../../hephaestus/crates/…`) and which carries its own `[patch]` table. It
 cannot resolve outside a full Atlas checkout by construction, so the standalone
-rule does not apply to it. The gate detects this structurally â€” a workspace with
-a path dependency escaping its own repository â€” and prints the exemption rather
+rule does not apply to it. The gate detects this structurally — a workspace with
+a path dependency escaping its own repository — and prints the exemption rather
 than skipping silently.
 
 ## Consequences
@@ -151,12 +151,13 @@ than skipping silently.
   `git add` that would create the violation, rather than catching it after
   integration, and reads the index, never the working tree. `--check
   --manifest-path`, run by `pre-push` and the shared `lockfile-guard` workflow,
-  applies the same rule to every lock on disk and then proves the root lock
-  resolves under `--locked`.
+  applies the same rule to every lock on disk and then proves each standalone
+  lock owner resolves under `--locked`. Immutable source binding requires a
+  commit object and lossless UTF-8 inputs; only CRLF/LF normalization is allowed.
 - `scripts/tests/test_lockfile_form.py` and
   `scripts/tests/test_lockfile_check_staged.py` assert both directions,
   including an end-to-end run over a synthetic repository observed **failing**
   on a committed stripped lock and passing on a standalone one, and cover the
   two false positives named above.
 - A repaired member is confirmed with `cargo metadata --locked` executed from
-  outside the Atlas tree â€” the only place the committed form's claim is real.
+  outside the Atlas tree — the only place the committed form's claim is real.

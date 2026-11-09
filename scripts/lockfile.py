@@ -434,13 +434,17 @@ def check(repository: Path | None = None, source: GitTree | None = None) -> int:
 
     if source is not None:
         try:
+            if run_git(["cat-file", "-t", source.revision], source.repository) != b"commit\n":
+                raise GitUnavailable("tree-source must be a commit object")
             committed = tracked_texts(source.repository, staged=False, revision=source.revision)
         except GitUnavailable as error:
             print(f"error: committed lock inputs could not be read: {error}", file=sys.stderr)
             return 1
         # Checkout may normalize line endings, but cannot omit or change inputs.
-        committed = {path: text.replace("\r\n", "\n").replace("\r", "\n") for path, text in committed.items()}
-        mismatched = sorted(path for path in committed.keys() | texts.keys() if committed.get(path) != texts.get(path))
+        committed = {path: text.replace("\r\n", "\n") for path, text in committed.items()}
+        exported = {path: text.replace("\r\n", "\n") for path, text in texts.items()}
+        mismatched = sorted(path for path in committed.keys() | exported.keys()
+                            if committed.get(path) != exported.get(path))
         if mismatched:
             print("exported lock inputs differ from the committed tree: " + ", ".join(mismatched), file=sys.stderr)
             return 1
@@ -1167,7 +1171,11 @@ def tracked_texts(
     else:
         listing = run_git(["ls-tree", "--full-tree", "-r", "-z", revision], repository)
     blobs: dict[str, str] = {}
-    for record in listing.decode("utf-8", errors="replace").split("\0"):
+    try:
+        records = listing.decode("utf-8").split("\0")
+    except UnicodeError as error:
+        raise GitUnavailable("Cargo input paths are not valid UTF-8") from error
+    for record in records:
         head, _, path = record.partition("\t")
         if not path or PurePosixPath(path).name not in LOCK_INPUT_NAMES:
             continue
@@ -1183,17 +1191,23 @@ def tracked_texts(
         if mode == "120000":
             raise GitUnavailable(f"{path}: symbolic metadata input is not allowed")
         blobs[path] = blob
-    texts = read_blobs(repository, sorted(set(blobs.values())))
-    return {path: texts[blob] for path, blob in blobs.items()}
+    contents = read_blobs(repository, sorted(set(blobs.values())))
+    texts = {}
+    for path, blob in blobs.items():
+        try:
+            texts[path] = contents[blob].decode("utf-8")
+        except UnicodeError as error:
+            raise GitUnavailable(f"{path}: Cargo input is not valid UTF-8") from error
+    return texts
 
 
-def read_blobs(repository: Path | None, blobs: Sequence[str]) -> dict[str, str]:
-    """Text of each blob, read in one `git cat-file --batch` call."""
+def read_blobs(repository: Path | None, blobs: Sequence[str]) -> dict[str, bytes]:
+    """Raw contents of each blob in one `git cat-file --batch` call."""
     if not blobs:
         return {}
     request = "".join(f"{blob}\n" for blob in blobs).encode("ascii")
     output = run_git(["cat-file", "--batch"], repository, stdin=request)
-    texts: dict[str, str] = {}
+    texts: dict[str, bytes] = {}
     position = 0
     for blob in blobs:
         end = output.find(b"\n", position)
@@ -1201,7 +1215,7 @@ def read_blobs(repository: Path | None, blobs: Sequence[str]) -> dict[str, str]:
         if len(header) != 3 or header[0] != blob or header[1] != "blob":
             raise GitUnavailable(f"git cat-file could not read {blob}")
         size = int(header[2])
-        texts[blob] = output[end + 1 : end + 1 + size].decode("utf-8", errors="replace")
+        texts[blob] = output[end + 1 : end + 1 + size]
         position = end + 1 + size + 1
     return texts
 
@@ -1240,9 +1254,11 @@ def disk_texts(
                 path = Path(directory) / name
                 if path.is_symlink():
                     raise OSError(f"{path.relative_to(repository).as_posix()}: symbolic metadata link is not allowed")
-                texts[path.relative_to(repository).as_posix()] = path.read_text(
-                    encoding="utf-8", errors="replace"
-                )
+                relative = path.relative_to(repository).as_posix()
+                try:
+                    texts[relative] = path.read_bytes().decode("utf-8")
+                except UnicodeError as error:
+                    raise OSError(f"{relative}: Cargo input is not valid UTF-8") from error
     return texts
 
 
@@ -1266,7 +1282,7 @@ def check_staged() -> int:
         )
         staged = [
             path
-            for path in changed.decode("utf-8", errors="replace").split("\0")
+            for path in changed.decode("utf-8").split("\0")
             if path and PurePosixPath(path).name == "Cargo.lock"
         ]
         if not staged:
@@ -1275,7 +1291,7 @@ def check_staged() -> int:
         missing = [path for path in staged if path not in texts]
         if missing:
             raise GitUnavailable(f"git did not list the staged lock {missing[0]}")
-    except GitUnavailable as error:
+    except (GitUnavailable, UnicodeError) as error:
         print(f"error: the staged locks could not be read: {error}", file=sys.stderr)
         return 1
 
