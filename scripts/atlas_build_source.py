@@ -705,11 +705,21 @@ def _config_text_without_patch(data: dict[str, object]) -> str:
 
 
 def _patch_target_missing(config: Path, data: dict[str, object]) -> bool:
-    """Whether a config's `[patch]` names a path its tree does not carry."""
+    """Whether a config's `[patch]` names an export-empty submodule path.
+
+    Returns True only when every patched path resolves to an existing
+    directory that lacks `Cargo.toml` (the pre-push export's empty
+    submodule dirs) and at least one such empty directory exists. A patch
+    whose directory does not exist at all (a genuinely broken config,
+    e.g. `does-not-exist`) is a cargo error, not an export artifact, and
+    must surface as one.
+    """
     patch = data.get('patch')
     if not isinstance(patch, dict):
         return False
     config_dir = config.parent.parent
+    entries = 0
+    empty = 0
     for source in patch.values():
         if not isinstance(source, dict):
             continue
@@ -719,9 +729,13 @@ def _patch_target_missing(config: Path, data: dict[str, object]) -> bool:
             raw = entry.get('path')
             if not isinstance(raw, str):
                 continue
-            if not (config_dir / raw / 'Cargo.toml').is_file():
-                return True
-    return False
+            entries += 1
+            target = config_dir / raw
+            if not target.is_dir():
+                return False
+            if not (target / 'Cargo.toml').is_file():
+                empty += 1
+    return entries > 0 and empty > 0
 
 
 @contextmanager

@@ -16,11 +16,14 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import inspect
 import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
+
+import process_tree
 
 SCRIPTS = Path(__file__).resolve().parent.parent
 SCRIPT = SCRIPTS / "lockfile.py"
@@ -160,6 +163,14 @@ class DeadlineReportingTests(unittest.TestCase):
 
 
 class OneRunnerTests(unittest.TestCase):
+    def test_the_lockfile_runner_uses_the_shared_process_tree_owner(self) -> None:
+        self.assertIs(lockfile.process_tree, process_tree)
+        self.assertEqual(
+            Path(process_tree.__file__).resolve(),
+            SCRIPTS / "process_tree.py",
+        )
+        self.assertNotIn("start_new_session", inspect.getsource(lockfile.run_bounded))
+
     def test_the_drift_scan_has_no_cargo_runner_of_its_own(self) -> None:
         source = (SCRIPTS / "atlas-published-drift.py").read_text(encoding="utf-8")
         self.assertNotIn("run_cargo_metadata", source)
