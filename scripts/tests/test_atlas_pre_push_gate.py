@@ -1493,6 +1493,52 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             self.assertFalse(identity_log.exists())
 
 
+class BoundedSupervisorTestCase(unittest.TestCase):
+    """The process owner retains diagnostics until it reports the result."""
+
+    def test_normal_failure_reports_the_gate_log_and_success_omits_it(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-supervisor-") as temp:
+            root = pathlib.Path(temp)
+            hook = root / "hook.sh"
+            progress_path = root / "progress.txt"
+            _write(hook, """#!/usr/bin/env bash
+set -u
+test "$1" = --bounded-entry
+printf '%s' "$ATLAS_GATE_PROGRESS_DIR" > "$2"
+printf 'tests 1.25\n' > "$ATLAS_GATE_PROGRESS_DIR/stages.log"
+printf 'distinctive nextest failure\n' > "$ATLAS_GATE_PROGRESS_DIR/gate.log"
+printf 'child output\n'
+printf 'child error\n' >&2
+exit "$3"
+""", executable=True)
+
+            def run(status: int) -> subprocess.CompletedProcess:
+                progress_path.unlink(missing_ok=True)
+                result = subprocess.run(
+                    [sys.executable, "-I", str(SCRIPT.parents[1] / "pre_push_gate.py"),
+                     "direct", "push", str(hook), progress_path.as_posix(), str(status)],
+                    capture_output=True, text=True, timeout=WATCHDOG_SECONDS,
+                )
+                self.assertTrue(progress_path.is_file(), result.stderr)
+                progress = pathlib.Path(progress_path.read_text(encoding="utf-8"))
+                self.assertFalse(progress.exists(), "the supervisor must remove its progress tree")
+                return result
+
+            failure = run(7)
+            self.assertEqual(failure.returncode, 7, failure.stderr)
+            self.assertEqual(failure.stdout, "child output\n")
+            self.assertIn("child error", failure.stderr)
+            self.assertIn("tests 1.25", failure.stderr)
+            self.assertIn("final bounded gate log bytes", failure.stderr)
+            self.assertIn("distinctive nextest failure", failure.stderr)
+
+            success = run(0)
+            self.assertEqual(success.returncode, 0, success.stderr)
+            self.assertIn("tests 1.25", success.stderr)
+            self.assertNotIn("final bounded gate log bytes", success.stderr)
+            self.assertNotIn("distinctive nextest failure", success.stderr)
+
+
 class PhaseOwnershipTestCase(unittest.TestCase):
     """Git push and readiness own disjoint native build phases."""
 
@@ -4792,6 +4838,97 @@ class StackToolBaselineTestCase(unittest.TestCase):
 
 COMPILE_ERROR = ("error[E0433]: failed to resolve: use of undeclared crate or module `gone`\n"
                  "error: could not compile `foo` (lib) due to 1 previous error")
+
+
+@unittest.skipUnless(shutil.which("cargo"), "real Cargo is required")
+class StandaloneOwnerClassifierTestCase(unittest.TestCase):
+    def test_owner_classification_fails_closed_and_preserves_prior_ownership(self) -> None:
+        cargo = shutil.which("cargo")
+        assert cargo is not None
+        package = '[package]\nname = "probe"\nversion = "0.1.0"\nedition = "2024"\n'
+        member = '[package]\nname = "foo"\nversion = "0.1.0"\nedition = "2024"\n'
+        root_workspace = '[workspace]\nresolver = "3"\nmembers = ["crates/foo"]\n'
+
+        def classify(name: str, root_manifest: str | None, expected: str = "", *,
+                     manifest: str = "fuzz/Cargo.toml", extra: dict[str, str] | None = None,
+                     orphan: str = package, generate_root: bool = False, generate_tip: bool = False,
+                     second: bool = False, error: str | None = None, dirty: bool = False) -> None:
+            with tempfile.TemporaryDirectory(prefix=f"atlas-owner-{name}-") as temp:
+                scope = pathlib.Path(temp)
+                root = scope / "repo"
+                _git_init_repo(root)
+                if root_manifest is not None:
+                    _write(root / "Cargo.toml", root_manifest)
+                _write(root / manifest, orphan)
+                _write(root / pathlib.PurePosixPath(manifest).parent / "src/lib.rs", "pub fn probe() {}\n")
+                for path, text in (extra or {}).items():
+                    _write(root / path, text)
+                if second:
+                    _write(root / "alt/Cargo.toml", package.replace('name = "probe"', 'name = "alt"'))
+                    _write(root / "alt/src/lib.rs", "pub fn alt() {}\n")
+                if error and not generate_root:
+                    _write(root / "Cargo.lock", "version = 4\n")
+                if generate_root:
+                    subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / "Cargo.toml")], cwd=root,
+                                   check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+                base = _commit_all(root, f"{name} base")
+                _write(root / manifest, package + "[workspace]\n")
+                if generate_tip:
+                    subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / manifest)], cwd=root,
+                                   check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+                else:
+                    _write(root / pathlib.PurePosixPath(manifest).with_name("Cargo.lock"), "version = 4\n")
+                if second:
+                    _write(root / "alt/Cargo.toml", package.replace('name = "probe"', 'name = "alt"') + "[workspace]\n")
+                    _write(root / "alt/Cargo.lock", "version = 4\n")
+                tip = _commit_all(root, f"{name} tip")
+
+                def export(revision: str, label: str) -> pathlib.Path:
+                    destination = scope / label
+                    destination.mkdir()
+                    archive = subprocess.run(["git", "-C", str(root), "archive", f"{revision}^{{tree}}"], check=True,
+                                             capture_output=True, timeout=WATCHDOG_SECONDS)
+                    subprocess.run(["tar", "-x", "-C", str(destination)], input=archive.stdout, check=True,
+                                   capture_output=True, timeout=WATCHDOG_SECONDS)
+                    return destination
+
+                base_export, tip_export = export(base, "base"), export(tip, "tip")
+                if dirty:
+                    _write(root / "Cargo.toml", "[broken live tree")
+                argv = [sys.executable, str(SCRIPT.parents[1] / "atlas_cast_gate.py"), "new-standalone-owners",
+                        "--repo", str(root), "--base", base, "--tip", tip, "--base-export", str(base_export),
+                        "--tip-export", str(tip_export), "--metadata-timeout", "120"]
+                for candidate in ([manifest, "alt/Cargo.toml"] if second else [manifest]):
+                    argv.extend(("--manifest", candidate))
+                environment = {**os.environ, "CARGO_TARGET_DIR": str(shared_target_directory())}
+                result = subprocess.run(argv, env=environment, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
+                self.assertEqual((result.returncode, result.stdout), (2 if error else 0, expected), result.stderr)
+                if error:
+                    self.assertIn(error, result.stderr)
+
+        foo = {"crates/foo/Cargo.toml": member, "crates/foo/src/lib.rs": "pub fn foo() {}\n"}
+        cases = (
+            ("new", root_workspace, "fuzz/Cargo.toml\n", dict(extra=foo, generate_root=True, generate_tip=True, dirty=True)),
+            ("owned", '[workspace]\nresolver="3"\nmembers=["fuzz"]\n', "", dict(generate_root=True)),
+            ("lockless", '[workspace]\nmembers=["fuzz"]\n', "", {}),
+            ("implicit", None, "", {}),
+            ("excluded", root_workspace + 'exclude=["fuzz"]\n', "", dict(extra=foo, generate_root=True)),
+            ("redirect", root_workspace, "", dict(extra=foo, orphan=package + 'workspace="../"\n', generate_root=True)),
+            ("extra", root_workspace, "", dict(extra={**foo, "other/Cargo.toml": member.replace('name = "foo"', 'name = "other"')}, generate_root=True)),
+            ("intermediate", root_workspace, "", dict(manifest="nested/fuzz/Cargo.toml", extra={**foo, "nested/Cargo.toml": member}, generate_root=True)),
+            ("nested", root_workspace, "", dict(extra={**foo, "other/Cargo.toml": "[workspace]\nmembers=[]\n"}, generate_root=True)),
+            ("nonroot-lock", root_workspace, "", dict(extra={**foo, "other/Cargo.lock": "version = 4\n"}, generate_root=True)),
+            ("multiple", root_workspace, "", dict(extra=foo, generate_root=True, second=True)),
+            ("collision", '[workspace]\nresolver="3"\nmembers=["crates/foo"]\n', "", dict(extra={"crates/foo/Cargo.toml": member.replace('name = "foo"', 'name = "probe"'), "crates/foo/src/lib.rs": ""}, generate_root=True, generate_tip=True, error="package name already exists")),
+            ("bad-members", '[workspace]\nmembers="crates/foo"\n', "", dict(error="CalledProcessError")),
+            ("bad-default", '[workspace]\nmembers=["crates/foo"]\ndefault-members=["missing"]\n', "", dict(extra=foo, error="CalledProcessError")),
+            ("glob-nested", '[workspace]\nmembers=["crates/*"]\n', "", dict(extra={**foo, "crates/nested/Cargo.toml": "[workspace]\nmembers=[]\n"}, error="CalledProcessError")),
+            ("no-package", root_workspace, "", dict(extra={"crates/foo/Cargo.toml": "[dependencies]\n", "crates/foo/src/lib.rs": ""}, error="CalledProcessError")),
+            ("malformed", root_workspace, "", dict(extra=foo, orphan="[\n", error="does not parse as TOML")),
+        )
+        for name, root_manifest, expected, options in cases:
+            with self.subTest(name=name):
+                classify(name, root_manifest, expected, **options)
 
 
 def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
