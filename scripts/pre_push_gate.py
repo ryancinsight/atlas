@@ -33,6 +33,13 @@ def _progress_report(progress: Path) -> None:
         )
 
 
+def _progress_log(progress: Path) -> None:
+    log = progress / "gate.log"
+    if log.is_file():
+        print("pre-push: final bounded gate log bytes:", file=sys.stderr)
+        _emit(log.read_bytes()[-LOG_TAIL_BYTES:], sys.stderr)
+
+
 def _cache_git(git_dir: Path, *arguments: str, stdout=None) -> subprocess.CompletedProcess:
     environment = dict(os.environ)
     for name in ("GIT_DIR", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_REPLACE_REF_BASE", "BASH_ENV", "ENV"):
@@ -178,10 +185,7 @@ def main() -> int:
             _emit(error.output, sys.stdout)
             _emit(error.stderr, sys.stderr)
             _progress_report(progress)
-            log = progress / "gate.log"
-            if log.is_file():
-                print("pre-push: final bounded gate log bytes:", file=sys.stderr)
-                _emit(log.read_bytes()[-LOG_TAIL_BYTES:], sys.stderr)
+            _progress_log(progress)
             cleanup_error = error.cleanup_error
             if cleanup_error is None:
                 retirement = "its process tree was retired"
@@ -205,6 +209,8 @@ def main() -> int:
         _emit(result.stdout, sys.stdout)
         _emit(result.stderr, sys.stderr)
         _progress_report(progress)
+        if result.returncode != 0:
+            _progress_log(progress)
         return result.returncode
 
 
