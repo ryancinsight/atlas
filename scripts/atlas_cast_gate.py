@@ -371,6 +371,182 @@ def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
     return list(dict.fromkeys(reasons))
 
 
+@dataclass(frozen=True)
+class ResolvedPackage:
+    """One workspace package as `cargo metadata` resolves it at one revision.
+
+    `signature` holds the resolved inputs metadata reports for the package:
+    its edition, rust-version, links, targets, declared and enabled
+    features, each direct dependency with its package, extern name and
+    kinds, and every package it reaches with that package's enabled
+    features. A path package is named by its directory, so a retarget to
+    another directory holding the same name and version differs. Paths are
+    relative to the export, so two checkouts of one revision compare equal.
+    Metadata unifies features across platforms and dependency kinds, so a
+    feature that another platform's, a build or a dev edge already enables
+    reads the same at both revisions even when the host's build of a
+    package changes; callers that must see such a change follow `reaches`.
+    `reaches` names every package the member depends on, directly or not.
+    """
+
+    signature: tuple
+    reaches: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class Resolution:
+    """A workspace as `cargo metadata` resolves it for the host at one revision.
+
+    `root_manifest` is the workspace root manifest relative to the export.
+    `members` holds each workspace member's `ResolvedPackage`. `reach` maps
+    every resolved package name, member or not, to the names it depends on
+    directly or not, merged across the versions that share the name.
+    """
+
+    root_manifest: str
+    members: dict[str, ResolvedPackage]
+    reach: dict[str, frozenset[str]]
+
+
+def _relative(path: str, export: pathlib.Path) -> str:
+    """`path` relative to `export`, `/`-separated; raises outside it."""
+    inner = pathlib.Path(os.path.realpath(path))
+    outer = pathlib.Path(os.path.realpath(export))
+    relative = inner.relative_to(outer).as_posix()
+    return "" if relative == "." else relative
+
+
+def resolution(record: dict, export: pathlib.Path) -> Resolution:
+    """The workspace a `cargo metadata` record resolves, relative to `export`."""
+    members = set(record["workspace_members"])
+    by_id = {package["id"]: package for package in record["packages"]}
+
+    def label(package_id: str) -> str:
+        package = by_id[package_id]
+        source = package["source"] or (
+            "path " + _relative(str(pathlib.Path(package["manifest_path"]).parent), export))
+        return f"{package['name']}@{package['version']} {source}"
+
+    nodes = {node["id"]: node for node in record["resolve"]["nodes"]}
+
+    def reached(package_id: str) -> set[str]:
+        """Every package `package_id` depends on, directly or not."""
+        seen: set[str] = set()
+        pending = [dependency["pkg"] for dependency in nodes[package_id]["deps"]]
+        while pending:
+            current = pending.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            pending.extend(dependency["pkg"] for dependency in nodes[current]["deps"])
+        return seen
+
+    resolved: dict[str, ResolvedPackage] = {}
+    for package_id in members:
+        package = by_id[package_id]
+        node = nodes[package_id]
+        reaches = reached(package_id)
+        targets = tuple(sorted(
+            (
+                target["name"], tuple(target["kind"]), tuple(target["crate_types"]),
+                target.get("edition", ""), tuple(sorted(target.get("required-features", []))),
+                _relative(target["src_path"], export), target.get("test", True),
+                target.get("doctest", True),
+            )
+            for target in package["targets"]
+        ))
+        dependencies = tuple(sorted(
+            (
+                label(dependency["pkg"]), dependency["name"],
+                tuple(sorted((kind["kind"] or "normal", kind["target"] or "")
+                             for kind in dependency["dep_kinds"])),
+            )
+            for dependency in node["deps"]
+        ))
+        signature = (
+            package["edition"], package.get("rust_version") or "", package.get("links") or "",
+            json.dumps(package["features"], sort_keys=True), targets,
+            tuple(sorted(node["features"])), dependencies,
+            tuple(sorted((label(current), tuple(sorted(nodes[current]["features"])))
+                         for current in reaches)),
+        )
+        resolved[package["name"]] = ResolvedPackage(
+            signature, frozenset(by_id[current]["name"] for current in reaches))
+    reach: dict[str, frozenset[str]] = {}
+    for package_id in nodes:
+        name = by_id[package_id]["name"]
+        reach[name] = reach.get(name, frozenset()) | frozenset(
+            by_id[current]["name"] for current in reached(package_id))
+    root = _relative(record["workspace_root"], export)
+    return Resolution(f"{root}/Cargo.toml" if root else "Cargo.toml", resolved, reach)
+
+
+def read_resolution(export: pathlib.Path, manifest: str,
+                    config: pathlib.Path | None = None) -> Resolution:
+    """The workspace `manifest` belongs to, resolved against the export's
+    committed lock. `--filter-platform` keeps only the host's dependency
+    edges, which are the ones clippy compiles; it does not filter features,
+    which metadata reports unified across platforms (`ResolvedPackage`)."""
+    from atlas_build_inputs import effective_compiler_environment
+
+    manifest_path = export / manifest
+    cargo_command = cargo(config)
+    environment = effective_compiler_environment(manifest_path, export, cargo_command)
+    out = subprocess.run(
+        [*cargo_command, "metadata", "--format-version", "1", "--locked",
+         "--filter-platform", "host-tuple", "--manifest-path", str(manifest_path)],
+        cwd=export, env=environment,
+        capture_output=True, text=True, encoding="utf-8", check=True,
+    ).stdout
+    return resolution(json.loads(out), export)
+
+
+def changed_table_packages(base_text: str | None, tip_text: str | None) -> frozenset[str]:
+    """The package names of every `[workspace.dependencies]` entry the range
+    adds, removes or changes, at either side (`package = ...` renames)."""
+    def table(text: str | None) -> dict:
+        data = tomllib.loads(text) if text is not None else {}
+        workspace = data.get("workspace")
+        entries = workspace.get("dependencies") if isinstance(workspace, dict) else None
+        return entries if isinstance(entries, dict) else {}
+
+    def package_name(key: str, entry: object) -> str:
+        renamed = entry.get("package") if isinstance(entry, dict) else None
+        return renamed if isinstance(renamed, str) else key
+
+    base, tip = table(base_text), table(tip_text)
+    return frozenset(
+        package_name(key, side[key])
+        for key in base.keys() | tip.keys() if base.get(key) != tip.get(key)
+        for side in (base, tip) if key in side
+    )
+
+
+def without_workspace_dependencies(text: str | None) -> dict | None:
+    """A root manifest with `[workspace.dependencies]` removed: those entries
+    reach a package only through its own resolved dependencies."""
+    if text is None:
+        return None
+    data = tomllib.loads(text)
+    workspace = data.get("workspace")
+    if isinstance(workspace, dict):
+        workspace.pop("dependencies", None)
+    return data
+
+
+def changed_paths(repo: pathlib.Path, base: str, tip: str) -> list[str]:
+    """Every path the range touches. A rename gives both its sides, so a file
+    moved between packages changes both."""
+    fields = pushed_diff(repo, base, tip, ["--name-status", "-z"]).decode("utf-8").split("\0")
+    paths: list[str] = []
+    index = 0
+    while index < len(fields) and fields[index]:
+        width = 3 if fields[index][0] in "RC" else 2
+        paths += fields[index + 1:index + width]
+        index += width
+    return paths
+
+
 def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
     """The file at `path` in `revision`, or None when the revision has none."""
     run = subprocess.run(["git", "-C", str(repo), "show", f"{revision}:{path}"],

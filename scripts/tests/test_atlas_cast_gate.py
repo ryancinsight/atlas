@@ -1176,3 +1176,199 @@ def test_the_gate_counts_moves_and_reads_standalone_crates(tmp_path):
         FUZZ_LIB + "\npub fn narrow(x: u16) -> u8 {\n    x as u8\n}\n")
     fuzzed = commit(repo, "a cast in the standalone crate")
     assert judge(moved, fuzzed, [fz], "fuzz/Cargo.toml", with_base=False) == 1
+
+
+def test_a_root_manifest_compares_without_its_dependency_table():
+    before = '[workspace]\nmembers = ["a"]\n[workspace.dependencies]\nx = "1"\n'
+    after = '[workspace]\nmembers = ["a"]\n[workspace.dependencies]\ny = "2"\n'
+    profile = after + '[profile.dev]\ndebug-assertions = false\n'
+    assert (gate.without_workspace_dependencies(before)
+            == gate.without_workspace_dependencies(after))
+    assert (gate.without_workspace_dependencies(before)
+            != gate.without_workspace_dependencies(profile))
+    assert gate.without_workspace_dependencies(None) is None
+
+
+def metadata_record(root: pathlib.Path) -> dict:
+    """A `cargo metadata` record of member `app` depending on path package
+    `dep` (in `vendor/one`) and registry package `leaf`, which `dep` also
+    depends on."""
+    def package(name, directory, source=None, version="0.1.0"):
+        return {
+            "id": f"{name}-id", "name": name, "version": version, "source": source,
+            "manifest_path": str(root / directory / "Cargo.toml"),
+            "edition": "2021", "rust_version": None, "links": None,
+            "features": {"default": [], "x": []},
+            "targets": [{
+                "name": name, "kind": ["lib"], "crate_types": ["lib"], "edition": "2021",
+                "required-features": [], "src_path": str(root / directory / "src" / "lib.rs"),
+                "test": True, "doctest": True,
+            }],
+        }
+
+    return {
+        "workspace_root": str(root),
+        "workspace_members": ["app-id"],
+        "packages": [
+            package("app", "crates/app"),
+            package("dep", "vendor/one"),
+            package("leaf", "", "registry+https://github.com/rust-lang/crates.io-index", "1.0.0"),
+        ],
+        "resolve": {"nodes": [
+            {"id": "app-id", "features": [], "deps": [{
+                "pkg": "dep-id", "name": "dep",
+                "dep_kinds": [{"kind": None, "target": None}],
+            }, {
+                "pkg": "leaf-id", "name": "leaf",
+                "dep_kinds": [{"kind": None, "target": None}],
+            }]},
+            {"id": "dep-id", "features": ["x"], "deps": [{
+                "pkg": "leaf-id", "name": "leaf",
+                "dep_kinds": [{"kind": None, "target": None}],
+            }]},
+            {"id": "leaf-id", "features": [], "deps": []},
+        ]},
+    }
+
+
+def _package(record: dict, name: str) -> dict:
+    return next(package for package in record["packages"] if package["name"] == name)
+
+
+def _node(record: dict, package_id: str) -> dict:
+    return next(node for node in record["resolve"]["nodes"] if node["id"] == package_id)
+
+
+def _app_target(record: dict) -> dict:
+    return _package(record, "app")["targets"][0]
+
+
+SIGNATURE_EDITS = {
+    "edition": lambda r, root: _package(r, "app").update(edition="2024"),
+    "rust-version": lambda r, root: _package(r, "app").update(rust_version="1.80"),
+    "links": lambda r, root: _package(r, "app").update(links="z"),
+    "declared features": lambda r, root: _package(r, "app")["features"].update(y=["x"]),
+    "enabled features": lambda r, root: _node(r, "app-id")["features"].append("x"),
+    "target name": lambda r, root: _app_target(r).update(name="renamed"),
+    "target source": lambda r, root: _app_target(r).update(
+        src_path=str(root / "crates" / "app" / "src" / "other.rs")),
+    "required features": lambda r, root: _app_target(r).update(**{"required-features": ["x"]}),
+    "target kind": lambda r, root: _app_target(r).update(kind=["proc-macro"]),
+    "target crate types": lambda r, root: _app_target(r).update(crate_types=["cdylib"]),
+    "target edition": lambda r, root: _app_target(r).update(edition="2024"),
+    "target test": lambda r, root: _app_target(r).update(test=False),
+    "target doctest": lambda r, root: _app_target(r).update(doctest=False),
+    "dependency kind": lambda r, root: _node(r, "app-id")["deps"][0].update(
+        dep_kinds=[{"kind": "dev", "target": None}]),
+    "dependency platform": lambda r, root: _node(r, "app-id")["deps"][0].update(
+        dep_kinds=[{"kind": None, "target": "cfg(unix)"}]),
+    "dependency extern name": lambda r, root: _node(r, "app-id")["deps"][0].update(
+        name="renamed_dep"),
+    # Each extern name now resolves to the other package; the names, kinds
+    # and reached packages are unchanged.
+    "dependency extern names swapped": lambda r, root: [
+        dependency.update(name={"dep": "leaf", "leaf": "dep"}[dependency["name"]])
+        for dependency in _node(r, "app-id")["deps"]],
+    "dependency version": lambda r, root: _package(r, "dep").update(version="0.2.0"),
+    # The same name and version from another directory: a path retarget.
+    "path dependency directory": lambda r, root: _package(r, "dep").update(
+        manifest_path=str(root / "vendor" / "two" / "Cargo.toml")),
+    # A dependency's features, set by the table, change what it compiles.
+    "dependency features": lambda r, root: _node(r, "dep-id")["features"].clear(),
+    "transitive version": lambda r, root: _package(r, "leaf").update(version="1.0.1"),
+    "transitive features": lambda r, root: _node(r, "leaf-id")["features"].append("std"),
+}
+
+
+def test_changed_paths_give_both_sides_of_a_move(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "a" / "src").mkdir(parents=True)
+    (repo / "b" / "src").mkdir(parents=True)
+    (repo / "a" / "src" / "moved.rs").write_text(OLD)
+    first = commit(repo, "first")
+    (repo / "a" / "src" / "moved.rs").rename(repo / "b" / "src" / "moved.rs")
+    (repo / "README.md").write_text("notes\n")
+    moved = commit(repo, "move")
+    assert sorted(gate.changed_paths(repo, first, moved)) == [
+        "README.md", "a/src/moved.rs", "b/src/moved.rs",
+    ]
+
+
+@pytest.mark.parametrize("edit", sorted(SIGNATURE_EDITS))
+def test_each_resolved_input_moves_the_signature(tmp_path, edit):
+    base = gate.resolution(metadata_record(tmp_path), tmp_path).members
+    changed = metadata_record(tmp_path)
+    SIGNATURE_EDITS[edit](changed, tmp_path)
+    tip = gate.resolution(changed, tmp_path).members
+    assert list(base) == ["app"]
+    assert base["app"].signature != tip["app"].signature
+
+
+def test_two_exports_of_one_resolution_compare_equal(tmp_path):
+    first = gate.resolution(metadata_record(tmp_path / "a"), tmp_path / "a")
+    second = gate.resolution(metadata_record(tmp_path / "b"), tmp_path / "b")
+    assert first == second
+
+
+def test_reach_follows_every_dependency_edge(tmp_path):
+    """`leaf` is reached directly by `app` and through `dep`; dropping
+    `app`'s direct edge keeps it reached through `dep`."""
+    resolved = gate.resolution(metadata_record(tmp_path), tmp_path)
+    assert resolved.root_manifest == "Cargo.toml"
+    assert resolved.members["app"].reaches == {"dep", "leaf"}
+    assert resolved.reach == {"app": {"dep", "leaf"}, "dep": {"leaf"}, "leaf": frozenset()}
+
+    record = metadata_record(tmp_path)
+    _node(record, "app-id")["deps"].pop()
+    assert gate.resolution(record, tmp_path).members["app"].reaches == {"dep", "leaf"}
+
+
+def test_a_path_package_outside_the_export_is_refused(tmp_path):
+    record = metadata_record(tmp_path / "export")
+    _package(record, "dep")["manifest_path"] = str(tmp_path / "elsewhere" / "Cargo.toml")
+    with pytest.raises(ValueError):
+        gate.resolution(record, tmp_path / "export")
+
+
+@pytest.mark.parametrize("base, tip, expected", [
+    ('x = "1"\ny = "1"\n', 'x = "2"\ny = "1"\n', {"x"}),
+    ('x = "1"\n', '', {"x"}),
+    ('', 'z = { path = "crates/z" }\n', {"z"}),
+    ('a = { path = "one", package = "core" }\n',
+     'a = { path = "two", package = "fastcore" }\n', {"core", "fastcore"}),
+    ('x = { version = "1", features = ["f"] }\n', 'x = { version = "1" }\n', {"x"}),
+    ('x = "1"\n', 'x = "1"\n', set()),
+])
+def test_changed_table_packages_name_both_sides(base, tip, expected):
+    def manifest(table):
+        return '[workspace]\nmembers = []\n[workspace.dependencies]\n' + table
+
+    assert gate.changed_table_packages(manifest(base), manifest(tip)) == frozenset(expected)
+
+
+def test_resolution_reads_the_committed_lock(tmp_path, monkeypatch):
+    """The record cargo prints is resolved relative to the export, with a
+    nested workspace root, in the compiler environment of the build."""
+    record = metadata_record(tmp_path)
+    record["workspace_root"] = str(tmp_path / "fuzz")
+    environment = {"ATLAS_COMPILER": "pinned"}
+    calls = []
+
+    def metadata(command, **kwargs):
+        calls.append((command, kwargs["env"]))
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps(record))
+
+    monkeypatch.setattr(gate.subprocess, "run", metadata)
+    monkeypatch.setattr("atlas_build_inputs.effective_compiler_environment",
+                        lambda manifest, export, command: environment)
+    resolved = gate.read_resolution(tmp_path, "fuzz/Cargo.toml")
+    assert resolved.root_manifest == "fuzz/Cargo.toml"
+    assert resolved == gate.resolution(record, tmp_path)
+    assert list(resolved.members) == ["app"]
+    assert [(command[command.index("metadata"):], env) for command, env in calls] == [([
+        "metadata", "--format-version", "1", "--locked", "--filter-platform", "host-tuple",
+        "--manifest-path", str(tmp_path / "fuzz" / "Cargo.toml"),
+    ], environment)]
+
+
