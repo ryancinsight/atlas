@@ -579,7 +579,7 @@ class PullRequestCommandTestCase(unittest.TestCase):
                 0,
                 stdout=json.dumps(
                     {
-                        "baseRefOid": default,
+                        "baseTargetOid": default,
                         "headRefOid": candidate,
                         "potentialMergeCommit": {"oid": merge},
                         "number": 7,
@@ -637,7 +637,7 @@ class PullRequestCommandTestCase(unittest.TestCase):
                 0,
                 stdout=json.dumps(
                     {
-                        "baseRefOid": default,
+                        "baseTargetOid": default,
                         "headRefOid": candidate,
                         "potentialMergeCommit": {"oid": merge},
                         "number": 8,
@@ -864,7 +864,7 @@ class HostedMergeTestCase(unittest.TestCase):
 
     def _state(self, graph: dict[str, str], **updates) -> str:
         state = {
-            "baseRefOid": graph["default"],
+            "baseTargetOid": graph["default"],
             "headRefOid": graph["candidate"],
             "potentialMergeCommit": {"oid": graph["merge"]},
             "number": 7,
@@ -872,15 +872,17 @@ class HostedMergeTestCase(unittest.TestCase):
         state.update(updates)
         return json.dumps(state)
 
-    def test_exact_hosted_merge_tree_enqueues(self) -> None:
+    def test_live_base_target_overrides_a_stale_cached_merge_base(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-hosted-merge-") as temp:
             repo, _remote, graph = self._graph(Path(temp))
             calls: list[tuple[str, ...]] = []
 
             def host(_repo: Path, *command: str) -> str:
                 calls.append(command)
-                if command[1] == "view":
-                    return self._state(graph)
+                if command[1] == "graphql":
+                    state = json.loads(self._state(graph))
+                    state["baseRefOid"] = "0" * 40
+                    return json.dumps(state)
                 if command[1] == "merge":
                     return ""
                 raise AssertionError(command)
@@ -898,11 +900,17 @@ class HostedMergeTestCase(unittest.TestCase):
                 calls,
                 [
                     (
-                        "pr",
-                        "view",
-                        self.URL,
-                        "--json",
-                        "baseRefOid,headRefOid,potentialMergeCommit,number",
+                        "api",
+                        "graphql",
+                        "-f",
+                        "query=query($url:URI!){resource(url:$url){... on "
+                        "PullRequest{number headRefOid baseRef{target{oid}} "
+                        "potentialMergeCommit{oid}}}}",
+                        "-f",
+                        f"url={self.URL}",
+                        "--jq",
+                        ".data.resource | {number,headRefOid,potentialMergeCommit,"
+                        "baseTargetOid:.baseRef.target.oid}",
                     ),
                     ("pr", "merge", self.URL, "--merge", "--auto",
                      "--match-head-commit", graph["candidate"]),
@@ -916,7 +924,7 @@ class HostedMergeTestCase(unittest.TestCase):
             self._git(remote, "update-ref", ref, graph["candidate"])
 
             def host(_repo: Path, *command: str) -> str:
-                if command[1] == "view":
+                if command[1] == "graphql":
                     return self._state(graph)
                 self._git(remote, "update-ref", ref, graph["replacement"])
                 supplied = None
@@ -943,7 +951,7 @@ class HostedMergeTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-hosted-refusal-") as temp:
             repo, remote, graph = self._graph(Path(temp))
             cases = (
-                ("base", {"baseRefOid": "0" * 40}, graph["merge"]),
+                ("base", {"baseTargetOid": "0" * 40}, graph["merge"]),
                 ("head", {"headRefOid": "1" * 40}, graph["merge"]),
                 (
                     "merge_oid",
@@ -981,7 +989,7 @@ class HostedMergeTestCase(unittest.TestCase):
 
                     def host(_repo: Path, *command: str) -> str:
                         nonlocal armed
-                        if command[1] == "view":
+                        if command[1] == "graphql":
                             return self._state(graph, **updates)
                         if command[1] == "merge":
                             armed = True
@@ -1005,7 +1013,7 @@ class HostedMergeTestCase(unittest.TestCase):
 
             def malformed(_repo: Path, *command: str) -> str:
                 nonlocal armed
-                if command[1] == "view":
+                if command[1] == "graphql":
                     return "{"
                 armed = True
                 return ""
@@ -1030,7 +1038,7 @@ class HostedMergeTestCase(unittest.TestCase):
 
             def host(_repo: Path, *command: str) -> str:
                 nonlocal armed
-                if command[1] == "view":
+                if command[1] == "graphql":
                     self._pull_ref(remote, graph["replacement"])
                     return self._state(graph)
                 armed = True
@@ -1609,10 +1617,10 @@ class PublisherScopeTestCase(unittest.TestCase):
                             return ""
                         if stage == "create":
                             return "https://github.com/example/alpha/pull/1"
-                        if stage == "view":
+                        if stage == "graphql":
                             return json.dumps(
                                 {
-                                    "baseRefOid": "base",
+                                    "baseTargetOid": "base",
                                     "headRefOid": "commit",
                                     "potentialMergeCommit": {"oid": merge},
                                     "number": 7,

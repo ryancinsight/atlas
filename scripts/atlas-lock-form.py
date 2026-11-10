@@ -723,14 +723,18 @@ def enqueue_pull_request(
     """Bind merge readiness to the verified head, base and hosted merge tree."""
     try:
         state = json.loads(hosting_in(
-            repo, "pr", "view", url, "--json",
-            "baseRefOid,headRefOid,potentialMergeCommit,number",
+            repo, "api", "graphql", "-f",
+            "query=query($url:URI!){resource(url:$url){... on PullRequest{"
+            "number headRefOid baseRef{target{oid}} potentialMergeCommit{oid}}}}",
+            "-f", f"url={url}", "--jq",
+            ".data.resource | {number,headRefOid,potentialMergeCommit,"
+            "baseTargetOid:.baseRef.target.oid}",
         ))
     except (json.JSONDecodeError, TypeError) as error:
         raise RuntimeError(f"cannot read publication merge identity for {url}") from error
     if (
         not isinstance(state, dict)
-        or state.get("baseRefOid") != default
+        or state.get("baseTargetOid") != default
         or state.get("headRefOid") != candidate
     ):
         raise RuntimeError(f"publication head or base changed before readiness: {url}")
