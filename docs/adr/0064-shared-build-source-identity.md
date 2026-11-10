@@ -3,8 +3,9 @@
 - Status: Accepted
 - Date: 2026-09-24
 - Class: [arch]
-- Driver: [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
+- Driver: [Atlas PR #626](https://github.com/ryancinsight/atlas/pull/626), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
+- Revision: 2026-11-10 — Added revision-bound lock-owner inventories that disable promisor lazy fetch and fail when a committed Cargo input is missing locally.
 - Revision: 2026-11-09 — A killed run's rebuilt artifacts are resumed, not cleaned again: per-package writer marks (below), after a cold ritk push outlasted the 600-second deadline four times, each rerun cleaning what the killed run had rebuilt.
 - Revision: 2026-11-09 — Compacted the as-built contract and required hook installation and publication to materialize the same source-keyed immutable supervisor family; publication keeps that runtime invocation-local so preparing a publication cannot replace the live installed gate.
 
@@ -14,6 +15,8 @@ Atlas members share one Cargo target. Cargo fingerprints and dep-info do not ide
 Concurrent roots therefore need one protocol that prevents a clean or rewrite from invalidating another build while preserving one cache.
 
 ## Decision
+
+The lock sweep inventory reads every committed standalone lock owner at one Atlas revision, including nested and excluded workspaces, without consulting checkouts or fetching. Every Git process disables promisor lazy fetch, so a missing committed object fails instead of mutating the object store. It retains fixture exemptions and missing sibling-lock diagnostics; every first-party Git package identity must name a registered provider.
 
 ### Tool and runner source
 
