@@ -70,7 +70,7 @@ class HookBranchPushTestCase(unittest.TestCase):
             head_before = self._git(repo, "rev-parse", "HEAD")
             index_before = self._git(repo, "diff", "--cached", "--binary")
 
-            selected, prior = _lock_form.hook_publication_base(
+            selected = _lock_form.hook_publication_base(
                 repo, default, [("pre-push", b"new\n")], ()
             )
             candidate = _lock_form.hook_commit(
@@ -78,24 +78,34 @@ class HookBranchPushTestCase(unittest.TestCase):
                 selected,
                 [("pre-push", b"new\n")],
                 "corrected hook\n",
-                prior_publication=prior,
+            )
+            landed = _lock_form.hook_landing_tree(
+                repo, default, candidate, [("pre-push", b"new\n")], ()
             )
 
-            self.assertEqual(selected, default)
-            self.assertEqual(prior, published)
+            self.assertEqual(selected, published)
             self.assertEqual(
                 self._git(repo, "show", "-s", "--format=%P", candidate),
-                f"{default} {published}",
+                published,
             )
             self.assertEqual(
-                self._git(repo, "show", f"{candidate}:README.md"), "current default"
+                self._git(repo, "show", f"{landed}:README.md"), "current default"
             )
             self.assertEqual(
-                self._git(repo, "show", f"{candidate}:.githooks/pre-push"), "new"
+                self._git(repo, "show", f"{landed}:.githooks/pre-push"), "new"
             )
             self.assertEqual(
-                self._git(repo, "diff", "--name-only", default, candidate),
+                self._git(repo, "diff", "--name-only", default, landed),
                 ".githooks/pre-push",
+            )
+            self.assertEqual(
+                self._git(repo, "diff", "--name-only", published, candidate),
+                ".githooks/pre-push",
+            )
+            self.assertTrue(
+                self._git(repo, "ls-tree", landed, ".githooks/pre-push").startswith(
+                    "100755 blob "
+                )
             )
             self.assertEqual(self._git(repo, "rev-parse", "HEAD"), head_before)
             self.assertEqual(self._git(repo, "diff", "--cached", "--binary"), index_before)
@@ -106,15 +116,20 @@ class HookBranchPushTestCase(unittest.TestCase):
                 "refs/remotes/origin/ci/sync-stack-hooks",
                 candidate,
             )
-            selected, prior = _lock_form.hook_publication_base(
+            selected = _lock_form.hook_publication_base(
                 repo, default, [("pre-push", b"new\n")], ()
             )
             self.assertEqual(selected, candidate)
-            self.assertIsNone(prior)
             self.assertIsNone(
                 _lock_form.hook_commit(
                     repo, selected, [("pre-push", b"new\n")], "corrected hook\n"
                 )
+            )
+            self.assertEqual(
+                _lock_form.hook_landing_tree(
+                    repo, default, selected, [("pre-push", b"new\n")], ()
+                ),
+                landed,
             )
 
     def test_corrected_publication_refuses_non_hook_branch_work(self) -> None:
@@ -182,6 +197,96 @@ class HookBranchPushTestCase(unittest.TestCase):
                     [("pre-push", b"member documentation\n")],
                     (),
                 )
+
+    def test_publication_refuses_conflicting_or_combined_hook_merges(self) -> None:
+        for default_hook, published_hook, error in (
+            (b"other\n", b"new\n", "conflict"),
+            (
+                b"a\nb\nc\nd\ne\nf\nchanged\n",
+                b"new\nb\nc\nd\ne\nf\ng\n",
+                "differs",
+            ),
+        ):
+            with self.subTest(default_hook=default_hook):
+                with tempfile.TemporaryDirectory(prefix="atlas-publish-merge-") as temp:
+                    repo = Path(temp)
+                    self._commit_after_init(repo)
+                    hook = repo / ".githooks" / "pre-push"
+                    hook.parent.mkdir()
+                    hook.write_bytes(b"a\nb\nc\nd\ne\nf\ng\n")
+                    self._git(repo, "add", ".githooks/pre-push")
+                    self._git(repo, "commit", "-q", "-m", "shared hook")
+                    base = self._git(repo, "rev-parse", "HEAD")
+                    candidate = _lock_form.hook_commit(
+                        repo, base, [("pre-push", published_hook)], "publication\n"
+                    )
+                    hook.write_bytes(default_hook)
+                    self._git(repo, "add", ".githooks/pre-push")
+                    self._git(repo, "commit", "-q", "-m", "default hook advance")
+                    default = self._git(repo, "rev-parse", "HEAD")
+                    with self.assertRaisesRegex(RuntimeError, error):
+                        _lock_form.hook_landing_tree(
+                            repo, default, candidate, [("pre-push", published_hook)], ()
+                        )
+                    self.assertEqual(self._git(repo, "rev-parse", "HEAD"), default)
+                    self.assertEqual(hook.read_bytes(), default_hook)
+                    self.assertEqual(self._git(repo, "status", "--porcelain"), "")
+
+    def test_current_publication_still_runs_the_real_landing_guard(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-current-") as temp:
+            scratch = Path(temp)
+            root = scratch / "atlas"
+            root.mkdir()
+            self._commit_after_init(root)
+            owned = root / "scripts" / "git-hooks" / "pre-push"
+            owned.parent.mkdir(parents=True)
+            hook = b"#!/bin/sh\nexit 0\n"
+            owned.write_bytes(hook)
+            self._git(root, "add", "scripts/git-hooks/pre-push")
+            self._git(root, "commit", "-q", "-m", "owned hook")
+            atlas_remote = scratch / "atlas.git"
+            subprocess.run(["git", "init", "-q", "--bare", str(atlas_remote)], check=True)
+            self._git(root, "remote", "add", "origin", str(atlas_remote))
+            self._git(root, "push", "-q", "origin", "main")
+            self._git(root, "remote", "set-head", "origin", "main")
+
+            member = root / "repos" / "alpha"
+            member.mkdir(parents=True)
+            self._commit_after_init(member)
+            installed = member / ".githooks" / "pre-push"
+            installed.parent.mkdir()
+            installed.write_bytes(hook)
+            self._git(member, "add", ".githooks/pre-push")
+            self._git(member, "update-index", "--chmod=+x", ".githooks/pre-push")
+            self._git(member, "commit", "-q", "-m", "installed hook")
+            default = self._git(member, "rev-parse", "HEAD")
+            member_remote = scratch / "member.git"
+            subprocess.run(["git", "init", "-q", "--bare", str(member_remote)], check=True)
+            self._git(member, "remote", "add", "origin", str(member_remote))
+            self._git(member, "push", "-q", "origin", "main")
+            self._git(member, "remote", "set-head", "origin", "main")
+
+            args = Namespace(members=["alpha"], push=True, source_ref=None)
+            output = io.StringIO()
+            with (
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "REPOS", root / "repos"),
+                patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+                patch.object(
+                    _lock_form,
+                    "hook_landing_tree",
+                    wraps=_lock_form.hook_landing_tree,
+                ) as landing_guard,
+                patch.object(_lock_form, "push_hook_branch") as push_hook_branch,
+                redirect_stdout(output),
+            ):
+                self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
+
+            landing_guard.assert_called_once_with(
+                member, default, default, [("pre-push", hook)], ()
+            )
+            push_hook_branch.assert_not_called()
+            self.assertIn("current: alpha", output.getvalue())
 
     def _commit_after_init(self, repo: Path) -> str:
         self._git(repo, "init", "-q", "-b", "main")
@@ -702,14 +807,24 @@ class RetiredPathTestCase(unittest.TestCase):
                 patch.object(
                     _lock_form,
                     "hook_publication_base",
-                    side_effect=lambda _repo, default, *_args: (default, None),
+                    side_effect=lambda _repo, default, *_args: default,
                 ),
                 patch.object(_lock_form, "hook_commit", return_value="built") as hook_commit,
+                patch.object(
+                    _lock_form, "hook_landing_tree", return_value="landing"
+                ) as landing_guard,
                 redirect_stdout(io.StringIO()),
             ):
                 self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
             self.assertEqual(hook_commit.call_args.kwargs["retired"], ("scripts/lockfile.py",))
             self.assertIn("`scripts/lockfile.py`", hook_commit.call_args.args[3])
+            landing_guard.assert_called_once_with(
+                root / "repos" / "alpha",
+                "b" * 40,
+                "built",
+                self.HOOK,
+                ("scripts/lockfile.py",),
+            )
 
 
 class PublisherScopeTestCase(unittest.TestCase):
@@ -801,6 +916,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                     "b" * 40,  # member base
                 ]
             )
+            publication_events: list[str] = []
 
             with (
                 patch.object(_lock_form, "ROOT", root),
@@ -818,9 +934,18 @@ class PublisherScopeTestCase(unittest.TestCase):
                 patch.object(
                     _lock_form,
                     "hook_publication_base",
-                    side_effect=lambda _repo, default, *_args: (default, None),
+                    side_effect=lambda _repo, default, *_args: default,
                 ),
-                patch.object(_lock_form, "push_hook_branch") as push_hook_branch,
+                patch.object(
+                    _lock_form,
+                    "hook_landing_tree",
+                    side_effect=lambda *_args: publication_events.append("landing"),
+                ) as landing_guard,
+                patch.object(
+                    _lock_form,
+                    "push_hook_branch",
+                    side_effect=lambda *_args: publication_events.append("push"),
+                ) as push_hook_branch,
                 patch.object(
                     _lock_form, "pull_request_for", return_value=("url", True)
                 ) as pull_request_for,
@@ -841,10 +966,18 @@ class PublisherScopeTestCase(unittest.TestCase):
             committed_hooks.assert_called_once_with(root, source_commit)
             self.assertEqual(hook_commit.call_args.args[2], [hook_bytes[1]])
             self.assertEqual(hook_commit.call_args.args[1], "b" * 40)
+            landing_guard.assert_called_once_with(
+                member_root / "alpha",
+                "b" * 40,
+                "built",
+                [hook_bytes[1]],
+                (),
+            )
             push_hook_branch.assert_called_once_with(
                 member_root / "alpha", "built", "ci/sync-stack-hooks",
                 hook_bytes[1][1], source_commit,
             )
+            self.assertEqual(publication_events, ["landing", "push"])
             expected_message = (
                 "ci: Sync the stack-owned git hooks\n\n"
                 "Deploys atlas `scripts/git-hooks` at aaaaaaaa, the single\n"
@@ -899,9 +1032,12 @@ class PublisherScopeTestCase(unittest.TestCase):
                 patch.object(
                     _lock_form,
                     "hook_publication_base",
-                    side_effect=lambda _repo, default, *_args: (default, None),
+                    side_effect=lambda _repo, default, *_args: default,
                 ),
                 patch.object(_lock_form, "hook_commit", return_value="built"),
+                patch.object(
+                    _lock_form, "hook_landing_tree", return_value="landing"
+                ) as landing_guard,
                 patch.object(_lock_form, "push_hook_branch"),
                 patch.object(
                     _lock_form, "pull_request_for", return_value=("url", True)
@@ -911,8 +1047,71 @@ class PublisherScopeTestCase(unittest.TestCase):
             ):
                 self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
 
+            landing_guard.assert_called_once_with(
+                member_root / "alpha",
+                "b" * 40,
+                "built",
+                hook_bytes,
+                (),
+            )
             self.assertTrue(pull_request_for.call_args.kwargs["draft"])
             enqueue.assert_not_called()
+
+    def test_landing_guard_refusal_stops_before_push_and_hosting(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hook-landing-refusal-") as temp:
+            root = Path(temp)
+            member_root = root / "repos"
+            (member_root / "alpha").mkdir(parents=True)
+            source_commit = "a" * 40
+            hooks = [("pre-push", b"#!/bin/sh\nexit 0\n")]
+            args = Namespace(
+                members=["alpha"],
+                push=True,
+                source_ref="refs/remotes/origin/pr/286",
+            )
+            git_results = iter(
+                [
+                    "",
+                    "refs/remotes/origin/main",
+                    source_commit,
+                    "aaaaaaaa",
+                    "",
+                    "origin/main",
+                    "b" * 40,
+                ]
+            )
+            output = io.StringIO()
+            with (
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "REPOS", member_root),
+                patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+                patch.object(
+                    _lock_form, "git_in", side_effect=lambda *_args: next(git_results)
+                ),
+                patch.object(_lock_form, "committed_hooks", return_value=hooks),
+                patch.object(
+                    _lock_form,
+                    "hook_publication_base",
+                    side_effect=lambda _repo, default, *_args: default,
+                ),
+                patch.object(_lock_form, "hook_commit", return_value="built"),
+                patch.object(
+                    _lock_form,
+                    "hook_landing_tree",
+                    side_effect=RuntimeError("publication merge conflict"),
+                ) as landing_guard,
+                patch.object(_lock_form, "push_hook_branch") as push_hook_branch,
+                patch.object(_lock_form, "hosting_in") as hosting_in,
+                redirect_stdout(output),
+            ):
+                self.assertEqual(_lock_form.cmd_publish_hooks(args), 1)
+
+            landing_guard.assert_called_once_with(
+                member_root / "alpha", "b" * 40, "built", hooks, ()
+            )
+            push_hook_branch.assert_not_called()
+            hosting_in.assert_not_called()
+            self.assertIn("FAILED: publication merge conflict", output.getvalue())
 
     def test_unknown_hook_filter_stops_before_member_publication(self) -> None:
         args = Namespace(
@@ -1043,15 +1242,25 @@ class PublisherScopeTestCase(unittest.TestCase):
                         patch.object(
                             _lock_form,
                             "hook_publication_base",
-                            side_effect=lambda _repo, default, *_args: (default, None),
+                            side_effect=lambda _repo, default, *_args: default,
                         ),
                         patch.object(_lock_form, "hook_commit", return_value="commit"),
+                        patch.object(
+                            _lock_form, "hook_landing_tree", return_value="landing"
+                        ) as landing_guard,
                         patch.object(_lock_form, "push_hook_branch"),
                         patch.object(_lock_form, "hosting_in", side_effect=host),
                         redirect_stdout(output),
                     ):
                         self.assertEqual(_lock_form.cmd_publish_hooks(args), 1)
 
+                    landing_guard.assert_called_once_with(
+                        root / "repos" / "alpha",
+                        "base",
+                        "commit",
+                        [("pre-push", b"#!/bin/sh\nexit 0\n")],
+                        (),
+                    )
                     self.assertIn(f"FAILED: {failed_stage} refused", output.getvalue())
                     self.assertNotIn("published:", output.getvalue())
                     self.assertNotIn("reused:", output.getvalue())

@@ -454,21 +454,13 @@ def retired_member_paths(requested: list[str] | None) -> list[str] | None:
     return paths
 
 
-def hook_commit(
+def hook_tree(
     repo: Path,
     base: str,
     hooks: list[tuple[str, bytes]],
-    message: str,
     retired: tuple[str, ...] = (),
-    prior_publication: str | None = None,
-) -> str | None:
-    """A commit on `base` whose `.githooks/` carries `hooks`, or None if current.
-
-    `hooks` are (file name, bytes) pairs, so line endings are exactly the
-    owned copy's whatever any checkout's `core.autocrlf` says, and the mode is
-    executable so the hook runs on a Unix clone. Each `retired` path is
-    removed from the commit's tree when `base` carries it.
-    """
+) -> str:
+    """Build the owned hook tree without changing the checkout or its index."""
     with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as scratch:
         index = Path(scratch) / "index"
         git_in(repo, "read-tree", base, index=index)
@@ -480,16 +472,24 @@ def hook_commit(
             )
         for path in retired:
             git_in(repo, "update-index", "--force-remove", "--", path, index=index)
-        tree = git_in(repo, "write-tree", index=index)
-    if (
-        tree == git_in(repo, "rev-parse", f"{base}^{{tree}}")
-        and prior_publication is None
-    ):
+        return git_in(repo, "write-tree", index=index)
+
+
+def hook_commit(
+    repo: Path,
+    base: str,
+    hooks: list[tuple[str, bytes]],
+    message: str,
+    retired: tuple[str, ...] = (),
+) -> str | None:
+    """Append exact executable hook blobs and retirements, or return None.
+
+    A private index preserves checkout bytes, staging and line endings.
+    """
+    tree = hook_tree(repo, base, hooks, retired)
+    if tree == git_in(repo, "rev-parse", f"{base}^{{tree}}"):
         return None
-    parents = ["-p", base]
-    if prior_publication is not None:
-        parents.extend(("-p", prior_publication))
-    return git_in(repo, "commit-tree", tree, *parents, stdin=message.encode("utf-8"))
+    return git_in(repo, "commit-tree", tree, "-p", base, stdin=message.encode("utf-8"))
 
 
 def hook_publication_base(
@@ -497,8 +497,8 @@ def hook_publication_base(
     default: str,
     hooks: list[tuple[str, bytes]],
     retired: tuple[str, ...],
-) -> tuple[str, str | None]:
-    """Select the fetched default and any safe prior publication head.
+) -> str:
+    """Select the fetched default or a safe prior publication head.
 
     Re-publishing a corrected source must advance the fixed publication branch
     instead of replacing its generated commit. The branch is safe to extend
@@ -509,13 +509,13 @@ def hook_publication_base(
     try:
         head = git_in(repo, "rev-parse", "--verify", f"{publication}^{{commit}}")
     except RuntimeError:
-        return default, None
+        return default
     try:
         git_in(repo, "merge-base", "--is-ancestor", head, default)
     except RuntimeError:
         pass
     else:
-        return default, None
+        return default
     owned = {f"{MEMBER_HOOK_COPY}/{name}" for name, _ in hooks}
     owned.update(retired)
     changed = set(
@@ -536,11 +536,32 @@ def hook_publication_base(
         raise RuntimeError(
             f"{publication} carries non-publication paths: {', '.join(unexpected)}"
         )
-    try:
-        git_in(repo, "merge-base", "--is-ancestor", default, head)
-    except RuntimeError:
-        return default, head
-    return head, None
+    return head
+
+
+def hook_landing_tree(
+    repo: Path,
+    default: str,
+    candidate: str,
+    hooks: list[tuple[str, bytes]],
+    retired: tuple[str, ...],
+) -> str:
+    """Require Git's merge to preserve the default outside owned hook paths.
+
+    A behind publication head is safe only when its real landing tree equals
+    the independently materialized default with exact owned blobs and modes.
+    Conflicts and clean merges that combine hook content both refuse.
+    """
+    expected = hook_tree(repo, default, hooks, retired)
+    result = git_result(repo, "merge-tree", "--write-tree", default, candidate)
+    if result.returncode != 0:
+        detail = (result.stderr + result.stdout).decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"publication merge failed: {detail}")
+    landed = result.stdout.decode("ascii").strip()
+    if landed != expected:
+        changed = git_in(repo, "diff", "--no-renames", "--name-only", expected, landed)
+        raise RuntimeError(f"publication merge differs from owned hook tree: {changed}")
+    return landed
 
 
 def push_hook_branch(
@@ -818,7 +839,7 @@ def cmd_publish_hooks(args) -> int:
             git_in(repo, "fetch", "-q", "origin")
             default = git_in(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
             default_commit = git_in(repo, "rev-parse", default)
-            base, prior_publication = hook_publication_base(
+            base = hook_publication_base(
                 repo, default_commit, hooks, tuple(retired)
             )
             commit = hook_commit(
@@ -827,8 +848,8 @@ def cmd_publish_hooks(args) -> int:
                 hooks,
                 message,
                 retired=tuple(retired),
-                prior_publication=prior_publication,
             )
+            hook_landing_tree(repo, default_commit, commit or base, hooks, tuple(retired))
             if commit is None:
                 print(f"current: {member}")
                 continue
@@ -1162,9 +1183,9 @@ def _same_directory(first: str | Path, second: str | Path) -> bool:
 def cmd_install_hooks(args) -> int:
     """Point every member's `core.hooksPath` at the owned-hook shims.
 
-    Local git config, so it is a per-clone bootstrap rather than committed
-    state -- the same shape as the meta-repo's own
-    `git config core.hooksPath .githooks`.
+    Local git config points the members and Atlas itself at the shared
+    source-bound shims. This per-clone bootstrap does not change committed
+    hook copies or select a checked-out branch as the source.
 
     Two earlier values are retargeted, because each ran a working-tree copy.
     `.githooks` is the copy `sync-hooks` deploys for standalone clones, and a
