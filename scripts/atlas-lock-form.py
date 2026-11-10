@@ -832,8 +832,19 @@ def refresh_hook_publication(
     tree = git_in(repo, "rev-parse", f"{candidate}^{{tree}}")
     parents = git_in(repo, "show", "-s", "--format=%P", candidate).split()
     if len(parents) == 1 and git_in(repo, "rev-parse", f"{parents[0]}^{{tree}}") == tree:
-        raise RuntimeError(f"publication merge update is still pending: {url}")
-    return git_in(repo, "commit-tree", tree, "-p", candidate, stdin=message.encode("utf-8"))
+        prior_base = git_in(
+            repo,
+            "show",
+            "-s",
+            "--format=%(trailers:key=Publication-Base,valueonly)",
+            candidate,
+        )
+        if prior_base != hosted.merge_base:
+            raise RuntimeError(f"publication merge update is still pending: {url}")
+    refresh_message = f"{message.rstrip()}\n\nPublication-Base: {default}\n"
+    return git_in(
+        repo, "commit-tree", tree, "-p", candidate, stdin=refresh_message.encode("utf-8")
+    )
 
 
 def enqueue_pull_request(
