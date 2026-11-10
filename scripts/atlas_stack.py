@@ -13,10 +13,13 @@ count without naming (AGENTS.md architecture_scoping: "Private consumers",
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import re
 import subprocess
 import sys
+import tempfile
+import tomllib
 from pathlib import Path
 
 from atlas_git_process import GitProcessError, execute as execute_git
@@ -49,21 +52,79 @@ def load_sibling(name: str, path: Path):
 def run_tool(
     tool: str, arguments: list[str], **run_options: object
 ) -> subprocess.CompletedProcess:
-    """Run an atlas tool workspace binary through cargo, from inside its workspace.
+    """Run a locked tool with root profiles but without development patches.
 
-    rustup resolves the toolchain from the working directory, never from
-    `--manifest-path`. The stack root pins the host-qualified msvc channel the
-    shared target directory needs (ATLAS-TOOLCHAIN-TRIPLE-083), which no
-    Linux runner can install; each tool workspace carries a bare-version pin
-    for exactly this run. Every cargo invocation of a tool goes through here
-    so no caller can reintroduce the root working directory.
+    Cargo builds from a neutral directory using a mirrored root config and the
+    shared target. A runner restores the tool workspace as the binary's current
+    directory. The tool's bare-version pin selects a portable toolchain without
+    inheriting the stack root's host-qualified channel.
     """
     workspace = TOOL_ROOT / tool
-    command = [
-        "cargo", "run", "--quiet", "--manifest-path", str(workspace / "Cargo.toml"),
-        "--", *arguments,
-    ]
-    return subprocess.run(command, cwd=workspace, check=False, **run_options)
+    process_tree = load_sibling(
+        "atlas_process_tree", Path(__file__).resolve().parent / "process_tree.py"
+    )
+    timeout = run_options.pop("timeout", 600)
+    capture_output = run_options.pop("capture_output", False)
+    encoding = run_options.pop("encoding", None)
+    errors = run_options.pop("errors", None)
+    input_value = run_options.pop("input", None)
+    configured_environment = run_options.pop("env", None)
+    if run_options:
+        unexpected = ", ".join(sorted(run_options))
+        raise TypeError(f"unsupported run option(s): {unexpected}")
+    if isinstance(input_value, str):
+        input_value = input_value.encode(encoding or "utf-8", errors or "strict")
+    environment = dict(os.environ if configured_environment is None else configured_environment)
+    for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX", "GIT_COMMON_DIR"):
+        environment.pop(name, None)
+    environment.setdefault("CARGO_TARGET_DIR", str(ROOT / "target"))
+    with (workspace / "rust-toolchain.toml").open("rb") as stream:
+        channel = tomllib.load(stream).get("toolchain", {}).get("channel")
+    if not isinstance(channel, str) or not channel:
+        raise ValueError(f"{workspace / 'rust-toolchain.toml'} has no toolchain channel")
+    environment["RUSTUP_TOOLCHAIN"] = channel
+    source = load_sibling(
+        "atlas_tool_build_source", Path(__file__).resolve().parent / "atlas_build_source.py"
+    )
+    with tempfile.TemporaryDirectory() as neutral_name:
+        neutral = Path(neutral_name)
+        config = neutral / "config.toml"
+        config.write_text(
+            source.cargo_config_without_patches(ROOT / ".cargo" / "config.toml"),
+            encoding="utf-8",
+            newline="\n",
+        )
+        runner = neutral / "tool_runner.py"
+        runner.write_text(
+            "import os, subprocess, sys\nos.chdir(sys.argv[1])\n"
+            "raise SystemExit(subprocess.run(sys.argv[2:], check=False).returncode)\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        runner_value = json.dumps([sys.executable, str(runner), str(workspace)])
+        command = [
+            "cargo", "--config", str(config), "--config",
+            f"target.'cfg(all())'.runner={runner_value}",
+            "run", "--quiet", "--locked", "--manifest-path", str(workspace / "Cargo.toml"),
+            "--", *arguments,
+        ]
+        result = process_tree.run(
+            command,
+            cwd=neutral,
+            env=environment,
+            input=input_value,
+            timeout=timeout,
+            output_mode=(process_tree.OutputMode.CAPTURE if capture_output
+                         else process_tree.OutputMode.INHERIT),
+        )
+    if encoding is None:
+        return result
+    return subprocess.CompletedProcess(
+        result.args,
+        result.returncode,
+        None if result.stdout is None else result.stdout.decode(encoding, errors or "strict"),
+        None if result.stderr is None else result.stderr.decode(encoding, errors or "strict"),
+    )
 
 
 def registered_member_names(

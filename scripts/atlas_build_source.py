@@ -709,6 +709,25 @@ def _config_text(data: dict[str, object]) -> str:
     return '\n'.join(lines) + '\n'
 
 
+def cargo_config_without_patches(config: Path) -> str:
+    """Render one Cargo config without its development source overrides.
+
+    The returned config retains build and profile settings. Includes are
+    refused because moving their relative paths would change which files Cargo
+    reads; callers must supply a self-contained config.
+    """
+    try:
+        raw = config.read_bytes()
+        text = raw[3:] if raw.startswith(b'\xef\xbb\xbf') else raw
+        data = tomllib.loads(text.decode('utf-8'))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise BuildIdentityError(f"cannot read Cargo configuration {config}: {error}") from error
+    if 'include' in data:
+        raise BuildIdentityError(f"Cargo configuration {config} has relative includes")
+    data.pop('patch', None)
+    return _config_text(data)
+
+
 def _without_missing_patch_entries(
     config: Path, data: dict[str, object]
 ) -> tuple[dict[str, object], bool]:
