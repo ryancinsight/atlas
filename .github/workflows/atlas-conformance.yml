@@ -25,6 +25,9 @@ on:
     branches: [main]
     paths:
       - '.gitmodules'
+      - '.cargo/config.toml'
+      - 'tools/_template/**'
+      - 'tools/version-guard/**'
       - 'repos/**'
       - 'docs/adr/**'
       - 'scripts/**'
@@ -286,10 +289,22 @@ jobs:
     permissions:
       contents: read
 
+  stack-overlay:
+    if: github.event_name != 'schedule' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    uses: ./.github/workflows/atlas-stack-overlay.yml
+    permissions:
+      contents: read
+
+  version-coherence:
+    if: github.event_name != 'schedule' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    uses: ./.github/workflows/version-guard.yml
+    permissions:
+      contents: read
+
   conformance-result:
     name: Debt-class ratchet (counts non-increasing vs committed baseline)
     if: always() && github.event_name != 'schedule'
-    needs: [workflow-lint, conformance-check, script-tests]
+    needs: [workflow-lint, conformance-check, script-tests, stack-overlay, version-coherence, pin-drift]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
@@ -300,13 +315,17 @@ jobs:
           WORKFLOW_LINT_RESULT: ${{ needs.workflow-lint.result }}
           CONFORMANCE_RESULT: ${{ needs.conformance-check.result }}
           SCRIPT_TESTS_RESULT: ${{ needs.script-tests.result }}
+          STACK_OVERLAY_RESULT: ${{ needs.stack-overlay.result }}
+          VERSION_COHERENCE_RESULT: ${{ needs.version-coherence.result }}
+          PIN_DRIFT_RESULT: ${{ needs.pin-drift.result }}
         run: |
           set -euo pipefail
           if [ "$PULL_REQUEST_DRAFT" = "true" ]; then
             echo "::error::Draft pull requests are not eligible for the required conformance verdict."
             exit 1
           fi
-          for result in "$WORKFLOW_LINT_RESULT" "$CONFORMANCE_RESULT" "$SCRIPT_TESTS_RESULT"; do
+          for result in "$WORKFLOW_LINT_RESULT" "$CONFORMANCE_RESULT" "$SCRIPT_TESTS_RESULT" \
+            "$STACK_OVERLAY_RESULT" "$VERSION_COHERENCE_RESULT" "$PIN_DRIFT_RESULT"; do
             if [ "$result" != "success" ]; then
               echo "::error::A required conformance dependency ended with '$result'."
               exit 1
@@ -314,6 +333,7 @@ jobs:
           done
 
   pin-drift:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: Gitlink pins at their members' default branches
     runs-on: ubuntu-latest
     # Not in the pull-request round trip: the measurement below is gated to

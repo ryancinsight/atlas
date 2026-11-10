@@ -24,42 +24,7 @@ on:
     # Daily, off the hour: the remote view is the one that catches a provider
     # bump landing without its consumer sweep, which no push-gated run sees.
     - cron: '17 6 * * *'
-  pull_request:
-    paths:
-      # The sweep builds the tool beneath the stack root, so the overlay in
-      # the root config applies; an overlay edit that misnames a package
-      # fails this job and no other (horae, e772f5fa1).
-      - '.cargo/config.toml'
-      - '.gitmodules'
-      - 'repos/**'
-      - 'repos/**/Cargo.toml'
-      - 'repos/**/Cargo.lock'
-      - 'repos/**/rust-toolchain.toml'
-      - 'scripts/atlas-toolchain-preflight.py'
-      - 'scripts/atlas-provider-integration-audit.py'
-      - 'scripts/atlas-version-guard-sweep.py'
-      - 'scripts/tests/test_atlas_provider_integration_audit.py'
-      - 'scripts/tests/test_atlas_version_guard_sweep.py'
-      - 'tools/_template/**'
-      - 'tools/version-guard/**'
-      - '.github/workflows/version-guard.yml'
-  push:
-    branches: [main]
-    paths:
-      - '.cargo/config.toml'
-      - '.gitmodules'
-      - 'repos/**'
-      - 'repos/**/Cargo.toml'
-      - 'repos/**/Cargo.lock'
-      - 'repos/**/rust-toolchain.toml'
-      - 'scripts/atlas-toolchain-preflight.py'
-      - 'scripts/atlas-provider-integration-audit.py'
-      - 'scripts/atlas-version-guard-sweep.py'
-      - 'scripts/tests/test_atlas_provider_integration_audit.py'
-      - 'scripts/tests/test_atlas_version_guard_sweep.py'
-      - 'tools/_template/**'
-      - 'tools/version-guard/**'
-      - '.github/workflows/version-guard.yml'
+  workflow_call:
 
 concurrency:
   # Pull requests share one group per ref and cancel superseded runs. Default-

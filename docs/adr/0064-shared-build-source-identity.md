@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-24
 - Class: [arch]
-- Driver: [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
+- Driver: [Atlas PR #624](https://github.com/ryancinsight/atlas/pull/624), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
 - Revision: 2026-11-09 — Compacted the as-built contract and required hook installation and publication to materialize the same source-keyed immutable supervisor family; publication keeps that runtime invocation-local so preparing a publication cannot replace the live installed gate.
 
@@ -13,6 +13,8 @@ Atlas members share one Cargo target. Cargo fingerprints and dep-info do not ide
 Concurrent roots therefore need one protocol that prevents a clean or rewrite from invalidating another build while preserving one cache.
 
 ## Decision
+
+Revision 2026-11-09: the required Atlas aggregate includes pinned overlay, version coherence and pin drift. Separate non-required workflow failures escaped the #623 gate; their single reusable owners now feed the aggregate, and incomplete verdicts reject. Consumer requirements and standalone locks must pass against the selected immutable provider cohort before its gitlinks land.
 
 ### Tool and runner source
 
