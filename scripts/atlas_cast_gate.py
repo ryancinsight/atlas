@@ -402,11 +402,14 @@ class Resolution:
     """A workspace as `cargo metadata` resolves it for the host at one revision.
 
     `root_manifest` is the workspace root manifest relative to the export.
-    `members` holds each workspace member's `ResolvedPackage`.
+    `members` holds each workspace member's `ResolvedPackage`. `reach` maps
+    every resolved package name, member or not, to the names it depends on
+    directly or not, merged across the versions that share the name.
     """
 
     root_manifest: str
     members: dict[str, ResolvedPackage]
+    reach: dict[str, frozenset[str]]
 
 
 def _relative(path: str, export: pathlib.Path) -> str:
@@ -473,8 +476,13 @@ def resolution(record: dict, export: pathlib.Path) -> Resolution:
         )
         resolved[package["name"]] = ResolvedPackage(
             signature, frozenset(by_id[current]["name"] for current in reaches))
+    reach: dict[str, frozenset[str]] = {}
+    for package_id in nodes:
+        name = by_id[package_id]["name"]
+        reach[name] = reach.get(name, frozenset()) | frozenset(
+            by_id[current]["name"] for current in reached(package_id))
     root = _relative(record["workspace_root"], export)
-    return Resolution(f"{root}/Cargo.toml" if root else "Cargo.toml", resolved)
+    return Resolution(f"{root}/Cargo.toml" if root else "Cargo.toml", resolved, reach)
 
 
 def read_resolution(export: pathlib.Path, manifest: str,
@@ -495,6 +503,39 @@ def read_resolution(export: pathlib.Path, manifest: str,
         capture_output=True, text=True, encoding="utf-8", check=True,
     ).stdout
     return resolution(json.loads(out), export)
+
+
+def changed_table_packages(base_text: str | None, tip_text: str | None) -> frozenset[str]:
+    """The package names of every `[workspace.dependencies]` entry the range
+    adds, removes or changes, at either side (`package = ...` renames)."""
+    def table(text: str | None) -> dict:
+        data = tomllib.loads(text) if text is not None else {}
+        workspace = data.get("workspace")
+        entries = workspace.get("dependencies") if isinstance(workspace, dict) else None
+        return entries if isinstance(entries, dict) else {}
+
+    def package_name(key: str, entry: object) -> str:
+        renamed = entry.get("package") if isinstance(entry, dict) else None
+        return renamed if isinstance(renamed, str) else key
+
+    base, tip = table(base_text), table(tip_text)
+    return frozenset(
+        package_name(key, side[key])
+        for key in base.keys() | tip.keys() if base.get(key) != tip.get(key)
+        for side in (base, tip) if key in side
+    )
+
+
+def without_workspace_dependencies(text: str | None) -> dict | None:
+    """A root manifest with `[workspace.dependencies]` removed: those entries
+    reach a package only through its own resolved dependencies."""
+    if text is None:
+        return None
+    data = tomllib.loads(text)
+    workspace = data.get("workspace")
+    if isinstance(workspace, dict):
+        workspace.pop("dependencies", None)
+    return data
 
 
 def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:

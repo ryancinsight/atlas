@@ -1181,6 +1181,17 @@ def test_the_gate_counts_moves_and_reads_standalone_crates(tmp_path):
     assert judge(moved, fuzzed, [fz], "fuzz/Cargo.toml", with_base=False) == 1
 
 
+def test_a_root_manifest_compares_without_its_dependency_table():
+    before = '[workspace]\nmembers = ["a"]\n[workspace.dependencies]\nx = "1"\n'
+    after = '[workspace]\nmembers = ["a"]\n[workspace.dependencies]\ny = "2"\n'
+    profile = after + '[profile.dev]\ndebug-assertions = false\n'
+    assert (gate.without_workspace_dependencies(before)
+            == gate.without_workspace_dependencies(after))
+    assert (gate.without_workspace_dependencies(before)
+            != gate.without_workspace_dependencies(profile))
+    assert gate.without_workspace_dependencies(None) is None
+
+
 def metadata_record(root: pathlib.Path) -> dict:
     """A `cargo metadata` record of member `app` depending on path package
     `dep` (in `vendor/one`) and registry package `leaf`, which `dep` also
@@ -1349,10 +1360,32 @@ def test_reach_follows_every_dependency_edge(tmp_path):
     resolved = gate.resolution(metadata_record(tmp_path), tmp_path)
     assert resolved.root_manifest == "Cargo.toml"
     assert resolved.members["app"].reaches == {"dep", "leaf"}
+    assert resolved.reach == {"app": {"dep", "leaf"}, "dep": {"leaf"}, "leaf": frozenset()}
 
     record = metadata_record(tmp_path)
     _node(record, "app-id")["deps"].pop()
-    assert gate.resolution(record, tmp_path).members["app"].reaches == {"dep", "leaf"}
+    resolved = gate.resolution(record, tmp_path)
+    assert resolved.members["app"].reaches == {"dep", "leaf"}
+    assert resolved.reach["app"] == {"dep", "leaf"}
+
+
+def test_reach_merges_every_version_of_a_name(tmp_path):
+    """`leaf@1.0.0` reaches `x` and `leaf@2.0.0` reaches `y`."""
+    record = metadata_record(tmp_path)
+
+    def add(package_id, name, version, *dependencies):
+        record["packages"].append(
+            {**_package(record, "leaf"), "id": package_id, "name": name, "version": version})
+        record["resolve"]["nodes"].append({"id": package_id, "features": [], "deps": [
+            {"pkg": f"{dependency}-id", "name": dependency,
+             "dep_kinds": [{"kind": None, "target": None}]} for dependency in dependencies]})
+
+    add("x-id", "x", "1.0.0")
+    add("y-id", "y", "1.0.0")
+    add("leaf2-id", "leaf", "2.0.0", "y")
+    _node(record, "leaf-id")["deps"].append(
+        {"pkg": "x-id", "name": "x", "dep_kinds": [{"kind": None, "target": None}]})
+    assert gate.resolution(record, tmp_path).reach["leaf"] == {"x", "y"}
 
 
 def test_a_path_package_outside_the_export_is_refused(tmp_path):
@@ -1360,6 +1393,22 @@ def test_a_path_package_outside_the_export_is_refused(tmp_path):
     _package(record, "dep")["manifest_path"] = str(tmp_path / "elsewhere" / "Cargo.toml")
     with pytest.raises(ValueError):
         gate.resolution(record, tmp_path / "export")
+
+
+@pytest.mark.parametrize("base, tip, expected", [
+    ('x = "1"\ny = "1"\n', 'x = "2"\ny = "1"\n', {"x"}),
+    ('x = "1"\n', '', {"x"}),
+    ('', 'z = { path = "crates/z" }\n', {"z"}),
+    ('a = { path = "one", package = "core" }\n',
+     'a = { path = "two", package = "fastcore" }\n', {"core", "fastcore"}),
+    ('x = { version = "1", features = ["f"] }\n', 'x = { version = "1" }\n', {"x"}),
+    ('x = "1"\n', 'x = "1"\n', set()),
+])
+def test_changed_table_packages_name_both_sides(base, tip, expected):
+    def manifest(table):
+        return '[workspace]\nmembers = []\n[workspace.dependencies]\n' + table
+
+    assert gate.changed_table_packages(manifest(base), manifest(tip)) == frozenset(expected)
 
 
 def test_resolution_reads_the_committed_lock(tmp_path, monkeypatch):
