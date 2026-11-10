@@ -56,6 +56,7 @@ from atlas_build_stamps import (
     _unstamped_git,
     _write_git_stamps,
 )
+from atlas_build_writers import BUILDING, CLEANING, COMPLETE, mark, resumable, run_identity
 
 DEFAULT_LEASE_SECONDS = 900
 
@@ -231,6 +232,9 @@ def _run_build(
 
     inputs = read_inputs()
     first_spec = inputs[packages[0]][1]
+    writer_identity = run_identity(
+        first_spec, {package: str(inputs[package][0]["digest"]) for package in packages}
+    )
     records = {package: record_path(spec) for package, (_, spec) in inputs.items()}
     environment = dict(os.environ)
     environment["CARGO_TARGET_DIR"] = target_dir.as_posix()
@@ -397,16 +401,27 @@ def _run_build(
             for package, (dependencies, _) in inputs.items()
         }
         rebuilt: frozenset[str] = frozenset()
+        # Packages an earlier run of this identity cleaned and was killed
+        # while rebuilding: held exclusive and discovered afresh like the
+        # cleaned ones, but not cleaned again. A stale Git stamp still cleans.
+        resumed: frozenset[str] = frozenset()
         targets: frozenset[str] = frozenset()
         if any(stale.values()):
+            marked = resumable(target_dir, held, writer_identity) - frozenset().union(
+                *(state.stale_git for state in states.values())
+            )
             if clean_command is not None:
-                _run_checked(clean_command, execution_root, environment)
                 # Opaque, so it may have cleaned everything it held; only the
                 # stale Git packages are certainly cleaned, by Cargo below.
-                rebuilt = held
                 targets = held & frozenset().union(
                     *(states[package].stale_git for package in packages if stale[package])
                 )
+                if held <= marked and not targets:
+                    resumed = held
+                else:
+                    mark(target_dir, held, CLEANING, writer_identity)
+                    _run_checked(clean_command, execution_root, environment)
+                    rebuilt = held
             else:
                 # Each stale package cleans what its own rule asked for in the
                 # widen loop, never recomputed: every package cleaned here was
@@ -420,7 +435,8 @@ def _run_build(
                         named[package] = states[package].current
                     else:
                         own &= states[package].stale_git
-                    targets |= own
+                    resumed |= own & marked
+                    targets |= own - marked
                 rebuilt = targets
         for package, (dependencies, _) in inputs.items():
             git_built[package] |= set(targets) & _git_names(dependencies)
@@ -432,6 +448,7 @@ def _run_build(
         # stalled every push that shared its dependencies for over an hour. A
         # `cargo clean` naming no package would clean everything.
         if targets:
+            mark(target_dir, targets, CLEANING, writer_identity)
             _run_checked(
                 [
                     *_cargo_command(),
@@ -445,7 +462,10 @@ def _run_build(
                 environment,
             )
         # The packages whose artifacts this run writes and discovers afresh.
-        fresh = {*packages, *rebuilt}
+        fresh = {*packages, *rebuilt, *resumed}
+        # The last writer of every package the command writes, from here until
+        # its record lands: a kill leaves this identity's mark for a rerun.
+        mark(target_dir, fresh, BUILDING, writer_identity)
         if not artifact_paths and all(
             named[package] is not None or recorded_packages[package] <= fresh
             for package in packages
@@ -588,4 +608,5 @@ def _run_build(
                     tuple(target_dir / relative for relative in artifact["files"]),
                 )
             )
+        mark(target_dir, fresh, COMPLETE, writer_identity)
     return tuple(results)

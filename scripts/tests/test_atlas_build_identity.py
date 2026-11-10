@@ -41,6 +41,7 @@ import atlas_build_records as build_records
 import atlas_build_snapshot as build_snapshot
 import atlas_build_source as build_source
 import atlas_build_stamps as build_stamps
+import atlas_build_writers as writers
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
@@ -1724,6 +1725,76 @@ class BuildIdentityTestCase(unittest.TestCase):
         third = self.dependency_build("second", discover=True, snapshot=second_snapshot)
         self.assertEqual(third.status, "reused")
         self.assertFalse(third.cleaned)
+
+    def killed_run(self, source_token: str, in_clean: bool = False) -> list[str]:
+        """A run the supervisor kills: `cargo clean` is recorded, then the build command dies.
+
+        With `in_clean` the kill lands inside the clean instead.
+        """
+        cleaned: list[str] = []
+        run_checked = identity._run_checked
+
+        def killing(command, cwd, environment):
+            if (names := cleaned_names(command)) is not None:
+                if in_clean:
+                    raise identity.IdentityError("killed inside the clean")
+                cleaned.extend(names)
+                return
+            if str(self.build_script) in command:
+                raise identity.IdentityError("killed inside the command")
+            run_checked(command, cwd, environment)
+
+        with patch.object(identity, "_run_checked", side_effect=killing):
+            with self.assertRaises(identity.IdentityError):
+                self.dependency_build(source_token, discover=True, clean=False)
+        return sorted(cleaned)
+
+    def killed_after_source_change(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        self.commit_source_change("fn main() { changed(); }\n", "change source")
+        self.assertEqual(self.killed_run("second"), ["demo"])
+
+    def test_a_killed_run_is_resumed_without_cleaning_again(self) -> None:
+        # A supervisor deadline between the clean and the record leaves the
+        # old record beside rebuilt artifacts. Cleaning again on every rerun
+        # made a cold build that outlasts the deadline impossible to finish.
+        self.killed_after_source_change()
+        self.assertEqual(self.cleaned_packages("second"), [])
+        third = self.dependency_build("second", discover=True)
+        self.assertEqual(third.status, "reused")
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "second")
+
+    def test_a_killed_run_is_resumed_again_after_a_second_kill(self) -> None:
+        self.killed_after_source_change()
+        self.assertEqual(self.killed_run("second"), [])
+        self.assertEqual(self.cleaned_packages("second"), [])
+
+    def test_a_different_source_cleans_after_a_killed_run(self) -> None:
+        self.killed_after_source_change()
+        self.commit_source_change("fn main() { changed_again(); }\n", "change again")
+        self.assertEqual(self.cleaned_packages("third"), ["demo"])
+
+    def test_a_rewrite_after_a_finished_run_cleans(self) -> None:
+        # The resumed run finishes, so its mark is complete; a later rewrite
+        # of its artifacts by any other writer is not its progress.
+        self.killed_after_source_change()
+        self.assertEqual(self.cleaned_packages("second"), [])
+        self.artifact.write_text("written by another build", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def test_a_run_killed_inside_its_clean_cleans_again(self) -> None:
+        self.killed_after_source_change()
+        self.commit_source_change("fn main() { changed_again(); }\n", "change again")
+        self.assertEqual(self.killed_run("third", in_clean=True), [])
+        self.assertEqual(self.cleaned_packages("third"), ["demo"])
+
+    def test_an_unreadable_writer_mark_cleans(self) -> None:
+        self.killed_after_source_change()
+        mark = writers.writer_path(build_source._canonical(self.target), "demo")
+        mark.write_text("{", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
 
     def test_a_shape_change_cleans_every_path_package(self) -> None:
         # `dep`'s own record differs only in `features`, a shape field.
