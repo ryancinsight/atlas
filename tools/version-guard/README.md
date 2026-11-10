@@ -36,9 +36,9 @@ path deduplication remains unchanged.
 
 ## Validation
 
-From a directory outside the Atlas checkout, with the committed Rust version,
-run `cargo test --manifest-path /path/to/atlas/tools/version-guard/Cargo.toml
---locked`, then Clippy for all targets and Rustfmt. This standalone tool check
+From the tool workspace, with the committed Rust version, run
+`cargo nextest run --locked`, then Clippy for all targets and Rustfmt. This
+standalone tool check
 avoids applying the stack's development overlay to the tool's own lockfile.
 It does not replace the normal Git hooks or the root coherence sweep, which
 still measures the registered provider graph and reports requirement drift.
@@ -49,3 +49,6 @@ registry collisions, same-provider version conflicts, and local Git trees
 containing an unmaterialized remote target. Resolver unit tests cover ambiguous
 path ownership and lexical escapes. The original coherence tests remain intact
 in `src/coherence/tests.rs`.
+
+`version-guard requirements` evaluates ordered JSON rows through
+`semver::VersionReq`, preserves their identities, and fails on malformed input.
