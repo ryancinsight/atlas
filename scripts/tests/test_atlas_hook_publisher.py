@@ -776,6 +776,8 @@ class HostedMergeTestCase(unittest.TestCase):
         repo = scratch / "member"
         repo.mkdir()
         self._git(repo, "init", "-q", "-b", "main")
+        self._git(repo, "config", "user.email", "t@t")
+        self._git(repo, "config", "user.name", "t")
         (repo / "value.txt").write_text("base\n", encoding="utf-8")
         self._git(repo, "add", "value.txt")
         self._git(repo, "commit", "-q", "-m", "base")
@@ -853,6 +855,7 @@ class HostedMergeTestCase(unittest.TestCase):
             self._git(repo, "push", "-q", "origin", f"{commit}:refs/test/{name}")
         self._pull_ref(remote, merge)
         return repo, remote, {
+            "base": base,
             "default": default,
             "candidate": candidate,
             "tree": tree,
@@ -861,6 +864,164 @@ class HostedMergeTestCase(unittest.TestCase):
             "reversed_parents": reversed_parents,
             "wrong_tree": wrong_tree,
         }
+
+    def test_stale_base_gets_one_same_tree_refresh(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-refresh-") as temp:
+            repo, remote, graph = self._graph(Path(temp))
+            hook = [("pre-push", b"#!/bin/sh\nexit 0\n")]
+            candidate_tree = self._git(
+                repo, "rev-parse", f"{graph['candidate']}^{{tree}}"
+            )
+            stale_merge = self._git(
+                repo,
+                "commit-tree",
+                candidate_tree,
+                "-p",
+                graph["base"],
+                "-p",
+                graph["candidate"],
+                "-m",
+                "stale hosted merge",
+            )
+            self._git(repo, "push", "-q", "origin", f"{stale_merge}:refs/test/stale")
+            self._pull_ref(remote, stale_merge)
+            state = {
+                "baseTargetOid": graph["default"],
+                "headRefOid": graph["candidate"],
+                "potentialMergeCommit": {"oid": stale_merge},
+                "number": 7,
+            }
+
+            with patch.object(
+                _lock_form, "hosting_in", return_value=json.dumps(state)
+            ):
+                refreshed = _lock_form.refresh_hook_publication(
+                    repo,
+                    self.URL,
+                    graph["default"],
+                    graph["candidate"],
+                    graph["tree"],
+                    hook,
+                    (),
+                    "refresh\n",
+                )
+
+            self.assertEqual(
+                self._git(repo, "show", "-s", "--format=%P", refreshed),
+                graph["candidate"],
+            )
+            self.assertEqual(
+                self._git(repo, "rev-parse", f"{refreshed}^{{tree}}"),
+                candidate_tree,
+            )
+            self.assertEqual(
+                self._git(repo, "diff", "--name-only", graph["candidate"], refreshed),
+                "",
+            )
+            self.assertEqual(
+                self._git(repo, "merge-tree", "--write-tree", graph["default"], refreshed),
+                graph["tree"],
+            )
+            self.assertTrue(
+                self._git(repo, "ls-tree", refreshed, ".githooks/pre-push").startswith(
+                    "100755 blob "
+                )
+            )
+
+            state["headRefOid"] = refreshed
+            with (
+                patch.object(_lock_form, "hosting_in", return_value=json.dumps(state)),
+                self.assertRaisesRegex(RuntimeError, "still pending"),
+            ):
+                _lock_form.refresh_hook_publication(
+                    repo, self.URL, graph["default"], refreshed, graph["tree"],
+                    hook, (), "refresh\n",
+                )
+
+            stale_refreshed = self._git(
+                repo, "commit-tree", candidate_tree, "-p", graph["base"],
+                "-p", refreshed, "-m", "stale refreshed merge",
+            )
+            self._git(
+                repo, "push", "-q", "origin", f"{stale_refreshed}:refs/test/stale-refresh"
+            )
+            self._pull_ref(remote, stale_refreshed)
+            state["potentialMergeCommit"] = {"oid": stale_refreshed}
+            count = self._git(repo, "rev-list", "--all", "--count")
+            with (
+                patch.object(_lock_form, "hosting_in", return_value=json.dumps(state)),
+                self.assertRaisesRegex(RuntimeError, "still pending"),
+            ):
+                _lock_form.refresh_hook_publication(
+                    repo, self.URL, graph["default"], refreshed, graph["tree"],
+                    hook, (), "refresh\n",
+                )
+            self.assertEqual(self._git(repo, "rev-list", "--all", "--count"), count)
+
+            fresh_merge = self._git(
+                repo,
+                "commit-tree",
+                graph["tree"],
+                "-p",
+                graph["default"],
+                "-p",
+                refreshed,
+                "-m",
+                "fresh hosted merge",
+            )
+            self._git(repo, "push", "-q", "origin", f"{fresh_merge}:refs/test/fresh")
+            self._pull_ref(remote, fresh_merge)
+            state.update(
+                baseTargetOid=graph["default"],
+                headRefOid=refreshed,
+                potentialMergeCommit={"oid": fresh_merge},
+            )
+            count = self._git(repo, "rev-list", "--all", "--count")
+            with patch.object(
+                _lock_form, "hosting_in", return_value=json.dumps(state)
+            ):
+                self.assertIsNone(
+                    _lock_form.refresh_hook_publication(
+                        repo,
+                        self.URL,
+                        graph["default"],
+                        refreshed,
+                        graph["tree"],
+                        hook,
+                        (),
+                        "refresh\n",
+                    )
+                )
+            self.assertEqual(self._git(repo, "rev-list", "--all", "--count"), count)
+
+            default_tree = self._git(
+                repo, "rev-parse", f"{graph['default']}^{{tree}}"
+            )
+            next_default = self._git(
+                repo, "commit-tree", default_tree, "-p", graph["default"],
+                "-m", "next default",
+            )
+            state["baseTargetOid"] = next_default
+            next_landing = _lock_form.hook_landing_tree(
+                repo, next_default, refreshed, hook, ()
+            )
+            with patch.object(
+                _lock_form, "hosting_in", return_value=json.dumps(state)
+            ):
+                next_refresh = _lock_form.refresh_hook_publication(
+                    repo, self.URL, next_default, refreshed, next_landing,
+                    hook, (), "refresh\n",
+                )
+            self.assertEqual(
+                self._git(repo, "show", "-s", "--format=%P", next_refresh), refreshed
+            )
+            self.assertEqual(
+                self._git(
+                    repo, "show", "-s",
+                    "--format=%(trailers:key=Publication-Base,valueonly)", next_refresh,
+                ),
+                next_default,
+            )
 
     def _state(self, graph: dict[str, str], **updates) -> str:
         state = {
@@ -1591,7 +1752,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                             "55555555",
                             "",
                             "origin/main",
-                            "base",
+                            "b" * 40,
                         ]
                     )
                     merge = "6" * 40
@@ -1604,7 +1765,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                         if command == ("rev-parse", "FETCH_HEAD"):
                             return merge
                         if command == ("show", "-s", "--format=%P", merge):
-                            return "base commit"
+                            return f"{'b' * 40} {'c' * 40}"
                         if command == ("rev-parse", f"{merge}^{{tree}}"):
                             return "landing"
                         return next(initial_git_results)
@@ -1620,8 +1781,8 @@ class PublisherScopeTestCase(unittest.TestCase):
                         if stage == "graphql":
                             return json.dumps(
                                 {
-                                    "baseTargetOid": "base",
-                                    "headRefOid": "commit",
+                                    "baseTargetOid": "b" * 40,
+                                    "headRefOid": "c" * 40,
                                     "potentialMergeCommit": {"oid": merge},
                                     "number": 7,
                                 }
@@ -1649,7 +1810,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                             "hook_publication_base",
                             side_effect=lambda _repo, default, *_args: default,
                         ),
-                        patch.object(_lock_form, "hook_commit", return_value="commit"),
+                        patch.object(_lock_form, "hook_commit", return_value="c" * 40),
                         patch.object(
                             _lock_form, "hook_landing_tree", return_value="landing"
                         ) as landing_guard,
@@ -1661,8 +1822,8 @@ class PublisherScopeTestCase(unittest.TestCase):
 
                     landing_guard.assert_called_once_with(
                         root / "repos" / "alpha",
-                        "base",
-                        "commit",
+                        "b" * 40,
+                        "c" * 40,
                         [("pre-push", b"#!/bin/sh\nexit 0\n")],
                         (),
                     )
