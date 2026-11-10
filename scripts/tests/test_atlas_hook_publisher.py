@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import json
 import subprocess
 import sys
 import tempfile
@@ -41,6 +42,258 @@ class HookBranchPushTestCase(unittest.TestCase):
         self._git(repo, "add", "value.txt")
         self._git(repo, "commit", "-q", "-m", value)
         return self._git(repo, "rev-parse", "HEAD")
+
+    def test_corrected_publication_reconciles_default_and_hook_branch(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-base-") as temp:
+            repo = Path(temp)
+            base = self._commit_after_init(repo)
+            self._git(repo, "switch", "-q", "-c", "publication", base)
+            hook = repo / ".githooks" / "pre-push"
+            hook.parent.mkdir()
+            hook.write_bytes(b"old\n")
+            self._git(repo, "add", ".githooks/pre-push")
+            self._git(repo, "commit", "-q", "-m", "old hook")
+            published = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "switch", "-q", "main")
+            (repo / "README.md").write_text("current default\n", encoding="utf-8")
+            self._git(repo, "add", "README.md")
+            self._git(repo, "commit", "-q", "-m", "default advance")
+            default = self._git(repo, "rev-parse", "HEAD")
+            self._git(
+                repo,
+                "update-ref",
+                "refs/remotes/origin/ci/sync-stack-hooks",
+                published,
+            )
+
+            (repo / "index-only.txt").write_text("preserve\n", encoding="utf-8")
+            self._git(repo, "add", "index-only.txt")
+            head_before = self._git(repo, "rev-parse", "HEAD")
+            index_before = self._git(repo, "diff", "--cached", "--binary")
+
+            selected = _lock_form.hook_publication_base(
+                repo, default, [("pre-push", b"new\n")], ()
+            )
+            candidate = _lock_form.hook_commit(
+                repo,
+                selected,
+                [("pre-push", b"new\n")],
+                "corrected hook\n",
+            )
+            landed = _lock_form.hook_landing_tree(
+                repo, default, candidate, [("pre-push", b"new\n")], ()
+            )
+
+            self.assertEqual(selected, published)
+            self.assertEqual(
+                self._git(repo, "show", "-s", "--format=%P", candidate),
+                published,
+            )
+            self.assertEqual(
+                self._git(repo, "show", f"{landed}:README.md"), "current default"
+            )
+            self.assertEqual(
+                self._git(repo, "show", f"{landed}:.githooks/pre-push"), "new"
+            )
+            self.assertEqual(
+                self._git(repo, "diff", "--name-only", default, landed),
+                ".githooks/pre-push",
+            )
+            self.assertEqual(
+                self._git(repo, "diff", "--name-only", published, candidate),
+                ".githooks/pre-push",
+            )
+            self.assertTrue(
+                self._git(repo, "ls-tree", landed, ".githooks/pre-push").startswith(
+                    "100755 blob "
+                )
+            )
+            self.assertEqual(self._git(repo, "rev-parse", "HEAD"), head_before)
+            self.assertEqual(self._git(repo, "diff", "--cached", "--binary"), index_before)
+
+            self._git(
+                repo,
+                "update-ref",
+                "refs/remotes/origin/ci/sync-stack-hooks",
+                candidate,
+            )
+            selected = _lock_form.hook_publication_base(
+                repo, default, [("pre-push", b"new\n")], ()
+            )
+            self.assertEqual(selected, candidate)
+            self.assertIsNone(
+                _lock_form.hook_commit(
+                    repo, selected, [("pre-push", b"new\n")], "corrected hook\n"
+                )
+            )
+            self.assertEqual(
+                _lock_form.hook_landing_tree(
+                    repo, default, selected, [("pre-push", b"new\n")], ()
+                ),
+                landed,
+            )
+
+    def test_corrected_publication_refuses_non_hook_branch_work(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-base-unique-") as temp:
+            repo = Path(temp)
+            base = self._commit_after_init(repo)
+            self._git(repo, "switch", "-q", "-c", "publication", base)
+            hook = repo / ".githooks" / "pre-push"
+            hook.parent.mkdir()
+            hook.write_bytes(b"old\n")
+            (repo / "unique.txt").write_text("preserve\n", encoding="utf-8")
+            self._git(repo, "add", ".githooks/pre-push", "unique.txt")
+            self._git(repo, "commit", "-q", "-m", "unique work")
+            published = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "switch", "-q", "main")
+            default = self._commit(repo, "default advance")
+            self._git(
+                repo,
+                "update-ref",
+                "refs/remotes/origin/ci/sync-stack-hooks",
+                published,
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "unique.txt"):
+                _lock_form.hook_publication_base(
+                    repo, default, [("pre-push", b"new\n")], ()
+                )
+
+    def test_corrected_publication_refuses_a_non_hook_renamed_to_a_hook(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-base-rename-") as temp:
+            repo = Path(temp)
+            self._commit_after_init(repo)
+            (repo / "README.md").write_text("member documentation\n", encoding="utf-8")
+            self._git(repo, "add", "README.md")
+            self._git(repo, "commit", "-q", "-m", "member documentation")
+            base = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "switch", "-q", "-c", "publication", base)
+            (repo / ".githooks").mkdir()
+            self._git(repo, "mv", "README.md", ".githooks/pre-push")
+            self._git(repo, "commit", "-q", "-m", "hide non-hook deletion")
+            published = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "switch", "-q", "main")
+            default = self._commit(repo, "default advance")
+            self._git(
+                repo,
+                "update-ref",
+                "refs/remotes/origin/ci/sync-stack-hooks",
+                published,
+            )
+
+            self.assertEqual(
+                self._git(
+                    repo,
+                    "diff",
+                    "-M",
+                    "--name-status",
+                    f"{default}...{published}",
+                ),
+                "R100\tREADME.md\t.githooks/pre-push",
+            )
+            with self.assertRaisesRegex(RuntimeError, "README.md"):
+                _lock_form.hook_publication_base(
+                    repo,
+                    default,
+                    [("pre-push", b"member documentation\n")],
+                    (),
+                )
+
+    def test_publication_refuses_conflicting_or_combined_hook_merges(self) -> None:
+        for default_hook, published_hook, error in (
+            (b"other\n", b"new\n", "conflict"),
+            (
+                b"a\nb\nc\nd\ne\nf\nchanged\n",
+                b"new\nb\nc\nd\ne\nf\ng\n",
+                "differs",
+            ),
+        ):
+            with self.subTest(default_hook=default_hook):
+                with tempfile.TemporaryDirectory(prefix="atlas-publish-merge-") as temp:
+                    repo = Path(temp)
+                    self._commit_after_init(repo)
+                    hook = repo / ".githooks" / "pre-push"
+                    hook.parent.mkdir()
+                    hook.write_bytes(b"a\nb\nc\nd\ne\nf\ng\n")
+                    self._git(repo, "add", ".githooks/pre-push")
+                    self._git(repo, "commit", "-q", "-m", "shared hook")
+                    base = self._git(repo, "rev-parse", "HEAD")
+                    candidate = _lock_form.hook_commit(
+                        repo, base, [("pre-push", published_hook)], "publication\n"
+                    )
+                    hook.write_bytes(default_hook)
+                    self._git(repo, "add", ".githooks/pre-push")
+                    self._git(repo, "commit", "-q", "-m", "default hook advance")
+                    default = self._git(repo, "rev-parse", "HEAD")
+                    with self.assertRaisesRegex(RuntimeError, error):
+                        _lock_form.hook_landing_tree(
+                            repo, default, candidate, [("pre-push", published_hook)], ()
+                        )
+                    self.assertEqual(self._git(repo, "rev-parse", "HEAD"), default)
+                    self.assertEqual(hook.read_bytes(), default_hook)
+                    self.assertEqual(self._git(repo, "status", "--porcelain"), "")
+
+    def test_current_publication_still_runs_the_real_landing_guard(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-current-") as temp:
+            scratch = Path(temp)
+            root = scratch / "atlas"
+            root.mkdir()
+            self._commit_after_init(root)
+            owned = root / "scripts" / "git-hooks" / "pre-push"
+            owned.parent.mkdir(parents=True)
+            hook = b"#!/bin/sh\nexit 0\n"
+            owned.write_bytes(hook)
+            self._git(root, "add", "scripts/git-hooks/pre-push")
+            self._git(root, "commit", "-q", "-m", "owned hook")
+            atlas_remote = scratch / "atlas.git"
+            subprocess.run(["git", "init", "-q", "--bare", str(atlas_remote)], check=True)
+            self._git(root, "remote", "add", "origin", str(atlas_remote))
+            self._git(root, "push", "-q", "origin", "main")
+            self._git(root, "remote", "set-head", "origin", "main")
+
+            member = root / "repos" / "alpha"
+            member.mkdir(parents=True)
+            self._commit_after_init(member)
+            installed = member / ".githooks" / "pre-push"
+            installed.parent.mkdir()
+            installed.write_bytes(hook)
+            self._git(member, "add", ".githooks/pre-push")
+            self._git(member, "update-index", "--chmod=+x", ".githooks/pre-push")
+            self._git(member, "commit", "-q", "-m", "installed hook")
+            default = self._git(member, "rev-parse", "HEAD")
+            member_remote = scratch / "member.git"
+            subprocess.run(["git", "init", "-q", "--bare", str(member_remote)], check=True)
+            self._git(member, "remote", "add", "origin", str(member_remote))
+            self._git(member, "push", "-q", "origin", "main")
+            self._git(member, "remote", "set-head", "origin", "main")
+
+            args = Namespace(members=["alpha"], push=True, source_ref=None)
+            output = io.StringIO()
+            with (
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "REPOS", root / "repos"),
+                patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+                patch.object(
+                    _lock_form,
+                    "hook_landing_tree",
+                    wraps=_lock_form.hook_landing_tree,
+                ) as landing_guard,
+                patch.object(_lock_form, "push_hook_branch") as push_hook_branch,
+                redirect_stdout(output),
+            ):
+                self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
+
+            landing_guard.assert_called_once_with(
+                member, default, default, [("pre-push", hook)], ()
+            )
+            push_hook_branch.assert_not_called()
+            self.assertIn("current: alpha", output.getvalue())
+
+    def _commit_after_init(self, repo: Path) -> str:
+        self._git(repo, "init", "-q", "-b", "main")
+        self._git(repo, "config", "user.email", "t@t")
+        self._git(repo, "config", "user.name", "t")
+        return self._commit(repo, "base")
 
     def test_push_uses_absent_and_ancestral_remote_tip_leases(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-lease-") as temp:
@@ -176,6 +429,61 @@ class HookBranchPushTestCase(unittest.TestCase):
             )
             self.assertEqual(listing, b"")
 
+    def test_committed_hooks_ignore_replacement_objects(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-replacements-") as temporary:
+            repo = Path(temporary)
+            self._commit_after_init(repo)
+            hook = repo / "scripts" / "git-hooks" / "pre-push"
+            hook.parent.mkdir(parents=True)
+            hook.write_bytes(b"#!/bin/sh\nexit 7\n")
+            self._git(repo, "add", "scripts/git-hooks/pre-push")
+            self._git(repo, "commit", "-qm", "Trusted hook")
+            trusted = self._git(repo, "rev-parse", "HEAD")
+            hook.write_bytes(b"#!/bin/sh\nexit 0\n")
+            self._git(repo, "add", "scripts/git-hooks/pre-push")
+            self._git(repo, "commit", "-qm", "Replacement hook")
+            replacement = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "replace", trusted, replacement)
+            self.assertEqual(_lock_form.committed_hooks(repo, trusted),
+                             [("pre-push", b"#!/bin/sh\nexit 7\n")])
+
+    def test_push_materializes_and_runs_the_committed_process_owner(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-runtime-") as temporary:
+            root = Path(temporary)
+            atlas, member, remote = root / "atlas", root / "member", root / "remote.git"
+            atlas.mkdir()
+            member.mkdir()
+            self._commit_after_init(atlas)
+            self._commit_after_init(member)
+            for name in ("pre_push_gate.py", "atlas_build_lock.py", "process_tree.py", "windows_process.py", "darwin_process.py"):
+                target = atlas / "scripts" / name
+                target.parent.mkdir(exist_ok=True)
+                target.write_bytes((SCRIPT.parent / name).read_bytes())
+                self._git(atlas, "add", "scripts/" + name)
+            self._git(atlas, "commit", "-qm", "Process owner")
+            source = self._git(atlas, "rev-parse", "HEAD")
+            self._git(root, "init", "-q", "--bare", str(remote))
+            self._git(member, "remote", "add", "origin", str(remote))
+            self._git(member, "push", "-q", "origin", "main")
+            desired = self._commit(member, "published")
+            hook = b"""#!/bin/sh
+if [ "${1:-}" = --bounded-entry ]; then
+  shift
+  cat > hook-stdin.txt
+  printf '%s\\n' "$ATLAS_PRE_PUSH_RUNTIME" > runtime-path.txt
+  exit 0
+fi
+exec "$ATLAS_PRE_PUSH_PYTHON" -I "$ATLAS_PRE_PUSH_RUNTIME/pre_push_gate.py" direct push "$0" "$@"
+"""
+            with patch.object(_lock_form, "ROOT", atlas):
+                _lock_form.push_hook_branch(member, desired, "ci/sync-stack-hooks", hook, source)
+            self.assertEqual(self._git(remote, "rev-parse", "refs/heads/ci/sync-stack-hooks"), desired)
+            self.assertEqual((member / "hook-stdin.txt").read_text().split(),
+                             [desired, desired, "refs/heads/ci/sync-stack-hooks", "0" * 40])
+            runtime = Path((member / "runtime-path.txt").read_text().strip())
+            self.assertEqual(runtime.name, source)
+            self.assertFalse(runtime.exists(), "publication runtime was not retired")
+
     def test_push_uses_exact_ref_and_observed_oid(self) -> None:
         ref = "refs/heads/ci/sync-stack-hooks"
         observed = "a" * 40
@@ -260,15 +568,41 @@ class PullRequestCommandTestCase(unittest.TestCase):
     def test_existing_pull_request_is_reused_and_enqueued(self) -> None:
         repo = Path("member")
         url = "https://github.com/example/member/pull/7"
+        default = "d" * 40
+        candidate = "c" * 40
+        merge = "a" * 40
+        tree = "b" * 40
         responses = [
             subprocess.CompletedProcess([], 0, stdout=f"{url}\tfalse\n", stderr=""),
+            subprocess.CompletedProcess(
+                [],
+                0,
+                stdout=json.dumps(
+                    {
+                        "baseTargetOid": default,
+                        "headRefOid": candidate,
+                        "potentialMergeCommit": {"oid": merge},
+                        "number": 7,
+                    }
+                ),
+                stderr="",
+            ),
             subprocess.CompletedProcess([], 0, stdout="", stderr=""),
         ]
-        with patch.object(_lock_form.subprocess, "run", side_effect=responses) as run:
+        with (
+            patch.object(_lock_form.subprocess, "run", side_effect=responses) as run,
+            patch.object(
+                _lock_form,
+                "git_in",
+                side_effect=["", merge, f"{default} {candidate}", tree],
+            ),
+        ):
             found, created = _lock_form.pull_request_for(
                 repo, "ci/sync-stack-hooks", "main", "subject", "body"
             )
-            _lock_form.enqueue_pull_request(repo, found)
+            _lock_form.enqueue_pull_request(
+                repo, found, default, candidate, tree
+            )
 
         self.assertEqual((found, created), (url, False))
         self.assertEqual(
@@ -280,27 +614,54 @@ class PullRequestCommandTestCase(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            run.call_args_list[1].args[0],
-            ["gh", "pr", "merge", url, "--merge", "--auto"],
+            run.call_args_list[2].args[0],
+            ["gh", "pr", "merge", url, "--merge", "--auto",
+             "--match-head-commit", candidate],
         )
         self.assertEqual(
-            run.call_args_list[1].kwargs["timeout"],
+            run.call_args_list[2].kwargs["timeout"],
             _lock_form.HOSTING_DEADLINE_SECONDS,
         )
 
     def test_new_pull_request_enqueue_failure_is_propagated(self) -> None:
         url = "https://github.com/example/member/pull/8"
+        default = "d" * 40
+        candidate = "c" * 40
+        merge = "a" * 40
+        tree = "b" * 40
         responses = [
             subprocess.CompletedProcess([], 0, stdout="", stderr=""),
             subprocess.CompletedProcess([], 0, stdout=f"{url}\n", stderr=""),
+            subprocess.CompletedProcess(
+                [],
+                0,
+                stdout=json.dumps(
+                    {
+                        "baseTargetOid": default,
+                        "headRefOid": candidate,
+                        "potentialMergeCommit": {"oid": merge},
+                        "number": 8,
+                    }
+                ),
+                stderr="",
+            ),
             subprocess.CompletedProcess([], 1, stdout="", stderr="auto merge refused"),
         ]
-        with patch.object(_lock_form.subprocess, "run", side_effect=responses) as run:
+        with (
+            patch.object(_lock_form.subprocess, "run", side_effect=responses) as run,
+            patch.object(
+                _lock_form,
+                "git_in",
+                side_effect=["", merge, f"{default} {candidate}", tree],
+            ),
+        ):
             found, created = _lock_form.pull_request_for(
                 Path("member"), "ci/sync-stack-hooks", "main", "subject", "body"
             )
             with self.assertRaisesRegex(RuntimeError, "auto merge refused"):
-                _lock_form.enqueue_pull_request(Path("member"), found)
+                _lock_form.enqueue_pull_request(
+                    Path("member"), found, default, candidate, tree
+                )
 
         self.assertEqual((found, created), (url, True))
         self.assertEqual(
@@ -375,6 +736,326 @@ class PullRequestCommandTestCase(unittest.TestCase):
         with patch.object(_lock_form, "execute_git", side_effect=error):
             with self.assertRaisesRegex(RuntimeError, "timed out after 90s"):
                 _lock_form.git_in(Path("member"), "status")
+
+
+class HostedMergeTestCase(unittest.TestCase):
+    URL = "https://github.com/example/member/pull/7"
+
+    def _git(self, repo: Path, *args: str) -> str:
+        return subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                *args,
+            ],
+            check=True,
+            capture_output=True,
+            encoding="utf-8",
+        ).stdout.strip()
+
+    def _pull_ref(self, remote: Path, commit: str) -> None:
+        subprocess.run(
+            [
+                "git",
+                "--git-dir",
+                str(remote),
+                "update-ref",
+                "refs/pull/7/merge",
+                commit,
+            ],
+            check=True,
+            capture_output=True,
+        )
+
+    def _graph(self, scratch: Path) -> tuple[Path, Path, dict[str, str]]:
+        repo = scratch / "member"
+        repo.mkdir()
+        self._git(repo, "init", "-q", "-b", "main")
+        (repo / "value.txt").write_text("base\n", encoding="utf-8")
+        self._git(repo, "add", "value.txt")
+        self._git(repo, "commit", "-q", "-m", "base")
+        base = self._git(repo, "rev-parse", "HEAD")
+
+        (repo / "README.md").write_text("current default\n", encoding="utf-8")
+        self._git(repo, "add", "README.md")
+        self._git(repo, "commit", "-q", "-m", "default")
+        default = self._git(repo, "rev-parse", "HEAD")
+        self._git(repo, "switch", "-q", "-c", "publication", base)
+        hook = repo / ".githooks" / "pre-push"
+        hook.parent.mkdir()
+        hook.write_bytes(b"#!/bin/sh\nexit 0\n")
+        self._git(repo, "add", ".githooks/pre-push")
+        self._git(repo, "update-index", "--chmod=+x", ".githooks/pre-push")
+        self._git(repo, "commit", "-q", "-m", "publication")
+        candidate = self._git(repo, "rev-parse", "HEAD")
+
+        tree = self._git(repo, "merge-tree", "--write-tree", default, candidate)
+        merge = self._git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p",
+            default,
+            "-p",
+            candidate,
+            "-m",
+            "hosted merge",
+        )
+        replacement = self._git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p",
+            default,
+            "-p",
+            candidate,
+            "-m",
+            "replacement hosted merge",
+        )
+        reversed_parents = self._git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p",
+            candidate,
+            "-p",
+            default,
+            "-m",
+            "reversed merge",
+        )
+        candidate_tree = self._git(repo, "rev-parse", f"{candidate}^{{tree}}")
+        wrong_tree = self._git(
+            repo,
+            "commit-tree",
+            candidate_tree,
+            "-p",
+            default,
+            "-p",
+            candidate,
+            "-m",
+            "wrong tree",
+        )
+
+        remote = scratch / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+        self._git(repo, "remote", "add", "origin", str(remote))
+        for name, commit in (
+            ("merge", merge),
+            ("replacement", replacement),
+            ("reversed", reversed_parents),
+            ("wrong-tree", wrong_tree),
+        ):
+            self._git(repo, "push", "-q", "origin", f"{commit}:refs/test/{name}")
+        self._pull_ref(remote, merge)
+        return repo, remote, {
+            "default": default,
+            "candidate": candidate,
+            "tree": tree,
+            "merge": merge,
+            "replacement": replacement,
+            "reversed_parents": reversed_parents,
+            "wrong_tree": wrong_tree,
+        }
+
+    def _state(self, graph: dict[str, str], **updates) -> str:
+        state = {
+            "baseTargetOid": graph["default"],
+            "headRefOid": graph["candidate"],
+            "potentialMergeCommit": {"oid": graph["merge"]},
+            "number": 7,
+        }
+        state.update(updates)
+        return json.dumps(state)
+
+    def test_live_base_target_overrides_a_stale_cached_merge_base(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-merge-") as temp:
+            repo, _remote, graph = self._graph(Path(temp))
+            calls: list[tuple[str, ...]] = []
+
+            def host(_repo: Path, *command: str) -> str:
+                calls.append(command)
+                if command[1] == "graphql":
+                    state = json.loads(self._state(graph))
+                    state["baseRefOid"] = "0" * 40
+                    return json.dumps(state)
+                if command[1] == "merge":
+                    return ""
+                raise AssertionError(command)
+
+            with patch.object(_lock_form, "hosting_in", side_effect=host):
+                _lock_form.enqueue_pull_request(
+                    repo,
+                    self.URL,
+                    graph["default"],
+                    graph["candidate"],
+                    graph["tree"],
+                )
+
+            self.assertEqual(
+                calls,
+                [
+                    (
+                        "api",
+                        "graphql",
+                        "-f",
+                        "query=query($url:URI!){resource(url:$url){... on "
+                        "PullRequest{number headRefOid baseRef{target{oid}} "
+                        "potentialMergeCommit{oid}}}}",
+                        "-f",
+                        f"url={self.URL}",
+                        "--jq",
+                        ".data.resource | {number,headRefOid,potentialMergeCommit,"
+                        "baseTargetOid:.baseRef.target.oid}",
+                    ),
+                    ("pr", "merge", self.URL, "--merge", "--auto",
+                     "--match-head-commit", graph["candidate"]),
+                ],
+            )
+
+    def test_head_advance_at_merge_request_keeps_matching_head_guard(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-head-race-") as temp:
+            repo, remote, graph = self._graph(Path(temp))
+            ref = "refs/heads/publication"
+            self._git(remote, "update-ref", ref, graph["candidate"])
+
+            def host(_repo: Path, *command: str) -> str:
+                if command[1] == "graphql":
+                    return self._state(graph)
+                self._git(remote, "update-ref", ref, graph["replacement"])
+                supplied = None
+                if "--match-head-commit" in command:
+                    supplied = command[command.index("--match-head-commit") + 1]
+                actual = self._git(remote, "rev-parse", ref)
+                if supplied is not None and supplied != actual:
+                    raise RuntimeError("hosted head changed")
+                self._git(remote, "update-ref", "refs/heads/landed", actual)
+                return ""
+
+            with patch.object(_lock_form, "hosting_in", side_effect=host):
+                with self.assertRaisesRegex(RuntimeError, "hosted head changed"):
+                    _lock_form.enqueue_pull_request(
+                        repo, self.URL, graph["default"], graph["candidate"], graph["tree"]
+                    )
+            self.assertEqual(self._git(remote, "rev-parse", ref), graph["replacement"])
+            self.assertEqual(
+                self._git(remote, "for-each-ref", "--format=%(objectname)", "refs/heads/landed"),
+                "",
+            )
+
+    def test_hosted_merge_identity_mismatches_never_arm(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-refusal-") as temp:
+            repo, remote, graph = self._graph(Path(temp))
+            cases = (
+                ("base", {"baseTargetOid": "0" * 40}, graph["merge"]),
+                ("head", {"headRefOid": "1" * 40}, graph["merge"]),
+                (
+                    "merge_oid",
+                    {"potentialMergeCommit": {"oid": "2" * 40}},
+                    graph["merge"],
+                ),
+                (
+                    "parents",
+                    {
+                        "potentialMergeCommit": {
+                            "oid": graph["reversed_parents"]
+                        }
+                    },
+                    graph["reversed_parents"],
+                ),
+                (
+                    "tree",
+                    {"potentialMergeCommit": {"oid": graph["wrong_tree"]}},
+                    graph["wrong_tree"],
+                ),
+                ("unavailable", {"potentialMergeCommit": None}, graph["merge"]),
+                ("invalid_number_bool", {"number": True}, graph["merge"]),
+                ("invalid_number_zero", {"number": 0}, graph["merge"]),
+                ("invalid_number_text", {"number": "7"}, graph["merge"]),
+                (
+                    "invalid_merge_id",
+                    {"potentialMergeCommit": {"oid": 7}},
+                    graph["merge"],
+                ),
+            )
+            for name, updates, pull_ref in cases:
+                with self.subTest(name=name):
+                    self._pull_ref(remote, pull_ref)
+                    armed = False
+
+                    def host(_repo: Path, *command: str) -> str:
+                        nonlocal armed
+                        if command[1] == "graphql":
+                            return self._state(graph, **updates)
+                        if command[1] == "merge":
+                            armed = True
+                            return ""
+                        raise AssertionError(command)
+
+                    with (
+                        patch.object(_lock_form, "hosting_in", side_effect=host),
+                        self.assertRaisesRegex(RuntimeError, "publication"),
+                    ):
+                        _lock_form.enqueue_pull_request(
+                            repo,
+                            self.URL,
+                            graph["default"],
+                            graph["candidate"],
+                            graph["tree"],
+                        )
+                    self.assertFalse(armed)
+
+            armed = False
+
+            def malformed(_repo: Path, *command: str) -> str:
+                nonlocal armed
+                if command[1] == "graphql":
+                    return "{"
+                armed = True
+                return ""
+
+            with (
+                patch.object(_lock_form, "hosting_in", side_effect=malformed),
+                self.assertRaisesRegex(RuntimeError, "cannot read publication"),
+            ):
+                _lock_form.enqueue_pull_request(
+                    repo,
+                    self.URL,
+                    graph["default"],
+                    graph["candidate"],
+                    graph["tree"],
+                )
+            self.assertFalse(armed)
+
+    def test_pull_ref_change_after_host_identity_read_refuses(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-race-") as temp:
+            repo, remote, graph = self._graph(Path(temp))
+            armed = False
+
+            def host(_repo: Path, *command: str) -> str:
+                nonlocal armed
+                if command[1] == "graphql":
+                    self._pull_ref(remote, graph["replacement"])
+                    return self._state(graph)
+                armed = True
+                return ""
+
+            with (
+                patch.object(_lock_form, "hosting_in", side_effect=host),
+                self.assertRaisesRegex(RuntimeError, "merge tree changed"),
+            ):
+                _lock_form.enqueue_pull_request(
+                    repo,
+                    self.URL,
+                    graph["default"],
+                    graph["candidate"],
+                    graph["tree"],
+                )
+            self.assertFalse(armed)
 
 
 class RetiredPathTestCase(unittest.TestCase):
@@ -497,12 +1178,27 @@ class RetiredPathTestCase(unittest.TestCase):
                 patch.object(_lock_form, "member_scope", return_value=("alpha",)),
                 patch.object(_lock_form, "git_in", side_effect=lambda *_args: next(git_results)),
                 patch.object(_lock_form, "committed_hooks", return_value=self.HOOK),
+                patch.object(
+                    _lock_form,
+                    "hook_publication_base",
+                    side_effect=lambda _repo, default, *_args: default,
+                ),
                 patch.object(_lock_form, "hook_commit", return_value="built") as hook_commit,
+                patch.object(
+                    _lock_form, "hook_landing_tree", return_value="landing"
+                ) as landing_guard,
                 redirect_stdout(io.StringIO()),
             ):
                 self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
             self.assertEqual(hook_commit.call_args.kwargs["retired"], ("scripts/lockfile.py",))
             self.assertIn("`scripts/lockfile.py`", hook_commit.call_args.args[3])
+            landing_guard.assert_called_once_with(
+                root / "repos" / "alpha",
+                "b" * 40,
+                "built",
+                self.HOOK,
+                ("scripts/lockfile.py",),
+            )
 
 
 class PublisherScopeTestCase(unittest.TestCase):
@@ -594,6 +1290,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                     "b" * 40,  # member base
                 ]
             )
+            publication_events: list[str] = []
 
             with (
                 patch.object(_lock_form, "ROOT", root),
@@ -608,7 +1305,23 @@ class PublisherScopeTestCase(unittest.TestCase):
                 patch.object(
                     _lock_form, "hook_commit", return_value="built"
                 ) as hook_commit,
-                patch.object(_lock_form, "push_hook_branch") as push_hook_branch,
+                patch.object(
+                    _lock_form,
+                    "hook_publication_base",
+                    side_effect=lambda _repo, default, *_args: default,
+                ),
+                patch.object(
+                    _lock_form,
+                    "hook_landing_tree",
+                    side_effect=lambda *_args: (
+                        publication_events.append("landing") or "landing"
+                    ),
+                ) as landing_guard,
+                patch.object(
+                    _lock_form,
+                    "push_hook_branch",
+                    side_effect=lambda *_args: publication_events.append("push"),
+                ) as push_hook_branch,
                 patch.object(
                     _lock_form, "pull_request_for", return_value=("url", True)
                 ) as pull_request_for,
@@ -629,10 +1342,18 @@ class PublisherScopeTestCase(unittest.TestCase):
             committed_hooks.assert_called_once_with(root, source_commit)
             self.assertEqual(hook_commit.call_args.args[2], [hook_bytes[1]])
             self.assertEqual(hook_commit.call_args.args[1], "b" * 40)
+            landing_guard.assert_called_once_with(
+                member_root / "alpha",
+                "b" * 40,
+                "built",
+                [hook_bytes[1]],
+                (),
+            )
             push_hook_branch.assert_called_once_with(
                 member_root / "alpha", "built", "ci/sync-stack-hooks",
                 hook_bytes[1][1], source_commit,
             )
+            self.assertEqual(publication_events, ["landing", "push"])
             expected_message = (
                 "ci: Sync the stack-owned git hooks\n\n"
                 "Deploys atlas `scripts/git-hooks` at aaaaaaaa, the single\n"
@@ -649,7 +1370,13 @@ class PublisherScopeTestCase(unittest.TestCase):
                 expected_message,
                 draft=False,
             )
-            enqueue.assert_called_once_with(member_root / "alpha", "url")
+            enqueue.assert_called_once_with(
+                member_root / "alpha",
+                "url",
+                "b" * 40,
+                "built",
+                "landing",
+            )
 
     def test_draft_publication_skips_enqueue(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-hook-draft-") as temp:
@@ -684,7 +1411,15 @@ class PublisherScopeTestCase(unittest.TestCase):
                     _lock_form, "git_in", side_effect=lambda *_args: next(git_results)
                 ),
                 patch.object(_lock_form, "committed_hooks", return_value=hook_bytes),
+                patch.object(
+                    _lock_form,
+                    "hook_publication_base",
+                    side_effect=lambda _repo, default, *_args: default,
+                ),
                 patch.object(_lock_form, "hook_commit", return_value="built"),
+                patch.object(
+                    _lock_form, "hook_landing_tree", return_value="landing"
+                ) as landing_guard,
                 patch.object(_lock_form, "push_hook_branch"),
                 patch.object(
                     _lock_form, "pull_request_for", return_value=("url", True)
@@ -694,8 +1429,71 @@ class PublisherScopeTestCase(unittest.TestCase):
             ):
                 self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
 
+            landing_guard.assert_called_once_with(
+                member_root / "alpha",
+                "b" * 40,
+                "built",
+                hook_bytes,
+                (),
+            )
             self.assertTrue(pull_request_for.call_args.kwargs["draft"])
             enqueue.assert_not_called()
+
+    def test_landing_guard_refusal_stops_before_push_and_hosting(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hook-landing-refusal-") as temp:
+            root = Path(temp)
+            member_root = root / "repos"
+            (member_root / "alpha").mkdir(parents=True)
+            source_commit = "a" * 40
+            hooks = [("pre-push", b"#!/bin/sh\nexit 0\n")]
+            args = Namespace(
+                members=["alpha"],
+                push=True,
+                source_ref="refs/remotes/origin/pr/286",
+            )
+            git_results = iter(
+                [
+                    "",
+                    "refs/remotes/origin/main",
+                    source_commit,
+                    "aaaaaaaa",
+                    "",
+                    "origin/main",
+                    "b" * 40,
+                ]
+            )
+            output = io.StringIO()
+            with (
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "REPOS", member_root),
+                patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+                patch.object(
+                    _lock_form, "git_in", side_effect=lambda *_args: next(git_results)
+                ),
+                patch.object(_lock_form, "committed_hooks", return_value=hooks),
+                patch.object(
+                    _lock_form,
+                    "hook_publication_base",
+                    side_effect=lambda _repo, default, *_args: default,
+                ),
+                patch.object(_lock_form, "hook_commit", return_value="built"),
+                patch.object(
+                    _lock_form,
+                    "hook_landing_tree",
+                    side_effect=RuntimeError("publication merge conflict"),
+                ) as landing_guard,
+                patch.object(_lock_form, "push_hook_branch") as push_hook_branch,
+                patch.object(_lock_form, "hosting_in") as hosting_in,
+                redirect_stdout(output),
+            ):
+                self.assertEqual(_lock_form.cmd_publish_hooks(args), 1)
+
+            landing_guard.assert_called_once_with(
+                member_root / "alpha", "b" * 40, "built", hooks, ()
+            )
+            push_hook_branch.assert_not_called()
+            hosting_in.assert_not_called()
+            self.assertIn("FAILED: publication merge conflict", output.getvalue())
 
     def test_unknown_hook_filter_stops_before_member_publication(self) -> None:
         args = Namespace(
@@ -785,7 +1583,7 @@ class PublisherScopeTestCase(unittest.TestCase):
             args = Namespace(members=["alpha"], push=True, source_ref=None)
             for failed_stage in ("list", "create", "merge"):
                 with self.subTest(failed_stage=failed_stage):
-                    git_results = iter(
+                    initial_git_results = iter(
                         [
                             "",
                             "refs/remotes/origin/main",
@@ -796,6 +1594,20 @@ class PublisherScopeTestCase(unittest.TestCase):
                             "base",
                         ]
                     )
+                    merge = "6" * 40
+
+                    def git(_repo: Path, *command: str, **_kwargs) -> str:
+                        if command == (
+                            "fetch", "-q", "origin", "refs/pull/7/merge"
+                        ):
+                            return ""
+                        if command == ("rev-parse", "FETCH_HEAD"):
+                            return merge
+                        if command == ("show", "-s", "--format=%P", merge):
+                            return "base commit"
+                        if command == ("rev-parse", f"{merge}^{{tree}}"):
+                            return "landing"
+                        return next(initial_git_results)
 
                     def host(_repo: Path, *command: str) -> str:
                         stage = command[1]
@@ -805,6 +1617,15 @@ class PublisherScopeTestCase(unittest.TestCase):
                             return ""
                         if stage == "create":
                             return "https://github.com/example/alpha/pull/1"
+                        if stage == "graphql":
+                            return json.dumps(
+                                {
+                                    "baseTargetOid": "base",
+                                    "headRefOid": "commit",
+                                    "potentialMergeCommit": {"oid": merge},
+                                    "number": 7,
+                                }
+                            )
                         return ""
 
                     output = io.StringIO()
@@ -817,19 +1638,34 @@ class PublisherScopeTestCase(unittest.TestCase):
                         patch.object(
                             _lock_form,
                             "git_in",
-                            side_effect=lambda *_args: next(git_results),
+                            side_effect=git,
                         ),
                         patch.object(
                             _lock_form, "committed_hooks",
                             return_value=[("pre-push", b"#!/bin/sh\nexit 0\n")],
                         ),
+                        patch.object(
+                            _lock_form,
+                            "hook_publication_base",
+                            side_effect=lambda _repo, default, *_args: default,
+                        ),
                         patch.object(_lock_form, "hook_commit", return_value="commit"),
+                        patch.object(
+                            _lock_form, "hook_landing_tree", return_value="landing"
+                        ) as landing_guard,
                         patch.object(_lock_form, "push_hook_branch"),
                         patch.object(_lock_form, "hosting_in", side_effect=host),
                         redirect_stdout(output),
                     ):
                         self.assertEqual(_lock_form.cmd_publish_hooks(args), 1)
 
+                    landing_guard.assert_called_once_with(
+                        root / "repos" / "alpha",
+                        "base",
+                        "commit",
+                        [("pre-push", b"#!/bin/sh\nexit 0\n")],
+                        (),
+                    )
                     self.assertIn(f"FAILED: {failed_stage} refused", output.getvalue())
                     self.assertNotIn("published:", output.getvalue())
                     self.assertNotIn("reused:", output.getvalue())

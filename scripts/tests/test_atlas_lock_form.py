@@ -14,6 +14,7 @@ import contextlib
 import importlib.util
 import json
 import shutil
+import socket
 import io
 import subprocess
 import time
@@ -202,7 +203,7 @@ class HookCommitTestCase(unittest.TestCase):
             self.assertEqual(self._git(repo, "status", "--porcelain"), status_before)
             self.assertEqual(self._git(repo, "rev-parse", "--abbrev-ref", "HEAD"), "peer")
 
-    def test_item_is_an_actual_generated_commit_trailer(self) -> None:
+    def test_item_and_agent_are_actual_generated_commit_trailers(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-item-") as temp:
             repo = Path(temp) / "member"
             repo.mkdir()
@@ -213,7 +214,10 @@ class HookCommitTestCase(unittest.TestCase):
             self._git(repo, "add", "seed")
             self._git(repo, "commit", "-q", "-m", "seed")
             item = "ATLAS-MOIRAI-MAIN-DIVERGED-2026-10-05"
-            message = _lock_form.hook_publish_message("a109abb8ac02", [], item)
+            agent = "codex:01a18859-2169-7173-b2bc-93fff6405cd1"
+            message = _lock_form.hook_publish_message(
+                "a109abb8ac02", [], item, agent
+            )
 
             commit = _lock_form.hook_commit(
                 repo,
@@ -231,7 +235,12 @@ class HookCommitTestCase(unittest.TestCase):
                 text=True,
                 check=True,
             ).stdout.strip()
-            self.assertEqual(parsed, f"Item: {item}")
+            self.assertEqual(
+                parsed,
+                f"Item: {item}\nIntegrator: {agent}\nAgent: {agent}",
+            )
+            with self.assertRaisesRegex(ValueError, "invalid agent ID"):
+                _lock_form.hook_publish_message("a109abb8ac02", [], item, "codex")
 
     def test_unique_remote_rollout_head_is_not_overwritten(self) -> None:
         with self._rollout_repositories("atlas-publish-lease-") as repositories:
@@ -477,6 +486,17 @@ class HookInstallTestCase(unittest.TestCase):
             f"scripts/git-hooks/{name}": ("100755", content)
             for name, content in hooks.items()
         }
+        for name in (
+            "pre_push_gate.py",
+            "atlas_build_lock.py",
+            "process_tree.py",
+            "windows_process.py",
+            "darwin_process.py",
+        ):
+            entries[f"scripts/{name}"] = (
+                "100644",
+                (SCRIPT.parent / name).read_bytes(),
+            )
         entries.update(
             {path: ("100644", content) for path, content in (files or {}).items()}
         )
@@ -489,9 +509,14 @@ class HookInstallTestCase(unittest.TestCase):
                 f"{mode},{blob},{path}", env=environment,
             )
         tree = self.git(self.atlas, "write-tree", env=environment)
+        parent = subprocess.run(
+            ["git", "-C", str(self.atlas), "rev-parse", "--verify",
+             "refs/remotes/origin/main"], capture_output=True, text=True,
+        )
+        parents = ["-p", parent.stdout.strip()] if parent.returncode == 0 else []
         commit = self.git(
             self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
-            "commit-tree", tree, "-m", "publish",
+            "commit-tree", tree, *parents, "-m", "publish",
         )
         self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
 
@@ -539,6 +564,50 @@ class HookInstallTestCase(unittest.TestCase):
         common = self.git(self.atlas, "rev-parse", "--path-format=absolute", "--git-common-dir")
         return Path(common) / "atlas-hooks"
 
+    def runtime_dir(self, shims: Path) -> Path:
+        source = self.git(
+            self.atlas, "show-ref", "--verify", "--hash", "refs/remotes/origin/main"
+        )
+        return shims / "pre-push-runtime" / source
+
+    def test_staged_bootstrap_supports_source_landing_and_rollback(self) -> None:
+        self.publish({"pre-push": owned_hook("old-source")})
+        incompatible_source = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        index = Path(self._tmp.name) / "old-source-index"
+        environment = {**os.environ, "GIT_INDEX_FILE": str(index)}
+        self.git(self.atlas, "read-tree", incompatible_source, env=environment)
+        self.git(self.atlas, "update-index", "--force-remove", "scripts/pre_push_gate.py", env=environment)
+        tree = self.git(self.atlas, "write-tree", env=environment)
+        old_source = self.git(self.atlas, "-c", "user.name=t", "-c", "user.email=t@t",
+                              "commit-tree", tree, "-p", incompatible_source, "-m", "Old source without bootstrap")
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", old_source)
+        self.publish({"pre-push": owned_hook("new-source")})
+        future_source = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", old_source)
+        member = self.member("member")
+        with (patch.object(_lock_form, "ROOT", self.atlas),
+              patch.object(_lock_form, "REPOS", self.repos),
+              patch.object(_lock_form, "registered_member_names", return_value=["member"]),
+              contextlib.redirect_stdout(io.StringIO())):
+            self.assertEqual(_lock_form.cmd_install_hooks(Namespace(source_ref=future_source)), 0)
+        self.assertEqual(self.git(self.atlas, "rev-parse", "refs/remotes/origin/main"), old_source)
+        with self.assertRaises(subprocess.CalledProcessError) as prelanding:
+            self.run_hook(member)
+        self.assertEqual(prelanding.exception.returncode, 1)
+        self.assertIn("predates the installed process-owner floor", prelanding.exception.stderr)
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", future_source)
+        self.assertIn("new-source", self.run_hook(member))
+        self.publish({"pre-push": owned_hook("later-source")})
+        self.assertIn("later-source", self.run_hook(member))
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", future_source)
+        self.assertIn("new-source", self.run_hook(member))
+        self.git(self.atlas, "update-ref", "refs/remotes/origin/main", incompatible_source)
+        with self.assertRaises(subprocess.CalledProcessError) as refused:
+            self.run_hook(member)
+        self.assertEqual(refused.exception.returncode, 1)
+        self.assertIn("predates the installed process-owner floor", refused.exception.stderr)
+        self.assertNotIn("old-source", refused.exception.stderr)
+
     def test_members_run_origin_main_hooks_and_custom_paths_stay(self) -> None:
         self.publish({
             "pre-push": owned_hook("owned-1"),
@@ -569,7 +638,30 @@ class HookInstallTestCase(unittest.TestCase):
              "running": shims.as_posix(), "custom": "D:/elsewhere/hooks"},
         )
         # Git runs no `rescue-push`, so it gets no shim.
-        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["pre-commit", "pre-push"])
+        self.assertEqual(
+            sorted(p.name for p in shims.iterdir()),
+            ["pre-commit", "pre-push", "pre-push-runtime"],
+        )
+        runtime = self.runtime_dir(shims)
+        self.assertEqual(
+            sorted(path.name for path in runtime.iterdir()),
+            [
+                "atlas_build_lock.py",
+                "darwin_process.py",
+                "pre_push_gate.py",
+                "process_tree.py",
+                "python",
+                "windows_process.py",
+            ],
+        )
+        self.assertEqual(
+            (runtime / "pre_push_gate.py").read_bytes(),
+            (SCRIPT.parent / "pre_push_gate.py").read_bytes(),
+        )
+        self.assertEqual(
+            (runtime / "python").read_text(encoding="utf-8"),
+            Path(sys.executable).resolve().as_posix(),
+        )
         # Two arguments, the second holding a space, each passed whole.
         expected = "argc=2 [origin] [my url] <refs/heads/x 1111 refs/heads/x 0000>"
         self.assertEqual(self.run_hook(self.repos / "unset"), f"owned-1 {expected}")
@@ -580,7 +672,88 @@ class HookInstallTestCase(unittest.TestCase):
         # A hook origin/main dropped loses its shim at the next install.
         self.publish({"pre-push": owned_hook("owned-2")})
         self.install(list(initial), code=1)
-        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["blobs", "pre-push"])
+        self.assertEqual(
+            sorted(p.name for p in shims.iterdir()),
+            [".cache-locks", "blobs", "pre-push", "pre-push-runtime"],
+        )
+
+    def test_pre_push_refuses_before_git_when_the_supervisor_is_missing(self) -> None:
+        """The installed timer owns even the shim's fetched-object lookups."""
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        (self.runtime_dir(shims) / "pre_push_gate.py").unlink()
+        marker = Path(self._tmp.name) / "git-ran"
+        fake_bin = Path(self._tmp.name) / "fake-bin"
+        fake_bin.mkdir()
+        fake_git = fake_bin / "git"
+        fake_git.write_text(
+            "#!/usr/bin/env bash\nprintf ran > \"$ATLAS_SHIM_GIT_MARKER\"\nexit 91\n",
+            encoding="utf-8",
+        )
+        fake_git.chmod(0o755)
+
+        run = self.run_shim(
+            shims,
+            path=str(fake_bin),
+            ATLAS_SHIM_GIT_MARKER=str(marker),
+        )
+        output, error = run.communicate(b"", timeout=60)
+
+        self.assertEqual((run.returncode, output), (1, b""), error.decode())
+        self.assertIn("installed process-tree bootstrap is unavailable", error.decode())
+        self.assertFalse(marker.exists())
+
+    def test_pre_push_source_lookup_runs_inside_one_600_second_owner(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        runtime = self.runtime_dir(shims)
+        deadline = Path(self._tmp.name) / "deadline"
+        (runtime / "process_tree.py").write_text(
+            "import os\n"
+            "from pathlib import Path\n"
+            "import subprocess\n"
+            "class ProcessTreeTimeout(Exception):\n"
+            "    pass\n"
+            "class ProcessTreeCleanupError(Exception):\n"
+            "    pass\n"
+            "def run(command, *, cwd=None, env=None, input=None, timeout):\n"
+            "    Path(os.environ['ATLAS_TEST_DEADLINE']).write_text(str(timeout))\n"
+            "    child_env = dict(env or os.environ)\n"
+            "    child_env['ATLAS_TEST_BOUNDED'] = '1'\n"
+            "    return subprocess.run(command, cwd=cwd, env=child_env, input=input, "
+            "capture_output=True)\n",
+            encoding="utf-8",
+        )
+        marker = Path(self._tmp.name) / "unbounded-git"
+        fake_bin = Path(self._tmp.name) / "bounded-fake-bin"
+        fake_bin.mkdir()
+        fake_git = fake_bin / "git"
+        fake_git.write_text(
+            "#!/usr/bin/env bash\n"
+            "if [ \"${ATLAS_TEST_BOUNDED:-}\" != 1 ]; then\n"
+            "  printf unbounded > \"$ATLAS_TEST_UNBOUNDED_GIT\"\n"
+            "  exit 92\n"
+            "fi\n"
+            "exec \"$ATLAS_TEST_REAL_GIT\" \"$@\"\n",
+            encoding="utf-8",
+        )
+        fake_git.chmod(0o755)
+
+        run = self.run_shim(
+            shims,
+            path=str(fake_bin),
+            ATLAS_TEST_DEADLINE=str(deadline),
+            ATLAS_TEST_UNBOUNDED_GIT=str(marker),
+            ATLAS_TEST_REAL_GIT=shutil.which("git") or "git",
+        )
+        output, error = run.communicate(
+            b"refs/heads/x 1111 refs/heads/x 0000\n", timeout=60
+        )
+
+        self.assertEqual(run.returncode, 0, error.decode())
+        self.assertEqual(deadline.read_text(encoding="utf-8"), "600")
+        self.assertFalse(marker.exists())
+        self.assertIn(b"owned argc=2 [origin] [url]", output)
 
     def submodule_member(self, name: str) -> Path:
         """A member as the stack holds one: a submodule of the Atlas repository,
@@ -724,7 +897,10 @@ class HookInstallTestCase(unittest.TestCase):
         self.member("alpha")
         self.install(["alpha"])
         shims = self.shim_dir()
-        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["pre-commit", "pre-push"])
+        self.assertEqual(
+            sorted(p.name for p in shims.iterdir()),
+            ["pre-commit", "pre-push", "pre-push-runtime"],
+        )
         run = self.run_shim(shims)
         _, err = run.communicate(b"", timeout=60)
         self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
@@ -971,7 +1147,10 @@ class HookInstallTestCase(unittest.TestCase):
                 patch.object(_lock_form, "registered_member_names", return_value=["alpha"]):
             self.assertEqual(_lock_form.cmd_install_hooks(Namespace()), 1)
         self.assertIn("fetch it first", stdout.getvalue())
-        self.assertEqual(sorted(p.name for p in self.shim_dir().iterdir()), ["pre-push"])
+        self.assertEqual(
+            sorted(p.name for p in self.shim_dir().iterdir()),
+            ["pre-push", "pre-push-runtime"],
+        )
 
     def test_install_reads_the_source_ref_in_the_atlas_repository(self) -> None:
         """An inherited `GIT_DIR` naming another repository must not divert the
@@ -990,7 +1169,10 @@ class HookInstallTestCase(unittest.TestCase):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             shims = _lock_form.write_hook_shims(self.atlas)
-        self.assertEqual(sorted(p.name for p in shims.iterdir()), ["pre-push"])
+        self.assertEqual(
+            sorted(p.name for p in shims.iterdir()),
+            ["pre-push", "pre-push-runtime"],
+        )
         self.assertEqual(
             stdout.getvalue().splitlines(),
             ["install-hooks: removed the pre-commit shim; "
@@ -1172,8 +1354,8 @@ class HookInstallTestCase(unittest.TestCase):
                 "encoding='utf-8')\n"
                 f"raise SystemExit({exit_code})\n"
             ).encode()
-        owned = (Path(__file__).resolve().parent.parent.parent
-                 / "scripts" / "git-hooks" / "pre-push").read_bytes()
+        scripts_root = Path(__file__).resolve().parent.parent
+        owned = (scripts_root / "git-hooks" / "pre-push").read_bytes()
         self.publish(
             {"pre-push": owned},
             {
@@ -1182,6 +1364,9 @@ class HookInstallTestCase(unittest.TestCase):
                 "scripts/atlas_stack.py": b"ATLAS_STACK_ROOT = True\n",
                 "scripts/atlas-build-identity.py": b"raise SystemExit(0)\n",
                 "scripts/lockfile.py": b"raise SystemExit(0)\n",
+                "scripts/process_tree.py": (scripts_root / "process_tree.py").read_bytes(),
+                "scripts/windows_process.py": (scripts_root / "windows_process.py").read_bytes(),
+                "scripts/darwin_process.py": (scripts_root / "darwin_process.py").read_bytes(),
             },
         )
         baseline = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main")
@@ -1327,9 +1512,11 @@ class HookInstallTestCase(unittest.TestCase):
         )
         owned = (Path(__file__).resolve().parent.parent.parent
                  / "scripts" / "git-hooks" / "pre-commit").read_bytes()
-        checker = (Path(__file__).resolve().parent.parent.parent
-                   / "scripts" / "lockfile.py").read_bytes()
-        self.publish({"pre-commit": owned}, {"scripts/lockfile.py": checker})
+        files = {
+            f"scripts/{name}": (SCRIPT.parent / name).read_bytes()
+            for name in ("lockfile.py", "process_tree.py", "windows_process.py", "darwin_process.py")
+        }
+        self.publish({"pre-commit": owned}, files)
         self.git(
             self.atlas, "-c", "protocol.file.allow=always", "submodule", "add",
             "-q", str(source), "repos/alpha",
@@ -1391,68 +1578,115 @@ class HookInstallTestCase(unittest.TestCase):
         _, err = run.communicate(b"", timeout=60)
         self.assertEqual((run.returncode, err.decode().strip()), (3, "refused"))
 
-    def test_a_cache_being_written_is_never_visible_or_run(self) -> None:
-        """A first run stalls mid-write; the cache path stays absent, and a
-        second run executes the whole hook rather than the part written."""
+    def _assert_concurrent_cache_publication(self, initial_cache: bytes | None = None) -> None:
+        """A stalled writer cannot expose partial bytes or replace a winner."""
         self.publish({"pre-push": owned_hook("owned")})
         shims = _lock_form.write_hook_shims(self.atlas)
+        if initial_cache is not None:
+            blob = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main:scripts/git-hooks/pre-push")
+            blob_path = shims / "blobs" / blob
+            blob_path.parent.mkdir(parents=True, exist_ok=True)
+            blob_path.write_bytes(initial_cache)
         fake = Path(self._tmp.name) / "fake-bin"
         fake.mkdir()
-        stalled, release = Path(self._tmp.name) / "stalled", Path(self._tmp.name) / "release"
-        # The stalled write waits on `release` for at most STALL_SECONDS of
-        # wall-clock time (bash's `SECONDS`, not an iteration count, which
-        # `sleep` and process start cost stretch many times over); a failing
-        # assertion releases it at cleanup, so no run outlives the test.
+        server = self.enterContext(socket.socket())
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        server.settimeout(60)
+        endpoint = server.getsockname()
         real = shutil.which("git")
-        (fake / "git").write_bytes(
-            (
-                "#!/usr/bin/env bash\n"
-                f"real={_lock_form._shell_word(Path(real).as_posix())}\n"
-                'if [[ " $* " == *" cat-file "* ]]; then\n'
-                '  "$real" "$@" | head -c 40\n'
-                f"  : > {_lock_form._shell_word(stalled.as_posix())}\n"
-                f"  until=$((SECONDS + {STALL_SECONDS}))\n"
-                f"  while [ $SECONDS -lt $until ] && [ ! -f {_lock_form._shell_word(release.as_posix())} ]; do\n"
-                "    sleep 0.05\n"
-                "  done\n"
-                '  "$real" "$@" | tail -c +41\n'
-                "  exit 0\n"
-                "fi\n"
-                'exec "$real" "$@"\n'
-            ).encode()
+        probe = fake / "git_probe.py"
+        probe.write_text(
+            "import socket, subprocess, sys\n"
+            "result = subprocess.run(sys.argv[1:], capture_output=True, timeout=60)\n"
+            "sys.stderr.buffer.write(result.stderr)\n"
+            "if 'cat-file' in sys.argv[2:] and result.returncode == 0:\n"
+            "    sys.stdout.buffer.write(result.stdout[:40]); sys.stdout.buffer.flush()\n"
+            f"    with socket.create_connection({endpoint!r}, timeout=60) as signal:\n"
+            "        signal.sendall(b'ready')\n"
+            "        if signal.recv(1) != b'g': raise RuntimeError('publication release closed')\n"
+            "    sys.stdout.buffer.write(result.stdout[40:])\n"
+            "else:\n"
+            "    sys.stdout.buffer.write(result.stdout)\n"
+            "raise SystemExit(result.returncode)\n",
+            encoding="utf-8",
+        )
+        (fake / "git").write_text(
+            "#!/usr/bin/env bash\nexec " + _lock_form._shell_word(sys.executable)
+            + " -I " + _lock_form._shell_word(probe.as_posix()) + " "
+            + _lock_form._shell_word(Path(real).as_posix()) + ' "$@"\n',
+            encoding="utf-8",
         )
         (fake / "git").chmod(0o755)
         first = self.run_shim(shims, path=fake.as_posix())
-        self.addCleanup(release.write_text, "go", encoding="utf-8")
-        deadline = time.monotonic() + 60
-        while not stalled.exists():
-            self.assertIsNone(first.poll(), "the first run ended before its write stalled")
-            self.assertLess(time.monotonic(), deadline, "the first run never reached its write")
-            time.sleep(0.02)
+        connection, _ = server.accept()
+        signal = self.enterContext(connection)
+        signal.settimeout(60)
+        reader = self.enterContext(signal.makefile("rb"))
+        self.assertEqual(reader.read(5), b"ready")
         blob = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main:scripts/git-hooks/pre-push")
         blob_dir = shims / "blobs"
-        # The part-written copy sits beside the cache, in the same directory,
-        # so the rename that publishes it is one directory-entry swap.
-        (partial,) = blob_dir.iterdir()
-        self.assertTrue(partial.name.startswith(f"{blob}."), partial.name)
-        partial_id = partial.stat().st_ino
+        # Ready is sent after the prefix reaches the private partial file.
+        partial = next(path for path in blob_dir.iterdir() if path.name.startswith(f"{blob}."))
+        self.assertEqual(partial.read_bytes(), owned_hook("owned")[:40])
         second = self.run_shim(shims)
         out, err = second.communicate(b"line\n", timeout=60)
         self.assertEqual((second.returncode, out.decode().strip()),
                          (0, "owned argc=2 [origin] [url] <line>"), err.decode())
-        release.write_text("go", encoding="utf-8")
+        winner = blob_dir / blob
+        winner_inode = winner.stat().st_ino
+        signal.sendall(b"g")
         out, err = first.communicate(b"line\n", timeout=60)
         self.assertEqual((first.returncode, out.decode().strip()),
                          (0, "owned argc=2 [origin] [url] <line>"), err.decode())
         (cached,) = blob_dir.iterdir()
         self.assertEqual(cached.read_bytes(), owned_hook("owned"))
-        # The first run's file was renamed into place, not copied: a copy
-        # writes the cache path in place, visible part-written.
-        self.assertEqual((cached.name, cached.stat().st_ino), (blob, partial_id))
+        # The completed publication remains the same file when the first
+        # writer resumes; checking bytes alone would miss a replacement.
+        self.assertEqual([path.name for path in blob_dir.iterdir()], [blob])
+        self.assertEqual((blob_dir / blob).stat().st_ino, winner_inode)
+
+    def test_a_cache_being_written_is_never_visible_or_run(self) -> None:
+        self._assert_concurrent_cache_publication()
+
+    def test_a_corrupt_cache_is_repaired_by_the_concurrent_publisher(self) -> None:
+        self._assert_concurrent_cache_publication(b"corrupt cache")
+
+    def test_cache_lookup_ignores_shell_startup_output(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        startup = Path(self._tmp.name) / "shell-startup"
+        startup.write_text('printf "startup:%s\\n" "${BASH_SOURCE[0]}"\n', encoding="utf-8")
+        run = self.run_shim(shims, BASH_ENV=str(startup))
+        out, err = run.communicate(b"line\n", timeout=60)
+        self.assertEqual(run.returncode, 0, err.decode())
+        self.assertIn("owned argc=2 [origin] [url] <line>", out.decode())
+
+    def test_cache_worker_ignores_python_startup_hooks(self) -> None:
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        untrusted = Path(self._tmp.name) / "python-path"
+        untrusted.mkdir()
+        marker = untrusted / "marker"
+        (untrusted / "sitecustomize.py").write_text(
+            "from pathlib import Path\n"
+            f"Path({str(marker)!r}).write_text('startup hook executed')\n", encoding="utf-8",
+        )
+        environment = {**os.environ, "PYTHONPATH": str(untrusted)}
+        subprocess.run([sys.executable, "-c", "pass"], env=environment, check=True, timeout=60)
+        self.assertEqual(marker.read_text(), "startup hook executed")
+        marker.write_text("untouched")
+        run = self.run_shim(shims, PYTHONPATH=str(untrusted))
+        out, err = run.communicate(b"line\n", timeout=60)
+        self.assertEqual((run.returncode, out.decode().strip()),
+                         (0, "owned argc=2 [origin] [url] <line>"), err.decode())
+        self.assertEqual(marker.read_text(), "untouched")
 
     def test_a_failed_write_runs_nothing_and_leaves_no_partial(self) -> None:
         """origin/main names a hook blob the object store lacks, and the cache
         holds a corrupt copy: the shim refuses without running either."""
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
         missing = "1" * 40
 
         def mktree(entry: str) -> str:
@@ -1466,17 +1700,36 @@ class HookInstallTestCase(unittest.TestCase):
         scripts = mktree(f"040000 tree {hooks}\tgit-hooks\n")
         top = mktree(f"040000 tree {scripts}\tscripts\n")
         commit = self.git(
-            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", top, "-m", "gone",
+            self.atlas, "-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", top, "-p", self.git(self.atlas, "rev-parse", "refs/remotes/origin/main"),
+            "-m", "gone",
         )
         self.git(self.atlas, "update-ref", "refs/remotes/origin/main", commit)
-        shims = _lock_form.write_hook_shims(self.atlas)
         corrupt = shims / "blobs" / missing
         corrupt.parent.mkdir()
         corrupt.write_bytes(b"#!/usr/bin/env bash\necho CORRUPT-CACHE-RAN\n")
         run = self.run_shim(shims)
+        out, error = run.communicate(b"", timeout=60)
+        self.assertEqual((run.returncode, out.decode()), (1, ""))
+        self.assertIn("git cat-file", error.decode())
+        self.assertNotIn("process-owner floor", error.decode())
+        self.assertEqual(sorted(p.name for p in (shims / "blobs").iterdir()), [missing])
+
+    def test_an_unexpected_cache_directory_is_preserved_and_refused(self) -> None:
+        """A cache key owned by a directory is not removable cache corruption."""
+        self.publish({"pre-push": owned_hook("owned")})
+        shims = _lock_form.write_hook_shims(self.atlas)
+        blob = self.git(self.atlas, "rev-parse", "refs/remotes/origin/main:scripts/git-hooks/pre-push")
+        cache_dir = shims / "blobs" / blob
+        cache_dir.mkdir(parents=True)
+        marker = cache_dir / "user-data"
+        marker.write_bytes(b"preserve")
+
+        run = self.run_shim(shims)
         out, _ = run.communicate(b"", timeout=60)
         self.assertEqual((run.returncode, out.decode()), (1, ""))
-        self.assertEqual(sorted(p.name for p in (shims / "blobs").iterdir()), [missing])
+        self.assertTrue(cache_dir.is_dir())
+        self.assertEqual(marker.read_bytes(), b"preserve")
+        self.assertEqual([path.name for path in (shims / "blobs").iterdir()], [blob])
 
     def test_an_exported_common_dir_does_not_redirect_the_lookup(self) -> None:
         self.publish({"pre-push": owned_hook("owned")})

@@ -34,7 +34,9 @@ discovery.
 
 # Usage
 
-    scripts/lockfile.py --check          # verify the committed lock resolves
+    scripts/lockfile.py --check          # verify committed lock owners resolve
+    scripts/lockfile.py --check --check-tree EXPORT
+                                         # include every path in an immutable tree
     scripts/lockfile.py --check-staged   # judge the staged locks, index only
     scripts/lockfile.py --check-committed REPOSITORY...
                                          # judge every tracked lock at HEAD
@@ -45,11 +47,10 @@ standalone lock lives (ADR-0044): `--check`, `--check-staged` and
 `--check-committed` all judge a lock by `judge_locks`. The `pre-commit` hook
 runs `--check-staged`, `pre-push` and the shared `lockfile-guard` workflow run
 `--check --manifest-path`, and the conformance workflow runs
-`--check-committed`. The hooks run the copy of this script that the repository
-they guard carries. The hook exports this checker with the immutable
-`process_tree.py`, `windows_process.py`, and `darwin_process.py` companions
-from the same fetched revision. The checker therefore uses the shared
-process-tree owner rather than carrying a second, weaker launcher.
+`--check-committed`. The hooks run the fetched Atlas default branch's checker
+with immutable `process_tree.py`, `windows_process.py`, and
+`darwin_process.py` companions from that same revision. The shared
+process-tree owner supplies nested timeout and caller-death cleanup.
 """
 
 from __future__ import annotations
@@ -57,6 +58,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import io
+import json
 import os
 import re
 import subprocess
@@ -68,6 +70,7 @@ from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import process_tree
 
 REPOSITORY = Path(__file__).resolve().parent.parent
@@ -89,6 +92,7 @@ FIRST_PARTY_GIT = "git+https://github.com/ryancinsight/"
 # check reports and does not fail -- a member that has never measured its graph
 # is not failed by a guard it has not adopted.
 PROVIDER_IDENTITY_BASELINE_NAME = ".provider-identity-baseline"
+LOCK_INPUT_NAMES = frozenset({"Cargo.toml", "Cargo.lock", PROVIDER_IDENTITY_BASELINE_NAME})
 
 # What a failing check tells the reader to run: the stack's copy of this script,
 # which every member can reach whether or not it carries one of its own.
@@ -101,6 +105,7 @@ REGENERATE_COMMAND = (
 # active.
 PATCH_UNUSED = "[[patch.unused]]"
 DEPENDENCY_KINDS = ("dependencies", "dev-dependencies", "build-dependencies")
+TRANSITIVE_DEPENDENCY_KINDS = tuple(kind for kind in DEPENDENCY_KINDS if kind != "dev-dependencies")
 # Manifests under these directories are build output or vendored, not part of
 # any workspace.
 IGNORED_DIRECTORIES = frozenset({"target", ".git", "node_modules"})
@@ -112,8 +117,6 @@ GIT_DEADLINE_SECONDS = 60
 # bounds the same run at five minutes from the outside; this is the deadline
 # the runner itself owns, so it also holds where no workflow wraps it.
 CARGO_DEADLINE_SECONDS = 600
-# A killed tree is already dead; this bounds only the wait to reap the launcher
-# and collect the output it wrote before the deadline.
 # What the runner launches. A test replaces this with a stand-in so the
 # deadline and the tree kill are exercised without cargo.
 CARGO_COMMAND: tuple[str, ...] = ("cargo",)
@@ -128,13 +131,18 @@ def _decode_output(data: bytes | None) -> str:
 
 
 class CargoDeadlineExceeded(subprocess.TimeoutExpired):
-    """cargo outlived its deadline; its process tree has been killed.
+    """Cargo outlived its deadline; any cleanup failure remains attached.
 
     A typed timeout rather than a return code, because the two failures cargo
     produces here mean different things: a nonzero exit is a resolution that
     ran and refused, while an expired deadline is a run that never finished.
     Reporting the second as the first would blame the lock for a hung fetch.
     """
+
+    def __init__(self, command: Sequence[str], timeout: float, output: str | None = None,
+                 stderr: str | None = None, *, cleanup_error: str | None = None) -> None:
+        super().__init__(command, timeout, output=output, stderr=stderr)
+        self.cleanup_error = cleanup_error
 
 
 def run_bounded(
@@ -158,11 +166,13 @@ def run_bounded(
     except process_tree.ProcessTreeTimeout as error:
         stdout = _decode_output(error.output)
         stderr = _decode_output(error.stderr)
-        note = f"cargo did not finish within {deadline:g}s; its process tree was killed."
+        retirement = ("its process tree was killed" if error.cleanup_error is None
+                      else f"process-tree cleanup failed: {error.cleanup_error}")
+        note = f"cargo did not finish within {deadline:g}s; {retirement}."
         raise CargoDeadlineExceeded(
             tuple(command), deadline, output=stdout,
-            stderr=(stderr + "\n" + note).strip(),
-        ) from None
+            stderr=(stderr + "\n" + note).strip(), cleanup_error=error.cleanup_error,
+        ) from error
     stdout = _decode_output(completed.stdout)
     stderr = _decode_output(completed.stderr)
     return subprocess.CompletedProcess(tuple(command), completed.returncode, stdout, stderr)
@@ -203,6 +213,7 @@ def run_outside_the_overlay(
     manifest: Path | None = None,
     *,
     deadline: float = CARGO_DEADLINE_SECONDS,
+    env: Mapping[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run cargo with a working directory outside the stack root.
 
@@ -230,7 +241,7 @@ def run_outside_the_overlay(
     """
     if manifest is None:
         manifest = MANIFEST
-    environment = dict(os.environ)
+    environment = dict(os.environ if env is None else env)
     if "CARGO_TARGET_DIR" not in environment:
         shared = shared_target_dir(manifest)
         if shared is not None:
@@ -254,50 +265,18 @@ def run_outside_the_overlay(
         )
 
 
-def check() -> int:
-    """Judge every lock under the repository, then prove the root one resolves.
-
-    The overlay's signature is judged by the one rule ([`judge_locks`]) that
-    `--check-staged` and `--check-committed` apply, over every lock in the tree
-    (nested workspaces included), read from disk because the pre-push export
-    and a CI checkout are not always repositories to ask. Staleness, which
-    needs real resolution, is the `--locked` arm below.
-    """
-    if not LOCKFILE.is_file():
-        print(f"error: {LOCKFILE} does not exist", file=sys.stderr)
-        return 1
-
-    try:
-        texts = disk_texts(REPOSITORY)
-    except OSError as error:
-        print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
-        return 1
-    problems, exempt = judge_locks(texts)
-    for lock in exempt:
-        print(f"exempt (in-tree fixture, not standalone-consumable): {lock}")
-    if problems:
-        for problem in problems:
-            print(f"LOCK FORM VIOLATION: {problem}", file=sys.stderr)
-        print(
-            "\n"
-            "A lock regenerated with the Atlas stack overlay active resolves\n"
-            "first-party dependencies to local paths and drops their git\n"
-            "sources, and leaves [[patch.unused]] residue. CI has no overlay and\n"
-            "will fail every --locked job.\n"
-            "\n"
-            f"Fix: {REGENERATE_COMMAND}",
-            file=sys.stderr,
-        )
-        return 1
-
+def check_resolution(manifest: Path, lockfile: Path) -> int:
+    """Resolve the selected lock and verify Cargo actually owns it here."""
+    print(f"checking lock owner {manifest}")
     try:
         completed = run_outside_the_overlay(
-            ["metadata", "--locked", "--format-version", "1", "--all-features"]
+            ["metadata", "--locked", "--format-version", "1", "--all-features"],
+            manifest,
         )
     except CargoDeadlineExceeded as error:
         print(
             f"error: cargo metadata --locked did not finish within "
-            f"{error.timeout:g}s, so its process tree was killed.\n"
+            f"{error.timeout:g}s.\n"
             "\n"
             "The lock form is intact; this is a resolution that never finished\n"
             "(usually a stalled first-party fetch), not a flattened lock.\n"
@@ -308,7 +287,7 @@ def check() -> int:
         return 1
     if completed.returncode != 0:
         print(
-            "error: the committed Cargo.lock does not resolve under --locked "
+            f"error: {lockfile} does not resolve under --locked "
             "(its sources are intact, so it is stale rather than flattened).\n"
             "\n"
             "The pinned first-party revisions no longer satisfy the manifests'\n"
@@ -322,9 +301,178 @@ def check() -> int:
         )
         return 1
 
-    locks = sum(1 for path in texts if PurePosixPath(path).name == "Cargo.lock")
-    print(f"Cargo.lock resolves under --locked; {locks - len(exempt)} lock(s) in standalone form.")
-    return check_provider_identity()
+    try:
+        metadata = json.loads(completed.stdout)
+        workspace = metadata.get("workspace_root") if isinstance(metadata, dict) else None
+        if not isinstance(workspace, str):
+            raise ValueError("Cargo metadata has no workspace_root")
+    except (ValueError, TypeError) as error:
+        print(f"error: {lockfile}: {error}", file=sys.stderr)
+        return 1
+    resolved_lock = Path(workspace) / "Cargo.lock"
+    if resolved_lock.resolve() != lockfile.resolve():
+        print(
+            f"LOCK OWNERSHIP VIOLATION: {lockfile}: Cargo uses {resolved_lock} instead",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"{lockfile} resolves under --locked.")
+    return check_provider_identity(lockfile)
+
+
+def check_lock_owner(manifest: Path) -> int:
+    """Let Cargo establish lock ownership without resolving dependency graphs."""
+    try:
+        completed = run_outside_the_overlay(
+            ["locate-project", "--workspace", "--message-format", "json"], manifest
+        )
+    except CargoDeadlineExceeded as error:
+        print(
+            f"error: cargo lock ownership did not finish within {error.timeout:g}s; "
+            "This is a stalled check, not a flattened lock.\n"
+            f"{(error.stderr or '').strip()}", file=sys.stderr,
+        )
+        return 1
+    if completed.returncode != 0:
+        print(f"LOCK OWNERSHIP VIOLATION: {manifest}: {completed.stderr.strip()}", file=sys.stderr)
+        return 1
+    try:
+        document = json.loads(completed.stdout)
+        owner = document.get("root") if isinstance(document, dict) else None
+        if not isinstance(owner, str):
+            raise ValueError("Cargo locate-project has no root")
+    except (ValueError, TypeError) as error:
+        print(f"LOCK OWNERSHIP VIOLATION: {manifest}: {error}", file=sys.stderr)
+        return 1
+    if Path(owner).resolve() != manifest.resolve():
+        print(f"LOCK OWNERSHIP VIOLATION: {manifest}: Cargo uses {owner} instead", file=sys.stderr)
+        return 1
+    return 0
+
+
+def local_source_problems(texts: Mapping[str, str], standalone: Iterable[str]) -> list[str]:
+    """Refuse unversioned ownership and override inputs outside the candidate.
+
+    Existing full-root fixtures never resolve their override graphs. Other
+    locks must keep root patch/replacement inputs and their declared normal/
+    build path closure, including optional declarations, within the candidate.
+    Cargo ignores member overrides.
+    """
+    problems: list[str] = []
+    parsed: dict[str, Mapping[str, object] | None] = {}
+    for name, text in texts.items():
+        if PurePosixPath(name).name != "Cargo.toml":
+            continue
+        try:
+            parsed[name] = data = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
+            parsed[name] = None
+            continue
+        paths: list[tuple[str, object]] = []
+        package = data.get("package")
+        if isinstance(package, dict) and "workspace" in package:
+            paths.append(("package.workspace", package["workspace"]))
+        workspace = data.get("workspace")
+        if isinstance(workspace, dict):
+            for key in ("members", "default-members"):
+                entries = workspace.get(key)
+                if isinstance(entries, list):
+                    paths.extend((f"workspace.{key}", entry) for entry in entries)
+        for role, path in paths:
+            if isinstance(path, str) and escapes_repository(PurePosixPath(name), path):
+                problems.append(f"{name}: {role} path leaves the candidate: {path}")
+    for name in standalone:
+        data = parsed.get(name)
+        if not isinstance(data, dict):
+            continue
+        patches = data.get("patch")
+        overrides = list(patches.values()) if isinstance(patches, dict) else []
+        replacements = data.get("replace")
+        if isinstance(replacements, dict):
+            overrides.append(replacements)
+        pending = [(PurePosixPath(name), spec["path"]) for table in overrides
+                   if isinstance(table, dict) for spec in table.values()
+                   if isinstance(spec, dict) and isinstance(spec.get("path"), str)]
+        visited: set[str] = set()
+        while pending:
+            origin, path = pending.pop()
+            if escapes_repository(origin, path):
+                problems.append(f"{origin}: source override path leaves the candidate: {path}")
+                continue
+            target = (workspace_relative(origin.parent, path) / "Cargo.toml").as_posix()
+            if target in visited or not isinstance(parsed.get(target), dict):
+                continue
+            visited.add(target)
+            try:
+                dependencies = tuple(resolved_dependency_specs(target, parsed, TRANSITIVE_DEPENDENCY_KINDS))
+            except ValueError as error:
+                problems.append(str(error))
+                continue
+            pending.extend((owner, spec["path"]) for _, spec, owner in dependencies
+                           if isinstance(spec.get("path"), str))
+    return problems
+
+class GitTree(NamedTuple):
+    """Immutable source of the metadata exported for a lock check."""
+
+    repository: Path
+    revision: str
+
+
+def check(repository: Path | None = None, source: GitTree | None = None) -> int:
+    """Judge and resolve every lock owner under an immutable candidate root."""
+    candidate = repository is not None
+    if repository is None:
+        repository = REPOSITORY
+    try:
+        texts = disk_texts(repository, ignored_directories=frozenset() if candidate else IGNORED_DIRECTORIES)
+    except OSError as error:
+        print(f"error: the manifests and locks could not be read: {error}", file=sys.stderr)
+        return 1
+    if not any(PurePosixPath(path).name == "Cargo.lock" for path in texts):
+        print(f"error: Cargo.lock does not exist under {repository}", file=sys.stderr)
+        return 1
+
+    if source is not None:
+        try:
+            if run_git(["cat-file", "-t", source.revision], source.repository) != b"commit\n":
+                raise GitUnavailable("tree-source must be a commit object")
+            committed = tracked_texts(source.repository, staged=False, revision=source.revision)
+        except GitUnavailable as error:
+            print(f"error: committed lock inputs could not be read: {error}", file=sys.stderr)
+            return 1
+        # Checkout may normalize line endings, but cannot omit or change inputs.
+        committed = {path: text.replace("\r\n", "\n") for path, text in committed.items()}
+        exported = {path: text.replace("\r\n", "\n") for path, text in texts.items()}
+        mismatched = sorted(path for path in committed.keys() | exported.keys()
+                            if committed.get(path) != exported.get(path))
+        if mismatched:
+            print("exported lock inputs differ from the committed tree: " + ", ".join(mismatched), file=sys.stderr)
+            return 1
+    manifests, selected_exempt, ownership_problems = lock_manifests(texts)
+    ownership_problems.extend(local_source_problems(texts, manifests))
+    problems, exempt = judge_locks(texts)
+    if selected_exempt != exempt:
+        print("error: lock ownership selection disagrees with lock form", file=sys.stderr)
+        return 1
+    if ownership_problems:
+        print("\n".join(f"LOCK OWNERSHIP VIOLATION: {problem}" for problem in ownership_problems), file=sys.stderr)
+        return 1
+    if problems:
+        print("\n".join(f"LOCK FORM VIOLATION: {problem}" for problem in problems), file=sys.stderr)
+        print("\nThe Atlas overlay can strip git sources and leave [[patch.unused]] residue.\n"
+              f"CI will fail every --locked job.\n\nFix: {REGENERATE_COMMAND}", file=sys.stderr)
+        return 1
+
+    for lock in exempt:
+        if check_lock_owner(repository / PurePosixPath(lock).with_name("Cargo.toml")):
+            return 1
+        print(f"exempt (in-tree fixture, not standalone-consumable): {lock}")
+    for relative in manifests:
+        if check_lock_owner(repository / relative):
+            return 1
+    failures = sum(check_resolution(repository / relative, (repository / relative).with_name("Cargo.lock")) for relative in manifests)
+    return int(failures != 0)
 
 
 def locked_package_records(lock_text: str) -> list[Mapping[str, object]]:
@@ -378,9 +526,11 @@ def provider_identities(lock_text: str) -> dict[str, set[str]]:
     return identities
 
 
-def provider_identity_baseline() -> int | None:
+def provider_identity_baseline(lockfile: Path | None = None) -> int | None:
     """Read the member's committed excess-source bound, or `None` when unset."""
-    path = LOCKFILE.parent / PROVIDER_IDENTITY_BASELINE_NAME
+    if lockfile is None:
+        lockfile = LOCKFILE
+    path = lockfile.parent / PROVIDER_IDENTITY_BASELINE_NAME
     if not path.is_file():
         return None
     try:
@@ -393,7 +543,7 @@ def provider_identity_baseline() -> int | None:
         return -1
 
 
-def check_provider_identity() -> int:
+def check_provider_identity(lockfile: Path | None = None) -> int:
     """Bound the first-party providers that resolve through more than one source.
 
     A provider reached by two sources is compiled twice, so its public types stop
@@ -410,7 +560,9 @@ def check_provider_identity() -> int:
     The bound is a ratchet, not a zero: these forks exist today and a check that
     fails on arrival gets disabled rather than fixed.
     """
-    identities = provider_identities(LOCKFILE.read_text(encoding="utf-8"))
+    if lockfile is None:
+        lockfile = LOCKFILE
+    identities = provider_identities(lockfile.read_text(encoding="utf-8"))
     forked = {name: sources for name, sources in identities.items() if len(sources) > 1}
     excess = sum(len(sources) - 1 for sources in forked.values())
 
@@ -419,7 +571,7 @@ def check_provider_identity() -> int:
         for source in sorted(sources):
             print(f"    {source.split('ryancinsight/', 1)[-1]}")
 
-    baseline = provider_identity_baseline()
+    baseline = provider_identity_baseline(lockfile)
     if baseline is None:
         print(
             f"Provider identity: {excess} source(s) in excess of one per "
@@ -472,14 +624,20 @@ class GitUnavailable(Exception):
 class WorkspaceFacts(NamedTuple):
     """What a workspace's manifests say about the lock it owns."""
 
+    owned_manifests: frozenset[str]
     local: frozenset[str]
     git_dependencies: frozenset[str]
     fixture: bool
     unreadable: tuple[str, ...]
+    problems: tuple[str, ...]
 
 
 def run_git(
-    arguments: Sequence[str], repository: Path | None = None, stdin: bytes | None = None
+    arguments: Sequence[str],
+    repository: Path | None = None,
+    stdin: bytes | None = None,
+    *,
+    env: Mapping[str, str] | None = None,
 ) -> bytes:
     """Run git in `repository`, or in the current directory when it is None.
 
@@ -488,9 +646,15 @@ def run_git(
     that stages through a private index is judged by what it stages.
     """
     prefix = ["-C", str(repository)] if repository is not None else []
+    environment = dict(os.environ if env is None else env)
+    if repository is not None:
+        for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
+                    "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX"):
+            environment.pop(key, None)
     try:
         completed = subprocess.run(
-            ["git", *prefix, *arguments],
+            ["git", "--no-replace-objects", *prefix, *arguments],
+            env=environment,
             input=stdin,
             capture_output=True,
             check=False,
@@ -544,21 +708,150 @@ def violations(
     return found
 
 
-def dependency_tables(manifest: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
-    """Every table of a manifest that declares dependencies, of any kind."""
-    for kind in DEPENDENCY_KINDS:
+def package_dependency_tables(
+    manifest: Mapping[str, object], kinds: Sequence[str] = DEPENDENCY_KINDS
+) -> Iterator[Mapping[str, object]]:
+    """Dependency declarations attached to a package for the selected edge kinds."""
+    for kind in kinds:
         table = manifest.get(kind)
         if isinstance(table, dict):
             yield table
-    workspace = manifest.get("workspace")
-    if isinstance(workspace, dict) and isinstance(workspace.get("dependencies"), dict):
-        yield workspace["dependencies"]
     targets = manifest.get("target")
     for target in targets.values() if isinstance(targets, dict) else ():
         if isinstance(target, dict):
-            for kind in DEPENDENCY_KINDS:
+            for kind in kinds:
                 if isinstance(target.get(kind), dict):
                     yield target[kind]
+
+
+def dependency_tables(manifest: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
+    """Every package or workspace table that declares dependencies."""
+    yield from package_dependency_tables(manifest)
+    workspace = manifest.get("workspace")
+    if isinstance(workspace, dict) and isinstance(workspace.get("dependencies"), dict):
+        yield workspace["dependencies"]
+
+
+def resolved_dependency_specs(
+    name: str, parsed: Mapping[str, Mapping[str, object] | None], kinds: Sequence[str]
+) -> Iterator[tuple[str, Mapping[str, object], PurePosixPath]]:
+    """Consumed package declarations, paired with their path-resolution origin.
+
+    Workspace declarations contribute only through a package's explicit
+    inheritance. Dependency packages contribute normal/build edges; their
+    development edges belong to their own lock, not the consumer's lock.
+    """
+    data = parsed[name]
+    if not isinstance(data, dict):
+        return
+    manifest = PurePosixPath(name)
+    package = data.get("package")
+    explicit = package.get("workspace") if isinstance(package, dict) else None
+    if isinstance(explicit, str):
+        owner = workspace_relative(manifest.parent, explicit) / "Cargo.toml"
+    else:
+        owners = [PurePosixPath(path) for path, value in parsed.items()
+                  if isinstance(value, dict) and isinstance(value.get("workspace"), dict)
+                  and (PurePosixPath(path).parent == manifest.parent
+                       or PurePosixPath(path).parent in manifest.parent.parents)]
+        owner = max(owners, key=lambda path: len(path.parts), default=manifest)
+    root = parsed.get(owner.as_posix())
+    workspace = root.get("workspace") if isinstance(root, dict) else None
+    inherited = workspace.get("dependencies", {}) if isinstance(workspace, dict) else {}
+    for table in package_dependency_tables(data, kinds):
+        for dependency, spec in table.items():
+            if not isinstance(spec, dict):
+                continue
+            if spec.get("workspace") is not True:
+                yield dependency, spec, manifest
+            elif isinstance(inherited, dict) and isinstance(inherited.get(dependency), dict):
+                # Inheritance permits feature/optional settings, never source overrides:
+                # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace
+                resolved = dict(inherited[dependency])
+                if "optional" in spec:
+                    resolved["optional"] = spec["optional"]
+                if "features" in spec:
+                    base_features = resolved.get("features", [])
+                    extra_features = spec["features"]
+                    if not isinstance(base_features, list) or not isinstance(extra_features, list):
+                        raise ValueError(f"{name}: dependency features must be arrays")
+                    resolved["features"] = base_features + extra_features
+                default_key = "default-features" if "default-features" in spec else "default_features"
+                if default_key in spec:
+                    edition = package.get("edition", "2015") if isinstance(package, dict) else "2015"
+                    if isinstance(edition, dict) and edition.get("workspace") is True:
+                        package_defaults = workspace.get("package", {}) if isinstance(workspace, dict) else {}
+                        edition = package_defaults.get("edition") if isinstance(package_defaults, dict) else None
+                    if spec[default_key] is True or edition == "2024" or resolved.get("default-features") is False:
+                        resolved["default-features"] = spec[default_key]
+                yield dependency, resolved, owner
+            elif isinstance(inherited, dict) and isinstance(inherited.get(dependency), str):
+                # A version-only registry declaration has no path or Git source.
+                continue
+            else:
+                raise ValueError(f"{name}: inherited dependency {dependency!r} is missing")
+
+
+def feature_edges(
+    manifest: Mapping[str, object], dependencies: Sequence[tuple[str, Mapping[str, object], PurePosixPath]]
+) -> tuple[Mapping[str, Sequence[str]], set[str], set[str]]:
+    """Declared feature edges, optional aliases, and implicit feature names."""
+    definitions = manifest.get("features", {})
+    if not isinstance(definitions, dict) or any(
+        not isinstance(tokens, list) or any(not isinstance(token, str) for token in tokens)
+        for tokens in definitions.values()
+    ):
+        raise ValueError("package features must map names to string arrays")
+    optional = {name for name, spec, _ in dependencies if spec.get("optional") is True}
+    suppressed = {token.removeprefix("dep:") for tokens in definitions.values()
+                  for token in tokens if token.startswith("dep:")}
+    return definitions, optional, optional - set(definitions) - suppressed
+
+
+def all_package_features(
+    manifest: Mapping[str, object], dependencies: Sequence[tuple[str, Mapping[str, object], PurePosixPath]]
+) -> set[str]:
+    """Feature names selected by --all-features for a workspace package."""
+    definitions, _, implicit = feature_edges(manifest, dependencies)
+    return set(definitions) | implicit
+
+def active_dependencies(
+    manifest: Mapping[str, object],
+    dependencies: Sequence[tuple[str, Mapping[str, object], PurePosixPath]],
+    requested: Iterable[str],
+) -> tuple[set[str], dict[str, set[str]]]:
+    """Compute the dependency resolver's source and feature requirements.
+
+    The finite feature/alias sets grow monotonically, so the fixed point
+    terminates. Cargo's dependency resolver follows weak feature references;
+    its later compilation resolver narrows them without changing lock inputs.
+    https://github.com/rust-lang/cargo/blob/rust-1.97.0/src/cargo/core/resolver/dep_cache.rs#L439-L499
+    """
+    definitions, optional, implicit = feature_edges(manifest, dependencies)
+    features = set(requested)
+    active = {name for name, spec, _ in dependencies if spec.get("optional") is not True}
+    forwarded: dict[str, set[str]] = {}
+    while True:
+        previous = len(features) + len(active) + sum(map(len, forwarded.values()))
+        for feature in tuple(features):
+            if feature in implicit:
+                active.add(feature)
+            for token in definitions.get(feature, []):
+                if token.startswith("dep:"):
+                    active.add(token.removeprefix("dep:"))
+                elif "/" in token:
+                    dependency, child_feature = token.split("/", 1)
+                    weak = dependency.endswith("?")
+                    dependency = dependency.removesuffix("?")
+                    if not weak and dependency in optional and (dependency in definitions or dependency in implicit):
+                        features.add(dependency)
+                    active.add(dependency)
+                    forwarded.setdefault(dependency, set()).add(child_feature)
+                else:
+                    features.add(token)
+        if previous == len(features) + len(active) + sum(map(len, forwarded.values())):
+            break
+    return active, forwarded
 
 
 def escapes_repository(manifest: PurePosixPath, path: str) -> bool:
@@ -614,8 +907,8 @@ def workspace_selection(
     parsed: Mapping[str, Mapping[str, object] | None],
     workspace: PurePosixPath,
     nested: Sequence[PurePosixPath],
-) -> set[str] | None:
-    """The manifests cargo resolves in the workspace's lock, or None when it declares none.
+) -> tuple[set[str], set[str], dict[str, set[str]]]:
+    """The owned manifests, selected path closure, and requested package features.
 
     Cargo, not directory containment, decides membership: `members` names the
     packages (globs included), `exclude` removes paths from that set, path
@@ -625,14 +918,14 @@ def workspace_selection(
     let an excluded crate shadow a stripped source by name, and let a lockless
     nested workspace exempt the root lock through a path leaving the repository.
 
-    `None` means the root declares no `[workspace]` table; the caller then keeps
-    the directory-based reading, which is all a single-package manifest has.
+    The result separates lock ownership from the complete resolution closure.
     """
     root = (workspace / "Cargo.toml").as_posix()
     root_data = parsed.get(root)
     table = root_data.get("workspace") if isinstance(root_data, dict) else None
+    explicit_workspace = isinstance(table, dict)
     if not isinstance(table, dict):
-        return None
+        table = {}
 
     def entries(key: str) -> list[PurePosixPath]:
         listed = table.get(key)
@@ -659,9 +952,6 @@ def workspace_selection(
     }
     boundaries.update(boundary for boundary in nested if workspace in boundary.parents)
 
-    def ignored(directory: PurePosixPath) -> bool:
-        return bool({part.lower() for part in directory.parts} & IGNORED_DIRECTORIES)
-
     def inside_boundary(directory: PurePosixPath) -> bool:
         return any(
             boundary == directory or boundary in directory.parents
@@ -683,13 +973,18 @@ def workspace_selection(
     selected = {root}
     for name in manifests:
         directory = PurePosixPath(name).parent
-        if inside_boundary(directory) or ignored(directory):
+        if inside_boundary(directory):
             continue
         if any(directory_pattern_matches(pattern, directory) for pattern in members):
             selected.add(name)
 
-    # Cargo joins every path dependency under the root to the workspace; one
-    # outside it is a separate package even when a member reaches it.
+    owned = {name for name in selected if name == root or
+             (not inside_boundary(PurePosixPath(name).parent) and not excluded_manifest(name))}
+    selected = set(owned)
+    feature_requests: dict[str, set[str]] = {}
+
+    # Only edges of workspace members create implicit members. Required local
+    # inputs reached through excluded packages remain dependencies, not members.
     changed = True
     while changed:
         changed = False
@@ -697,26 +992,41 @@ def workspace_selection(
             data = parsed.get(name)
             if not isinstance(data, dict):
                 continue
-            for table_of_dependencies in dependency_tables(data):
-                for spec in table_of_dependencies.values():
-                    if not isinstance(spec, dict) or not isinstance(spec.get("path"), str):
-                        continue
-                    target = workspace_relative(PurePosixPath(name).parent, spec["path"])
-                    target_manifest = (target / "Cargo.toml").as_posix()
-                    if target_manifest in selected or target_manifest not in manifests:
-                        continue
-                    if inside_boundary(target) or ignored(target):
-                        continue
+            kinds = DEPENDENCY_KINDS if name in owned else TRANSITIVE_DEPENDENCY_KINDS
+            try:
+                dependencies = tuple(resolved_dependency_specs(name, parsed, kinds))
+                requested = (all_package_features(data, dependencies) if name in owned
+                             else feature_requests.get(name, set()))
+                active, forwarded = active_dependencies(data, dependencies, requested)
+            except ValueError:
+                continue  # workspace_facts reports unreadable declarations.
+            for dependency, spec, origin in dependencies:
+                if dependency not in active or not isinstance(spec.get("path"), str):
+                    continue
+                target = workspace_relative(origin.parent, spec["path"])
+                target_manifest = (target / "Cargo.toml").as_posix()
+                if target_manifest not in manifests:
+                    continue
+                if target_manifest not in selected:
                     selected.add(target_manifest)
                     changed = True
+                if (explicit_workspace and name in owned and (target == workspace or workspace in target.parents) and
+                        not inside_boundary(target) and not excluded_manifest(target_manifest)
+                        and target_manifest not in owned):
+                    owned.add(target_manifest)
+                    changed = True
+                declared = spec.get("features", [])
+                if not isinstance(declared, list) or any(not isinstance(feature, str) for feature in declared):
+                    continue  # Cargo rejects malformed edge features before resolution.
+                requested = set(declared) | forwarded.get(dependency, set())
+                if spec.get("default-features", spec.get("default_features", True)) is not False:
+                    requested.add("default")
+                previous_features = feature_requests.setdefault(target_manifest, set())
+                if not requested <= previous_features:
+                    previous_features.update(requested)
+                    changed = True
 
-    return {
-        name
-        for name in selected
-        if not inside_boundary(PurePosixPath(name).parent)
-        and not ignored(PurePosixPath(name).parent)
-        and not excluded_manifest(name)
-    }
+    return owned, selected, feature_requests
 
 
 def workspace_facts(
@@ -730,9 +1040,10 @@ def workspace_facts(
     workspace roots beneath this one that own their own lock; their manifests
     belong to that lock, not this one.
 
-    Membership comes from the workspace's own declarations when it has any
-    ([`workspace_selection`]); a manifest without a `[workspace]` table keeps
-    the directory reading, which is the only membership a lone package has.
+    Membership comes from [`workspace_selection`]. Only workspace members
+    contribute development edges. An inherited dependency consumes its
+    workspace default at that default's path origin; unused defaults are not
+    resolution edges. Real Cargo regression cases exercise both distinctions.
 
     `fixture` marks a workspace depending on a sibling repository by relative
     path (`../../../hephaestus/...`). It exists only inside a full Atlas
@@ -746,19 +1057,12 @@ def workspace_facts(
         except tomllib.TOMLDecodeError:
             parsed[name] = None
 
-    selected = workspace_selection(manifests, parsed, workspace, nested)
-    if selected is None:
-        selected = {
-            name
-            for name in manifests
-            if workspace in PurePosixPath(name).parents
-            and not ({part.lower() for part in PurePosixPath(name).parts} & IGNORED_DIRECTORIES)
-            and not any(other in PurePosixPath(name).parents for other in nested)
-        }
+    owned, selected, feature_requests = workspace_selection(manifests, parsed, workspace, nested)
 
     local: set[str] = set()
     git_dependencies: set[str] = set()
     unreadable: list[str] = []
+    problems: list[str] = []
     fixture = False
     for name in sorted(selected):
         data = parsed.get(name)
@@ -768,16 +1072,23 @@ def workspace_facts(
         package = data.get("package")
         if isinstance(package, dict) and isinstance(package.get("name"), str):
             local.add(package["name"])
-        manifest = PurePosixPath(name)
-        for table in dependency_tables(data):
-            for dependency, spec in table.items():
-                if not isinstance(spec, dict):
-                    continue
-                if isinstance(spec.get("git"), str):
-                    git_dependencies.add(spec.get("package", dependency))
-                elif isinstance(spec.get("path"), str) and escapes_repository(manifest, spec["path"]):
-                    fixture = True
-    return WorkspaceFacts(frozenset(local), frozenset(git_dependencies), fixture, tuple(unreadable))
+        kinds = DEPENDENCY_KINDS if name in owned else TRANSITIVE_DEPENDENCY_KINDS
+        try:
+            dependencies = tuple(resolved_dependency_specs(name, parsed, kinds))
+            requested = (all_package_features(data, dependencies) if name in owned
+                         else feature_requests.get(name, set()))
+            active, _ = active_dependencies(data, dependencies, requested)
+        except ValueError as error:
+            problems.append(str(error))
+            continue
+        for dependency, spec, origin in dependencies:
+            if dependency not in active:
+                continue
+            if isinstance(spec.get("git"), str):
+                git_dependencies.add(spec.get("package", dependency))
+            elif isinstance(spec.get("path"), str) and escapes_repository(origin, spec["path"]):
+                fixture = True
+    return WorkspaceFacts(frozenset(owned), frozenset(local), frozenset(git_dependencies), fixture, tuple(unreadable), tuple(problems))
 
 
 def workspace_units(
@@ -801,6 +1112,32 @@ def workspace_units(
     return units
 
 
+def lock_manifests(texts: Mapping[str, str]) -> tuple[list[str], list[str], list[str]]:
+    """Return owners, fixture exemptions, and refused missing siblings."""
+    manifest_texts = {path: text for path, text in texts.items() if PurePosixPath(path).name == "Cargo.toml"}
+    units = workspace_units(texts)
+    manifests, exempt, problems = [], [], []
+    owned: set[str] = set()
+    for lock, facts in units.items():
+        owned.update(facts.owned_manifests)
+        manifest = str(PurePosixPath(lock).with_name("Cargo.toml"))
+        if facts.fixture and not facts.problems and not facts.unreadable:
+            exempt.append(lock)
+        elif manifest in texts:
+            manifests.append(manifest)
+        else:
+            problems.append(f"{lock}: sibling Cargo.toml is missing")
+    for manifest in sorted(set(manifest_texts) - owned):
+        if manifest not in owned:
+            facts = workspace_facts(manifest_texts, PurePosixPath(manifest).parent, [PurePosixPath(lock).parent for lock in units])
+            owned.update(facts.owned_manifests)
+            if facts.problems:
+                problems.extend(facts.problems)
+            elif facts.unreadable or not facts.fixture:
+                problems.append(f"{manifest}: sibling Cargo.lock is missing")
+    return manifests, exempt, problems
+
+
 def judge_locks(
     texts: Mapping[str, str], locks: Iterable[str] | None = None
 ) -> tuple[list[str], list[str]]:
@@ -812,55 +1149,90 @@ def judge_locks(
     problems: list[str] = []
     exempt: list[str] = []
     for lock, facts in workspace_units(texts, locks).items():
+        problems.extend(f"{lock}: {problem}" for problem in facts.problems)
+        for manifest in facts.unreadable:
+            problems.append(f"{lock}: {manifest} does not parse, so the lock cannot be judged")
+        if facts.problems or facts.unreadable:
+            continue
         if facts.fixture:
             exempt.append(lock)
             continue
         for problem in violations(texts[lock], facts.local, facts.git_dependencies):
             problems.append(f"{lock}: {problem}")
-        for manifest in facts.unreadable:
-            problems.append(f"{lock}: {manifest} does not parse, so the lock cannot be judged")
     return problems, exempt
 
 
 def tracked_texts(
-    repository: Path | None, *, staged: bool, revision: str = "HEAD"
+    repository: Path | None,
+    *,
+    staged: bool,
+    revision: str = "HEAD",
+    env: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    """Text of every tracked `Cargo.toml` and `Cargo.lock`, by repository-relative path.
+    """Text of tracked Cargo inputs and provider baselines, by repository-relative path.
 
     `staged` reads the index, which is what becomes the commit; otherwise the
     tree at `revision`, so the answer is a function of that commit alone and no
     working file takes part. Raises [`GitUnavailable`] when git cannot answer.
     """
+    git_options = {} if env is None else {"env": env}
     if staged:
-        listing = run_git(["ls-files", "--stage", "-z"], repository)
+        listing = run_git(
+            ["ls-files", "--stage", "-z"], repository, **git_options
+        )
     else:
-        listing = run_git(["ls-tree", "-r", "-z", revision], repository)
+        listing = run_git(
+            ["ls-tree", "--full-tree", "-r", "-z", revision],
+            repository,
+            **git_options,
+        )
     blobs: dict[str, str] = {}
-    for record in listing.decode("utf-8", errors="replace").split("\0"):
-        head, _, path = record.partition("\t")
-        if not path or PurePosixPath(path).name not in {"Cargo.toml", "Cargo.lock"}:
+    input_names = {name.encode("ascii") for name in LOCK_INPUT_NAMES}
+    for record in listing.split(b"\0"):
+        head, _, raw_path = record.partition(b"\t")
+        if raw_path.rsplit(b"/", 1)[-1] not in input_names:
             continue
-        fields = head.split()
+        try:
+            path = raw_path.decode("utf-8")
+        except UnicodeError as error:
+            raise GitUnavailable("Cargo input path is not valid UTF-8") from error
+        fields = head.decode("ascii").split()
         if staged:
             mode, blob, stage = fields
             if mode == "160000" or stage != "0":
                 continue
         else:
-            _, kind, blob = fields
+            mode, kind, blob = fields
             if kind != "blob":
                 continue
+        if mode == "120000":
+            raise GitUnavailable(f"{path}: symbolic metadata input is not allowed")
         blobs[path] = blob
-    texts = read_blobs(repository, sorted(set(blobs.values())))
-    return {path: texts[blob] for path, blob in blobs.items()}
+    contents = read_blobs(repository, sorted(set(blobs.values())), **git_options)
+    texts = {}
+    for path, blob in blobs.items():
+        try:
+            texts[path] = contents[blob].decode("utf-8")
+        except UnicodeError as error:
+            raise GitUnavailable(f"{path}: Cargo input is not valid UTF-8") from error
+    return texts
 
 
-def read_blobs(repository: Path | None, blobs: Sequence[str]) -> dict[str, str]:
-    """Text of each blob, read in one `git cat-file --batch` call."""
+def read_blobs(
+    repository: Path | None,
+    blobs: Sequence[str],
+    *,
+    env: Mapping[str, str] | None = None,
+) -> dict[str, bytes]:
+    """Raw contents of each blob in one `git cat-file --batch` call."""
     if not blobs:
         return {}
     request = "".join(f"{blob}\n" for blob in blobs).encode("ascii")
-    output = run_git(["cat-file", "--batch"], repository, stdin=request)
-    texts: dict[str, str] = {}
+    git_options = {} if env is None else {"env": env}
+    output = run_git(
+        ["cat-file", "--batch"], repository, stdin=request, **git_options
+    )
+    texts: dict[str, bytes] = {}
     position = 0
     for blob in blobs:
         end = output.find(b"\n", position)
@@ -868,35 +1240,50 @@ def read_blobs(repository: Path | None, blobs: Sequence[str]) -> dict[str, str]:
         if len(header) != 3 or header[0] != blob or header[1] != "blob":
             raise GitUnavailable(f"git cat-file could not read {blob}")
         size = int(header[2])
-        texts[blob] = output[end + 1 : end + 1 + size].decode("utf-8", errors="replace")
+        texts[blob] = output[end + 1 : end + 1 + size]
         position = end + 1 + size + 1
     return texts
 
 
-def disk_texts(repository: Path) -> dict[str, str]:
-    """Text of every `Cargo.toml` and `Cargo.lock` under `repository`, by relative path.
+def disk_texts(
+    repository: Path, *, ignored_directories: frozenset[str] = IGNORED_DIRECTORIES
+) -> dict[str, str]:
+    """Text of Cargo inputs and provider baselines under `repository`, by relative path.
 
     The filesystem counterpart of [`tracked_texts`], for a tree that is not a
     repository to ask: the pre-push export is `git archive` output, and a CI
-    checkout is judged as it stands. Directories of build output and vendored
-    code are not entered, nor is the checkout this script runs from when it sits
-    inside `repository` (`SCRIPT_CHECKOUT`).
+    checkout is judged as it stands. Default scans omit derived/vendor trees;
+    immutable candidate scans include every committed path and refuse links.
     """
     texts: dict[str, str] = {}
     own = SCRIPT_CHECKOUT.resolve()
+
+    def linked(path: Path) -> bool:
+        return path.is_symlink() or getattr(path, "is_junction", lambda: False)()
+
+    if not ignored_directories and linked(repository):
+        raise OSError(f"{repository}: symbolic candidate root is not allowed")
     for directory, subdirectories, files in os.walk(repository):
-        subdirectories[:] = [
-            name
-            for name in subdirectories
-            if name.lower() not in IGNORED_DIRECTORIES
-            and (Path(directory) / name).resolve() != own
-        ]
+        kept = []
+        for name in subdirectories:
+            path = Path(directory) / name
+            if linked(path):
+                if not ignored_directories:
+                    raise OSError(f"{path.relative_to(repository).as_posix()}: symbolic directory link is not allowed")
+                continue
+            if name.lower() not in ignored_directories and path.resolve() != own:
+                kept.append(name)
+        subdirectories[:] = kept
         for name in files:
-            if name in {"Cargo.toml", "Cargo.lock"}:
+            if name in LOCK_INPUT_NAMES:
                 path = Path(directory) / name
-                texts[path.relative_to(repository).as_posix()] = path.read_text(
-                    encoding="utf-8", errors="replace"
-                )
+                if path.is_symlink():
+                    raise OSError(f"{path.relative_to(repository).as_posix()}: symbolic metadata link is not allowed")
+                relative = path.relative_to(repository).as_posix()
+                try:
+                    texts[relative] = path.read_bytes().decode("utf-8")
+                except UnicodeError as error:
+                    raise OSError(f"{relative}: Cargo input is not valid UTF-8") from error
     return texts
 
 
@@ -919,9 +1306,9 @@ def check_staged() -> int:
             ["diff", "--cached", "--name-only", "--diff-filter=d", "-z", "--", "*Cargo.lock"]
         )
         staged = [
-            path
-            for path in changed.decode("utf-8", errors="replace").split("\0")
-            if path and PurePosixPath(path).name == "Cargo.lock"
+            raw_path.decode("utf-8")
+            for raw_path in changed.split(b"\0")
+            if raw_path.rsplit(b"/", 1)[-1] == b"Cargo.lock"
         ]
         if not staged:
             return 0
@@ -929,7 +1316,7 @@ def check_staged() -> int:
         missing = [path for path in staged if path not in texts]
         if missing:
             raise GitUnavailable(f"git did not list the staged lock {missing[0]}")
-    except GitUnavailable as error:
+    except (GitUnavailable, UnicodeError) as error:
         print(f"error: the staged locks could not be read: {error}", file=sys.stderr)
         return 1
 
@@ -1017,8 +1404,8 @@ def regenerate() -> int:
         completed = run_outside_the_overlay(["metadata", "--format-version", "1"])
     except CargoDeadlineExceeded as error:
         print(
-            f"error: regeneration did not finish within {error.timeout:g}s; its "
-            f"process tree was killed.\n{(error.stderr or '').strip()}",
+            f"error: regeneration did not finish within {error.timeout:g}s.\n"
+            f"{(error.stderr or '').strip()}",
             file=sys.stderr,
         )
         return 1
@@ -1030,6 +1417,11 @@ def regenerate() -> int:
 
 
 def main() -> int:
+    # Use UTF-8 for path diagnostics even when Windows pipes use a legacy page.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true", help="verify the committed lock")
@@ -1046,12 +1438,25 @@ def main() -> int:
         metavar="REPOSITORY",
         help="judge every tracked lock at HEAD of each repository, offline",
     )
-    parser.add_argument("--manifest-path", type=Path, default=None,
-                        help="path to Cargo.toml (overrides auto-detection from __file__)")
+    location = parser.add_mutually_exclusive_group()
+    location.add_argument("--manifest-path", type=Path, default=None,
+                          help="path to Cargo.toml (overrides auto-detection from __file__)")
+    location.add_argument("--check-tree", type=Path, default=None,
+                          help="immutable candidate tree containing lock owners")
+    parser.add_argument("--tree-source", nargs=2, metavar=("REPOSITORY", "COMMIT"),
+                        help="compare exported metadata to its immutable Git source")
     arguments = parser.parse_args()
+    source = None
+    if arguments.tree_source is not None:
+        if not arguments.check or arguments.check_tree is None:
+            parser.error("--tree-source requires --check --check-tree")
+        source_repository, revision = arguments.tree_source
+        if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", revision) is None:
+            parser.error("--tree-source requires a full immutable commit object ID")
+        source = GitTree(Path(source_repository), revision)
     if arguments.manifest_path is not None:
         global REPOSITORY, LOCKFILE, MANIFEST
-        MANIFEST = arguments.manifest_path.resolve()
+        MANIFEST = Path(os.path.abspath(arguments.manifest_path))
         REPOSITORY = MANIFEST.parent
         LOCKFILE = REPOSITORY / "Cargo.lock"
     if arguments.regenerate:
@@ -1060,7 +1465,9 @@ def main() -> int:
         return check_staged()
     if arguments.check_committed:
         return check_committed(arguments.check_committed)
-    return check()
+    if arguments.check_tree is not None:
+        return check(Path(os.path.abspath(arguments.check_tree)), source)
+    return check(REPOSITORY if arguments.manifest_path is not None else None)
 
 
 if __name__ == "__main__":

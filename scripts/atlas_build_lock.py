@@ -6,6 +6,7 @@ import errno
 import json
 import os
 import time
+from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, TypeVar
 
@@ -68,6 +69,13 @@ SHARED = "shared"
 _MODES = (EXCLUSIVE, SHARED)
 
 
+class LockWait(Enum):
+    """Whether an OS lease acquisition returns or waits for its holder."""
+
+    IMMEDIATE = "immediate"
+    BLOCKING = "blocking"
+
+
 if os.name == "nt":
     import ctypes
     import msvcrt
@@ -106,7 +114,9 @@ if os.name == "nt":
     _ERROR_LOCK_VIOLATION = 33
 
 
-def _try_lock(handle: Any, mode: str = EXCLUSIVE) -> bool:
+def _try_lock(
+    handle: Any, mode: str = EXCLUSIVE, wait: LockWait = LockWait.IMMEDIATE
+) -> bool:
     """Lock byte 0 of `handle` in `mode` without blocking.
 
     Returns False only when another holder conflicts; any other failure is
@@ -118,7 +128,7 @@ def _try_lock(handle: Any, mode: str = EXCLUSIVE) -> bool:
     if mode not in _MODES:
         raise BuildIdentityError(f"unknown lease mode {mode}")
     if os.name == "nt":
-        flags = _LOCKFILE_FAIL_IMMEDIATELY
+        flags = 0 if wait is LockWait.BLOCKING else _LOCKFILE_FAIL_IMMEDIATELY
         if mode == EXCLUSIVE:
             flags |= _LOCKFILE_EXCLUSIVE_LOCK
         overlapped = _Overlapped()
@@ -133,8 +143,10 @@ def _try_lock(handle: Any, mode: str = EXCLUSIVE) -> bool:
     import fcntl
 
     operation = fcntl.LOCK_EX if mode == EXCLUSIVE else fcntl.LOCK_SH
+    if wait is LockWait.IMMEDIATE:
+        operation |= fcntl.LOCK_NB
     try:
-        fcntl.flock(handle.fileno(), operation | fcntl.LOCK_NB)
+        fcntl.flock(handle.fileno(), operation)
     except OSError as error:
         if error.errno in (errno.EWOULDBLOCK, errno.EAGAIN):
             return False
@@ -203,11 +215,11 @@ def _release(handle: Any, locked: bool) -> None:
         handle.close()
 
 
-def _take(path: Path, mode: str):
+def _take(path: Path, mode: str, wait: LockWait = LockWait.IMMEDIATE):
     """Open `path` locked in `mode`, or None when a holder conflicts; never leaks."""
     handle = _open_lease(path)
     try:
-        if _try_lock(handle, mode):
+        if _try_lock(handle, mode, wait):
             return handle
     except BaseException:
         handle.close()

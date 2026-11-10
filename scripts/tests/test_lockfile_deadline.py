@@ -21,6 +21,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import process_tree
@@ -110,6 +111,17 @@ class BoundedRunnerTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0)
         self.assertEqual(completed.stdout, "metadata\n")
         self.assertEqual(completed.stderr, "note\n")
+
+    def test_cleanup_failure_is_retained_in_the_typed_timeout(self) -> None:
+        failure = process_tree.ProcessTreeTimeout(["cargo"], 1, b"partial", b"fetch", "owned group survived")
+        with mock.patch.object(process_tree, "run", side_effect=failure):
+            with self.assertRaises(lockfile.CargoDeadlineExceeded) as caught:
+                lockfile.run_bounded(["cargo"], cwd=self.root, env={}, deadline=1)
+        self.assertEqual(caught.exception.output, "partial")
+        self.assertEqual(caught.exception.cleanup_error, "owned group survived")
+        self.assertIn("process-tree cleanup failed: owned group survived", caught.exception.stderr)
+        self.assertNotIn("tree was killed", caught.exception.stderr)
+        self.assertIs(caught.exception.__cause__, failure)
 
     def test_the_default_deadline_is_bounded(self) -> None:
         self.assertGreater(lockfile.CARGO_DEADLINE_SECONDS, 0)

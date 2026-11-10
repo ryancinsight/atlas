@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import hashlib
+import copy
 import json
 import os
+import re
 import subprocess
 import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -669,8 +672,8 @@ def cargo_config_digest(
     return digest.hexdigest()
 
 
-def _config_text_without_patch(data: dict[str, object]) -> str:
-    """Serialize a cargo config TOML without its `[patch]` tables."""
+def _config_text(data: dict[str, object]) -> str:
+    """Serialize a cargo config TOML after selective overlay filtering."""
 
     def config_key(name: str) -> str:
         return json.dumps(name, ensure_ascii=False)
@@ -678,6 +681,8 @@ def _config_text_without_patch(data: dict[str, object]) -> str:
     def config_value(item: object) -> str:
         if isinstance(item, bool):
             return 'true' if item else 'false'
+        if isinstance(item, (datetime, date, time)):
+            return item.isoformat()
         if isinstance(item, (int, float)):
             return repr(item)
         if isinstance(item, str):
@@ -688,7 +693,7 @@ def _config_text_without_patch(data: dict[str, object]) -> str:
             return (
                 '{' + ', '.join(f'{config_key(k)} = {config_value(v)}' for k, v in item.items()) + '}'
             )
-        return json.dumps(str(item))
+        raise TypeError(f'unsupported TOML value type: {type(item).__name__}')
 
     def write_table(prefix: list[str], body: dict[str, object], lines: list[str]) -> None:
         scalars = {k: v for k, v in body.items() if not isinstance(v, dict)}
@@ -704,58 +709,90 @@ def _config_text_without_patch(data: dict[str, object]) -> str:
     return '\n'.join(lines) + '\n'
 
 
-def _patch_target_missing(config: Path, data: dict[str, object]) -> bool:
-    """Whether a config's `[patch]` names an export-empty submodule path.
-
-    Returns True only when every patched path resolves to an existing
-    directory that lacks `Cargo.toml` (the pre-push export's empty
-    submodule dirs) and at least one such empty directory exists. A patch
-    whose directory does not exist at all (a genuinely broken config,
-    e.g. `does-not-exist`) is a cargo error, not an export artifact, and
-    must surface as one.
-    """
+def _without_missing_patch_entries(
+    config: Path, data: dict[str, object]
+) -> tuple[dict[str, object], bool]:
+    """Remove only path-only entries targeting empty exported gitlinks."""
     patch = data.get('patch')
     if not isinstance(patch, dict):
-        return False
+        return data, False
     config_dir = config.parent.parent
-    entries = 0
-    empty = 0
-    for source in patch.values():
+    gitmodules = config_dir / '.gitmodules'
+    try:
+        registered = {
+            match.group(1).strip().replace('\\', '/')
+            for line in gitmodules.read_text(encoding='utf-8').splitlines()
+            if (match := re.match(r'^\s*path\s*=\s*(.+?)\s*$', line))
+        }
+    except (OSError, UnicodeError):
+        return data, False
+    if not registered:
+        return data, False
+    result = copy.deepcopy(data)
+    result_patch = result.get('patch')
+    if not isinstance(result_patch, dict):
+        return data, False
+    changed = False
+    for source_name, source in list(result_patch.items()):
         if not isinstance(source, dict):
             continue
-        for entry in source.values():
-            if not isinstance(entry, dict):
+        source_changed = False
+        for package, entry in list(source.items()):
+            if not isinstance(entry, dict) or set(entry) != {'path'}:
                 continue
             raw = entry.get('path')
             if not isinstance(raw, str):
                 continue
-            entries += 1
             target = config_dir / raw
-            if not target.is_dir():
-                return False
-            if not (target / 'Cargo.toml').is_file():
-                empty += 1
-    return entries > 0 and empty > 0
+            if any(
+                _is_empty_registered_ancestor(config_dir, target, path)
+                for path in registered
+            ):
+                del source[package]
+                source_changed = True
+        if source_changed:
+            changed = True
+        if source_changed and not source:
+            del result_patch[source_name]
+    if changed and not result_patch:
+        result.pop('patch', None)
+    return result, changed
+
+
+def _is_empty_registered_ancestor(config_dir: Path, target: Path, relative: str) -> bool:
+    """Whether ``target`` lies below an empty registered gitlink directory."""
+    ancestor = config_dir / relative
+    try:
+        target.resolve(strict=False).relative_to(ancestor.resolve())
+    except ValueError:
+        return False
+    if not ancestor.is_dir():
+        return False
+    try:
+        next(ancestor.iterdir())
+    except StopIteration:
+        return True
+    except OSError:
+        return False
+    return False
 
 
 @contextmanager
 def overlay_stripped_configs(execution_root: Path) -> Iterator[None]:
-    """Strip `[patch]` overlay entries whose targets are absent on disk.
+    """Strip export-empty `[patch]` entries while preserving Cargo inputs.
 
     The Atlas pre-push gate exports a revision to a temporary tree whose
     submodule checkouts are empty directories (`read-tree` writes gitlink
     entries without cloning), while the root `.cargo/config.toml` overlay
     patches point inside those empty directories. Any cargo invocation with
-    dependency resolution (`metadata` without `--no-deps`, `clippy`,
-    `nextest`) then fails to load the patched source even when the patched
-    packages are unused. This context strips the whole `[patch]` table from
-    every cargo config that cargo would discover from `execution_root`
-    upward, but only when at least one patched `Cargo.toml` is absent (so
-    live checkouts with populated submodules keep their overlay), and
-    restores the original bytes on exit. Files with `include` directives,
-    unparsable TOML, or no `[patch]` table are left untouched.
+    dependency resolution then fails to load the patched source even when the
+    patched packages are unused. Only path-only entries under empty registered
+    gitlinks are export artifacts; independent overrides and malformed entries
+    remain visible to Cargo. Files with `include` directives, unparsable TOML,
+    or no `[patch]` table are left untouched.
     """
     saved: list[tuple[Path, bytes]] = []
+    body_error: BaseException | None = None
     try:
         directory = execution_root
         while True:
@@ -771,11 +808,10 @@ def overlay_stripped_configs(execution_root: Path) -> Iterator[None]:
                     continue
                 if 'patch' not in data or 'include' in data:
                     continue
-                if not _patch_target_missing(config, data):
+                data, changed = _without_missing_patch_entries(config, data)
+                if not changed:
                     continue
-                data = dict(data)
-                data.pop('patch', None)
-                stripped = _config_text_without_patch(data).encode('utf-8')
+                stripped = _config_text(data).encode('utf-8')
                 if stripped == raw:
                     continue
                 saved.append((config, raw))
@@ -785,9 +821,25 @@ def overlay_stripped_configs(execution_root: Path) -> Iterator[None]:
                 break
             directory = parent
         yield
+    except BaseException as error:
+        body_error = error
     finally:
+        restore_errors: list[BuildIdentityError] = []
         for config, raw in reversed(saved):
             try:
                 config.write_bytes(raw)
-            except OSError:
-                continue
+            except OSError as error:
+                failure = BuildIdentityError(f"cannot restore Cargo configuration {config}")
+                failure.__cause__ = error
+                restore_errors.append(failure)
+        if restore_errors:
+            if body_error is None:
+                raise BuildIdentityError(
+                    "cannot restore one or more Cargo configurations"
+                ) from ExceptionGroup("Cargo configuration restoration failed", restore_errors)
+            raise BaseExceptionGroup(
+                "Cargo operation and configuration restoration failed",
+                [body_error, *restore_errors],
+            )
+        if body_error is not None:
+            raise body_error
