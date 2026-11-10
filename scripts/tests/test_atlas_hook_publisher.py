@@ -615,7 +615,8 @@ class PullRequestCommandTestCase(unittest.TestCase):
         )
         self.assertEqual(
             run.call_args_list[2].args[0],
-            ["gh", "pr", "merge", url, "--merge", "--auto"],
+            ["gh", "pr", "merge", url, "--merge", "--auto",
+             "--match-head-commit", candidate],
         )
         self.assertEqual(
             run.call_args_list[2].kwargs["timeout"],
@@ -903,8 +904,39 @@ class HostedMergeTestCase(unittest.TestCase):
                         "--json",
                         "baseRefOid,headRefOid,potentialMergeCommit,number",
                     ),
-                    ("pr", "merge", self.URL, "--merge", "--auto"),
+                    ("pr", "merge", self.URL, "--merge", "--auto",
+                     "--match-head-commit", graph["candidate"]),
                 ],
+            )
+
+    def test_head_advance_at_merge_request_keeps_matching_head_guard(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-head-race-") as temp:
+            repo, remote, graph = self._graph(Path(temp))
+            ref = "refs/heads/publication"
+            self._git(remote, "update-ref", ref, graph["candidate"])
+
+            def host(_repo: Path, *command: str) -> str:
+                if command[1] == "view":
+                    return self._state(graph)
+                self._git(remote, "update-ref", ref, graph["replacement"])
+                supplied = None
+                if "--match-head-commit" in command:
+                    supplied = command[command.index("--match-head-commit") + 1]
+                actual = self._git(remote, "rev-parse", ref)
+                if supplied is not None and supplied != actual:
+                    raise RuntimeError("hosted head changed")
+                self._git(remote, "update-ref", "refs/heads/landed", actual)
+                return ""
+
+            with patch.object(_lock_form, "hosting_in", side_effect=host):
+                with self.assertRaisesRegex(RuntimeError, "hosted head changed"):
+                    _lock_form.enqueue_pull_request(
+                        repo, self.URL, graph["default"], graph["candidate"], graph["tree"]
+                    )
+            self.assertEqual(self._git(remote, "rev-parse", ref), graph["replacement"])
+            self.assertEqual(
+                self._git(remote, "for-each-ref", "--format=%(objectname)", "refs/heads/landed"),
+                "",
             )
 
     def test_hosted_merge_identity_mismatches_never_arm(self) -> None:

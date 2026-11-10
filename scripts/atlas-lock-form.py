@@ -751,7 +751,10 @@ def enqueue_pull_request(
         or git_in(repo, "rev-parse", f"{observed}^{{tree}}") != landing_tree
     ):
         raise RuntimeError(f"publication merge tree changed before readiness: {url}")
-    hosting_in(repo, "pr", "merge", url, "--merge", "--auto")
+    hosting_in(
+        repo, "pr", "merge", url, "--merge", "--auto",
+        "--match-head-commit", candidate,
+    )
 
 
 AGENT_ID = re.compile(
