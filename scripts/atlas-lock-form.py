@@ -841,7 +841,10 @@ def refresh_hook_publication(
         )
         if prior_base != hosted.merge_base:
             raise RuntimeError(f"publication merge update is still pending: {url}")
-    refresh_message = f"{message.rstrip()}\n\nPublication-Base: {default}\n"
+    refresh_message = git_in(
+        repo, "interpret-trailers", "--trailer", f"Publication-Base: {default}",
+        stdin=message.encode("utf-8"),
+    ) + "\n"
     return git_in(
         repo, "commit-tree", tree, "-p", candidate, stdin=refresh_message.encode("utf-8")
     )
