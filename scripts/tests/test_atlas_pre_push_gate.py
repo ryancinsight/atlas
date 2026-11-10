@@ -4837,7 +4837,7 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
         _write(provider / "src/lib.rs", "pub fn scale(value: u32) -> u32 { value * 2 }\n")
         _git(provider, "add", "Cargo.toml", "src/lib.rs")
         _git(provider, "commit", "-q", "-m", "provider base")
-        _write(root / "Cargo.toml", '[workspace]\nresolver = "3"\nmembers = ["crates/alpha", "crates/beta"]\n')
+        _write(root / "Cargo.toml", '  [workspace] # real TOML permits leading space and comments\nresolver = "3"\nmembers = ["crates/alpha", "crates/beta"]\n')
         _write(root / ".config/nextest.toml", '[profile.default]\nretries = 0\nslow-timeout = { period = "30s", terminate-after = 2 }\n')
         for directory in ("alpha", "beta"):
             dependency = f'\n[dependencies]\nfixture-provider = {{ git = "{provider.as_uri()}" }}\n' if directory == "alpha" else ""
@@ -4931,20 +4931,47 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-owner-classifier-") as temp:
             root = pathlib.Path(temp)
             _git_init_repo(root)
-            _write(root / "Cargo.toml", '[workspace]\nmembers = ["fuzz"]\n')
-            _write(root / "Cargo.lock", "version = 4\n")
-            _write(root / "fuzz/Cargo.toml", '[package]\nname = "probe"\nversion = "0.1.0"\n')
-            base = _commit_all(root, "owned base")
-            _write(root / "Cargo.toml", '[workspace]\nexclude = ["fuzz"]\n')
-            with (root / "fuzz/Cargo.toml").open("a", encoding="utf-8") as manifest:
-                manifest.write("\n[workspace]\n")
-            _write(root / "fuzz/Cargo.lock", "version = 4\n")
-            tip = _commit_all(root, "nested owner")
+            cargo = shutil.which("cargo")
+            assert cargo is not None
             command = [sys.executable, str(SCRIPT.parents[1] / "atlas_cast_gate.py"),
-                       "new-standalone-owners", "--repo", str(root), "--base", base,
-                       "--tip", tip, "--manifest", "fuzz/Cargo.toml"]
-            result = subprocess.run(command, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
-            self.assertEqual((result.returncode, result.stdout), (0, ""), result.stderr)
+                       "new-standalone-owners", "--repo", str(root), "--base", "BASE",
+                       "--tip", "TIP", "--manifest", "fuzz/Cargo.toml"]
+
+            def classify(branch: str, parent: str | None, expected: str, *, root_lock: bool = False,
+                         unrelated: bool = False, cargo_valid: bool = False) -> None:
+                _git(root, "switch", "-q", "--orphan", branch)
+                for lock in (root / "Cargo.lock", root / "fuzz/Cargo.lock"):
+                    lock.unlink(missing_ok=True)
+                shutil.rmtree(root / "other", ignore_errors=True)
+                (root / "Cargo.toml").unlink(missing_ok=True)
+                if parent is not None:
+                    _write(root / "Cargo.toml", parent)
+                _write(root / "fuzz/Cargo.toml", '[package]\nname = "probe"\nversion = "0.1.0"\n')
+                _write(root / "fuzz/src/lib.rs", "pub fn probe() {}\n")
+                if root_lock:
+                    _write(root / "Cargo.lock", "version = 4\n")
+                if unrelated:
+                    _write(root / "other/Cargo.toml", "[workspace]\nmembers = []\n")
+                base = _commit_all(root, f"{branch} base")
+                if cargo_valid:
+                    metadata = subprocess.run([cargo, "metadata", "--no-deps", "--format-version", "1",
+                                               "--manifest-path", str(root / "fuzz/Cargo.toml")],
+                                              capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
+                    self.assertEqual(metadata.returncode, 0, metadata.stderr)
+                with (root / "fuzz/Cargo.toml").open("a", encoding="utf-8") as manifest:
+                    manifest.write("\n[workspace]\n")
+                _write(root / "fuzz/Cargo.lock", "version = 4\n")
+                tip = _commit_all(root, f"{branch} tip")
+                argv = [tip if value == "TIP" else base if value == "BASE" else value for value in command]
+                result = subprocess.run(argv, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
+                self.assertEqual((result.returncode, result.stdout), (0, expected), result.stderr)
+
+            classify("owned", '[workspace]\nmembers = ["fuzz"]\n', "", root_lock=True)
+            classify("lockless", '[workspace]\nmembers = ["fuzz"]\n', "", cargo_valid=True)
+            classify("implicit", None, "", cargo_valid=True)
+            classify("excluded", '[workspace]\nexclude = ["fuzz"]\n', "", root_lock=True, cargo_valid=True)
+            classify("unrelated", "[workspace]\nmembers = []\n", "fuzz/Cargo.toml\n", unrelated=True)
+            classify("unlisted", "[workspace]\nmembers = []\n", "fuzz/Cargo.toml\n")
 
             _git(root, "switch", "-q", "--orphan", "malformed")
             (root / "fuzz/Cargo.lock").unlink(missing_ok=True)
@@ -4955,15 +4982,14 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
             _write(root / "fuzz/Cargo.toml", '[package]\nname = "probe"\nversion = "0.1.0"\n[workspace]\n')
             _write(root / "fuzz/Cargo.lock", "version = 4\n")
             repaired = _commit_all(root, "repair owner")
-            command[command.index("--base") + 1] = malformed
-            command[command.index("--tip") + 1] = repaired
-            result = subprocess.run(command, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
+            argv = [repaired if value == "TIP" else malformed if value == "BASE" else value for value in command]
+            result = subprocess.run(argv, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
             self.assertEqual(result.returncode, 2, result.stderr)
             self.assertIn("does not parse as TOML", result.stderr)
 
             _git(root, "switch", "-q", "--orphan", "collision")
             (root / "fuzz/Cargo.lock").unlink(missing_ok=True)
-            _write(root / "Cargo.toml", '[package]\nname = "probe"\nversion = "0.1.0"\n[workspace]\nexclude = ["fuzz"]\n')
+            _write(root / "Cargo.toml", '[package]\nname = "probe"\nversion = "0.1.0"\n[workspace]\nmembers = []\n')
             _write(root / "Cargo.lock", "version = 4\n")
             _write(root / "fuzz/Cargo.toml", '[package]\nname = "probe"\nversion = "0.1.0"\n')
             collision = _commit_all(root, "colliding base")
@@ -4971,9 +4997,8 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
                 manifest.write("\n[workspace]\n")
             _write(root / "fuzz/Cargo.lock", "version = 4\n")
             introduced = _commit_all(root, "colliding owner")
-            command[command.index("--base") + 1] = collision
-            command[command.index("--tip") + 1] = introduced
-            result = subprocess.run(command, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
+            argv = [introduced if value == "TIP" else collision if value == "BASE" else value for value in command]
+            result = subprocess.run(argv, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
             self.assertEqual(result.returncode, 2, result.stderr)
             self.assertIn("package names already exist at the base: probe", result.stderr)
 

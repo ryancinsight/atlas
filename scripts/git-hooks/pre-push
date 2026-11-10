@@ -1462,8 +1462,7 @@ while IFS= read -r changed_path; do
   fi
   if [ -z "$package_dir" ] \
     && { [ "$changed_path" = "Cargo.toml" ] || [ "$changed_path" = "Cargo.lock" ]; } \
-    && [ -f "$gate_manifest_path" ] \
-    && grep -qE '^\[workspace\]' "$gate_manifest_path" 2>/dev/null; then
+    && [ -f "$gate_manifest_path" ]; then
     while IFS=$'\t' read -r _workspace_manifest workspace_package; do
       [ -n "$workspace_package" ] || continue
       case " $gate_packages " in

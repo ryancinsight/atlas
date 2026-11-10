@@ -750,14 +750,44 @@ def new_standalone_owners(repo: pathlib.Path, base: str, tip: str,
     ambiguous declarations. The base manifest must parse even though Cargo
     cannot treat that formerly orphaned package as a workspace.
     """
-    from lockfile import tracked_texts, workspace_units
+    from lockfile import tracked_texts, workspace_facts, workspace_selection, workspace_units
 
     base_texts = tracked_texts(repo, staged=False, revision=base)
     tip_texts = tracked_texts(repo, staged=False, revision=tip)
     base_units = workspace_units(base_texts)
     tip_units = workspace_units(tip_texts)
-    base_owned = {manifest for facts in base_units.values()
+    base_manifests = {name: text for name, text in base_texts.items()
+                      if pathlib.PurePosixPath(name).name == "Cargo.toml"}
+    roots: list[pathlib.PurePosixPath] = []
+    documents: dict[str, dict[str, object]] = {}
+    for name, text in base_manifests.items():
+        try:
+            document = tomllib.loads(text)
+        except tomllib.TOMLDecodeError as error:
+            raise ValueError(f"{base}:{name} does not parse as TOML ({error})") from error
+        documents[name] = document
+        if isinstance(document.get("workspace"), dict):
+            roots.append(pathlib.PurePosixPath(name).parent)
+    base_facts = [*base_units.values(), *(workspace_facts(
+        base_manifests, root,
+        [nested for nested in roots if nested != root and root in nested.parents],
+    ) for root in roots)]
+    base_owned = {manifest for facts in base_facts
                   for manifest in facts.owned_manifests}
+    base_packages = {name for manifest in base_owned
+                     if (name := package_name(documents[manifest]))}
+    admitted: set[str] = set()
+    for root in roots:
+        name = (root / "Cargo.toml").as_posix()
+        broadened = dict(documents)
+        workspace = dict(documents[name]["workspace"])
+        workspace["members"] = ["**"]
+        broadened[name] = {**documents[name], "workspace": workspace}
+        owned, _, _ = workspace_selection(
+            base_manifests, broadened, root,
+            [nested for nested in roots if nested != root and root in nested.parents],
+        )
+        admitted.update(owned)
     added: set[str] = set()
     for manifest in manifests:
         path = pathlib.PurePosixPath(manifest)
@@ -765,26 +795,24 @@ def new_standalone_owners(repo: pathlib.Path, base: str, tip: str,
         base_text = base_texts.get(manifest)
         facts = tip_units.get(lock)
         if (base_text is None or lock in base_texts or manifest in base_owned
+                or manifest not in admitted
                 or facts is None or manifest not in facts.owned_manifests):
             continue
-        uncertain = [detail for unit in base_units.values()
+        uncertain = [detail for unit in base_facts
                      for detail in (*unit.unreadable, *unit.problems)]
         if uncertain:
             raise ValueError(f"{base}: workspace ownership is ambiguous ({'; '.join(uncertain)})")
-        base_packages = {package for unit in base_units.values() for package in unit.local}
-        collisions = sorted(facts.local & base_packages)
+        if facts.unreadable or facts.problems:
+            details = "; ".join((*facts.unreadable, *facts.problems))
+            raise ValueError(f"{tip}:{lock} has ambiguous ownership ({details})")
+        owner_packages = {name for owned in facts.owned_manifests
+                          if (name := package_name(tomllib.loads(tip_texts[owned])))}
+        collisions = sorted(owner_packages & base_packages)
         if collisions:
             raise ValueError(
                 f"{manifest}: newly owned package names already exist at the base: "
                 f"{', '.join(collisions)}"
             )
-        try:
-            tomllib.loads(base_text)
-        except tomllib.TOMLDecodeError as error:
-            raise ValueError(f"{base}:{manifest} does not parse as TOML ({error})") from error
-        if facts.unreadable or facts.problems:
-            details = "; ".join((*facts.unreadable, *facts.problems))
-            raise ValueError(f"{tip}:{lock} has ambiguous ownership ({details})")
         added.add(manifest)
     return frozenset(added)
 
