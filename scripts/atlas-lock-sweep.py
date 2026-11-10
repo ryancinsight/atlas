@@ -124,6 +124,7 @@ class Plan:
     member: Path
     base: str
     stale: tuple[LockedPackage, ...]
+    queried: tuple[LockedPackage, ...] = ()
 
     @property
     def name(self) -> str:
@@ -394,7 +395,9 @@ def plan_member(member: Path, targets: dict[str, str],
         lock_text = git(member, "show", f"{base}:Cargo.lock")
     except RuntimeError:
         return None
-    return Plan(member, base, stale_packages(lock_text, targets, read_packages))
+    queried = tuple(package for package in locked_packages(lock_text)
+                    if package.provider in targets and "?" in package.url)
+    return Plan(member, base, stale_packages(lock_text, targets, read_packages), queried)
 
 
 def export_tree(member: Path, base: str, directory: Path) -> None:
@@ -522,16 +525,42 @@ def retarget_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | 
 
 
 def selected_source_environment(plan: Plan, targets: dict[str, str],
-                                packages: list[LockedPackage], views: Path) -> dict[str, str]:
+                                packages: list[LockedPackage], views: Path,
+                                base_env: dict[str, str] | None = None
+                                ) -> tuple[dict[str, str], dict[str, set[str]]]:
     """Expose each selected commit as the only head for its original URLs."""
-    environment = {**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"}
+    environment = {**(os.environ if base_env is None else base_env),
+                   "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"}
     count_text = environment.get("GIT_CONFIG_COUNT", "0")
     if not count_text.isdecimal():
         raise ValueError("GIT_CONFIG_COUNT must be a non-negative integer")
     count = int(count_text)
-    for provider in sorted({package.provider for package in packages}):
+    inherited = []
+    for index in range(count):
+        key = environment.pop(f"GIT_CONFIG_KEY_{index}", None)
+        value = environment.pop(f"GIT_CONFIG_VALUE_{index}", None)
+        if key is None or value is None:
+            raise ValueError("inherited Git process configuration is inconsistent")
+        inherited.append((key, value))
+    environment["GIT_CONFIG_COUNT"] = "0"
+    root = plan.member.parent.parent
+    members = {name.lower(): name for name in registered_member_names(root)}
+    sources: dict[str, set[str]] = {}
+    selected = []
+    for provider in sorted(targets):
+        name = members.get(provider)
+        if name is None:
+            raise ValueError(f"selected provider is not registered: {provider}")
         target = targets[provider]
-        repository = plan.member.parent / provider
+        repository = plan.member.parent / name
+        canonical = lockfile.run_git(
+            ["config", "--file", str(root / ".gitmodules"), "--get",
+             f"submodule.repos/{name}.url"], root, env=environment,
+        ).decode().strip()
+        stem = canonical[:-4] if canonical.lower().endswith(".git") else canonical
+        urls = {stem, stem + ".git", *(package.url for package in packages
+                                      if package.provider == provider)}
+        sources[provider] = urls
         lockfile.run_git(["cat-file", "-e", target + "^{commit}"], repository, env=environment)
         objects = lockfile.run_git(
             ["rev-parse", "--path-format=absolute", "--git-path", "objects"],
@@ -548,23 +577,33 @@ def selected_source_environment(plan: Plan, targets: dict[str, str],
         alternate.write_bytes(Path(objects).resolve().as_posix().encode() + b"\n")
         lockfile.run_git(["update-ref", "refs/heads/selected", target], view, env=environment)
         lockfile.run_git(["symbolic-ref", "HEAD", "refs/heads/selected"], view, env=environment)
-        for url in sorted({package.url for package in packages if package.provider == provider}):
-            key = f"GIT_CONFIG_KEY_{count}"
-            value = f"GIT_CONFIG_VALUE_{count}"
-            if key in environment or value in environment:
-                raise ValueError("inherited Git process configuration is inconsistent")
-            environment[key] = f"url.{view.resolve().as_uri()}.insteadOf"
-            environment[value] = url
-            count += 1
-    environment["GIT_CONFIG_COUNT"] = str(count)
-    return environment
+        selected.extend((f"url.{view.resolve().as_uri()}.insteadOf", url)
+                        for url in sorted(urls))
+    for index, (key, value) in enumerate([*selected, *inherited]):
+        environment[f"GIT_CONFIG_KEY_{index}"] = key
+        environment[f"GIT_CONFIG_VALUE_{index}"] = value
+    environment["GIT_CONFIG_COUNT"] = str(len(selected) + len(inherited))
+    return environment, sources
 
 
-def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | None:
+def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path,
+                 env: dict[str, str] | None = None) -> Outcome | None:
     """Resolve all selected Git sources together, then prove the locked graph."""
     lock = tree / "Cargo.lock"
     try:
-        original = lock.read_text(encoding="utf-8")
+        original_bytes = lock.read_bytes()
+    except OSError as error:
+        return Outcome(plan.name, "failed", f"source transaction: {error}", False)
+
+    def failed(detail: str) -> Outcome:
+        try:
+            lock.write_bytes(original_bytes)
+        except OSError as error:
+            detail += f"; cannot restore original lock: {error}"
+        return Outcome(plan.name, "failed", detail, False)
+
+    try:
+        original = original_bytes.decode("utf-8")
         selected = [package for package in locked_packages(original)
                     if package.provider in targets]
         pinned = [package.name for package in selected if "?" in package.url]
@@ -574,22 +613,21 @@ def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | N
         if not specs:
             raise ValueError("selected providers have no movable locked packages")
         with tempfile.TemporaryDirectory(prefix="lock-sources-", dir=tree.parent) as views_name:
-            environment = selected_source_environment(plan, targets, selected, Path(views_name))
+            environment, sources = selected_source_environment(
+                plan, targets, selected, Path(views_name), env)
             update = cargo(
                 tree, "--config", "net.git-fetch-with-cli=true", "update",
                 *(flag for spec in specs for flag in ("--package", spec)), env=environment,
             )
     except (OSError, UnicodeError, ValueError, lockfile.GitUnavailable,
             lockfile.CargoDeadlineExceeded) as error:
-        return Outcome(plan.name, "failed", f"source transaction: {error}", False)
+        return failed(f"source transaction: {error}")
     if update.returncode:
-        return Outcome(plan.name, "failed", failure_detail(
-            plan.name, "atomic cargo update", update.stderr), False)
+        return failed(failure_detail(plan.name, "atomic cargo update", update.stderr))
     metadata = cargo(tree, "metadata", "--locked", "--offline", "--all-features",
-                     "--format-version", "1")
+                     "--format-version", "1", env=env)
     if metadata.returncode:
-        return Outcome(plan.name, "failed", failure_detail(
-            plan.name, "locked offline metadata", metadata.stderr), False)
+        return failed(failure_detail(plan.name, "locked offline metadata", metadata.stderr))
     try:
         resolved = lock.read_text(encoding="utf-8")
         locked = [package for package in locked_packages(resolved)
@@ -597,18 +635,20 @@ def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | N
         identities = {(package["name"], package["version"], package.get("source"))
                       for package in json.loads(metadata.stdout)["packages"]}
     except (KeyError, OSError, TypeError, UnicodeError, ValueError) as error:
-        return Outcome(plan.name, "failed", f"unreadable resolved graph: {error}", False)
+        return failed(f"unreadable resolved graph: {error}")
     original_urls = {(package.provider, package.url) for package in selected}
     resolved_urls = {(package.provider, package.url) for package in locked}
     misses = unmet_targets(resolved, tuple(selected), targets)
-    if original_urls != resolved_urls:
+    if not original_urls <= resolved_urls:
         misses.append("Cargo changed the selected providers' original source URLs")
+    if any(package.url not in sources[package.provider] for package in locked):
+        misses.append("Cargo introduced an unsupported selected source URL")
     for package in locked:
         source = f"git+{package.url}#{package.rev}"
         if (package.name, package.version, source) not in identities:
             misses.append(f"locked metadata omits {package.name} {package.version}")
     if misses:
-        return Outcome(plan.name, "failed", "source transaction: " + "; ".join(sorted(misses)), False)
+        return failed("source transaction: " + "; ".join(sorted(misses)))
     return None
 
 
@@ -807,6 +847,10 @@ def main() -> int:
                                locked_packages if operation is SourceOperation.RETARGET else first_party_packages)
             if plan is None:
                 outcomes.append(Outcome(member.name, "current", "no Cargo.lock", True))
+            elif plan.queried:
+                names = ", ".join(sorted({package.name for package in plan.queried}))
+                outcomes.append(Outcome(member.name, "failed",
+                                        "targeted source has a query constraint: " + names, False))
             elif not plan.stale:
                 outcomes.append(Outcome(member.name, "current", "every targeted source at its target", True))
             else:
