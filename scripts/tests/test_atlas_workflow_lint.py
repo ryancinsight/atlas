@@ -44,18 +44,13 @@ jobs:
 
 
 class VersionGuardWorkflowTests(unittest.TestCase):
-    def test_portable_selection_and_locked_diagnosis_are_scoped(self) -> None:
+    def test_portable_selection_uses_the_canonical_tool_runner(self) -> None:
         root = SCRIPTS.parent / ".github" / "workflows"
         overlay = yaml.safe_load((root / "atlas-stack-overlay.yml").read_text(encoding="utf-8"))
         job = overlay["jobs"]["overlay-check"]
-        diagnostic = {step["name"]: step for step in job["steps"]}[
-            "Check version-guard locked graph"
-        ]
-        self.assertEqual((job["env"], diagnostic["timeout-minutes"]), ({"RUSTUP_TOOLCHAIN": "1.97.0"}, 2))
-        script = diagnostic["run"]
-        self.assertLess(script.index('[*common, "--locked"]'), script.index("resolved ="))
-        for witness in ('raise SystemExit(locked.returncode)', 'diff -u "$before"', 'cmp -s'):
-            self.assertIn(witness, script)
+        overlay_steps = {step["name"]: step for step in job["steps"]}
+        self.assertEqual(job["env"], {"RUSTUP_TOOLCHAIN": "1.97.0"})
+        self.assertNotIn("Check version-guard locked graph", overlay_steps)
         python = yaml.safe_load((root / "python-tests.yml").read_text(encoding="utf-8"))
         fast = python["jobs"]["pytest-fast"]
         self.assertNotIn("env", fast)
@@ -64,6 +59,7 @@ class VersionGuardWorkflowTests(unittest.TestCase):
             steps["Restore version-guard build cache"]["env"],
             {"RUSTUP_TOOLCHAIN": "1.97.0"},
         )
+        self.assertNotIn("Build version-guard for overlay tests", steps)
 
 
 def fixture(test: unittest.TestCase) -> tuple[Path, Path, Path]:
