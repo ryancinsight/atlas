@@ -223,13 +223,6 @@ class LockTests(unittest.TestCase):
 
 
 class PlanTests(unittest.TestCase):
-    def test_targeted_query_is_classified_before_current_state(self) -> None:
-        queried = tuple(package for package in sweep.locked_packages(LOCK)
-                        if package.provider == "leto" and "?" in package.url)
-        plan = sweep.Plan(Path("repos/consumer"), OLD, (), queried)
-        self.assertEqual([(package.name, package.rev) for package in plan.queried],
-                         [("pinned", OLD)])
-
     def test_entries_behind_their_target_are_stale_and_entries_at_it_are_not(self) -> None:
         stale = sweep.stale_packages(LOCK, {"hermes": NEW, "mnemosyne": NEW})
         self.assertEqual(

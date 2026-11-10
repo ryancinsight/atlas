@@ -71,7 +71,8 @@ import argparse
 import copy
 import json
 import tomllib
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 import hashlib
 import os
 import re
@@ -549,6 +550,19 @@ def lock_failure(plan: Plan, lock: Path, original: bytes, detail: str) -> Outcom
     return Outcome(plan.name, "failed", detail, False)
 
 
+@contextmanager
+def restore_lock_on_error(lock: Path, original: bytes) -> Iterator[None]:
+    """Restore an input lock when resolution raises or is cancelled."""
+    try:
+        yield
+    except BaseException as error:
+        try:
+            lock.write_bytes(original)
+        except OSError as restore_error:
+            error.add_note(f"cannot restore original lock: {restore_error}")
+        raise
+
+
 def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | None:
     """Advance the exported lock's stale sources to their targets; a failed row, or None."""
     lock = tree / "Cargo.lock"
@@ -556,29 +570,30 @@ def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | N
         original = lock.read_bytes()
     except OSError as error:
         return Outcome(plan.name, "failed", f"lock snapshot: {error}", False)
-    specs = sorted({package.spec for package in plan.stale})
-    update = cargo(tree, "update", *(flag for spec in specs for flag in ("--package", spec)))
-    if update.returncode != 0:
-        return lock_failure(plan, lock, original,
-                            failure_detail(plan.name, "cargo update", update.stderr))
-    # A precise update of one source re-resolves the git sources its packages
-    # depend on, which can carry an already-returned source past its target
-    # again; a round per source bounds the repetition.
-    for _round in range(len({package.url for package in plan.stale}) + 1):
-        resolved = (tree / "Cargo.lock").read_text(encoding="utf-8", errors="replace")
-        returns = pullbacks(resolved, plan.stale, targets)
-        if not returns:
-            break
-        for spec, target in returns:
-            precise = cargo(tree, "update", "--package", spec, "--precise", target)
-            if precise.returncode != 0:
-                return lock_failure(plan, lock, original, failure_detail(
-                    plan.name, "cargo update --precise", precise.stderr))
-    resolved = (tree / "Cargo.lock").read_text(encoding="utf-8", errors="replace")
-    misses = unmet_targets(resolved, plan.stale, targets)
-    if misses:
-        return lock_failure(plan, lock, original,
-                            "source past its target: " + "; ".join(misses))
+    with restore_lock_on_error(lock, original):
+        specs = sorted({package.spec for package in plan.stale})
+        update = cargo(tree, "update", *(flag for spec in specs for flag in ("--package", spec)))
+        if update.returncode != 0:
+            return lock_failure(plan, lock, original,
+                                failure_detail(plan.name, "cargo update", update.stderr))
+        # A precise update of one source re-resolves the git sources its packages
+        # depend on, which can carry an already-returned source past its target
+        # again; a round per source bounds the repetition.
+        for _round in range(len({package.url for package in plan.stale}) + 1):
+            resolved = lock.read_text(encoding="utf-8", errors="replace")
+            returns = pullbacks(resolved, plan.stale, targets)
+            if not returns:
+                break
+            for spec, target in returns:
+                precise = cargo(tree, "update", "--package", spec, "--precise", target)
+                if precise.returncode != 0:
+                    return lock_failure(plan, lock, original, failure_detail(
+                        plan.name, "cargo update --precise", precise.stderr))
+        resolved = lock.read_text(encoding="utf-8", errors="replace")
+        misses = unmet_targets(resolved, plan.stale, targets)
+        if misses:
+            return lock_failure(plan, lock, original,
+                                "source past its target: " + "; ".join(misses))
     return None
 
 

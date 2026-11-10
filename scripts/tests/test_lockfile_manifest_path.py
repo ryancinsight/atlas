@@ -10,8 +10,12 @@ workspace's lock silently regenerated the umbrella's instead.
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -26,13 +30,11 @@ SPEC.loader.exec_module(lockfile)
 class ManifestPathTests(unittest.TestCase):
     def setUp(self) -> None:
         self.argv: list[list[str]] = []
-        self.environments: list[dict[str, str]] = []
         self.original_run = lockfile.run_bounded
         self.original_manifest = lockfile.MANIFEST
 
-        def fake_run(command, **kwargs):
+        def fake_run(command, **_kwargs):
             self.argv.append(list(command))
-            self.environments.append(kwargs["env"])
             return subprocess.CompletedProcess(command, 0, "", "")
 
         lockfile.run_bounded = fake_run
@@ -60,11 +62,32 @@ class ManifestPathTests(unittest.TestCase):
         lockfile.run_outside_the_overlay(["metadata"])
         self.assertEqual(self._manifest_argument(), str(self.original_manifest))
 
-    def test_explicit_environment_is_copied_without_global_mutation(self) -> None:
-        supplied = {"CARGO_HOME": "D:/cargo-home", "MARKER": "preserved"}
-        lockfile.run_outside_the_overlay(["metadata"], env=supplied)
-        self.assertEqual(self.environments[-1]["MARKER"], "preserved")
-        self.assertEqual(supplied, {"CARGO_HOME": "D:/cargo-home", "MARKER": "preserved"})
+
+@unittest.skipUnless(shutil.which("cargo"), "needs real Cargo")
+class EnvironmentTests(unittest.TestCase):
+    def test_real_cargo_receives_explicit_environment_without_parent_mutation(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="lockfile-env-") as directory:
+            root = Path(directory).resolve()
+            (root / "src").mkdir()
+            (root / "Cargo.toml").write_text(
+                '[package]\nname="environment-probe"\nversion="0.1.0"\nedition="2024"\n',
+                encoding="utf-8",
+            )
+            (root / "src/lib.rs").write_text("", encoding="utf-8")
+            target = root / "selected-target"
+            supplied = {**os.environ, "CARGO_TARGET_DIR": str(target)}
+            parent = dict(os.environ)
+
+            result = lockfile.run_outside_the_overlay(
+                ["metadata", "--no-deps", "--format-version", "1"],
+                manifest=root / "Cargo.toml",
+                env=supplied,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(Path(json.loads(result.stdout)["target_directory"]).resolve(), target)
+            self.assertEqual(dict(os.environ), parent)
+            self.assertEqual(supplied["CARGO_TARGET_DIR"], str(target))
 
 
 if __name__ == "__main__":
