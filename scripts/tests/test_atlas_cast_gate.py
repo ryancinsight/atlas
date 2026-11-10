@@ -1176,3 +1176,136 @@ def test_the_gate_counts_moves_and_reads_standalone_crates(tmp_path):
         FUZZ_LIB + "\npub fn narrow(x: u16) -> u8 {\n    x as u8\n}\n")
     fuzzed = commit(repo, "a cast in the standalone crate")
     assert judge(moved, fuzzed, [fz], "fuzz/Cargo.toml", with_base=False) == 1
+
+
+def test_a_root_manifest_compares_without_its_dependency_table():
+    before = '[workspace]\nmembers = ["a"]\n[workspace.dependencies]\nx = "1"\n'
+    after = '[workspace]\nmembers = ["a"]\n[workspace.dependencies]\ny = "2"\n'
+    profile = after + '[profile.dev]\ndebug-assertions = false\n'
+    assert (gate.without_workspace_dependencies(before)
+            == gate.without_workspace_dependencies(after))
+    assert (gate.without_workspace_dependencies(before)
+            != gate.without_workspace_dependencies(profile))
+    assert gate.without_workspace_dependencies(None) is None
+
+
+def test_changed_paths_give_both_sides_of_a_move(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "a" / "src").mkdir(parents=True)
+    (repo / "b" / "src").mkdir(parents=True)
+    (repo / "a" / "src" / "moved.rs").write_text(OLD)
+    first = commit(repo, "first")
+    (repo / "a" / "src" / "moved.rs").rename(repo / "b" / "src" / "moved.rs")
+    (repo / "README.md").write_text("notes\n")
+    moved = commit(repo, "move")
+    assert sorted(gate.changed_paths(repo, first, moved)) == [
+        "README.md", "a/src/moved.rs", "b/src/moved.rs",
+    ]
+
+
+def write_crate(root: pathlib.Path, name: str, body: str, dependency: str | None = None):
+    crate = root / "crates" / name
+    (crate / "src").mkdir(parents=True, exist_ok=True)
+    manifest = f'[package]\nname = "{name}"\nversion = "0.1.0"\nedition = "2021"\n'
+    if dependency:
+        manifest += f'\n[dependencies]\n{dependency} = {{ path = "../{dependency}" }}\n'
+    (crate / "Cargo.toml").write_text(manifest)
+    (crate / "src" / "lib.rs").write_text(body)
+
+
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="needs cargo")
+def test_resolved_changes_name_the_members_a_dependency_table_reaches(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    root = ('[workspace]\nmembers = ["crates/*"]\nresolver = "2"\n\n'
+            '[workspace.dependencies]\ncore = { path = "crates/core" }\n')
+    (repo / "Cargo.toml").write_text(root)
+    write_crate(repo, "core", "pub fn core() {}\n")
+    with (repo / "crates" / "core" / "Cargo.toml").open("a") as manifest:
+        manifest.write('\n[features]\nextra = []\n')
+    write_crate(repo, "io", "pub fn io() {}\n")
+    with (repo / "crates" / "io" / "Cargo.toml").open("a") as manifest:
+        manifest.write('\n[dependencies]\ncore.workspace = true\n')
+    write_crate(repo, "viewer", "pub fn viewer() {}\n")
+    write_crate(repo, "fastcore", "pub fn core() {}\n")
+    subprocess.run(["cargo", "generate-lockfile", "--offline"], cwd=repo, check=True,
+                   capture_output=True)
+    base = commit(repo, "base")
+    (repo / "Cargo.toml").write_text(root.replace(
+        'core = { path = "crates/core" }',
+        'core = { path = "crates/core", features = ["extra"] }'))
+    featured = commit(repo, "enable a feature through the dependency table")
+    (repo / "Cargo.toml").write_text(root.replace(
+        'core = { path = "crates/core" }',
+        'core = { path = "crates/fastcore", package = "fastcore" }'))
+    subprocess.run(["cargo", "generate-lockfile", "--offline"], cwd=repo, check=True,
+                   capture_output=True)
+    retargeted = commit(repo, "point the dependency at another package")
+    (repo / "Cargo.toml").write_text(root + '\n[profile.dev]\ndebug-assertions = false\n')
+    subprocess.run(["cargo", "generate-lockfile", "--offline"], cwd=repo, check=True,
+                   capture_output=True)
+    profiled = commit(repo, "change a profile")
+
+    def export(revision: str, name: str) -> pathlib.Path:
+        directory = tmp_path / name
+        git(repo, "worktree", "add", "-q", "--detach", str(directory), revision)
+        return directory
+
+    base_export = export(base, "base")
+    # The feature reaches `core` alone: `io`'s own resolved inputs are unchanged.
+    changed, reason = gate.resolved_changes(repo, base, featured, base_export,
+                                            export(featured, "featured"), "Cargo.toml")
+    assert (sorted(changed), reason) == (["core"], "")
+    changed, reason = gate.resolved_changes(repo, base, retargeted, base_export,
+                                            export(retargeted, "retargeted"), "Cargo.toml")
+    assert (sorted(changed), reason) == (["io"], "")
+    changed, reason = gate.resolved_changes(repo, base, profiled, base_export,
+                                            export(profiled, "profiled"), "Cargo.toml")
+    assert (changed, reason) == (None, "Cargo.toml changes beyond [workspace.dependencies]")
+
+    # Inputs that reach every member by no resolved dependency gate them all,
+    # and so does a range that leaves the root manifest alone: the hook also
+    # reaches this path for root build inputs it maps onto the manifest.
+    (repo / ".cargo").mkdir()
+    (repo / ".cargo" / "config.toml").write_text("[build]\nincremental = false\n")
+    configured = commit(repo, "configure cargo")
+    changed, reason = gate.resolved_changes(repo, profiled, configured,
+                                            export(profiled, "profiled-base"),
+                                            export(configured, "configured"), "Cargo.toml")
+    assert (changed, reason) == (None, ".cargo/config.toml changed")
+    (repo / "crates" / "viewer" / "src" / "lib.rs").write_text("pub fn viewer() -> u8 { 1 }\n")
+    edited = commit(repo, "edit a member")
+    changed, reason = gate.resolved_changes(repo, configured, edited,
+                                            export(configured, "configured-base"),
+                                            export(edited, "edited"), "Cargo.toml")
+    assert (changed, reason) == (None, "Cargo.toml is not changed by the pushed range")
+
+
+def test_resolved_changes_gate_everything_when_cargo_cannot_resolve(tmp_path, monkeypatch,
+                                                                    capsys):
+    def unresolvable(export, manifest, config=None):
+        raise subprocess.CalledProcessError(101, ["cargo", "metadata"])
+
+    monkeypatch.setattr(gate, "changed_paths", lambda repo, base, tip: ["Cargo.toml"])
+    monkeypatch.setattr(gate, "read_resolution", unresolvable)
+    status = gate.main(["resolved-changes", "--repo", str(tmp_path), "--base", "b",
+                        "--tip", "t", "--base-export", str(tmp_path),
+                        "--tip-export", str(tmp_path)])
+    captured = capsys.readouterr()
+    assert (status, captured.out) == (3, "")
+    assert captured.err.startswith(
+        "cast gate: every member is gated: cargo metadata could not resolve both revisions")
+
+
+def test_resolved_changes_print_one_member_per_line(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(
+        gate, "resolved_changes",
+        lambda repo, base, tip, base_export, tip_export, manifest, config:
+        (frozenset({"io", "core"}), ""),
+    )
+    status = gate.main(["resolved-changes", "--repo", str(tmp_path), "--base", "b",
+                        "--tip", "t", "--base-export", str(tmp_path),
+                        "--tip-export", str(tmp_path)])
+    captured = capsys.readouterr()
+    assert (status, captured.out, captured.err) == (0, "core\nio\n", "")
