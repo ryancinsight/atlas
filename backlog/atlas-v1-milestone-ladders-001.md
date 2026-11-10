@@ -8,6 +8,10 @@
   - eunomia lane delivered 2026-11-10: ADR 0012 + `backlog/milestones.md` on
     branch `docs/eunomia-milestone-ladder-20261110` at `cd84a3d` (PR #193, open);
     ladder count becomes 7 of 28 on merge.
+  - aequitas lane delivered 2026-11-10: ADR 0020 + `backlog/milestones.md` on
+    branch `docs/aequitas-milestone-ladder-20261110` at `68f70a5` (PR #154, open);
+    owner-gated leftovers (wheel publication, proof-tool decision) assigned to
+    M-ecosystem without gating 1.0; ladder count becomes 8 of 28 on merge.
 - template (do not reinvent per member): release-scope ADR named `<n>-release-scope-1-0.md` (Accepted, scope in/out with veto points, rejected alternatives, overturning evidence); `backlog/milestones.md` with `M-*` milestones each carrying `exit:` commands, `needs:` edges, and non-goals; every open correctness/verification item assigned to exactly one milestone; the 1.0 milestone blocks on release authority and never forces `publish = true` without it.
 - remaining order (provider-first, so consumer ladders can cite provider exits):
   1. foundation/compute: eunomia, aequitas, themis, mnemosyne, moirai, hermes, leto, hephaestus;
