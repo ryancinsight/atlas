@@ -24,7 +24,7 @@ This script keeps what acts on the stack as a whole:
                 deploy the owned hooks into the members
     install-hooks
                 per-clone bootstrap: point member `core.hooksPath` at
-                scripts/git-hooks so every member runs the owned pre-commit
+                shared source-bound shims so every member runs the pre-commit
                 and pre-push hooks, whatever branch its tree has checked out
 
 The rule is deliberately narrow: it flags only a package that is *present in
@@ -38,6 +38,7 @@ misreport both.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -716,8 +717,40 @@ def valid_board_item(item: str | None) -> bool:
     return item is None or BOARD_ITEM_HEADING.fullmatch(f"## {item}") is not None
 
 
-def enqueue_pull_request(repo: Path, url: str) -> None:
-    """Enable merge-on-green for a pull request, surfacing refusal as failure."""
+def enqueue_pull_request(
+    repo: Path, url: str, default: str, candidate: str, landing_tree: str
+) -> None:
+    """Bind merge readiness to the verified head, base and hosted merge tree."""
+    try:
+        state = json.loads(hosting_in(
+            repo, "pr", "view", url, "--json",
+            "baseRefOid,headRefOid,potentialMergeCommit,number",
+        ))
+    except (json.JSONDecodeError, TypeError) as error:
+        raise RuntimeError(f"cannot read publication merge identity for {url}") from error
+    if (
+        not isinstance(state, dict)
+        or state.get("baseRefOid") != default
+        or state.get("headRefOid") != candidate
+    ):
+        raise RuntimeError(f"publication head or base changed before readiness: {url}")
+    number = state.get("number")
+    merge = state.get("potentialMergeCommit")
+    if (
+        type(number) is not int or number <= 0
+        or not isinstance(merge, dict) or not isinstance(merge.get("oid"), str)
+        or re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", merge["oid"]) is None
+    ):
+        raise RuntimeError(f"publication has no hosted merge identity: {url}")
+    git_in(repo, "fetch", "-q", "origin", f"refs/pull/{number}/merge")
+    observed = git_in(repo, "rev-parse", "FETCH_HEAD")
+    if (
+        observed != merge["oid"]
+        or git_in(repo, "show", "-s", "--format=%P", observed)
+        != f"{default} {candidate}"
+        or git_in(repo, "rev-parse", f"{observed}^{{tree}}") != landing_tree
+    ):
+        raise RuntimeError(f"publication merge tree changed before readiness: {url}")
     hosting_in(repo, "pr", "merge", url, "--merge", "--auto")
 
 
@@ -849,7 +882,9 @@ def cmd_publish_hooks(args) -> int:
                 message,
                 retired=tuple(retired),
             )
-            hook_landing_tree(repo, default_commit, commit or base, hooks, tuple(retired))
+            landing_tree = hook_landing_tree(
+                repo, default_commit, commit or base, hooks, tuple(retired)
+            )
             if commit is None:
                 print(f"current: {member}")
                 continue
@@ -871,7 +906,7 @@ def cmd_publish_hooks(args) -> int:
             if draft:
                 print(f"{action}: {member} {url} draft")
             else:
-                enqueue_pull_request(repo, url)
+                enqueue_pull_request(repo, url, default_commit, commit, landing_tree)
                 print(f"{action}: {member} {url} enqueued")
         except RuntimeError as error:
             failures += 1

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import json
 import subprocess
 import sys
 import tempfile
@@ -567,15 +568,41 @@ class PullRequestCommandTestCase(unittest.TestCase):
     def test_existing_pull_request_is_reused_and_enqueued(self) -> None:
         repo = Path("member")
         url = "https://github.com/example/member/pull/7"
+        default = "d" * 40
+        candidate = "c" * 40
+        merge = "a" * 40
+        tree = "b" * 40
         responses = [
             subprocess.CompletedProcess([], 0, stdout=f"{url}\tfalse\n", stderr=""),
+            subprocess.CompletedProcess(
+                [],
+                0,
+                stdout=json.dumps(
+                    {
+                        "baseRefOid": default,
+                        "headRefOid": candidate,
+                        "potentialMergeCommit": {"oid": merge},
+                        "number": 7,
+                    }
+                ),
+                stderr="",
+            ),
             subprocess.CompletedProcess([], 0, stdout="", stderr=""),
         ]
-        with patch.object(_lock_form.subprocess, "run", side_effect=responses) as run:
+        with (
+            patch.object(_lock_form.subprocess, "run", side_effect=responses) as run,
+            patch.object(
+                _lock_form,
+                "git_in",
+                side_effect=["", merge, f"{default} {candidate}", tree],
+            ),
+        ):
             found, created = _lock_form.pull_request_for(
                 repo, "ci/sync-stack-hooks", "main", "subject", "body"
             )
-            _lock_form.enqueue_pull_request(repo, found)
+            _lock_form.enqueue_pull_request(
+                repo, found, default, candidate, tree
+            )
 
         self.assertEqual((found, created), (url, False))
         self.assertEqual(
@@ -587,27 +614,53 @@ class PullRequestCommandTestCase(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            run.call_args_list[1].args[0],
+            run.call_args_list[2].args[0],
             ["gh", "pr", "merge", url, "--merge", "--auto"],
         )
         self.assertEqual(
-            run.call_args_list[1].kwargs["timeout"],
+            run.call_args_list[2].kwargs["timeout"],
             _lock_form.HOSTING_DEADLINE_SECONDS,
         )
 
     def test_new_pull_request_enqueue_failure_is_propagated(self) -> None:
         url = "https://github.com/example/member/pull/8"
+        default = "d" * 40
+        candidate = "c" * 40
+        merge = "a" * 40
+        tree = "b" * 40
         responses = [
             subprocess.CompletedProcess([], 0, stdout="", stderr=""),
             subprocess.CompletedProcess([], 0, stdout=f"{url}\n", stderr=""),
+            subprocess.CompletedProcess(
+                [],
+                0,
+                stdout=json.dumps(
+                    {
+                        "baseRefOid": default,
+                        "headRefOid": candidate,
+                        "potentialMergeCommit": {"oid": merge},
+                        "number": 8,
+                    }
+                ),
+                stderr="",
+            ),
             subprocess.CompletedProcess([], 1, stdout="", stderr="auto merge refused"),
         ]
-        with patch.object(_lock_form.subprocess, "run", side_effect=responses) as run:
+        with (
+            patch.object(_lock_form.subprocess, "run", side_effect=responses) as run,
+            patch.object(
+                _lock_form,
+                "git_in",
+                side_effect=["", merge, f"{default} {candidate}", tree],
+            ),
+        ):
             found, created = _lock_form.pull_request_for(
                 Path("member"), "ci/sync-stack-hooks", "main", "subject", "body"
             )
             with self.assertRaisesRegex(RuntimeError, "auto merge refused"):
-                _lock_form.enqueue_pull_request(Path("member"), found)
+                _lock_form.enqueue_pull_request(
+                    Path("member"), found, default, candidate, tree
+                )
 
         self.assertEqual((found, created), (url, True))
         self.assertEqual(
@@ -682,6 +735,287 @@ class PullRequestCommandTestCase(unittest.TestCase):
         with patch.object(_lock_form, "execute_git", side_effect=error):
             with self.assertRaisesRegex(RuntimeError, "timed out after 90s"):
                 _lock_form.git_in(Path("member"), "status")
+
+
+class HostedMergeTestCase(unittest.TestCase):
+    URL = "https://github.com/example/member/pull/7"
+
+    def _git(self, repo: Path, *args: str) -> str:
+        return subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                *args,
+            ],
+            check=True,
+            capture_output=True,
+            encoding="utf-8",
+        ).stdout.strip()
+
+    def _pull_ref(self, remote: Path, commit: str) -> None:
+        subprocess.run(
+            [
+                "git",
+                "--git-dir",
+                str(remote),
+                "update-ref",
+                "refs/pull/7/merge",
+                commit,
+            ],
+            check=True,
+            capture_output=True,
+        )
+
+    def _graph(self, scratch: Path) -> tuple[Path, Path, dict[str, str]]:
+        repo = scratch / "member"
+        repo.mkdir()
+        self._git(repo, "init", "-q", "-b", "main")
+        (repo / "value.txt").write_text("base\n", encoding="utf-8")
+        self._git(repo, "add", "value.txt")
+        self._git(repo, "commit", "-q", "-m", "base")
+        base = self._git(repo, "rev-parse", "HEAD")
+
+        (repo / "README.md").write_text("current default\n", encoding="utf-8")
+        self._git(repo, "add", "README.md")
+        self._git(repo, "commit", "-q", "-m", "default")
+        default = self._git(repo, "rev-parse", "HEAD")
+        self._git(repo, "switch", "-q", "-c", "publication", base)
+        hook = repo / ".githooks" / "pre-push"
+        hook.parent.mkdir()
+        hook.write_bytes(b"#!/bin/sh\nexit 0\n")
+        self._git(repo, "add", ".githooks/pre-push")
+        self._git(repo, "update-index", "--chmod=+x", ".githooks/pre-push")
+        self._git(repo, "commit", "-q", "-m", "publication")
+        candidate = self._git(repo, "rev-parse", "HEAD")
+
+        tree = self._git(repo, "merge-tree", "--write-tree", default, candidate)
+        merge = self._git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p",
+            default,
+            "-p",
+            candidate,
+            "-m",
+            "hosted merge",
+        )
+        replacement = self._git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p",
+            default,
+            "-p",
+            candidate,
+            "-m",
+            "replacement hosted merge",
+        )
+        reversed_parents = self._git(
+            repo,
+            "commit-tree",
+            tree,
+            "-p",
+            candidate,
+            "-p",
+            default,
+            "-m",
+            "reversed merge",
+        )
+        candidate_tree = self._git(repo, "rev-parse", f"{candidate}^{{tree}}")
+        wrong_tree = self._git(
+            repo,
+            "commit-tree",
+            candidate_tree,
+            "-p",
+            default,
+            "-p",
+            candidate,
+            "-m",
+            "wrong tree",
+        )
+
+        remote = scratch / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+        self._git(repo, "remote", "add", "origin", str(remote))
+        for name, commit in (
+            ("merge", merge),
+            ("replacement", replacement),
+            ("reversed", reversed_parents),
+            ("wrong-tree", wrong_tree),
+        ):
+            self._git(repo, "push", "-q", "origin", f"{commit}:refs/test/{name}")
+        self._pull_ref(remote, merge)
+        return repo, remote, {
+            "default": default,
+            "candidate": candidate,
+            "tree": tree,
+            "merge": merge,
+            "replacement": replacement,
+            "reversed_parents": reversed_parents,
+            "wrong_tree": wrong_tree,
+        }
+
+    def _state(self, graph: dict[str, str], **updates) -> str:
+        state = {
+            "baseRefOid": graph["default"],
+            "headRefOid": graph["candidate"],
+            "potentialMergeCommit": {"oid": graph["merge"]},
+            "number": 7,
+        }
+        state.update(updates)
+        return json.dumps(state)
+
+    def test_exact_hosted_merge_tree_enqueues(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-merge-") as temp:
+            repo, _remote, graph = self._graph(Path(temp))
+            calls: list[tuple[str, ...]] = []
+
+            def host(_repo: Path, *command: str) -> str:
+                calls.append(command)
+                if command[1] == "view":
+                    return self._state(graph)
+                if command[1] == "merge":
+                    return ""
+                raise AssertionError(command)
+
+            with patch.object(_lock_form, "hosting_in", side_effect=host):
+                _lock_form.enqueue_pull_request(
+                    repo,
+                    self.URL,
+                    graph["default"],
+                    graph["candidate"],
+                    graph["tree"],
+                )
+
+            self.assertEqual(
+                calls,
+                [
+                    (
+                        "pr",
+                        "view",
+                        self.URL,
+                        "--json",
+                        "baseRefOid,headRefOid,potentialMergeCommit,number",
+                    ),
+                    ("pr", "merge", self.URL, "--merge", "--auto"),
+                ],
+            )
+
+    def test_hosted_merge_identity_mismatches_never_arm(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-refusal-") as temp:
+            repo, remote, graph = self._graph(Path(temp))
+            cases = (
+                ("base", {"baseRefOid": "0" * 40}, graph["merge"]),
+                ("head", {"headRefOid": "1" * 40}, graph["merge"]),
+                (
+                    "merge_oid",
+                    {"potentialMergeCommit": {"oid": "2" * 40}},
+                    graph["merge"],
+                ),
+                (
+                    "parents",
+                    {
+                        "potentialMergeCommit": {
+                            "oid": graph["reversed_parents"]
+                        }
+                    },
+                    graph["reversed_parents"],
+                ),
+                (
+                    "tree",
+                    {"potentialMergeCommit": {"oid": graph["wrong_tree"]}},
+                    graph["wrong_tree"],
+                ),
+                ("unavailable", {"potentialMergeCommit": None}, graph["merge"]),
+                ("invalid_number_bool", {"number": True}, graph["merge"]),
+                ("invalid_number_zero", {"number": 0}, graph["merge"]),
+                ("invalid_number_text", {"number": "7"}, graph["merge"]),
+                (
+                    "invalid_merge_id",
+                    {"potentialMergeCommit": {"oid": 7}},
+                    graph["merge"],
+                ),
+            )
+            for name, updates, pull_ref in cases:
+                with self.subTest(name=name):
+                    self._pull_ref(remote, pull_ref)
+                    armed = False
+
+                    def host(_repo: Path, *command: str) -> str:
+                        nonlocal armed
+                        if command[1] == "view":
+                            return self._state(graph, **updates)
+                        if command[1] == "merge":
+                            armed = True
+                            return ""
+                        raise AssertionError(command)
+
+                    with (
+                        patch.object(_lock_form, "hosting_in", side_effect=host),
+                        self.assertRaisesRegex(RuntimeError, "publication"),
+                    ):
+                        _lock_form.enqueue_pull_request(
+                            repo,
+                            self.URL,
+                            graph["default"],
+                            graph["candidate"],
+                            graph["tree"],
+                        )
+                    self.assertFalse(armed)
+
+            armed = False
+
+            def malformed(_repo: Path, *command: str) -> str:
+                nonlocal armed
+                if command[1] == "view":
+                    return "{"
+                armed = True
+                return ""
+
+            with (
+                patch.object(_lock_form, "hosting_in", side_effect=malformed),
+                self.assertRaisesRegex(RuntimeError, "cannot read publication"),
+            ):
+                _lock_form.enqueue_pull_request(
+                    repo,
+                    self.URL,
+                    graph["default"],
+                    graph["candidate"],
+                    graph["tree"],
+                )
+            self.assertFalse(armed)
+
+    def test_pull_ref_change_after_host_identity_read_refuses(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-race-") as temp:
+            repo, remote, graph = self._graph(Path(temp))
+            armed = False
+
+            def host(_repo: Path, *command: str) -> str:
+                nonlocal armed
+                if command[1] == "view":
+                    self._pull_ref(remote, graph["replacement"])
+                    return self._state(graph)
+                armed = True
+                return ""
+
+            with (
+                patch.object(_lock_form, "hosting_in", side_effect=host),
+                self.assertRaisesRegex(RuntimeError, "merge tree changed"),
+            ):
+                _lock_form.enqueue_pull_request(
+                    repo,
+                    self.URL,
+                    graph["default"],
+                    graph["candidate"],
+                    graph["tree"],
+                )
+            self.assertFalse(armed)
 
 
 class RetiredPathTestCase(unittest.TestCase):
@@ -939,7 +1273,9 @@ class PublisherScopeTestCase(unittest.TestCase):
                 patch.object(
                     _lock_form,
                     "hook_landing_tree",
-                    side_effect=lambda *_args: publication_events.append("landing"),
+                    side_effect=lambda *_args: (
+                        publication_events.append("landing") or "landing"
+                    ),
                 ) as landing_guard,
                 patch.object(
                     _lock_form,
@@ -994,7 +1330,13 @@ class PublisherScopeTestCase(unittest.TestCase):
                 expected_message,
                 draft=False,
             )
-            enqueue.assert_called_once_with(member_root / "alpha", "url")
+            enqueue.assert_called_once_with(
+                member_root / "alpha",
+                "url",
+                "b" * 40,
+                "built",
+                "landing",
+            )
 
     def test_draft_publication_skips_enqueue(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-hook-draft-") as temp:
@@ -1201,7 +1543,7 @@ class PublisherScopeTestCase(unittest.TestCase):
             args = Namespace(members=["alpha"], push=True, source_ref=None)
             for failed_stage in ("list", "create", "merge"):
                 with self.subTest(failed_stage=failed_stage):
-                    git_results = iter(
+                    initial_git_results = iter(
                         [
                             "",
                             "refs/remotes/origin/main",
@@ -1212,6 +1554,20 @@ class PublisherScopeTestCase(unittest.TestCase):
                             "base",
                         ]
                     )
+                    merge = "6" * 40
+
+                    def git(_repo: Path, *command: str, **_kwargs) -> str:
+                        if command == (
+                            "fetch", "-q", "origin", "refs/pull/7/merge"
+                        ):
+                            return ""
+                        if command == ("rev-parse", "FETCH_HEAD"):
+                            return merge
+                        if command == ("show", "-s", "--format=%P", merge):
+                            return "base commit"
+                        if command == ("rev-parse", f"{merge}^{{tree}}"):
+                            return "landing"
+                        return next(initial_git_results)
 
                     def host(_repo: Path, *command: str) -> str:
                         stage = command[1]
@@ -1221,6 +1577,15 @@ class PublisherScopeTestCase(unittest.TestCase):
                             return ""
                         if stage == "create":
                             return "https://github.com/example/alpha/pull/1"
+                        if stage == "view":
+                            return json.dumps(
+                                {
+                                    "baseRefOid": "base",
+                                    "headRefOid": "commit",
+                                    "potentialMergeCommit": {"oid": merge},
+                                    "number": 7,
+                                }
+                            )
                         return ""
 
                     output = io.StringIO()
@@ -1233,7 +1598,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                         patch.object(
                             _lock_form,
                             "git_in",
-                            side_effect=lambda *_args: next(git_results),
+                            side_effect=git,
                         ),
                         patch.object(
                             _lock_form, "committed_hooks",
