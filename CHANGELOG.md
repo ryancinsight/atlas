@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Widen every registered consumer's `leto` / `leto-ops` requirement to admit
+  the 0.48 provider line: apollo, ares, athena, CFDrs, coeus, gaia, helios,
+  hephaestus, kwavers, prometheus and ritk now unify with the local Leto 0.48.0
+  working tree under the stack overlay. Each lower bound is unchanged and no
+  `Cargo.lock` is rewritten, because 0.48.0 is not yet published: standalone
+  `--locked` builds keep resolving the recorded provider revision. The
+  remaining version lags are Eunomia 0.11 / Hermes 0.9, not Leto.
+
+- Advance all 28 stack gitlinks to their fetched default heads plus three
+  provider improvements: leto 0.48.0 adds `concat_into` / `stack_into`
+  zero-copy caller-owned assembly, `CooMatrix::into_csr`, and a flattened
+  contiguous `amd_order` adjacency buffer (single allocation, no per-vertex
+  heap headers); hermes 0.10.0
+  adds `Copy` for borrowed sparse views and bounded bench budgets;
+  mnemosyne fixes a flaky leak-detector temp-dir race. Version lags for
+  eunomia 0.11 / leto 0.46-0.47 / hermes 0.9 remain as consumer-advance
+  requirements on the overlay.
+
 - Catch a quantity accessor whose name claims a unit the returned value does
   not carry: the Aequitas audit compares the final scale token of a public
   getter's name with the canonical unit of the quantity it returns, so an
