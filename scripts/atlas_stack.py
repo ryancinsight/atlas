@@ -78,13 +78,13 @@ def registered_member_names(
     else:
         result = execute_git(
             repository,
-            ("show", f"{revision}:.gitmodules"),
+            ("--no-replace-objects", "show", f"{revision}:.gitmodules"),
             timeout=30,
         )
         if result.returncode:
             detail = result.stderr.decode("utf-8", errors="replace").strip()
             raise RuntimeError(detail or f"cannot read .gitmodules at {revision}")
-        text = result.stdout.decode("utf-8", errors="replace")
+        text = result.stdout.decode("utf-8")
     return {
         match.group(1)
         for match in re.finditer(r"path\s*=\s*repos/([^\s/]+)", text)
@@ -137,42 +137,29 @@ def registered_members(repo: Path | None = None) -> list[Path]:
     ]
 
 
-def member_pins(repo: Path | None = None) -> dict[str, str]:
-    """Registered member -> the gitlink SHA ``HEAD`` records for it.
+def member_pins(repo: Path | None = None, *, revision: str = "HEAD") -> dict[str, str]:
+    """Registered member gitlinks from one committed Atlas revision.
 
-    The pin, never the checkout. A member is routinely parked on a feature
-    branch -- that is what conversion work looks like -- so any artifact
-    derived from the working tree measures unlanded work and changes whenever
-    somebody checks something else out. Reading the pins is what lets the
-    oracle be regenerated for a gitlink sweep without checking all ~28 members
-    out at the new commits, which a shared tree cannot do.
-
-    ``HEAD`` rather than the index: peers stage gitlink advances constantly,
-    and a census that moves when somebody else runs ``git add`` turns the gate
-    into noise. In CI the index and ``HEAD`` coincide on a fresh checkout, so
-    the gate means the same thing there; locally this keeps it stable until a
-    pin is actually committed. ``repo`` selects another Atlas-shaped fixture
-    without duplicating gitlink parsing.
+    The index and member checkouts never select the pins. An explicit revision
+    also keeps a collected cohort stable when a peer moves the Atlas checkout.
+    Raw tree paths avoid Git's display quoting and ignore unregistered entries.
     """
     repository = ROOT if repo is None else repo
     result = execute_git(
         repository,
-        ("ls-tree", "HEAD", "--", "repos/"),
+        ("--no-replace-objects", "ls-tree", "-z", revision, "--", "repos/"),
         timeout=30,
     )
     if result.returncode:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(detail or f"cannot read member pins from {repository}")
-    registered = registered_member_names(repository, "HEAD")
+    paths = {f"repos/{name}".encode(): name for name in registered_member_names(repository, revision)}
     pins: dict[str, str] = {}
-    for line in result.stdout.decode("utf-8", errors="replace").splitlines():
-        meta, _, path = line.partition("\t")
+    for record in result.stdout.split(b"\0"):
+        meta, _, path = record.partition(b"\t")
         fields = meta.split()
-        if len(fields) != 3 or fields[0] != "160000":
-            continue
-        parts = path.split("/")
-        if len(parts) == 2 and parts[0] == "repos" and parts[1] in registered:
-            pins[parts[1]] = fields[2]
+        if len(fields) == 3 and fields[0] == b"160000" and path in paths:
+            pins[paths[path]] = fields[2].decode("ascii")
     return pins
 
 

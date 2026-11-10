@@ -48,6 +48,11 @@ provider branch heads. It accepts only an unchanged package graph validated by
 full locked offline Cargo metadata, then runs the ordinary native check. Missing
 cached commits or graph changes fail; this mode never falls back to an update.
 
+`--inventory --revision COMMIT` emits every committed standalone lock owner
+and complete first-party package identity from the recorded member pins,
+including nested and excluded workspaces. It never fetches or changes refs.
+Fixture exemptions and missing sibling-lock diagnostics remain explicit.
+
 A rerun with the same targets resumes: a member whose sweep branch is already
 pushed reports its open PR as pending, or opens the PR an interrupted run did
 not, without resolving or pushing again. Each member is fetched again just
@@ -74,9 +79,9 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import Enum
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -84,7 +89,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 import lockfile  # noqa: E402  (overlay-free cargo runner; shared, not copied)
 from atlas_pull_request import open_pull_request  # noqa: E402
-from atlas_stack import ROOT, git, registered_members  # noqa: E402
+from atlas_stack import ROOT, git, member_pins, registered_member_names, registered_members  # noqa: E402
 
 LOG_ROOT = ROOT / "output" / "lock-sweep"
 # A pushed member branch runs the member's whole pre-push gate, which can queue
@@ -646,6 +651,34 @@ def resume(plan: Plan, targets: dict[str, str], item: str | None, open_prs: bool
     return open_sweep_pull_request(plan, targets, item, branch)
 
 
+def lock_inventory(root: Path, revision: str) -> dict:
+    """Project all committed standalone lock owners without consulting checkouts."""
+    commit = lockfile.run_git(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], root).decode("ascii").strip()
+    pins = member_pins(root, revision=commit)
+    if set(pins) != registered_member_names(root, commit):
+        raise ValueError("registered members do not all have committed gitlinks")
+    names = {name.lower(): name for name in pins}
+    members = []
+    for name, pin in sorted(pins.items()):
+        texts = lockfile.tracked_texts(root / "repos" / name, staged=False, revision=pin)
+        manifests, exempt, problems = lockfile.lock_manifests(texts)
+        units = lockfile.workspace_units(texts)
+        owners = {str(PurePosixPath(path).with_name("Cargo.lock")) for path in manifests}
+        if set(units) - owners - set(exempt) or any(facts.unreadable or facts.problems for facts in units.values()):
+            raise ValueError("a committed lock has no readable standalone owner")
+        locks = []
+        for path in sorted(owners):
+            packages = locked_packages(texts[path])
+            if any(package.provider not in names for package in packages):
+                raise ValueError("a first-party lock source is not a registered provider")
+            locks.append({"path": path, "packages": [
+                {"provider": names[package.provider], **asdict(package)} for package in packages
+            ]})
+        members.append({"member": name, "revision": pin, "locks": locks,
+                        "fixture_locks": sorted(exempt), "projection_problems": problems})
+    return {"schema": 1, "basis": commit, "members": members}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
@@ -661,7 +694,17 @@ def main() -> int:
     parser.add_argument("--open-prs", action="store_true", help="commit, push, and open one PR per consumer (default: dry run)")
     parser.add_argument("--retarget-sources", action="store_true",
                         help="preserve the package graph and validate exact source SHAs offline")
+    parser.add_argument("--inventory", action="store_true",
+                        help="emit every committed lock owner and first-party identity without fetching or changing refs")
+    parser.add_argument("--revision", help="Atlas revision for --inventory; defaults to fetched origin/HEAD")
     arguments = parser.parse_args()
+    if arguments.inventory:
+        if arguments.target or arguments.heads or arguments.open_prs or arguments.retarget_sources or arguments.members or arguments.item:
+            parser.error("--inventory cannot be combined with sweep options")
+        print(json.dumps(lock_inventory(ROOT, arguments.revision or "origin/HEAD"), sort_keys=True, indent=2))
+        return 0
+    if arguments.revision:
+        parser.error("--revision requires --inventory")
     if arguments.retarget_sources and arguments.heads:
         parser.error("--retarget-sources requires explicit --target revisions, not --heads")
     if not arguments.target and not arguments.heads:
