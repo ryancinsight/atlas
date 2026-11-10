@@ -636,10 +636,13 @@ def _register_stack(stack: pathlib.Path) -> None:
 _CLEAN_RANGE_SCANNER = "import sys\nsys.exit(0)\n"
 
 # A registered member's clippy step runs through the stack's cast gate; this
-# one records no sites and runs the clippy command it would build.
+# one records no sites and runs the clippy command it would build. Its scope
+# answer is the unnarrowed one: a root manifest gates every member.
 _PASSTHROUGH_CAST_GATE = (
     "import os, pathlib, subprocess, sys\n"
     "argv = sys.argv[1:]\n"
+    "if argv[0] == 'resolved-changes':\n"
+    "    raise SystemExit(3)\n"
     "if argv[0] != 'clippy':\n"
     "    raise SystemExit(0)\n"
     "pathlib.Path(argv[argv.index('--sites') + 1]).write_text('[]')\n"
@@ -3203,6 +3206,99 @@ class LaneGateTestCase(unittest.TestCase):
                 ["foo", "bar"],
             )
 
+    def _root_manifest_push(self, answer: str, status: int, bar_files: bool) -> tuple:
+        """A lane push changing the workspace's root manifest, with a cast gate
+        whose `resolved-changes` prints `answer` and exits `status`. It
+        records the root manifests of the two exports it is handed in
+        `self.scope_manifests`, base first."""
+        stack, fixture, lane = self._lane(overlay=True)
+        record = stack / "scope-manifests.json"
+        _write(stack / "scripts" / "atlas_cast_gate.py", _PASSTHROUGH_CAST_GATE.replace(
+            "if argv[0] == 'resolved-changes':\n    raise SystemExit(3)\n",
+            "if argv[0] == 'resolved-changes':\n"
+            "    import json\n"
+            "    exports = [argv[argv.index(flag) + 1] for flag in ('--base-export', '--tip-export')]\n"
+            f"    pathlib.Path({str(record)!r}).write_text(json.dumps([\n"
+            "        (pathlib.Path(e) / 'Cargo.toml').read_text() if e else None for e in exports]))\n"
+            f"    print({answer!r})\n"
+            f"    raise SystemExit({status})\n",
+        ))
+        _write(
+            lane / "Cargo.toml",
+            '[workspace]\nmembers = ["crates/foo", "crates/bar"]\n\n'
+            '[workspace.dependencies]\nregdep = "1"\n',
+        )
+        if bar_files:
+            _write(
+                lane / "crates" / "bar" / "Cargo.toml",
+                '[package]\nname = "bar"\nversion = "0.1.0"\nedition = "2021"\n',
+            )
+            _write(lane / "crates" / "bar" / "src" / "lib.rs", "pub fn h() {}\n")
+        subprocess.run(["git", "-C", str(lane), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(lane), *_IDENT, "commit", "-qm", "root"], check=True)
+        _write(stack / "scripts" / "atlas-build-identity.py",
+               _recording_passthrough_identity(stack / "identity-steps.log"))
+        fixture.set_workspace_packages(["foo", "bar"])
+        original = fixture.set_workspace_packages
+        fixture.set_workspace_packages = lambda names, targets=None: original(["foo", "bar"])
+        code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
+        clippy = [line.split() for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+                  if line.split()[0] == "clippy"] if fixture.calls.exists() else []
+        selected = [[values[i + 1] for i, value in enumerate(values) if value == "-p"]
+                    for values in clippy]
+        self.scope_manifests = (json.loads(record.read_text(encoding="utf-8"))
+                                if record.exists() else None)
+        return code, err, selected
+
+    def test_a_dependency_table_change_gates_only_the_members_it_resolves(self) -> None:
+        """`bar` resolves the same at both revisions: the root manifest's
+        `[workspace.dependencies]` change gates it no longer, and `foo` is
+        still gated by the path rule for its changed source."""
+        code, err, selected = self._root_manifest_push("", 0, bar_files=False)
+
+        self.assertEqual(code, 0, err)
+        self.assertIn("gating the members it resolves differently:", err)
+        self.assertEqual(selected, [["foo"]])
+
+    def test_the_scope_reads_the_pushed_base_and_tip(self) -> None:
+        """No cast trigger asks for the base export, yet the scope is handed
+        one holding the base revision's root manifest, beside the tip's."""
+        code, err, _selected = self._root_manifest_push("", 0, bar_files=False)
+
+        self.assertEqual(code, 0, err)
+        base_manifest, tip_manifest = self.scope_manifests
+        self.assertNotIn("[workspace.dependencies]", base_manifest)
+        self.assertIn('[workspace.dependencies]\nregdep = "1"\n', tip_manifest)
+
+    def test_a_scope_naming_no_member_refuses(self) -> None:
+        code, err, selected = self._root_manifest_push("baz", 0, bar_files=False)
+
+        self.assertEqual(code, 1, err)
+        self.assertIn("BLOCKED -- the scope names baz, which is not a member of Cargo.toml", err)
+        self.assertEqual(selected, [])
+
+    def test_resolved_members_are_gated_in_workspace_order(self) -> None:
+        code, err, selected = self._root_manifest_push("bar\nfoo", 0, bar_files=True)
+
+        self.assertEqual(code, 0, err)
+        self.assertEqual(selected, [["foo", "bar"]])
+
+    def test_a_scope_that_cannot_narrow_gates_every_member(self) -> None:
+        """Exit 3 from `resolved-changes` gates every workspace member, though
+        only `foo` owns a changed path and the scope printed no member."""
+        code, err, selected = self._root_manifest_push("", 3, bar_files=False)
+
+        self.assertEqual(code, 0, err)
+        self.assertEqual(selected, [["foo", "bar"]])
+
+    def test_an_unreadable_member_scope_refuses(self) -> None:
+        code, err, selected = self._root_manifest_push("", 5, bar_files=False)
+
+        self.assertEqual(code, 1, err)
+        self.assertIn("BLOCKED -- could not read which members the root Cargo.toml change reaches",
+                      err)
+        self.assertEqual(selected, [])
+
     def test_documentation_skips_an_all_undocumented_selection(self) -> None:
         """Every gated package undocumented: documentation runs no identity command."""
         stack, fixture, lane = self._lane(overlay=True)
@@ -4081,8 +4177,8 @@ class ExportHygieneTestCase(unittest.TestCase):
             self.assertFalse(watchdog.finished.is_set(), "the hook had to be killed")
             self.assertNotEqual(proc.returncode, 0)
             self.assertEqual(list(tmp.glob("pg-??????????.lock")), [])
+            self.assertEqual(list(tmp.glob("pl.*")), [])
             self.assertEqual(len(list(tmp.glob("pg-??????????/lock-tree/Cargo.lock"))), 1)
-
 
     def test_a_wedged_lock_tree_is_rebuilt(self) -> None:
         """A killed run can leave the reused lock tree's index lock behind;
@@ -4882,7 +4978,8 @@ def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
     """A stack cast gate that logs each call but `base-triggers`; `clippy`
     records no sites.
 
-    `base-triggers` prints `triggers` and exits `triggers_exit`. A base run
+    `base-triggers` prints `triggers` and exits `triggers_exit`.
+    `resolved-changes` exits 3 (gate every member). A base run
     (`--present-only`) exits `base_exit`, by default `clippy_exit`, printing
     `base_says` when it fails (by default the gate's own error).
     """
@@ -4903,6 +5000,8 @@ def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
         "if argv[0] == 'base-triggers':\n"
         f"    print({triggers!r}, end='')\n"
         f"    sys.exit({triggers_exit})\n"
+        "if argv[0] == 'resolved-changes':\n"
+        "    sys.exit(3)\n"
         f"with pathlib.Path({str(log)!r}).open('a', encoding='utf-8') as stream:\n"
         "    stream.write(' '.join(argv) + '\\n')\n"
         "if argv[0] == 'clippy':\n"

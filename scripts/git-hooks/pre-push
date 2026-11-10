@@ -1331,6 +1331,23 @@ if ! export_revision "$gate_sha" "$gate_export"; then
   fi
 fi
 
+# ensure_base_export: the pushed base, exported once per push beside the tip's
+# export and reused run after run like it. Exits when the base cannot be
+# exported, since the callers cannot judge without it.
+ensure_base_export() {
+  [ -z "$base_export" ] || return 0
+  base_export="$gate_parent/base-${repo_root##*/}"
+  mkdir -p "$base_export"
+  base_export="$(cd "$base_export" && { pwd -W 2>/dev/null || pwd; })"
+  if ! export_revision "$gate_base" "$base_export"; then
+    rm -rf "$base_export" && mkdir -p "$base_export"
+    if ! export_revision "$gate_base" "$base_export"; then
+      echo "pre-push: BLOCKED -- could not export the pushed base $gate_base" >&2
+      exit 1
+    fi
+  fi
+}
+
 run_cargo_workspace_gate() {
   local workspace_manifest="$1"
   local gate_changed="$2"
@@ -1481,6 +1498,48 @@ while IFS= read -r changed_path; do
   if [ -z "$package_dir" ] && [ "$changed_path" = "Cargo.toml" ] \
     && [ -f "$gate_manifest_path" ] \
     && grep -qE '^\[workspace\]' "$gate_manifest_path" 2>/dev/null; then
+    # A root manifest changed only in `[workspace.dependencies]` reaches a
+    # member only through its resolved dependencies: gate the members cargo
+    # resolves differently at the base. Any other change gates them all.
+    scope_tool="${stack_scripts:+$stack_scripts/atlas_cast_gate.py}"
+    if [ "$gate_phase" = "push" ] && [ -n "$gate_base" ] && [ -f "$scope_tool" ] \
+      && [ -n "$python_bin" ]; then
+      ensure_base_export
+      scope_status=0
+      resolved_members="$("$python_bin" "$scope_tool" resolved-changes --repo "$repo_root" \
+        --base "$gate_base" --tip "$gate_sha" --base-export "$base_export" \
+        --tip-export "$gate_export" --manifest "$workspace_manifest" | tr -d '\r')" \
+        || scope_status=$?
+      if [ "$scope_status" -eq 0 ]; then
+        # A printed name this workspace has no member for is a scope the
+        # hook cannot gate, so it refuses rather than gate fewer members.
+        while IFS= read -r resolved_member; do
+          [ -n "$resolved_member" ] || continue
+          case $'\n'"$(cut -f2 <<< "$workspace_members")"$'\n' in
+            *$'\n'"$resolved_member"$'\n'*) ;;
+            *)
+              echo "pre-push: BLOCKED -- the scope names $resolved_member, which is not a member of $workspace_manifest." >&2
+              exit 1
+              ;;
+          esac
+        done <<< "$resolved_members"
+        echo "pre-push: Cargo.toml changes only [workspace.dependencies]; gating the members it resolves differently:" $resolved_members >&2
+        while IFS=$'\t' read -r _workspace_manifest workspace_package; do
+          case $'\n'"$resolved_members"$'\n' in
+            *$'\n'"$workspace_package"$'\n'*) ;;
+            *) continue ;;
+          esac
+          case " $gate_packages " in
+            *" $workspace_package "*) ;;
+            *) gate_packages="$gate_packages $workspace_package" ;;
+          esac
+        done <<< "$workspace_members"
+        continue
+      elif [ "$scope_status" -ne 3 ]; then
+        echo "pre-push: BLOCKED -- could not read which members the root Cargo.toml change reaches." >&2
+        exit 1
+      fi
+    fi
     while IFS=$'\t' read -r _workspace_manifest workspace_package; do
       [ -n "$workspace_package" ] || continue
       case " $gate_packages " in
@@ -2022,7 +2081,8 @@ MESSAGE
 # packages, which then join the base comparison.
 cast_base_step() {
   local relative="$1" wanted="$2" present="" package_name names sites
-  [ -n "$base_export" ] || return 0
+  # The root-manifest scope can export the base without a cast trigger.
+  [ -n "$base_export" ] && [ -n "$base_reasons" ] || return 0
   sites="$(mktemp "$tmp_base/pg-casts.XXXXXX")"
   run_temps+=("$sites")
   printf '[]' > "$sites"
@@ -2079,18 +2139,11 @@ if [ -n "$cast_gate" ]; then
     }
   fi
   # One base export serves every workspace of this push.
-  if [ -n "$base_reasons" ] && [ -z "$base_export" ]; then
-    echo "pre-push: cast counts are compared with the pushed base (${base_reasons%%$'\n'*})" >&2
-    base_export="$gate_parent/base-${repo_root##*/}"
-    mkdir -p "$base_export"
-    base_export="$(cd "$base_export" && { pwd -W 2>/dev/null || pwd; })"
-    if ! export_revision "$gate_base" "$base_export"; then
-      rm -rf "$base_export" && mkdir -p "$base_export"
-      if ! export_revision "$gate_base" "$base_export"; then
-        echo "pre-push: BLOCKED -- could not export the pushed base $gate_base for the cast gate" >&2
-        exit 1
-      fi
-    fi
+  if [ -n "$base_reasons" ]; then
+    [ -n "$base_announced" ] \
+      || echo "pre-push: cast counts are compared with the pushed base (${base_reasons%%$'\n'*})" >&2
+    base_announced=1
+    ensure_base_export
   fi
   if [ -n "${gate_packages// /}" ]; then
     cast_base_step Cargo.toml "$gate_packages"
@@ -2414,6 +2467,7 @@ PY
 # contributed. base_export is one base tree for the whole push.
 cast_gate=""
 base_export=""
+base_announced=""
 cast_check_packages=()
 cast_check_sites=()
 cast_base_sites=()
