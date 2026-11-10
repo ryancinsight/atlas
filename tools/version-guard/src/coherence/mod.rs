@@ -14,7 +14,8 @@
 mod manifest;
 mod member;
 mod remote;
-mod requirement;
+/// Cargo-compatible version requirement evaluation.
+pub mod requirement;
 mod source;
 #[cfg(test)]
 mod source_tests;
@@ -311,7 +312,7 @@ pub fn scan_atlas(atlas_root: &Path, view: View) -> Result<CoherenceReport, Erro
                 continue;
             };
             requirement_count += 1;
-            if !matches_requirement(required, &package.version) {
+            if !matches_requirement(required, &package.version)? {
                 findings.push(CoherenceFinding {
                     consumer: manifest.consumer.clone(),
                     manifest: manifest.display_path.clone(),

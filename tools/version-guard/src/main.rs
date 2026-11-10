@@ -7,6 +7,7 @@
 //!
 //! ```text
 //! version-guard coherence --atlas-root <path> [--against-remotes] [--format human|json]
+//! version-guard requirements < rows.json
 //! version-guard scan --repo <path> [--range <git-rev-spec>] \
 //!                   [--format human|json] [--commit-msg <path>]
 //! ```
@@ -31,10 +32,14 @@
 
 use std::env;
 use std::ffi::OsString;
+use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
 use atlas_version_guard::classify::classify_intent;
+use atlas_version_guard::coherence::requirement::{
+    RequirementInput, RequirementOutcome, evaluate_requirements,
+};
 use atlas_version_guard::coherence::{View, scan_atlas};
 use atlas_version_guard::error::Error;
 use atlas_version_guard::report::{Format, Report};
@@ -43,6 +48,7 @@ use atlas_version_guard::scan::{has_defect, scan_diff};
 const USAGE: &str = "\
 usage:
   version-guard coherence --atlas-root <path> [--against-remotes] [--format human|json]
+  version-guard requirements < rows.json
   version-guard scan --repo <path> [--range <git-rev-spec>] \
                      [--format human|json] [--commit-msg <path>]
 
@@ -58,6 +64,11 @@ Backward. A Forward bump without a declared release intent
 footer) is a defect; a Backward movement is always a defect. A declared
 release/bump with no forward version movement is a defect, including an
 empty or identical-only diff.
+
+`requirements` reads one JSON array from standard input. Each row carries
+`id`, `version`, and `requirement`; output rows preserve order and identity
+and classify the result as satisfied, unsatisfied, invalid_version, or
+invalid_requirement.
 
 The --commit-msg path is optional; if omitted, the message body for the head
 of the range is read via `git log -1 --format=%B`.
@@ -133,6 +144,24 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
                 Ok(ExitCode::SUCCESS)
             }
         }
+        Subcommand::Requirements => {
+            let mut input = String::new();
+            std::io::stdin().read_to_string(&mut input)?;
+            let rows: Vec<RequirementInput> = serde_json::from_str(&input)?;
+            let results = evaluate_requirements(rows);
+            let malformed = results.iter().any(|row| {
+                matches!(
+                    row.outcome,
+                    RequirementOutcome::InvalidVersion | RequirementOutcome::InvalidRequirement
+                )
+            });
+            println!("{}", serde_json::to_string(&results)?);
+            Ok(if malformed {
+                ExitCode::from(1)
+            } else {
+                ExitCode::SUCCESS
+            })
+        }
     }
 }
 
@@ -140,6 +169,7 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
 enum Subcommand {
     Scan,
     Coherence,
+    Requirements,
 }
 
 struct Parsed {
@@ -190,6 +220,9 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
             "--against-remotes" => against_remotes = true,
             "scan" => subcommand = Some(choose_subcommand(subcommand, Subcommand::Scan)?),
             "coherence" => subcommand = Some(choose_subcommand(subcommand, Subcommand::Coherence)?),
+            "requirements" => {
+                subcommand = Some(choose_subcommand(subcommand, Subcommand::Requirements)?);
+            }
             other => {
                 if other.is_empty() {
                     idx += 1;
@@ -214,6 +247,18 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
         return Err(Error::Manifest {
             path: String::from("argv"),
             message: String::from("missing required --atlas-root <path>"),
+        });
+    }
+    if matches!(subcommand, Subcommand::Requirements)
+        && (repo.is_some()
+            || atlas_root.is_some()
+            || range.is_some()
+            || commit_msg_path.is_some()
+            || against_remotes)
+    {
+        return Err(Error::Git {
+            command: "argv".to_string(),
+            stderr: "requirements accepts JSON on standard input and no scan options".to_string(),
         });
     }
     if against_remotes && !matches!(subcommand, Subcommand::Coherence) {
@@ -258,7 +303,7 @@ fn choose_subcommand(current: Option<Subcommand>, next: Subcommand) -> Result<Su
     {
         return Err(Error::Git {
             command: "argv".to_string(),
-            stderr: "conflicting subcommands `scan` and `coherence`".to_string(),
+            stderr: "conflicting subcommands".to_string(),
         });
     }
     Ok(next)
@@ -360,6 +405,14 @@ mod tests {
         assert_eq!(parsed.subcommand, Subcommand::Coherence);
         assert_eq!(parsed.atlas_root, Some(PathBuf::from("/tmp/atlas")));
         assert!(parsed.repo.is_none());
+    }
+
+    #[test]
+    fn parse_accepts_requirement_batch() {
+        let parsed = parse_arguments(["requirements".into()].into_iter()).unwrap();
+        assert_eq!(parsed.subcommand, Subcommand::Requirements);
+        assert!(parsed.repo.is_none());
+        assert!(parsed.atlas_root.is_none());
     }
 
     #[test]
