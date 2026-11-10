@@ -533,6 +533,7 @@ lock_gate() {
     candidate="$(mktemp -d "${TMPDIR:-/tmp}/atlas-lock.XXXXXX")" || return 1
     checker="$(mktemp -d "${TMPDIR:-/tmp}/atlas-checker.XXXXXX")" || { rm -rf "$candidate"; return 1; }
     source_git="$(git -C "$atlas_root" rev-parse --path-format=absolute --git-common-dir)" || { rm -rf "$candidate" "$checker"; return 1; }
+    # No candidate, repository-local, global, or system archive attributes apply.
     printf '* -export-ignore -export-subst\n' > "$checker/.gitattributes"
     if ! (
         unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY \

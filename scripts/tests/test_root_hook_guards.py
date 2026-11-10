@@ -42,62 +42,141 @@ def install_hook(repo: Path) -> None:
 
 class RootLockGateTests(unittest.TestCase):
     def test_rescue_dispatch_ignores_blob_replacement_before_lock_gate(self) -> None:
-        function = re.search(r"(?ms)^lock_gate\(\) \{\n.*?^\}\n", PRE_PUSH.read_text())
-        self.assertIsNotNone(function)
         with tempfile.TemporaryDirectory() as temporary:
-            repo = Path(temporary) / "repo"
-            repo.mkdir()
-            environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+            repo = Path(temporary)
+            environment = {key: value for key, value in os.environ.items()
+                           if not key.startswith("GIT_")}
             environment.update(PYTHON=sys.executable, PYTHONUTF8="1", TMPDIR=temporary,
                                GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
-
-            def git(*args: str) -> str:
+            def git(*args: str, data: str | None = None) -> str:
                 return subprocess.run(
                     ["git", "-C", str(repo), "-c", "user.name=Test",
                      "-c", "user.email=test@example.invalid", *args],
-                    env=environment, check=True, capture_output=True, text=True,
-                    encoding="utf-8", timeout=60,
+                    input=data, env=environment, check=True, capture_output=True,
+                    text=True, encoding="utf-8", timeout=60,
                 ).stdout.strip()
-
             git("init", "-q", "-b", "main")
-            (repo / "scripts").mkdir()
-            for tool in ("lockfile.py", "process_tree.py", "windows_process.py", "darwin_process.py"):
-                shutil.copyfile(ROOT / "scripts" / tool, repo / "scripts" / tool)
-                git("add", "scripts/" + tool)
-            (repo / "scripts/lockfile.py").write_text(
-                "#!/usr/bin/env python3\nimport sys\nassert '--check-tree' in sys.argv\n"
-            )
-            git("add", "scripts/lockfile.py")
-            git("commit", "-qm", "checker")
+            paths = [".githooks/pre-push", "scripts/git-hooks/rescue-push",
+                     "scripts/atlas-secret-scan.py", "scripts/process_tree.py",
+                     "scripts/windows_process.py", "scripts/darwin_process.py"]
+            for path in paths:
+                destination = repo / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / path, destination)
+            git("add", *paths)
+            git("commit", "-qm", "trusted hooks")
             base = git("rev-parse", "HEAD")
-            owner = repo / "tool"
-            (owner / "src").mkdir(parents=True)
-            (owner / "src/lib.rs").write_text("")
-            (owner / "Cargo.toml").write_text(
-                '[package]\nname = "tool"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n'
-            )
-            (owner / "Cargo.lock").write_text('version = 4\n[[package]]\nname = "tool"\nversion = "0.1.0"\n')
-            git("add", "tool")
-            git("commit", "-qm", "lock")
+            git("update-ref", "refs/remotes/origin/main", base)
+            (repo / "README.md").write_text("A topic change.\n")
+            git("add", "README.md")
+            git("commit", "-qm", "topic")
             tip = git("rev-parse", "HEAD")
-            replacement = repo / "replacement"
-            replacement.write_text("replacement")
-            git("add", "replacement")
-            git("commit", "-qm", "replacement")
-            replacement_commit = git("rev-parse", "HEAD")
-            git("replace", base, replacement_commit)
-            script = function.group(0) + (
-                '\natlas_root="$1"; gate_base="$2"; trusted_rescue_ref="$2"\n'
-                'lock_gate "$3"\n'
-            )
+            classifier = (repo / "scripts/git-hooks/rescue-push").read_text()
+            redirected = classifier.replace("refs/heads/rescue/*)", "refs/heads/topic)")
+            self.assertNotEqual(classifier, redirected)
+            replacement = git("hash-object", "-w", "--stdin", data=redirected)
+            original = git("rev-parse", f"{base}:scripts/git-hooks/rescue-push")
+            git("replace", original, replacement)
             result = subprocess.run(
-                ["bash", "-o", "pipefail", "-c", script, "lock_gate", repo.as_posix(), base, tip],
-                env=dict(environment, GIT_DIR=str(repo / ".git"), GIT_WORK_TREE=str(repo),
-                         GIT_INDEX_FILE=str(repo / ".git/index")),
-                capture_output=True, text=True, encoding="utf-8", timeout=60,
+                ["bash", str(repo / ".githooks/pre-push"), "origin", "fixture"],
+                cwd=repo, env=environment, input=(
+                    f"refs/heads/topic {tip} refs/heads/topic {'0' * 40}\n"
+                ), text=True, encoding="utf-8", capture_output=True, timeout=60,
             )
-            self.assertNotIn("replacement", result.stderr + result.stdout)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("no gitlink auditor source", result.stderr)
+
+    def test_lock_gate_checks_raw_committed_inputs(self) -> None:
+        function = re.search(r"(?ms)^lock_gate\(\) \{\n.*?^\}\n", PRE_PUSH.read_text())
+        self.assertIsNotNone(function)
+        cases = (
+            ("valid", "tool", "", 'version = "0.1.0"', 0),
+            ("runtime_shadow", "tool", "", 'version = "0.1.0"', 0),
+            ("ignored", "hidden/tool", "hidden export-ignore\n", 'version = "0.0.1"', 1),
+            ("local_attributes", "hidden/tool", "", 'version = "0.0.1"', 1),
+            ("substituted", "tool", "**/Cargo.lock export-subst\n", 'version = "$Format:%s$"', 1),
+            ("quoted", "caf\u00e9", "", 'version = "0.0.1"', 1),
+            ("ideographs", "\u6e2c\u8a66", "", 'version = "0.0.1"', 1),
+            ("textconv", "tool", "tool/Cargo.lock diff=hidden\n", 'version = "0.0.1"', 1),
+        )
+        for case, directory, attributes, version, expected in cases:
+            with self.subTest(case), tempfile.TemporaryDirectory() as temporary:
+                repo = Path(temporary) / "repo"
+                repo.mkdir()
+                environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+                environment.update(PYTHON=sys.executable, PYTHONUTF8="1", TMPDIR=temporary,
+                                   GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+
+                if case == "ideographs":
+                    environment.update(PYTHONUTF8="0", PYTHONIOENCODING="cp1252")
+
+                def git(*args: str) -> str:
+                    return subprocess.run(
+                        ["git", "-C", str(repo), "-c", "user.name=Test",
+                         "-c", "user.email=test@example.invalid", *args],
+                        env=environment, check=True, capture_output=True, text=True,
+                        encoding="utf-8", timeout=60,
+                    ).stdout.strip()
+
+                git("init", "-q", "-b", "main")
+                (repo / "scripts").mkdir()
+                checker = repo / "scripts/lockfile.py"
+                for tool in ("lockfile.py", "process_tree.py", "windows_process.py", "darwin_process.py"):
+                    shutil.copyfile(ROOT / "scripts" / tool, repo / "scripts" / tool)
+                    git("add", "scripts/" + tool)
+                git("commit", "-qm", "checker")
+                base = git("rev-parse", "HEAD")
+                owner = repo / directory
+                (owner / "src").mkdir(parents=True)
+                (owner / "src/lib.rs").write_text("")
+                (owner / "Cargo.toml").write_text(
+                    '[package]\nname = "tool"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n'
+                )
+                lock = 'version = 4\n[[package]]\nname = "tool"\n' + version + "\n"
+                (owner / "Cargo.lock").write_text(lock)
+                (repo / ".gitattributes").write_text(attributes)
+                if case == "local_attributes":
+                    (repo / ".git/info/attributes").write_text("hidden export-ignore\n")
+                good = repo / "good"
+                (good / "src").mkdir(parents=True)
+                (good / "src/lib.rs").write_text("")
+                (good / "Cargo.toml").write_text('[package]\nname = "good"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n')
+                (good / "Cargo.lock").write_text('version = 4\n[[package]]\nname = "good"\nversion = "0.1.0"\n')
+                if case == "textconv":
+                    git("config", "diff.hidden.textconv", "true")
+                    (owner / "Cargo.lock").write_text(lock.replace('version = "0.0.1"', 'version = "0.1.0"'))
+                    git("add", directory, "good", ".gitattributes", "scripts/lockfile.py")
+                    git("commit", "-qm", "initial lock")
+                    base = git("rev-parse", "HEAD")
+                    (owner / "Cargo.lock").write_text(lock)
+                # An untrusted candidate cannot supply its own passing checker.
+                checker.write_text("raise SystemExit(0)\n")
+                if case == "runtime_shadow":
+                    (repo / "scripts/process_tree.py").write_text("raise RuntimeError('untrusted runtime imported')\n")
+                    git("add", "scripts/process_tree.py")
+                git("add", directory, "good", ".gitattributes", "scripts/lockfile.py")
+                git("commit", "-qm", "0.1.0")
+                tip = git("rev-parse", "HEAD")
+                (owner / "Cargo.lock").write_text("unrelated working lock\n")
+                script = function.group(0) + (
+                    '\natlas_root="$1"; gate_base="$2"; trusted_rescue_ref="$2"\n'
+                    'lock_gate "$3"\n'
+                )
+                result = subprocess.run(
+                    ["bash", "-o", "pipefail", "-c", script, "lock_gate", repo.as_posix(), base, tip],
+                    env=dict(environment, GIT_DIR=str(repo / ".git"), GIT_WORK_TREE=str(repo),
+                             GIT_INDEX_FILE=str(repo / ".git/index")),
+                    capture_output=True, text=True, encoding="utf-8", timeout=60,
+                )
+                self.assertEqual(git("write-tree"), git("rev-parse", f"{tip}^{{tree}}"))
+                self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+                self.assertIn("checking lock owner", result.stdout)
+                if expected:
+                    self.assertIn("does not resolve under --locked", result.stderr)
+                else:
+                    self.assertIn("resolves under --locked", result.stdout)
+                self.assertEqual((owner / "Cargo.lock").read_text(), "unrelated working lock\n")
+                self.assertEqual(sorted(path.name for path in Path(temporary).iterdir()), ["repo"])
 
 
 class RootHookGuardTests(unittest.TestCase):
