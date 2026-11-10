@@ -853,6 +853,7 @@ class HostedMergeTestCase(unittest.TestCase):
             self._git(repo, "push", "-q", "origin", f"{commit}:refs/test/{name}")
         self._pull_ref(remote, merge)
         return repo, remote, {
+            "base": base,
             "default": default,
             "candidate": candidate,
             "tree": tree,
@@ -861,6 +862,131 @@ class HostedMergeTestCase(unittest.TestCase):
             "reversed_parents": reversed_parents,
             "wrong_tree": wrong_tree,
         }
+
+    def test_stale_base_gets_one_same_tree_refresh(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-refresh-") as temp:
+            repo, remote, graph = self._graph(Path(temp))
+            hook = [("pre-push", b"#!/bin/sh\nexit 0\n")]
+            candidate_tree = self._git(
+                repo, "rev-parse", f"{graph['candidate']}^{{tree}}"
+            )
+            stale_merge = self._git(
+                repo,
+                "commit-tree",
+                candidate_tree,
+                "-p",
+                graph["base"],
+                "-p",
+                graph["candidate"],
+                "-m",
+                "stale hosted merge",
+            )
+            self._git(repo, "push", "-q", "origin", f"{stale_merge}:refs/test/stale")
+            self._pull_ref(remote, stale_merge)
+            state = {
+                "baseTargetOid": graph["base"],
+                "headRefOid": graph["candidate"],
+                "potentialMergeCommit": {"oid": stale_merge},
+                "number": 7,
+            }
+
+            with patch.object(
+                _lock_form, "hosting_in", return_value=json.dumps(state)
+            ):
+                refreshed = _lock_form.refresh_hook_publication(
+                    repo,
+                    self.URL,
+                    graph["default"],
+                    graph["candidate"],
+                    graph["tree"],
+                    hook,
+                    (),
+                    "refresh\n",
+                )
+
+            self.assertEqual(
+                self._git(repo, "show", "-s", "--format=%P", refreshed),
+                graph["candidate"],
+            )
+            self.assertEqual(
+                self._git(repo, "rev-parse", f"{refreshed}^{{tree}}"),
+                candidate_tree,
+            )
+            self.assertEqual(
+                self._git(repo, "diff", "--name-only", graph["candidate"], refreshed),
+                "",
+            )
+            self.assertEqual(
+                self._git(repo, "merge-tree", "--write-tree", graph["default"], refreshed),
+                graph["tree"],
+            )
+            self.assertTrue(
+                self._git(repo, "ls-tree", refreshed, ".githooks/pre-push").startswith(
+                    "100755 blob "
+                )
+            )
+
+            fresh_merge = self._git(
+                repo,
+                "commit-tree",
+                graph["tree"],
+                "-p",
+                graph["default"],
+                "-p",
+                refreshed,
+                "-m",
+                "fresh hosted merge",
+            )
+            self._git(repo, "push", "-q", "origin", f"{fresh_merge}:refs/test/fresh")
+            self._pull_ref(remote, fresh_merge)
+            state.update(
+                baseTargetOid=graph["default"],
+                headRefOid=refreshed,
+                potentialMergeCommit={"oid": fresh_merge},
+            )
+            count = self._git(repo, "rev-list", "--all", "--count")
+            with patch.object(
+                _lock_form, "hosting_in", return_value=json.dumps(state)
+            ):
+                self.assertIsNone(
+                    _lock_form.refresh_hook_publication(
+                        repo,
+                        self.URL,
+                        graph["default"],
+                        refreshed,
+                        graph["tree"],
+                        hook,
+                        (),
+                        "refresh\n",
+                    )
+                )
+            self.assertEqual(self._git(repo, "rev-list", "--all", "--count"), count)
+
+    def test_pending_hosted_head_refuses_without_another_commit(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hosted-pending-") as temp:
+            repo, _remote, graph = self._graph(Path(temp))
+            tree = self._git(repo, "rev-parse", f"{graph['candidate']}^{{tree}}")
+            advanced = self._git(
+                repo, "commit-tree", tree, "-p", graph["candidate"], "-m", "advance"
+            )
+            count = self._git(repo, "rev-list", "--all", "--count")
+            with (
+                patch.object(
+                    _lock_form, "hosting_in", return_value=self._state(graph)
+                ),
+                self.assertRaisesRegex(RuntimeError, "still pending"),
+            ):
+                _lock_form.refresh_hook_publication(
+                    repo,
+                    self.URL,
+                    graph["default"],
+                    advanced,
+                    graph["tree"],
+                    [("pre-push", b"#!/bin/sh\nexit 0\n")],
+                    (),
+                    "refresh\n",
+                )
+            self.assertEqual(self._git(repo, "rev-list", "--all", "--count"), count)
 
     def _state(self, graph: dict[str, str], **updates) -> str:
         state = {
@@ -1202,6 +1328,40 @@ class RetiredPathTestCase(unittest.TestCase):
 
 
 class PublisherScopeTestCase(unittest.TestCase):
+    def test_current_stale_publication_pushes_one_refresh(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-hook-refresh-route-") as temp:
+            root = Path(temp)
+            repo = root / "repos" / "alpha"
+            repo.mkdir(parents=True)
+            args = Namespace(members=["alpha"], push=True, source_ref=None, draft=True)
+            hooks = [("pre-push", b"#!/bin/sh\nexit 0\n")]
+            git_results = iter(
+                ["", "refs/remotes/origin/main", "a" * 40, "aaaaaaaa", "",
+                 "origin/main", "b" * 40]
+            )
+            with (
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "REPOS", root / "repos"),
+                patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+                patch.object(_lock_form, "git_in", side_effect=lambda *_args: next(git_results)),
+                patch.object(_lock_form, "committed_hooks", return_value=hooks),
+                patch.object(_lock_form, "hook_publication_base", return_value="published"),
+                patch.object(_lock_form, "hook_commit", return_value=None),
+                patch.object(_lock_form, "hook_landing_tree", side_effect=("old", "new")),
+                patch.object(_lock_form, "open_pull_request", return_value=("url", True)),
+                patch.object(_lock_form, "refresh_hook_publication", return_value="refreshed"),
+                patch.object(_lock_form, "push_hook_branch") as push,
+                patch.object(_lock_form, "require_hosted_merge") as require,
+                redirect_stdout(io.StringIO()) as output,
+            ):
+                self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
+
+            push.assert_called_once_with(
+                repo, "refreshed", _lock_form.PUBLISH_BRANCH, hooks[0][1], "a" * 40
+            )
+            require.assert_called_once_with(repo, "url", "b" * 40, "refreshed", "new")
+            self.assertIn("reused: alpha url draft", output.getvalue())
+
     def test_cli_accepts_named_members(self) -> None:
         captured: list[Namespace] = []
         with (
@@ -1591,7 +1751,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                             "55555555",
                             "",
                             "origin/main",
-                            "base",
+                            "b" * 40,
                         ]
                     )
                     merge = "6" * 40
@@ -1604,7 +1764,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                         if command == ("rev-parse", "FETCH_HEAD"):
                             return merge
                         if command == ("show", "-s", "--format=%P", merge):
-                            return "base commit"
+                            return f"{'b' * 40} {'c' * 40}"
                         if command == ("rev-parse", f"{merge}^{{tree}}"):
                             return "landing"
                         return next(initial_git_results)
@@ -1620,8 +1780,8 @@ class PublisherScopeTestCase(unittest.TestCase):
                         if stage == "graphql":
                             return json.dumps(
                                 {
-                                    "baseTargetOid": "base",
-                                    "headRefOid": "commit",
+                                    "baseTargetOid": "b" * 40,
+                                    "headRefOid": "c" * 40,
                                     "potentialMergeCommit": {"oid": merge},
                                     "number": 7,
                                 }
@@ -1649,7 +1809,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                             "hook_publication_base",
                             side_effect=lambda _repo, default, *_args: default,
                         ),
-                        patch.object(_lock_form, "hook_commit", return_value="commit"),
+                        patch.object(_lock_form, "hook_commit", return_value="c" * 40),
                         patch.object(
                             _lock_form, "hook_landing_tree", return_value="landing"
                         ) as landing_guard,
@@ -1661,8 +1821,8 @@ class PublisherScopeTestCase(unittest.TestCase):
 
                     landing_guard.assert_called_once_with(
                         root / "repos" / "alpha",
-                        "base",
-                        "commit",
+                        "b" * 40,
+                        "c" * 40,
                         [("pre-push", b"#!/bin/sh\nexit 0\n")],
                         (),
                     )

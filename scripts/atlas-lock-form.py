@@ -664,33 +664,10 @@ def pull_request_for(
     draft: bool = False,
 ) -> tuple[str, bool]:
     """Return the branch's open pull request, creating it when absent."""
-    pull_request = hosting_in(
-        repo,
-        "pr",
-        "list",
-        "--head",
-        branch,
-        "--base",
-        base,
-        "--state",
-        "open",
-        "--json",
-        "url,isDraft",
-        "--jq",
-        ".[0] | select(. != null) | [.url, .isDraft] | @tsv",
-    )
-    if pull_request:
-        try:
-            url, draft_text = pull_request.rsplit("\t", 1)
-        except ValueError as error:
-            raise RuntimeError(
-                f"unexpected pull request state for {branch}: {pull_request!r}"
-            ) from error
-        if not url or draft_text not in {"true", "false"}:
-            raise RuntimeError(
-                f"unexpected pull request state for {branch}: {pull_request!r}"
-            )
-        if draft and draft_text == "false":
+    existing = open_pull_request(repo, branch, base)
+    if existing is not None:
+        url, is_draft = existing
+        if draft and not is_draft:
             raise RuntimeError(
                 f"existing pull request {url} is ready; refusing --draft"
             )
@@ -712,15 +689,55 @@ def pull_request_for(
     return hosting_in(repo, *create), True
 
 
+def open_pull_request(
+    repo: Path, branch: str, base: str
+) -> tuple[str, bool] | None:
+    """Return the branch's open pull request and draft state, when present."""
+    pull_request = hosting_in(
+        repo,
+        "pr",
+        "list",
+        "--head",
+        branch,
+        "--base",
+        base,
+        "--state",
+        "open",
+        "--json",
+        "url,isDraft",
+        "--jq",
+        ".[0] | select(. != null) | [.url, .isDraft] | @tsv",
+    )
+    if not pull_request:
+        return None
+    try:
+        url, draft_text = pull_request.rsplit("\t", 1)
+    except ValueError as error:
+        raise RuntimeError(
+            f"unexpected pull request state for {branch}: {pull_request!r}"
+        ) from error
+    if not url or draft_text not in {"true", "false"}:
+        raise RuntimeError(
+            f"unexpected pull request state for {branch}: {pull_request!r}"
+        )
+    return url, draft_text == "true"
+
+
 def valid_board_item(item: str | None) -> bool:
     """Whether `item` is absent or follows the shared board-ID grammar."""
     return item is None or BOARD_ITEM_HEADING.fullmatch(f"## {item}") is not None
 
 
-def enqueue_pull_request(
-    repo: Path, url: str, default: str, candidate: str, landing_tree: str
-) -> None:
-    """Bind merge readiness to the verified head, base and hosted merge tree."""
+class HostedMerge(NamedTuple):
+    """The coherent hosted merge identity for an open pull request."""
+
+    base: str
+    head: str
+    tree: str
+
+
+def hosted_merge(repo: Path, url: str) -> HostedMerge:
+    """Read one hosted merge and require its ref to match its declared identity."""
     try:
         state = json.loads(hosting_in(
             repo, "api", "graphql", "-f",
@@ -732,16 +749,18 @@ def enqueue_pull_request(
         ))
     except (json.JSONDecodeError, TypeError) as error:
         raise RuntimeError(f"cannot read publication merge identity for {url}") from error
-    if (
-        not isinstance(state, dict)
-        or state.get("baseTargetOid") != default
-        or state.get("headRefOid") != candidate
-    ):
-        raise RuntimeError(f"publication head or base changed before readiness: {url}")
+    if not isinstance(state, dict):
+        raise RuntimeError(f"cannot read publication merge identity for {url}")
     number = state.get("number")
+    base = state.get("baseTargetOid")
+    head = state.get("headRefOid")
     merge = state.get("potentialMergeCommit")
     if (
         type(number) is not int or number <= 0
+        or not isinstance(base, str)
+        or re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", base) is None
+        or not isinstance(head, str)
+        or re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", head) is None
         or not isinstance(merge, dict) or not isinstance(merge.get("oid"), str)
         or re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", merge["oid"]) is None
     ):
@@ -751,10 +770,59 @@ def enqueue_pull_request(
     if (
         observed != merge["oid"]
         or git_in(repo, "show", "-s", "--format=%P", observed)
-        != f"{default} {candidate}"
-        or git_in(repo, "rev-parse", f"{observed}^{{tree}}") != landing_tree
+        != f"{base} {head}"
     ):
         raise RuntimeError(f"publication merge tree changed before readiness: {url}")
+    return HostedMerge(base, head, git_in(repo, "rev-parse", f"{observed}^{{tree}}"))
+
+
+def require_hosted_merge(
+    repo: Path, url: str, default: str, candidate: str, landing_tree: str
+) -> None:
+    """Require the hosted merge to bind the exact verified landing identity."""
+    hosted = hosted_merge(repo, url)
+    if hosted != HostedMerge(default, candidate, landing_tree):
+        raise RuntimeError(f"publication head, base, or tree changed: {url}")
+
+
+def refresh_hook_publication(
+    repo: Path,
+    url: str,
+    default: str,
+    candidate: str,
+    landing_tree: str,
+    hooks: list[tuple[str, bytes]],
+    retired: tuple[str, ...],
+    message: str,
+) -> str | None:
+    """Append one same-tree commit when a coherent hosted merge has a stale base."""
+    hosted = hosted_merge(repo, url)
+    if hosted.head != candidate:
+        try:
+            git_in(repo, "merge-base", "--is-ancestor", hosted.head, candidate)
+        except RuntimeError as error:
+            raise RuntimeError(f"publication head changed: {url}") from error
+        raise RuntimeError(f"publication head update is still pending: {url}")
+    if hosted.base == default:
+        if hosted.tree != landing_tree:
+            raise RuntimeError(f"publication merge tree changed: {url}")
+        return None
+    try:
+        git_in(repo, "merge-base", "--is-ancestor", hosted.base, default)
+    except RuntimeError as error:
+        raise RuntimeError(f"publication base is not an ancestor of default: {url}") from error
+    stale_tree = hook_landing_tree(repo, hosted.base, candidate, hooks, retired)
+    if hosted.tree != stale_tree:
+        raise RuntimeError(f"stale publication merge tree changed: {url}")
+    tree = git_in(repo, "rev-parse", f"{candidate}^{{tree}}")
+    return git_in(repo, "commit-tree", tree, "-p", candidate, stdin=message.encode("utf-8"))
+
+
+def enqueue_pull_request(
+    repo: Path, url: str, default: str, candidate: str, landing_tree: str
+) -> None:
+    """Bind merge readiness to the verified head, base and hosted merge tree."""
+    require_hosted_merge(repo, url, default, candidate, landing_tree)
     hosting_in(
         repo, "pr", "merge", url, "--merge", "--auto",
         "--match-head-commit", candidate,
@@ -893,7 +961,44 @@ def cmd_publish_hooks(args) -> int:
                 repo, default_commit, commit or base, hooks, tuple(retired)
             )
             if commit is None:
-                print(f"current: {member}")
+                if not args.push or base == default_commit:
+                    print(f"current: {member}")
+                    continue
+                branch = PUBLISH_BRANCH
+                base_name = default.removeprefix("origin/")
+                existing = open_pull_request(repo, branch, base_name)
+                if existing is None:
+                    print(f"current: {member}")
+                    continue
+                url, is_draft = existing
+                draft = bool(getattr(args, "draft", False))
+                if draft and not is_draft:
+                    raise RuntimeError(
+                        f"existing pull request {url} is ready; refusing --draft"
+                    )
+                commit = refresh_hook_publication(
+                    repo,
+                    url,
+                    default_commit,
+                    base,
+                    landing_tree,
+                    hooks,
+                    tuple(retired),
+                    message,
+                )
+                if commit is None:
+                    print(f"current: {member}")
+                    continue
+                landing_tree = hook_landing_tree(
+                    repo, default_commit, commit, hooks, tuple(retired)
+                )
+                push_hook_branch(repo, commit, branch, pre_push_hook, source_commit)
+                require_hosted_merge(repo, url, default_commit, commit, landing_tree)
+                if draft:
+                    print(f"reused: {member} {url} draft")
+                else:
+                    enqueue_pull_request(repo, url, default_commit, commit, landing_tree)
+                    print(f"reused: {member} {url} enqueued")
                 continue
             if not args.push:
                 print(f"would publish: {member} onto {default}")
