@@ -252,21 +252,6 @@ class PlanTests(unittest.TestCase):
             ],
         )
 
-    def test_each_source_past_its_target_is_pulled_back_once(self) -> None:
-        stale = sweep.stale_packages(LOCK, {"hermes": NEW, "mnemosyne": NEW})
-        updated = LOCK.replace(f"hermes.git#{OLD}", f"hermes.git#{MOVED}").replace(
-            f"Mnemosyne.git#{OLD}", f"Mnemosyne.git#{NEW}"
-        )
-        self.assertEqual(
-            sweep.pullbacks(updated, stale, {"hermes": NEW, "mnemosyne": NEW}),
-            [("git+https://github.com/ryancinsight/hermes.git#hermes-simd@0.5.0", NEW)],
-        )
-
-    def test_sources_at_their_target_need_no_pullback(self) -> None:
-        stale = sweep.stale_packages(LOCK, {"hermes": NEW})
-        updated = LOCK.replace(f"hermes.git#{OLD}", f"hermes.git#{NEW}")
-        self.assertEqual(sweep.pullbacks(updated, stale, {"hermes": NEW}), [])
-
     def test_one_spelling_left_behind_is_a_miss(self) -> None:
         stale = sweep.stale_packages(LOCK, {"mnemosyne": NEW})
         self.assertEqual(
@@ -278,6 +263,16 @@ class PlanTests(unittest.TestCase):
 class CommitTests(unittest.TestCase):
     def plan(self, targets: dict[str, str]):
         return sweep.Plan(Path("repos/leto"), OLD, sweep.stale_packages(LOCK, targets))
+
+    def test_lock_failure_restores_exact_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            lock = Path(directory) / "Cargo.lock"
+            original = b"version = 4\r\n# exact\n"
+            lock.write_bytes(b"changed\n")
+            outcome = sweep.lock_failure(self.plan({"hermes": NEW}), lock, original, "rejected")
+            self.assertEqual((outcome.action, outcome.ok, outcome.detail),
+                             ("failed", False, "rejected"))
+            self.assertEqual(lock.read_bytes(), original)
 
     def test_one_target_names_its_provider_and_revision(self) -> None:
         self.assertEqual(sweep.branch_name({"hermes": NEW}), "build/deps-hermes-22222222")
@@ -440,6 +435,74 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(report["members"][0]["locks"][0]["packages"][0]["rev"], self.first_provider)
         self.assertEqual(self.git(self.root, "show-ref"), before)
         self.assertEqual((self.root / ".git/index").read_bytes(), index)
+
+    def test_missing_promisor_blobs_refuse_without_fetching(self) -> None:
+        source = self.root / "promisor-source"
+        source.mkdir()
+        self.git(source, "init", "-q", "-b", "main")
+        (source / "Cargo.toml").write_text(
+            '[package]\nname="consumer"\nversion="0.1.0"\nedition="2024"\n',
+            encoding="utf-8",
+        )
+        (source / "Cargo.lock").write_text(
+            "version=4\n" + package("consumer", "0.1.0", None), encoding="utf-8"
+        )
+        self.git(source, "add", "Cargo.toml", "Cargo.lock")
+        self.git(source, "commit", "-qm", "Record inputs")
+        self.git(source, "config", "uploadpack.allowFilter", "true")
+        revision = self.git(source, "rev-parse", "HEAD")
+        blobs = {
+            self.git(source, "rev-parse", "HEAD:Cargo.toml"),
+            self.git(source, "rev-parse", "HEAD:Cargo.lock"),
+        }
+
+        root = self.root / "promisor-root"
+        root.mkdir()
+        self.git(root, "init", "-q", "-b", "main")
+        member = root / "repos" / "consumer"
+        member.parent.mkdir()
+        cloned = execute_git(
+            self.root,
+            ("clone", "-q", "--bare", "--filter=blob:none", source.as_uri(), str(member)),
+            timeout=30,
+        )
+        self.assertEqual(cloned.returncode, 0, cloned.stderr)
+        (root / ".gitmodules").write_text(
+            '[submodule "consumer"]\npath = repos/consumer\n'
+            'url = https://github.com/ryancinsight/consumer\n',
+            encoding="utf-8",
+        )
+        self.git(root, "add", ".gitmodules")
+        self.git(
+            root,
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            f"160000,{revision},repos/consumer",
+        )
+        self.git(root, "commit", "-qm", "Record pin")
+        basis = self.git(root, "rev-parse", "HEAD")
+        refs = self.git(root, "show-ref")
+        member_refs = self.git(member, "show-ref")
+        index = (root / ".git/index").read_bytes()
+        no_fetch = {**os.environ, "GIT_NO_LAZY_FETCH": "1"}
+        inherited_no_fetch = os.environ.get("GIT_NO_LAZY_FETCH")
+
+        def missing(blob: str) -> bool:
+            result = execute_git(
+                member, ("--no-replace-objects", "cat-file", "-e", blob),
+                env=no_fetch, timeout=10,
+            )
+            return result.returncode != 0
+
+        self.assertTrue(all(missing(blob) for blob in blobs))
+        with self.assertRaisesRegex(sweep.lockfile.GitUnavailable, "cat-file could not read"):
+            sweep.lock_inventory(root, basis)
+        self.assertTrue(all(missing(blob) for blob in blobs))
+        self.assertEqual(self.git(root, "show-ref"), refs)
+        self.assertEqual(self.git(member, "show-ref"), member_refs)
+        self.assertEqual((root / ".git/index").read_bytes(), index)
+        self.assertEqual(os.environ.get("GIT_NO_LAZY_FETCH"), inherited_no_fetch)
 
     def test_committed_lock_without_owner_rejects(self) -> None:
         repo = self.root / "repos/consumer"

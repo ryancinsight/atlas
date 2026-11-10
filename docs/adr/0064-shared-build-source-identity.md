@@ -3,9 +3,9 @@
 - Status: Accepted
 - Date: 2026-09-24
 - Class: [arch]
-- Driver: [Atlas PR #624](https://github.com/ryancinsight/atlas/pull/624), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
+- Driver: [Atlas PR #624](https://github.com/ryancinsight/atlas/pull/624), [Atlas PR #626](https://github.com/ryancinsight/atlas/pull/626), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
-- Revision: 2026-11-09 â€” Compacted source ownership, bound the complete supervisor family, and made cohort checks and revision-bound lock inventories explicit after #623 escaped non-required failures.
+- Revision: 2026-11-10 — Bind pinned overlay, version coherence and pin drift to the required aggregate while retaining the landed inventory, transport and runner protocols.
 
 ## Context
 
@@ -14,7 +14,10 @@ Concurrent roots therefore need one protocol that prevents a clean or rewrite fr
 
 ## Decision
 
-The required Atlas aggregate includes pinned overlay, version coherence and pin drift. Separate non-required workflow failures escaped the #623 gate; their single reusable owners now feed the aggregate, and incomplete verdicts reject. Consumer requirements and standalone locks must pass against the selected immutable provider cohort before its gitlinks land. The lock sweep inventory reads every committed owner at one Atlas revision, including nested and excluded workspaces, without consulting checkouts or fetching. It retains fixture exemptions and missing sibling-lock diagnostics; SemVer baselines derive from these complete first-party identity records.
+The required aggregate includes pinned overlay, version coherence and pin drift through their single reusable workflow owners. Incomplete verdicts reject. Consumer requirements and standalone locks must pass against the selected immutable provider cohort before its gitlinks land.
+
+The lock sweep inventory reads every committed standalone lock owner at one Atlas revision, including nested and excluded workspaces, without consulting checkouts or fetching. Every Git process disables promisor lazy fetch, so a missing committed object fails instead of mutating the object store. It retains fixture exemptions and missing sibling-lock diagnostics; every first-party Git package identity must name a registered provider. SemVer baseline enumeration uses these complete identity records.
+The update sweep creates temporary bare views whose object alternates point at registered provider stores and whose sole advertised head is the selected commit. Per-process Git URL rewrites expose all selected heads to one narrowed Cargo update; no global configuration, manifest, or source URL changes. Query-constrained sources refuse. After the views and rewrites are removed, full locked offline metadata must report every selected package version, original URL spelling, and exact revision.
 
 ### Tool and runner source
 
@@ -42,7 +45,7 @@ Source-root paths and revisions never partition lease or record keys for overlap
 `atlas_build_records.py` owns record format, `atlas_build_inputs.py` dimensions and dependency data, and `atlas_build_identity.py` the run, clean, and lease protocol; operation-family modules under References own their stated parts.
 Record version 7 stores one record under `target/.atlas/source-identity` per shared target, package, profile, target, features, toolchain, environment, Cargo configuration, dependency closure, stable command key, and complete multi-package selection.
 Every package selected in one Cargo invocation participates because feature unification can change all selected artifacts; one gate step issues one command with every `-p`, reads metadata once, holds the union of leases, cleans one union, and keeps one record per package under command key `atlas-pre-push` without a package suffix.
-Older, missing, malformed, or unsupported records mismatch; versions 1â€“6 are stale. Records are atomic and contain diagnostic root and revision, dirty state, path-package identities and inputs, resolved closure and dimensions, and actual artifact hashes.
+Older, missing, malformed, or unsupported records mismatch; versions 1–6 are stale. Records are atomic and contain diagnostic root and revision, dirty state, path-package identities and inputs, resolved closure and dimensions, and actual artifact hashes.
 Revision remains diagnostic and guards declared-artifact runs but is absent from record paths and lease keys. Workspace path sources use workspace-relative identity.
 
 Each path package is identified by files in its own directory, never its whole repository: tracked `HEAD` entries plus its share of tracked, untracked, and ignored working-tree changes, assigned to the deepest containing path-package directory.
@@ -68,6 +71,7 @@ An artifact-only mismatch cleans its owners. A shape or dimension change cleans 
 One `cargo clean` receives the union plus profile and target. Registry packages are never cleaned.
 Git packages use build-directory stamps keyed by package/source identity, profile, and target. A building sentinel precedes clean and Cargo; only command success plus a stable final snapshot writes the content digest.
 A failed or killed command leaves a stale sentinel. Unstamped external Git artifacts remain trusted; a stale stamp is cleaned even under a matching or sibling record, including after an opaque custom clean.
+Path packages carry a writer mark, `.atlas/source-identity/writers/<package>.json`, written under the run's exclusive lease: `cleaning` before a clean, `building` for every package the command writes once the clean has returned, `complete` after the records land. The mark names a run identity: the digest of the source content, build dimensions and every selected package's dependency digest, excluding checkout path. A mismatched record cleans as above, except that a package still marked `building` with this run's identity is held exclusive and rediscovered but not cleaned: a killed run's rebuilt artifacts came from the same source. While the command runs the identity process refreshes each `building` mark's heartbeat every 5 seconds, and a rerun resumes a package only if none of its `deps`, `.fingerprint` or `build` entries (matched by package name and hash suffix) is newer than that heartbeat: a lease-less peer's later write, and the killed run's own last interval, clean. Cargo does not repair a peer's write: with unchanged source mtimes it reported `Fresh` over artifacts built from other source (probe: one fingerprint directory, rerun printed the peer's output), and `.d` files cannot tell writers apart. Any other identity, a `cleaning` or `complete` mark, and a missing or unreadable mark clean as before; a stale Git stamp cleans regardless. Marks are derived state; the supervisor deadline, lease semantics and one command per phase are unchanged.
 
 Each `(package name, canonical target directory)` has one lease; revision and target triple are excluded because revisions share artifact names and cross-target builds share host artifacts. Linked worktrees resolve the Git common directory.
 Cross-platform shared/exclusive byte-range locks make the operating-system lock authoritative; owner text and expiry are diagnostic, only an exclusive holder writes them, and unlocked malformed state is reclaimable.
@@ -97,6 +101,7 @@ Provider changes require all 28 executable member hook copies before pin advance
 
 ## Known limits
 
+- Resume loses up to one heartbeat interval of the killed run's output. A peer write that preserves file mtimes at or before the heartbeat is invisible; a completed run's mark never resumes, so rewrites after completion still clean.
 - Untracked proc-macro/build-script reads are absent from `inputs`; another-repository inputs outside every package are guarded only by the post-command snapshot; excluded non-member path packages may clean once per changed export path.
 - Alias-expanded `--config` paths are unseen unless otherwise reached. Unknown Cargo/TOML 1.1 grammar fails closed rather than being parsed.
 - `[env]` values, build-script `rustc-env`, and wrapper exports are not decomposed; config-file changes remain covered. A stat-preserving package-source edit can evade the persistent cache.
@@ -112,6 +117,8 @@ Hashing, metadata, queueing, and lease costs remain observable through claim his
 
 ## Alternatives rejected
 
+- Progressive per-stage records, or recording after a partial command, either split a phase into several commands, which lets a peer replace artifacts between them, or record artifacts Cargo has not finished writing. A mark written before the command and honored only for an identical identity keeps one command per phase and records nothing unverified.
+- Raising the 600-second deadline or skipping the clean after any kill hides the cold-build cost or trusts artifacts of any writer; the mark is bound to one identity and replaced by every other writer.
 - Working-tree `.githooks`, hand-copied member hooks, or changing live installed refs let the candidate replace its judge or duplicate policy; immutable fetched tooling plus invocation-local prepared selection preserves the trust boundary.
 - Per-source targets fork the cache; manual cleaning has no ownership; Cargo fingerprint JSON and missing `.fingerprint` directories are not stable identity APIs.
 - Whole-target/closure cleaning, repository-name filters, cleaning every path package on any root change, and record-local snapshot narrowing either discard unrelated reuse or miss feature, dependency-kind, edition, profile, and manifest-driven variant renames.
@@ -124,7 +131,7 @@ Hashing, metadata, queueing, and lease costs remain observable through claim his
 
 ## Evidence and verification
 
-The design responds to measured failures: a 405-second Rustdoc phase; 36 identity runs for one 12-package step and a 00:17â€“01:53 gate; four 900-second lease refusals; a 35-package clean with 34 unchanged Git packages; dependency snapshots over 25 minutes reduced from 71 seconds warm to 5.4 seconds; repeated 2.5-minute clean walks; 13 partial clones, 260-character path failures, a 1.5 GB interrupted export, and live-expiry/35-hour stale-lease failures.
+The design responds to measured failures: a 405-second Rustdoc phase; 36 identity runs for one 12-package step and a 00:17–01:53 gate; four 900-second lease refusals; a 35-package clean with 34 unchanged Git packages; dependency snapshots over 25 minutes reduced from 71 seconds warm to 5.4 seconds; repeated 2.5-minute clean walks; 13 partial clones, 260-character path failures, a 1.5 GB interrupted export, and live-expiry/35-hour stale-lease failures.
 Evidence identifiers remain `ATLAS-IDENTITY-MEMBER-SCOPE`, `ATLAS-GATE-STEP-BATCH`, `ATLAS-BUILD-IDENTITY-SPLIT`, `ATLAS-GATE-LEASE-HOLD-001`, `ATLAS-IDENTITY-NARROW-ADDED-DEPS`, `ATLAS-IDENTITY-MIDRUN-GIT-EDIT`, and `ryancinsight/atlas#418`.
 Real-Cargo regression cases cover exact reuse across exports; package-local and external inputs; dirty/ignored/final-mutated source; shape, feature, profile, manifest, Git-stamp, sentinel, custom-clean, artifact-retirement, and registry behavior; multi-package batching and failure; settled post-command hashes; and repeat pushes that clean nothing after the first.
 Lease tests cover shared readers, dependency rewrites, all-or-none fairness, owner diagnostics, expiry, malformed recovery, exclusive retake, downgrade queue position, sibling records, deadlines, and dead owners. Hook tests cover pushed-revision export, committed locks, owner changes, documentation phases, prepared tools, runner bootstrap, and refusal paths.
@@ -133,7 +140,7 @@ The configured focused identity, full scripts, pre-push, conformance, architectu
 ## References
 
 - [PR #277](https://github.com/ryancinsight/atlas/pull/277); [PR #295](https://github.com/ryancinsight/atlas/pull/295); [PR #296](https://github.com/ryancinsight/atlas/pull/296); [PR #299](https://github.com/ryancinsight/atlas/pull/299)
-- [records](../../scripts/atlas_build_records.py); [check](../../scripts/atlas_build_check.py); [inputs](../../scripts/atlas_build_inputs.py); [identity](../../scripts/atlas_build_identity.py); [stale packages](../../scripts/atlas_build_stale_packages.py); [stamps](../../scripts/atlas_build_stamps.py); [snapshot](../../scripts/atlas_build_snapshot.py)
+- [records](../../scripts/atlas_build_records.py); [check](../../scripts/atlas_build_check.py); [inputs](../../scripts/atlas_build_inputs.py); [identity](../../scripts/atlas_build_identity.py); [stale packages](../../scripts/atlas_build_stale_packages.py); [stamps](../../scripts/atlas_build_stamps.py); [writer marks](../../scripts/atlas_build_writers.py); [snapshot](../../scripts/atlas_build_snapshot.py)
 - [lease](../../scripts/atlas_build_lease.py); [lock](../../scripts/atlas_build_lock.py); [queue](../../scripts/atlas_build_queue.py); [source](../../scripts/atlas_build_source.py); [artifacts](../../scripts/atlas_build_artifacts.py)
 - [package source](../../scripts/atlas_build_package_source.py); [package identity](../../scripts/atlas_build_package_identity.py); [dep-info](../../scripts/atlas_build_dep_info.py); [pre-push hook](../../scripts/git-hooks/pre-push)
 - [identity tests](../../scripts/tests/test_atlas_build_identity.py); [pre-push tests](../../scripts/tests/test_atlas_pre_push_gate.py); [hook publisher tests](../../scripts/tests/test_atlas_hook_publisher.py); [Apollo ADR 0051](../../repos/apollo/docs/adr/0051-composite-phase-schedules.md)
