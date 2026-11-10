@@ -527,7 +527,7 @@ def retarget_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | 
 
 def git_config_pairs(environment: dict[str, str], scope: str, cwd: Path
                      ) -> list[tuple[str, str]]:
-    """Read one effective Git config scope without inherited command entries."""
+    """Read one effective Git scope, preserving valueless Boolean truth."""
     if scope == "system" and environment.get("GIT_CONFIG_NOSYSTEM"):
         return []
     probe = {**environment, "GIT_CONFIG_COUNT": "0"}
@@ -543,7 +543,7 @@ def git_config_pairs(environment: dict[str, str], scope: str, cwd: Path
             continue
         key, separator, value = record.partition("\n")
         if not separator:
-            raise ValueError(f"unreadable {scope} Git configuration")
+            value = "true"
         if not key.lower().startswith(("include.", "includeif.")):
             pairs.append((key, value))
     return pairs

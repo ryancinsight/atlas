@@ -109,6 +109,7 @@ class SelectedSourceViewTests(unittest.TestCase):
                      (("transaction-b", B, "=0.1.0"),))
 
             global_config = root / "global.gitconfig"
+            global_config.write_text("[fetch]\n\tprune\n", encoding="utf-8")
             conflict = f"url.{repos['c'].resolve().as_uri()}.insteadOf"
             git(root, "config", "--file", str(global_config), conflict, C)
             git(root, "config", "--file", str(global_config), "protocol.version", "2")
@@ -128,10 +129,10 @@ class SelectedSourceViewTests(unittest.TestCase):
                 scoped, _ = sweep.selected_source_environment(
                     plan, selected, list(plan.stale), Path(views), environment)
                 preserved = sweep.lockfile.run_bounded(
-                    ["git", "config", "--get", "protocol.version"],
+                    ["git", "config", "--bool", "--get", "fetch.prune"],
                     cwd=root, env=scoped, deadline=30,
                 )
-            self.assertEqual((preserved.returncode, preserved.stdout.strip()), (0, "2"))
+            self.assertEqual((preserved.returncode, preserved.stdout.strip()), (0, "true"))
 
             self.assertIsNone(sweep.resolve_lock(plan, selected, repos["consumer"], environment))
             packages = {package.provider: package for package in sweep.locked_packages(
