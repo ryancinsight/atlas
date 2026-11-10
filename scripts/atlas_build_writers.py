@@ -8,13 +8,26 @@ clean has finished and until the command is recorded, `complete` after. A
 later run with the same identity resumes the packages still marked
 `building` without cleaning them; any other writer replaces the mark, and a
 `cleaning` or `complete` mark never resumes.
+
+A mark cannot see a peer that writes the package without a lease, and Cargo
+trusts artifacts whose sources are older than they are. While the command
+runs, a heartbeat refreshes each `building` mark every `HEARTBEAT_SECONDS`;
+a rerun resumes a package only if none of its artifact or fingerprint files
+is newer than the mark's last heartbeat. The kill stops the heartbeat, so a
+peer's later write, and the killed run's own last interval of output, are
+newer and clean; progress older than the final heartbeat survives.
 """
 
 from __future__ import annotations
 
 import json
+import os
+import re
+import threading
+import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Iterator
 from urllib.parse import quote
 
 from atlas_build_lease import BuildIdentityError
@@ -26,6 +39,12 @@ BUILDING = "building"
 COMPLETE = "complete"
 _STATES = (CLEANING, BUILDING, COMPLETE)
 _VERSION = 1
+# The most progress a kill can cost: the killed run's files written after the
+# last heartbeat are cleaned with a peer's. Short against a cold build of
+# minutes, long enough that the heartbeat's writes (one small file per
+# package) stay negligible beside Cargo's.
+HEARTBEAT_SECONDS = 5.0
+_SUBDIRECTORIES = ("deps", ".fingerprint", "build")
 
 
 def writer_path(target_dir: Path, package: str) -> Path:
@@ -62,12 +81,67 @@ def _read(target_dir: Path, package: str) -> dict[str, object] | None:
     return value
 
 
+def _artifact_pattern(package: str) -> re.Pattern[str]:
+    names = "|".join(re.escape(name) for name in {package, package.replace("-", "_")})
+    return re.compile(rf"^(?:lib)?(?:{names})-[0-9a-f]+(?:\.|$)")
+
+
+def _profile_directories(target_dir: Path) -> Iterator[Path]:
+    """Directories holding `deps` or `.fingerprint`: `<profile>` and `<triple>/<profile>`."""
+    try:
+        first = [entry for entry in target_dir.iterdir() if entry.is_dir()]
+        for directory in first:
+            yield directory
+            yield from (entry for entry in directory.iterdir() if entry.is_dir())
+    except OSError:
+        return
+
+
+def written_after(target_dir: Path, package: str, since_ns: int) -> bool:
+    """Whether any artifact or fingerprint file of `package` is newer than `since_ns`.
+
+    Over-matches by name only (a longer package sharing the prefix and a hash
+    suffix), which cleans more, never less; a file that cannot be read counts
+    as newer.
+    """
+    pattern = _artifact_pattern(package)
+    try:
+        for directory in _profile_directories(target_dir):
+            for subdirectory in _SUBDIRECTORIES:
+                root = directory / subdirectory
+                if not root.is_dir():
+                    continue
+                for entry in root.iterdir():
+                    if not pattern.match(entry.name):
+                        continue
+                    if entry.stat().st_mtime_ns > since_ns:
+                        return True
+                    if entry.is_dir():
+                        for parent, directories, files in os.walk(entry):
+                            for name in (*directories, *files):
+                                if (Path(parent) / name).stat().st_mtime_ns > since_ns:
+                                    return True
+    except OSError:
+        return True
+    return False
+
+
 def resumable(target_dir: Path, packages: Iterable[str], identity: str) -> frozenset[str]:
-    """The packages whose last writer was an unfinished run of this identity."""
+    """The packages whose last writer was an unfinished run of this identity.
+
+    Only if nothing of theirs was written after that run's last heartbeat.
+    """
     resumed = set()
     for package in packages:
-        mark = _read(target_dir, package)
-        if mark is not None and mark["state"] == BUILDING and mark.get("identity") == identity:
+        written = _read(target_dir, package)
+        heartbeat_ns = written.get("heartbeat_ns") if written is not None else None
+        if (
+            written is not None
+            and written["state"] == BUILDING
+            and written.get("identity") == identity
+            and type(heartbeat_ns) is int
+            and not written_after(target_dir, package, heartbeat_ns)
+        ):
             resumed.add(package)
     return frozenset(resumed)
 
@@ -79,6 +153,33 @@ def mark(target_dir: Path, packages: Iterable[str], state: str, identity: str) -
     for package in packages:
         _write_atomic(
             writer_path(target_dir, package),
-            {"version": _VERSION, "state": state, "identity": identity},
+            {
+                "version": _VERSION,
+                "state": state,
+                "identity": identity,
+                "heartbeat_ns": time.time_ns(),
+            },
         )
 
+
+@contextmanager
+def heartbeat(target_dir: Path, packages: Iterable[str], identity: str) -> Iterator[None]:
+    """Refresh the `building` marks every `HEARTBEAT_SECONDS` while the caller's command runs."""
+    held = tuple(packages)
+    stopped = threading.Event()
+
+    def beat() -> None:
+        while not stopped.wait(HEARTBEAT_SECONDS):
+            try:
+                mark(target_dir, held, BUILDING, identity)
+            except (OSError, BuildIdentityError):
+                # A missed beat only ages the mark, so a rerun cleans more.
+                continue
+
+    thread = threading.Thread(target=beat, name="writer-heartbeat", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stopped.set()
+        thread.join()

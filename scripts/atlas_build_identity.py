@@ -56,7 +56,7 @@ from atlas_build_stamps import (
     _unstamped_git,
     _write_git_stamps,
 )
-from atlas_build_writers import BUILDING, CLEANING, COMPLETE, mark, resumable, run_identity
+from atlas_build_writers import BUILDING, CLEANING, COMPLETE, heartbeat, mark, resumable, run_identity
 
 DEFAULT_LEASE_SECONDS = 900
 
@@ -490,7 +490,8 @@ def _run_build(
                 raise IdentityError(
                     "a dependency is held shared but no record names its artifacts"
                 )
-        _run_checked(command, execution_root, environment)
+        with heartbeat(target_dir, fresh, writer_identity):
+            _run_checked(command, execution_root, environment)
         final_source = source_identity(root, (target_dir,), ignore_paths)
         if final_source.as_dict() != first_spec.source.as_dict():
             raise IdentityError("source tree changed while the build was running")

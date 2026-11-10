@@ -1790,6 +1790,61 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(self.killed_run("third", in_clean=True), [])
         self.assertEqual(self.cleaned_packages("third"), ["demo"])
 
+    def test_a_write_by_a_peer_after_the_kill_cleans(self) -> None:
+        # A peer without a lease rebuilt the package from other source, and
+        # Cargo trusts artifacts whose sources are older than they are.
+        self.killed_after_source_change()
+        time.sleep(0.05)
+        self.artifact.write_text("written by a peer", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def test_a_fingerprint_written_by_a_peer_after_the_kill_cleans(self) -> None:
+        self.killed_after_source_change()
+        fingerprint = self.target / "debug" / ".fingerprint" / "demo-0123456789abcdef"
+        time.sleep(0.05)
+        fingerprint.mkdir(parents=True)
+        (fingerprint / "dep-lib-demo").write_text("peer", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def test_progress_older_than_the_last_heartbeat_resumes(self) -> None:
+        target = build_source._canonical(self.target)
+        built = target / "debug" / "deps" / "libdemo-abcdef.rlib"
+        built.parent.mkdir(parents=True, exist_ok=True)
+        built.write_text("progress", encoding="utf-8")
+        time.sleep(0.05)
+        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+        self.assertEqual(writers.resumable(target, ["demo"], "another"), frozenset())
+        time.sleep(0.05)
+        built.write_text("later", encoding="utf-8")
+        self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
+        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+
+    def test_a_longer_package_name_does_not_hide_a_peer_write(self) -> None:
+        target = build_source._canonical(self.target)
+        writers.mark(target, ["demo-core"], writers.BUILDING, "identity")
+        time.sleep(0.05)
+        peer = target / "debug" / "deps" / "libdemo_core-abcdef.rlib"
+        peer.parent.mkdir(parents=True, exist_ok=True)
+        peer.write_text("peer", encoding="utf-8")
+        self.assertEqual(writers.resumable(target, ["demo-core"], "identity"), frozenset())
+
+    def test_the_heartbeat_refreshes_a_building_mark_while_the_command_runs(self) -> None:
+        target = build_source._canonical(self.target)
+        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        first = json.loads(writers.writer_path(target, "demo").read_text(encoding="utf-8"))
+        with patch.object(writers, "HEARTBEAT_SECONDS", 0.02):
+            with writers.heartbeat(target, ["demo"], "identity"):
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    beat = json.loads(writers.writer_path(target, "demo").read_text(encoding="utf-8"))
+                    if beat["heartbeat_ns"] > first["heartbeat_ns"]:
+                        break
+                    time.sleep(0.02)
+        self.assertGreater(beat["heartbeat_ns"], first["heartbeat_ns"])
+        self.assertEqual((beat["state"], beat["identity"]), (writers.BUILDING, "identity"))
+
     def test_an_unreadable_writer_mark_cleans(self) -> None:
         self.killed_after_source_change()
         mark = writers.writer_path(build_source._canonical(self.target), "demo")
