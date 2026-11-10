@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -47,6 +48,21 @@ class NativeRequirementEvaluationTestCase(unittest.TestCase):
     def test_malformed_requirement_is_not_satisfied(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "invalid_requirement"):
             _overlay.evaluate_requirements({("1.2.3", "^1 || ^2")})
+
+    def test_non_integer_native_row_identity_is_rejected(self) -> None:
+        for invalid_id in (False, 0.0):
+            with self.subTest(invalid_id=invalid_id):
+                result = subprocess.CompletedProcess(
+                    [],
+                    0,
+                    json.dumps([{"id": invalid_id, "outcome": "satisfied"}]),
+                    "",
+                )
+                with (
+                    patch.object(_overlay, "run_tool", return_value=result),
+                    self.assertRaisesRegex(RuntimeError, "row order or identity"),
+                ):
+                    _overlay.evaluate_requirements({("1.2.3", "^1")})
 
 
 class LagAwarePatchEmissionTestCase(unittest.TestCase):

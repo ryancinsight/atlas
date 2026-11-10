@@ -63,7 +63,40 @@ def run_tool(
         "cargo", "run", "--quiet", "--locked", "--manifest-path", str(workspace / "Cargo.toml"),
         "--", *arguments,
     ]
-    return subprocess.run(command, cwd=workspace, check=False, **run_options)
+    process_tree = load_sibling(
+        "atlas_process_tree", Path(__file__).resolve().parent / "process_tree.py"
+    )
+    timeout = run_options.pop("timeout", 600)
+    capture_output = run_options.pop("capture_output", False)
+    encoding = run_options.pop("encoding", None)
+    errors = run_options.pop("errors", None)
+    input_value = run_options.pop("input", None)
+    environment = run_options.pop("env", None)
+    if run_options:
+        unexpected = ", ".join(sorted(run_options))
+        raise TypeError(f"unsupported run option(s): {unexpected}")
+    if isinstance(input_value, str):
+        input_value = input_value.encode(encoding or "utf-8", errors or "strict")
+    result = process_tree.run(
+        command,
+        cwd=workspace,
+        env=environment,
+        input=input_value,
+        timeout=timeout,
+        output_mode=(
+            process_tree.OutputMode.CAPTURE
+            if capture_output
+            else process_tree.OutputMode.INHERIT
+        ),
+    )
+    if encoding is None:
+        return result
+    return subprocess.CompletedProcess(
+        result.args,
+        result.returncode,
+        None if result.stdout is None else result.stdout.decode(encoding, errors or "strict"),
+        None if result.stderr is None else result.stderr.decode(encoding, errors or "strict"),
+    )
 
 
 def registered_member_names(

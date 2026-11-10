@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 import sys
+import types
 import unittest
 from pathlib import Path
 
@@ -26,16 +27,21 @@ SPEC.loader.exec_module(atlas_stack)
 class RunToolTests(unittest.TestCase):
     def setUp(self) -> None:
         self.calls: list[tuple[list[str], dict]] = []
-        self.original_run = atlas_stack.subprocess.run
+        self.original_load_sibling = atlas_stack.load_sibling
+
+        class OutputMode:
+            CAPTURE = "capture"
+            INHERIT = "inherit"
 
         def fake_run(command, **options):
             self.calls.append((list(command), options))
-            return subprocess.CompletedProcess(command, 0, "", "")
+            return subprocess.CompletedProcess(command, 0, b"output", b"error")
 
-        atlas_stack.subprocess.run = fake_run
+        process_tree = types.SimpleNamespace(OutputMode=OutputMode, run=fake_run)
+        atlas_stack.load_sibling = lambda *_: process_tree
 
     def tearDown(self) -> None:
-        atlas_stack.subprocess.run = self.original_run
+        atlas_stack.load_sibling = self.original_load_sibling
 
     def test_runs_from_the_tool_workspace_not_the_stack_root(self) -> None:
         atlas_stack.run_tool("version-guard", ["coherence"])
@@ -55,8 +61,23 @@ class RunToolTests(unittest.TestCase):
             env=env, timeout=7, capture_output=True, encoding="utf-8", errors="replace",
         )
         _, options = self.calls[-1]
-        self.assertEqual((options["env"], options["timeout"], options["check"]), (env, 7, False))
-        self.assertTrue(options["capture_output"])
+        self.assertEqual((options["env"], options["timeout"]), (env, 7))
+        self.assertEqual(options["output_mode"], "capture")
+
+    def test_decodes_captured_text_and_encodes_input(self) -> None:
+        result = atlas_stack.run_tool(
+            "version-guard", ["requirements"], input="rows", capture_output=True,
+            encoding="utf-8", errors="replace", timeout=7,
+        )
+        _, options = self.calls[-1]
+        self.assertEqual(options["input"], b"rows")
+        self.assertEqual((result.stdout, result.stderr), ("output", "error"))
+
+    def test_defaults_to_the_bounded_process_tree_runner(self) -> None:
+        atlas_stack.run_tool("version-guard", ["coherence"])
+        _, options = self.calls[-1]
+        self.assertEqual(options["timeout"], 600)
+        self.assertEqual(options["output_mode"], "inherit")
 
     def test_every_tool_workspace_carries_a_bare_version_pin(self) -> None:
         # The property the helper relies on: a channel without a host triple

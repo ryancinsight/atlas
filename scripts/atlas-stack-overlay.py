@@ -448,7 +448,11 @@ def evaluate_requirements(
         raise RuntimeError("native Cargo requirement evaluation returned the wrong row count")
     evaluations: dict[tuple[str, str], bool] = {}
     for index, row in enumerate(output):
-        if not isinstance(row, dict) or row.get("id") != index:
+        if (
+            not isinstance(row, dict)
+            or type(row.get("id")) is not int
+            or row["id"] != index
+        ):
             raise RuntimeError(
                 "native Cargo requirement evaluation changed row order or identity"
             )
