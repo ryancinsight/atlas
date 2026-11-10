@@ -1327,9 +1327,11 @@ class HookInstallTestCase(unittest.TestCase):
         )
         owned = (Path(__file__).resolve().parent.parent.parent
                  / "scripts" / "git-hooks" / "pre-commit").read_bytes()
-        checker = (Path(__file__).resolve().parent.parent.parent
-                   / "scripts" / "lockfile.py").read_bytes()
-        self.publish({"pre-commit": owned}, {"scripts/lockfile.py": checker})
+        files = {
+            f"scripts/{name}": (SCRIPT.parent / name).read_bytes()
+            for name in ("lockfile.py", "process_tree.py", "windows_process.py", "darwin_process.py")
+        }
+        self.publish({"pre-commit": owned}, files)
         self.git(
             self.atlas, "-c", "protocol.file.allow=always", "submodule", "add",
             "-q", str(source), "repos/alpha",
