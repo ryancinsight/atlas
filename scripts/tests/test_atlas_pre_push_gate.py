@@ -2,10 +2,10 @@
 """Integration tests for the owned member pre-push gate.
 
 `scripts/git-hooks/pre-push` is the single source every member's
-`.githooks/pre-push` copies. Most tests drive the script itself in fixture
-git repositories with stub `cargo`/`lockfile` tools, so the range logic,
-package mapper, and blame classifier need no toolchain or network. Native ownership
-regressions run installed Cargo and nextest. The stub cargo runs in the
+`.githooks/pre-push` copies. These tests drive
+the script itself in fixture git repositories with stub `cargo`/`lockfile`
+tools, so the range logic, the package mapper, and the blame classifier
+are verified without a toolchain or network. The stub cargo runs in the
 gate's export of the pushed revision, so its package metadata and failure
 logs name `@ROOT@`, which it replaces with its own working directory.
 """
@@ -4794,15 +4794,13 @@ COMPILE_ERROR = ("error[E0433]: failed to resolve: use of undeclared crate or mo
                  "error: could not compile `foo` (lib) due to 1 previous error")
 
 
-@unittest.skipUnless(shutil.which("cargo") and shutil.which("cargo-nextest"),
-                     "real Cargo and cargo-nextest are required")
+@unittest.skipUnless(shutil.which("cargo") and shutil.which("cargo-nextest"), "real Cargo and nextest are required")
 class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
     @staticmethod
     def _install_tools(stack: pathlib.Path) -> None:
         source = SCRIPT.parents[1]
         names = {"atlas-build-identity.py", "atlas_claim_log.py", "atlas-secret-scan.py", "atlas_cast_gate.py",
-                 "cast-baseline.json", "lockfile.py", "process_tree.py",
-                 "windows_process.py", "darwin_process.py"}
+                 "cast-baseline.json", "lockfile.py", "process_tree.py", "windows_process.py", "darwin_process.py"}
         names.update(path.name for path in source.glob("atlas_build_*.py"))
         for name in names:
             shutil.copy2(source / name, stack / "scripts" / name)
@@ -4822,10 +4820,9 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
 
     def _run(self, fixture: GateFixture, tip: str, branch: str) -> tuple[int, str, list[str]]:
         recorder, calls = self._recorder(fixture.root)
-        code, stderr = fixture.run_hook(f"refs/heads/{branch} {tip} refs/heads/{branch} {ZERO}\n",
-            {"CARGO": str(recorder), "CARGO_TARGET_DIR": str(shared_target_directory())})
-        recorded = calls.read_text(encoding="utf-8").splitlines() if calls.exists() else []
-        return code, stderr, recorded
+        code, stderr = fixture.run_hook(f"refs/heads/{branch} {tip} refs/heads/{branch} {ZERO}\n", {
+            "CARGO": str(recorder), "CARGO_TARGET_DIR": str(shared_target_directory())})
+        return code, stderr, calls.read_text(encoding="utf-8").splitlines() if calls.exists() else []
 
     def _root_lock_fixture(self, temp: str, broken: bool) -> tuple[GateFixture, str]:
         fixture = GateFixture.in_stack(pathlib.Path(temp))
@@ -4891,17 +4888,15 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
         assert cargo is not None
         subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / "Cargo.toml")], cwd=root, check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
         subprocess.run([cargo, "fmt", "--all", "--manifest-path", str(root / "Cargo.toml")], cwd=root, check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
-        old_metadata = subprocess.run(
-            [cargo, "metadata", "--format-version", "1", "--manifest-path", str(root / "fuzz/Cargo.toml")],
-            cwd=root, capture_output=True, text=True, timeout=WATCHDOG_SECONDS,
-        )
+        old_metadata = subprocess.run([cargo, "metadata", "--format-version", "1", "--manifest-path",
+                                       str(root / "fuzz/Cargo.toml")], cwd=root, capture_output=True,
+                                      text=True, timeout=WATCHDOG_SECONDS)
         self.assertNotEqual(old_metadata.returncode, 0, old_metadata.stdout)
         self.assertIn("believes it's in a workspace when it's not", old_metadata.stderr)
         _commit_all(root, "orphan base")
         _git(root, "push", "-q", "origin", "HEAD:main")
         _git(root, "switch", "-q", "-c", "new-owner")
-        with (root / "fuzz/Cargo.toml").open("a", encoding="utf-8") as manifest:
-            manifest.write("\n[workspace]\n")
+        _write(root / "fuzz/Cargo.toml", '[package]\nname = "owner-probe"\nversion = "0.1.0"\nedition = "2024"\n\n[workspace]\n')
         if candidate_source is not None:
             _write(root / "fuzz/src/lib.rs", candidate_source)
         subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / "fuzz/Cargo.toml")], cwd=root, check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
@@ -4924,83 +4919,94 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
                 code, stderr, calls = self._run(fixture, tip, "new-owner")
                 self.assertEqual(code, expected, stderr)
                 self.assertTrue(all(message in stderr for message in messages), stderr)
-                self.assertTrue(any("fuzz/Cargo.toml" in line.replace("\\", "/")
-                                    and line.startswith("clippy ") for line in calls), calls)
+                self.assertTrue(any("fuzz/Cargo.toml" in line.replace("\\", "/") and line.startswith("clippy ")
+                                    for line in calls), calls)
 
     def test_owner_classification_fails_closed_and_preserves_prior_ownership(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-owner-classifier-") as temp:
-            root = pathlib.Path(temp)
-            _git_init_repo(root)
-            cargo = shutil.which("cargo")
-            assert cargo is not None
-            command = [sys.executable, str(SCRIPT.parents[1] / "atlas_cast_gate.py"),
-                       "new-standalone-owners", "--repo", str(root), "--base", "BASE",
-                       "--tip", "TIP", "--manifest", "fuzz/Cargo.toml"]
+        cargo = shutil.which("cargo")
+        assert cargo is not None
+        package = '[package]\nname = "probe"\nversion = "0.1.0"\nedition = "2024"\n'
+        member = '[package]\nname = "foo"\nversion = "0.1.0"\nedition = "2024"\n'
+        root_workspace = '[workspace]\nresolver = "3"\nmembers = ["crates/foo"]\n'
 
-            def classify(branch: str, parent: str | None, expected: str, *, root_lock: bool = False,
-                         unrelated: bool = False, cargo_valid: bool = False) -> None:
-                _git(root, "switch", "-q", "--orphan", branch)
-                for lock in (root / "Cargo.lock", root / "fuzz/Cargo.lock"):
-                    lock.unlink(missing_ok=True)
-                shutil.rmtree(root / "other", ignore_errors=True)
-                (root / "Cargo.toml").unlink(missing_ok=True)
-                if parent is not None:
-                    _write(root / "Cargo.toml", parent)
-                _write(root / "fuzz/Cargo.toml", '[package]\nname = "probe"\nversion = "0.1.0"\n')
-                _write(root / "fuzz/src/lib.rs", "pub fn probe() {}\n")
-                if root_lock:
+        def classify(name: str, root_manifest: str | None, expected: str = "", *,
+                     manifest: str = "fuzz/Cargo.toml", extra: dict[str, str] | None = None,
+                     orphan: str = package, generate_root: bool = False, generate_tip: bool = False,
+                     second: bool = False, error: str | None = None, dirty: bool = False) -> None:
+            with tempfile.TemporaryDirectory(prefix=f"atlas-owner-{name}-") as temp:
+                root = pathlib.Path(temp)
+                _git_init_repo(root)
+                if root_manifest is not None:
+                    _write(root / "Cargo.toml", root_manifest)
+                _write(root / manifest, orphan)
+                _write(root / pathlib.PurePosixPath(manifest).parent / "src/lib.rs", "pub fn probe() {}\n")
+                for path, text in (extra or {}).items():
+                    _write(root / path, text)
+                if second:
+                    _write(root / "alt/Cargo.toml", package.replace('name = "probe"', 'name = "alt"'))
+                    _write(root / "alt/src/lib.rs", "pub fn alt() {}\n")
+                if error and not generate_root:
                     _write(root / "Cargo.lock", "version = 4\n")
-                if unrelated:
-                    _write(root / "other/Cargo.toml", "[workspace]\nmembers = []\n")
-                base = _commit_all(root, f"{branch} base")
-                if cargo_valid:
-                    metadata = subprocess.run([cargo, "metadata", "--no-deps", "--format-version", "1",
-                                               "--manifest-path", str(root / "fuzz/Cargo.toml")],
-                                              capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
-                    self.assertEqual(metadata.returncode, 0, metadata.stderr)
-                with (root / "fuzz/Cargo.toml").open("a", encoding="utf-8") as manifest:
-                    manifest.write("\n[workspace]\n")
-                _write(root / "fuzz/Cargo.lock", "version = 4\n")
-                tip = _commit_all(root, f"{branch} tip")
-                argv = [tip if value == "TIP" else base if value == "BASE" else value for value in command]
-                result = subprocess.run(argv, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
-                self.assertEqual((result.returncode, result.stdout), (0, expected), result.stderr)
+                if generate_root:
+                    subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / "Cargo.toml")], cwd=root,
+                                   check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+                base = _commit_all(root, f"{name} base")
+                _write(root / manifest, package + "[workspace]\n")
+                if generate_tip:
+                    subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / manifest)], cwd=root,
+                                   check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+                else:
+                    _write(root / pathlib.PurePosixPath(manifest).with_name("Cargo.lock"), "version = 4\n")
+                if second:
+                    _write(root / "alt/Cargo.toml", package.replace('name = "probe"', 'name = "alt"') + "[workspace]\n")
+                    _write(root / "alt/Cargo.lock", "version = 4\n")
+                tip = _commit_all(root, f"{name} tip")
+                def export(revision: str, label: str) -> pathlib.Path:
+                    destination = root.parent / f"{root.name}-{label}"
+                    destination.mkdir()
+                    archive = subprocess.run(["git", "-C", str(root), "archive", f"{revision}^{{tree}}"], check=True,
+                                             capture_output=True, timeout=WATCHDOG_SECONDS)
+                    subprocess.run(["tar", "-x", "-C", str(destination)], input=archive.stdout, check=True,
+                                   capture_output=True, timeout=WATCHDOG_SECONDS)
+                    return destination
 
-            classify("owned", '[workspace]\nmembers = ["fuzz"]\n', "", root_lock=True)
-            classify("lockless", '[workspace]\nmembers = ["fuzz"]\n', "", cargo_valid=True)
-            classify("implicit", None, "", cargo_valid=True)
-            classify("excluded", '[workspace]\nexclude = ["fuzz"]\n', "", root_lock=True, cargo_valid=True)
-            classify("unrelated", "[workspace]\nmembers = []\n", "fuzz/Cargo.toml\n", unrelated=True)
-            classify("unlisted", "[workspace]\nmembers = []\n", "fuzz/Cargo.toml\n")
+                base_export, tip_export = export(base, "base"), export(tip, "tip")
+                if dirty:
+                    _write(root / "Cargo.toml", "[broken live tree")
+                argv = [sys.executable, str(SCRIPT.parents[1] / "atlas_cast_gate.py"), "new-standalone-owners",
+                        "--repo", str(root), "--base", base, "--tip", tip, "--base-export", str(base_export),
+                        "--tip-export", str(tip_export), "--metadata-timeout", "120"]
+                for candidate in ([manifest, "alt/Cargo.toml"] if second else [manifest]):
+                    argv.extend(("--manifest", candidate))
+                environment = {**os.environ, "CARGO_TARGET_DIR": str(shared_target_directory())}
+                result = subprocess.run(argv, env=environment, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
+                self.assertEqual((result.returncode, result.stdout), (2 if error else 0, expected), result.stderr)
+                if error:
+                    self.assertIn(error, result.stderr)
 
-            _git(root, "switch", "-q", "--orphan", "malformed")
-            (root / "fuzz/Cargo.lock").unlink(missing_ok=True)
-            _write(root / "Cargo.toml", '[workspace]\nexclude = ["fuzz"]\n')
-            _write(root / "Cargo.lock", "version = 4\n")
-            _write(root / "fuzz/Cargo.toml", "[\n")
-            malformed = _commit_all(root, "malformed base")
-            _write(root / "fuzz/Cargo.toml", '[package]\nname = "probe"\nversion = "0.1.0"\n[workspace]\n')
-            _write(root / "fuzz/Cargo.lock", "version = 4\n")
-            repaired = _commit_all(root, "repair owner")
-            argv = [repaired if value == "TIP" else malformed if value == "BASE" else value for value in command]
-            result = subprocess.run(argv, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
-            self.assertEqual(result.returncode, 2, result.stderr)
-            self.assertIn("does not parse as TOML", result.stderr)
-
-            _git(root, "switch", "-q", "--orphan", "collision")
-            (root / "fuzz/Cargo.lock").unlink(missing_ok=True)
-            _write(root / "Cargo.toml", '[package]\nname = "probe"\nversion = "0.1.0"\n[workspace]\nmembers = []\n')
-            _write(root / "Cargo.lock", "version = 4\n")
-            _write(root / "fuzz/Cargo.toml", '[package]\nname = "probe"\nversion = "0.1.0"\n')
-            collision = _commit_all(root, "colliding base")
-            with (root / "fuzz/Cargo.toml").open("a", encoding="utf-8") as manifest:
-                manifest.write("\n[workspace]\n")
-            _write(root / "fuzz/Cargo.lock", "version = 4\n")
-            introduced = _commit_all(root, "colliding owner")
-            argv = [introduced if value == "TIP" else collision if value == "BASE" else value for value in command]
-            result = subprocess.run(argv, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
-            self.assertEqual(result.returncode, 2, result.stderr)
-            self.assertIn("package names already exist at the base: probe", result.stderr)
+        foo = {"crates/foo/Cargo.toml": member, "crates/foo/src/lib.rs": "pub fn foo() {}\n"}
+        cases = (
+            ("new", root_workspace, "fuzz/Cargo.toml\n", dict(extra=foo, generate_root=True, generate_tip=True, dirty=True)),
+            ("owned", '[workspace]\nresolver="3"\nmembers=["fuzz"]\n', "", dict(generate_root=True)),
+            ("lockless", '[workspace]\nmembers=["fuzz"]\n', "", {}),
+            ("implicit", None, "", {}),
+            ("excluded", root_workspace + 'exclude=["fuzz"]\n', "", dict(extra=foo, generate_root=True)),
+            ("redirect", root_workspace, "", dict(extra=foo, orphan=package + 'workspace="../"\n', generate_root=True)),
+            ("extra", root_workspace, "", dict(extra={**foo, "other/Cargo.toml": member.replace('name = "foo"', 'name = "other"')} , generate_root=True)),
+            ("intermediate", root_workspace, "", dict(manifest="nested/fuzz/Cargo.toml", extra={**foo, "nested/Cargo.toml": member}, generate_root=True)),
+            ("nested", root_workspace, "", dict(extra={**foo, "other/Cargo.toml": "[workspace]\nmembers=[]\n"}, generate_root=True)),
+            ("nonroot-lock", root_workspace, "", dict(extra={**foo, "other/Cargo.lock": "version = 4\n"}, generate_root=True)),
+            ("multiple", root_workspace, "", dict(extra=foo, generate_root=True, second=True)),
+            ("collision", '[workspace]\nresolver="3"\nmembers=["crates/foo"]\n', "", dict(extra={"crates/foo/Cargo.toml": member.replace('name = "foo"', 'name = "probe"'), "crates/foo/src/lib.rs": ""}, generate_root=True, generate_tip=True, error="package name already exists")),
+            ("bad-members", '[workspace]\nmembers="crates/foo"\n', "", dict(error="CalledProcessError")),
+            ("bad-default", '[workspace]\nmembers=["crates/foo"]\ndefault-members=["missing"]\n', "", dict(extra=foo, error="CalledProcessError")),
+            ("glob-nested", '[workspace]\nmembers=["crates/*"]\n', "", dict(extra={**foo, "crates/nested/Cargo.toml": "[workspace]\nmembers=[]\n"}, error="CalledProcessError")),
+            ("no-package", root_workspace, "", dict(extra={"crates/foo/Cargo.toml": "[dependencies]\n", "crates/foo/src/lib.rs": ""}, error="CalledProcessError")),
+            ("malformed", root_workspace, "", dict(extra=foo, orphan="[\n", error="does not parse as TOML")),
+        )
+        for name, root_manifest, expected, options in cases:
+            with self.subTest(name=name):
+                classify(name, root_manifest, expected, **options)
 
 
 def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,

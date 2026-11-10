@@ -29,11 +29,11 @@ on a new cast. This gate is the enforcement:
   a helper module is not a trigger and is held to the row alone. Only pushed packages are counted:
   clippy lints the selected packages, so a pushed package enabling a feature
   of one it depends on is not measured there. The comparison covers the
-  packages named by `--base-package`. The hook normally names a manifest's
-  packages only when that manifest's base built. A standalone manifest that
-  first gains its own committed sibling lock is instead held to zero when
-  committed ownership facts prove no base workspace owned it; its candidate
-  still runs real metadata and clippy. Any ambiguous committed input fails.
+  packages named by `--base-package`; the hook names a manifest's packages
+  only when that manifest's base built, so one that fails to compile leaves
+  its own packages to their rows and no others. A newly locked standalone
+  manifest is held to zero only when real metadata on immutable exports
+  proves that no base workspace owned it.
 
 Sites are deduplicated by span, since `--all-targets` reports a library site
 once per target. The exclusion is by path only: `--force-warn` output does not
@@ -49,10 +49,12 @@ The base run is the one extra compile, under the same leases.
         --tip <sha> --package eunomia --sites <file> [--sites ...] \
         [--base-sites <file> ... --base-package eunomia ...]
 
-`--base-package` names the packages the hook proved have a base count. Normal
-owners come from real base metadata. A newly owned standalone manifest uses
-real candidate metadata with an empty base-sites file, so every candidate
-package starts at zero. A package absent from both proofs stays under its row.
+`--base-package` names the packages the base could hold to a count. The gate
+holds the ones the base's workspace had: a package the base never had carries
+no count there, so its casts are judged by the row that records them, and a
+crate that returns to the workspace brings that debt with it. The membership
+is read from the base revision's own manifests, so a package the push adds is
+absent from it. `--zero-base-package` records the proven standalone exception.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
     atlas_cast_gate.py new-standalone-owners --repo <dir> --base <sha> \
         --tip <sha> --manifest fuzz/Cargo.toml [--manifest ...]
@@ -79,6 +81,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import time
 import tomllib
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -145,36 +148,108 @@ class Workspace:
 
     root: pathlib.Path
     packages: list[dict]
+    members: frozenset[str]
     environment: dict[str, str]
 
     def names(self) -> dict[str, str]:
         """Package id to package name, for the workspace members."""
-        return {p["id"]: p["name"] for p in self.packages}
+        return {p["id"]: p["name"] for p in self.packages if p["id"] in self.members}
+
+    def member_manifests(self) -> dict[pathlib.Path, str]:
+        """Absolute member manifest paths to their package names."""
+        return {
+            pathlib.Path(p["manifest_path"]): p["name"]
+            for p in self.packages if p["id"] in self.members
+        }
+
+
+def _workspace_record(record: object, environment: dict[str, str]) -> Workspace:
+    """Validate the ownership fields emitted by Cargo metadata."""
+    if not isinstance(record, dict):
+        raise ValueError("cargo metadata record must be an object")
+    root = record.get("workspace_root")
+    packages = record.get("packages")
+    members = record.get("workspace_members")
+    if not isinstance(root, str) or not pathlib.Path(root).is_absolute():
+        raise ValueError("cargo metadata workspace_root must be an absolute path")
+    if not isinstance(packages, list):
+        raise ValueError("cargo metadata packages must be an array")
+    if (not isinstance(members, list)
+            or any(not isinstance(member, str) for member in members)):
+        raise ValueError("cargo metadata workspace_members must be an array of strings")
+
+    by_id: dict[str, dict] = {}
+    by_manifest: dict[str, str] = {}
+    for package in packages:
+        if not isinstance(package, dict):
+            raise ValueError("cargo metadata package must be an object")
+        package_id = package.get("id")
+        name = package.get("name")
+        manifest_path = package.get("manifest_path")
+        if (not isinstance(package_id, str) or not package_id
+                or not isinstance(name, str) or not name):
+            raise ValueError("cargo metadata package id and name must be nonempty strings")
+        if (not isinstance(manifest_path, str)
+                or not pathlib.Path(manifest_path).is_absolute()):
+            raise ValueError("cargo metadata package manifest_path must be an absolute path")
+        if package_id in by_id:
+            raise ValueError(f"cargo metadata repeats package id {package_id!r}")
+        normalized_manifest = os.path.normcase(os.path.realpath(manifest_path))
+        if normalized_manifest in by_manifest:
+            raise ValueError(
+                "cargo metadata repeats a normalized package manifest path "
+                f"for {by_manifest[normalized_manifest]!r} and {package_id!r}"
+            )
+        by_id[package_id] = package
+        by_manifest[normalized_manifest] = package_id
+
+    member_ids = frozenset(members)
+    if len(member_ids) != len(members):
+        raise ValueError("cargo metadata repeats a workspace member")
+    missing = sorted(member_ids - by_id.keys())
+    if missing:
+        raise ValueError(f"cargo metadata omits workspace member packages: {missing!r}")
+    member_names = [by_id[member]["name"] for member in members]
+    if len(set(member_names)) != len(member_names):
+        raise ValueError("cargo metadata repeats a workspace member package name")
+    return Workspace(pathlib.Path(root), packages, member_ids, environment)
 
 
 def workspace(export: pathlib.Path, config: pathlib.Path | None = None,
               manifest: str = "Cargo.toml",
-              command_cwd: pathlib.Path | None = None) -> Workspace:
+              command_cwd: pathlib.Path | None = None,
+              metadata_timeout: float = 120.0) -> Workspace:
     """Read `export`'s manifest with config discovery at `command_cwd`.
 
     Omission runs Cargo from the export, preserving the legacy invocation.
+    Cargo owns workspace interpretation; malformed, unlocked, or incomplete
+    metadata is an error rather than evidence that a package is absent.
     """
     from atlas_build_inputs import effective_compiler_environment
+    import process_tree
 
+    if not 0 < metadata_timeout:
+        raise ValueError("cargo metadata timeout must be positive")
     directory = command_cwd or export
     manifest_path = export / manifest
     cargo_command = cargo(config)
     environment = effective_compiler_environment(
         manifest_path, directory, cargo_command
     )
-    out = subprocess.run(
-        [*cargo_command, "metadata", "--no-deps", "--format-version", "1",
-         "--manifest-path", str(manifest_path)],
-        cwd=directory, env=environment,
-        capture_output=True, text=True, encoding="utf-8", check=True,
-    ).stdout
-    record = json.loads(out)
-    return Workspace(pathlib.Path(record["workspace_root"]), record["packages"], environment)
+    command = [
+        *cargo_command, "metadata", "--no-deps", "--locked", "--format-version", "1",
+        "--manifest-path", str(manifest_path),
+    ]
+    completed = process_tree.run(
+        command, cwd=directory, env=environment, timeout=min(metadata_timeout, 120.0)
+    )
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(
+            completed.returncode, command,
+            output=completed.stdout, stderr=completed.stderr,
+        )
+    out = (completed.stdout or b"").decode("utf-8", errors="strict")
+    return _workspace_record(json.loads(out), environment)
 
 
 def sites(messages: Iterable[str], export: pathlib.Path,
@@ -741,80 +816,88 @@ def held_to_base(repo: pathlib.Path, base: str, candidates: Iterable[str],
 
 
 def new_standalone_owners(repo: pathlib.Path, base: str, tip: str,
-                          manifests: Iterable[str]) -> frozenset[str]:
-    """Standalone manifests that first own a committed lock in `tip`.
+                          manifests: Iterable[str], base_export: pathlib.Path,
+                          tip_export: pathlib.Path, config: pathlib.Path | None = None,
+                          metadata_timeout: float = 120.0) -> frozenset[str]:
+    """New singleton owners proven from native metadata on immutable exports.
 
-    Ownership comes from the lock gate's committed-tree model. A pre-existing
-    manifest qualifies only when no base lock owned it, its sibling lock was
-    absent, and the candidate sibling lock owns it without unreadable or
-    ambiguous declarations. The base manifest must parse even though Cargo
-    cannot treat that formerly orphaned package as a workspace.
+    Unsupported topology keeps the ordinary historical comparison.
     """
-    from lockfile import tracked_texts, workspace_facts, workspace_selection, workspace_units
+    from lockfile import tracked_texts
 
     base_texts = tracked_texts(repo, staged=False, revision=base)
     tip_texts = tracked_texts(repo, staged=False, revision=tip)
-    base_units = workspace_units(base_texts)
-    tip_units = workspace_units(tip_texts)
     base_manifests = {name: text for name, text in base_texts.items()
                       if pathlib.PurePosixPath(name).name == "Cargo.toml"}
-    roots: list[pathlib.PurePosixPath] = []
     documents: dict[str, dict[str, object]] = {}
     for name, text in base_manifests.items():
         try:
-            document = tomllib.loads(text)
+            documents[name] = tomllib.loads(text)
         except tomllib.TOMLDecodeError as error:
             raise ValueError(f"{base}:{name} does not parse as TOML ({error})") from error
-        documents[name] = document
-        if isinstance(document.get("workspace"), dict):
-            roots.append(pathlib.PurePosixPath(name).parent)
-    base_facts = [*base_units.values(), *(workspace_facts(
-        base_manifests, root,
-        [nested for nested in roots if nested != root and root in nested.parents],
-    ) for root in roots)]
-    base_owned = {manifest for facts in base_facts
-                  for manifest in facts.owned_manifests}
-    base_packages = {name for manifest in base_owned
-                     if (name := package_name(documents[manifest]))}
-    admitted: set[str] = set()
-    for root in roots:
-        name = (root / "Cargo.toml").as_posix()
-        broadened = dict(documents)
-        workspace = dict(documents[name]["workspace"])
-        workspace["members"] = ["**"]
-        broadened[name] = {**documents[name], "workspace": workspace}
-        owned, _, _ = workspace_selection(
-            base_manifests, broadened, root,
-            [nested for nested in roots if nested != root and root in nested.parents],
-        )
-        admitted.update(owned)
-    added: set[str] = set()
-    for manifest in manifests:
+    candidates = []
+    for manifest in set(manifests):
         path = pathlib.PurePosixPath(manifest)
         lock = path.with_name("Cargo.lock").as_posix()
-        base_text = base_texts.get(manifest)
-        facts = tip_units.get(lock)
-        if (base_text is None or lock in base_texts or manifest in base_owned
-                or manifest not in admitted
-                or facts is None or manifest not in facts.owned_manifests):
-            continue
-        uncertain = [detail for unit in base_facts
-                     for detail in (*unit.unreadable, *unit.problems)]
-        if uncertain:
-            raise ValueError(f"{base}: workspace ownership is ambiguous ({'; '.join(uncertain)})")
-        if facts.unreadable or facts.problems:
-            details = "; ".join((*facts.unreadable, *facts.problems))
-            raise ValueError(f"{tip}:{lock} has ambiguous ownership ({details})")
-        owner_packages = {name for owned in facts.owned_manifests
-                          if (name := package_name(tomllib.loads(tip_texts[owned])))}
-        collisions = sorted(owner_packages & base_packages)
-        if collisions:
-            raise ValueError(
-                f"{manifest}: newly owned package names already exist at the base: "
-                f"{', '.join(collisions)}"
-            )
-        added.add(manifest)
-    return frozenset(added)
+        if (manifest in base_manifests and manifest in tip_texts
+                and lock not in base_texts and lock in tip_texts):
+            candidates.append((manifest, lock))
+    if len(candidates) != 1:
+        return frozenset()
+    manifest, lock = candidates[0]
+    path = pathlib.PurePosixPath(manifest)
+    root_workspace = documents.get("Cargo.toml", {}).get("workspace")
+    package = documents[manifest].get("package")
+    if (path == pathlib.PurePosixPath("Cargo.toml")
+            or not isinstance(root_workspace, dict)
+            or root_workspace.get("exclude", []) != []
+            or not isinstance(package, dict)
+            or "workspace" in documents[manifest] or "workspace" in package
+            or {name for name in base_texts if name.endswith("Cargo.lock")}
+            != {"Cargo.lock"}
+            or {name for name in tip_texts if name.endswith("Cargo.lock")}
+            != {"Cargo.lock", lock}):
+        return frozenset()
+
+    deadline = time.monotonic() + min(metadata_timeout, 120.0)
+
+    def read_workspace(export: pathlib.Path, relative: str) -> Workspace:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("cargo metadata exhausted the cast-gate deadline")
+        return workspace(export, config, relative, export, remaining)
+
+    def relative_members(space: Workspace, export: pathlib.Path) -> dict[str, str]:
+        export_root = pathlib.Path(os.path.realpath(export))
+        found = {}
+        for member_path, name in space.member_manifests().items():
+            try:
+                relative = pathlib.Path(os.path.realpath(member_path)).relative_to(export_root)
+            except ValueError as error:
+                raise ValueError(f"workspace member lies outside {export}") from error
+            found[relative.as_posix()] = name
+        return found
+
+    base_space = read_workspace(base_export, "Cargo.toml")
+    base_members = relative_members(base_space, base_export)
+    if (pathlib.Path(os.path.realpath(base_space.root))
+            != pathlib.Path(os.path.realpath(base_export))
+            or manifest in base_members
+            or set(base_members) - {"Cargo.toml"}
+            != set(base_manifests) - {"Cargo.toml", manifest}):
+        return frozenset()
+    candidate_space = read_workspace(tip_export, manifest)
+    candidate_members = relative_members(candidate_space, tip_export)
+    if (pathlib.Path(os.path.realpath(candidate_space.root))
+            != pathlib.Path(os.path.realpath(tip_export / path.parent))
+            or set(candidate_members) != {manifest}):
+        return frozenset()
+    candidate_name = candidate_members[manifest]
+    if candidate_name in base_space.names().values():
+        raise ValueError(
+            f"{manifest}: newly owned package name already exists at the base: {candidate_name}"
+        )
+    return frozenset({manifest})
 
 
 @dataclass(frozen=True)
@@ -1007,10 +1090,11 @@ def triggers(args: argparse.Namespace) -> int:
 
 
 def owners(args: argparse.Namespace) -> int:
-    """Print newly owned standalone manifests, sorted one per line."""
     sys.stdout.reconfigure(encoding="utf-8", newline="\n")
     for manifest in sorted(new_standalone_owners(
-            pathlib.Path(args.repo), args.base, args.tip, args.manifest)):
+            pathlib.Path(args.repo), args.base, args.tip, args.manifest,
+            pathlib.Path(args.base_export), pathlib.Path(args.tip_export),
+            args.cargo_config, args.metadata_timeout)):
         print(manifest)
     return 0
 
@@ -1084,14 +1168,14 @@ def main(argv: list[str] | None = None) -> int:
     trigger.add_argument("--base", required=True)
     trigger.add_argument("--tip", required=True)
     trigger.set_defaults(run=triggers)
-    owner = commands.add_parser(
-        "new-standalone-owners",
-        help="print standalone manifests that first own a committed sibling lock",
-    )
-    owner.add_argument("--repo", required=True, help="the member repository")
+    owner = commands.add_parser("new-standalone-owners")
+    owner.add_argument("--repo", required=True)
     owner.add_argument("--base", required=True)
     owner.add_argument("--tip", required=True)
     owner.add_argument("--manifest", action="append", default=[], required=True)
+    owner.add_argument("--base-export", required=True)
+    owner.add_argument("--tip-export", required=True)
+    owner.add_argument("--metadata-timeout", type=float, default=120.0)
     owner.set_defaults(run=owners)
     resolved = commands.add_parser(
         "resolved-changes",

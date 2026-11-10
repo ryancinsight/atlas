@@ -1902,10 +1902,9 @@ MESSAGE
 # A manifest whose base fails to compile leaves its own packages to their
 # rows, said on the push: a push must still be able to fix a broken default
 # branch. Any other base failure refuses, since the gate could not judge. A
-# package the base lacks stays under its row; new history does too. A
-# standalone manifest that first gains its own committed lock is
-# classified from both revisions' lock ownership before base metadata: when
-# no base workspace owned it, its real candidate packages are held to zero.
+# package the base lacks stays under its row. A newly locked standalone
+# package is held to zero only after real Cargo proves the closed historical
+# parent shape from immutable exports.
 
 # package_names <manifest>: the workspace package names of <manifest>.
 package_names() {
@@ -2071,23 +2070,11 @@ if [ -n "$cast_gate" ]; then
       exit 1
     }
   fi
-  if [ -n "$gate_base" ] && [ -n "${standalone_manifests// /}" ]; then
-    owner_arguments=()
-    for standalone_manifest in $standalone_manifests; do
-      owner_arguments+=(--manifest "$standalone_manifest")
-    done
-    new_owner_manifests="$("$python_bin" "$cast_gate" new-standalone-owners \
-      --repo "$repo_root" --base "$gate_base" --tip "$gate_sha" \
-      "${owner_arguments[@]}" | tr -d '\r')" || {
-      echo "pre-push: BLOCKED -- the cast gate could not classify standalone owners in ${gate_base:0:12}..${gate_sha:0:12}" >&2
-      exit 1
-    }
-  fi
-  # One base export serves every workspace of this push.
-  if { [ -n "$base_reasons" ] || [ -n "$new_owner_manifests" ]; } && [ -z "$base_export" ]; then
-    comparison_reason="${base_reasons%%$'\n'*}"
-    [ -n "$comparison_reason" ] || comparison_reason="a standalone manifest first owns its lock"
-    echo "pre-push: cast counts are compared with the pushed base ($comparison_reason)" >&2
+  # Unsupported shapes reuse this immutable base export for the ordinary
+  # historical comparison below.
+  if [ -n "$gate_base" ] \
+    && { [ -n "$base_reasons" ] || [ -n "${standalone_manifests// /}" ]; } \
+    && [ -z "$base_export" ]; then
     base_export="$gate_parent/base-${repo_root##*/}"
     mkdir -p "$base_export"
     base_export="$(cd "$base_export" && { pwd -W 2>/dev/null || pwd; })"
@@ -2098,6 +2085,30 @@ if [ -n "$cast_gate" ]; then
         exit 1
       fi
     fi
+  fi
+  if [ -n "$gate_base" ] && [ -n "${standalone_manifests// /}" ]; then
+    owner_arguments=()
+    for standalone_manifest in $standalone_manifests; do
+      owner_arguments+=(--manifest "$standalone_manifest")
+    done
+    metadata_timeout=$((600 - SECONDS))
+    if [ "$metadata_timeout" -le 0 ]; then
+      echo "pre-push: BLOCKED -- no gate deadline remains for Cargo ownership metadata" >&2
+      exit 1
+    fi
+    new_owner_manifests="$("$python_bin" "$cast_gate" new-standalone-owners \
+      --repo "$repo_root" --base "$gate_base" --tip "$gate_sha" \
+      --base-export "$base_export" --tip-export "$gate_export" \
+      --metadata-timeout "$metadata_timeout" \
+      "${owner_arguments[@]}" | tr -d '\r')" || {
+      echo "pre-push: BLOCKED -- the cast gate could not classify standalone owners in ${gate_base:0:12}..${gate_sha:0:12}" >&2
+      exit 1
+    }
+  fi
+  if [ -n "$base_reasons" ] || [ -n "$new_owner_manifests" ]; then
+    comparison_reason="${base_reasons%%$'\n'*}"
+    [ -n "$comparison_reason" ] || comparison_reason="a standalone manifest first owns its lock"
+    echo "pre-push: cast counts are compared with the pushed base ($comparison_reason)" >&2
   fi
   if [ -n "${gate_packages// /}" ] && [ -n "$base_reasons" ]; then
     cast_base_step Cargo.toml "$gate_packages"
