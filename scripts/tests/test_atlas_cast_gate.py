@@ -1481,6 +1481,26 @@ def test_reach_follows_every_dependency_edge(tmp_path):
     assert resolved.reach["app"] == {"dep", "leaf"}
 
 
+def test_a_workspace_change_beside_the_table_gates_every_member(tmp_path, monkeypatch):
+    scoped(monkeypatch, {}, {})
+    widened = ROOT_TEXT.replace('["crates/*"]', '["crates/*", "tools/*"]')
+    monkeypatch.setattr(gate, "git_file",
+                        lambda repo, revision, path: ROOT_TEXT if revision == "b" else widened)
+    assert gate.resolved_changes(tmp_path, "b", "t", tmp_path, tmp_path, "Cargo.toml") == (
+        None, "Cargo.toml changes beyond [workspace.dependencies]")
+
+
+def test_a_dependency_cycle_resolves(tmp_path):
+    """Cargo allows a dev-dependency back to a dependent; the walk visits
+    each package once and ends."""
+    record = metadata_record(tmp_path)
+    _node(record, "leaf-id")["deps"].append(
+        {"pkg": "app-id", "name": "app", "dep_kinds": [{"kind": "dev", "target": None}]})
+    resolved = gate.resolution(record, tmp_path)
+    assert resolved.members["app"].reaches == {"app", "dep", "leaf"}
+    assert resolved.reach["leaf"] == {"app", "dep", "leaf"}
+
+
 def test_reach_merges_every_version_of_a_name(tmp_path):
     """`leaf@1.0.0` reaches `x` and `leaf@2.0.0` reaches `y`."""
     record = metadata_record(tmp_path)
@@ -1664,9 +1684,12 @@ def test_a_missing_cargo_gates_every_member(tmp_path, monkeypatch):
         None, True)
 
 
-def test_resolution_reads_the_committed_lock(tmp_path, monkeypatch):
+@pytest.mark.parametrize("config", [None, "overlay.toml"])
+def test_resolution_reads_the_committed_lock(tmp_path, monkeypatch, config):
     """The record cargo prints is resolved relative to the export, with a
-    nested workspace root, in the compiler environment of the build."""
+    nested workspace root, in the compiler environment of the build, and
+    both cargo and that environment see the caller's config."""
+    config = tmp_path / config if config else None
     record = metadata_record(tmp_path)
     record["workspace_root"] = str(tmp_path / "fuzz")
     environment = {"ATLAS_COMPILER": "pinned"}
@@ -1677,22 +1700,22 @@ def test_resolution_reads_the_committed_lock(tmp_path, monkeypatch):
         return subprocess.CompletedProcess(command, 0, stdout=json.dumps(record))
 
     def compiler_environment(manifest, export, command):
-        environments.append((manifest, export))
+        environments.append((manifest, export, command))
         return environment
 
     monkeypatch.setattr(gate.subprocess, "run", metadata)
     monkeypatch.setattr("atlas_build_inputs.effective_compiler_environment",
                         compiler_environment)
-    resolved = gate.read_resolution(tmp_path, "fuzz/Cargo.toml")
+    resolved = gate.read_resolution(tmp_path, "fuzz/Cargo.toml", config)
     assert resolved.root_manifest == "fuzz/Cargo.toml"
     assert resolved == gate.resolution(record, tmp_path)
     assert list(resolved.members) == ["app"]
-    assert environments == [(tmp_path / "fuzz" / "Cargo.toml", tmp_path)]
-    assert [(command[command.index("metadata"):], cwd, env)
-            for command, cwd, env in calls] == [([
-                "metadata", "--format-version", "1", "--locked", "--filter-platform",
-                "host-tuple", "--manifest-path", str(tmp_path / "fuzz" / "Cargo.toml"),
-            ], tmp_path, environment)]
+    assert environments == [(tmp_path / "fuzz" / "Cargo.toml", tmp_path, gate.cargo(config))]
+    assert [(command, cwd, env) for command, cwd, env in calls] == [([
+        *gate.cargo(config), "metadata", "--format-version", "1", "--locked",
+        "--filter-platform", "host-tuple",
+        "--manifest-path", str(tmp_path / "fuzz" / "Cargo.toml"),
+    ], tmp_path, environment)]
 
 
 @pytest.mark.skipif(shutil.which("cargo") is None, reason="needs cargo")
