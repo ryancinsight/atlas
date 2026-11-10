@@ -50,6 +50,10 @@ class RetargetMetadataTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve()
         self.git_config = self.root / "gitconfig"
         self.git_config.write_text("", encoding="utf-8")
+        (self.root / ".gitmodules").write_text("".join(
+            f'[submodule "repos/{name}"]\npath = repos/{name}\nurl = '
+            f'https://github.com/ryancinsight/{name}\n'
+            for name in ("moving", "helper", "consumer")), encoding="utf-8")
         environment = mock.patch.dict(os.environ, {
             "CARGO_HOME": str(self.root / "cargo-home"),
             "GIT_CONFIG_GLOBAL": str(self.git_config), "GIT_CONFIG_NOSYSTEM": "1"})

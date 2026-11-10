@@ -6,6 +6,7 @@
 - Driver: [Atlas PR #626](https://github.com/ryancinsight/atlas/pull/626), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
 - Revision: 2026-11-10 — Added revision-bound lock-owner inventories that disable promisor lazy fetch and fail when a committed Cargo input is missing locally.
+- Revision: 2026-11-10 — Lock updates resolve one graph against simultaneous immutable provider commits, then remove the temporary transport and verify full locked metadata.
 - Revision: 2026-11-09 — A killed run's rebuilt artifacts are resumed, not cleaned again: per-package writer marks (below), after a cold ritk push outlasted the 600-second deadline four times, each rerun cleaning what the killed run had rebuilt.
 - Revision: 2026-11-09 — Compacted the as-built contract and required hook installation and publication to materialize the same source-keyed immutable supervisor family; publication keeps that runtime invocation-local so preparing a publication cannot replace the live installed gate.
 
@@ -17,6 +18,7 @@ Concurrent roots therefore need one protocol that prevents a clean or rewrite fr
 ## Decision
 
 The lock sweep inventory reads every committed standalone lock owner at one Atlas revision, including nested and excluded workspaces, without consulting checkouts or fetching. Every Git process disables promisor lazy fetch, so a missing committed object fails instead of mutating the object store. It retains fixture exemptions and missing sibling-lock diagnostics; every first-party Git package identity must name a registered provider.
+The update sweep creates temporary bare views whose object alternates point at registered provider stores and whose sole advertised head is the selected commit. Per-process Git URL rewrites expose all selected heads to one narrowed Cargo update; no global configuration, manifest, or source URL changes. Query-constrained sources refuse. After the views and rewrites are removed, full locked offline metadata must report every selected package version, original URL spelling, and exact revision.
 
 ### Tool and runner source
 

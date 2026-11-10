@@ -25,15 +25,12 @@ For each registered member, read from its fetched default branch:
    revision is not the target's are the stale sources. None: the member is
    current.
 2. The default branch is exported (`git archive`) into a temporary directory
-   outside the stack, so cargo resolves without the `[patch]` overlay, and
-   every package of every stale source is updated in one `cargo update`, by
-   full package-id spec, then `cargo check --workspace --locked` runs against
-   the shared target directory.
-3. Every stale source must now sit at its target. A provider whose head moved
-   past the named merge -- the sweep's own lock commits in providers move it
-   -- is returned to that merge with `cargo update --precise`; a source that
-   cannot return is a failed row, never a lock committed at an unnamed
-   revision.
+   outside the stack. Temporary bare Git views advertise every selected
+   provider commit at once, so one narrowed `cargo update` resolves the graph
+   against an immutable source set without the `[patch]` overlay.
+3. Full locked offline Cargo metadata proves every selected source identity
+   and package version after the temporary transport is removed, then
+   `cargo check --workspace --locked` runs against the shared target directory.
 4. With `--open-prs`, the new lock blob is committed through a private index
    onto the default branch -- one commit per consumer per sweep, naming each
    provider merge in a `Refs:` line -- pushed from the member through the
@@ -261,22 +258,6 @@ def stale_packages(lock_text: str, targets: dict[str, str],
     )
 
 
-def pullbacks(lock_text: str, stale: tuple[LockedPackage, ...], targets: dict[str, str]) -> list[tuple[str, str]]:
-    """One `(package spec, target)` per stale source cargo resolved past its target.
-
-    An unpinned update resolves every stale source at its provider's branch
-    head, which moves on during a sweep -- the sweep's own lock commits in
-    providers move it. `--precise` on any one package of a git source moves the
-    whole source, so each one returns to its named merge with one call."""
-    sources = {(package.url, package.provider) for package in stale}
-    chosen: dict[str, tuple[str, str]] = {}
-    for package in first_party_packages(lock_text):
-        target = targets.get(package.provider)
-        if (package.url, package.provider) in sources and package.rev != target:
-            chosen.setdefault(package.url, (package.spec, target))
-    return [chosen[url] for url in sorted(chosen)]
-
-
 def unmet_targets(lock_text: str, stale: tuple[LockedPackage, ...], targets: dict[str, str]) -> list[str]:
     """Stale sources the updated lock still does not resolve at their target.
 
@@ -466,9 +447,12 @@ def commit_lock(member: Path, base: str, lock: bytes, message: str, scratch: Pat
     return plumbing("commit-tree", tree, "-p", base, "-F", "-", data=message.encode())
 
 
-def cargo(tree: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+def cargo(tree: Path, *arguments: str,
+          env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     try:
-        return lockfile.run_outside_the_overlay(list(arguments), manifest=tree / "Cargo.toml")
+        return lockfile.run_outside_the_overlay(
+            list(arguments), manifest=tree / "Cargo.toml", env=env
+        )
     except lockfile.CargoDeadlineExceeded as error:
         # The sweep reports a row per failure from `returncode`/`stderr`; a
         # deadline is a failed row like any other, with the runner's note as
@@ -541,6 +525,110 @@ def retarget_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | 
     return None
 
 
+def git_config_pairs(environment: dict[str, str], scope: str, cwd: Path
+                     ) -> list[tuple[str, str]]:
+    """Read one effective Git scope, preserving valueless Boolean truth."""
+    if scope == "system" and environment.get("GIT_CONFIG_NOSYSTEM"):
+        return []
+    probe = {**environment, "GIT_CONFIG_COUNT": "0"}
+    result = lockfile.run_bounded(
+        ["git", "config", f"--{scope}", "--includes", "--null", "--list"],
+        cwd=cwd, env=probe, deadline=lockfile.GIT_DEADLINE_SECONDS,
+    )
+    if result.returncode not in (0, 1):
+        raise ValueError(f"cannot read effective {scope} Git configuration")
+    pairs = []
+    for record in result.stdout.split("\0"):
+        if not record:
+            continue
+        key, separator, value = record.partition("\n")
+        if not separator:
+            value = "true"
+        if not key.lower().startswith(("include.", "includeif.")):
+            pairs.append((key, value))
+    return pairs
+
+
+def selected_source_environment(plan: Plan, targets: dict[str, str],
+                                packages: list[LockedPackage], views: Path,
+                                base_env: dict[str, str] | None = None
+                                ) -> tuple[dict[str, str], dict[str, set[str]]]:
+    """Expose each selected commit as the only head for its original URLs."""
+    environment = {**(os.environ if base_env is None else base_env),
+                   "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"}
+    count_text = environment.get("GIT_CONFIG_COUNT", "0")
+    if not count_text.isdecimal():
+        raise ValueError("GIT_CONFIG_COUNT must be a non-negative integer")
+    inherited = []
+    for index in range(int(count_text)):
+        key = environment.pop(f"GIT_CONFIG_KEY_{index}", None)
+        value = environment.pop(f"GIT_CONFIG_VALUE_{index}", None)
+        if key is None or value is None:
+            raise ValueError("inherited Git process configuration is inconsistent")
+        inherited.append((key, value))
+    root = plan.member.parent.parent
+    configured = [
+        *git_config_pairs(environment, "system", root),
+        *git_config_pairs(environment, "global", root),
+        *inherited,
+    ]
+    empty_config = views / "empty.gitconfig"
+    empty_config.write_bytes(b"")
+    environment.update({
+        "GIT_CONFIG_SYSTEM": str(empty_config),
+        "GIT_CONFIG_GLOBAL": str(empty_config),
+        "GIT_CONFIG_COUNT": "0",
+    })
+    members = {name.lower(): name for name in registered_member_names(root)}
+    sources: dict[str, set[str]] = {}
+    selected = []
+    for provider in sorted(targets):
+        name = members.get(provider)
+        if name is None:
+            raise ValueError(f"selected provider is not registered: {provider}")
+        target = targets[provider]
+        repository = plan.member.parent / name
+        canonical = lockfile.run_git(
+            ["config", "--file", str(root / ".gitmodules"), "--get",
+             f"submodule.repos/{name}.url"], root, env=environment,
+        ).decode().strip()
+        stem = canonical[:-4] if canonical.lower().endswith(".git") else canonical
+        urls = {stem, stem + ".git", *(package.url for package in packages
+                                      if package.provider == provider)}
+        sources[provider] = urls
+        lockfile.run_git(["cat-file", "-e", target + "^{commit}"], repository, env=environment)
+        objects = lockfile.run_git(
+            ["rev-parse", "--path-format=absolute", "--git-path", "objects"],
+            repository, env=environment,
+        ).decode().strip()
+        view = views / provider
+        initialized = lockfile.run_bounded(
+            ["git", "init", "--bare", str(view)], cwd=views, env=environment,
+            deadline=lockfile.GIT_DEADLINE_SECONDS,
+        )
+        if initialized.returncode:
+            raise ValueError(initialized.stderr.strip() or f"cannot initialize {provider} source view")
+        alternate = view / "objects" / "info" / "alternates"
+        alternate.write_bytes(Path(objects).resolve().as_posix().encode() + b"\n")
+        lockfile.run_git(["update-ref", "refs/heads/selected", target], view, env=environment)
+        lockfile.run_git(["symbolic-ref", "HEAD", "refs/heads/selected"], view, env=environment)
+        selected.extend((f"url.{view.resolve().as_uri()}.insteadOf", url)
+                        for url in sorted(urls))
+    selected_urls = {url for urls in sources.values() for url in urls}
+    preserved = [
+        (key, value) for key, value in configured
+        if not (key.lower().startswith("url.")
+                and key.lower().endswith(".insteadof")
+                and value in selected_urls)
+    ]
+    entries = [*preserved, *selected]
+    for index, (key, value) in enumerate(entries):
+        environment[f"GIT_CONFIG_KEY_{index}"] = key
+        environment[f"GIT_CONFIG_VALUE_{index}"] = value
+    environment["GIT_CONFIG_COUNT"] = str(len(entries))
+    return environment, sources
+
+
 def lock_failure(plan: Plan, lock: Path, original: bytes, detail: str) -> Outcome:
     """Report a resolver failure after restoring its exact input lock."""
     try:
@@ -563,37 +651,76 @@ def restore_lock_on_error(lock: Path, original: bytes) -> Iterator[None]:
         raise
 
 
-def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | None:
-    """Advance the exported lock's stale sources to their targets; a failed row, or None."""
+def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path,
+                 env: dict[str, str] | None = None) -> Outcome | None:
+    """Resolve all selected Git sources together, then prove the locked graph."""
     lock = tree / "Cargo.lock"
     try:
         original = lock.read_bytes()
     except OSError as error:
-        return Outcome(plan.name, "failed", f"lock snapshot: {error}", False)
+        return Outcome(plan.name, "failed", f"source views: {error}", False)
     with restore_lock_on_error(lock, original):
-        specs = sorted({package.spec for package in plan.stale})
-        update = cargo(tree, "update", *(flag for spec in specs for flag in ("--package", spec)))
+        try:
+            selected = list({
+                package.spec: package
+                for package in (*plan.stale, *locked_packages(original.decode("utf-8")))
+                if package.provider in targets
+            }.values())
+            pinned = [package.name for package in selected if "?" in package.url]
+            if pinned:
+                raise ValueError(
+                    "selected source has a query constraint: " + ", ".join(sorted(pinned)))
+            specs = sorted({package.spec for package in selected})
+            if not specs:
+                raise ValueError("selected providers have no movable locked packages")
+            with tempfile.TemporaryDirectory(
+                    prefix="lock-sources-", dir=tree.parent) as views_name:
+                environment, sources = selected_source_environment(
+                    plan, targets, selected, Path(views_name), env)
+                update = cargo(
+                    tree, "--config", "net.git-fetch-with-cli=true", "update",
+                    *(flag for spec in specs for flag in ("--package", spec)), env=environment,
+                )
+        except (OSError, UnicodeError, ValueError, lockfile.GitUnavailable,
+                lockfile.CargoDeadlineExceeded) as error:
+            return lock_failure(plan, lock, original, f"source views: {error}")
         if update.returncode != 0:
             return lock_failure(plan, lock, original,
-                                failure_detail(plan.name, "cargo update", update.stderr))
-        # A precise update of one source re-resolves the git sources its packages
-        # depend on, which can carry an already-returned source past its target
-        # again; a round per source bounds the repetition.
-        for _round in range(len({package.url for package in plan.stale}) + 1):
-            resolved = lock.read_text(encoding="utf-8", errors="replace")
-            returns = pullbacks(resolved, plan.stale, targets)
-            if not returns:
-                break
-            for spec, target in returns:
-                precise = cargo(tree, "update", "--package", spec, "--precise", target)
-                if precise.returncode != 0:
-                    return lock_failure(plan, lock, original, failure_detail(
-                        plan.name, "cargo update --precise", precise.stderr))
-        resolved = lock.read_text(encoding="utf-8", errors="replace")
-        misses = unmet_targets(resolved, plan.stale, targets)
+                                failure_detail(plan.name, "atomic cargo update", update.stderr))
+        try:
+            resolved = lock.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            return lock_failure(plan, lock, original, f"unreadable resolved graph: {error}")
+        locked = [package for package in locked_packages(resolved)
+                  if package.provider in targets]
+        metadata = cargo(tree, "metadata", "--locked", "--offline", "--all-features",
+                         "--format-version", "1", env=env)
+        if metadata.returncode:
+            return lock_failure(plan, lock, original, failure_detail(
+                plan.name, "locked offline metadata", metadata.stderr))
+        try:
+            identities = {(package["name"], package["version"], package.get("source"))
+                          for package in json.loads(metadata.stdout)["packages"]}
+        except (KeyError, TypeError, ValueError) as error:
+            return lock_failure(plan, lock, original, f"unreadable resolved graph: {error}")
+        original_urls = {(package.provider, package.url) for package in selected}
+        resolved_urls = {(package.provider, package.url) for package in locked}
+        misses = [
+            f"{package.name} resolved {package.rev[:8]}, target "
+            f"{package.provider}@{targets[package.provider][:8]}"
+            for package in locked if package.rev != targets[package.provider]
+        ]
+        if not original_urls <= resolved_urls:
+            misses.append("Cargo changed the selected providers' original source URLs")
+        if any(package.url not in sources[package.provider] for package in locked):
+            misses.append("Cargo introduced an unsupported selected source URL")
+        for package in locked:
+            source = f"git+{package.url}#{package.rev}"
+            if (package.name, package.version, source) not in identities:
+                misses.append(f"locked metadata omits {package.name} {package.version}")
         if misses:
             return lock_failure(plan, lock, original,
-                                "source past its target: " + "; ".join(misses))
+                                "source transaction: " + "; ".join(sorted(set(misses))))
     return None
 
 
