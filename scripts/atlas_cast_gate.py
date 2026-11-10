@@ -81,8 +81,6 @@ import tomllib
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-import process_tree
-
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
@@ -223,6 +221,7 @@ def workspace(export: pathlib.Path, config: pathlib.Path | None = None,
     metadata is an error rather than evidence that a package is absent.
     """
     from atlas_build_inputs import effective_compiler_environment
+    import process_tree
 
     if not 0 < metadata_timeout:
         raise ValueError("cargo metadata timeout must be positive")
