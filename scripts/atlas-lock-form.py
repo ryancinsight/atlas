@@ -460,6 +460,7 @@ def hook_commit(
     hooks: list[tuple[str, bytes]],
     message: str,
     retired: tuple[str, ...] = (),
+    prior_publication: str | None = None,
 ) -> str | None:
     """A commit on `base` whose `.githooks/` carries `hooks`, or None if current.
 
@@ -480,9 +481,15 @@ def hook_commit(
         for path in retired:
             git_in(repo, "update-index", "--force-remove", "--", path, index=index)
         tree = git_in(repo, "write-tree", index=index)
-    if tree == git_in(repo, "rev-parse", f"{base}^{{tree}}"):
+    if (
+        tree == git_in(repo, "rev-parse", f"{base}^{{tree}}")
+        and prior_publication is None
+    ):
         return None
-    return git_in(repo, "commit-tree", tree, "-p", base, stdin=message.encode("utf-8"))
+    parents = ["-p", base]
+    if prior_publication is not None:
+        parents.extend(("-p", prior_publication))
+    return git_in(repo, "commit-tree", tree, *parents, stdin=message.encode("utf-8"))
 
 
 def hook_publication_base(
@@ -490,8 +497,8 @@ def hook_publication_base(
     default: str,
     hooks: list[tuple[str, bytes]],
     retired: tuple[str, ...],
-) -> str:
-    """Select the fetched default or a safe prior publication head.
+) -> tuple[str, str | None]:
+    """Select the fetched default and any safe prior publication head.
 
     Re-publishing a corrected source must advance the fixed publication branch
     instead of replacing its generated commit. The branch is safe to extend
@@ -502,13 +509,13 @@ def hook_publication_base(
     try:
         head = git_in(repo, "rev-parse", "--verify", f"{publication}^{{commit}}")
     except RuntimeError:
-        return default
+        return default, None
     try:
         git_in(repo, "merge-base", "--is-ancestor", head, default)
     except RuntimeError:
         pass
     else:
-        return default
+        return default, None
     owned = {f"{MEMBER_HOOK_COPY}/{name}" for name, _ in hooks}
     owned.update(retired)
     changed = set(
@@ -524,7 +531,11 @@ def hook_publication_base(
         raise RuntimeError(
             f"{publication} carries non-publication paths: {', '.join(unexpected)}"
         )
-    return head
+    try:
+        git_in(repo, "merge-base", "--is-ancestor", default, head)
+    except RuntimeError:
+        return default, head
+    return head, None
 
 
 def push_hook_branch(
@@ -802,7 +813,7 @@ def cmd_publish_hooks(args) -> int:
             git_in(repo, "fetch", "-q", "origin")
             default = git_in(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
             default_commit = git_in(repo, "rev-parse", default)
-            base = hook_publication_base(
+            base, prior_publication = hook_publication_base(
                 repo, default_commit, hooks, tuple(retired)
             )
             commit = hook_commit(
@@ -811,6 +822,7 @@ def cmd_publish_hooks(args) -> int:
                 hooks,
                 message,
                 retired=tuple(retired),
+                prior_publication=prior_publication,
             )
             if commit is None:
                 print(f"current: {member}")
