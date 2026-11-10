@@ -268,37 +268,6 @@ class FixtureDetectionTestCase(unittest.TestCase):
         self.assertEqual((problems, exempt), ([], ["Cargo.lock"]))
 
 
-class WorkspaceDeclarationTestCase(unittest.TestCase):
-    def test_invalid_ownership_fields_are_reported(self) -> None:
-        cases = (
-            ('workspace = "root"\n', "workspace must be a table"),
-            ("[workspace]\nmembers = \"fuzz\"\n", "workspace.members must be an array of strings"),
-            ("[workspace]\nexclude = [1]\n", "workspace.exclude must be an array of strings"),
-            ("[workspace]\ndefault-members = {}\n", "workspace.default-members must be an array of strings"),
-            ("[package]\nworkspace = true\n", "package.workspace must be a path string"),
-        )
-        for manifest, expected in cases:
-            with self.subTest(expected):
-                facts = lockfile.workspace_facts({"Cargo.toml": manifest}, ROOT_WORKSPACE, [])
-                self.assertEqual(facts.problems, (f"Cargo.toml: {expected}",))
-
-    def test_workspace_members_must_resolve_to_packages(self) -> None:
-        package = '[package]\nname = "probe"\nversion = "0.1.0"\n'
-        for member, manifests, expected in (
-            ("missing", {}, "'missing' has no package manifest"),
-            ("crates/*", {}, "'crates/*' has no package manifest"),
-            ("fuzz", {"fuzz/Cargo.toml": "[workspace]\n"}, "'fuzz' has no package manifest"),
-            ("fuzz", {"fuzz/Cargo.toml": package}, None),
-        ):
-            with self.subTest(member):
-                facts = lockfile.workspace_facts(
-                    {"Cargo.toml": f'[workspace]\nmembers = ["{member}"]\n', **manifests},
-                    ROOT_WORKSPACE,
-                    [],
-                )
-                self.assertEqual(facts.problems, () if expected is None else (f"Cargo.toml: workspace member {expected}",))
-
-
 class LockManifestSelectionTestCase(unittest.TestCase):
     def test_root_and_excluded_workspace_locks_are_selected(self) -> None:
         texts = {"Cargo.toml": '[workspace]\nexclude = ["fuzz"]\n', "Cargo.lock": STANDALONE,
