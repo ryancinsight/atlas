@@ -522,7 +522,12 @@ def hook_publication_base(
         filter(
             None,
             git_in(
-                repo, "diff", "--name-only", f"{default}...{head}", "--"
+                repo,
+                "diff",
+                "--no-renames",
+                "--name-only",
+                f"{default}...{head}",
+                "--",
             ).splitlines(),
         )
     )

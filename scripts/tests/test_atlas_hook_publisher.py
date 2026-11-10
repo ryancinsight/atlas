@@ -143,6 +143,46 @@ class HookBranchPushTestCase(unittest.TestCase):
                     repo, default, [("pre-push", b"new\n")], ()
                 )
 
+    def test_corrected_publication_refuses_a_non_hook_renamed_to_a_hook(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-base-rename-") as temp:
+            repo = Path(temp)
+            self._commit_after_init(repo)
+            (repo / "README.md").write_text("member documentation\n", encoding="utf-8")
+            self._git(repo, "add", "README.md")
+            self._git(repo, "commit", "-q", "-m", "member documentation")
+            base = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "switch", "-q", "-c", "publication", base)
+            (repo / ".githooks").mkdir()
+            self._git(repo, "mv", "README.md", ".githooks/pre-push")
+            self._git(repo, "commit", "-q", "-m", "hide non-hook deletion")
+            published = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "switch", "-q", "main")
+            default = self._commit(repo, "default advance")
+            self._git(
+                repo,
+                "update-ref",
+                "refs/remotes/origin/ci/sync-stack-hooks",
+                published,
+            )
+
+            self.assertEqual(
+                self._git(
+                    repo,
+                    "diff",
+                    "-M",
+                    "--name-status",
+                    f"{default}...{published}",
+                ),
+                "R100\tREADME.md\t.githooks/pre-push",
+            )
+            with self.assertRaisesRegex(RuntimeError, "README.md"):
+                _lock_form.hook_publication_base(
+                    repo,
+                    default,
+                    [("pre-push", b"member documentation\n")],
+                    (),
+                )
+
     def _commit_after_init(self, repo: Path) -> str:
         self._git(repo, "init", "-q", "-b", "main")
         self._git(repo, "config", "user.email", "t@t")
