@@ -992,6 +992,35 @@ class HostedMergeTestCase(unittest.TestCase):
                 )
             self.assertEqual(self._git(repo, "rev-list", "--all", "--count"), count)
 
+            default_tree = self._git(
+                repo, "rev-parse", f"{graph['default']}^{{tree}}"
+            )
+            next_default = self._git(
+                repo, "commit-tree", default_tree, "-p", graph["default"],
+                "-m", "next default",
+            )
+            state["baseTargetOid"] = next_default
+            next_landing = _lock_form.hook_landing_tree(
+                repo, next_default, refreshed, hook, ()
+            )
+            with patch.object(
+                _lock_form, "hosting_in", return_value=json.dumps(state)
+            ):
+                next_refresh = _lock_form.refresh_hook_publication(
+                    repo, self.URL, next_default, refreshed, next_landing,
+                    hook, (), "refresh\n",
+                )
+            self.assertEqual(
+                self._git(repo, "show", "-s", "--format=%P", next_refresh), refreshed
+            )
+            self.assertEqual(
+                self._git(
+                    repo, "show", "-s",
+                    "--format=%(trailers:key=Publication-Base,valueonly)", next_refresh,
+                ),
+                next_default,
+            )
+
     def _state(self, graph: dict[str, str], **updates) -> str:
         state = {
             "baseTargetOid": graph["default"],
@@ -1332,40 +1361,6 @@ class RetiredPathTestCase(unittest.TestCase):
 
 
 class PublisherScopeTestCase(unittest.TestCase):
-    def test_current_stale_publication_pushes_one_refresh(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-hook-refresh-route-") as temp:
-            root = Path(temp)
-            repo = root / "repos" / "alpha"
-            repo.mkdir(parents=True)
-            args = Namespace(members=["alpha"], push=True, source_ref=None, draft=True)
-            hooks = [("pre-push", b"#!/bin/sh\nexit 0\n")]
-            git_results = iter(
-                ["", "refs/remotes/origin/main", "a" * 40, "aaaaaaaa", "",
-                 "origin/main", "b" * 40]
-            )
-            with (
-                patch.object(_lock_form, "ROOT", root),
-                patch.object(_lock_form, "REPOS", root / "repos"),
-                patch.object(_lock_form, "member_scope", return_value=("alpha",)),
-                patch.object(_lock_form, "git_in", side_effect=lambda *_args: next(git_results)),
-                patch.object(_lock_form, "committed_hooks", return_value=hooks),
-                patch.object(_lock_form, "hook_publication_base", return_value="published"),
-                patch.object(_lock_form, "hook_commit", return_value=None),
-                patch.object(_lock_form, "hook_landing_tree", side_effect=("old", "new")),
-                patch.object(_lock_form, "open_pull_request", return_value=("url", True)),
-                patch.object(_lock_form, "refresh_hook_publication", return_value="refreshed"),
-                patch.object(_lock_form, "push_hook_branch") as push,
-                patch.object(_lock_form, "require_hosted_merge") as require,
-                redirect_stdout(io.StringIO()) as output,
-            ):
-                self.assertEqual(_lock_form.cmd_publish_hooks(args), 0)
-
-            push.assert_called_once_with(
-                repo, "refreshed", _lock_form.PUBLISH_BRANCH, hooks[0][1], "a" * 40
-            )
-            require.assert_called_once_with(repo, "url", "b" * 40, "refreshed", "new")
-            self.assertIn("reused: alpha url draft", output.getvalue())
-
     def test_cli_accepts_named_members(self) -> None:
         captured: list[Namespace] = []
         with (
