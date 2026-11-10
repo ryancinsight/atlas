@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-30
 - Item: ATLAS-SEMVER-LOCKED-SOURCES
+- Revision: 2026-11-10 — Classify required impact with real patch and minor runs after a deprecation fixture disproved exit-100-as-breaking.
 
 ## Context
 
@@ -26,18 +27,22 @@ Manifest release admissibility is a separate question from whether an API breaks
 ## Decision
 
 Every Git comparison first invokes the pinned native tool with
-`--baseline-rev` and patch-level discovery. Exit 0 means compatible, exit 100
-means breaking, and exit 101 or any other execution failure means unverified.
-The report schema records that native compatibility independently from the
-declared impact, the `development` or `release` phase, manifest release
-admissibility, and the final gate verdict.
+`--baseline-rev` and patch-level discovery. Patch exit 0 requires patch impact.
+Patch exit 100 means only that patch impact is insufficient, so the same inputs
+run again at minor level: minor exit 0 requires minor impact and remains
+compatible, while minor exit 100 requires major impact and is breaking. Exit
+101, timeout, cleanup failure, or an unknown result in either run is unverified.
+The report records both native runs and separates required impact and native
+compatibility from declared impact, phase, manifest release admissibility, and
+the final gate verdict.
 
 Development analysis does not require a manifest bump. A breaking development
-result remains denied until a separate reviewed admission mechanism binds its
+major-required result remains denied until a separate reviewed admission binds its
 findings and consumer preparation; this decision defines no approval flag or
-allowlist. A release admits a breaking result only when both its declared impact
-and its Cargo-compatible manifest boundary are major. The report still calls
-that API breaking rather than compatible. An unchanged-version major release,
+allowlist. A release admits a major-required result only when both its declared
+impact and Cargo-compatible manifest boundary are major. Minor-required changes
+remain compatible and pass only when the declared impact and manifest boundary
+cover minor. An unchanged-version major release,
 version rollback, timeout, cleanup failure, or native execution error is never
 green. This helper establishes only the local SemVer classification and version
 boundary; it does not establish migration, ADR, or consumer-policy completion.
@@ -92,4 +97,5 @@ excludes another root's optional dependency and retains the selected root's
 helper. Native 0.51.0 remains nonzero with API comparison unsupported. Real Git
 fixtures also cover compatible same-version analysis, same-version breaking
 development and release decisions, an admitted major release that retains its
-breaking classification, rollback, native failure, and process-tree timeout.
+breaking classification, a deprecation that requires minor but remains
+compatible, rollback, native failure, and process-tree timeout.

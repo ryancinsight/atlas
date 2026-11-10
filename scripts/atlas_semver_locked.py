@@ -173,11 +173,12 @@ def compiled_packages(manifest: Path, package: str, env: dict[str, str],
     )
 
 
-def native_command(manifest: Path, package: str, baseline: str, config: dict) -> list[str]:
+def native_command(manifest: Path, package: str, baseline: str,
+                   config: dict, release_type: str) -> list[str]:
     """Build the native discovery command; policy is evaluated separately."""
     return [
         "cargo", "semver-checks", "--manifest-path", str(manifest), "--package", package,
-        "--baseline-rev", baseline, "--release-type", "patch",
+        "--baseline-rev", baseline, "--release-type", release_type,
         "--target", config["target"], *semver_features(config["feature_policy"], config["features"]),
     ]
 
@@ -211,7 +212,7 @@ def attempt(command: list[str], cwd: Path, env: dict[str, str], timeout: float =
                 "diagnostics_sha256": digest_bytes(diagnostics.encode())}
 
 
-def evaluation(native: dict, baseline: str, current: str,
+def evaluation(native: dict, severity_check: dict | None, baseline: str, current: str,
                phase: str, declared_impact: str) -> tuple[dict, int]:
     """Separate API discovery, manifest admissibility, and the gate verdict."""
     ranks = {"patch": 0, "minor": 1, "major": 2}
@@ -235,34 +236,42 @@ def evaluation(native: dict, baseline: str, current: str,
                 "status": "inadmissible", "boundary": boundary,
                 "reason": "declared release impact exceeds the manifest boundary",
             }
-    compatibility = {0: "compatible", 100: "breaking"}.get(
-        native["exit_code"], "unverified",
-    )
+    if native["exit_code"] == 0:
+        required_impact, compatibility = "patch", "compatible"
+    elif native["exit_code"] == 100 and severity_check is not None:
+        if severity_check["exit_code"] == 0:
+            required_impact, compatibility = "minor", "compatible"
+        elif severity_check["exit_code"] == 100:
+            required_impact, compatibility = "major", "breaking"
+        else:
+            required_impact, compatibility = None, "unverified"
+    else:
+        required_impact, compatibility = None, "unverified"
     if compatibility == "unverified":
         verdict, reason, exit_code = (
-            "unverified", "native API comparison did not complete", 101,
+            "unverified", "native severity classification did not complete", 101,
         )
     elif manifest["status"] == "inadmissible":
         verdict, reason, exit_code = "deny", manifest["reason"], 101
-    elif compatibility == "compatible":
+    elif ranks[declared_impact] < ranks[required_impact]:
         verdict, reason, exit_code = (
-            "pass", "native API comparison found no breaking change", 0,
+            "deny", "native required impact exceeds the declared impact", 100,
         )
-    elif (phase == "release" and declared_impact == "major"
-          and manifest["boundary"] == "major"):
-        verdict, reason, exit_code = (
-            "pass", "declared major release has a major manifest boundary", 0,
-        )
-    elif phase == "development":
+    elif compatibility == "breaking" and phase == "development":
         verdict, reason, exit_code = (
             "deny", "breaking development analysis requires reviewed admission", 100,
         )
+    elif compatibility == "breaking":
+        verdict, reason, exit_code = (
+            "pass", "declared major release has a major manifest boundary", 0,
+        )
     else:
         verdict, reason, exit_code = (
-            "deny", "breaking API exceeds the declared release impact", 100,
+            "pass", "declared impact covers the native required impact", 0,
         )
     return {
         "declared_impact": declared_impact,
+        "required_impact": required_impact,
         "native_compatibility": compatibility,
         "manifest_release_admissibility": manifest,
         "gate_verdict": verdict,
@@ -344,16 +353,24 @@ def compare(args) -> int:
             inventories, locks = zip(*(inventory(manifest, env) for manifest in manifests))
             for package in args.packages:
                 pair = [inventory_[package] for inventory_ in inventories]
-                command = native_command(repo / relative, package, base, config)
+                command = native_command(repo / relative, package, base, config, "patch")
                 native = attempt(command, repo, env)
+                severity_check = None
+                if native["exit_code"] == 100:
+                    severity_check = attempt(
+                        native_command(repo / relative, package, base, config, "minor"),
+                        repo, env,
+                    )
                 entry = {
                     "name": package, "versions": [pair[0]["version"], pair[1]["version"]],
                     "native": native,
                     "manifest_sha256": [digest(manifest) for manifest in manifests],
                     "lock_sha256": [digest(lock) for lock in locks],
                 }
+                if severity_check is not None:
+                    entry["severity_check"] = severity_check
                 outcome, package_exit = evaluation(
-                    native, pair[0]["version"], pair[1]["version"],
+                    native, severity_check, pair[0]["version"], pair[1]["version"],
                     phase, args.change_class,
                 )
                 entry.update(outcome)

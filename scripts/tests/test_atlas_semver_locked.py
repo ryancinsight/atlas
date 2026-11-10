@@ -108,8 +108,9 @@ class NativeContract(unittest.TestCase):
             code, report = self.run_contract(repo, base, head, repo / "deny.json")
             entry, native = report["packages"][0], report["packages"][0]["native"]
             self.assertEqual(
-                (code, native["exit_code"], entry["native_compatibility"], entry["gate_verdict"]),
-                (100, 100, "breaking", "deny"),
+                (code, native["exit_code"], entry["severity_check"]["exit_code"],
+                 entry["required_impact"], entry["native_compatibility"], entry["gate_verdict"]),
+                (100, 100, 100, "major", "breaking", "deny"),
             )
             self.assertIn("--baseline-rev", native["command"])
             self.assertEqual(native["command"][native["command"].index("--release-type") + 1], "patch")
@@ -121,9 +122,9 @@ class NativeContract(unittest.TestCase):
             entry = report["packages"][0]
             self.assertEqual(
                 (code, report["configuration"]["phase"], entry["declared_impact"],
-                 entry["native_compatibility"],
+                 entry["required_impact"], entry["native_compatibility"],
                  entry["manifest_release_admissibility"]["status"], entry["gate_verdict"]),
-                (100, "development", "major", "breaking", "not_required", "deny"),
+                (100, "development", "major", "major", "breaking", "not_required", "deny"),
             )
             code, report = self.run_contract(
                 repo, base, head, repo / "release-major-same-version.json", "major",
@@ -144,9 +145,10 @@ class NativeContract(unittest.TestCase):
             )
             entry = report["packages"][0]
             self.assertEqual(
-                (code, entry["native"]["exit_code"], entry["native_compatibility"],
+                (code, entry["native"]["exit_code"], entry["severity_check"]["exit_code"],
+                 entry["required_impact"], entry["native_compatibility"],
                  entry["manifest_release_admissibility"]["boundary"], entry["gate_verdict"]),
-                (0, 100, "breaking", "major", "pass"),
+                (0, 100, 100, "major", "breaking", "major", "pass"),
             )
 
             (repo / "src/lib.rs").write_text("pub fn broken( {\n", encoding="utf-8")
@@ -177,6 +179,41 @@ class NativeContract(unittest.TestCase):
                 (101, "inadmissible", "deny"),
             )
             self.assertIn("version decreases", entry["manifest_release_admissibility"]["reason"])
+
+    def test_minor_required_api_is_compatible_at_minor_boundary(self):
+        with tempfile.TemporaryDirectory(prefix="semver-minor-") as directory:
+            repo = Path(directory)
+            (repo / "src").mkdir()
+            (repo / "Cargo.toml").write_text(
+                f'[package]\nname="{self.package(repo)}"\nversion="1.2.3"\nedition="2024"\n',
+                encoding="utf-8")
+            (repo / "src/lib.rs").write_text(
+                "pub fn retained(value: usize) -> usize { value + 1 }\n",
+                encoding="utf-8")
+            self.initialize(repo)
+            self.command(["cargo", "generate-lockfile"], repo)
+            base = self.commit(repo, "baseline")
+            (repo / "Cargo.toml").write_text(
+                (repo / "Cargo.toml").read_text(encoding="utf-8").replace(
+                    'version="1.2.3"', 'version="1.3.0"'),
+                encoding="utf-8")
+            (repo / "src/lib.rs").write_text(
+                '#[deprecated(note="Use replacement")]\n'
+                "pub fn retained(value: usize) -> usize { value + 1 }\n"
+                "pub fn replacement(value: usize) -> usize { value + 1 }\n",
+                encoding="utf-8")
+            self.command(["cargo", "generate-lockfile"], repo)
+            head = self.commit(repo, "minor API")
+            code, report = self.run_contract(
+                repo, base, head, repo / "minor.json", "minor",
+            )
+            entry = report["packages"][0]
+            self.assertEqual(
+                (code, entry["native"]["exit_code"], entry["severity_check"]["exit_code"],
+                 entry["required_impact"], entry["native_compatibility"],
+                 entry["manifest_release_admissibility"]["boundary"], entry["gate_verdict"]),
+                (0, 100, 0, "minor", "compatible", "minor", "pass"),
+            )
 
     def test_provider_advance_records_locked_evidence_without_an_api_verdict(self):
         with (tempfile.TemporaryDirectory(prefix="semver-provider-") as provider_directory,
@@ -353,7 +390,7 @@ class NativeContract(unittest.TestCase):
         self.assertEqual(record["status"], "timeout")
         self.assertEqual(record["diagnostics"], "")
         outcome, exit_code = MODULE.evaluation(
-            record, "0.1.0", "0.1.0", "development", "major",
+            record, None, "0.1.0", "0.1.0", "development", "major",
         )
         self.assertEqual(
             (exit_code, outcome["native_compatibility"], outcome["gate_verdict"]),
