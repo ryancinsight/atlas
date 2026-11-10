@@ -16,7 +16,7 @@ on a new cast. This gate is the enforcement:
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
 - a package whose site count rises above its count at the pushed range's base,
-  measured with the same `-p` selection, fails: rows are measured
+  measured with each such package's tip features, fails: rows are measured
   `--workspace`, which compiles more features than a `-p` run, so a row alone
   leaves headroom a moved file or a newly compiled module could fill. A
   feature change that compiles existing casts in a pushed package fails this
@@ -26,12 +26,22 @@ on a new cast. This gate is the enforcement:
   `build.rs`, cargo config or `rust-toolchain` file. A source-level `cfg`
   flip, `#[path]`, `include!`, a new `mod` line naming a file that was not
   compiled before, or a build script at a custom `package.build` path or in
-  a helper module is not a trigger and is held to the row alone. Only pushed packages are counted:
+  a helper module is not a trigger and is held to the row alone. A
+  toolchain, cargo config or build script trigger measures every pushed
+  package at the base. Otherwise the base measures only the packages whose
+  files or resolved inputs (`cargo metadata`: edition, targets, features,
+  resolved dependencies) differ, and every workspace package depending on
+  one of them (`base-packages`), since a package's features come only from
+  its selected dependents. A package whose files and resolved inputs match
+  compiles the same lines at both, so its base count is its tip count. A
+  changed manifest that belongs to no package, other than the root's
+  `[workspace.dependencies]`, measures every package, as does a revision
+  cargo cannot resolve. Only pushed packages are counted:
   clippy lints the selected packages, so a pushed package enabling a feature
   of one it depends on is not measured there. The comparison covers the
-  packages named by `--base-package`; the hook names a manifest's packages
-  only when that manifest's base built, so one that fails to compile leaves
-  its own packages to their rows and no others.
+  packages named by `--base-package`; the hook names the packages the base
+  measured, and only when that manifest's base built, so one that fails to
+  compile leaves its own packages to their rows and no others.
 
 Sites are deduplicated by span, since `--all-targets` reports a library site
 once per target. The exclusion is by path only: `--force-warn` output does not
@@ -54,6 +64,8 @@ crate that returns to the workspace brings that debt with it. The membership
 is read from the base revision's own manifests, so a package the push adds is
 absent from it.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
+    atlas_cast_gate.py base-packages --repo <dir> --base <sha> --tip <sha> \
+        --base-export <dir> --tip-export <dir> -p eunomia ...
     atlas_cast_gate.py resolved-changes --repo <dir> --base <sha> --tip <sha> \
         --base-export <dir> --tip-export <dir>
     atlas_cast_gate.py measure --member eunomia --export <dir>
@@ -373,8 +385,10 @@ def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
     return list(dict.fromkeys(reasons))
 
 
-# Toolchain pins: a change reaches every package by no resolved dependency,
-# so `resolved_changes` gates every member.
+# Paths whose change can compile any package's existing code differently, so
+# the base measures every package: cargo config (`rustflags`), the toolchain
+# pin, and a package-root build script. A changed `Cargo.toml` is judged per
+# package instead (`measured_at_base`).
 GLOBAL_INPUTS = ("rust-toolchain", "rust-toolchain.toml")
 
 
@@ -492,6 +506,76 @@ def changed_paths(repo: pathlib.Path, base: str, tip: str) -> list[str]:
         paths += fields[index + 1:index + width]
         index += width
     return paths
+
+
+def measured_at_base(candidates: Iterable[str], paths: Iterable[str], root_manifest: str,
+                     root_unchanged: bool, base: dict[str, ResolvedPackage],
+                     tip: dict[str, ResolvedPackage]) -> frozenset[str]:
+    """The candidates the base must measure for a range whose only global
+    input is a changed `Cargo.toml`.
+
+    A package whose files and resolved signature match at base and tip
+    compiles the same lines at both, so its base count equals its tip count
+    and measuring it decides nothing. A package with a changed file or
+    signature is measured, with every workspace package that depends on it:
+    a package's features come only from the selected packages that depend on
+    it, so including all of them gives each measured package the features it
+    has under the tip's full selection. A changed manifest that belongs to no
+    package, other than the root's `[workspace.dependencies]`, measures every
+    candidate.
+    """
+    candidates = frozenset(candidates)
+    directories = {package.directory for package in (*base.values(), *tip.values())}
+    seeds: set[str] = set()
+    for path in paths:
+        directory, _, name = path.rpartition("/")
+        if name == "Cargo.toml" and directory not in directories:
+            if not (path == root_manifest and root_unchanged):
+                return candidates
+        for revision in (base, tip):
+            for package_name, package in revision.items():
+                if not package.directory or path.startswith(package.directory + "/"):
+                    seeds.add(package_name)
+    for package_name in base.keys() & tip.keys():
+        if base[package_name].signature != tip[package_name].signature:
+            seeds.add(package_name)
+    edges: dict[str, set[str]] = {name: set() for name in (*base, *tip)}
+    for revision in (base, tip):
+        for package_name, package in revision.items():
+            edges[package_name] |= package.dependencies
+    measured = set(seeds)
+    grown = True
+    while grown:
+        grown = False
+        for package_name, dependencies in edges.items():
+            if package_name not in measured and dependencies & measured:
+                measured.add(package_name)
+                grown = True
+    return candidates & frozenset(measured)
+
+
+def base_selection(repo: pathlib.Path, base: str, tip: str, base_export: pathlib.Path,
+                   tip_export: pathlib.Path, manifest: str, candidates: list[str],
+                   config: pathlib.Path | None = None) -> tuple[frozenset[str], str]:
+    """The candidates the base measures, and why when that is all of them."""
+    paths = changed_paths(repo, base, tip)
+    for path in paths:
+        name = path.rsplit("/", 1)[-1]
+        if (name in GLOBAL_INPUTS or "/.cargo/" in f"/{path}"
+                or package_build_script(repo, tip, path)):
+            return frozenset(candidates), f"{path} changed"
+    try:
+        root_manifest, base_packages = read_resolution(base_export, manifest, config)
+        tip_root, tip_packages = read_resolution(tip_export, manifest, config)
+    except (subprocess.CalledProcessError, ValueError, KeyError) as error:
+        return frozenset(candidates), f"cargo metadata could not resolve both revisions ({error})"
+    if tip_root != root_manifest:
+        return frozenset(candidates), "the workspace root moved"
+    root_unchanged = (without_workspace_dependencies(git_file(repo, base, root_manifest))
+                      == without_workspace_dependencies(git_file(repo, tip, root_manifest)))
+    measured = measured_at_base(candidates, paths, root_manifest, root_unchanged,
+                                base_packages, tip_packages)
+    return measured, ""
 
 
 def resolved_changes(repo: pathlib.Path, base: str, tip: str, base_export: pathlib.Path,
@@ -848,6 +932,19 @@ def triggers(args: argparse.Namespace) -> int:
     return 0
 
 
+def selection(args: argparse.Namespace) -> int:
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+    measured, reason = base_selection(
+        pathlib.Path(args.repo), args.base, args.tip, pathlib.Path(args.base_export),
+        pathlib.Path(args.tip_export), args.manifest, args.package, args.cargo_config,
+    )
+    if reason:
+        print(f"cast gate: the base measures every package: {reason}", file=sys.stderr)
+    for package in sorted(measured):
+        print(package)
+    return 0
+
+
 def changes(args: argparse.Namespace) -> int:
     sys.stdout.reconfigure(encoding="utf-8", newline="\n")
     changed, reason = resolved_changes(
@@ -915,6 +1012,18 @@ def main(argv: list[str] | None = None) -> int:
     trigger.add_argument("--base", required=True)
     trigger.add_argument("--tip", required=True)
     trigger.set_defaults(run=triggers)
+    narrow = commands.add_parser(
+        "base-packages", help="print the gated packages the base must measure, one per line")
+    narrow.add_argument("--repo", required=True, help="the member repository")
+    narrow.add_argument("--base", required=True)
+    narrow.add_argument("--tip", required=True)
+    narrow.add_argument("--base-export", required=True, help="checkout of the range's base")
+    narrow.add_argument("--tip-export", required=True, help="checkout of the pushed tip")
+    narrow.add_argument("--manifest", default="Cargo.toml",
+                        help="manifest relative to the exports: a standalone crate's, for one")
+    narrow.add_argument("-p", "--package", action="append", default=[],
+                        help="a gated package the base could measure")
+    narrow.set_defaults(run=selection)
     resolved = commands.add_parser(
         "resolved-changes",
         help="print the members a changed root manifest resolves differently; exit 3 for all")

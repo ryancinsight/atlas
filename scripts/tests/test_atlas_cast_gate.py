@@ -1178,6 +1178,81 @@ def test_the_gate_counts_moves_and_reads_standalone_crates(tmp_path):
     assert judge(moved, fuzzed, [fz], "fuzz/Cargo.toml", with_base=False) == 1
 
 
+def resolved(directory, signature="s", dependencies=()):
+    return gate.ResolvedPackage(directory, (signature,), frozenset(dependencies))
+
+
+# One workspace: `core` <- `io` <- `cli`, and `viewer` beside them; the root
+# manifest is not a package.
+PACKAGES = {
+    "core": resolved("crates/core"),
+    "io": resolved("crates/io", dependencies=["core"]),
+    "cli": resolved("crates/cli", dependencies=["io"]),
+    "viewer": resolved("crates/viewer", dependencies=["core"]),
+}
+ALL = sorted(PACKAGES)
+
+
+def test_an_unchanged_package_is_not_measured_at_the_base():
+    measured = gate.measured_at_base(ALL, ["crates/viewer/src/lib.rs"], "Cargo.toml", True,
+                                     PACKAGES, PACKAGES)
+    assert measured == {"viewer"}
+
+
+def test_a_changed_package_brings_every_package_that_depends_on_it():
+    measured = gate.measured_at_base(ALL, ["crates/core/src/lib.rs"], "Cargo.toml", True,
+                                     PACKAGES, PACKAGES)
+    assert measured == {"core", "io", "cli", "viewer"}
+    measured = gate.measured_at_base(ALL, ["crates/io/Cargo.toml"], "Cargo.toml", True,
+                                     PACKAGES, PACKAGES)
+    assert measured == {"io", "cli"}
+
+
+def test_a_resolved_change_without_a_file_change_is_measured():
+    tip = dict(PACKAGES, io=resolved("crates/io", "features moved", ["core"]))
+    measured = gate.measured_at_base(ALL, ["Cargo.toml"], "Cargo.toml", True, PACKAGES, tip)
+    assert measured == {"io", "cli"}
+
+
+def test_a_dependency_edge_at_either_revision_carries_the_change():
+    tip = dict(PACKAGES, cli=resolved("crates/cli", dependencies=[]))
+    measured = gate.measured_at_base(ALL, ["crates/io/src/lib.rs"], "Cargo.toml", True,
+                                     PACKAGES, tip)
+    assert measured == {"io", "cli"}
+
+
+def test_a_root_manifest_change_beyond_its_dependency_table_measures_everything():
+    measured = gate.measured_at_base(ALL, ["Cargo.toml"], "Cargo.toml", False,
+                                     PACKAGES, PACKAGES)
+    assert measured == set(ALL)
+
+
+def test_a_manifest_outside_every_package_measures_everything():
+    measured = gate.measured_at_base(ALL, ["tools/fuzz/Cargo.toml"], "Cargo.toml", True,
+                                     PACKAGES, PACKAGES)
+    assert measured == set(ALL)
+
+
+def test_a_root_package_is_measured_for_any_change():
+    workspace = dict(PACKAGES, app=resolved("", dependencies=["cli"]))
+    measured = gate.measured_at_base([*ALL, "app"], ["docs/notes.md"], "Cargo.toml", True,
+                                     workspace, workspace)
+    assert measured == {"app"}
+
+
+def test_a_package_only_one_revision_has_is_judged_by_its_files():
+    tip = {name: package for name, package in PACKAGES.items() if name != "viewer"}
+    measured = gate.measured_at_base(ALL, ["crates/viewer/src/lib.rs"], "Cargo.toml", True,
+                                     PACKAGES, tip)
+    assert measured == {"viewer"}
+
+
+def test_only_candidates_are_measured():
+    measured = gate.measured_at_base(["cli"], ["crates/core/src/lib.rs"], "Cargo.toml", True,
+                                     PACKAGES, PACKAGES)
+    assert measured == {"cli"}
+
+
 def test_a_root_manifest_compares_without_its_dependency_table():
     before = '[workspace]\nmembers = ["a"]\n[workspace.dependencies]\nx = "1"\n'
     after = '[workspace]\nmembers = ["a"]\n[workspace.dependencies]\ny = "2"\n'
@@ -1212,6 +1287,72 @@ def write_crate(root: pathlib.Path, name: str, body: str, dependency: str | None
         manifest += f'\n[dependencies]\n{dependency} = {{ path = "../{dependency}" }}\n'
     (crate / "Cargo.toml").write_text(manifest)
     (crate / "src" / "lib.rs").write_text(body)
+
+
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="needs cargo")
+def test_base_selection_reads_both_revisions_through_cargo(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    root_manifest = ('[workspace]\nmembers = ["crates/*"]\nresolver = "2"\n'
+                     '[workspace.dependencies]\nunused = "1"\n')
+    (repo / "Cargo.toml").write_text(root_manifest)
+    write_crate(repo, "core", OLD)
+    write_crate(repo, "io", "pub fn io() {}\n", dependency="core")
+    write_crate(repo, "viewer", "pub fn viewer() {}\n")
+    subprocess.run(["cargo", "generate-lockfile", "--offline"], cwd=repo, check=True,
+                   capture_output=True)
+    base = commit(repo, "base")
+    (repo / "Cargo.toml").write_text(root_manifest.replace('unused = "1"\n', ""))
+    (repo / "crates" / "viewer" / "src" / "lib.rs").write_text("pub fn viewer() -> u8 { 1 }\n")
+    tip = commit(repo, "tip")
+
+    def export(revision: str, name: str) -> pathlib.Path:
+        directory = tmp_path / name
+        git(repo, "worktree", "add", "-q", "--detach", str(directory), revision)
+        return directory
+
+    base_export, tip_export = export(base, "base"), export(tip, "tip")
+    measured, reason = gate.base_selection(repo, base, tip, base_export, tip_export,
+                                           "Cargo.toml", ["core", "io", "viewer"])
+    assert (sorted(measured), reason) == (["viewer"], "")
+
+    (repo / "crates" / "core" / "build.rs").write_text("fn main() {}\n")
+    built = commit(repo, "build script")
+    measured, reason = gate.base_selection(repo, tip, built, tip_export, tip_export,
+                                           "Cargo.toml", ["core", "io", "viewer"])
+    assert (sorted(measured), reason) == (["core", "io", "viewer"],
+                                          "crates/core/build.rs changed")
+
+
+def test_base_selection_measures_everything_when_cargo_cannot_resolve(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "notes.md").write_text("a\n")
+    base = commit(repo, "base")
+    (repo / "notes.md").write_text("b\n")
+    tip = commit(repo, "tip")
+
+    def unresolvable(export, manifest, config=None):
+        raise subprocess.CalledProcessError(101, ["cargo", "metadata"])
+
+    monkeypatch.setattr(gate, "read_resolution", unresolvable)
+    measured, reason = gate.base_selection(repo, base, tip, tmp_path, tmp_path, "Cargo.toml",
+                                           ["core", "io"])
+    assert sorted(measured) == ["core", "io"]
+    assert reason.startswith("cargo metadata could not resolve both revisions")
+
+
+def test_base_packages_prints_one_measured_package_per_line(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(
+        gate, "base_selection",
+        lambda repo, base, tip, base_export, tip_export, manifest, candidates, config:
+        (frozenset({"viewer", "core"}), ""),
+    )
+    status = gate.main(["base-packages", "--repo", str(tmp_path), "--base", "b", "--tip", "t",
+                        "--base-export", str(tmp_path), "--tip-export", str(tmp_path),
+                        "-p", "core", "-p", "viewer", "-p", "io"])
+    captured = capsys.readouterr()
+    assert (status, captured.out, captured.err) == (0, "core\nviewer\n", "")
 
 
 @pytest.mark.skipif(shutil.which("cargo") is None, reason="needs cargo")
