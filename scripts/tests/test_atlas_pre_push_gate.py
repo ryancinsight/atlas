@@ -4794,6 +4794,221 @@ COMPILE_ERROR = ("error[E0433]: failed to resolve: use of undeclared crate or mo
                  "error: could not compile `foo` (lib) due to 1 previous error")
 
 
+@unittest.skipUnless(shutil.which("cargo") and shutil.which("cargo-nextest"), "real Cargo and nextest are required")
+class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
+    @staticmethod
+    def _install_tools(stack: pathlib.Path) -> None:
+        source = SCRIPT.parents[1]
+        names = {"atlas-build-identity.py", "atlas_claim_log.py", "atlas-secret-scan.py", "atlas_cast_gate.py",
+                 "cast-baseline.json", "lockfile.py", "process_tree.py", "windows_process.py", "darwin_process.py"}
+        names.update(path.name for path in source.glob("atlas_build_*.py"))
+        for name in names:
+            shutil.copy2(source / name, stack / "scripts" / name)
+        _publish_stack_scripts(stack)
+
+    @staticmethod
+    def _recorder(root: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
+        cargo = shutil.which("cargo")
+        assert cargo is not None
+        calls = root / "real-cargo-calls.log"
+        recorder = root / "bin" / ("real-cargo.cmd" if os.name == "nt" else "real-cargo")
+        if os.name == "nt":
+            _write(recorder, f'@echo off\r\necho %*>>"{calls}"\r\n"{cargo}" %*\r\nexit /b %errorlevel%\r\n')
+        else:
+            _write(recorder, "#!/usr/bin/env bash\n" f'printf "%s\\n" "$*" >> {shlex.quote(str(calls))}\n' f'exec {shlex.quote(cargo)} "$@"\n', executable=True)
+        return recorder, calls
+
+    def _run(self, fixture: GateFixture, tip: str, branch: str) -> tuple[int, str, list[str]]:
+        recorder, calls = self._recorder(fixture.root)
+        code, stderr = fixture.run_hook(f"refs/heads/{branch} {tip} refs/heads/{branch} {ZERO}\n", {
+            "CARGO": str(recorder), "CARGO_TARGET_DIR": str(shared_target_directory())})
+        return code, stderr, calls.read_text(encoding="utf-8").splitlines() if calls.exists() else []
+
+    def _root_lock_fixture(self, temp: str, broken: bool) -> tuple[GateFixture, str]:
+        fixture = GateFixture.in_stack(pathlib.Path(temp))
+        self._install_tools(fixture.stack)
+        root = fixture.root
+        provider = pathlib.Path(temp) / "provider"
+        _git_init_repo(provider)
+        _write(provider / "Cargo.toml", '[package]\nname = "fixture-provider"\nversion = "0.1.0"\nedition = "2024"\n')
+        _write(provider / "src/lib.rs", "pub fn scale(value: u32) -> u32 { value * 2 }\n")
+        _git(provider, "add", "Cargo.toml", "src/lib.rs")
+        _git(provider, "commit", "-q", "-m", "provider base")
+        _write(root / "Cargo.toml", '  [workspace] # real TOML permits leading space and comments\nresolver = "3"\nmembers = ["crates/alpha", "crates/beta"]\n')
+        _write(root / ".config/nextest.toml", '[profile.default]\nretries = 0\nslow-timeout = { period = "30s", terminate-after = 2 }\n')
+        for directory in ("alpha", "beta"):
+            dependency = f'\n[dependencies]\nfixture-provider = {{ git = "{provider.as_uri()}" }}\n' if directory == "alpha" else ""
+            _write(root / f"crates/{directory}/Cargo.toml", f'[package]\nname = "lock-gate-{directory}"\nversion = "0.1.0"\nedition = "2024"\n{dependency}')
+            source = ('compile_error!("all members must compile");\n' if broken and directory == "beta" else "pub fn value(input: u32) -> u32 { input + 1 }\n#[cfg(test)] mod tests { #[test] fn value_depends_on_input() { assert_eq!(super::value(2), 3); assert_eq!(super::value(7), 8); } }\n")
+            _write(root / f"crates/{directory}/src/lib.rs", source)
+        shutil.rmtree(root / "crates/foo")
+        cargo = shutil.which("cargo")
+        assert cargo is not None
+        subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / "Cargo.toml")], cwd=root, check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+        subprocess.run([cargo, "fmt", "--all", "--manifest-path", str(root / "Cargo.toml")], cwd=root, check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+        _commit_all(root, "real workspace")
+        _git(root, "push", "-q", "origin", "HEAD:main")
+        _git(root, "switch", "-q", "-c", "lock-only")
+        _write(provider / "src/lib.rs", "pub fn scale(value: u32) -> u32 { value.saturating_mul(2) }\n")
+        _git(provider, "add", "src/lib.rs")
+        _git(provider, "commit", "-q", "-m", "provider candidate")
+        subprocess.run([cargo, "update", "--manifest-path", str(root / "Cargo.toml"), "-p", "fixture-provider", "--precise", _git(provider, "rev-parse", "HEAD")], cwd=root, check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+        tip = _commit_all(root, "lock only")
+        self.assertEqual(_git(root, "diff", "--name-only", f"{tip}^..{tip}"), "Cargo.lock")
+        for name in ("cargo", "cargo.cmd", "cargo-nextest"):
+            (fixture.bin / name).unlink(missing_ok=True)
+        return fixture, tip
+
+    def test_root_lock_change_gates_every_member_and_exposes_failure(self) -> None:
+        for broken in (False, True):
+            with self.subTest(broken=broken), tempfile.TemporaryDirectory(prefix="atlas-real-lock-gate-") as temp:
+                fixture, tip = self._root_lock_fixture(temp, broken)
+                code, stderr, calls = self._run(fixture, tip, "lock-only")
+                self.assertEqual(code, 1 if broken else 0, stderr)
+                self.assertIn("gating lock-gate-alpha lock-gate-beta", stderr)
+                self.assertTrue(any(line.startswith("clippy ") for line in calls), calls)
+                if not broken:
+                    stages = [line for line in calls if line.startswith(("clippy ", "nextest run ", "doc "))]
+                    self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+
+    def _new_owner_fixture(self, temp: str, source: str, candidate_source: str | None) -> tuple[GateFixture, str]:
+        fixture = GateFixture.in_stack(pathlib.Path(temp))
+        self._install_tools(fixture.stack)
+        root = fixture.root
+        baseline_path = fixture.stack / "scripts/cast-baseline.json"
+        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+        baseline["counts"]["member"] = {"owner-probe": 5}
+        _write(baseline_path, json.dumps(baseline, indent=1, sort_keys=True) + "\n")
+        _publish_stack_scripts(fixture.stack)
+        _write(root / "Cargo.toml", '[workspace]\nresolver = "3"\nmembers = ["crates/foo"]\n')
+        _write(root / "crates/foo/Cargo.toml", '[package]\nname = "foo"\nversion = "0.1.0"\nedition = "2024"\n')
+        _write(root / "fuzz/Cargo.toml", '[package]\nname = "owner-probe"\nversion = "0.1.0"\nedition = "2024"\n')
+        _write(root / "fuzz/src/lib.rs", source)
+        cargo = shutil.which("cargo")
+        assert cargo is not None
+        subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / "Cargo.toml")], cwd=root, check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+        subprocess.run([cargo, "fmt", "--all", "--manifest-path", str(root / "Cargo.toml")], cwd=root, check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+        old_metadata = subprocess.run([cargo, "metadata", "--format-version", "1", "--manifest-path",
+                                       str(root / "fuzz/Cargo.toml")], cwd=root, capture_output=True,
+                                      text=True, timeout=WATCHDOG_SECONDS)
+        self.assertNotEqual(old_metadata.returncode, 0, old_metadata.stdout)
+        self.assertIn("believes it's in a workspace when it's not", old_metadata.stderr)
+        _commit_all(root, "orphan base")
+        _git(root, "push", "-q", "origin", "HEAD:main")
+        _git(root, "switch", "-q", "-c", "new-owner")
+        _write(root / "fuzz/Cargo.toml", '[package]\nname = "owner-probe"\nversion = "0.1.0"\nedition = "2024"\n\n[workspace]\n')
+        if candidate_source is not None:
+            _write(root / "fuzz/src/lib.rs", candidate_source)
+        subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / "fuzz/Cargo.toml")], cwd=root, check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+        subprocess.run([cargo, "fmt", "--all", "--manifest-path", str(root / "fuzz/Cargo.toml")], cwd=root, check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+        tip = _commit_all(root, "own fuzz lock")
+        for name in ("cargo", "cargo.cmd", "cargo-nextest"):
+            (fixture.bin / name).unlink(missing_ok=True)
+        return fixture, tip
+
+    def test_new_owner_uses_real_clippy_and_an_empty_base_count(self) -> None:
+        plain = "pub fn value(input: u32) -> u32 { input + 1 }\n"
+        cast = "pub fn value(input: u64) -> u32 { input as u32 }\n"
+        for name, base, candidate, expected, messages in (
+            ("clean", plain, None, 0, ("standalone crates checked",)),
+            ("new cast", plain, cast, 1, ("bare `as` cast on a line this push adds", "up from 0 at the pushed base")),
+            ("legacy cast", cast, None, 1, ("up from 0 at the pushed base",)),
+        ):
+            with self.subTest(name=name), tempfile.TemporaryDirectory(prefix="atlas-real-owner-gate-") as temp:
+                fixture, tip = self._new_owner_fixture(temp, base, candidate)
+                code, stderr, calls = self._run(fixture, tip, "new-owner")
+                self.assertEqual(code, expected, stderr)
+                self.assertTrue(all(message in stderr for message in messages), stderr)
+                self.assertTrue(any("fuzz/Cargo.toml" in line.replace("\\", "/") and line.startswith("clippy ")
+                                    for line in calls), calls)
+
+    def test_owner_classification_fails_closed_and_preserves_prior_ownership(self) -> None:
+        cargo = shutil.which("cargo")
+        assert cargo is not None
+        package = '[package]\nname = "probe"\nversion = "0.1.0"\nedition = "2024"\n'
+        member = '[package]\nname = "foo"\nversion = "0.1.0"\nedition = "2024"\n'
+        root_workspace = '[workspace]\nresolver = "3"\nmembers = ["crates/foo"]\n'
+
+        def classify(name: str, root_manifest: str | None, expected: str = "", *,
+                     manifest: str = "fuzz/Cargo.toml", extra: dict[str, str] | None = None,
+                     orphan: str = package, generate_root: bool = False, generate_tip: bool = False,
+                     second: bool = False, error: str | None = None, dirty: bool = False) -> None:
+            with tempfile.TemporaryDirectory(prefix=f"atlas-owner-{name}-") as temp:
+                root = pathlib.Path(temp)
+                _git_init_repo(root)
+                if root_manifest is not None:
+                    _write(root / "Cargo.toml", root_manifest)
+                _write(root / manifest, orphan)
+                _write(root / pathlib.PurePosixPath(manifest).parent / "src/lib.rs", "pub fn probe() {}\n")
+                for path, text in (extra or {}).items():
+                    _write(root / path, text)
+                if second:
+                    _write(root / "alt/Cargo.toml", package.replace('name = "probe"', 'name = "alt"'))
+                    _write(root / "alt/src/lib.rs", "pub fn alt() {}\n")
+                if error and not generate_root:
+                    _write(root / "Cargo.lock", "version = 4\n")
+                if generate_root:
+                    subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / "Cargo.toml")], cwd=root,
+                                   check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+                base = _commit_all(root, f"{name} base")
+                _write(root / manifest, package + "[workspace]\n")
+                if generate_tip:
+                    subprocess.run([cargo, "generate-lockfile", "--manifest-path", str(root / manifest)], cwd=root,
+                                   check=True, capture_output=True, timeout=WATCHDOG_SECONDS)
+                else:
+                    _write(root / pathlib.PurePosixPath(manifest).with_name("Cargo.lock"), "version = 4\n")
+                if second:
+                    _write(root / "alt/Cargo.toml", package.replace('name = "probe"', 'name = "alt"') + "[workspace]\n")
+                    _write(root / "alt/Cargo.lock", "version = 4\n")
+                tip = _commit_all(root, f"{name} tip")
+                def export(revision: str, label: str) -> pathlib.Path:
+                    destination = root.parent / f"{root.name}-{label}"
+                    destination.mkdir()
+                    archive = subprocess.run(["git", "-C", str(root), "archive", f"{revision}^{{tree}}"], check=True,
+                                             capture_output=True, timeout=WATCHDOG_SECONDS)
+                    subprocess.run(["tar", "-x", "-C", str(destination)], input=archive.stdout, check=True,
+                                   capture_output=True, timeout=WATCHDOG_SECONDS)
+                    return destination
+
+                base_export, tip_export = export(base, "base"), export(tip, "tip")
+                if dirty:
+                    _write(root / "Cargo.toml", "[broken live tree")
+                argv = [sys.executable, str(SCRIPT.parents[1] / "atlas_cast_gate.py"), "new-standalone-owners",
+                        "--repo", str(root), "--base", base, "--tip", tip, "--base-export", str(base_export),
+                        "--tip-export", str(tip_export), "--metadata-timeout", "120"]
+                for candidate in ([manifest, "alt/Cargo.toml"] if second else [manifest]):
+                    argv.extend(("--manifest", candidate))
+                environment = {**os.environ, "CARGO_TARGET_DIR": str(shared_target_directory())}
+                result = subprocess.run(argv, env=environment, capture_output=True, text=True, timeout=WATCHDOG_SECONDS)
+                self.assertEqual((result.returncode, result.stdout), (2 if error else 0, expected), result.stderr)
+                if error:
+                    self.assertIn(error, result.stderr)
+
+        foo = {"crates/foo/Cargo.toml": member, "crates/foo/src/lib.rs": "pub fn foo() {}\n"}
+        cases = (
+            ("new", root_workspace, "fuzz/Cargo.toml\n", dict(extra=foo, generate_root=True, generate_tip=True, dirty=True)),
+            ("owned", '[workspace]\nresolver="3"\nmembers=["fuzz"]\n', "", dict(generate_root=True)),
+            ("lockless", '[workspace]\nmembers=["fuzz"]\n', "", {}),
+            ("implicit", None, "", {}),
+            ("excluded", root_workspace + 'exclude=["fuzz"]\n', "", dict(extra=foo, generate_root=True)),
+            ("redirect", root_workspace, "", dict(extra=foo, orphan=package + 'workspace="../"\n', generate_root=True)),
+            ("extra", root_workspace, "", dict(extra={**foo, "other/Cargo.toml": member.replace('name = "foo"', 'name = "other"')} , generate_root=True)),
+            ("intermediate", root_workspace, "", dict(manifest="nested/fuzz/Cargo.toml", extra={**foo, "nested/Cargo.toml": member}, generate_root=True)),
+            ("nested", root_workspace, "", dict(extra={**foo, "other/Cargo.toml": "[workspace]\nmembers=[]\n"}, generate_root=True)),
+            ("nonroot-lock", root_workspace, "", dict(extra={**foo, "other/Cargo.lock": "version = 4\n"}, generate_root=True)),
+            ("multiple", root_workspace, "", dict(extra=foo, generate_root=True, second=True)),
+            ("collision", '[workspace]\nresolver="3"\nmembers=["crates/foo"]\n', "", dict(extra={"crates/foo/Cargo.toml": member.replace('name = "foo"', 'name = "probe"'), "crates/foo/src/lib.rs": ""}, generate_root=True, generate_tip=True, error="package name already exists")),
+            ("bad-members", '[workspace]\nmembers="crates/foo"\n', "", dict(error="CalledProcessError")),
+            ("bad-default", '[workspace]\nmembers=["crates/foo"]\ndefault-members=["missing"]\n', "", dict(extra=foo, error="CalledProcessError")),
+            ("glob-nested", '[workspace]\nmembers=["crates/*"]\n', "", dict(extra={**foo, "crates/nested/Cargo.toml": "[workspace]\nmembers=[]\n"}, error="CalledProcessError")),
+            ("no-package", root_workspace, "", dict(extra={"crates/foo/Cargo.toml": "[dependencies]\n", "crates/foo/src/lib.rs": ""}, error="CalledProcessError")),
+            ("malformed", root_workspace, "", dict(extra=foo, orphan="[\n", error="does not parse as TOML")),
+        )
+        for name, root_manifest, expected, options in cases:
+            with self.subTest(name=name):
+                classify(name, root_manifest, expected, **options)
+
+
 def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
                     base_exit: int | None = None, base_says: str | None = None,
                     triggers: str = "a/src/x.rs -> foo/src/x.rs", triggers_exit: int = 0,
@@ -4822,6 +5037,8 @@ def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
         "if argv[0] == 'base-triggers':\n"
         f"    print({triggers!r}, end='')\n"
         f"    sys.exit({triggers_exit})\n"
+        "if argv[0] == 'new-standalone-owners':\n"
+        "    sys.exit(0)\n"
         f"with pathlib.Path({str(log)!r}).open('a', encoding='utf-8') as stream:\n"
         "    stream.write(' '.join(argv) + '\\n')\n"
         "if argv[0] == 'clippy':\n"
