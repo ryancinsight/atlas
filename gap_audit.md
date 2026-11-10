@@ -1,5 +1,15 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-11-10: build identity cannot read a manifest only cargo parses
+
+Risk: `atlas_build_inputs._cargo_fuzz_manifest` parses each manifest with Python's `tomllib` (TOML 1.0), so a manifest written in TOML 1.1, for example a multi-line inline table that cargo accepts, raises `BuildIdentityError` in every caller of `effective_compiler_environment`. A push of such a root manifest is refused by the cast gate's `clippy` step with exit 2, although `resolved-changes` (atlas#637) gates every member.
+Evidence: the judge of atlas#637 reproduced it with a two-commit fixture. Re-open trigger: any member manifest using TOML 1.1 syntax, or a Python whose `tomllib` reads TOML 1.1. Fix: read `package.metadata` from `cargo metadata --no-deps` instead of parsing TOML in Python.
+
+## Finding 2026-11-10: the reused lock tree reads a mirrored cargo config on reused runs only
+
+Risk: with atlas#630 the pre-push lockfile check runs in `$gate_root/lock-tree`, beneath the `$gate_root/.cargo/config.toml` that the gate writes later (the stack config minus `[patch]`). On a reused run `lockfile.py --check` and `cargo deny check sources` read that config; on a first or contended run they do not. Today it holds only build and profile keys, so resolution is unaffected.
+Evidence: the judge of atlas#630 (its `scripts/git-hooks/pre-push`, lock tree export and mirrored config writes). Re-open trigger: any `[source]`, `[net]` or `[registries]` key added to the stack cargo config, or a lockfile verdict that differs between a first and a reused run. Fix: run both checks under one fixed config on every run.
+
 ## Finding 2026-10-28: parallel clones leave CI member checkout serial
 
 Risk: member checkout consumes the fast job's unchanged ten-minute budget;

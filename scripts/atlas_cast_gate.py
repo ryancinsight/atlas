@@ -54,6 +54,8 @@ crate that returns to the workspace brings that debt with it. The membership
 is read from the base revision's own manifests, so a package the push adds is
 absent from it.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
+    atlas_cast_gate.py resolved-changes --repo <dir> --base <sha> --tip <sha> \
+        --base-export <dir> --tip-export <dir>
     atlas_cast_gate.py measure --member eunomia --export <dir>
     atlas_cast_gate.py ratchet --repo <atlas> --base <sha> --tip <sha>
 
@@ -76,7 +78,7 @@ import re
 import subprocess
 import sys
 import tomllib
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
@@ -141,36 +143,108 @@ class Workspace:
 
     root: pathlib.Path
     packages: list[dict]
+    members: frozenset[str]
     environment: dict[str, str]
 
     def names(self) -> dict[str, str]:
         """Package id to package name, for the workspace members."""
-        return {p["id"]: p["name"] for p in self.packages}
+        return {p["id"]: p["name"] for p in self.packages if p["id"] in self.members}
+
+    def member_manifests(self) -> dict[pathlib.Path, str]:
+        """Absolute member manifest paths to their package names."""
+        return {
+            pathlib.Path(p["manifest_path"]): p["name"]
+            for p in self.packages if p["id"] in self.members
+        }
+
+
+def _workspace_record(record: object, environment: dict[str, str]) -> Workspace:
+    """Validate the ownership fields emitted by Cargo metadata."""
+    if not isinstance(record, dict):
+        raise ValueError("cargo metadata record must be an object")
+    root = record.get("workspace_root")
+    packages = record.get("packages")
+    members = record.get("workspace_members")
+    if not isinstance(root, str) or not pathlib.Path(root).is_absolute():
+        raise ValueError("cargo metadata workspace_root must be an absolute path")
+    if not isinstance(packages, list):
+        raise ValueError("cargo metadata packages must be an array")
+    if (not isinstance(members, list)
+            or any(not isinstance(member, str) for member in members)):
+        raise ValueError("cargo metadata workspace_members must be an array of strings")
+
+    by_id: dict[str, dict] = {}
+    by_manifest: dict[str, str] = {}
+    for package in packages:
+        if not isinstance(package, dict):
+            raise ValueError("cargo metadata package must be an object")
+        package_id = package.get("id")
+        name = package.get("name")
+        manifest_path = package.get("manifest_path")
+        if (not isinstance(package_id, str) or not package_id
+                or not isinstance(name, str) or not name):
+            raise ValueError("cargo metadata package id and name must be nonempty strings")
+        if (not isinstance(manifest_path, str)
+                or not pathlib.Path(manifest_path).is_absolute()):
+            raise ValueError("cargo metadata package manifest_path must be an absolute path")
+        if package_id in by_id:
+            raise ValueError(f"cargo metadata repeats package id {package_id!r}")
+        normalized_manifest = os.path.normcase(os.path.realpath(manifest_path))
+        if normalized_manifest in by_manifest:
+            raise ValueError(
+                "cargo metadata repeats a normalized package manifest path "
+                f"for {by_manifest[normalized_manifest]!r} and {package_id!r}"
+            )
+        by_id[package_id] = package
+        by_manifest[normalized_manifest] = package_id
+
+    member_ids = frozenset(members)
+    if len(member_ids) != len(members):
+        raise ValueError("cargo metadata repeats a workspace member")
+    missing = sorted(member_ids - by_id.keys())
+    if missing:
+        raise ValueError(f"cargo metadata omits workspace member packages: {missing!r}")
+    member_names = [by_id[member]["name"] for member in members]
+    if len(set(member_names)) != len(member_names):
+        raise ValueError("cargo metadata repeats a workspace member package name")
+    return Workspace(pathlib.Path(root), packages, member_ids, environment)
 
 
 def workspace(export: pathlib.Path, config: pathlib.Path | None = None,
               manifest: str = "Cargo.toml",
-              command_cwd: pathlib.Path | None = None) -> Workspace:
+              command_cwd: pathlib.Path | None = None,
+              metadata_timeout: float = 120.0) -> Workspace:
     """Read `export`'s manifest with config discovery at `command_cwd`.
 
     Omission runs Cargo from the export, preserving the legacy invocation.
+    Cargo owns workspace interpretation; malformed, unlocked, or incomplete
+    metadata is an error rather than evidence that a package is absent.
     """
     from atlas_build_inputs import effective_compiler_environment
+    import process_tree
 
+    if not 0 < metadata_timeout:
+        raise ValueError("cargo metadata timeout must be positive")
     directory = command_cwd or export
     manifest_path = export / manifest
     cargo_command = cargo(config)
     environment = effective_compiler_environment(
         manifest_path, directory, cargo_command
     )
-    out = subprocess.run(
-        [*cargo_command, "metadata", "--no-deps", "--format-version", "1",
-         "--manifest-path", str(manifest_path)],
-        cwd=directory, env=environment,
-        capture_output=True, text=True, encoding="utf-8", check=True,
-    ).stdout
-    record = json.loads(out)
-    return Workspace(pathlib.Path(record["workspace_root"]), record["packages"], environment)
+    command = [
+        *cargo_command, "metadata", "--no-deps", "--locked", "--format-version", "1",
+        "--manifest-path", str(manifest_path),
+    ]
+    completed = process_tree.run(
+        command, cwd=directory, env=environment, timeout=min(metadata_timeout, 120.0)
+    )
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(
+            completed.returncode, command,
+            output=completed.stdout, stderr=completed.stderr,
+        )
+    out = (completed.stdout or b"").decode("utf-8", errors="strict")
+    return _workspace_record(json.loads(out), environment)
 
 
 def sites(messages: Iterable[str], export: pathlib.Path,
@@ -346,29 +420,264 @@ def package_build_script(repo: pathlib.Path, tip: str, path: str) -> bool:
                           capture_output=True).returncode == 0
 
 
-def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
-    """Why the range needs the base count: each change that can bring existing
-    casts into a pushed package without adding their lines. A copy is not
-    one: without `-C` it diffs as an added file, every line added."""
+def changed_entries(repo: pathlib.Path, base: str, tip: str) -> list[tuple[str, ...]]:
+    """The paths of each change the range makes. A rename gives its source and
+    target, so a file moved between packages changes both. A copy is not one:
+    without `-C` it diffs as an added file, every line added."""
     fields = pushed_diff(repo, base, tip, ["--name-status", "-z"]).decode("utf-8").split("\0")
-    reasons: list[str] = []
+    entries: list[tuple[str, ...]] = []
     index = 0
     while index < len(fields) and fields[index]:
-        status = fields[index]
-        if status[0] == "R":
-            source, target = fields[index + 1], fields[index + 2]
-            index += 3
-            reasons.append(f"{source} -> {target}")
-            paths = [source, target]
-        else:
-            paths = [fields[index + 1]]
-            index += 2
+        width = 3 if fields[index][0] == "R" else 2
+        entries.append(tuple(fields[index + 1:index + width]))
+        index += width
+    return entries
+
+
+def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
+    """Why the range needs the base count: each change that can bring existing
+    casts into a pushed package without adding their lines."""
+    reasons: list[str] = []
+    for paths in changed_entries(repo, base, tip):
+        if len(paths) == 2:
+            reasons.append(" -> ".join(paths))
         for path in paths:
             name = path.rsplit("/", 1)[-1]
             if (name in BUILD_INPUTS or "/.cargo/" in f"/{path}"
                     or package_build_script(repo, tip, path)):
                 reasons.append(f"{path} changed")
     return list(dict.fromkeys(reasons))
+
+
+# Toolchain pins: a change reaches every package by no resolved dependency,
+# so `resolved_changes` gates every member.
+GLOBAL_INPUTS = ("rust-toolchain", "rust-toolchain.toml")
+
+
+@dataclass(frozen=True)
+class ResolvedPackage:
+    """One workspace package as `cargo metadata` resolves it at one revision.
+
+    `signature` holds the resolved inputs metadata reports for the package:
+    its edition, rust-version, links, targets, declared and enabled
+    features, each direct dependency with its package, extern name and
+    kinds, and every package it reaches with that package's enabled
+    features. A path package is named by its directory, so a retarget to
+    another directory holding the same name and version differs. Paths are
+    relative to the export, so two checkouts of one revision compare equal.
+    Metadata unifies features across platforms and dependency kinds, so a
+    feature that another platform's, a build or a dev edge already enables
+    reads the same at both revisions even when the host's build of a
+    package changes; callers that must see such a change follow `reaches`.
+    `reaches` names every package the member depends on, directly or not.
+    """
+
+    signature: tuple
+    reaches: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class Resolution:
+    """A workspace as `cargo metadata` resolves it for the host at one revision.
+
+    `root_manifest` is the workspace root manifest relative to the export.
+    `members` holds each workspace member's `ResolvedPackage`. `reach` maps
+    every resolved package name, member or not, to the names it depends on
+    directly or not, merged across the versions that share the name.
+    """
+
+    root_manifest: str
+    members: dict[str, ResolvedPackage]
+    reach: dict[str, frozenset[str]]
+
+
+def _relative(path: str, export: pathlib.Path) -> str:
+    """`path` relative to `export`, `/`-separated; raises outside it."""
+    inner = pathlib.Path(os.path.realpath(path))
+    outer = pathlib.Path(os.path.realpath(export))
+    relative = inner.relative_to(outer).as_posix()
+    return "" if relative == "." else relative
+
+
+def resolution(record: dict, export: pathlib.Path) -> Resolution:
+    """The workspace a `cargo metadata` record resolves, relative to `export`."""
+    members = set(record["workspace_members"])
+    by_id = {package["id"]: package for package in record["packages"]}
+
+    def label(package_id: str) -> str:
+        package = by_id[package_id]
+        source = package["source"] or (
+            "path " + _relative(str(pathlib.Path(package["manifest_path"]).parent), export))
+        return f"{package['name']}@{package['version']} {source}"
+
+    nodes = {node["id"]: node for node in record["resolve"]["nodes"]}
+
+    def reached(package_id: str) -> set[str]:
+        """Every package `package_id` depends on, directly or not."""
+        seen: set[str] = set()
+        pending = [dependency["pkg"] for dependency in nodes[package_id]["deps"]]
+        while pending:
+            current = pending.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            pending.extend(dependency["pkg"] for dependency in nodes[current]["deps"])
+        return seen
+
+    resolved: dict[str, ResolvedPackage] = {}
+    for package_id in members:
+        package = by_id[package_id]
+        node = nodes[package_id]
+        reaches = reached(package_id)
+        targets = tuple(sorted(
+            (
+                target["name"], tuple(target["kind"]), tuple(target["crate_types"]),
+                target.get("edition", ""), tuple(sorted(target.get("required-features", []))),
+                _relative(target["src_path"], export), target.get("test", True),
+                target.get("doctest", True),
+            )
+            for target in package["targets"]
+        ))
+        dependencies = tuple(sorted(
+            (
+                label(dependency["pkg"]), dependency["name"],
+                tuple(sorted((kind["kind"] or "normal", kind["target"] or "")
+                             for kind in dependency["dep_kinds"])),
+            )
+            for dependency in node["deps"]
+        ))
+        signature = (
+            package["edition"], package.get("rust_version") or "", package.get("links") or "",
+            json.dumps(package["features"], sort_keys=True), targets,
+            tuple(sorted(node["features"])), dependencies,
+            tuple(sorted((label(current), tuple(sorted(nodes[current]["features"])))
+                         for current in reaches)),
+        )
+        resolved[package["name"]] = ResolvedPackage(
+            signature, frozenset(by_id[current]["name"] for current in reaches))
+    reach: dict[str, frozenset[str]] = {}
+    for package_id in nodes:
+        name = by_id[package_id]["name"]
+        reach[name] = reach.get(name, frozenset()) | frozenset(
+            by_id[current]["name"] for current in reached(package_id))
+    root = _relative(record["workspace_root"], export)
+    return Resolution(f"{root}/Cargo.toml" if root else "Cargo.toml", resolved, reach)
+
+
+def read_resolution(export: pathlib.Path, manifest: str,
+                    config: pathlib.Path | None = None) -> Resolution:
+    """The workspace `manifest` belongs to, resolved against the export's
+    committed lock. `--filter-platform` keeps only the host's dependency
+    edges, which are the ones clippy compiles; it does not filter features,
+    which metadata reports unified across platforms (`ResolvedPackage`)."""
+    from atlas_build_inputs import effective_compiler_environment
+
+    manifest_path = export / manifest
+    cargo_command = cargo(config)
+    environment = effective_compiler_environment(manifest_path, export, cargo_command)
+    out = subprocess.run(
+        [*cargo_command, "metadata", "--format-version", "1", "--locked",
+         "--filter-platform", "host-tuple", "--manifest-path", str(manifest_path)],
+        cwd=export, env=environment,
+        capture_output=True, text=True, encoding="utf-8", check=True,
+    ).stdout
+    return resolution(json.loads(out), export)
+
+
+def changed_table_packages(base_text: str | None, tip_text: str | None) -> frozenset[str]:
+    """The package names of every `[workspace.dependencies]` entry the range
+    adds, removes or changes, at either side (`package = ...` renames)."""
+    def table(text: str | None) -> dict:
+        data = tomllib.loads(text) if text is not None else {}
+        workspace = data.get("workspace")
+        entries = workspace.get("dependencies") if isinstance(workspace, dict) else None
+        return entries if isinstance(entries, dict) else {}
+
+    def package_name(key: str, entry: object) -> str:
+        renamed = entry.get("package") if isinstance(entry, dict) else None
+        return renamed if isinstance(renamed, str) else key
+
+    base, tip = table(base_text), table(tip_text)
+    return frozenset(
+        package_name(key, side[key])
+        for key in base.keys() | tip.keys() if base.get(key) != tip.get(key)
+        for side in (base, tip) if key in side
+    )
+
+
+def without_workspace_dependencies(text: str | None) -> dict | None:
+    """A root manifest with `[workspace.dependencies]` removed: those entries
+    reach a package only through its own resolved dependencies."""
+    if text is None:
+        return None
+    data = tomllib.loads(text)
+    workspace = data.get("workspace")
+    if isinstance(workspace, dict):
+        workspace.pop("dependencies", None)
+    return data
+
+
+def resolved_changes(repo: pathlib.Path, base: str, tip: str, base_export: pathlib.Path,
+                     tip_export: pathlib.Path, manifest: str,
+                     config: pathlib.Path | None = None) -> tuple[frozenset[str] | None, str]:
+    """The members a changed root manifest compiles differently, or None and
+    the reason when every member must be gated.
+
+    A root manifest whose only change is to `[workspace.dependencies]` reaches
+    a member only through the packages the member resolves and the features
+    their compilation enables. A member is changed when its resolved
+    signature differs, when it is new, or when it is or reaches a package a
+    changed entry names or one such a package reaches, at either revision:
+    an entry's features enable features only of its package and the
+    packages that package depends on, and metadata's unified features can
+    hide that change from every signature (`ResolvedPackage`). Any other root
+    change, a range that leaves the root manifest unchanged, a changed
+    toolchain pin, cargo config or nextest config, a manifest Python cannot
+    parse, and a revision cargo cannot resolve gate every member: those
+    reach members by no resolved dependency this reads.
+    """
+    from atlas_build_inputs import BuildIdentityError
+
+    try:
+        paths = [path for entry in changed_entries(repo, base, tip) for path in entry]
+    except (subprocess.CalledProcessError, OSError, UnicodeDecodeError) as error:
+        return None, f"git could not list the pushed range ({error})"
+    for path in paths:
+        if (path.rsplit("/", 1)[-1] in GLOBAL_INPUTS or "/.cargo/" in f"/{path}"
+                or f"/{path}".endswith("/.config/nextest.toml")):
+            return None, f"{path} changed"
+    try:
+        base_resolution = read_resolution(base_export, manifest, config)
+        tip_resolution = read_resolution(tip_export, manifest, config)
+    except (subprocess.CalledProcessError, OSError, ValueError, KeyError) as error:
+        return None, f"cargo metadata could not resolve both revisions ({error})"
+    except BuildIdentityError as error:
+        # The build environment parses `manifest` with `tomllib` first, so a
+        # manifest cargo accepts but Python cannot parse ends here.
+        return None, f"the build environment cannot be read ({error})"
+    root_manifest = base_resolution.root_manifest
+    if tip_resolution.root_manifest != root_manifest:
+        return None, "the workspace root moved"
+    if root_manifest not in paths:
+        return None, f"{root_manifest} is not changed by the pushed range"
+    base_text, tip_text = git_file(repo, base, root_manifest), git_file(repo, tip, root_manifest)
+    try:
+        if without_workspace_dependencies(base_text) != without_workspace_dependencies(tip_text):
+            return None, f"{root_manifest} changes beyond [workspace.dependencies]"
+        entries = changed_table_packages(base_text, tip_text)
+    except tomllib.TOMLDecodeError as error:
+        return None, f"{root_manifest} does not parse as TOML here ({error})"
+    touched = set(entries)
+    for name in entries:
+        touched |= base_resolution.reach.get(name, frozenset())
+        touched |= tip_resolution.reach.get(name, frozenset())
+    base_packages = base_resolution.members
+    return frozenset(
+        name for name, package in tip_resolution.members.items()
+        if name not in base_packages or base_packages[name].signature != package.signature
+        or name in touched or package.reaches & touched
+        or base_packages[name].reaches & touched
+    ), ""
 
 
 def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
@@ -689,6 +998,20 @@ def triggers(args: argparse.Namespace) -> int:
     return 0
 
 
+def changes(args: argparse.Namespace) -> int:
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+    changed, reason = resolved_changes(
+        pathlib.Path(args.repo), args.base, args.tip, pathlib.Path(args.base_export),
+        pathlib.Path(args.tip_export), args.manifest, args.cargo_config,
+    )
+    if changed is None:
+        print(f"cast gate: every member is gated: {reason}", file=sys.stderr)
+        return 3
+    for package in sorted(changed):
+        print(package)
+    return 0
+
+
 def measure(args: argparse.Namespace) -> int:
     baseline = Baseline.load(args.baseline)
     status, found = run_clippy(
@@ -742,6 +1065,18 @@ def main(argv: list[str] | None = None) -> int:
     trigger.add_argument("--base", required=True)
     trigger.add_argument("--tip", required=True)
     trigger.set_defaults(run=triggers)
+    resolved = commands.add_parser(
+        "resolved-changes",
+        help=("print the members a changed root manifest resolves differently, one per "
+              "line sorted by name; exit 3 for all"))
+    resolved.add_argument("--repo", required=True, help="the member repository")
+    resolved.add_argument("--base", required=True)
+    resolved.add_argument("--tip", required=True)
+    resolved.add_argument("--base-export", required=True, help="checkout of the range's base")
+    resolved.add_argument("--tip-export", required=True, help="checkout of the pushed tip")
+    resolved.add_argument("--manifest", default="Cargo.toml",
+                          help="workspace manifest relative to the exports")
+    resolved.set_defaults(run=changes)
     count = commands.add_parser("measure", help="print per-package counts for a member")
     count.add_argument("--member", required=True)
     count.add_argument("--export", required=True)
