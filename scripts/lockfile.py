@@ -213,6 +213,7 @@ def run_outside_the_overlay(
     manifest: Path | None = None,
     *,
     deadline: float = CARGO_DEADLINE_SECONDS,
+    env: Mapping[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run cargo with a working directory outside the stack root.
 
@@ -240,7 +241,7 @@ def run_outside_the_overlay(
     """
     if manifest is None:
         manifest = MANIFEST
-    environment = dict(os.environ)
+    environment = dict(os.environ if env is None else env)
     if "CARGO_TARGET_DIR" not in environment:
         shared = shared_target_dir(manifest)
         if shared is not None:
