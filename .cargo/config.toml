@@ -38,9 +38,16 @@ target-dir = "target"
 # ritk_filter's lib carried 19 fingerprint variants across 4 profile hashes
 # within 14 hours, debug/deps held 10.3 GiB of rlibs beyond one copy per
 # crate, and a seven-day age sweep reclaimed 13 MiB of a 119 GiB tree
-# because every copy was live. A named-package raise in a member manifest
-# (`[profile.dev.package.<crate>] opt-level = 3`) still applies -- it is
-# more specific than the wildcard -- and is the only sanctioned form.
+# because every copy was live.
+#
+# Named raises (docs/adr/0071-stack-build-profile-budget.md): a crate whose
+# unoptimized code makes a member's push gate miss its deadline is raised by
+# name in `[profile.dev.package]` below, never by a wildcard and never in a
+# member manifest, so the raised crate still has one profile, and one copy,
+# for the whole stack. `[profile.test]` inherits the named entries. A
+# named-package raise in a member manifest still applies -- it is more
+# specific than the wildcard -- and gives that member its own copy of the
+# crate; it is not the sanctioned form.
 #
 # Debuginfo: full DWARF/PDB is the dominant debug-artifact and link-memory
 # cost for generic-heavy code. Development and test code keep line tables
@@ -56,6 +63,62 @@ debug = "line-tables-only"
 [profile.dev.package."*"]
 opt-level = 0
 debug = false
+
+# Numeric kernels at opt-level 1 (measurements: ADR 0071).
+[profile.dev.package]
+apollo-dctdst-core.opt-level = 1
+apollo-fft.opt-level = 1
+apollo-leto-interop.opt-level = 1
+eunomia.opt-level = 1
+hermes-simd.opt-level = 1
+hermes-simd-core.opt-level = 1
+hermes-simd-intrinsics.opt-level = 1
+hermes-simd-types.opt-level = 1
+leto.opt-level = 1
+leto-ops.opt-level = 1
+mnemosyne-arena.opt-level = 1
+mnemosyne-backend.opt-level = 1
+mnemosyne-decay.opt-level = 1
+mnemosyne-heap.opt-level = 1
+mnemosyne-local.opt-level = 1
+mnemosyne-memory.opt-level = 1
+mnemosyne-memory-core.opt-level = 1
+mnemosyne-prof.opt-level = 1
+moirai-async.opt-level = 1
+moirai-core.opt-level = 1
+moirai-executor.opt-level = 1
+moirai-iter.opt-level = 1
+moirai-pal.opt-level = 1
+moirai-parallel.opt-level = 1
+moirai-quic.opt-level = 1
+moirai-runtime.opt-level = 1
+moirai-scheduler.opt-level = 1
+moirai-sync.opt-level = 1
+moirai-transport.opt-level = 1
+moirai-utils.opt-level = 1
+kwavers.opt-level = 1
+kwavers-analysis.opt-level = 1
+kwavers-boundary.opt-level = 1
+kwavers-core.opt-level = 1
+kwavers-diagnostics.opt-level = 1
+kwavers-driver.opt-level = 1
+kwavers-field.opt-level = 1
+kwavers-gpu.opt-level = 1
+kwavers-grid.opt-level = 1
+kwavers-imaging.opt-level = 1
+kwavers-math.opt-level = 1
+kwavers-medium.opt-level = 1
+kwavers-mesh.opt-level = 1
+kwavers-phantom.opt-level = 1
+kwavers-physics.opt-level = 1
+kwavers-python.opt-level = 1
+kwavers-receiver.opt-level = 1
+kwavers-signal.opt-level = 1
+kwavers-simulation.opt-level = 1
+kwavers-solver.opt-level = 1
+kwavers-source.opt-level = 1
+kwavers-therapy.opt-level = 1
+kwavers-transducer.opt-level = 1
 
 # Build scripts and proc-macros are compile-time-only tools; their debuginfo is
 # never stepped through in ordinary work and only inflates the shared cache.
