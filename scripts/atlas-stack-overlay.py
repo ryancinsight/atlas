@@ -436,7 +436,14 @@ def evaluate_requirements(
         timeout=120,
     )
     if result.returncode != 0:
-        detail = result.stderr.strip() or result.stdout.strip() or "no diagnostic"
+        output = result.stdout.strip()
+        diagnostic = result.stderr.strip()
+        details = []
+        if output:
+            details.append(f"stdout:\n{output}")
+        if diagnostic:
+            details.append(f"stderr:\n{diagnostic}")
+        detail = "\n".join(details) if details else "no diagnostic"
         raise RuntimeError(f"native Cargo requirement evaluation failed: {detail}")
     try:
         output = json.loads(result.stdout)

@@ -49,6 +49,60 @@ class NativeRequirementEvaluationTestCase(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "invalid_requirement"):
             _overlay.evaluate_requirements({("1.2.3", "^1 || ^2")})
 
+    def test_native_failure_retains_typed_rows_and_cargo_diagnostic(self) -> None:
+        rows = [
+            {
+                "id": 0,
+                "outcome": "invalid_requirement",
+                "error": "expected comma after major version number",
+            },
+            {
+                "id": 1,
+                "outcome": "invalid_version",
+                "error": "unexpected character in version",
+            },
+        ]
+        output = json.dumps(rows)
+        diagnostic = "cargo: version-guard exited with status 1"
+        result = subprocess.CompletedProcess([], 1, output, diagnostic)
+        with (
+            patch.object(_overlay, "run_tool", return_value=result),
+            self.assertRaises(RuntimeError) as caught,
+        ):
+            _overlay.evaluate_requirements(
+                {("1.2.3", "^1 || ^2"), ("not-a-version", "^1")}
+            )
+        self.assertEqual(
+            str(caught.exception),
+            "native Cargo requirement evaluation failed: "
+            f"stdout:\n{output}\nstderr:\n{diagnostic}",
+        )
+
+    def test_native_failure_labels_each_nonempty_stream(self) -> None:
+        cases = [
+            (
+                "typed row",
+                "",
+                "native Cargo requirement evaluation failed: stdout:\ntyped row",
+            ),
+            (
+                "",
+                "cargo diagnostic",
+                "native Cargo requirement evaluation failed: "
+                "stderr:\ncargo diagnostic",
+            ),
+            ("", "", "native Cargo requirement evaluation failed: no diagnostic"),
+        ]
+        for output, diagnostic, expected in cases:
+            with self.subTest(output=output, diagnostic=diagnostic):
+                result = subprocess.CompletedProcess([], 1, output, diagnostic)
+                with (
+                    patch.object(_overlay, "run_tool", return_value=result),
+                    self.assertRaises(RuntimeError) as caught,
+                ):
+                    _overlay.evaluate_requirements({("1.2.3", "^1")})
+                self.assertEqual(str(caught.exception), expected)
+
     def test_non_integer_native_row_identity_is_rejected(self) -> None:
         for invalid_id in (False, 0.0):
             with self.subTest(invalid_id=invalid_id):
