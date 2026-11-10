@@ -2,10 +2,10 @@
 """Integration tests for the owned member pre-push gate.
 
 `scripts/git-hooks/pre-push` is the single source every member's
-`.githooks/pre-push` copies. These tests drive
-the script itself in fixture git repositories with stub `cargo`/`lockfile`
-tools, so the range logic, the package mapper, and the blame classifier
-are verified without a toolchain or network. The stub cargo runs in the
+`.githooks/pre-push` copies. Most tests drive the script itself in fixture
+git repositories with stub `cargo`/`lockfile` tools, so the range logic,
+package mapper, and blame classifier need no toolchain or network. The root
+lock regression runs the installed Cargo and nextest. The stub cargo runs in the
 gate's export of the pushed revision, so its package metadata and failure
 logs name `@ROOT@`, which it replaces with its own working directory.
 """
@@ -4792,6 +4792,215 @@ class StackToolBaselineTestCase(unittest.TestCase):
 
 COMPILE_ERROR = ("error[E0433]: failed to resolve: use of undeclared crate or module `gone`\n"
                  "error: could not compile `foo` (lib) due to 1 previous error")
+
+
+@unittest.skipUnless(
+    shutil.which("cargo") and shutil.which("cargo-nextest"),
+    "real Cargo and cargo-nextest are required",
+)
+class WorkspaceRootLockNativeGateTestCase(unittest.TestCase):
+    """A virtual workspace lock change runs every native package gate."""
+
+    packages = ("lock-gate-alpha", "lock-gate-beta")
+
+    @staticmethod
+    def _install_real_stack_tools(stack: pathlib.Path) -> None:
+        source = SCRIPT.parents[1]
+        destination = stack / "scripts"
+        names = {
+            "atlas-build-identity.py",
+            "atlas-secret-scan.py",
+            "atlas_cast_gate.py",
+            "cast-baseline.json",
+            "lockfile.py",
+            "process_tree.py",
+            "windows_process.py",
+            "darwin_process.py",
+        }
+        names.update(path.name for path in source.glob("atlas_build_*.py"))
+        for name in names:
+            shutil.copy2(source / name, destination / name)
+        _publish_stack_scripts(stack)
+
+    @staticmethod
+    def _cargo_recorder(root: pathlib.Path, cargo: str) -> pathlib.Path:
+        recorder = root / "bin" / ("real-cargo.cmd" if os.name == "nt" else "real-cargo")
+        if os.name == "nt":
+            _write(
+                recorder,
+                '@echo off\r\necho %*>>"%REAL_CARGO_CALLS%"\r\n'
+                f'"{cargo}" %*\r\nexit /b %errorlevel%\r\n',
+            )
+        else:
+            _write(
+                recorder,
+                "#!/usr/bin/env bash\n"
+                'printf "%s\\n" "$*" >> "$REAL_CARGO_CALLS"\n'
+                f"exec {shlex.quote(cargo)} \"$@\"\n",
+                executable=True,
+            )
+        return recorder
+
+    def _fixture(self, temp: str, broken: bool) -> tuple[GateFixture, str, str]:
+        fixture = GateFixture.in_stack(pathlib.Path(temp))
+        root = fixture.root
+        self._install_real_stack_tools(fixture.stack)
+        provider = pathlib.Path(temp) / "provider"
+        _git_init_repo(provider)
+        _write(
+            provider / "Cargo.toml",
+            '[package]\nname = "fixture-provider"\nversion = "0.1.0"\nedition = "2024"\n',
+        )
+        _write(
+            provider / "src" / "lib.rs",
+            "/// Scales a value.\npub fn scale(value: u32) -> u32 { value * 2 }\n",
+        )
+        _git(provider, "add", "Cargo.toml", "src/lib.rs")
+        _git(provider, "commit", "-q", "-m", "provider base")
+        _write(
+            root / "Cargo.toml",
+            '[workspace]\nresolver = "3"\nmembers = ["crates/alpha", "crates/beta"]\n',
+        )
+        _write(
+            root / ".config" / "nextest.toml",
+            '[profile.default]\nretries = 0\n'
+            'slow-timeout = { period = "30s", terminate-after = 2 }\n',
+        )
+        sources = {
+            "alpha": (
+                "/// Combines both inputs.\n"
+                "pub fn combine(left: u32, right: u32) -> u32 { "
+                "fixture_provider::scale(left) + right }\n"
+                "#[cfg(test)] mod tests { use super::combine; "
+                "#[test] fn uses_both_inputs() { assert_eq!(combine(3, 5), 11); "
+                "assert_eq!(combine(4, 1), 9); } }\n"
+            ),
+            "beta": (
+                'compile_error!("workspace lock gate must compile every member");\n'
+                if broken
+                else (
+                    "/// Applies a value-sensitive offset.\n"
+                    "pub fn offset(value: u32) -> u32 { value + 7 }\n"
+                    "#[cfg(test)] mod tests { use super::offset; "
+                    "#[test] fn uses_the_input() { assert_eq!(offset(2), 9); "
+                    "assert_eq!(offset(8), 15); } }\n"
+                )
+            ),
+        }
+        for directory, package in (("alpha", self.packages[0]), ("beta", self.packages[1])):
+            dependency = (
+                f'\n[dependencies]\nfixture-provider = {{ git = "{provider.as_uri()}" }}\n'
+                if directory == "alpha"
+                else ""
+            )
+            _write(
+                root / "crates" / directory / "Cargo.toml",
+                f'[package]\nname = "{package}"\nversion = "0.1.0"\nedition = "2024"\n'
+                + dependency,
+            )
+            _write(root / "crates" / directory / "src" / "lib.rs", sources[directory])
+        shutil.rmtree(root / "crates" / "foo")
+        cargo = shutil.which("cargo")
+        assert cargo is not None
+        subprocess.run(
+            [cargo, "generate-lockfile", "--manifest-path", str(root / "Cargo.toml")],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            timeout=WATCHDOG_SECONDS,
+        )
+        subprocess.run(
+            [cargo, "fmt", "--all", "--manifest-path", str(root / "Cargo.toml")],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            timeout=WATCHDOG_SECONDS,
+        )
+        base = _commit_all(root, "real workspace")
+        subprocess.run(
+            ["git", "-C", str(root), *_IDENT, "push", "-q", "origin", "HEAD:main"],
+            check=True,
+            timeout=WATCHDOG_SECONDS,
+        )
+        _git(root, "switch", "-q", "-c", "lock-only")
+        _write(
+            provider / "src" / "lib.rs",
+            "/// Scales a value.\n"
+            "pub fn scale(value: u32) -> u32 { value.saturating_mul(2) }\n",
+        )
+        _git(provider, "add", "src/lib.rs")
+        _git(provider, "commit", "-q", "-m", "provider candidate")
+        provider_candidate = _git(provider, "rev-parse", "HEAD")
+        subprocess.run(
+            [
+                cargo,
+                "update",
+                "--manifest-path",
+                str(root / "Cargo.toml"),
+                "-p",
+                "fixture-provider",
+                "--precise",
+                provider_candidate,
+            ],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            timeout=WATCHDOG_SECONDS,
+        )
+        candidate = _commit_all(root, "lock only")
+        self.assertEqual(
+            _git(root, "diff", "--name-only", f"{base}..{candidate}"), "Cargo.lock"
+        )
+        for name in ("cargo", "cargo.cmd", "cargo-nextest"):
+            (fixture.bin / name).unlink(missing_ok=True)
+        return fixture, base, candidate
+
+    def _run(self, fixture: GateFixture, candidate: str) -> tuple[int, str, list[str]]:
+        cargo = shutil.which("cargo")
+        assert cargo is not None
+        calls = fixture.root / "real-cargo-calls.log"
+        recorder = self._cargo_recorder(fixture.root, cargo)
+        code, stderr = fixture.run_hook(
+            f"refs/heads/lock-only {candidate} refs/heads/lock-only {ZERO}\n",
+            {
+                "CARGO": str(recorder),
+                "CARGO_TARGET_DIR": str(shared_target_directory()),
+                "REAL_CARGO_CALLS": str(calls),
+            },
+        )
+        recorded = calls.read_text(encoding="utf-8").splitlines() if calls.exists() else []
+        return code, stderr, recorded
+
+    def test_lock_only_range_runs_all_native_stages_for_every_member(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-real-lock-gate-") as temp:
+            fixture, _, candidate = self._fixture(temp, broken=False)
+
+            code, stderr, calls = self._run(fixture, candidate)
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating lock-gate-alpha lock-gate-beta", stderr)
+            self.assertIn("push phase passed", stderr)
+            stages = [
+                line for line in calls
+                if line.startswith(("clippy ", "nextest run ", "doc "))
+            ]
+            self.assertEqual([line.split()[0] for line in stages], ["clippy", "nextest", "doc"])
+            for line in stages:
+                self.assertIn("-p lock-gate-alpha", line)
+                self.assertIn("-p lock-gate-beta", line)
+                self.assertIn("--locked", line)
+
+    def test_lock_only_range_exposes_a_member_compile_failure(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-real-lock-gate-") as temp:
+            fixture, _, candidate = self._fixture(temp, broken=True)
+
+            code, stderr, calls = self._run(fixture, candidate)
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("gating lock-gate-alpha lock-gate-beta", stderr)
+            self.assertIn("clippy fails for lock-gate-alpha lock-gate-beta", stderr)
+            self.assertTrue(any(line.startswith("clippy ") for line in calls), calls)
+            self.assertFalse(any(line.startswith("nextest run ") for line in calls), calls)
 
 
 def _cast_gate_stub(log: pathlib.Path, check_exit: int, clippy_exit: int = 0,
