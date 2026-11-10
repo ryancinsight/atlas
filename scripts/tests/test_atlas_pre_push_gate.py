@@ -4968,6 +4968,9 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
                 self.assertTrue(any("fuzz/Cargo.toml" in line.replace("\\", "/") and line.startswith("clippy ")
                                     for line in calls), calls)
 
+
+@unittest.skipUnless(shutil.which("cargo"), "real Cargo is required")
+class StandaloneOwnerClassifierTestCase(unittest.TestCase):
     def test_owner_classification_fails_closed_and_preserves_prior_ownership(self) -> None:
         cargo = shutil.which("cargo")
         assert cargo is not None
@@ -4980,7 +4983,8 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
                      orphan: str = package, generate_root: bool = False, generate_tip: bool = False,
                      second: bool = False, error: str | None = None, dirty: bool = False) -> None:
             with tempfile.TemporaryDirectory(prefix=f"atlas-owner-{name}-") as temp:
-                root = pathlib.Path(temp)
+                scope = pathlib.Path(temp)
+                root = scope / "repo"
                 _git_init_repo(root)
                 if root_manifest is not None:
                     _write(root / "Cargo.toml", root_manifest)
@@ -5007,8 +5011,9 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
                     _write(root / "alt/Cargo.toml", package.replace('name = "probe"', 'name = "alt"') + "[workspace]\n")
                     _write(root / "alt/Cargo.lock", "version = 4\n")
                 tip = _commit_all(root, f"{name} tip")
+
                 def export(revision: str, label: str) -> pathlib.Path:
-                    destination = root.parent / f"{root.name}-{label}"
+                    destination = scope / label
                     destination.mkdir()
                     archive = subprocess.run(["git", "-C", str(root), "archive", f"{revision}^{{tree}}"], check=True,
                                              capture_output=True, timeout=WATCHDOG_SECONDS)
@@ -5038,7 +5043,7 @@ class WorkspaceOwnershipNativeGateTestCase(unittest.TestCase):
             ("implicit", None, "", {}),
             ("excluded", root_workspace + 'exclude=["fuzz"]\n', "", dict(extra=foo, generate_root=True)),
             ("redirect", root_workspace, "", dict(extra=foo, orphan=package + 'workspace="../"\n', generate_root=True)),
-            ("extra", root_workspace, "", dict(extra={**foo, "other/Cargo.toml": member.replace('name = "foo"', 'name = "other"')} , generate_root=True)),
+            ("extra", root_workspace, "", dict(extra={**foo, "other/Cargo.toml": member.replace('name = "foo"', 'name = "other"')}, generate_root=True)),
             ("intermediate", root_workspace, "", dict(manifest="nested/fuzz/Cargo.toml", extra={**foo, "nested/Cargo.toml": member}, generate_root=True)),
             ("nested", root_workspace, "", dict(extra={**foo, "other/Cargo.toml": "[workspace]\nmembers=[]\n"}, generate_root=True)),
             ("nonroot-lock", root_workspace, "", dict(extra={**foo, "other/Cargo.lock": "version = 4\n"}, generate_root=True)),
