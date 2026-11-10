@@ -264,6 +264,16 @@ class CommitTests(unittest.TestCase):
     def plan(self, targets: dict[str, str]):
         return sweep.Plan(Path("repos/leto"), OLD, sweep.stale_packages(LOCK, targets))
 
+    def test_lock_failure_restores_exact_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            lock = Path(directory) / "Cargo.lock"
+            original = b"version = 4\r\n# exact\n"
+            lock.write_bytes(b"changed\n")
+            outcome = sweep.lock_failure(self.plan({"hermes": NEW}), lock, original, "rejected")
+            self.assertEqual((outcome.action, outcome.ok, outcome.detail),
+                             ("failed", False, "rejected"))
+            self.assertEqual(lock.read_bytes(), original)
+
     def test_one_target_names_its_provider_and_revision(self) -> None:
         self.assertEqual(sweep.branch_name({"hermes": NEW}), "build/deps-hermes-22222222")
 

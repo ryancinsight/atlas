@@ -10,8 +10,12 @@ workspace's lock silently regenerated the umbrella's instead.
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -57,6 +61,33 @@ class ManifestPathTests(unittest.TestCase):
     def test_the_umbrella_manifest_is_the_default_when_nothing_redirects(self) -> None:
         lockfile.run_outside_the_overlay(["metadata"])
         self.assertEqual(self._manifest_argument(), str(self.original_manifest))
+
+
+@unittest.skipUnless(shutil.which("cargo"), "needs real Cargo")
+class EnvironmentTests(unittest.TestCase):
+    def test_real_cargo_receives_explicit_environment_without_parent_mutation(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="lockfile-env-") as directory:
+            root = Path(directory).resolve()
+            (root / "src").mkdir()
+            (root / "Cargo.toml").write_text(
+                '[package]\nname="environment-probe"\nversion="0.1.0"\nedition="2024"\n',
+                encoding="utf-8",
+            )
+            (root / "src/lib.rs").write_text("", encoding="utf-8")
+            target = root / "selected-target"
+            supplied = {**os.environ, "CARGO_TARGET_DIR": str(target)}
+            parent = dict(os.environ)
+
+            result = lockfile.run_outside_the_overlay(
+                ["metadata", "--no-deps", "--format-version", "1"],
+                manifest=root / "Cargo.toml",
+                env=supplied,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(Path(json.loads(result.stdout)["target_directory"]).resolve(), target)
+            self.assertEqual(dict(os.environ), parent)
+            self.assertEqual(supplied["CARGO_TARGET_DIR"], str(target))
 
 
 if __name__ == "__main__":
