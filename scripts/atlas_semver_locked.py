@@ -174,10 +174,10 @@ def compiled_packages(manifest: Path, package: str, env: dict[str, str],
 
 
 def native_command(manifest: Path, package: str, baseline: str, config: dict) -> list[str]:
-    """Build the native command; every Git baseline uses --baseline-rev."""
+    """Build the native discovery command; policy is evaluated separately."""
     return [
         "cargo", "semver-checks", "--manifest-path", str(manifest), "--package", package,
-        "--baseline-rev", baseline, "--release-type", config["change_class"],
+        "--baseline-rev", baseline, "--release-type", "patch",
         "--target", config["target"], *semver_features(config["feature_policy"], config["features"]),
     ]
 
@@ -209,6 +209,65 @@ def attempt(command: list[str], cwd: Path, env: dict[str, str], timeout: float =
         return {"command": command, "exit_code": None, "status": "cleanup_error",
                 "diagnostics": diagnostics,
                 "diagnostics_sha256": digest_bytes(diagnostics.encode())}
+
+
+def evaluation(native: dict, baseline: str, current: str,
+               phase: str, declared_impact: str) -> tuple[dict, int]:
+    """Separate API discovery, manifest admissibility, and the gate verdict."""
+    ranks = {"patch": 0, "minor": 1, "major": 2}
+    try:
+        boundary = permission(baseline, current)
+    except ValueError as error:
+        manifest = {"status": "inadmissible", "boundary": None, "reason": str(error)}
+    else:
+        if phase == "development":
+            manifest = {
+                "status": "not_required", "boundary": boundary,
+                "reason": "development analysis does not require a release version boundary",
+            }
+        elif ranks[boundary] >= ranks[declared_impact]:
+            manifest = {
+                "status": "admissible", "boundary": boundary,
+                "reason": "manifest boundary permits the declared release impact",
+            }
+        else:
+            manifest = {
+                "status": "inadmissible", "boundary": boundary,
+                "reason": "declared release impact exceeds the manifest boundary",
+            }
+    compatibility = {0: "compatible", 100: "breaking"}.get(
+        native["exit_code"], "unverified",
+    )
+    if compatibility == "unverified":
+        verdict, reason, exit_code = (
+            "unverified", "native API comparison did not complete", 101,
+        )
+    elif manifest["status"] == "inadmissible":
+        verdict, reason, exit_code = "deny", manifest["reason"], 101
+    elif compatibility == "compatible":
+        verdict, reason, exit_code = (
+            "pass", "native API comparison found no breaking change", 0,
+        )
+    elif (phase == "release" and declared_impact == "major"
+          and manifest["boundary"] == "major"):
+        verdict, reason, exit_code = (
+            "pass", "declared major release has a major manifest boundary", 0,
+        )
+    elif phase == "development":
+        verdict, reason, exit_code = (
+            "deny", "breaking development analysis requires reviewed admission", 100,
+        )
+    else:
+        verdict, reason, exit_code = (
+            "deny", "breaking API exceeds the declared release impact", 100,
+        )
+    return {
+        "declared_impact": declared_impact,
+        "native_compatibility": compatibility,
+        "manifest_release_admissibility": manifest,
+        "gate_verdict": verdict,
+        "gate_reason": reason,
+    }, exit_code
 
 
 def supplemental(manifests: list[Path], locks: list[Path], package: str,
@@ -250,8 +309,11 @@ def compare(args) -> int:
         raise ValueError("--head must be the checked-out revision used by the native tool")
     if invoke(["git", "diff-index", "--quiet", head, "--"], repo, env, 120).returncode != 0:
         raise ValueError("native comparison requires a clean tracked checkout")
+    phase = getattr(args, "phase", "release")
     config = {
+        "phase": phase,
         "change_class": args.change_class,
+        "native_discovery_impact": "patch",
         "feature_policy": args.feature_policy,
         "features": args.features,
         "target": args.target,
@@ -264,7 +326,7 @@ def compare(args) -> int:
     if version != f"cargo-semver-checks {TOOL_VERSION}":
         raise RuntimeError(f"expected cargo-semver-checks {TOOL_VERSION}, found {version!r}")
     report = {
-        "schema": 1, "base": base, "head": head, "configuration": config,
+        "schema": 2, "base": base, "head": head, "configuration": config,
         "tool": {"version": version, "sha256": digest(Path(tool))}, "packages": [],
     }
     exit_code = 0
@@ -282,24 +344,21 @@ def compare(args) -> int:
             inventories, locks = zip(*(inventory(manifest, env) for manifest in manifests))
             for package in args.packages:
                 pair = [inventory_[package] for inventory_ in inventories]
-                boundary = permission(pair[0]["version"], pair[1]["version"])
                 command = native_command(repo / relative, package, base, config)
                 native = attempt(command, repo, env)
                 entry = {
                     "name": package, "versions": [pair[0]["version"], pair[1]["version"]],
-                    "manifest_permission": boundary, "native": native,
+                    "native": native,
                     "manifest_sha256": [digest(manifest) for manifest in manifests],
                     "lock_sha256": [digest(lock) for lock in locks],
                 }
-                if {"patch": 0, "minor": 1, "major": 2}[boundary] < {
-                    "patch": 0, "minor": 1, "major": 2
-                }[args.change_class]:
-                    entry["manifest_error"] = "declared change class exceeds manifest boundary"
-                    exit_code = 101
-                if native["exit_code"] == 100:
-                    exit_code = max(exit_code, 100)
-                elif native["exit_code"] != 0:
-                    exit_code = 101
+                outcome, package_exit = evaluation(
+                    native, pair[0]["version"], pair[1]["version"],
+                    phase, args.change_class,
+                )
+                entry.update(outcome)
+                exit_code = max(exit_code, package_exit)
+                if native["exit_code"] not in (0, 100):
                     known = native["exit_code"] == 101 and all(
                         fragment in native["diagnostics"]
                         for fragment in KNOWN_RESOLUTION_DIAGNOSTICS
@@ -321,7 +380,7 @@ def compare(args) -> int:
     return exit_code
 
 
-def parse_args():
+def parse_args(argv: list[str] | None = None):
     """Parse the explicit comparison contract."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, required=True)
@@ -330,12 +389,13 @@ def parse_args():
     parser.add_argument("--manifest-path", default="Cargo.toml")
     parser.add_argument("--package", required=True)
     parser.add_argument("--toolchain", required=True)
+    parser.add_argument("--phase", choices=("development", "release"), default="release")
     parser.add_argument("--change-class", choices=("patch", "minor", "major"), required=True)
     parser.add_argument("--feature-policy", choices=("all", "default", "explicit"), required=True)
     parser.add_argument("--features", default="")
     parser.add_argument("--target", required=True)
     parser.add_argument("--report", type=Path, required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     args.packages = [name.strip() for name in args.package.split(",") if name.strip()]
     args.features = [name.strip() for name in args.features.split(",") if name.strip()]
     if not args.packages or len(args.packages) != len(set(args.packages)):
