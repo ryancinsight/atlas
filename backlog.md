@@ -109,6 +109,7 @@
 <a id="atlas-unwired-gates-224"></a>- [ATLAS-UNWIRED-GATES-224](backlog/atlas-unwired-gates-224.md) — Instruments that exist, pass, and are never run [patch] — todo
 <a id="atlas-us-capability-023"></a>- [ATLAS-US-CAPABILITY-023](backlog/atlas-us-capability-023.md) — ITKUltrasound capability parity [arch] — todo
 <a id="atlas-usct-fwi-024"></a>- [ATLAS-USCT-FWI-024](backlog/atlas-usct-fwi-024.md) — Transmission-USCT FWI parity [minor] — todo
+<a id="atlas-v1-milestone-ladders-001"></a>- [ATLAS-V1-MILESTONE-LADDERS-001](backlog/atlas-v1-milestone-ladders-001.md) — Roll the 1.0 milestone ladder out to every member [arch] — todo
 <a id="atlas-version-coherence-sweep-2026-09-30"></a>- [ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30](backlog/atlas-version-coherence-sweep-2026-09-30.md) — Follow the current provider cohort into every consumer [correctness] — todo
 <a id="atlas-version-guard-001"></a>- [ATLAS-VERSION-GUARD-001](backlog/atlas-version-guard-001.md) — Manifest-version guard and stack coherence check [patch] — todo
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
@@ -122,4 +123,3 @@
 <a id="atlas-zip9-cohort-sweep"></a>- [ATLAS-ZIP9-COHORT-SWEEP](backlog/atlas-zip9-cohort-sweep.md) — Clear the zip < 9 advisories by moving kwavers onto the current cohort [patch] — todo
 <a id="atlas-full-parity-001"></a>- [ATLAS-FULL-PARITY-001](backlog/atlas-full-parity-001.md) — Define and execute four-framework 1.0 qualification [patch] — todo
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
-<a id="atlas-v1-milestone-ladders-001"></a>- [ATLAS-V1-MILESTONE-LADDERS-001](backlog/atlas-v1-milestone-ladders-001.md) — Roll the 1.0 milestone ladder out to every member [arch] — todo
