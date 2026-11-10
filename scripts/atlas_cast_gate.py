@@ -54,6 +54,8 @@ crate that returns to the workspace brings that debt with it. The membership
 is read from the base revision's own manifests, so a package the push adds is
 absent from it.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
+    atlas_cast_gate.py resolved-changes --repo <dir> --base <sha> --tip <sha> \
+        --base-export <dir> --tip-export <dir>
     atlas_cast_gate.py measure --member eunomia --export <dir>
     atlas_cast_gate.py ratchet --repo <atlas> --base <sha> --tip <sha>
 
@@ -375,6 +377,11 @@ def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
     return list(dict.fromkeys(reasons))
 
 
+# Toolchain pins: a change reaches every package by no resolved dependency,
+# so `resolved_changes` gates every member.
+GLOBAL_INPUTS = ("rust-toolchain", "rust-toolchain.toml")
+
+
 @dataclass(frozen=True)
 class ResolvedPackage:
     """One workspace package as `cargo metadata` resolves it at one revision.
@@ -536,6 +543,69 @@ def without_workspace_dependencies(text: str | None) -> dict | None:
     if isinstance(workspace, dict):
         workspace.pop("dependencies", None)
     return data
+
+
+def resolved_changes(repo: pathlib.Path, base: str, tip: str, base_export: pathlib.Path,
+                     tip_export: pathlib.Path, manifest: str,
+                     config: pathlib.Path | None = None) -> tuple[frozenset[str] | None, str]:
+    """The members a changed root manifest compiles differently, or None and
+    the reason when every member must be gated.
+
+    A root manifest whose only change is to `[workspace.dependencies]` reaches
+    a member only through the packages the member resolves and the features
+    their compilation enables. A member is changed when its resolved
+    signature differs, when it is new, or when it is or reaches a package a
+    changed entry names or one such a package reaches, at either revision:
+    an entry's features enable features only of its package and the
+    packages that package depends on, and metadata's unified features can
+    hide that change from every signature (`ResolvedPackage`). Any other root
+    change, a range that leaves the root manifest unchanged, a changed
+    toolchain pin, cargo config or nextest config, a manifest Python cannot
+    parse, and a revision cargo cannot resolve gate every member: those
+    reach members by no resolved dependency this reads.
+    """
+    from atlas_build_inputs import BuildIdentityError
+
+    try:
+        paths = [path for entry in changed_entries(repo, base, tip) for path in entry]
+    except (subprocess.CalledProcessError, OSError, UnicodeDecodeError) as error:
+        return None, f"git could not list the pushed range ({error})"
+    for path in paths:
+        if (path.rsplit("/", 1)[-1] in GLOBAL_INPUTS or "/.cargo/" in f"/{path}"
+                or f"/{path}".endswith("/.config/nextest.toml")):
+            return None, f"{path} changed"
+    try:
+        base_resolution = read_resolution(base_export, manifest, config)
+        tip_resolution = read_resolution(tip_export, manifest, config)
+    except (subprocess.CalledProcessError, OSError, ValueError, KeyError) as error:
+        return None, f"cargo metadata could not resolve both revisions ({error})"
+    except BuildIdentityError as error:
+        # The build environment parses `manifest` with `tomllib` first, so a
+        # manifest cargo accepts but Python cannot parse ends here.
+        return None, f"the build environment cannot be read ({error})"
+    root_manifest = base_resolution.root_manifest
+    if tip_resolution.root_manifest != root_manifest:
+        return None, "the workspace root moved"
+    if root_manifest not in paths:
+        return None, f"{root_manifest} is not changed by the pushed range"
+    base_text, tip_text = git_file(repo, base, root_manifest), git_file(repo, tip, root_manifest)
+    try:
+        if without_workspace_dependencies(base_text) != without_workspace_dependencies(tip_text):
+            return None, f"{root_manifest} changes beyond [workspace.dependencies]"
+        entries = changed_table_packages(base_text, tip_text)
+    except tomllib.TOMLDecodeError as error:
+        return None, f"{root_manifest} does not parse as TOML here ({error})"
+    touched = set(entries)
+    for name in entries:
+        touched |= base_resolution.reach.get(name, frozenset())
+        touched |= tip_resolution.reach.get(name, frozenset())
+    base_packages = base_resolution.members
+    return frozenset(
+        name for name, package in tip_resolution.members.items()
+        if name not in base_packages or base_packages[name].signature != package.signature
+        or name in touched or package.reaches & touched
+        or base_packages[name].reaches & touched
+    ), ""
 
 
 def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
@@ -856,6 +926,20 @@ def triggers(args: argparse.Namespace) -> int:
     return 0
 
 
+def changes(args: argparse.Namespace) -> int:
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+    changed, reason = resolved_changes(
+        pathlib.Path(args.repo), args.base, args.tip, pathlib.Path(args.base_export),
+        pathlib.Path(args.tip_export), args.manifest, args.cargo_config,
+    )
+    if changed is None:
+        print(f"cast gate: every member is gated: {reason}", file=sys.stderr)
+        return 3
+    for package in sorted(changed):
+        print(package)
+    return 0
+
+
 def measure(args: argparse.Namespace) -> int:
     baseline = Baseline.load(args.baseline)
     status, found = run_clippy(
@@ -909,6 +993,18 @@ def main(argv: list[str] | None = None) -> int:
     trigger.add_argument("--base", required=True)
     trigger.add_argument("--tip", required=True)
     trigger.set_defaults(run=triggers)
+    resolved = commands.add_parser(
+        "resolved-changes",
+        help=("print the members a changed root manifest resolves differently, one per "
+              "line sorted by name; exit 3 for all"))
+    resolved.add_argument("--repo", required=True, help="the member repository")
+    resolved.add_argument("--base", required=True)
+    resolved.add_argument("--tip", required=True)
+    resolved.add_argument("--base-export", required=True, help="checkout of the range's base")
+    resolved.add_argument("--tip-export", required=True, help="checkout of the pushed tip")
+    resolved.add_argument("--manifest", default="Cargo.toml",
+                          help="workspace manifest relative to the exports")
+    resolved.set_defaults(run=changes)
     count = commands.add_parser("measure", help="print per-package counts for a member")
     count.add_argument("--member", required=True)
     count.add_argument("--export", required=True)
