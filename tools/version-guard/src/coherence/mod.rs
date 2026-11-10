@@ -312,7 +312,13 @@ pub fn scan_atlas(atlas_root: &Path, view: View) -> Result<CoherenceReport, Erro
                 continue;
             };
             requirement_count += 1;
-            if !matches_requirement(required, &package.version)? {
+            let satisfies = matches_requirement(required, &package.version).map_err(|source| {
+                Error::Manifest {
+                    path: manifest.display_path.clone(),
+                    message: source.to_string(),
+                }
+            })?;
+            if !satisfies {
                 findings.push(CoherenceFinding {
                     consumer: manifest.consumer.clone(),
                     manifest: manifest.display_path.clone(),

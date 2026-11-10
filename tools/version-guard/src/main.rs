@@ -146,8 +146,11 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
         }
         Subcommand::Requirements => {
             let mut input = String::new();
-            std::io::stdin().read_to_string(&mut input)?;
-            let rows: Vec<RequirementInput> = serde_json::from_str(&input)?;
+            std::io::stdin()
+                .read_to_string(&mut input)
+                .map_err(|source| requirement_input_error(source.to_string()))?;
+            let rows: Vec<RequirementInput> =
+                serde_json::from_str(&input).map_err(|source| requirement_json_error(&source))?;
             let results = evaluate_requirements(rows);
             let malformed = results.iter().any(|row| {
                 matches!(
@@ -155,7 +158,11 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
                     RequirementOutcome::InvalidVersion | RequirementOutcome::InvalidRequirement
                 )
             });
-            println!("{}", serde_json::to_string(&results)?);
+            println!(
+                "{}",
+                serde_json::to_string(&results)
+                    .map_err(|source| requirement_json_error(&source))?
+            );
             Ok(if malformed {
                 ExitCode::from(1)
             } else {
@@ -163,6 +170,17 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
             })
         }
     }
+}
+
+fn requirement_input_error(message: String) -> Error {
+    Error::Manifest {
+        path: String::from("stdin"),
+        message,
+    }
+}
+
+fn requirement_json_error(source: &serde_json::Error) -> Error {
+    requirement_input_error(format!("requirement batch JSON failed: {source}"))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

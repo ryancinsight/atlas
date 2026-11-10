@@ -4,13 +4,13 @@ use std::fmt;
 
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::value::RawValue;
 
 /// One requirement evaluation requested by a batch caller.
 #[derive(Debug, Deserialize)]
 pub struct RequirementInput {
     /// Caller-owned identity copied unchanged to the result.
-    pub id: Value,
+    pub id: Box<RawValue>,
     /// Complete semantic version to evaluate.
     pub version: String,
     /// Cargo version requirement to evaluate.
@@ -35,7 +35,7 @@ pub enum RequirementOutcome {
 #[derive(Debug, Serialize)]
 pub struct RequirementOutput {
     /// Caller-owned identity copied from the input row.
-    pub id: Value,
+    pub id: Box<RawValue>,
     /// Typed semantic result.
     pub outcome: RequirementOutcome,
     /// Parser diagnostic for an invalid version or requirement.
@@ -43,42 +43,19 @@ pub struct RequirementOutput {
     pub error: Option<String>,
 }
 
-/// A malformed version or Cargo requirement.
 #[derive(Debug)]
-pub enum RequirementError {
-    /// The selected version is malformed.
-    Version {
-        /// Input that failed to parse.
-        value: String,
-        /// Parser diagnostic.
-        source: semver::Error,
-    },
-    /// The Cargo requirement is malformed.
-    Requirement {
-        /// Input that failed to parse.
-        value: String,
-        /// Parser diagnostic.
-        source: semver::Error,
-    },
+pub(crate) enum RequirementError {
+    Version(semver::Error),
+    Requirement(semver::Error),
 }
 
 impl fmt::Display for RequirementError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Version { value, source } => {
-                write!(formatter, "invalid semantic version `{value}`: {source}")
+            Self::Version(source) => write!(formatter, "invalid selected version: {source}"),
+            Self::Requirement(source) => {
+                write!(formatter, "invalid Cargo requirement: {source}")
             }
-            Self::Requirement { value, source } => {
-                write!(formatter, "invalid Cargo requirement `{value}`: {source}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for RequirementError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Version { source, .. } | Self::Requirement { source, .. } => Some(source),
         }
     }
 }
@@ -92,10 +69,10 @@ pub fn evaluate_requirements(rows: Vec<RequirementInput>) -> Vec<RequirementOutp
             let (outcome, error) = match result {
                 Ok(true) => (RequirementOutcome::Satisfied, None),
                 Ok(false) => (RequirementOutcome::Unsatisfied, None),
-                Err(RequirementError::Version { source, .. }) => {
+                Err(RequirementError::Version(source)) => {
                     (RequirementOutcome::InvalidVersion, Some(source.to_string()))
                 }
-                Err(RequirementError::Requirement { source, .. }) => (
+                Err(RequirementError::Requirement(source)) => (
                     RequirementOutcome::InvalidRequirement,
                     Some(source.to_string()),
                 ),
@@ -113,15 +90,8 @@ pub(crate) fn matches_requirement(
     requirement: &str,
     actual: &str,
 ) -> Result<bool, RequirementError> {
-    let actual = Version::parse(actual).map_err(|source| RequirementError::Version {
-        value: actual.to_owned(),
-        source,
-    })?;
-    let requirement =
-        VersionReq::parse(requirement).map_err(|source| RequirementError::Requirement {
-            value: requirement.to_owned(),
-            source,
-        })?;
+    let actual = Version::parse(actual).map_err(RequirementError::Version)?;
+    let requirement = VersionReq::parse(requirement).map_err(RequirementError::Requirement)?;
     Ok(requirement.matches(&actual))
 }
 
@@ -156,20 +126,27 @@ mod tests {
     }
 
     #[test]
-    fn malformed_inputs_are_typed_results() {
-        let results = evaluate_requirements(vec![
-            RequirementInput {
-                id: Value::from("version"),
-                version: String::from("1.2"),
-                requirement: String::from("*"),
-            },
-            RequirementInput {
-                id: Value::from("requirement"),
-                version: String::from("1.2.3"),
-                requirement: String::from("^1 || ^2"),
-            },
-        ]);
+    fn malformed_inputs_are_typed_without_interpreting_json_identity() {
+        let rows: Vec<RequirementInput> = serde_json::from_str(
+            r#"[{"id":18446744073709551617,"version":"1.2","requirement":"*"},{"id":18446744073709551618,"version":"1.2.3","requirement":"^1 || ^2"},{"id":{"$serde_json::private::Number":"123"},"version":"1.2.3","requirement":"*"},{"id":{"deep":[{"value":1.2300e+400}]},"version":"1.2.3","requirement":"*"}]"#,
+        )
+        .expect("invariant: static requirement rows are valid JSON");
+        let results = evaluate_requirements(rows);
         assert_eq!(results[0].outcome, RequirementOutcome::InvalidVersion);
         assert_eq!(results[1].outcome, RequirementOutcome::InvalidRequirement);
+        assert_eq!(results[2].outcome, RequirementOutcome::Satisfied);
+        assert_eq!(results[3].outcome, RequirementOutcome::Satisfied);
+        let expected = [
+            "18446744073709551617",
+            "18446744073709551618",
+            r#"{"$serde_json::private::Number":"123"}"#,
+            r#"{"deep":[{"value":1.2300e+400}]}"#,
+        ];
+        let output = serde_json::to_string(&results)
+            .expect("invariant: requirement outputs contain valid raw JSON");
+        for (row, expected) in results.iter().zip(expected) {
+            assert_eq!(row.id.get(), expected);
+            assert!(output.contains(&format!(r#""id":{expected}"#)));
+        }
     }
 }

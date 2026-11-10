@@ -8,8 +8,6 @@
 use std::fmt;
 use std::io;
 
-use crate::coherence::requirement::RequirementError;
-
 /// Errors raised by the manifest-version guard.
 #[derive(Debug)]
 pub enum Error {
@@ -34,10 +32,6 @@ pub enum Error {
         /// The invalid value the caller supplied.
         value: String,
     },
-    /// A selected version or Cargo requirement is malformed.
-    Requirement(RequirementError),
-    /// Requirement batch input or output is not valid JSON.
-    Json(serde_json::Error),
 }
 
 impl fmt::Display for Error {
@@ -61,8 +55,6 @@ impl fmt::Display for Error {
                     "unrecognised --format value `{value}` (expected: human | json)"
                 )
             }
-            Self::Requirement(source) => write!(f, "requirement evaluation failed: {source}"),
-            Self::Json(source) => write!(f, "requirement batch JSON failed: {source}"),
         }
     }
 }
@@ -71,8 +63,6 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io(source) => Some(source),
-            Self::Requirement(source) => Some(source),
-            Self::Json(source) => Some(source),
             Self::Git { .. } | Self::Manifest { .. } | Self::Format { .. } => None,
         }
     }
@@ -81,17 +71,5 @@ impl std::error::Error for Error {
 impl From<io::Error> for Error {
     fn from(source: io::Error) -> Self {
         Self::Io(source)
-    }
-}
-
-impl From<RequirementError> for Error {
-    fn from(source: RequirementError) -> Self {
-        Self::Requirement(source)
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(source: serde_json::Error) -> Self {
-        Self::Json(source)
     }
 }
