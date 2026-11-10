@@ -2,29 +2,12 @@
 ## ATLAS-V1-MILESTONE-LADDERS-001 — Roll the 1.0 milestone ladder out to every member [arch] — todo
 - priority: correctness; owner: atlas coordinator (member lanes execute in their own repos).
 - outcome: every member ships a release-scope ADR, a `backlog/milestones.md` ladder, and `milestone:` assignments on its backlog items, in provider-first order; the atlas V1 path (member ladders + publish chain + parity M4) reads as one ordered plan instead of three.
-- context: six members landed ladders on 2026-11-09 under the harmonia template (release-scope ADR + `backlog/milestones.md` + per-item `milestone:` assignments, each milestone closing only on exit checks at a fetched default-branch commit):
-  - harmonia `7040bb539` (ADR 0005), horae `569763eb2`, hyperion `f0a15a20`, iris `9da14ae6`, melinoe `e75f94d`, proteus `fe2ee9a`.
-  - measured 2026-11-10 at atlas `6483806bc`: 6 of 28 members have ladders; 22 remain.
-  - eunomia lane delivered 2026-11-10: ADR 0012 + `backlog/milestones.md` on
-    branch `docs/eunomia-milestone-ladder-20261110` at `cd84a3d` (PR #193, open);
-    ladder count becomes 7 of 28 on merge.
-  - aequitas lane delivered 2026-11-10: ADR 0020 + `backlog/milestones.md` on
-    branch `docs/aequitas-milestone-ladder-20261110` at `68f70a5` (PR #154, open);
-    owner-gated leftovers (wheel publication, proof-tool decision) assigned to
-    M-ecosystem without gating 1.0; ladder count becomes 8 of 28 on merge.
-  - themis ladder already landed 2026-11-10 via PR #122 (`cfabe45`: ADR 0007 +
-    `backlog/milestones.md` on `origin/main`); completion lane delivered
-    2026-11-10 assigning the five remaining open items (affinity-mask and
-    on-demand axes to M-placement-binding; wasm gating and darwin testing
-    sidecar to M-topology-contracts; MSRV dev-graph marked non-ladder) on
-    branch `docs/themis-milestone-assignments-20261110` at `3b58e11`
-    (PR #124, open); ladder count becomes 9 of 28 on merge.
+- delivered: 2026-11-09 under the harmonia template (release-scope ADR + `backlog/milestones.md` + per-item `milestone:` assignments, each milestone closing only on exit checks at a fetched default-branch commit): harmonia `7040bb539` (ADR 0005), horae `569763eb2`, hyperion `f0a15a20`, iris `9da14ae6`, melinoe `e75f94d`, proteus `fe2ee9a`; 2026-11-10 eunomia (PR #193), aequitas (PR #154) and themis (PR #124) lanes delivered, so 9 of 28 members have ladders once they merge.
 - template (do not reinvent per member): release-scope ADR named `<n>-release-scope-1-0.md` (Accepted, scope in/out with veto points, rejected alternatives, overturning evidence); `backlog/milestones.md` with `M-*` milestones each carrying `exit:` commands, `needs:` edges, and non-goals; every open correctness/verification item assigned to exactly one milestone; the 1.0 milestone blocks on release authority and never forces `publish = true` without it.
-- remaining order (provider-first, so consumer ladders can cite provider exits):
-  1. foundation/compute: eunomia (lane open), aequitas (lane open), themis (landed + lane open), mnemosyne, moirai, hermes, leto, hephaestus;
-  2. providers: apollo, athena, proteus (done), harmonia (done), horae (done), hyperion (done), iris (done), melinoe (done), asclepius, tyche, consus, gaia, prometheus, ares;
-  3. integrators: CFDrs, helios, kwavers, ritk, metis.
-- acceptance per ladder: (a) release-scope ADR accepted in the member; (b) every open correctness/verification item carries a `milestone:` assignment; (c) each `M-1.0` exit names `cargo semver-checks`, publish dry-run readiness, `cargo doc`, and zero open correctness items; (d) atlas records the member's ladder commit SHA here as delivered.
-- needs: none (member-local docs work; no cross-repo code). Blocked-by: nothing at atlas level.
-- non-goals: changing any member's API or exit thresholds from atlas (member ADR owns that); advancing gitlinks (rides the normal pointer-advance chore); the publish chain itself (ATLAS-PUB-002/003/005/006/008/010/011/012/013/015) and parity M4 exits (`docs/parity/execution.md`), which this item sequences after the ladders, not inside them.
+- remaining order (provider-first, so consumer ladders can cite provider exits): foundation/compute eunomia, aequitas, themis, mnemosyne, moirai, hermes, leto, hephaestus; providers apollo, athena, proteus (done), harmonia (done), horae (done), hyperion (done), iris (done), melinoe (done), asclepius, tyche, consus, gaia, prometheus, ares; integrators CFDrs, helios, kwavers, ritk, metis.
+- acceptance per ladder: (a) release-scope ADR accepted in the member; (b) every open correctness/verification item carries a `milestone:` assignment; (c) each `M-1.0` exit names `cargo semver-checks`, publish dry-run readiness, `cargo doc`, and zero open correctness items; (d) atlas records the member's ladder commit here as delivered.
+- needs: none (member-local docs work; no cross-repo code).
+- scope: member `docs/adr/` release-scope records, member `backlog/milestones.md`, and the member backlog items.
+- non-goals: changing any member's API or exit thresholds from atlas (the member ADR owns that); advancing gitlinks (rides the normal pointer-advance chore); the publish chain itself (ATLAS-PUB-002/003/005/006/008/010/011/012/013/015) and parity M4 exits (`docs/parity/execution.md`), which this item sequences after the ladders, not inside them.
 - next: claim the foundation wave (eunomia first — every ladder above it cites scalar law); file one member-lane task per repo in the order above, each `needs:`-edged on its providers' delivered ladders.
+- basis: atlas#625 judge, 2026-11-10.
