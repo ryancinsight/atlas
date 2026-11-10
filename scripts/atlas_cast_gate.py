@@ -143,22 +143,75 @@ class Workspace:
 
     root: pathlib.Path
     packages: list[dict]
+    members: frozenset[str]
     environment: dict[str, str]
 
     def names(self) -> dict[str, str]:
         """Package id to package name, for the workspace members."""
-        return {p["id"]: p["name"] for p in self.packages}
+        return {p["id"]: p["name"] for p in self.packages if p["id"] in self.members}
+
+    def member_manifests(self) -> dict[pathlib.Path, str]:
+        """Absolute member manifest paths to their package names."""
+        return {
+            pathlib.Path(p["manifest_path"]): p["name"]
+            for p in self.packages if p["id"] in self.members
+        }
+
+
+def _workspace_record(record: object, environment: dict[str, str]) -> Workspace:
+    """Validate the ownership fields emitted by Cargo metadata."""
+    if not isinstance(record, dict):
+        raise ValueError("cargo metadata record must be an object")
+    root = record.get("workspace_root")
+    packages = record.get("packages")
+    members = record.get("workspace_members")
+    if not isinstance(root, str) or not pathlib.Path(root).is_absolute():
+        raise ValueError("cargo metadata workspace_root must be an absolute path")
+    if not isinstance(packages, list):
+        raise ValueError("cargo metadata packages must be an array")
+    if (not isinstance(members, list)
+            or any(not isinstance(member, str) for member in members)):
+        raise ValueError("cargo metadata workspace_members must be an array of strings")
+
+    by_id: dict[str, dict] = {}
+    for package in packages:
+        if not isinstance(package, dict):
+            raise ValueError("cargo metadata package must be an object")
+        package_id = package.get("id")
+        name = package.get("name")
+        manifest_path = package.get("manifest_path")
+        if not isinstance(package_id, str) or not isinstance(name, str):
+            raise ValueError("cargo metadata package id and name must be strings")
+        if (not isinstance(manifest_path, str)
+                or not pathlib.Path(manifest_path).is_absolute()):
+            raise ValueError("cargo metadata package manifest_path must be an absolute path")
+        if package_id in by_id:
+            raise ValueError(f"cargo metadata repeats package id {package_id!r}")
+        by_id[package_id] = package
+
+    member_ids = frozenset(members)
+    if len(member_ids) != len(members):
+        raise ValueError("cargo metadata repeats a workspace member")
+    missing = sorted(member_ids - by_id.keys())
+    if missing:
+        raise ValueError(f"cargo metadata omits workspace member packages: {missing!r}")
+    return Workspace(pathlib.Path(root), packages, member_ids, environment)
 
 
 def workspace(export: pathlib.Path, config: pathlib.Path | None = None,
               manifest: str = "Cargo.toml",
-              command_cwd: pathlib.Path | None = None) -> Workspace:
+              command_cwd: pathlib.Path | None = None,
+              metadata_timeout: float = 120.0) -> Workspace:
     """Read `export`'s manifest with config discovery at `command_cwd`.
 
     Omission runs Cargo from the export, preserving the legacy invocation.
+    Cargo owns workspace interpretation; malformed, unlocked, or incomplete
+    metadata is an error rather than evidence that a package is absent.
     """
     from atlas_build_inputs import effective_compiler_environment
 
+    if not 0 < metadata_timeout:
+        raise ValueError("cargo metadata timeout must be positive")
     directory = command_cwd or export
     manifest_path = export / manifest
     cargo_command = cargo(config)
@@ -166,13 +219,13 @@ def workspace(export: pathlib.Path, config: pathlib.Path | None = None,
         manifest_path, directory, cargo_command
     )
     out = subprocess.run(
-        [*cargo_command, "metadata", "--no-deps", "--format-version", "1",
+        [*cargo_command, "metadata", "--no-deps", "--locked", "--format-version", "1",
          "--manifest-path", str(manifest_path)],
         cwd=directory, env=environment,
         capture_output=True, text=True, encoding="utf-8", check=True,
+        timeout=min(metadata_timeout, 120.0),
     ).stdout
-    record = json.loads(out)
-    return Workspace(pathlib.Path(record["workspace_root"]), record["packages"], environment)
+    return _workspace_record(json.loads(out), environment)
 
 
 def sites(messages: Iterable[str], export: pathlib.Path,
