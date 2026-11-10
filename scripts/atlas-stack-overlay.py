@@ -29,6 +29,7 @@ Exit status is nonzero when `check` finds lag, so CI can gate on it.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -37,7 +38,7 @@ from pathlib import Path, PurePosixPath
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lockfile  # noqa: E402
-from atlas_stack import registered_member_names  # noqa: E402
+from atlas_stack import registered_member_names, run_tool  # noqa: E402
 
 ATLAS_ROOT = Path(__file__).resolve().parent.parent
 REPOS = ATLAS_ROOT / "repos"
@@ -352,11 +353,11 @@ def package_repo(path: Path) -> Path:
     return Path(*parts[:2]) if len(parts) >= 2 else path
 
 
-def local_dependency_lags(
+def local_dependency_requirements(
     packages: dict[str, tuple[Path, str | None]],
     manifests: list[tuple[Path, str]],
-) -> dict[Path, set[str]]:
-    """Find local provider repositories with incompatible workspace edges.
+) -> list[tuple[Path, str, str, str]]:
+    """Collect local provider workspace edges for native evaluation.
 
     A package can satisfy its consumer's version pin while its local workspace
     manifest still requests an older first-party provider. Patching that one
@@ -365,7 +366,7 @@ def local_dependency_lags(
     advance together.
     """
     index = {rel: text for rel, text in manifests}
-    lags: dict[Path, set[str]] = {}
+    requirements: list[tuple[Path, str, str, str]] = []
     for _package, (relative, _version) in packages.items():
         own = index.get(relative)
         if own is None:
@@ -408,18 +409,77 @@ def local_dependency_lags(
                 ):
                     continue
                 local = packages.get(dependency)
-                if local is None or local[1] is None or satisfies(local[1], requirement):
+                if local is None or local[1] is None:
                     continue
-                repo = package_repo(relative)
-                lags.setdefault(repo, set()).add(
-                    f"{dependency} {requirement} (local {local[1]})"
+                requirements.append(
+                    (package_repo(relative), dependency, local[1], requirement)
                 )
+    return requirements
+
+
+def evaluate_requirements(
+    pairs: set[tuple[str, str]],
+) -> dict[tuple[str, str], bool]:
+    """Evaluate all version/requirement pairs in one native tool invocation."""
+    ordered = sorted(pairs)
+    rows = [
+        {"id": index, "version": version, "requirement": requirement}
+        for index, (version, requirement) in enumerate(ordered)
+    ]
+    result = run_tool(
+        "version-guard",
+        ["requirements"],
+        input=json.dumps(rows),
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "no diagnostic"
+        raise RuntimeError(f"native Cargo requirement evaluation failed: {detail}")
+    try:
+        output = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(
+            f"native Cargo requirement evaluation returned invalid JSON: {error}"
+        ) from error
+    if not isinstance(output, list) or len(output) != len(ordered):
+        raise RuntimeError("native Cargo requirement evaluation returned the wrong row count")
+    evaluations: dict[tuple[str, str], bool] = {}
+    for index, row in enumerate(output):
+        if not isinstance(row, dict) or row.get("id") != index:
+            raise RuntimeError(
+                "native Cargo requirement evaluation changed row order or identity"
+            )
+        outcome = row.get("outcome")
+        if outcome not in ("satisfied", "unsatisfied"):
+            raise RuntimeError(
+                f"native Cargo requirement evaluation returned {outcome!r}"
+            )
+        evaluations[ordered[index]] = outcome == "satisfied"
+    return evaluations
+
+
+def local_dependency_lags(
+    requirements: list[tuple[Path, str, str, str]],
+    evaluations: dict[tuple[str, str], bool],
+) -> dict[Path, set[str]]:
+    """Group incompatible local workspace edges by owning repository."""
+    lags: dict[Path, set[str]] = {}
+    for repo, dependency, version, requirement in requirements:
+        if evaluations[(version, requirement)]:
+            continue
+        lags.setdefault(repo, set()).add(
+            f"{dependency} {requirement} (local {version})"
+        )
     return lags
 
 
 def build_overlay(
     packages: dict[str, tuple[Path, str | None]],
     manifests: list[tuple[Path, str]],
+    evaluations: dict[tuple[str, str], bool] | None = None,
 ) -> tuple[str, list[str], list[str]]:
     """Emit the `[patch]` block, grouping local packages under each git URL.
 
@@ -440,11 +500,24 @@ def build_overlay(
     missing: list[str] = []
     lag: list[str] = []
 
+    dependencies = collect_first_party_deps(manifests)
     reqs_by_pkg: dict[str, dict[str, list[str | None]]] = {}
-    for pkg, url, req, _manifest in collect_first_party_deps(manifests):
+    for pkg, url, req, _manifest in dependencies:
         reqs_by_pkg.setdefault(pkg, {}).setdefault(url, []).append(req)
 
-    repository_lags = local_dependency_lags(packages, manifests)
+    local_requirements = local_dependency_requirements(packages, manifests)
+    if evaluations is None:
+        pairs = {
+            (packages[pkg][1], req)
+            for pkg, _url, req, _manifest in dependencies
+            if pkg in packages and packages[pkg][1] is not None and req is not None
+        }
+        pairs.update(
+            (version, requirement)
+            for _repo, _dependency, version, requirement in local_requirements
+        )
+        evaluations = evaluate_requirements(pairs)
+    repository_lags = local_dependency_lags(local_requirements, evaluations)
     for repo, edges in sorted(repository_lags.items()):
         lag.append(
             f"{repo.as_posix()}: local workspace edges {sorted(edges)!r}; "
@@ -462,7 +535,7 @@ def build_overlay(
                 for req in reqs
                 if req is not None
                 and local_version is not None
-                and not satisfies(local_version, req)
+                and not evaluations[(local_version, req)]
             ]
             if unsatisfied:
                 lag.append(
@@ -535,41 +608,6 @@ def set_enabled(enabled: bool) -> None:
     CONFIG.write_text(text.replace(body, "\n".join(lines)), encoding="utf-8")
 
 
-def satisfies(version: str, requirement: str) -> bool:
-    """Caret-semantics check: does `version` satisfy `requirement`?
-
-    Covers the requirement forms the stack actually declares (`*`, bare
-    `1.2.3`, and explicit `^`). Anything else is reported as unknown rather
-    than silently passed.
-    """
-    requirement = requirement.strip()
-    if requirement in ("*", ""):
-        return True
-    if requirement[0] in "<>=~":
-        return True  # not used in-stack; do not guess
-    req = requirement.removeprefix("^")
-
-    def parts(text: str) -> list[int]:
-        out = []
-        for chunk in text.split("-")[0].split("."):
-            try:
-                out.append(int(chunk))
-            except ValueError:
-                out.append(0)
-        while len(out) < 3:
-            out.append(0)
-        return out[:3]
-
-    have, want = parts(version), parts(req)
-    if have < want:
-        return False
-    # Caret: leading nonzero component must match.
-    for i in range(3):
-        if want[i] != 0:
-            return have[:i + 1] == want[:i + 1]
-    return True
-
-
 def check_locks(
     packages: dict[str, tuple[Path, str | None]],
     pinned: bool,
@@ -640,6 +678,7 @@ def _normalize(text: str) -> str:
 def check_overlay_freshness(
     packages: dict[str, tuple[Path, str | None]],
     manifests: list[tuple[Path, str]],
+    evaluations: dict[tuple[str, str], bool] | None = None,
 ) -> list[str]:
     """Report a committed overlay that no longer matches the repository layout.
 
@@ -682,7 +721,7 @@ def check_overlay_freshness(
     # LF. Compare content, not the endings git already normalizes.
     # `write_overlay` emits HEADER (which opens with BEGIN) followed by the
     # patch block, so the captured region is the header tail plus the block.
-    expected, _missing, _lag = build_overlay(packages, manifests)
+    expected, _missing, _lag = build_overlay(packages, manifests, evaluations)
     expected_body = (HEADER + expected).split(BEGIN, 1)[1]
     if _normalize(committed) != _normalize(expected_body):
         problems.append(
@@ -700,7 +739,20 @@ def check(
     lag: list[str] = []
     unresolved: list[str] = []
 
-    for pkg, url, req, manifest in collect_first_party_deps(manifests):
+    dependencies = collect_first_party_deps(manifests)
+    local_requirements = local_dependency_requirements(packages, manifests)
+    pairs = {
+        (packages[pkg][1], req)
+        for pkg, _url, req, _manifest in dependencies
+        if pkg in packages and packages[pkg][1] is not None and req is not None
+    }
+    pairs.update(
+        (version, requirement)
+        for _repo, _dependency, version, requirement in local_requirements
+    )
+    evaluations = evaluate_requirements(pairs)
+
+    for pkg, url, req, manifest in dependencies:
         rel = manifest.as_posix()
         if pkg not in packages:
             unresolved.append(f"{rel}: `{pkg}` from {url} has no local working tree")
@@ -708,7 +760,7 @@ def check(
         local_version = packages[pkg][1]
         if req is None or local_version is None:
             continue
-        if not satisfies(local_version, req):
+        if not evaluations[(local_version, req)]:
             lag.append(
                 f"{rel}: requires `{pkg} = \"{req}\"` but the local tree is "
                 f"{local_version} -- the overlay cannot unify this edge"
@@ -719,7 +771,7 @@ def check(
     for line in sorted(set(lag)):
         print(f"REQUIREMENT LAG: {line}")
 
-    stale = check_overlay_freshness(packages, manifests)
+    stale = check_overlay_freshness(packages, manifests, evaluations)
     for line in stale:
         print(f"OVERLAY: {line}")
 

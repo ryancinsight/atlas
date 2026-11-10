@@ -49,7 +49,7 @@ def load_sibling(name: str, path: Path):
 def run_tool(
     tool: str, arguments: list[str], **run_options: object
 ) -> subprocess.CompletedProcess:
-    """Run an atlas tool workspace binary through cargo, from inside its workspace.
+    """Run a locked Atlas tool workspace binary from inside its workspace.
 
     rustup resolves the toolchain from the working directory, never from
     `--manifest-path`. The stack root pins the host-qualified msvc channel the
@@ -60,7 +60,7 @@ def run_tool(
     """
     workspace = TOOL_ROOT / tool
     command = [
-        "cargo", "run", "--quiet", "--manifest-path", str(workspace / "Cargo.toml"),
+        "cargo", "run", "--quiet", "--locked", "--manifest-path", str(workspace / "Cargo.toml"),
         "--", *arguments,
     ]
     return subprocess.run(command, cwd=workspace, check=False, **run_options)

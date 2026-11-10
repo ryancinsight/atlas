@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""`atlas_stack.run_tool` runs a tool workspace binary from inside that workspace.
+"""`atlas_stack.run_tool` runs a locked tool binary from inside that workspace.
 
 rustup resolves the toolchain from cargo's working directory, not from
 `--manifest-path`. Two scripts once ran the version-guard tool from the stack
@@ -44,7 +44,7 @@ class RunToolTests(unittest.TestCase):
         self.assertEqual(options["cwd"], workspace)
         self.assertEqual(
             command,
-            ["cargo", "run", "--quiet", "--manifest-path", str(workspace / "Cargo.toml"),
+            ["cargo", "run", "--quiet", "--locked", "--manifest-path", str(workspace / "Cargo.toml"),
              "--", "coherence"],
         )
 
@@ -64,6 +64,7 @@ class RunToolTests(unittest.TestCase):
         pins = sorted((atlas_stack.ROOT / "tools").glob("*/rust-toolchain.toml"))
         self.assertTrue(pins)
         for pin in pins:
+            self.assertTrue((pin.parent / "Cargo.lock").is_file(), pin.parent)
             channels = [
                 line for line in pin.read_text(encoding="utf-8").splitlines()
                 if line.startswith("channel")

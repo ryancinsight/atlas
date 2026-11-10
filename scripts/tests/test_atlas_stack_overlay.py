@@ -27,6 +27,28 @@ _fixture = importlib.util.module_from_spec(_FIXTURE_SPEC)
 _FIXTURE_SPEC.loader.exec_module(_fixture)
 
 
+class NativeRequirementEvaluationTestCase(unittest.TestCase):
+    """The Python adapter delegates every Cargo requirement form to Rust."""
+
+    def test_cargo_requirement_forms_are_evaluated_in_one_batch(self) -> None:
+        cases = {
+            ("0.48.0", ">=0.46.1, <0.48"): False,
+            ("0.48.0", "<0.49"): True,
+            ("0.0.4", "0.0.3"): False,
+            ("1.9.0", "1.2"): True,
+            ("1.2.9", "~1.2.3"): True,
+            ("1.3.0", "~1.2.3"): False,
+            ("1.2.3", "=1.2.3"): True,
+            ("1.2.9", "1.2.*"): True,
+            ("1.2.3-alpha.2", ">=1.2.3-alpha, <1.2.3"): True,
+        }
+        self.assertEqual(_overlay.evaluate_requirements(set(cases)), cases)
+
+    def test_malformed_requirement_is_not_satisfied(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "invalid_requirement"):
+            _overlay.evaluate_requirements({("1.2.3", "^1 || ^2")})
+
+
 class LagAwarePatchEmissionTestCase(unittest.TestCase):
     """Compatible consumers share local candidates; lagging edges retain Git."""
 
