@@ -41,6 +41,7 @@ import atlas_build_records as build_records
 import atlas_build_snapshot as build_snapshot
 import atlas_build_source as build_source
 import atlas_build_stamps as build_stamps
+import atlas_build_writers as writers
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
@@ -1724,6 +1725,220 @@ class BuildIdentityTestCase(unittest.TestCase):
         third = self.dependency_build("second", discover=True, snapshot=second_snapshot)
         self.assertEqual(third.status, "reused")
         self.assertFalse(third.cleaned)
+
+    def killed_run(self, source_token: str, in_clean: bool = False) -> list[str]:
+        """A run the supervisor kills: `cargo clean` is recorded, then the build command dies.
+
+        With `in_clean` the kill lands inside the clean instead.
+        """
+        cleaned: list[str] = []
+        run_checked = identity._run_checked
+
+        def killing(command, cwd, environment):
+            if (names := cleaned_names(command)) is not None:
+                if in_clean:
+                    raise identity.IdentityError("killed inside the clean")
+                cleaned.extend(names)
+                return
+            if str(self.build_script) in command:
+                raise identity.IdentityError("killed inside the command")
+            run_checked(command, cwd, environment)
+
+        with patch.object(identity, "_run_checked", side_effect=killing):
+            with self.assertRaises(identity.IdentityError):
+                self.dependency_build(source_token, discover=True, clean=False)
+        return sorted(cleaned)
+
+    def killed_after_source_change(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        self.commit_source_change("fn main() { changed(); }\n", "change source")
+        self.assertEqual(self.killed_run("second"), ["demo"])
+
+    def test_a_killed_run_is_resumed_without_cleaning_again(self) -> None:
+        # A supervisor deadline between the clean and the record leaves the
+        # old record beside rebuilt artifacts. Cleaning again on every rerun
+        # made a cold build that outlasts the deadline impossible to finish.
+        self.killed_after_source_change()
+        self.assertEqual(self.cleaned_packages("second"), [])
+        third = self.dependency_build("second", discover=True)
+        self.assertEqual(third.status, "reused")
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "second")
+
+    def test_a_killed_run_is_resumed_again_after_a_second_kill(self) -> None:
+        self.killed_after_source_change()
+        self.assertEqual(self.killed_run("second"), [])
+        self.assertEqual(self.cleaned_packages("second"), [])
+
+    def test_a_different_source_cleans_after_a_killed_run(self) -> None:
+        self.killed_after_source_change()
+        self.commit_source_change("fn main() { changed_again(); }\n", "change again")
+        self.assertEqual(self.cleaned_packages("third"), ["demo"])
+
+    def test_a_rewrite_after_a_finished_run_cleans(self) -> None:
+        # The resumed run finishes, so its mark is complete; a later rewrite
+        # of its artifacts by any other writer is not its progress.
+        self.killed_after_source_change()
+        self.assertEqual(self.cleaned_packages("second"), [])
+        self.artifact.write_text("written by another build", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def test_a_run_killed_inside_its_clean_cleans_again(self) -> None:
+        self.killed_after_source_change()
+        self.commit_source_change("fn main() { changed_again(); }\n", "change again")
+        self.assertEqual(self.killed_run("third", in_clean=True), [])
+        self.assertEqual(self.cleaned_packages("third"), ["demo"])
+
+    def test_a_write_by_a_peer_after_the_kill_cleans(self) -> None:
+        # A peer without a lease rebuilt the package from other source, and
+        # Cargo trusts artifacts whose sources are older than they are.
+        self.killed_after_source_change()
+        time.sleep(0.05)
+        self.artifact.write_text("written by a peer", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def test_a_fingerprint_written_by_a_peer_after_the_kill_cleans(self) -> None:
+        self.killed_after_source_change()
+        fingerprint = self.target / "debug" / ".fingerprint" / "demo-0123456789abcdef"
+        time.sleep(0.05)
+        fingerprint.mkdir(parents=True)
+        (fingerprint / "dep-lib-demo").write_text("peer", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def test_progress_older_than_the_last_heartbeat_resumes(self) -> None:
+        target = build_source._canonical(self.target)
+        built = target / "debug" / "deps" / "libdemo-abcdef.rlib"
+        built.parent.mkdir(parents=True, exist_ok=True)
+        built.write_text("progress", encoding="utf-8")
+        time.sleep(0.05)
+        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+        self.assertEqual(writers.resumable(target, ["demo"], "another"), frozenset())
+        time.sleep(0.05)
+        built.write_text("later", encoding="utf-8")
+        self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
+        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+
+    def test_a_longer_package_name_does_not_hide_a_peer_write(self) -> None:
+        target = build_source._canonical(self.target)
+        writers.mark(target, ["demo-core"], writers.BUILDING, "identity")
+        time.sleep(0.05)
+        peer = target / "debug" / "deps" / "libdemo_core-abcdef.rlib"
+        peer.parent.mkdir(parents=True, exist_ok=True)
+        peer.write_text("peer", encoding="utf-8")
+        self.assertEqual(writers.resumable(target, ["demo-core"], "identity"), frozenset())
+
+    def test_the_heartbeat_refreshes_a_building_mark_while_the_command_runs(self) -> None:
+        target = build_source._canonical(self.target)
+        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        first = json.loads(writers.writer_path(target, "demo").read_text(encoding="utf-8"))
+        with patch.object(writers, "HEARTBEAT_SECONDS", 0.02):
+            with writers.heartbeat(target, ["demo"], "identity"):
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    beat = json.loads(writers.writer_path(target, "demo").read_text(encoding="utf-8"))
+                    if beat["heartbeat_ns"] > first["heartbeat_ns"]:
+                        break
+                    time.sleep(0.02)
+        self.assertGreater(beat["heartbeat_ns"], first["heartbeat_ns"])
+        self.assertEqual((beat["state"], beat["identity"]), (writers.BUILDING, "identity"))
+
+    def test_an_unlistable_directory_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        time.sleep(0.05)
+        peer = target / "debug" / "deps" / "libdemo-abcdef.rlib"
+        peer.parent.mkdir(parents=True, exist_ok=True)
+        peer.write_text("peer", encoding="utf-8")
+        (target / "atlas-cache").mkdir()
+        real = os.scandir
+
+        def scandir(path):
+            if Path(path).name == "atlas-cache":
+                raise PermissionError("denied")
+            return real(path)
+
+        with patch.object(os, "scandir", side_effect=scandir):
+            self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
+        # The peer's write alone also cleans; without it the listable tree resumes.
+        peer.unlink()
+        (target / "atlas-cache").rmdir()
+        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+
+    def test_an_unwalkable_build_directory_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        out = target / "debug" / "build" / "demo-0123456789abcdef" / "out"
+        out.mkdir(parents=True)
+        (out / "generated.rs").write_text("old", encoding="utf-8")
+        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+        real = os.walk
+
+        def walk(top, *arguments, **options):
+            if Path(top).name.startswith("demo-"):
+                options["onerror"](PermissionError("denied"))
+                return iter(())
+            return real(top, *arguments, **options)
+
+        with patch.object(os, "walk", side_effect=walk):
+            self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
+
+    def test_a_file_rewritten_in_a_build_directory_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        out = target / "debug" / "build" / "demo-0123456789abcdef" / "out"
+        out.mkdir(parents=True)
+        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        time.sleep(0.05)
+        (out / "generated.rs").write_text("peer", encoding="utf-8")
+        self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
+
+    def test_a_directory_removed_mid_scan_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        deps = target / "debug" / "deps"
+        deps.mkdir(parents=True, exist_ok=True)
+        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+        real = os.scandir
+
+        def scandir(path):
+            if Path(path) == deps and deps.exists():
+                # The listing of `debug` named `deps`; a peer's clean removes it before it is read.
+                with patch.object(os, "scandir", real):
+                    shutil.rmtree(deps)
+            return real(path)
+
+        with patch.object(os, "scandir", side_effect=scandir):
+            self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
+
+    def test_progress_written_within_a_run_resumes_only_through_the_heartbeat(self) -> None:
+        self.killed_after_source_change()
+        run_checked = identity._run_checked
+
+        def outliving(command, cwd, environment):
+            if cleaned_names(command) is not None:
+                return
+            if str(self.build_script) in command:
+                self.artifact.write_text("progress", encoding="utf-8")
+                time.sleep(0.4)
+                raise identity.IdentityError("killed after progress")
+            run_checked(command, cwd, environment)
+
+        with (
+            patch.object(writers, "HEARTBEAT_SECONDS", 0.05),
+            patch.object(identity, "_run_checked", side_effect=outliving),
+        ):
+            with self.assertRaises(identity.IdentityError):
+                self.dependency_build("second", discover=True, clean=False)
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "progress")
+        self.assertEqual(self.cleaned_packages("second"), [])
+
+    def test_an_unreadable_writer_mark_cleans(self) -> None:
+        self.killed_after_source_change()
+        mark = writers.writer_path(build_source._canonical(self.target), "demo")
+        mark.write_text("{", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
 
     def test_a_shape_change_cleans_every_path_package(self) -> None:
         # `dep`'s own record differs only in `features`, a shape field.

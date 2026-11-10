@@ -5,6 +5,7 @@
 - Class: [arch]
 - Driver: [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
+- Revision: 2026-11-09 — A killed run's rebuilt artifacts are resumed, not cleaned again: per-package writer marks (below), after a cold ritk push outlasted the 600-second deadline four times, each rerun cleaning what the killed run had rebuilt.
 - Revision: 2026-11-09 — Compacted the as-built contract and required hook installation and publication to materialize the same source-keyed immutable supervisor family; publication keeps that runtime invocation-local so preparing a publication cannot replace the live installed gate.
 
 ## Context
@@ -66,6 +67,7 @@ An artifact-only mismatch cleans its owners. A shape or dimension change cleans 
 One `cargo clean` receives the union plus profile and target. Registry packages are never cleaned.
 Git packages use build-directory stamps keyed by package/source identity, profile, and target. A building sentinel precedes clean and Cargo; only command success plus a stable final snapshot writes the content digest.
 A failed or killed command leaves a stale sentinel. Unstamped external Git artifacts remain trusted; a stale stamp is cleaned even under a matching or sibling record, including after an opaque custom clean.
+Path packages carry a writer mark, `.atlas/source-identity/writers/<package>.json`, written under the run's exclusive lease: `cleaning` before a clean, `building` for every package the command writes once the clean has returned, `complete` after the records land. The mark names a run identity: the digest of the source content, build dimensions and every selected package's dependency digest, excluding checkout path. A mismatched record cleans as above, except that a package still marked `building` with this run's identity is held exclusive and rediscovered but not cleaned: a killed run's rebuilt artifacts came from the same source. While the command runs the identity process refreshes each `building` mark's heartbeat every 5 seconds, and a rerun resumes a package only if none of its `deps`, `.fingerprint` or `build` entries (matched by package name and hash suffix) is newer than that heartbeat: a lease-less peer's later write, and the killed run's own last interval, clean. Cargo does not repair a peer's write: with unchanged source mtimes it reported `Fresh` over artifacts built from other source (probe: one fingerprint directory, rerun printed the peer's output), and `.d` files cannot tell writers apart. Any other identity, a `cleaning` or `complete` mark, and a missing or unreadable mark clean as before; a stale Git stamp cleans regardless. Marks are derived state; the supervisor deadline, lease semantics and one command per phase are unchanged.
 
 Each `(package name, canonical target directory)` has one lease; revision and target triple are excluded because revisions share artifact names and cross-target builds share host artifacts. Linked worktrees resolve the Git common directory.
 Cross-platform shared/exclusive byte-range locks make the operating-system lock authoritative; owner text and expiry are diagnostic, only an exclusive holder writes them, and unlocked malformed state is reclaimable.
@@ -95,6 +97,7 @@ Provider changes require all 28 executable member hook copies before pin advance
 
 ## Known limits
 
+- Resume loses up to one heartbeat interval of the killed run's output. A peer write that preserves file mtimes at or before the heartbeat is invisible; a completed run's mark never resumes, so rewrites after completion still clean.
 - Untracked proc-macro/build-script reads are absent from `inputs`; another-repository inputs outside every package are guarded only by the post-command snapshot; excluded non-member path packages may clean once per changed export path.
 - Alias-expanded `--config` paths are unseen unless otherwise reached. Unknown Cargo/TOML 1.1 grammar fails closed rather than being parsed.
 - `[env]` values, build-script `rustc-env`, and wrapper exports are not decomposed; config-file changes remain covered. A stat-preserving package-source edit can evade the persistent cache.
@@ -110,6 +113,8 @@ Hashing, metadata, queueing, and lease costs remain observable through claim his
 
 ## Alternatives rejected
 
+- Progressive per-stage records, or recording after a partial command, either split a phase into several commands, which lets a peer replace artifacts between them, or record artifacts Cargo has not finished writing. A mark written before the command and honored only for an identical identity keeps one command per phase and records nothing unverified.
+- Raising the 600-second deadline or skipping the clean after any kill hides the cold-build cost or trusts artifacts of any writer; the mark is bound to one identity and replaced by every other writer.
 - Working-tree `.githooks`, hand-copied member hooks, or changing live installed refs let the candidate replace its judge or duplicate policy; immutable fetched tooling plus invocation-local prepared selection preserves the trust boundary.
 - Per-source targets fork the cache; manual cleaning has no ownership; Cargo fingerprint JSON and missing `.fingerprint` directories are not stable identity APIs.
 - Whole-target/closure cleaning, repository-name filters, cleaning every path package on any root change, and record-local snapshot narrowing either discard unrelated reuse or miss feature, dependency-kind, edition, profile, and manifest-driven variant renames.
@@ -131,7 +136,7 @@ The configured focused identity, full scripts, pre-push, conformance, architectu
 ## References
 
 - [PR #277](https://github.com/ryancinsight/atlas/pull/277); [PR #295](https://github.com/ryancinsight/atlas/pull/295); [PR #296](https://github.com/ryancinsight/atlas/pull/296); [PR #299](https://github.com/ryancinsight/atlas/pull/299)
-- [records](../../scripts/atlas_build_records.py); [check](../../scripts/atlas_build_check.py); [inputs](../../scripts/atlas_build_inputs.py); [identity](../../scripts/atlas_build_identity.py); [stale packages](../../scripts/atlas_build_stale_packages.py); [stamps](../../scripts/atlas_build_stamps.py); [snapshot](../../scripts/atlas_build_snapshot.py)
+- [records](../../scripts/atlas_build_records.py); [check](../../scripts/atlas_build_check.py); [inputs](../../scripts/atlas_build_inputs.py); [identity](../../scripts/atlas_build_identity.py); [stale packages](../../scripts/atlas_build_stale_packages.py); [stamps](../../scripts/atlas_build_stamps.py); [writer marks](../../scripts/atlas_build_writers.py); [snapshot](../../scripts/atlas_build_snapshot.py)
 - [lease](../../scripts/atlas_build_lease.py); [lock](../../scripts/atlas_build_lock.py); [queue](../../scripts/atlas_build_queue.py); [source](../../scripts/atlas_build_source.py); [artifacts](../../scripts/atlas_build_artifacts.py)
 - [package source](../../scripts/atlas_build_package_source.py); [package identity](../../scripts/atlas_build_package_identity.py); [dep-info](../../scripts/atlas_build_dep_info.py); [pre-push hook](../../scripts/git-hooks/pre-push)
 - [identity tests](../../scripts/tests/test_atlas_build_identity.py); [pre-push tests](../../scripts/tests/test_atlas_pre_push_gate.py); [hook publisher tests](../../scripts/tests/test_atlas_hook_publisher.py); [Apollo ADR 0051](../../repos/apollo/docs/adr/0051-composite-phase-schedules.md)
