@@ -1450,3 +1450,74 @@ def test_resolved_changes_print_one_member_per_line(tmp_path, monkeypatch, capsy
                         "--tip-export", str(tmp_path)])
     captured = capsys.readouterr()
     assert (status, captured.out, captured.err) == (0, "core\nio\n", "")
+
+
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="needs cargo")
+def test_a_base_record_key_follows_every_input_of_the_base_run(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/*"]\nresolver = "2"\n')
+    write_crate(repo, "core", OLD)
+    write_crate(repo, "io", "pub fn io() {}\n", dependency="core")
+    subprocess.run(["cargo", "generate-lockfile", "--offline"], cwd=repo, check=True,
+                   capture_output=True)
+    base = commit(repo, "base")
+    exports = []
+    for name in ("one", "two"):
+        directory = tmp_path / name / "export"
+        git(repo, "worktree", "add", "-q", "--detach", str(directory), base)
+        exports.append(directory)
+    one, two = exports
+    monkeypatch.delenv("RUSTFLAGS", raising=False)
+
+    def key(export, packages=("core", "io")):
+        found, reason = gate.base_record_key(export, "Cargo.toml", base, packages)
+        assert reason == ""
+        return found
+
+    first = key(one)
+    # Two exports of one revision at one depth share the record.
+    assert key(two) == first
+    assert key(one, ("io", "core")) == first
+    assert key(one, ("core",)) != first
+    monkeypatch.setenv("RUSTFLAGS", "-Dwarnings")
+    assert key(one) != first
+    monkeypatch.delenv("RUSTFLAGS")
+    (tmp_path / "one" / ".cargo").mkdir()
+    (tmp_path / "one" / ".cargo" / "config.toml").write_text("[build]\nincremental = false\n")
+    assert key(one) != first
+    assert key(two) == first
+
+
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="needs cargo")
+def test_a_base_reading_a_package_outside_its_export_has_no_record(tmp_path):
+    outside = tmp_path / "outside"
+    (outside / "src").mkdir(parents=True)
+    (outside / "Cargo.toml").write_text(
+        '[package]\nname = "outside"\nversion = "0.1.0"\nedition = "2021"\n')
+    (outside / "src" / "lib.rs").write_text("pub fn o() {}\n")
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/*"]\nresolver = "2"\n')
+    write_crate(repo, "core", OLD)
+    with (repo / "crates" / "core" / "Cargo.toml").open("a") as manifest:
+        manifest.write('\n[dependencies]\noutside = { path = "../../../outside" }\n')
+    subprocess.run(["cargo", "generate-lockfile", "--offline"], cwd=repo, check=True,
+                   capture_output=True)
+    base = commit(repo, "base")
+
+    found, reason = gate.base_record_key(repo, "Cargo.toml", base, ["core"])
+
+    assert (found, reason) == (None, "path package outside lies outside the export")
+
+
+def test_base_record_key_exits_3_without_a_key(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(gate, "base_record_key",
+                        lambda export, manifest, revision, packages, config:
+                        (None, "path package outside lies outside the export"))
+    status = gate.main(["base-record-key", "--export", str(tmp_path), "--revision", "b",
+                        "-p", "core"])
+    captured = capsys.readouterr()
+    assert (status, captured.out) == (3, "")
+    assert captured.err == ("cast gate: no base record: path package outside lies "
+                            "outside the export\n")

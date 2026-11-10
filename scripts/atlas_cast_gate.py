@@ -50,7 +50,14 @@ say whether a site sits under an `#[expect]`.
 The tip's clippy run is the hook's own: `clippy` runs it under the
 source-identity leases in place of the plain step, writing each diagnostic's
 rendered text to stderr as plain clippy would and the cast sites to a file.
-The base run is the one extra compile, under the same leases.
+The base run is the one extra compile, under the same leases. A successful
+base run is recorded under `<target>/.atlas/cast-sites/<key>.json`, keyed by
+`base-record-key`: the base commit, manifest and selection, `rustc -vV`, the
+cargo config chain and compiler environment, and this file's own bytes. A
+later push of a range with that base copies the record instead of running
+the base, and with it skips the identity checker's clean of the closure the
+tip shares. A path package outside the export gets no key, since no revision
+names its files; a base that does not compile is never recorded.
 
     atlas_cast_gate.py clippy --export <dir> --sites <file> --package <pkg>
     atlas_cast_gate.py check --member eunomia --repo <dir> --base <sha> \
@@ -68,6 +75,7 @@ absent from it.
         --base-export <dir> --tip-export <dir> -p eunomia ...
     atlas_cast_gate.py resolved-changes --repo <dir> --base <sha> --tip <sha> \
         --base-export <dir> --tip-export <dir>
+    atlas_cast_gate.py base-record-key --export <dir> --revision <sha> -p eunomia ...
     atlas_cast_gate.py measure --member eunomia --export <dir>
     atlas_cast_gate.py ratchet --repo <atlas> --base <sha> --tip <sha>
 
@@ -83,6 +91,7 @@ count without converting a cast.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -614,6 +623,89 @@ def resolved_changes(repo: pathlib.Path, base: str, tip: str, base_export: pathl
     ), ""
 
 
+RECORD_VERSION = "cast-base-sites/1"
+# Environment that changes what clippy reports: flags, wrappers, toolchain
+# choice, profile keys and lint configuration. Paths that only move output
+# (`CARGO_TARGET_DIR`, `CARGO_BUILD_TARGET_DIR`) or name a home do not.
+RECORD_ENVIRONMENT = ("RUST", "CARGO_BUILD_", "CARGO_PROFILE_", "CARGO_ENCODED_",
+                      "CARGO_TARGET_", "CLIPPY")
+RECORD_ENVIRONMENT_EXCLUDED = frozenset({"CARGO_TARGET_DIR", "CARGO_BUILD_TARGET_DIR",
+                                         "RUSTUP_HOME"})
+
+
+def config_chain(directory: pathlib.Path) -> list[tuple[str, str]]:
+    """Each cargo config file Cargo reads for a command run from `directory`,
+    with its content hash, nearest first, then `$CARGO_HOME`'s. Paths are
+    framed by depth so two exports of one revision compare equal."""
+
+    found: list[tuple[str, str]] = []
+    current = pathlib.Path(os.path.realpath(directory))
+    depth = 0
+    homes = [pathlib.Path(os.environ.get("CARGO_HOME") or pathlib.Path.home() / ".cargo")]
+    for folder in (*[current, *current.parents], *homes):
+        for name in ("config.toml", "config"):
+            candidate = (folder if folder in homes else folder / ".cargo") / name
+            if candidate.is_file():
+                label = "home" if folder in homes else f"up{depth}"
+                found.append((f"{label}/{name}",
+                              hashlib.sha256(candidate.read_bytes()).hexdigest()))
+        depth += 1
+    return found
+
+
+def base_record_key(export: pathlib.Path, manifest: str, revision: str,
+                    packages: Iterable[str],
+                    config: pathlib.Path | None = None) -> tuple[str | None, str]:
+    """The key of a base cast-sites record, or None and why there is none.
+
+    A base run's sites are a function of the revision's tracked files, the
+    selection, the toolchain, the cargo configuration and compiler
+    environment, and this gate's own extraction. The key hashes all of them,
+    so a hit reproduces the sites the run would report. A path package outside
+    the export reads files no revision names, and gets no record.
+    """
+    from atlas_build_inputs import effective_compiler_environment
+
+    manifest_path = export / manifest
+    cargo_command = cargo(config)
+    environment = effective_compiler_environment(manifest_path, export, cargo_command)
+    try:
+        record = json.loads(subprocess.run(
+            [*cargo_command, "metadata", "--format-version", "1", "--locked",
+             "--manifest-path", str(manifest_path)],
+            cwd=export, env=environment, capture_output=True, text=True,
+            encoding="utf-8", check=True,
+        ).stdout)
+        for package in record["packages"]:
+            if package["source"] is None:
+                try:
+                    _relative(str(pathlib.Path(package["manifest_path"]).parent), export)
+                except ValueError:
+                    return None, f"path package {package['name']} lies outside the export"
+        toolchain = subprocess.run(
+            [environment.get("RUSTC") or "rustc", "-vV"], cwd=export, env=environment,
+            capture_output=True, text=True, encoding="utf-8", check=True,
+        ).stdout
+    except (subprocess.CalledProcessError, ValueError, KeyError, OSError) as error:
+        return None, f"the base's inputs could not be read ({error})"
+    inputs = {
+        "version": RECORD_VERSION,
+        "revision": revision,
+        "manifest": manifest,
+        "packages": sorted(set(packages)),
+        "toolchain": toolchain,
+        "config": config_chain(export),
+        "explicit-config": (hashlib.sha256(config.read_bytes()).hexdigest()
+                            if config else ""),
+        "environment": sorted(
+            (name, value) for name, value in environment.items()
+            if name.startswith(RECORD_ENVIRONMENT) and name not in RECORD_ENVIRONMENT_EXCLUDED
+        ),
+        "gate": hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),
+    }
+    return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(), ""
+
+
 def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
     """The file at `path` in `revision`, or None when the revision has none."""
     run = subprocess.run(["git", "-C", str(repo), "show", f"{revision}:{path}"],
@@ -959,6 +1051,17 @@ def changes(args: argparse.Namespace) -> int:
     return 0
 
 
+def record_key(args: argparse.Namespace) -> int:
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+    key, reason = base_record_key(pathlib.Path(args.export), args.manifest, args.revision,
+                                  args.package, args.cargo_config)
+    if key is None:
+        print(f"cast gate: no base record: {reason}", file=sys.stderr)
+        return 3
+    print(key)
+    return 0
+
+
 def measure(args: argparse.Namespace) -> int:
     baseline = Baseline.load(args.baseline)
     status, found = run_clippy(
@@ -1035,6 +1138,16 @@ def main(argv: list[str] | None = None) -> int:
     resolved.add_argument("--manifest", default="Cargo.toml",
                           help="workspace manifest relative to the exports")
     resolved.set_defaults(run=changes)
+    keyed = commands.add_parser(
+        "base-record-key",
+        help="print the key of the base cast-sites record for a selection; exit 3 for none")
+    keyed.add_argument("--export", required=True, help="checkout of the range's base")
+    keyed.add_argument("--revision", required=True, help="the commit the export holds")
+    keyed.add_argument("--manifest", default="Cargo.toml",
+                       help="manifest relative to the export")
+    keyed.add_argument("-p", "--package", action="append", default=[], required=True,
+                       help="a package the base measures")
+    keyed.set_defaults(run=record_key)
     count = commands.add_parser("measure", help="print per-package counts for a member")
     count.add_argument("--member", required=True)
     count.add_argument("--export", required=True)
