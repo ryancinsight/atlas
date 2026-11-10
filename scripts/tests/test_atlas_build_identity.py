@@ -1465,6 +1465,91 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         return sorted(packages)
 
+    def cleanup_decision(
+        self,
+        source_token: str,
+        snapshot: dict[str, object] | None = None,
+    ) -> tuple[dict[str, object], list[str]]:
+        """Return the structured decision emitted by one recorded clean run."""
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            cleaned = self.cleaned_packages(source_token, snapshot=snapshot)
+        payloads = [
+            line.removeprefix(identity._CLEAN_PLAN_PREFIX)
+            for line in stderr.getvalue().splitlines()
+            if line.startswith(identity._CLEAN_PLAN_PREFIX)
+        ]
+        self.assertEqual(len(payloads), 1)
+        return json.loads(payloads[0]), cleaned
+
+    def test_cleanup_decision_reports_missing_and_matching_records(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+
+        first, cleaned = self.cleanup_decision("first")
+        self.assertEqual(cleaned, ["demo", "dep"])
+        self.assertEqual(first["schema"], 1)
+        self.assertEqual(
+            (first["phase"], first["profile"], first["target"]), (2, "debug", "host")
+        )
+        self.assertRegex(first["run"], r"^[0-9a-f]{32}$")
+        self.assertEqual(first["requested"], ["demo", "dep"])
+        self.assertEqual(first["clean"], ["demo", "dep"])
+        self.assertEqual(first["resume"], [])
+        self.assertEqual(
+            first["packages"]["demo"],
+            {
+                "matched": False,
+                "reasons": ["record-absent"],
+                "record_present": False,
+                "requested": ["demo", "dep"],
+                "sibling": False,
+                "stale_git": [],
+            },
+        )
+
+        matched, cleaned = self.cleanup_decision("first")
+        self.assertEqual(cleaned, [])
+        self.assertEqual(
+            (matched["phase"], matched["requested"], matched["clean"]), (1, [], [])
+        )
+        self.assertEqual(matched["resume"], [])
+        self.assertEqual(matched["packages"]["demo"]["reasons"], [])
+        self.assertTrue(matched["packages"]["demo"]["matched"])
+        self.assertTrue(matched["packages"]["demo"]["record_present"])
+
+    def test_cleanup_decision_identifies_a_building_git_stamp(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        revision = git(self.root, "rev-parse", "HEAD")
+        snapshot = self.path_and_git_snapshot(revision)
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True, snapshot=snapshot)
+        self.git_stamp(revision).write_text(
+            json.dumps({"content_digest": build_stamps._BUILDING}), encoding="utf-8"
+        )
+
+        plan, cleaned = self.cleanup_decision("first", snapshot=snapshot)
+        self.assertEqual(
+            (cleaned, plan["requested"], plan["clean"]), (["dep"], ["dep"], ["dep"])
+        )
+        self.assertEqual(plan["resume"], [])
+        self.assertEqual(plan["packages"]["demo"]["reasons"], ["stale-git"])
+        self.assertEqual(plan["packages"]["demo"]["stale_git"], ["dep"])
+        self.assertFalse(plan["packages"]["demo"]["matched"])
+
+    def test_cleanup_decision_identifies_resumable_path_build_progress(self) -> None:
+        self.killed_after_source_change()
+        plan, cleaned = self.cleanup_decision("second")
+        self.assertEqual(cleaned, [])
+        self.assertEqual(
+            (plan["requested"], plan["clean"], plan["resume"]), (["demo"], [], ["demo"])
+        )
+        self.assertEqual(
+            plan["packages"]["demo"]["reasons"], ["source", "build", "resumable-build"]
+        )
+        self.assertFalse(plan["packages"]["demo"]["matched"])
+        self.assertTrue(plan["packages"]["demo"]["record_present"])
+
     def test_a_registry_content_change_alone_cleans_nothing(self) -> None:
         # The record mismatches on the registry record's digest alone, so the
         # run is stale with nothing to clean; a `cargo clean` naming no
