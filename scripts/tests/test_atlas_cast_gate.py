@@ -140,9 +140,10 @@ def test_a_standalone_manifest_is_linted_in_place(tmp_path):
 
 
 def test_cargo_directory_keeps_the_exported_overlay_out_of_resolution(tmp_path, monkeypatch):
-    from atlas_target_dir import shared_target_for
-
-    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    target = shared_target()
+    if target is None:
+        pytest.skip("no shared target: set CARGO_TARGET_DIR or run from a checkout")
+    monkeypatch.setenv("CARGO_TARGET_DIR", str(target))
     export = tmp_path / "export"
     execution = tmp_path / "execution"
     execution.mkdir()
@@ -170,9 +171,10 @@ def test_cargo_directory_keeps_the_exported_overlay_out_of_resolution(tmp_path, 
 
 
 def test_workspace_joins_real_virtual_workspace_members(tmp_path, monkeypatch):
-    from atlas_target_dir import shared_target_for
-
-    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    target = shared_target()
+    if target is None:
+        pytest.skip("no shared target: set CARGO_TARGET_DIR or run from a checkout")
+    monkeypatch.setenv("CARGO_TARGET_DIR", str(target))
     root = tmp_path.resolve()
     (root / "Cargo.toml").write_text(
         '[workspace]\nmembers = ["crates/alpha", "crates/beta"]\nresolver = "3"\n'
@@ -219,9 +221,11 @@ def test_workspace_bounds_locked_metadata_deadline(tmp_path, monkeypatch, limit,
 
     def run(command, **options):
         calls.append((command, options))
-        return subprocess.CompletedProcess(command, 0, json.dumps(_metadata_record(tmp_path)), "")
+        return subprocess.CompletedProcess(
+            command, 0, json.dumps(_metadata_record(tmp_path)).encode(), b""
+        )
 
-    monkeypatch.setattr(gate.subprocess, "run", run)
+    monkeypatch.setattr(gate.process_tree, "run", run)
     assert set(gate.workspace(tmp_path, metadata_timeout=limit).names().values()) == {"probe"}
     command, options = calls.pop()
     assert command == [
@@ -235,12 +239,14 @@ def test_workspace_propagates_metadata_deadline(tmp_path, monkeypatch):
     (tmp_path / "Cargo.toml").write_text('[package]\nname = "probe"\nversion = "0.1.0"\n')
 
     def expire(command, **options):
-        raise subprocess.TimeoutExpired(command, options["timeout"])
+        raise gate.process_tree.ProcessTreeTimeout(
+            command, options["timeout"], b"", b"", None
+        )
 
-    monkeypatch.setattr(gate.subprocess, "run", expire)
-    with pytest.raises(subprocess.TimeoutExpired) as failure:
+    monkeypatch.setattr(gate.process_tree, "run", expire)
+    with pytest.raises(gate.process_tree.ProcessTreeTimeout) as failure:
         gate.workspace(tmp_path, metadata_timeout=7)
-    assert failure.value.timeout == 7
+    assert (failure.value.timeout, failure.value.cleanup_error) == (7, None)
 
 
 def test_workspace_rejects_nonpositive_metadata_deadline(tmp_path):
@@ -259,6 +265,28 @@ def test_workspace_joins_only_native_member_ids(tmp_path):
     assert space.member_manifests() == {tmp_path.resolve() / "Cargo.toml": "probe"}
 
 
+def test_workspace_rejects_duplicate_normalized_package_manifests(tmp_path):
+    record = _metadata_record(tmp_path.resolve())
+    record["workspace_members"].append("alias-id")
+    record["packages"].append({
+        "id": "alias-id", "name": "alias",
+        "manifest_path": str(tmp_path / "nested" / ".." / "Cargo.toml"),
+    })
+    with pytest.raises(ValueError, match="repeats a normalized package manifest path"):
+        gate._workspace_record(record, {})
+
+
+def test_workspace_rejects_duplicate_member_names(tmp_path):
+    record = _metadata_record(tmp_path.resolve())
+    record["workspace_members"].append("alias-id")
+    record["packages"].append({
+        "id": "alias-id", "name": "probe",
+        "manifest_path": str(tmp_path.resolve() / "alias" / "Cargo.toml"),
+    })
+    with pytest.raises(ValueError, match="repeats a workspace member package name"):
+        gate._workspace_record(record, {})
+
+
 @pytest.mark.parametrize(("change", "message"), [
     (lambda record: [], "record must be an object"),
     (lambda record: {**record, "workspace_root": "relative"}, "workspace_root"),
@@ -267,6 +295,9 @@ def test_workspace_joins_only_native_member_ids(tmp_path):
     (lambda record: {**record, "packages": [1]}, "package must be an object"),
     (lambda record: {**record, "packages": [{"id": 1, "name": "probe",
                                                "manifest_path": record["workspace_root"]}]},
+     "package id and name"),
+    (lambda record: {**record, "packages": [{"id": "", "name": "probe",
+                                               "manifest_path": record["packages"][0]["manifest_path"]}]},
      "package id and name"),
     (lambda record: {**record, "packages": [{"id": "probe-id", "name": "probe",
                                                "manifest_path": "relative"}]},
@@ -285,10 +316,33 @@ def test_workspace_rejects_incomplete_metadata(tmp_path, change, message):
 def test_workspace_rejects_invalid_metadata_json(tmp_path, monkeypatch):
     (tmp_path / "Cargo.toml").write_text('[package]\nname = "probe"\nversion = "0.1.0"\n')
     monkeypatch.setattr(
-        gate.subprocess, "run",
-        lambda command, **options: subprocess.CompletedProcess(command, 0, "not-json", ""),
+        gate.process_tree, "run",
+        lambda command, **options: subprocess.CompletedProcess(command, 0, b"not-json", b""),
     )
     with pytest.raises(json.JSONDecodeError):
+        gate.workspace(tmp_path)
+
+
+def test_workspace_preserves_metadata_process_failure(tmp_path, monkeypatch):
+    (tmp_path / "Cargo.toml").write_text('[package]\nname = "probe"\nversion = "0.1.0"\n')
+    monkeypatch.setattr(
+        gate.process_tree, "run",
+        lambda command, **options: subprocess.CompletedProcess(command, 101, b"partial", b"bad"),
+    )
+    with pytest.raises(subprocess.CalledProcessError) as failure:
+        gate.workspace(tmp_path)
+    assert (failure.value.returncode, failure.value.stdout, failure.value.stderr) == (
+        101, b"partial", b"bad",
+    )
+
+
+def test_workspace_rejects_non_utf8_metadata(tmp_path, monkeypatch):
+    (tmp_path / "Cargo.toml").write_text('[package]\nname = "probe"\nversion = "0.1.0"\n')
+    monkeypatch.setattr(
+        gate.process_tree, "run",
+        lambda command, **options: subprocess.CompletedProcess(command, 0, b"\xff", b""),
+    )
+    with pytest.raises(UnicodeDecodeError):
         gate.workspace(tmp_path)
 
 
@@ -296,9 +350,10 @@ def test_workspace_rejects_invalid_metadata_json(tmp_path, monkeypatch):
 @pytest.mark.parametrize("compiles", [True, False])
 def test_cli_uses_the_command_directory_for_every_cargo_step(tmp_path, monkeypatch, capsys,
                                                            command, compiles):
-    from atlas_target_dir import shared_target_for
-
-    monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    target = shared_target()
+    if target is None:
+        pytest.skip("no shared target: set CARGO_TARGET_DIR or run from a checkout")
+    monkeypatch.setenv("CARGO_TARGET_DIR", str(target))
     # Cargo names a path package's artifacts in the shared target without its
     # directory, so cases run in parallel must differ by package name.
     probe = f"cwd-probe-{command}-{'ok' if compiles else 'broken'}"
