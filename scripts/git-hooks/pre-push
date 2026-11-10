@@ -846,6 +846,43 @@ if [ "$prepared_tools_selected" -eq 1 ]; then
   echo "pre-push: conformance and source identity use prepared Atlas tools $prepared_tools" >&2
 fi
 
+# The exports live under one short path per checkout, reused run after run:
+# cargo fingerprints a package by its path, so a new directory per push
+# rebuilt every workspace package (hermes: 419 s for a re-push of one sha,
+# 567 s cold), and a short root keeps deep paths under Windows' limit. The
+# lockfile check's tree sits there too: `export_revision` into an existing
+# tree rewrites only the files that differ, where a fresh one wrote every
+# file (ritk's 1.4 GiB of tracked test data: 14 s fresh, 2-3 s reused). A run
+# claims it with a lock naming its pid; while a live run holds it, this run
+# builds in a temporary export instead of waiting, and a dead holder's lock
+# is taken over.
+gate_key="$(printf '%s' "$repo_root" | git hash-object --stdin | cut -c1-10)"
+gate_root="$tmp_base/pg-$gate_key"
+claim_gate_root() {
+  local staged="$gate_root.lock.$$"
+  mkdir -p "$staged" && printf '%s\n' "$$" > "$staged/pid" || return 1
+  if mv -T "$staged" "$gate_root.lock" 2>/dev/null; then
+    run_temps+=("$gate_root.lock")
+    return 0
+  fi
+  rm -rf "$staged"
+  return 1
+}
+if ! claim_gate_root; then
+  gate_holder="$(cat "$gate_root.lock/pid" 2>/dev/null || true)"
+  if [ -n "$gate_holder" ] && ! kill -0 "$gate_holder" 2>/dev/null; then
+    rm -rf "$gate_root.lock"
+  fi
+  if ! claim_gate_root; then
+    echo "pre-push: the checkout's export is in use by pid ${gate_holder:-?}; building in a fresh one" >&2
+    new_run_temp gate_root pg
+  fi
+fi
+mkdir -p "$gate_root"
+# Its age is the time since a run last claimed it (the week-long sweep above).
+touch "$gate_root"
+gate_root="$(cd "$gate_root" && { pwd -W 2>/dev/null || pwd; })"
+
 # The skips above fall through to the code gate, so this whole section runs
 # only when the lock still wants verifying.
 checker="${stack_scripts:+$stack_scripts/lockfile.py}"
@@ -860,12 +897,26 @@ if [ "$skip_lockfile" = "0" ]; then
 # `publish-hooks --retire`), so a member's copy cannot overrule it. The
 # dependency-source check below reads the same export.
 lock_rev="${pushed_tip:-${gate_tip:-HEAD}}"
-new_run_temp lock_root pl
-lock_export="$lock_root/tree"
-if ! lock_commit="$(git --no-replace-objects rev-parse --verify "$lock_rev^{commit}")" \
-  || ! export_revision "$lock_commit" "$lock_export"; then
-  echo "pre-push: could not export $lock_rev for the lockfile check" >&2
+lock_export="$gate_root/lock-tree"
+if ! lock_commit="$(git --no-replace-objects rev-parse --verify "$lock_rev^{commit}")"; then
+  echo "pre-push: could not resolve $lock_rev for the lockfile check" >&2
   exit 1
+fi
+# A reused lock tree a killed run left half-written (a stale index lock) can
+# refuse the update; it is only a cache, so it is rebuilt once from nothing.
+# A fresh tree that fails has nothing stale to clear, so it is not retried.
+lock_reused=0
+[ ! -d "$lock_export/.git" ] || lock_reused=1
+if ! export_revision "$lock_commit" "$lock_export"; then
+  [ "$lock_reused" = "1" ] || {
+    echo "pre-push: could not export $lock_rev for the lockfile check" >&2
+    exit 1
+  }
+  rm -rf "$lock_export" && mkdir -p "$lock_export"
+  if ! export_revision "$lock_commit" "$lock_export"; then
+    echo "pre-push: could not export $lock_rev for the lockfile check" >&2
+    exit 1
+  fi
 fi
 if [ -n "$unmatched_stack" ]; then
   # No lockfile checker is owed to a clone the stack does not register, and a
@@ -1189,39 +1240,6 @@ while :; do
   search_dir="$parent"
 done
 
-# The export lives at one short path per checkout, reused run after run:
-# cargo fingerprints a package by its path, so a new directory per push
-# rebuilt every workspace package (hermes: 419 s for a re-push of one sha,
-# 567 s cold), and a short root keeps deep paths under Windows' limit. A run
-# claims it with a lock naming its pid; while a live run holds it, this run
-# builds in a temporary export instead of waiting, and a dead holder's lock
-# is taken over.
-gate_key="$(printf '%s' "$repo_root" | git hash-object --stdin | cut -c1-10)"
-gate_root="$tmp_base/pg-$gate_key"
-claim_gate_root() {
-  local staged="$gate_root.lock.$$"
-  mkdir -p "$staged" && printf '%s\n' "$$" > "$staged/pid" || return 1
-  if mv -T "$staged" "$gate_root.lock" 2>/dev/null; then
-    run_temps+=("$gate_root.lock")
-    return 0
-  fi
-  rm -rf "$staged"
-  return 1
-}
-if ! claim_gate_root; then
-  gate_holder="$(cat "$gate_root.lock/pid" 2>/dev/null || true)"
-  if [ -n "$gate_holder" ] && ! kill -0 "$gate_holder" 2>/dev/null; then
-    rm -rf "$gate_root.lock"
-  fi
-  if ! claim_gate_root; then
-    echo "pre-push: the checkout's export is in use by pid ${gate_holder:-?}; building in a fresh one" >&2
-    new_run_temp gate_root pg
-  fi
-fi
-mkdir -p "$gate_root"
-# Its age is the time since a run last claimed it (the week-long sweep above).
-touch "$gate_root"
-gate_root="$(cd "$gate_root" && { pwd -W 2>/dev/null || pwd; })"
 gate_log=""
 
 # Mirror each config above the export without its `[patch]` table, and find

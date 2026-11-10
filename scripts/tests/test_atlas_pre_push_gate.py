@@ -4012,8 +4012,10 @@ class ExportHygieneTestCase(unittest.TestCase):
             self.assertFalse(stale.exists(), "a dead run's export survived")
             self.assertTrue(young.exists(), "a recent export was removed")
 
-    def test_an_interrupted_lock_check_leaves_no_export(self) -> None:
-        """TERM while the lock export exists: the trap removes it."""
+    def test_an_interrupted_lock_check_releases_its_reused_export(self) -> None:
+        """TERM during the lock check: the lock tree stays in the checkout's
+        reused export root for the next run, and the trap releases the
+        root's claim so that run can take it."""
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = _stacked_fixture(temp)
             tmp = pathlib.Path(temp) / "tmp"
@@ -4052,7 +4054,10 @@ class ExportHygieneTestCase(unittest.TestCase):
                     checker_pid = int(line.split()[1])
                     break
             self.assertIsNotNone(checker_pid, "the hook ended before the lock check started")
-            self.assertTrue(any(tmp.glob("pl.*")))
+            self.assertEqual(len(list(tmp.glob("pg-??????????/lock-tree/Cargo.lock"))), 1)
+            self.assertEqual(len(list(tmp.glob("pg-??????????.lock"))), 1)
+            # No per-run lock tree: the run temp named `pl.*` holds only age marks.
+            self.assertEqual(list(tmp.glob("pl.*/tree")), [])
             if os.name == "nt":
                 # The hook's bash is an MSYS process: signal it by its MSYS pid,
                 # as a terminal's Ctrl-C or a killed parent does.
@@ -4075,7 +4080,37 @@ class ExportHygieneTestCase(unittest.TestCase):
             proc.wait()
             self.assertFalse(watchdog.finished.is_set(), "the hook had to be killed")
             self.assertNotEqual(proc.returncode, 0)
-            self.assertEqual(list(tmp.glob("pl.*")), [])
+            self.assertEqual(list(tmp.glob("pg-??????????.lock")), [])
+            self.assertEqual(len(list(tmp.glob("pg-??????????/lock-tree/Cargo.lock"))), 1)
+
+
+    def test_a_wedged_lock_tree_is_rebuilt(self) -> None:
+        """A killed run can leave the reused lock tree's index lock behind;
+        the next push rebuilds the tree once instead of refusing every push
+        from the checkout."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = _stacked_fixture(temp)
+            tmp = pathlib.Path(temp) / "tmp"
+            tmp.mkdir()
+            _git(fixture.root, "switch", "-q", "-c", "feat")
+            fixture.install_stack_lockfile("raise SystemExit(0)\n")
+            env = {"TMPDIR": tmp.as_posix(), "SKIP_LOCAL_GATE": "1"}
+            (fixture.root / "Cargo.lock").write_text("# lock\n# first\n", encoding="utf-8")
+            _commit_all(fixture.root, "first lock")
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"), env)
+            self.assertEqual(code, 0, stderr)
+            trees = list(tmp.glob("pg-??????????/lock-tree"))
+            self.assertEqual(len(trees), 1)
+            (trees[0] / ".git" / "index.lock").write_text("", encoding="utf-8")
+
+            (fixture.root / "Cargo.lock").write_text("# lock\n# second\n", encoding="utf-8")
+            _commit_all(fixture.root, "second lock")
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"), env)
+
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("could not export", stderr)
+            self.assertEqual((trees[0] / "Cargo.lock").read_text(encoding="utf-8"),
+                             "# lock\n# second\n")
 
 
 def _live_msys_pid(test: unittest.TestCase) -> str:
