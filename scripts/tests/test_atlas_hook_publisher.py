@@ -884,7 +884,7 @@ class HostedMergeTestCase(unittest.TestCase):
             self._git(repo, "push", "-q", "origin", f"{stale_merge}:refs/test/stale")
             self._pull_ref(remote, stale_merge)
             state = {
-                "baseTargetOid": graph["base"],
+                "baseTargetOid": graph["default"],
                 "headRefOid": graph["candidate"],
                 "potentialMergeCommit": {"oid": stale_merge},
                 "number": 7,
@@ -926,6 +926,36 @@ class HostedMergeTestCase(unittest.TestCase):
                 )
             )
 
+            state["headRefOid"] = refreshed
+            with (
+                patch.object(_lock_form, "hosting_in", return_value=json.dumps(state)),
+                self.assertRaisesRegex(RuntimeError, "still pending"),
+            ):
+                _lock_form.refresh_hook_publication(
+                    repo, self.URL, graph["default"], refreshed, graph["tree"],
+                    hook, (), "refresh\n",
+                )
+
+            stale_refreshed = self._git(
+                repo, "commit-tree", candidate_tree, "-p", graph["base"],
+                "-p", refreshed, "-m", "stale refreshed merge",
+            )
+            self._git(
+                repo, "push", "-q", "origin", f"{stale_refreshed}:refs/test/stale-refresh"
+            )
+            self._pull_ref(remote, stale_refreshed)
+            state["potentialMergeCommit"] = {"oid": stale_refreshed}
+            count = self._git(repo, "rev-list", "--all", "--count")
+            with (
+                patch.object(_lock_form, "hosting_in", return_value=json.dumps(state)),
+                self.assertRaisesRegex(RuntimeError, "still pending"),
+            ):
+                _lock_form.refresh_hook_publication(
+                    repo, self.URL, graph["default"], refreshed, graph["tree"],
+                    hook, (), "refresh\n",
+                )
+            self.assertEqual(self._git(repo, "rev-list", "--all", "--count"), count)
+
             fresh_merge = self._git(
                 repo,
                 "commit-tree",
@@ -959,32 +989,6 @@ class HostedMergeTestCase(unittest.TestCase):
                         (),
                         "refresh\n",
                     )
-                )
-            self.assertEqual(self._git(repo, "rev-list", "--all", "--count"), count)
-
-    def test_pending_hosted_head_refuses_without_another_commit(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="atlas-hosted-pending-") as temp:
-            repo, _remote, graph = self._graph(Path(temp))
-            tree = self._git(repo, "rev-parse", f"{graph['candidate']}^{{tree}}")
-            advanced = self._git(
-                repo, "commit-tree", tree, "-p", graph["candidate"], "-m", "advance"
-            )
-            count = self._git(repo, "rev-list", "--all", "--count")
-            with (
-                patch.object(
-                    _lock_form, "hosting_in", return_value=self._state(graph)
-                ),
-                self.assertRaisesRegex(RuntimeError, "still pending"),
-            ):
-                _lock_form.refresh_hook_publication(
-                    repo,
-                    self.URL,
-                    graph["default"],
-                    advanced,
-                    graph["tree"],
-                    [("pre-push", b"#!/bin/sh\nexit 0\n")],
-                    (),
-                    "refresh\n",
                 )
             self.assertEqual(self._git(repo, "rev-list", "--all", "--count"), count)
 

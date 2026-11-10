@@ -731,8 +731,10 @@ def valid_board_item(item: str | None) -> bool:
 class HostedMerge(NamedTuple):
     """The coherent hosted merge identity for an open pull request."""
 
-    base: str
-    head: str
+    live_base: str
+    live_head: str
+    merge_base: str
+    merge_head: str
     tree: str
 
 
@@ -767,13 +769,16 @@ def hosted_merge(repo: Path, url: str) -> HostedMerge:
         raise RuntimeError(f"publication has no hosted merge identity: {url}")
     git_in(repo, "fetch", "-q", "origin", f"refs/pull/{number}/merge")
     observed = git_in(repo, "rev-parse", "FETCH_HEAD")
-    if (
-        observed != merge["oid"]
-        or git_in(repo, "show", "-s", "--format=%P", observed)
-        != f"{base} {head}"
-    ):
+    parents = git_in(repo, "show", "-s", "--format=%P", observed).split()
+    if observed != merge["oid"] or len(parents) != 2:
         raise RuntimeError(f"publication merge tree changed before readiness: {url}")
-    return HostedMerge(base, head, git_in(repo, "rev-parse", f"{observed}^{{tree}}"))
+    return HostedMerge(
+        base,
+        head,
+        parents[0],
+        parents[1],
+        git_in(repo, "rev-parse", f"{observed}^{{tree}}"),
+    )
 
 
 def require_hosted_merge(
@@ -781,7 +786,9 @@ def require_hosted_merge(
 ) -> None:
     """Require the hosted merge to bind the exact verified landing identity."""
     hosted = hosted_merge(repo, url)
-    if hosted != HostedMerge(default, candidate, landing_tree):
+    if hosted != HostedMerge(
+        default, candidate, default, candidate, landing_tree
+    ):
         raise RuntimeError(f"publication head, base, or tree changed: {url}")
 
 
@@ -797,24 +804,35 @@ def refresh_hook_publication(
 ) -> str | None:
     """Append one same-tree commit when a coherent hosted merge has a stale base."""
     hosted = hosted_merge(repo, url)
-    if hosted.head != candidate:
+    if hosted.live_head != candidate:
         try:
-            git_in(repo, "merge-base", "--is-ancestor", hosted.head, candidate)
+            git_in(repo, "merge-base", "--is-ancestor", hosted.live_head, candidate)
         except RuntimeError as error:
             raise RuntimeError(f"publication head changed: {url}") from error
         raise RuntimeError(f"publication head update is still pending: {url}")
-    if hosted.base == default:
+    if hosted.live_base != default:
+        raise RuntimeError(f"publication base changed: {url}")
+    if hosted.merge_head != candidate:
+        try:
+            git_in(repo, "merge-base", "--is-ancestor", hosted.merge_head, candidate)
+        except RuntimeError as error:
+            raise RuntimeError(f"publication merge head changed: {url}") from error
+        raise RuntimeError(f"publication merge update is still pending: {url}")
+    if hosted.merge_base == default:
         if hosted.tree != landing_tree:
             raise RuntimeError(f"publication merge tree changed: {url}")
         return None
     try:
-        git_in(repo, "merge-base", "--is-ancestor", hosted.base, default)
+        git_in(repo, "merge-base", "--is-ancestor", hosted.merge_base, default)
     except RuntimeError as error:
         raise RuntimeError(f"publication base is not an ancestor of default: {url}") from error
-    stale_tree = hook_landing_tree(repo, hosted.base, candidate, hooks, retired)
+    stale_tree = hook_landing_tree(repo, hosted.merge_base, candidate, hooks, retired)
     if hosted.tree != stale_tree:
         raise RuntimeError(f"stale publication merge tree changed: {url}")
     tree = git_in(repo, "rev-parse", f"{candidate}^{{tree}}")
+    parents = git_in(repo, "show", "-s", "--format=%P", candidate).split()
+    if len(parents) == 1 and git_in(repo, "rev-parse", f"{parents[0]}^{{tree}}") == tree:
+        raise RuntimeError(f"publication merge update is still pending: {url}")
     return git_in(repo, "commit-tree", tree, "-p", candidate, stdin=message.encode("utf-8"))
 
 
