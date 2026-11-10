@@ -63,9 +63,28 @@ from atlas_build_writers import BUILDING, CLEANING, COMPLETE, heartbeat, mark, r
 
 DEFAULT_LEASE_SECONDS = 900
 _CLEAN_PLAN_PREFIX = "atlas-build-clean-plan: "
+_PROGRESS_DIR_ENV = "ATLAS_GATE_PROGRESS_DIR"
 
 
 IdentityError = BuildIdentityError
+
+
+def _emit_clean_plan(payload: dict[str, object], run_id: str) -> None:
+    """Emit one decision and retain it atomically when the gate owns progress."""
+    progress_value = os.environ.get(_PROGRESS_DIR_ENV)
+    if progress_value is not None:
+        progress = Path(progress_value)
+        if not progress.is_absolute() or not progress.is_dir():
+            raise IdentityError(
+                f"{_PROGRESS_DIR_ENV} must name an existing absolute directory"
+            )
+        _write_atomic(progress / f"clean-plan-{run_id}.json", payload)
+    print(
+        _CLEAN_PLAN_PREFIX
+        + json.dumps(payload, sort_keys=True, separators=(",", ":")),
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -469,26 +488,18 @@ def _run_build(
                 "stale_git": sorted(state.stale_git),
             }
         requested = frozenset().union(*asked.values())
-        print(
-            _CLEAN_PLAN_PREFIX
-            + json.dumps(
-                {
-                    "clean": sorted(rebuilt),
-                    "packages": package_decisions,
-                    "phase": phases[0],
-                    "profile": profile,
-                    "requested": sorted(requested),
-                    "resume": sorted(resumed),
-                    "run": run_id,
-                    "schema": 1,
-                    "target": target,
-                },
-                sort_keys=True,
-                separators=(",", ":"),
-            ),
-            file=sys.stderr,
-            flush=True,
-        )
+        clean_plan = {
+            "clean": sorted(rebuilt),
+            "packages": package_decisions,
+            "phase": phases[0],
+            "profile": profile,
+            "requested": sorted(requested),
+            "resume": sorted(resumed),
+            "run": run_id,
+            "schema": 1,
+            "target": target,
+        }
+        _emit_clean_plan(clean_plan, run_id)
         if custom_clean:
             mark(target_dir, held, CLEANING, writer_identity)
             _run_checked(clean_command, execution_root, environment)
