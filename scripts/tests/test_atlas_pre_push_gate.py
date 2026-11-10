@@ -1493,6 +1493,52 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             self.assertFalse(identity_log.exists())
 
 
+class BoundedSupervisorTestCase(unittest.TestCase):
+    """The process owner retains diagnostics until it reports the result."""
+
+    def test_normal_failure_reports_the_gate_log_and_success_omits_it(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-supervisor-") as temp:
+            root = pathlib.Path(temp)
+            hook = root / "hook.sh"
+            progress_path = root / "progress.txt"
+            _write(hook, """#!/usr/bin/env bash
+set -u
+test "$1" = --bounded-entry
+printf '%s' "$ATLAS_GATE_PROGRESS_DIR" > "$2"
+printf 'tests 1.25\n' > "$ATLAS_GATE_PROGRESS_DIR/stages.log"
+printf 'distinctive nextest failure\n' > "$ATLAS_GATE_PROGRESS_DIR/gate.log"
+printf 'child output\n'
+printf 'child error\n' >&2
+exit "$3"
+""", executable=True)
+
+            def run(status: int) -> subprocess.CompletedProcess:
+                progress_path.unlink(missing_ok=True)
+                result = subprocess.run(
+                    [sys.executable, "-I", str(SCRIPT.parents[1] / "pre_push_gate.py"),
+                     "direct", "push", str(hook), progress_path.as_posix(), str(status)],
+                    capture_output=True, text=True, timeout=WATCHDOG_SECONDS,
+                )
+                self.assertTrue(progress_path.is_file(), result.stderr)
+                progress = pathlib.Path(progress_path.read_text(encoding="utf-8"))
+                self.assertFalse(progress.exists(), "the supervisor must remove its progress tree")
+                return result
+
+            failure = run(7)
+            self.assertEqual(failure.returncode, 7, failure.stderr)
+            self.assertEqual(failure.stdout, "child output\n")
+            self.assertIn("child error", failure.stderr)
+            self.assertIn("tests 1.25", failure.stderr)
+            self.assertIn("final bounded gate log bytes", failure.stderr)
+            self.assertIn("distinctive nextest failure", failure.stderr)
+
+            success = run(0)
+            self.assertEqual(success.returncode, 0, success.stderr)
+            self.assertIn("tests 1.25", success.stderr)
+            self.assertNotIn("final bounded gate log bytes", success.stderr)
+            self.assertNotIn("distinctive nextest failure", success.stderr)
+
+
 class PhaseOwnershipTestCase(unittest.TestCase):
     """Git push and readiness own disjoint native build phases."""
 
