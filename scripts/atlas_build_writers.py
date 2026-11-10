@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 import threading
 import time
 from contextlib import contextmanager
@@ -86,40 +87,52 @@ def _artifact_pattern(package: str) -> re.Pattern[str]:
     return re.compile(rf"^(?:lib)?(?:{names})-[0-9a-f]+(?:\.|$)")
 
 
+def _raise(error: OSError) -> None:
+    raise error
+
+
+def _subdirectories(directory: Path) -> list[Path]:
+    with os.scandir(directory) as scan:
+        paths = [entry.path for entry in scan]
+    return [Path(path) for path in paths if stat.S_ISDIR(os.stat(path).st_mode)]
+
+
 def _profile_directories(target_dir: Path) -> Iterator[Path]:
-    """Directories holding `deps` or `.fingerprint`: `<profile>` and `<triple>/<profile>`."""
-    try:
-        first = [entry for entry in target_dir.iterdir() if entry.is_dir()]
-        for directory in first:
-            yield directory
-            yield from (entry for entry in directory.iterdir() if entry.is_dir())
-    except OSError:
-        return
+    """Directories that may hold `deps` or `.fingerprint`: `<profile>` and `<triple>/<profile>`.
+
+    A listing or stat error propagates: a scan that cannot see a directory
+    cannot vouch for it.
+    """
+    for first in _subdirectories(target_dir):
+        yield first
+        yield from _subdirectories(first)
 
 
 def written_after(target_dir: Path, package: str, since_ns: int) -> bool:
     """Whether any artifact or fingerprint file of `package` is newer than `since_ns`.
 
     Over-matches by name only (a longer package sharing the prefix and a hash
-    suffix), which cleans more, never less; a file that cannot be read counts
-    as newer.
+    suffix), which cleans more, never less. A directory or file that cannot
+    be listed or read, or vanishes mid-scan, counts as newer.
     """
     pattern = _artifact_pattern(package)
     try:
         for directory in _profile_directories(target_dir):
+            with os.scandir(directory) as scan:
+                present = {entry.name for entry in scan}
             for subdirectory in _SUBDIRECTORIES:
-                root = directory / subdirectory
-                if not root.is_dir():
+                if subdirectory not in present:
                     continue
-                for entry in root.iterdir():
-                    if not pattern.match(entry.name):
-                        continue
-                    if entry.stat().st_mtime_ns > since_ns:
+                with os.scandir(directory / subdirectory) as scan:
+                    paths = [entry.path for entry in scan if pattern.match(entry.name)]
+                for path in paths:
+                    status = os.stat(path)
+                    if status.st_mtime_ns > since_ns:
                         return True
-                    if entry.is_dir():
-                        for parent, directories, files in os.walk(entry):
+                    if stat.S_ISDIR(status.st_mode):
+                        for parent, directories, files in os.walk(path, onerror=_raise):
                             for name in (*directories, *files):
-                                if (Path(parent) / name).stat().st_mtime_ns > since_ns:
+                                if os.stat(os.path.join(parent, name)).st_mtime_ns > since_ns:
                                     return True
     except OSError:
         return True
@@ -146,8 +159,10 @@ def resumable(target_dir: Path, packages: Iterable[str], identity: str) -> froze
     return frozenset(resumed)
 
 
-def mark(target_dir: Path, packages: Iterable[str], state: str, identity: str) -> None:
-    """Record `state` as the last writer of each package; the caller holds each exclusive."""
+def mark(
+    target_dir: Path, packages: Iterable[str], state: str, identity: str, at_ns: int | None = None
+) -> None:
+    """Record `state` at `at_ns` (default now) for each package; the caller holds each exclusive."""
     if state not in _STATES:
         raise BuildIdentityError(f"unknown writer state {state}")
     for package in packages:
@@ -157,7 +172,7 @@ def mark(target_dir: Path, packages: Iterable[str], state: str, identity: str) -
                 "version": _VERSION,
                 "state": state,
                 "identity": identity,
-                "heartbeat_ns": time.time_ns(),
+                "heartbeat_ns": time.time_ns() if at_ns is None else at_ns,
             },
         )
 
@@ -170,8 +185,13 @@ def heartbeat(target_dir: Path, packages: Iterable[str], identity: str) -> Itera
 
     def beat() -> None:
         while not stopped.wait(HEARTBEAT_SECONDS):
+            # Read before the stop check: no beat is stamped after the command
+            # exited, which would vouch for a peer's later write.
+            stamp = time.time_ns()
+            if stopped.is_set():
+                return
             try:
-                mark(target_dir, held, BUILDING, identity)
+                mark(target_dir, held, BUILDING, identity, stamp)
             except (OSError, BuildIdentityError):
                 # A missed beat only ages the mark, so a rerun cleans more.
                 continue
