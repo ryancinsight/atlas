@@ -48,11 +48,11 @@ class RetargetMetadataTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="atlas-retarget-")
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name).resolve()
-        config = self.root / "gitconfig"
-        config.write_text("", encoding="utf-8")
+        self.git_config = self.root / "gitconfig"
+        self.git_config.write_text("", encoding="utf-8")
         environment = mock.patch.dict(os.environ, {
             "CARGO_HOME": str(self.root / "cargo-home"),
-            "GIT_CONFIG_GLOBAL": str(config), "GIT_CONFIG_NOSYSTEM": "1"})
+            "GIT_CONFIG_GLOBAL": str(self.git_config), "GIT_CONFIG_NOSYSTEM": "1"})
         environment.start()
         self.addCleanup(environment.stop)
         for name, value in (("ROOT", self.root), ("LOG_ROOT", self.root / "output")):
@@ -124,7 +124,28 @@ class RetargetMetadataTests(unittest.TestCase):
         self.assertIn("locked offline metadata", failure.detail)
         self.assertEqual(git(self.moving, "rev-parse", "HEAD"), revision)
 
-    def test_existing_ordinary_branch_cannot_bypass_strict_cli_rejection(self) -> None:
+    def test_raised_post_update_failure_restores_exact_lock_bytes(self) -> None:
+        helper = provider(self.root / "repos", "helper")
+        cargo_home = Path(os.environ["CARGO_HOME"])
+        cargo_home.mkdir(exist_ok=True)
+        (cargo_home / "config.toml").write_text(
+            "[net]\ngit-fetch-with-cli = true\n", encoding="utf-8")
+        git(self.root, "config", "--file", str(self.git_config),
+            f"url.{helper.as_uri()}.insteadOf", "ssh://git@github.com/ryancinsight/helper")
+        manifest = (self.moving / "Cargo.toml").read_text()
+        revision = self.commit_provider({
+            "Cargo.toml": manifest + (
+                '[dependencies]\nhelper = { git = '
+                '"ssh://git@github.com/ryancinsight/helper" }\n')})
+        package = sweep.LockedPackage("moving", "0.1.0", self.location, self.old)
+        plan = sweep.Plan(self.consumer, self.old, (package,))
+
+        with self.assertRaisesRegex(ValueError, "unsupported first-party Git source authority"):
+            sweep.resolve_lock(plan, {"moving": revision}, self.consumer)
+
+        self.assertEqual((self.consumer / "Cargo.lock").read_bytes(), self.original)
+
+    def test_existing_ordinary_branch_cannot_bypass_query_rejection(self) -> None:
         revision = self.commit_provider({"src/lib.rs": "pub fn next() {}\n"})
         url = "https://github.com/ryancinsight/moving"
         queried = f"git+{url}?rev={self.old}#{self.old}"
@@ -149,18 +170,22 @@ class RetargetMetadataTests(unittest.TestCase):
         (self.root / ".gitmodules").write_text("".join(
             f'[submodule "{name}"]\npath = repos/{name}\nurl = local\n'
             for name in ("consumer", "moving")))
-        output = io.StringIO()
-        arguments = ["atlas-lock-sweep.py",
-                     "--retarget-sources", "--members", "consumer", "--target", "moving=" + revision]
-        with mock.patch.object(sys.modules["atlas_stack"], "ROOT", self.root), \
-                mock.patch.object(sys, "argv", arguments), \
-                mock.patch.dict(os.environ, {"CARGO_TARGET_DIR": str(shared_target_directory())}), \
-                contextlib.redirect_stdout(output):
-            status = sweep.main()
-        self.assertEqual(status, 1, output.getvalue())
-        self.assertIn("source retargeting", output.getvalue())
-        self.assertIn("failed", output.getvalue())
-        self.assertEqual(git(remote, "rev-parse", "refs/heads/" + branch), base)
+        for operation, diagnostic in (([], "targeted source"),
+                                      (["--retarget-sources"], "source retargeting")):
+            with self.subTest(operation=diagnostic):
+                output = io.StringIO()
+                arguments = ["atlas-lock-sweep.py", *operation, "--members", "consumer",
+                             "--target", "moving=" + revision]
+                with mock.patch.object(sys.modules["atlas_stack"], "ROOT", self.root), \
+                        mock.patch.object(sys, "argv", arguments), \
+                        mock.patch.dict(os.environ, {
+                            "CARGO_TARGET_DIR": str(shared_target_directory())}), \
+                        contextlib.redirect_stdout(output):
+                    status = sweep.main()
+                self.assertEqual(status, 1, output.getvalue())
+                self.assertIn(diagnostic, output.getvalue())
+                self.assertIn("failed", output.getvalue())
+                self.assertEqual(git(remote, "rev-parse", "refs/heads/" + branch), base)
 
     def test_committed_retarget_preserves_untouched_mixed_line_endings(self) -> None:
         revision = self.commit_provider({"src/lib.rs": "pub fn second() {}\n"})
