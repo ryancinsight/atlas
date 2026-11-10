@@ -29,9 +29,11 @@ on a new cast. This gate is the enforcement:
   a helper module is not a trigger and is held to the row alone. Only pushed packages are counted:
   clippy lints the selected packages, so a pushed package enabling a feature
   of one it depends on is not measured there. The comparison covers the
-  packages named by `--base-package`; the hook names a manifest's packages
-  only when that manifest's base built, so one that fails to compile leaves
-  its own packages to their rows and no others.
+  packages named by `--base-package`. The hook normally names a manifest's
+  packages only when that manifest's base built. A standalone manifest that
+  first gains its own committed sibling lock is instead held to zero when
+  committed ownership facts prove no base workspace owned it; its candidate
+  still runs real metadata and clippy. Any ambiguous committed input fails.
 
 Sites are deduplicated by span, since `--all-targets` reports a library site
 once per target. The exclusion is by path only: `--force-warn` output does not
@@ -47,13 +49,13 @@ The base run is the one extra compile, under the same leases.
         --tip <sha> --package eunomia --sites <file> [--sites ...] \
         [--base-sites <file> ... --base-package eunomia ...]
 
-`--base-package` names the packages the base could hold to a count. The gate
-holds the ones the base's workspace had: a package the base never had carries
-no count there, so its casts are judged by the row that records them, and a
-crate that returns to the workspace brings that debt with it. The membership
-is read from the base revision's own manifests, so a package the push adds is
-absent from it.
+`--base-package` names the packages the hook proved have a base count. Normal
+owners come from real base metadata. A newly owned standalone manifest uses
+real candidate metadata with an empty base-sites file, so every candidate
+package starts at zero. A package absent from both proofs stays under its row.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
+    atlas_cast_gate.py new-standalone-owners --repo <dir> --base <sha> \
+        --tip <sha> --manifest fuzz/Cargo.toml [--manifest ...]
     atlas_cast_gate.py resolved-changes --repo <dir> --base <sha> --tip <sha> \
         --base-export <dir> --tip-export <dir>
     atlas_cast_gate.py measure --member eunomia --export <dir>
@@ -738,6 +740,55 @@ def held_to_base(repo: pathlib.Path, base: str, candidates: Iterable[str],
     return frozenset(candidates) & present
 
 
+def new_standalone_owners(repo: pathlib.Path, base: str, tip: str,
+                          manifests: Iterable[str]) -> frozenset[str]:
+    """Standalone manifests that first own a committed lock in `tip`.
+
+    Ownership comes from the lock gate's committed-tree model. A pre-existing
+    manifest qualifies only when no base lock owned it, its sibling lock was
+    absent, and the candidate sibling lock owns it without unreadable or
+    ambiguous declarations. The base manifest must parse even though Cargo
+    cannot treat that formerly orphaned package as a workspace.
+    """
+    from lockfile import tracked_texts, workspace_units
+
+    base_texts = tracked_texts(repo, staged=False, revision=base)
+    tip_texts = tracked_texts(repo, staged=False, revision=tip)
+    base_units = workspace_units(base_texts)
+    tip_units = workspace_units(tip_texts)
+    base_owned = {manifest for facts in base_units.values()
+                  for manifest in facts.owned_manifests}
+    added: set[str] = set()
+    for manifest in manifests:
+        path = pathlib.PurePosixPath(manifest)
+        lock = path.with_name("Cargo.lock").as_posix()
+        base_text = base_texts.get(manifest)
+        facts = tip_units.get(lock)
+        if (base_text is None or lock in base_texts or manifest in base_owned
+                or facts is None or manifest not in facts.owned_manifests):
+            continue
+        uncertain = [detail for unit in base_units.values()
+                     for detail in (*unit.unreadable, *unit.problems)]
+        if uncertain:
+            raise ValueError(f"{base}: workspace ownership is ambiguous ({'; '.join(uncertain)})")
+        base_packages = {package for unit in base_units.values() for package in unit.local}
+        collisions = sorted(facts.local & base_packages)
+        if collisions:
+            raise ValueError(
+                f"{manifest}: newly owned package names already exist at the base: "
+                f"{', '.join(collisions)}"
+            )
+        try:
+            tomllib.loads(base_text)
+        except tomllib.TOMLDecodeError as error:
+            raise ValueError(f"{base}:{manifest} does not parse as TOML ({error})") from error
+        if facts.unreadable or facts.problems:
+            details = "; ".join((*facts.unreadable, *facts.problems))
+            raise ValueError(f"{tip}:{lock} has ambiguous ownership ({details})")
+        added.add(manifest)
+    return frozenset(added)
+
+
 @dataclass(frozen=True)
 class Baseline:
     """Sanctioned conversion and cast modules, and per-package site counts."""
@@ -859,6 +910,7 @@ def check(args: argparse.Namespace) -> int:
     repo = pathlib.Path(args.repo)
     added = pushed_additions(repo, args.base or None, args.tip)
     held = held_to_base(repo, args.base, args.base_package, base)
+    held |= frozenset(args.zero_base_package)
     problems = violations(args.member, found, added, args.package, baseline, base,
                           held)
     for problem in problems:
@@ -926,6 +978,15 @@ def triggers(args: argparse.Namespace) -> int:
     return 0
 
 
+def owners(args: argparse.Namespace) -> int:
+    """Print newly owned standalone manifests, sorted one per line."""
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+    for manifest in sorted(new_standalone_owners(
+            pathlib.Path(args.repo), args.base, args.tip, args.manifest)):
+        print(manifest)
+    return 0
+
+
 def changes(args: argparse.Namespace) -> int:
     sys.stdout.reconfigure(encoding="utf-8", newline="\n")
     changed, reason = resolved_changes(
@@ -984,8 +1045,10 @@ def main(argv: list[str] | None = None) -> int:
     gate.add_argument("--base-sites", action="append", default=[],
                       help="a file `clippy` wrote for the range's base")
     gate.add_argument("--base-package", action="append", default=[],
-                      help="a package the base can hold to its count; the ones the base "
-                           "never had are held to their rows alone")
+                      help="a package with a proven base count, including zero for a "
+                           "newly owned standalone manifest")
+    gate.add_argument("--zero-base-package", action="append", default=[],
+                      help="a newly owned package explicitly held to zero")
     gate.set_defaults(run=check)
     trigger = commands.add_parser(
         "base-triggers", help="print why the range needs the base count; nothing when it does not")
@@ -993,6 +1056,15 @@ def main(argv: list[str] | None = None) -> int:
     trigger.add_argument("--base", required=True)
     trigger.add_argument("--tip", required=True)
     trigger.set_defaults(run=triggers)
+    owner = commands.add_parser(
+        "new-standalone-owners",
+        help="print standalone manifests that first own a committed sibling lock",
+    )
+    owner.add_argument("--repo", required=True, help="the member repository")
+    owner.add_argument("--base", required=True)
+    owner.add_argument("--tip", required=True)
+    owner.add_argument("--manifest", action="append", default=[], required=True)
+    owner.set_defaults(run=owners)
     resolved = commands.add_parser(
         "resolved-changes",
         help=("print the members a changed root manifest resolves differently, one per "
