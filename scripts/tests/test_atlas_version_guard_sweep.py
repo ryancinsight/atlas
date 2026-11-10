@@ -20,6 +20,15 @@ sys.modules[_SPEC.name] = _sweep
 _SPEC.loader.exec_module(_sweep)
 
 
+def fake_tool(calls: list[tuple[list[str], dict[str, str] | None]]):
+    def run(tool: str, arguments: list[str], **options: object) -> object:
+        command = ["cargo", tool, *arguments]
+        calls.append((command, options.get("env")))
+        return subprocess.CompletedProcess(command, 0)
+
+    return run
+
+
 class VersionGuardSweepTestCase(unittest.TestCase):
     def test_clean_rust_env_removes_compiler_overrides(self) -> None:
         with patch.dict(
@@ -40,7 +49,9 @@ class VersionGuardSweepTestCase(unittest.TestCase):
             return subprocess.CompletedProcess(command, 0)
 
         with patch.dict(os.environ, {"RUSTC": "", "RUSTDOC": ""}, clear=False):
-            with patch.object(_sweep.subprocess, "run", side_effect=fake_run):
+            with patch.object(_sweep.subprocess, "run", side_effect=fake_run), patch.object(
+                _sweep, "run_tool", side_effect=fake_tool(calls)
+            ):
                 exit_code = _sweep.main()
 
         self.assertEqual(exit_code, 0)
@@ -64,7 +75,9 @@ class VersionGuardSweepTestCase(unittest.TestCase):
             calls.append((command, env))
             return subprocess.CompletedProcess(command, 0)
 
-        with patch.object(_sweep.subprocess, "run", side_effect=fake_run):
+        with patch.object(_sweep.subprocess, "run", side_effect=fake_run), patch.object(
+            _sweep, "run_tool", side_effect=fake_tool(calls)
+        ):
             exit_code = _sweep.main(["--against-remotes"])
 
         self.assertEqual(exit_code, 0)
@@ -78,7 +91,9 @@ class VersionGuardSweepTestCase(unittest.TestCase):
             calls.append((command, env))
             return subprocess.CompletedProcess(command, 0)
 
-        with patch.object(_sweep.subprocess, "run", side_effect=fake_run):
+        with patch.object(_sweep.subprocess, "run", side_effect=fake_run), patch.object(
+            _sweep, "run_tool", side_effect=fake_tool(calls)
+        ):
             exit_code = _sweep.main([])
 
         self.assertEqual(exit_code, 0)
