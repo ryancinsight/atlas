@@ -242,7 +242,7 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
             ]
         }
 
-        with patch.object(audit.subprocess, "run") as run:
+        with patch.object(audit, "run_tool") as run:
             run.return_value = subprocess.CompletedProcess(
                 args=["cargo"], returncode=1, stdout=json.dumps(report), stderr=""
             )
@@ -268,7 +268,7 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
             ]
         }
 
-        with patch.object(audit.subprocess, "run") as run:
+        with patch.object(audit, "run_tool") as run:
             run.return_value = subprocess.CompletedProcess(
                 args=["cargo"], returncode=1, stdout=json.dumps(report), stderr=""
             )
@@ -279,8 +279,8 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
 
     def test_coherence_scope_reports_a_bounded_timeout(self) -> None:
         with patch.object(
-            audit.subprocess,
-            "run",
+            audit,
+            "run_tool",
             side_effect=subprocess.TimeoutExpired(
                 cmd=["cargo"], timeout=audit.COHERENCE_TIMEOUT_SECONDS
             ),
