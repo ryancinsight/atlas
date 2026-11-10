@@ -5,7 +5,7 @@
 - Class: [arch]
 - Driver: [Atlas PR #624](https://github.com/ryancinsight/atlas/pull/624), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
-- Revision: 2026-11-09 — Compacted the as-built contract and required hook installation and publication to materialize the same source-keyed immutable supervisor family; publication keeps that runtime invocation-local so preparing a publication cannot replace the live installed gate.
+- Revision: 2026-11-09 — Compacted source ownership, bound the complete supervisor family, and made cohort checks and revision-bound lock inventories explicit after #623 escaped non-required failures.
 
 ## Context
 
@@ -14,7 +14,7 @@ Concurrent roots therefore need one protocol that prevents a clean or rewrite fr
 
 ## Decision
 
-Revision 2026-11-09: the required Atlas aggregate includes pinned overlay, version coherence and pin drift. Separate non-required workflow failures escaped the #623 gate; their single reusable owners now feed the aggregate, and incomplete verdicts reject. Consumer requirements and standalone locks must pass against the selected immutable provider cohort before its gitlinks land.
+The required Atlas aggregate includes pinned overlay, version coherence and pin drift. Separate non-required workflow failures escaped the #623 gate; their single reusable owners now feed the aggregate, and incomplete verdicts reject. Consumer requirements and standalone locks must pass against the selected immutable provider cohort before its gitlinks land. The lock sweep inventory reads every committed owner at one Atlas revision, including nested and excluded workspaces, without consulting checkouts or fetching. It retains fixture exemptions and missing sibling-lock diagnostics; SemVer baselines derive from these complete first-party identity records.
 
 ### Tool and runner source
 
