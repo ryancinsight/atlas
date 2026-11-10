@@ -1029,6 +1029,38 @@ def workspace_selection(
     return owned, selected, feature_requests
 
 
+def _workspace_declaration_problems(
+    name: str,
+    manifest: Mapping[str, object],
+    parsed: Mapping[str, Mapping[str, object] | None],
+) -> list[str]:
+    """Ownership fields whose types Cargo cannot interpret."""
+    found: list[str] = []
+    workspace = manifest.get("workspace")
+    package = manifest.get("package")
+    if "workspace" in manifest and not isinstance(workspace, dict):
+        found.append(f"{name}: workspace must be a table")
+    if isinstance(package, dict) and "workspace" in package and not isinstance(package["workspace"], str):
+        found.append(f"{name}: package.workspace must be a path string")
+    if isinstance(workspace, dict):
+        for key in ("members", "exclude", "default-members"):
+            entries = workspace.get(key, [])
+            if not isinstance(entries, list) or any(not isinstance(entry, str) for entry in entries):
+                found.append(f"{name}: workspace.{key} must be an array of strings")
+        members = workspace.get("members", [])
+        if isinstance(members, list) and all(isinstance(entry, str) for entry in members):
+            root = PurePosixPath(name).parent
+            for entry in members:
+                pattern = workspace_relative(root, entry)
+                matches = [candidate for candidate, data in parsed.items()
+                           if directory_pattern_matches(pattern, PurePosixPath(candidate).parent)
+                           and (candidate == name or not isinstance(data, dict)
+                                or not isinstance(data.get("workspace"), dict))]
+                if not matches:
+                    found.append(f"{name}: workspace member {entry!r} has no package manifest")
+    return found
+
+
 def workspace_facts(
     manifests: Mapping[str, str],
     workspace: PurePosixPath,
@@ -1056,13 +1088,16 @@ def workspace_facts(
             parsed[name] = tomllib.loads(text)
         except tomllib.TOMLDecodeError:
             parsed[name] = None
+    declaration_problems = [problem for name, document in parsed.items()
+                            if isinstance(document, dict)
+                            for problem in _workspace_declaration_problems(name, document, parsed)]
 
     owned, selected, feature_requests = workspace_selection(manifests, parsed, workspace, nested)
 
     local: set[str] = set()
     git_dependencies: set[str] = set()
     unreadable: list[str] = []
-    problems: list[str] = []
+    problems = declaration_problems
     fixture = False
     for name in sorted(selected):
         data = parsed.get(name)
