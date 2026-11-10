@@ -37,6 +37,9 @@ from root_hook_support import shared_target_directory
 SCRIPT = (
     pathlib.Path(__file__).resolve().parents[1] / "git-hooks" / "pre-push"
 )
+sys.path.insert(0, str(SCRIPT.parents[1]))
+import process_tree  # noqa: E402
+
 ZERO = "0" * 40
 # Bound on any wait for a hook run; the hooks finish in seconds, so this is
 # a backstop that ends a hung run, never a pace the tests rely on.
@@ -1537,6 +1540,145 @@ exit "$3"
             self.assertIn("tests 1.25", success.stderr)
             self.assertNotIn("final bounded gate log bytes", success.stderr)
             self.assertNotIn("distinctive nextest failure", success.stderr)
+
+    def test_caller_owned_progress_retains_success_failure_and_empty_runs(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-retained-") as temp:
+            root = pathlib.Path(temp)
+            parent = root / "progress"
+            parent.mkdir()
+            emitter = root / "emit.py"
+            _write(
+                emitter,
+                "import sys\n"
+                "sys.path.insert(0, sys.argv[3])\n"
+                "import atlas_build_identity as identity\n"
+                "run = sys.argv[1]\n"
+                "payload = {'clean': [], 'packages': {}, 'phase': 1, "
+                "'profile': 'debug', 'requested': [], 'resume': [], "
+                "'run': run, 'schema': 1, 'target': 'host'}\n"
+                "identity._emit_clean_plan(payload, run)\n"
+                "raise SystemExit(int(sys.argv[2]))\n",
+            )
+            hook = root / "hook.sh"
+            _write(hook, '#!/usr/bin/env bash\nexec "$2" "$3" "$4" "$5" "$6"\n', executable=True)
+
+            def run(run_id: str, status: int) -> pathlib.Path:
+                before = set(parent.iterdir())
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-I",
+                        str(SCRIPT.parents[1] / "pre_push_gate.py"),
+                        "direct",
+                        "push",
+                        str(hook),
+                        sys.executable,
+                        str(emitter),
+                        run_id,
+                        str(status),
+                        str(SCRIPT.parents[1]),
+                    ],
+                    env=dict(os.environ, ATLAS_GATE_PROGRESS_PARENT=str(parent)),
+                    capture_output=True,
+                    text=True,
+                    timeout=WATCHDOG_SECONDS,
+                )
+                self.assertEqual(result.returncode, status, result.stderr)
+                created = set(parent.iterdir()) - before
+                self.assertEqual(len(created), 1)
+                return created.pop()
+
+            for run_id, status in (("a" * 32, 0), ("b" * 32, 7)):
+                progress = run(run_id, status)
+                record = progress / f"clean-plan-{run_id}.json"
+                self.assertEqual(json.loads(record.read_text(encoding="utf-8"))["run"], run_id)
+
+            empty_hook = root / "empty.sh"
+            _write(empty_hook, "#!/usr/bin/env bash\nexit 0\n", executable=True)
+            before = set(parent.iterdir())
+            result = subprocess.run(
+                [sys.executable, "-I", str(SCRIPT.parents[1] / "pre_push_gate.py"),
+                 "direct", "push", str(empty_hook)],
+                env=dict(os.environ, ATLAS_GATE_PROGRESS_PARENT=str(parent)),
+                capture_output=True, text=True, timeout=WATCHDOG_SECONDS,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            created = set(parent.iterdir()) - before
+            self.assertEqual(len(created), 1)
+            empty = created.pop()
+            self.assertEqual(list(empty.iterdir()), [])
+
+    def test_caller_owned_progress_rejects_invalid_parents(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-progress-parent-") as temp:
+            root = pathlib.Path(temp)
+            hook = root / "hook.sh"
+            marker = root / "ran"
+            _write(hook, f"#!/usr/bin/env bash\ntouch {shlex.quote(marker.as_posix())}\n", executable=True)
+            invalid_file = root / "file"
+            invalid_file.write_text("not a directory", encoding="utf-8")
+            for parent in ("relative", str(invalid_file)):
+                with self.subTest(parent=parent):
+                    result = subprocess.run(
+                        [sys.executable, "-I", str(SCRIPT.parents[1] / "pre_push_gate.py"),
+                         "direct", "push", str(hook)],
+                        env=dict(os.environ, ATLAS_GATE_PROGRESS_PARENT=parent),
+                        capture_output=True, text=True, timeout=WATCHDOG_SECONDS,
+                    )
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn("must name an existing absolute directory", result.stderr)
+                    self.assertFalse(marker.exists())
+
+    def test_outer_timeout_retains_distinct_clean_plans(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-outer-timeout-") as temp:
+            root = pathlib.Path(temp)
+            parent = root / "progress"
+            parent.mkdir()
+            emitter = root / "emit_then_block.py"
+            _write(
+                emitter,
+                "import sys, threading, uuid\n"
+                "sys.path.insert(0, sys.argv[1])\n"
+                "import atlas_build_identity as identity\n"
+                "for package in ('base-owner', 'standalone-owner'):\n"
+                "    run = uuid.uuid4().hex\n"
+                "    payload = {'clean': [package], 'packages': {package: "
+                "{'matched': False}}, 'phase': 2, 'profile': 'debug', "
+                "'requested': [package], 'resume': [], 'run': run, "
+                "'schema': 1, 'target': 'host'}\n"
+                "    identity._emit_clean_plan(payload, run)\n"
+                "threading.Event().wait()\n",
+            )
+            hook = root / "hook.sh"
+            _write(hook, '#!/usr/bin/env bash\nexec "$2" "$3" "$4"\n', executable=True)
+            command = [
+                sys.executable,
+                "-I",
+                str(SCRIPT.parents[1] / "pre_push_gate.py"),
+                "direct",
+                "push",
+                str(hook),
+                sys.executable,
+                str(emitter),
+                str(SCRIPT.parents[1]),
+            ]
+            with self.assertRaises(process_tree.ProcessTreeTimeout):
+                process_tree.run(
+                    command,
+                    env=dict(os.environ, ATLAS_GATE_PROGRESS_PARENT=str(parent)),
+                    timeout=10,
+                    output_mode=process_tree.OutputMode.CAPTURE,
+                )
+
+            children = list(parent.glob("pg-progress.*"))
+            self.assertEqual(len(children), 1)
+            records = [
+                json.loads(path.read_text(encoding="utf-8"))
+                for path in children[0].glob("clean-plan-*.json")
+            ]
+            self.assertEqual(
+                {next(iter(record["packages"])) for record in records},
+                {"base-owner", "standalone-owner"},
+            )
 
 
 class PhaseOwnershipTestCase(unittest.TestCase):
