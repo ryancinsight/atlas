@@ -776,6 +776,8 @@ class HostedMergeTestCase(unittest.TestCase):
         repo = scratch / "member"
         repo.mkdir()
         self._git(repo, "init", "-q", "-b", "main")
+        self._git(repo, "config", "user.email", "t@t")
+        self._git(repo, "config", "user.name", "t")
         (repo / "value.txt").write_text("base\n", encoding="utf-8")
         self._git(repo, "add", "value.txt")
         self._git(repo, "commit", "-q", "-m", "base")
