@@ -1455,6 +1455,10 @@ class BuildIdentityTestCase(unittest.TestCase):
 
         def recording(command, cwd, environment):
             if (names := cleaned_names(command)) is not None:
+                progress_value = os.environ.get(identity._PROGRESS_DIR_ENV)
+                if progress_value is not None:
+                    records = list(Path(progress_value).glob("clean-plan-*.json"))
+                    self.assertEqual(len(records), 1)
                 packages.extend(names)
                 return
             run_checked(command, cwd, environment)
@@ -1472,15 +1476,56 @@ class BuildIdentityTestCase(unittest.TestCase):
     ) -> tuple[dict[str, object], list[str]]:
         """Return the structured decision emitted by one recorded clean run."""
         stderr = io.StringIO()
-        with redirect_stderr(stderr):
+        with tempfile.TemporaryDirectory(prefix="atlas-clean-plan-") as temporary, (
+            patch.dict(os.environ, {identity._PROGRESS_DIR_ENV: temporary})
+        ), redirect_stderr(stderr):
             cleaned = self.cleaned_packages(source_token, snapshot=snapshot)
+            retained = list(Path(temporary).glob("clean-plan-*.json"))
+            self.assertEqual(len(retained), 1)
+            retained_payload = json.loads(retained[0].read_text(encoding="utf-8"))
+            retained_name = retained[0].name
         payloads = [
             line.removeprefix(identity._CLEAN_PLAN_PREFIX)
             for line in stderr.getvalue().splitlines()
             if line.startswith(identity._CLEAN_PLAN_PREFIX)
         ]
         self.assertEqual(len(payloads), 1)
-        return json.loads(payloads[0]), cleaned
+        payload = json.loads(payloads[0])
+        self.assertEqual(retained_payload, payload)
+        self.assertEqual(retained_name, f"clean-plan-{payload['run']}.json")
+        return payload, cleaned
+
+    def test_cleanup_decision_is_retained_before_custom_clean(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        observed: list[dict[str, object]] = []
+        run_checked = identity._run_checked
+
+        def inspect_before_clean(command, cwd, environment):
+            if str(self.clean_script) in command:
+                records = list(progress.glob("clean-plan-*.json"))
+                self.assertEqual(len(records), 1)
+                observed.append(json.loads(records[0].read_text(encoding="utf-8")))
+            run_checked(command, cwd, environment)
+
+        with (
+            patch.dict(os.environ, {identity._PROGRESS_DIR_ENV: str(progress)}),
+            patch.object(identity, "_run_checked", side_effect=inspect_before_clean),
+        ):
+            result = self.dependency_build("first", clean=True)
+
+        self.assertEqual(result.status, "rebuilt")
+        self.assertEqual(len(observed), 1)
+        self.assertEqual(observed[0]["clean"], ["demo", "dep"])
+
+    def test_cleanup_decision_rejects_an_invalid_progress_directory(self) -> None:
+        payload = {"run": "a" * 32, "schema": 1}
+        with (
+            patch.dict(os.environ, {identity._PROGRESS_DIR_ENV: "relative"}),
+            self.assertRaisesRegex(identity.IdentityError, "existing absolute directory"),
+        ):
+            identity._emit_clean_plan(payload, str(payload["run"]))
 
     def test_cleanup_decision_reports_missing_and_matching_records(self) -> None:
         init_repo(self.root, "fn main() {}\n")

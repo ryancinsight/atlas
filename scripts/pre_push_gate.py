@@ -14,6 +14,11 @@ import process_tree
 
 DEADLINE_SECONDS = 600
 LOG_TAIL_BYTES = 32768
+PROGRESS_PARENT_ENV = "ATLAS_GATE_PROGRESS_PARENT"
+
+
+class ProgressDirectoryError(RuntimeError):
+    """The caller-owned progress parent cannot safely retain a run."""
 
 
 def _emit(value: bytes | None, stream) -> None:
@@ -38,6 +43,25 @@ def _progress_log(progress: Path) -> None:
     if log.is_file():
         print("pre-push: final bounded gate log bytes:", file=sys.stderr)
         _emit(log.read_bytes()[-LOG_TAIL_BYTES:], sys.stderr)
+
+
+def _progress_directory() -> tuple[Path, tempfile.TemporaryDirectory[str] | None]:
+    """Create one run directory, retaining it only when its caller owns the parent."""
+    parent_value = os.environ.pop(PROGRESS_PARENT_ENV, None)
+    if parent_value is None:
+        owner = tempfile.TemporaryDirectory(prefix="pg-progress.")
+        return Path(owner.name), owner
+    parent = Path(parent_value)
+    if not parent.is_absolute() or not parent.is_dir():
+        raise ProgressDirectoryError(
+            f"{PROGRESS_PARENT_ENV} must name an existing absolute directory"
+        )
+    try:
+        return Path(tempfile.mkdtemp(prefix="pg-progress.", dir=parent)), None
+    except OSError as error:
+        raise ProgressDirectoryError(
+            f"cannot create a retained progress directory: {error}"
+        ) from error
 
 
 def _cache_git(git_dir: Path, *arguments: str, stdout=None) -> subprocess.CompletedProcess:
@@ -165,8 +189,12 @@ def main() -> int:
     if phase not in {"push", "documentation"}:
         print(f"pre-push: BLOCKED -- invalid bounded phase {phase}", file=sys.stderr)
         return 2
-    with tempfile.TemporaryDirectory(prefix="pg-progress.") as temporary:
-        progress = Path(temporary)
+    try:
+        progress, progress_owner = _progress_directory()
+    except ProgressDirectoryError as error:
+        print(f"pre-push: BLOCKED -- {error}", file=sys.stderr)
+        return 2
+    try:
         os.environ["ATLAS_GATE_PROGRESS_DIR"] = str(progress)
         if entry_kind == "shim":
             os.environ["ATLAS_GATE_BOUNDED"] = "1"
@@ -212,6 +240,9 @@ def main() -> int:
         if result.returncode != 0:
             _progress_log(progress)
         return result.returncode
+    finally:
+        if progress_owner is not None:
+            progress_owner.cleanup()
 
 
 if __name__ == "__main__":
