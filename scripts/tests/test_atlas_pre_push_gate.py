@@ -4854,7 +4854,8 @@ class StandaloneOwnerClassifierTestCase(unittest.TestCase):
                      orphan: str = package, generate_root: bool = False, generate_tip: bool = False,
                      second: bool = False, error: str | None = None, dirty: bool = False) -> None:
             with tempfile.TemporaryDirectory(prefix=f"atlas-owner-{name}-") as temp:
-                root = pathlib.Path(temp)
+                scope = pathlib.Path(temp)
+                root = scope / "repo"
                 _git_init_repo(root)
                 if root_manifest is not None:
                     _write(root / "Cargo.toml", root_manifest)
@@ -4883,7 +4884,7 @@ class StandaloneOwnerClassifierTestCase(unittest.TestCase):
                 tip = _commit_all(root, f"{name} tip")
 
                 def export(revision: str, label: str) -> pathlib.Path:
-                    destination = root.parent / f"{root.name}-{label}"
+                    destination = scope / label
                     destination.mkdir()
                     archive = subprocess.run(["git", "-C", str(root), "archive", f"{revision}^{{tree}}"], check=True,
                                              capture_output=True, timeout=WATCHDOG_SECONDS)
