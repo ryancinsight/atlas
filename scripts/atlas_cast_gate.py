@@ -81,6 +81,8 @@ import tomllib
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+import process_tree
+
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
@@ -174,20 +176,29 @@ def _workspace_record(record: object, environment: dict[str, str]) -> Workspace:
         raise ValueError("cargo metadata workspace_members must be an array of strings")
 
     by_id: dict[str, dict] = {}
+    by_manifest: dict[str, str] = {}
     for package in packages:
         if not isinstance(package, dict):
             raise ValueError("cargo metadata package must be an object")
         package_id = package.get("id")
         name = package.get("name")
         manifest_path = package.get("manifest_path")
-        if not isinstance(package_id, str) or not isinstance(name, str):
-            raise ValueError("cargo metadata package id and name must be strings")
+        if (not isinstance(package_id, str) or not package_id
+                or not isinstance(name, str) or not name):
+            raise ValueError("cargo metadata package id and name must be nonempty strings")
         if (not isinstance(manifest_path, str)
                 or not pathlib.Path(manifest_path).is_absolute()):
             raise ValueError("cargo metadata package manifest_path must be an absolute path")
         if package_id in by_id:
             raise ValueError(f"cargo metadata repeats package id {package_id!r}")
+        normalized_manifest = os.path.normcase(os.path.realpath(manifest_path))
+        if normalized_manifest in by_manifest:
+            raise ValueError(
+                "cargo metadata repeats a normalized package manifest path "
+                f"for {by_manifest[normalized_manifest]!r} and {package_id!r}"
+            )
         by_id[package_id] = package
+        by_manifest[normalized_manifest] = package_id
 
     member_ids = frozenset(members)
     if len(member_ids) != len(members):
@@ -195,6 +206,9 @@ def _workspace_record(record: object, environment: dict[str, str]) -> Workspace:
     missing = sorted(member_ids - by_id.keys())
     if missing:
         raise ValueError(f"cargo metadata omits workspace member packages: {missing!r}")
+    member_names = [by_id[member]["name"] for member in members]
+    if len(set(member_names)) != len(member_names):
+        raise ValueError("cargo metadata repeats a workspace member package name")
     return Workspace(pathlib.Path(root), packages, member_ids, environment)
 
 
@@ -218,13 +232,19 @@ def workspace(export: pathlib.Path, config: pathlib.Path | None = None,
     environment = effective_compiler_environment(
         manifest_path, directory, cargo_command
     )
-    out = subprocess.run(
-        [*cargo_command, "metadata", "--no-deps", "--locked", "--format-version", "1",
-         "--manifest-path", str(manifest_path)],
-        cwd=directory, env=environment,
-        capture_output=True, text=True, encoding="utf-8", check=True,
-        timeout=min(metadata_timeout, 120.0),
-    ).stdout
+    command = [
+        *cargo_command, "metadata", "--no-deps", "--locked", "--format-version", "1",
+        "--manifest-path", str(manifest_path),
+    ]
+    completed = process_tree.run(
+        command, cwd=directory, env=environment, timeout=min(metadata_timeout, 120.0)
+    )
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(
+            completed.returncode, command,
+            output=completed.stdout, stderr=completed.stderr,
+        )
+    out = (completed.stdout or b"").decode("utf-8", errors="strict")
     return _workspace_record(json.loads(out), environment)
 
 
