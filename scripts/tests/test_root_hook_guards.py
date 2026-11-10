@@ -40,6 +40,66 @@ def install_hook(repo: Path) -> None:
     (repo / ".githooks" / "pre-commit").chmod(0o755)
 
 
+class RootLockGateTests(unittest.TestCase):
+    def test_rescue_dispatch_ignores_blob_replacement_before_lock_gate(self) -> None:
+        function = re.search(r"(?ms)^lock_gate\(\) \{\n.*?^\}\n", PRE_PUSH.read_text())
+        self.assertIsNotNone(function)
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary) / "repo"
+            repo.mkdir()
+            environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+            environment.update(PYTHON=sys.executable, PYTHONUTF8="1", TMPDIR=temporary,
+                               GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+
+            def git(*args: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(repo), "-c", "user.name=Test",
+                     "-c", "user.email=test@example.invalid", *args],
+                    env=environment, check=True, capture_output=True, text=True,
+                    encoding="utf-8", timeout=60,
+                ).stdout.strip()
+
+            git("init", "-q", "-b", "main")
+            (repo / "scripts").mkdir()
+            for tool in ("lockfile.py", "process_tree.py", "windows_process.py", "darwin_process.py"):
+                shutil.copyfile(ROOT / "scripts" / tool, repo / "scripts" / tool)
+                git("add", "scripts/" + tool)
+            (repo / "scripts/lockfile.py").write_text(
+                "#!/usr/bin/env python3\nimport sys\nassert '--check-tree' in sys.argv\n"
+            )
+            git("add", "scripts/lockfile.py")
+            git("commit", "-qm", "checker")
+            base = git("rev-parse", "HEAD")
+            owner = repo / "tool"
+            (owner / "src").mkdir(parents=True)
+            (owner / "src/lib.rs").write_text("")
+            (owner / "Cargo.toml").write_text(
+                '[package]\nname = "tool"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n'
+            )
+            (owner / "Cargo.lock").write_text('version = 4\n[[package]]\nname = "tool"\nversion = "0.1.0"\n')
+            git("add", "tool")
+            git("commit", "-qm", "lock")
+            tip = git("rev-parse", "HEAD")
+            replacement = repo / "replacement"
+            replacement.write_text("replacement")
+            git("add", "replacement")
+            git("commit", "-qm", "replacement")
+            replacement_commit = git("rev-parse", "HEAD")
+            git("replace", base, replacement_commit)
+            script = function.group(0) + (
+                '\natlas_root="$1"; gate_base="$2"; trusted_rescue_ref="$2"\n'
+                'lock_gate "$3"\n'
+            )
+            result = subprocess.run(
+                ["bash", "-o", "pipefail", "-c", script, "lock_gate", repo.as_posix(), base, tip],
+                env=dict(environment, GIT_DIR=str(repo / ".git"), GIT_WORK_TREE=str(repo),
+                         GIT_INDEX_FILE=str(repo / ".git/index")),
+                capture_output=True, text=True, encoding="utf-8", timeout=60,
+            )
+            self.assertNotIn("replacement", result.stderr + result.stdout)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
 class RootHookGuardTests(unittest.TestCase):
     def test_provider_config_change_runs_without_book_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
