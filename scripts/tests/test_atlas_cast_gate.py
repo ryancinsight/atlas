@@ -12,8 +12,6 @@ import sys
 import uuid
 
 import pytest
-import process_tree
-
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "atlas_cast_gate.py"
 _SPEC = importlib.util.spec_from_file_location("atlas_cast_gate", SCRIPT)
 assert _SPEC is not None and _SPEC.loader is not None
@@ -226,7 +224,7 @@ def test_workspace_bounds_locked_metadata_deadline(tmp_path, monkeypatch, limit,
             command, 0, json.dumps(_metadata_record(tmp_path)).encode(), b""
         )
 
-    monkeypatch.setattr(process_tree, "run", run)
+    monkeypatch.setattr(importlib.import_module("process_tree"), "run", run)
     assert set(gate.workspace(tmp_path, metadata_timeout=limit).names().values()) == {"probe"}
     command, options = calls.pop()
     assert command == [
@@ -237,6 +235,8 @@ def test_workspace_bounds_locked_metadata_deadline(tmp_path, monkeypatch, limit,
 
 
 def test_workspace_propagates_metadata_deadline(tmp_path, monkeypatch):
+    process_tree = importlib.import_module("process_tree")
+
     (tmp_path / "Cargo.toml").write_text('[package]\nname = "probe"\nversion = "0.1.0"\n')
 
     def expire(command, **options):
@@ -317,7 +317,7 @@ def test_workspace_rejects_incomplete_metadata(tmp_path, change, message):
 def test_workspace_rejects_invalid_metadata_json(tmp_path, monkeypatch):
     (tmp_path / "Cargo.toml").write_text('[package]\nname = "probe"\nversion = "0.1.0"\n')
     monkeypatch.setattr(
-        process_tree, "run",
+        importlib.import_module("process_tree"), "run",
         lambda command, **options: subprocess.CompletedProcess(command, 0, b"not-json", b""),
     )
     with pytest.raises(json.JSONDecodeError):
@@ -327,7 +327,7 @@ def test_workspace_rejects_invalid_metadata_json(tmp_path, monkeypatch):
 def test_workspace_preserves_metadata_process_failure(tmp_path, monkeypatch):
     (tmp_path / "Cargo.toml").write_text('[package]\nname = "probe"\nversion = "0.1.0"\n')
     monkeypatch.setattr(
-        process_tree, "run",
+        importlib.import_module("process_tree"), "run",
         lambda command, **options: subprocess.CompletedProcess(command, 101, b"partial", b"bad"),
     )
     with pytest.raises(subprocess.CalledProcessError) as failure:
@@ -340,7 +340,7 @@ def test_workspace_preserves_metadata_process_failure(tmp_path, monkeypatch):
 def test_workspace_rejects_non_utf8_metadata(tmp_path, monkeypatch):
     (tmp_path / "Cargo.toml").write_text('[package]\nname = "probe"\nversion = "0.1.0"\n')
     monkeypatch.setattr(
-        process_tree, "run",
+        importlib.import_module("process_tree"), "run",
         lambda command, **options: subprocess.CompletedProcess(command, 0, b"\xff", b""),
     )
     with pytest.raises(UnicodeDecodeError):
