@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import functools
+import json
 import os
 import subprocess
+import sys
 import time
 import uuid
 from contextlib import ExitStack
@@ -41,6 +43,7 @@ from atlas_build_records import (
     VERSION,
     BuildSpec,
     _record_matches,
+    _record_mismatch_reasons,
     _recorded_artifact,
     _sibling_record,
     _write_atomic,
@@ -59,6 +62,7 @@ from atlas_build_stamps import (
 from atlas_build_writers import BUILDING, CLEANING, COMPLETE, heartbeat, mark, resumable, run_identity
 
 DEFAULT_LEASE_SECONDS = 900
+_CLEAN_PLAN_PREFIX = "atlas-build-clean-plan: "
 
 
 IdentityError = BuildIdentityError
@@ -406,6 +410,8 @@ def _run_build(
         # cleaned ones, but not cleaned again. A stale Git stamp still cleans.
         resumed: frozenset[str] = frozenset()
         targets: frozenset[str] = frozenset()
+        marked: frozenset[str] = frozenset()
+        custom_clean = False
         if any(stale.values()):
             marked = resumable(target_dir, held, writer_identity) - frozenset().union(
                 *(state.stale_git for state in states.values())
@@ -419,8 +425,7 @@ def _run_build(
                 if held <= marked and not targets:
                     resumed = held
                 else:
-                    mark(target_dir, held, CLEANING, writer_identity)
-                    _run_checked(clean_command, execution_root, environment)
+                    custom_clean = True
                     rebuilt = held
             else:
                 # Each stale package cleans what its own rule asked for in the
@@ -438,6 +443,55 @@ def _run_build(
                     resumed |= own & marked
                     targets |= own - marked
                 rebuilt = targets
+        package_decisions = {}
+        for package, state in states.items():
+            if state.existing is None:
+                reasons = ["record-absent"]
+            else:
+                dependencies, spec = inputs[package]
+                reasons = list(
+                    _record_mismatch_reasons(
+                        state.existing, spec, dependencies, state.current, state.inputs
+                    )
+                )
+            if state.stale_git:
+                reasons.append("stale-git")
+            if package in marked:
+                reasons.append("resumable-build")
+            if siblings[package] is not None:
+                reasons.append("sibling-record")
+            package_decisions[package] = {
+                "matched": state.matched,
+                "reasons": reasons,
+                "record_present": state.existing is not None,
+                "requested": sorted(asked[package]),
+                "sibling": siblings[package] is not None,
+                "stale_git": sorted(state.stale_git),
+            }
+        requested = frozenset().union(*asked.values())
+        print(
+            _CLEAN_PLAN_PREFIX
+            + json.dumps(
+                {
+                    "clean": sorted(rebuilt),
+                    "packages": package_decisions,
+                    "phase": phases[0],
+                    "profile": profile,
+                    "requested": sorted(requested),
+                    "resume": sorted(resumed),
+                    "run": run_id,
+                    "schema": 1,
+                    "target": target,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+            file=sys.stderr,
+            flush=True,
+        )
+        if custom_clean:
+            mark(target_dir, held, CLEANING, writer_identity)
+            _run_checked(clean_command, execution_root, environment)
         for package, (dependencies, _) in inputs.items():
             git_built[package] |= set(targets) & _git_names(dependencies)
             _write_git_stamps(dependencies, directory, git_built[package], building=True)

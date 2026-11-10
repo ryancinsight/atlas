@@ -102,15 +102,33 @@ def _record_matches(
     inputs: dict[str, object],
 ) -> bool:
     """`inputs` is `current_inputs` of the record's own `inputs`."""
+    return not _record_mismatch_reasons(existing, spec, dependencies, artifact, inputs)
+
+
+def _record_mismatch_reasons(
+    existing: dict[str, object],
+    spec: BuildSpec,
+    dependencies: dict[str, object],
+    artifact: dict[str, object],
+    inputs: dict[str, object],
+) -> tuple[str, ...]:
+    """Name each record component that differs from the current build input."""
     by_files = _identified_by_files(dependencies)
-    return (
-        (by_files or _content(existing.get("source")) == _content(spec.source.as_dict()))
-        and _build_content(existing.get("build"), by_files)
-        == _build_content(spec.as_dict(), by_files)
-        and existing.get("dependencies") == dependencies
-        and existing.get("artifact") == artifact
-        and existing.get("inputs") == inputs
+    comparisons = (
+        (
+            "source",
+            by_files or _content(existing.get("source")) == _content(spec.source.as_dict()),
+        ),
+        (
+            "build",
+            _build_content(existing.get("build"), by_files)
+            == _build_content(spec.as_dict(), by_files),
+        ),
+        ("dependencies", existing.get("dependencies") == dependencies),
+        ("artifact", existing.get("artifact") == artifact),
+        ("inputs", existing.get("inputs") == inputs),
     )
+    return tuple(name for name, matches in comparisons if not matches)
 
 
 def _spec_key(spec: BuildSpec) -> str:
