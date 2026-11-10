@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-30
 - Item: ATLAS-SEMVER-LOCKED-SOURCES
+- Revision: 2026-11-10 — Classify required impact with real patch and minor runs after a deprecation fixture disproved exit-100-as-breaking.
 
 ## Context
 
@@ -18,11 +19,33 @@ consumer's requirement. Native analysis then exits 101 before producing an API
 verdict. Compilation of the locked graph establishes only that the selected
 source builds; it does not establish API compatibility.
 
+The native checker's release type also combines discovery with release policy.
+Selecting `major` permits breaking queries and can return success without
+reporting the compatibility fact that development and consumer preparation need.
+Manifest release admissibility is a separate question from whether an API breaks.
+
 ## Decision
 
 Every Git comparison first invokes the pinned native tool with
-`--baseline-rev`. Exit 0 is a completed pass, exit 100 is a completed deny
-finding, and exit 101 or any other execution failure remains non-green.
+`--baseline-rev` and patch-level discovery. Patch exit 0 requires patch impact.
+Patch exit 100 means only that patch impact is insufficient, so the same inputs
+run again at minor level: minor exit 0 requires minor impact and remains
+compatible, while minor exit 100 requires major impact and is breaking. Exit
+101, timeout, cleanup failure, or an unknown result in either run is unverified.
+The report records both native runs and separates required impact and native
+compatibility from declared impact, phase, manifest release admissibility, and
+the final gate verdict.
+
+Development analysis does not require a manifest bump. A breaking development
+major-required result remains denied until a separate reviewed admission binds its
+findings and consumer preparation; this decision defines no approval flag or
+allowlist. A release admits a major-required result only when both its declared
+impact and Cargo-compatible manifest boundary are major. Minor-required changes
+remain compatible and pass only when the declared impact and manifest boundary
+cover minor. An unchanged-version major release,
+version rollback, timeout, cleanup failure, or native execution error is never
+green. This helper establishes only the local SemVer classification and version
+boundary; it does not establish migration, ADR, or consumer-policy completion.
 
 For the exact recognized locked-resolution diagnostic, the report records
 supplemental evidence from both committed consumer revisions:
@@ -50,15 +73,20 @@ pinned checker, plus explicit graph-identity and consumer-contract validation.
   leaves Rustdoc schema and dependency-graph identity unverified.
 - Treating successful locked compilation as API compatibility conflates two
   distinct evidence categories.
+- Running native discovery with the declared major impact suppresses the
+  breaking findings needed for development review.
+- Allowing development breaks through a local flag would not authenticate a
+  review or prove consumer preparation.
 
 ## Consequences
 
 Known resolution failures now provide reviewable source and compilation
 evidence without a fabricated SemVer verdict. Callers must still fail until a
 supported API comparison completes or a reviewed disposition addresses the
-unsupported coverage. The decision changes when the native tool preserves the
-committed lock, or when the dedicated nightly Rustdoc path satisfies the stated
-schema and identity requirements.
+unsupported coverage. Major release policy can admit a completed breaking
+finding without relabeling it as compatible. The locked-resolution decision
+changes when the native tool preserves the committed lock, or when the dedicated
+nightly Rustdoc path satisfies the stated schema and identity requirements.
 
 ## Validation
 
@@ -66,4 +94,8 @@ A real provider repository advances from 0.1 to 0.2 while two consumer commits
 retain a `^0.1` requirement and the old provider revision in `Cargo.lock`.
 Locked artifacts identify the old revision for both commits; a workspace case
 excludes another root's optional dependency and retains the selected root's
-helper. Native 0.51.0 remains nonzero with API comparison unsupported.
+helper. Native 0.51.0 remains nonzero with API comparison unsupported. Real Git
+fixtures also cover compatible same-version analysis, same-version breaking
+development and release decisions, an admitted major release that retains its
+breaking classification, a deprecation that requires minor but remains
+compatible, rollback, native failure, and process-tree timeout.

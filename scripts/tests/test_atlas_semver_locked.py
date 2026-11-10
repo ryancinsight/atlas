@@ -9,7 +9,6 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas_semver_locked.py"
 sys.path.insert(0, str(SCRIPT.parent))
@@ -21,8 +20,13 @@ from process_tree_support import EXPIRY_HOLD_SECONDS, NEVER_ENDS
 
 class NativeContract(unittest.TestCase):
     def command(self, argv, cwd):
-        return subprocess.run(argv, cwd=cwd, check=True, capture_output=True,
-                              text=True, timeout=120)
+        result = MODULE.invoke(argv, cwd, dict(os.environ), timeout=120)
+        stdout, stderr = MODULE.text(result.stdout), MODULE.text(result.stderr)
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(
+                result.returncode, argv, output=stdout, stderr=stderr,
+            )
+        return subprocess.CompletedProcess(argv, result.returncode, stdout, stderr)
 
     def commit(self, repo, message):
         self.command(["git", "add", "Cargo.toml", "Cargo.lock", "src/lib.rs"], repo)
@@ -38,21 +42,38 @@ class NativeContract(unittest.TestCase):
     def package(self, repo):
         return repo.name.replace("-", "_")
 
-    def run_contract(self, repo, base, head, report, change="patch"):
+    def test_cli_defaults_to_release_phase(self):
+        args = MODULE.parse_args([
+            "--repo", ".", "--base", "base", "--head", "head",
+            "--package", "crate", "--toolchain", "1.97.0",
+            "--change-class", "patch", "--feature-policy", "all",
+            "--target", "x86_64-pc-windows-msvc", "--report", "report.json",
+        ])
+        self.assertEqual(args.phase, "release")
+
+    def run_contract(self, repo, base, head, report, change="patch", phase="release"):
         target = next(line[6:] for line in self.command(["rustc", "+1.97.0", "-vV"], repo).stdout.splitlines()
                       if line.startswith("host: "))
         args = argparse.Namespace(
             repo=repo, base=base, head=head, manifest_path="Cargo.toml",
             packages=[self.package(repo)], toolchain="1.97.0", change_class=change,
+            phase=phase,
             feature_policy="all", features=[], target=target,
             report=report,
         )
         target_dir = os.environ.get("CARGO_TARGET_DIR", str(SCRIPT.parents[1] / "target"))
-        with patch.dict(os.environ, {"CARGO_TARGET_DIR": target_dir}):
+        previous = os.environ.get("CARGO_TARGET_DIR")
+        os.environ["CARGO_TARGET_DIR"] = target_dir
+        try:
             code = MODULE.compare(args)
+        finally:
+            if previous is None:
+                del os.environ["CARGO_TARGET_DIR"]
+            else:
+                os.environ["CARGO_TARGET_DIR"] = previous
         return code, json.loads(report.read_text(encoding="utf-8"))
 
-    def test_native_pass_deny_and_manifest_permission_are_distinct(self):
+    def test_phase_separates_discovery_from_release_admissibility(self):
         for baseline, current, expected in (
             ("1.2.3", "1.2.4", "patch"), ("1.2.3", "1.3.0", "minor"),
             ("1.2.3", "2.0.0", "major"), ("0.1.0", "0.1.1", "patch"),
@@ -64,26 +85,72 @@ class NativeContract(unittest.TestCase):
             (repo / "Cargo.toml").write_text(
                 f'[package]\nname="{self.package(repo)}"\nversion="0.1.0"\nedition="2024"\n',
                 encoding="utf-8")
-            (repo / "src/lib.rs").write_text("pub fn retained() {}\npub fn removed() {}\n", encoding="utf-8")
+            (repo / "src/lib.rs").write_text(
+                "pub fn retained(value: usize) -> usize { value + 1 }\n"
+                "pub fn removed(value: usize) -> usize { value * 2 }\n",
+                encoding="utf-8")
             self.initialize(repo)
             self.command(["cargo", "generate-lockfile"], repo)
             base = self.commit(repo, "base")
             self.command(["git", "commit", "--allow-empty", "-m", "unchanged"], repo)
             head = self.command(["git", "rev-parse", "HEAD"], repo).stdout.strip()
             code, report = self.run_contract(repo, base, head, repo / "pass.json")
-            self.assertEqual((code, report["packages"][0]["native"]["status"]), (0, "pass"))
-            code, report = self.run_contract(repo, base, head, repo / "major.json", "major")
-            self.assertEqual(report["packages"][0]["native"]["status"], "pass")
-            self.assertEqual((code, report["packages"][0]["manifest_error"]),
-                             (101, "declared change class exceeds manifest boundary"))
-            (repo / "src/lib.rs").write_text("pub fn retained() {}\n", encoding="utf-8")
+            entry = report["packages"][0]
+            self.assertEqual(
+                (code, report["schema"], entry["native_compatibility"],
+                 entry["manifest_release_admissibility"]["status"], entry["gate_verdict"]),
+                (0, 2, "compatible", "admissible", "pass"),
+            )
+            (repo / "src/lib.rs").write_text(
+                "pub fn retained(value: usize) -> usize { value + 1 }\n",
+                encoding="utf-8")
             head = self.commit(repo, "remove API")
             code, report = self.run_contract(repo, base, head, repo / "deny.json")
-            native = report["packages"][0]["native"]
-            self.assertEqual((code, native["exit_code"], native["status"], report["packages"][0]["name"]),
-                             (100, 100, "deny_findings", self.package(repo)))
+            entry, native = report["packages"][0], report["packages"][0]["native"]
+            self.assertEqual(
+                (code, native["exit_code"], entry["severity_check"]["exit_code"],
+                 entry["required_impact"], entry["native_compatibility"], entry["gate_verdict"]),
+                (100, 100, 100, "major", "breaking", "deny"),
+            )
             self.assertIn("--baseline-rev", native["command"])
+            self.assertEqual(native["command"][native["command"].index("--release-type") + 1], "patch")
             self.assertEqual(report["configuration"]["feature_policy"], "all")
+
+            code, report = self.run_contract(
+                repo, base, head, repo / "development-major.json", "major", "development",
+            )
+            entry = report["packages"][0]
+            self.assertEqual(
+                (code, report["configuration"]["phase"], entry["declared_impact"],
+                 entry["required_impact"], entry["native_compatibility"],
+                 entry["manifest_release_admissibility"]["status"], entry["gate_verdict"]),
+                (100, "development", "major", "major", "breaking", "not_required", "deny"),
+            )
+            code, report = self.run_contract(
+                repo, base, head, repo / "release-major-same-version.json", "major",
+            )
+            entry = report["packages"][0]
+            self.assertEqual(
+                (code, entry["native_compatibility"],
+                 entry["manifest_release_admissibility"]["status"], entry["gate_verdict"]),
+                (101, "breaking", "inadmissible", "deny"),
+            )
+
+            manifest = (repo / "Cargo.toml").read_text(encoding="utf-8")
+            (repo / "Cargo.toml").write_text(
+                manifest.replace('version="0.1.0"', 'version="0.2.0"'), encoding="utf-8")
+            major_head = self.commit(repo, "declare major boundary")
+            code, report = self.run_contract(
+                repo, base, major_head, repo / "release-major.json", "major",
+            )
+            entry = report["packages"][0]
+            self.assertEqual(
+                (code, entry["native"]["exit_code"], entry["severity_check"]["exit_code"],
+                 entry["required_impact"], entry["native_compatibility"],
+                 entry["manifest_release_admissibility"]["boundary"], entry["gate_verdict"]),
+                (0, 100, 100, "major", "breaking", "major", "pass"),
+            )
+
             (repo / "src/lib.rs").write_text("pub fn broken( {\n", encoding="utf-8")
             head = self.commit(repo, "break compilation")
             code, report = self.run_contract(repo, base, head, repo / "error.json")
@@ -92,6 +159,60 @@ class NativeContract(unittest.TestCase):
                 (code, entry["native"]["status"], entry["known_resolution_limitation"],
                  "supplemental" in entry),
                 (101, "execution_error", False, False),
+            )
+            self.assertEqual(
+                (entry["native_compatibility"], entry["gate_verdict"]),
+                ("unverified", "unverified"),
+            )
+
+            (repo / "Cargo.toml").write_text(manifest, encoding="utf-8")
+            (repo / "src/lib.rs").write_text(
+                "pub fn retained(value: usize) -> usize { value + 1 }\n",
+                encoding="utf-8")
+            rollback_head = self.commit(repo, "roll back version")
+            code, report = self.run_contract(
+                repo, major_head, rollback_head, repo / "rollback.json",
+            )
+            entry = report["packages"][0]
+            self.assertEqual(
+                (code, entry["manifest_release_admissibility"]["status"], entry["gate_verdict"]),
+                (101, "inadmissible", "deny"),
+            )
+            self.assertIn("version decreases", entry["manifest_release_admissibility"]["reason"])
+
+    def test_minor_required_api_is_compatible_at_minor_boundary(self):
+        with tempfile.TemporaryDirectory(prefix="semver-minor-") as directory:
+            repo = Path(directory)
+            (repo / "src").mkdir()
+            (repo / "Cargo.toml").write_text(
+                f'[package]\nname="{self.package(repo)}"\nversion="1.2.3"\nedition="2024"\n',
+                encoding="utf-8")
+            (repo / "src/lib.rs").write_text(
+                "pub fn retained(value: usize) -> usize { value + 1 }\n",
+                encoding="utf-8")
+            self.initialize(repo)
+            self.command(["cargo", "generate-lockfile"], repo)
+            base = self.commit(repo, "baseline")
+            (repo / "Cargo.toml").write_text(
+                (repo / "Cargo.toml").read_text(encoding="utf-8").replace(
+                    'version="1.2.3"', 'version="1.3.0"'),
+                encoding="utf-8")
+            (repo / "src/lib.rs").write_text(
+                '#[deprecated(note="Use replacement")]\n'
+                "pub fn retained(value: usize) -> usize { value + 1 }\n"
+                "pub fn replacement(value: usize) -> usize { value + 1 }\n",
+                encoding="utf-8")
+            self.command(["cargo", "generate-lockfile"], repo)
+            head = self.commit(repo, "minor API")
+            code, report = self.run_contract(
+                repo, base, head, repo / "minor.json", "minor",
+            )
+            entry = report["packages"][0]
+            self.assertEqual(
+                (code, entry["native"]["exit_code"], entry["severity_check"]["exit_code"],
+                 entry["required_impact"], entry["native_compatibility"],
+                 entry["manifest_release_admissibility"]["boundary"], entry["gate_verdict"]),
+                (0, 100, 0, "minor", "compatible", "minor", "pass"),
             )
 
     def test_provider_advance_records_locked_evidence_without_an_api_verdict(self):
@@ -268,3 +389,10 @@ class NativeContract(unittest.TestCase):
         )
         self.assertEqual(record["status"], "timeout")
         self.assertEqual(record["diagnostics"], "")
+        outcome, exit_code = MODULE.evaluation(
+            record, None, "0.1.0", "0.1.0", "development", "major",
+        )
+        self.assertEqual(
+            (exit_code, outcome["native_compatibility"], outcome["gate_verdict"]),
+            (101, "unverified", "unverified"),
+        )
