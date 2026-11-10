@@ -22,6 +22,7 @@ SPEC.loader.exec_module(sweep)
 A = "https://github.com/ryancinsight/Transaction-A.git"
 B = "https://github.com/ryancinsight/transaction-b"
 C = "https://github.com/ryancinsight/transaction-c"
+C_ALTERNATE = "https://github.com/ryancinsight/Transaction-C"
 
 
 def provider(repository: Path, name: str, version: str,
@@ -103,7 +104,11 @@ class SelectedSourceViewTests(unittest.TestCase):
                 repos["a"], "transaction-a", "0.2.0",
                 (("transaction-b", B, "=0.2.0"), ("transaction-c", C, "=0.1.0")),
             )
-            provider(repos["c"], "transaction-c", "0.2.0")
+            alternate_a = provider(
+                repos["a"], "transaction-a", "0.2.1",
+                (("transaction-b", B, "=0.2.0"), ("transaction-c", C_ALTERNATE, "*")),
+            )
+            later_c = provider(repos["c"], "transaction-c", "0.2.0")
             provider(repos["b"], "transaction-b", "0.3.0")
             provider(repos["a"], "transaction-a", "0.3.0",
                      (("transaction-b", B, "=0.1.0"),))
@@ -120,7 +125,9 @@ class SelectedSourceViewTests(unittest.TestCase):
                 "GIT_CONFIG_VALUE_2": C,
                 "GIT_CONFIG_GLOBAL": str(global_config),
             })
-            lock = (repos["consumer"] / "Cargo.lock").read_text(encoding="utf-8")
+            lock_path = repos["consumer"] / "Cargo.lock"
+            original_lock = lock_path.read_bytes()
+            lock = original_lock.decode("utf-8")
             plan = sweep.Plan(repos["consumer"], git(repos["consumer"], "rev-parse", "HEAD"),
                               sweep.stale_packages(lock, selected))
             parent_environment = dict(os.environ)
@@ -136,12 +143,29 @@ class SelectedSourceViewTests(unittest.TestCase):
 
             self.assertIsNone(sweep.resolve_lock(plan, selected, repos["consumer"], environment))
             packages = {package.provider: package for package in sweep.locked_packages(
-                (repos["consumer"] / "Cargo.lock").read_text(encoding="utf-8"))}
+                lock_path.read_text(encoding="utf-8"))}
             self.assertEqual(
-                {(package.version, package.rev) for package in packages.values()},
-                {("0.2.0", selected["transaction-a"]),
-                 ("0.2.0", selected["transaction-b"]),
-                 ("0.1.0", selected["transaction-c"])},
+                {(package.version, package.rev, package.url) for package in packages.values()},
+                {("0.2.0", selected["transaction-a"], A),
+                 ("0.2.0", selected["transaction-b"], B),
+                 ("0.1.0", selected["transaction-c"], C)},
             )
+
+            lock_path.write_bytes(original_lock)
+            wrong_c = {**selected, "transaction-a": alternate_a}
+            wrong_environment = {**environment, "GIT_CONFIG_COUNT": "4",
+                                 "GIT_CONFIG_KEY_3":
+                                     f"url.{repos['c'].resolve().as_uri()}.insteadOf",
+                                 "GIT_CONFIG_VALUE_3": C_ALTERNATE}
+            wrong_plan = sweep.Plan(
+                repos["consumer"], plan.base, sweep.stale_packages(lock, wrong_c))
+            outcome = sweep.resolve_lock(
+                wrong_plan, wrong_c, repos["consumer"], wrong_environment)
+            self.assertIsInstance(outcome, sweep.Outcome)
+            self.assertFalse(outcome.ok)
+            self.assertIn(later_c[:8], outcome.detail)
+            self.assertIn(selected["transaction-c"][:8], outcome.detail)
+            self.assertIn("unsupported selected source URL", outcome.detail)
+            self.assertEqual(lock_path.read_bytes(), original_lock)
             self.assertEqual(dict(os.environ), parent_environment)
             self.assertEqual(list((root / "repos").glob("lock-sources-*")), [])
