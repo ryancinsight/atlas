@@ -14,7 +14,7 @@ Concurrent roots therefore need one protocol that prevents a clean or rewrite fr
 
 ## Decision
 
-The lock sweep inventory reads every committed standalone lock owner at one Atlas revision, including nested and excluded workspaces, without consulting checkouts or fetching. It retains fixture exemptions and missing sibling-lock diagnostics; every first-party Git package identity must name a registered provider.
+The lock sweep inventory reads every committed standalone lock owner at one Atlas revision, including nested and excluded workspaces, without consulting checkouts or fetching. Every Git process disables promisor lazy fetch, so a missing committed object fails instead of mutating the object store. It retains fixture exemptions and missing sibling-lock diagnostics; every first-party Git package identity must name a registered provider.
 
 ### Tool and runner source
 

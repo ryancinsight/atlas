@@ -67,7 +67,10 @@ def run_tool(
 
 
 def registered_member_names(
-    repo: Path | None = None, revision: str | None = None
+    repo: Path | None = None,
+    revision: str | None = None,
+    *,
+    environment: dict[str, str] | None = None,
 ) -> set[str]:
     repository = ROOT if repo is None else repo
     if revision is None:
@@ -79,6 +82,7 @@ def registered_member_names(
         result = execute_git(
             repository,
             ("--no-replace-objects", "show", f"{revision}:.gitmodules"),
+            env=environment,
             timeout=30,
         )
         if result.returncode:
@@ -137,7 +141,12 @@ def registered_members(repo: Path | None = None) -> list[Path]:
     ]
 
 
-def member_pins(repo: Path | None = None, *, revision: str = "HEAD") -> dict[str, str]:
+def member_pins(
+    repo: Path | None = None,
+    *,
+    revision: str = "HEAD",
+    environment: dict[str, str] | None = None,
+) -> dict[str, str]:
     """Registered member gitlinks from one committed Atlas revision.
 
     The index and member checkouts never select the pins. An explicit revision
@@ -148,12 +157,18 @@ def member_pins(repo: Path | None = None, *, revision: str = "HEAD") -> dict[str
     result = execute_git(
         repository,
         ("--no-replace-objects", "ls-tree", "-z", revision, "--", "repos/"),
+        env=environment,
         timeout=30,
     )
     if result.returncode:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(detail or f"cannot read member pins from {repository}")
-    paths = {f"repos/{name}".encode(): name for name in registered_member_names(repository, revision)}
+    paths = {
+        f"repos/{name}".encode(): name
+        for name in registered_member_names(
+            repository, revision, environment=environment
+        )
+    }
     pins: dict[str, str] = {}
     for record in result.stdout.split(b"\0"):
         meta, _, path = record.partition(b"\t")

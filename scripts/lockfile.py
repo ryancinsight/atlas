@@ -632,7 +632,11 @@ class WorkspaceFacts(NamedTuple):
 
 
 def run_git(
-    arguments: Sequence[str], repository: Path | None = None, stdin: bytes | None = None
+    arguments: Sequence[str],
+    repository: Path | None = None,
+    stdin: bytes | None = None,
+    *,
+    env: Mapping[str, str] | None = None,
 ) -> bytes:
     """Run git in `repository`, or in the current directory when it is None.
 
@@ -641,7 +645,7 @@ def run_git(
     that stages through a private index is judged by what it stages.
     """
     prefix = ["-C", str(repository)] if repository is not None else []
-    environment = dict(os.environ)
+    environment = dict(os.environ if env is None else env)
     if repository is not None:
         for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
                     "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX"):
@@ -1158,7 +1162,11 @@ def judge_locks(
 
 
 def tracked_texts(
-    repository: Path | None, *, staged: bool, revision: str = "HEAD"
+    repository: Path | None,
+    *,
+    staged: bool,
+    revision: str = "HEAD",
+    env: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
     """Text of tracked Cargo inputs and provider baselines, by repository-relative path.
 
@@ -1166,10 +1174,17 @@ def tracked_texts(
     tree at `revision`, so the answer is a function of that commit alone and no
     working file takes part. Raises [`GitUnavailable`] when git cannot answer.
     """
+    git_options = {} if env is None else {"env": env}
     if staged:
-        listing = run_git(["ls-files", "--stage", "-z"], repository)
+        listing = run_git(
+            ["ls-files", "--stage", "-z"], repository, **git_options
+        )
     else:
-        listing = run_git(["ls-tree", "--full-tree", "-r", "-z", revision], repository)
+        listing = run_git(
+            ["ls-tree", "--full-tree", "-r", "-z", revision],
+            repository,
+            **git_options,
+        )
     blobs: dict[str, str] = {}
     input_names = {name.encode("ascii") for name in LOCK_INPUT_NAMES}
     for record in listing.split(b"\0"):
@@ -1192,7 +1207,7 @@ def tracked_texts(
         if mode == "120000":
             raise GitUnavailable(f"{path}: symbolic metadata input is not allowed")
         blobs[path] = blob
-    contents = read_blobs(repository, sorted(set(blobs.values())))
+    contents = read_blobs(repository, sorted(set(blobs.values())), **git_options)
     texts = {}
     for path, blob in blobs.items():
         try:
@@ -1202,12 +1217,20 @@ def tracked_texts(
     return texts
 
 
-def read_blobs(repository: Path | None, blobs: Sequence[str]) -> dict[str, bytes]:
+def read_blobs(
+    repository: Path | None,
+    blobs: Sequence[str],
+    *,
+    env: Mapping[str, str] | None = None,
+) -> dict[str, bytes]:
     """Raw contents of each blob in one `git cat-file --batch` call."""
     if not blobs:
         return {}
     request = "".join(f"{blob}\n" for blob in blobs).encode("ascii")
-    output = run_git(["cat-file", "--batch"], repository, stdin=request)
+    git_options = {} if env is None else {"env": env}
+    output = run_git(
+        ["cat-file", "--batch"], repository, stdin=request, **git_options
+    )
     texts: dict[str, bytes] = {}
     position = 0
     for blob in blobs:

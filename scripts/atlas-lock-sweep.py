@@ -653,14 +653,27 @@ def resume(plan: Plan, targets: dict[str, str], item: str | None, open_prs: bool
 
 def lock_inventory(root: Path, revision: str) -> dict:
     """Project all committed standalone lock owners without consulting checkouts."""
-    commit = lockfile.run_git(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], root).decode("ascii").strip()
-    pins = member_pins(root, revision=commit)
-    if set(pins) != registered_member_names(root, commit):
+    environment = dict(os.environ)
+    environment["GIT_NO_LAZY_FETCH"] = "1"
+    commit = lockfile.run_git(
+        ["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"],
+        root,
+        env=environment,
+    ).decode("ascii").strip()
+    pins = member_pins(root, revision=commit, environment=environment)
+    if set(pins) != registered_member_names(
+        root, commit, environment=environment
+    ):
         raise ValueError("registered members do not all have committed gitlinks")
     names = {name.lower(): name for name in pins}
     members = []
     for name, pin in sorted(pins.items()):
-        texts = lockfile.tracked_texts(root / "repos" / name, staged=False, revision=pin)
+        texts = lockfile.tracked_texts(
+            root / "repos" / name,
+            staged=False,
+            revision=pin,
+            env=environment,
+        )
         manifests, exempt, problems = lockfile.lock_manifests(texts)
         units = lockfile.workspace_units(texts)
         owners = {str(PurePosixPath(path).with_name("Cargo.lock")) for path in manifests}
