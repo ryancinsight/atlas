@@ -176,20 +176,23 @@ def test_cli_uses_the_command_directory_for_every_cargo_step(tmp_path, monkeypat
     from atlas_target_dir import shared_target_for
 
     monkeypatch.setenv("CARGO_TARGET_DIR", str(shared_target_for(SCRIPT.parents[1])))
+    # Cargo names a path package's artifacts in the shared target without its
+    # directory, so cases run in parallel must differ by package name.
+    probe = f"cwd-probe-{command}-{'ok' if compiles else 'broken'}"
     export = (tmp_path / "export").resolve()
     execution = (tmp_path / "execution").resolve()
     execution.mkdir()
     (export / "src").mkdir(parents=True)
     (export / ".cargo").mkdir()
     (export / "Cargo.toml").write_text(
-        '[package]\nname = "cwd-probe"\nversion = "0.1.0"\nedition = "2024"\n'
+        f'[package]\nname = "{probe}"\nversion = "0.1.0"\nedition = "2024"\n'
     )
     (export / "src" / "lib.rs").write_text(
         "pub fn widen(value: u8) -> usize { value as usize }\n"
         if compiles else "pub fn broken() -> usize { missing }\n"
     )
     (export / "Cargo.lock").write_text(
-        'version = 4\n[[package]]\nname = "cwd-probe"\nversion = "0.1.0"\n'
+        f'version = 4\n[[package]]\nname = "{probe}"\nversion = "0.1.0"\n'
     )
     config = (
         '[patch."https://github.com/ryancinsight/coeus"]\n'
@@ -201,7 +204,7 @@ def test_cli_uses_the_command_directory_for_every_cargo_step(tmp_path, monkeypat
         sites_file = tmp_path / "sites.json"
         packages_file = tmp_path / "packages.txt"
         # Exercise both extra metadata calls, as well as run_clippy's call.
-        args += ["--sites", str(sites_file), "--present-only", "-p", "cwd-probe",
+        args += ["--sites", str(sites_file), "--present-only", "-p", probe,
                  "--packages-out", str(packages_file)]
     else:
         args += ["--member", "fixture"]
@@ -212,15 +215,15 @@ def test_cli_uses_the_command_directory_for_every_cargo_step(tmp_path, monkeypat
     if command == "clippy":
         found = gate.read_sites(sites_file)
         expected = {
-            ("cwd-probe", "src/lib.rs", 1),
+            (probe, "src/lib.rs", 1),
         } if compiles else set()
         assert {(s.package, s.path, s.line) for s in found} == expected
         assert len(found) == len(expected)
-        assert packages_file.read_bytes() == b"cwd-probe\n"
+        assert packages_file.read_bytes() == f"{probe}\n".encode()
     elif not compiles:
         assert "clippy did not complete (exit 101)" in capsys.readouterr().err
     else:
-        assert json.loads(capsys.readouterr().out) == {"fixture": {"cwd-probe": 1}}
+        assert json.loads(capsys.readouterr().out) == {"fixture": {probe: 1}}
     assert (export / ".cargo" / "config.toml").read_text() == config
 
 
