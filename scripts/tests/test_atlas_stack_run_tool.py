@@ -151,12 +151,13 @@ class RealCargoRunToolTests(unittest.TestCase):
         self.assertNotEqual(inherited.returncode, 0)
         self.assertIn(b"lock file", inherited.stderr)
         self.assertEqual((workspace / "Cargo.lock").read_bytes(), before)
-        result = atlas_stack.run_tool(
-            "probe", [], capture_output=True, encoding="utf-8", timeout=120,
-            env={**os.environ, "CARGO_NET_OFFLINE": "true", "CARGO_TARGET_DIR": str(target)},
-        )
-        self.assertEqual((result.returncode, result.stderr), (0, ""))
-        self.assertEqual(result.stdout.strip(), f"{workspace}|true")
+        for _ in range(2):
+            result = atlas_stack.run_tool(
+                "probe", [], capture_output=True, encoding="utf-8", timeout=120,
+                env={**os.environ, "CARGO_NET_OFFLINE": "true", "CARGO_TARGET_DIR": str(target)},
+            )
+            self.assertEqual((result.returncode, result.stderr), (0, ""))
+            self.assertEqual(result.stdout.strip(), f"{workspace}|true")
         self.assertEqual((workspace / "Cargo.lock").read_bytes(), before)
         binary = package + (".exe" if os.name == "nt" else "")
         executable = target / "debug" / binary

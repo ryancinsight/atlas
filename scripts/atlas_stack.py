@@ -96,7 +96,8 @@ def run_tool(
         )
         runner = neutral / "tool_runner.py"
         runner.write_text(
-            "import os, sys\nos.chdir(sys.argv[1])\nos.execv(sys.argv[2], sys.argv[2:])\n",
+            "import os, subprocess, sys\nos.chdir(sys.argv[1])\n"
+            "raise SystemExit(subprocess.run(sys.argv[2:], check=False).returncode)\n",
             encoding="utf-8",
             newline="\n",
         )
