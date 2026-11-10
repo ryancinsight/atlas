@@ -127,6 +127,7 @@ class Plan:
     member: Path
     base: str
     stale: tuple[LockedPackage, ...]
+    queried: tuple[LockedPackage, ...] = ()
 
     @property
     def name(self) -> str:
@@ -413,7 +414,9 @@ def plan_member(member: Path, targets: dict[str, str],
         lock_text = git(member, "show", f"{base}:Cargo.lock")
     except RuntimeError:
         return None
-    return Plan(member, base, stale_packages(lock_text, targets, read_packages))
+    queried = tuple(package for package in locked_packages(lock_text)
+                    if package.provider in targets and "?" in package.url)
+    return Plan(member, base, stale_packages(lock_text, targets, read_packages), queried)
 
 
 def export_tree(member: Path, base: str, directory: Path) -> None:
@@ -537,12 +540,27 @@ def retarget_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | 
     return None
 
 
+def lock_failure(plan: Plan, lock: Path, original: bytes, detail: str) -> Outcome:
+    """Report a resolver failure after restoring its exact input lock."""
+    try:
+        lock.write_bytes(original)
+    except OSError as error:
+        detail += f"; cannot restore original lock: {error}"
+    return Outcome(plan.name, "failed", detail, False)
+
+
 def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | None:
     """Advance the exported lock's stale sources to their targets; a failed row, or None."""
+    lock = tree / "Cargo.lock"
+    try:
+        original = lock.read_bytes()
+    except OSError as error:
+        return Outcome(plan.name, "failed", f"lock snapshot: {error}", False)
     specs = sorted({package.spec for package in plan.stale})
     update = cargo(tree, "update", *(flag for spec in specs for flag in ("--package", spec)))
     if update.returncode != 0:
-        return Outcome(plan.name, "failed", failure_detail(plan.name, "cargo update", update.stderr), False)
+        return lock_failure(plan, lock, original,
+                            failure_detail(plan.name, "cargo update", update.stderr))
     # A precise update of one source re-resolves the git sources its packages
     # depend on, which can carry an already-returned source past its target
     # again; a round per source bounds the repetition.
@@ -554,11 +572,13 @@ def resolve_lock(plan: Plan, targets: dict[str, str], tree: Path) -> Outcome | N
         for spec, target in returns:
             precise = cargo(tree, "update", "--package", spec, "--precise", target)
             if precise.returncode != 0:
-                return Outcome(plan.name, "failed", failure_detail(plan.name, "cargo update --precise", precise.stderr), False)
+                return lock_failure(plan, lock, original, failure_detail(
+                    plan.name, "cargo update --precise", precise.stderr))
     resolved = (tree / "Cargo.lock").read_text(encoding="utf-8", errors="replace")
     misses = unmet_targets(resolved, plan.stale, targets)
     if misses:
-        return Outcome(plan.name, "failed", "source past its target: " + "; ".join(misses), False)
+        return lock_failure(plan, lock, original,
+                            "source past its target: " + "; ".join(misses))
     return None
 
 
@@ -757,6 +777,12 @@ def main() -> int:
                                locked_packages if operation is SourceOperation.RETARGET else first_party_packages)
             if plan is None:
                 outcomes.append(Outcome(member.name, "current", "no Cargo.lock", True))
+            elif plan.queried:
+                names = ", ".join(sorted({package.name for package in plan.queried}))
+                stage = ("source retargeting" if operation is SourceOperation.RETARGET
+                         else "targeted source")
+                outcomes.append(Outcome(member.name, "failed",
+                                        stage + " has a query constraint: " + names, False))
             elif not plan.stale:
                 outcomes.append(Outcome(member.name, "current", "every targeted source at its target", True))
             else:

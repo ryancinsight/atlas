@@ -223,6 +223,13 @@ class LockTests(unittest.TestCase):
 
 
 class PlanTests(unittest.TestCase):
+    def test_targeted_query_is_classified_before_current_state(self) -> None:
+        queried = tuple(package for package in sweep.locked_packages(LOCK)
+                        if package.provider == "leto" and "?" in package.url)
+        plan = sweep.Plan(Path("repos/consumer"), OLD, (), queried)
+        self.assertEqual([(package.name, package.rev) for package in plan.queried],
+                         [("pinned", OLD)])
+
     def test_entries_behind_their_target_are_stale_and_entries_at_it_are_not(self) -> None:
         stale = sweep.stale_packages(LOCK, {"hermes": NEW, "mnemosyne": NEW})
         self.assertEqual(
@@ -278,6 +285,16 @@ class PlanTests(unittest.TestCase):
 class CommitTests(unittest.TestCase):
     def plan(self, targets: dict[str, str]):
         return sweep.Plan(Path("repos/leto"), OLD, sweep.stale_packages(LOCK, targets))
+
+    def test_lock_failure_restores_exact_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            lock = Path(directory) / "Cargo.lock"
+            original = b"version = 4\r\n# exact\n"
+            lock.write_bytes(b"changed\n")
+            outcome = sweep.lock_failure(self.plan({"hermes": NEW}), lock, original, "rejected")
+            self.assertEqual((outcome.action, outcome.ok, outcome.detail),
+                             ("failed", False, "rejected"))
+            self.assertEqual(lock.read_bytes(), original)
 
     def test_one_target_names_its_provider_and_revision(self) -> None:
         self.assertEqual(sweep.branch_name({"hermes": NEW}), "build/deps-hermes-22222222")

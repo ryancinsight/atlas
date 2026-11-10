@@ -26,11 +26,13 @@ SPEC.loader.exec_module(lockfile)
 class ManifestPathTests(unittest.TestCase):
     def setUp(self) -> None:
         self.argv: list[list[str]] = []
+        self.environments: list[dict[str, str]] = []
         self.original_run = lockfile.run_bounded
         self.original_manifest = lockfile.MANIFEST
 
-        def fake_run(command, **_kwargs):
+        def fake_run(command, **kwargs):
             self.argv.append(list(command))
+            self.environments.append(kwargs["env"])
             return subprocess.CompletedProcess(command, 0, "", "")
 
         lockfile.run_bounded = fake_run
@@ -57,6 +59,12 @@ class ManifestPathTests(unittest.TestCase):
     def test_the_umbrella_manifest_is_the_default_when_nothing_redirects(self) -> None:
         lockfile.run_outside_the_overlay(["metadata"])
         self.assertEqual(self._manifest_argument(), str(self.original_manifest))
+
+    def test_explicit_environment_is_copied_without_global_mutation(self) -> None:
+        supplied = {"CARGO_HOME": "D:/cargo-home", "MARKER": "preserved"}
+        lockfile.run_outside_the_overlay(["metadata"], env=supplied)
+        self.assertEqual(self.environments[-1]["MARKER"], "preserved")
+        self.assertEqual(supplied, {"CARGO_HOME": "D:/cargo-home", "MARKER": "preserved"})
 
 
 if __name__ == "__main__":
