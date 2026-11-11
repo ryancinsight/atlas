@@ -59,7 +59,16 @@ from atlas_build_stamps import (
     _unstamped_git,
     _write_git_stamps,
 )
-from atlas_build_writers import BUILDING, CLEANING, COMPLETE, heartbeat, mark, resumable, run_identity
+from atlas_build_writers import (
+    BUILDING,
+    CLEANING,
+    COMPLETE,
+    heartbeat,
+    mark,
+    mark_broad_clean,
+    resumable,
+    run_identity,
+)
 
 DEFAULT_LEASE_SECONDS = 900
 _CLEAN_PLAN_PREFIX = "atlas-build-clean-plan: "
@@ -548,7 +557,7 @@ def _run_build(
         marked: frozenset[str] = frozenset()
         custom_clean = False
         if any(stale.values()):
-            marked = resumable(target_dir, held, writer_identity) - frozenset().union(
+            marked = resumable(directory, held, writer_identity) - frozenset().union(
                 *(state.stale_git for state in states.values())
             )
             if clean_command is not None:
@@ -618,7 +627,7 @@ def _run_build(
         _emit_clean_plan(clean_plan, run_id)
         progress.advance("cleanup")
         if custom_clean:
-            mark(target_dir, held, CLEANING, writer_identity)
+            mark_broad_clean(directory, held, writer_identity)
             _run_checked(clean_command, execution_root, environment)
         for package, (dependencies, _) in inputs.items():
             git_built[package] |= set(targets) & _git_names(dependencies)
@@ -630,7 +639,7 @@ def _run_build(
         # stalled every push that shared its dependencies for over an hour. A
         # `cargo clean` naming no package would clean everything.
         if targets:
-            mark(target_dir, targets, CLEANING, writer_identity)
+            mark(directory, targets, CLEANING, writer_identity)
             _run_checked(
                 [
                     *_cargo_command(),
@@ -647,7 +656,7 @@ def _run_build(
         fresh = {*packages, *rebuilt, *resumed}
         # The last writer of every package the command writes, from here until
         # its record lands: a kill leaves this identity's mark for a rerun.
-        mark(target_dir, fresh, BUILDING, writer_identity)
+        mark(directory, fresh, BUILDING, writer_identity)
         if not artifact_paths and all(
             named[package] is not None or recorded_packages[package] <= fresh
             for package in packages
@@ -673,7 +682,7 @@ def _run_build(
                     "a dependency is held shared but no record names its artifacts"
                 )
         progress.advance("command")
-        with heartbeat(target_dir, fresh, writer_identity):
+        with heartbeat(directory, fresh, writer_identity):
             _run_checked(command, execution_root, environment)
         progress.advance("source-dependencies")
         final_source = source_identity(root, (target_dir,), ignore_paths)
@@ -796,5 +805,5 @@ def _run_build(
                     tuple(target_dir / relative for relative in artifact["files"]),
                 )
             )
-        mark(target_dir, fresh, COMPLETE, writer_identity)
+        mark(directory, fresh, COMPLETE, writer_identity)
     return tuple(results)

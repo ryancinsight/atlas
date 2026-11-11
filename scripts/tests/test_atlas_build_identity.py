@@ -1290,6 +1290,13 @@ class BuildIdentityTestCase(unittest.TestCase):
             "Path(os.environ['ARTIFACT']).unlink(missing_ok=True)\n",
         )
 
+    def writer_directory(
+        self, profile: str = "debug", target: str = "host"
+    ) -> build_stamps.BuildDirectory:
+        return build_stamps.BuildDirectory(
+            build_source._canonical(self.target), profile, target
+        )
+
     def build(
         self,
         root: Path | None = None,
@@ -2467,37 +2474,130 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_progress_older_than_the_last_heartbeat_resumes(self) -> None:
         target = build_source._canonical(self.target)
+        directory = self.writer_directory()
         built = target / "debug" / "deps" / "libdemo-abcdef.rlib"
         built.parent.mkdir(parents=True, exist_ok=True)
         built.write_text("progress", encoding="utf-8")
         time.sleep(0.05)
-        writers.mark(target, ["demo"], writers.BUILDING, "identity")
-        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
-        self.assertEqual(writers.resumable(target, ["demo"], "another"), frozenset())
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
+        self.assertEqual(writers.resumable(directory, ["demo"], "another"), frozenset())
         time.sleep(0.05)
         built.write_text("later", encoding="utf-8")
-        self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
-        writers.mark(target, ["demo"], writers.BUILDING, "identity")
-        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
+
+    def test_profiles_hold_independent_writer_progress_across_targets(self) -> None:
+        debug = self.writer_directory()
+        cross_debug = self.writer_directory(target="x86_64-unknown-linux-gnu")
+        history = self.writer_directory(profile="cast-history")
+        self.assertEqual(
+            writers.writer_path(debug, "demo"), writers.writer_path(cross_debug, "demo")
+        )
+        self.assertNotEqual(
+            writers.writer_path(debug, "demo"), writers.writer_path(history, "demo")
+        )
+        built = self.target / "debug" / "deps" / "libdemo-abcdef.rlib"
+        built.write_text("progress", encoding="utf-8")
+        mark_ns = built.stat().st_mtime_ns + 1_000_000
+        writers.mark(debug, ["demo"], writers.BUILDING, "debug-run", mark_ns)
+        writers.mark(history, ["demo"], writers.BUILDING, "history-run", mark_ns)
+        writers.mark(history, ["demo"], writers.COMPLETE, "history-run", mark_ns)
+        self.assertEqual(writers.resumable(debug, ["demo"], "debug-run"), {"demo"})
+
+        cross_built = (
+            self.target
+            / "x86_64-unknown-linux-gnu"
+            / "debug"
+            / "deps"
+            / "libdemo-abcdef.rlib"
+        )
+        cross_built.parent.mkdir(parents=True)
+        cross_built.write_text("later same-profile write", encoding="utf-8")
+        written_ns = mark_ns + 1_000_000
+        os.utime(cross_built, ns=(written_ns, written_ns))
+        self.assertEqual(writers.resumable(debug, ["demo"], "debug-run"), frozenset())
+
+    def test_a_legacy_writer_action_after_a_profile_mark_disables_resume(self) -> None:
+        directory = self.writer_directory()
+        built = self.target / "debug" / "deps" / "libdemo-abcdef.rlib"
+        built.write_text("progress", encoding="utf-8")
+        os.utime(built, ns=(10, 10))
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity", 20)
+        build_records._write_atomic(
+            writers._legacy_writer_path(directory.target_dir, "demo"),
+            {
+                "version": 1,
+                "state": writers.CLEANING,
+                "identity": "old-tool",
+                "heartbeat_ns": 30,
+            },
+        )
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity", 40)
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
+    def test_a_broad_clean_invalidates_every_marked_profile(self) -> None:
+        debug = self.writer_directory()
+        history = self.writer_directory(profile="cast-history")
+        writers.mark(debug, ["demo"], writers.BUILDING, "debug-run", 10)
+        writers.mark(history, ["demo"], writers.BUILDING, "history-run", 20)
+        writers.mark_broad_clean(debug, ["demo"], "clean-run")
+        for directory in (debug, history):
+            marker = json.loads(
+                writers.writer_path(directory, "demo").read_text(encoding="utf-8")
+            )
+            self.assertEqual((marker["state"], marker["identity"]), (writers.CLEANING, "clean-run"))
+
+        ambiguous = writers.writer_path(debug, "demo").parents[1] / "unknown"
+        ambiguous.write_text("not a profile", encoding="utf-8")
+        with self.assertRaises(BuildIdentityError):
+            writers.mark_broad_clean(debug, ["demo"], "other-clean")
+        with self.assertRaises(BuildIdentityError):
+            writers.writer_path(self.writer_directory(profile=".."), "demo")
+
+    def test_an_opaque_clean_invalidates_another_profiles_progress(self) -> None:
+        self.killed_after_source_change()
+        history = self.writer_directory(profile="cast-history")
+        writers.mark(history, ["demo"], writers.BUILDING, "history-run")
+        self.commit_source_change("fn main() { changed_again(); }\n", "change again")
+        run_checked = identity._run_checked
+
+        def killing(command, cwd, environment):
+            if str(self.clean_script) in command:
+                raise identity.IdentityError("killed inside the opaque clean")
+            run_checked(command, cwd, environment)
+
+        with patch.object(identity, "_run_checked", side_effect=killing):
+            with self.assertRaises(identity.IdentityError):
+                self.dependency_build("third", discover=True, clean=True)
+        marker = json.loads(
+            writers.writer_path(history, "demo").read_text(encoding="utf-8")
+        )
+        self.assertEqual(marker["state"], writers.CLEANING)
 
     def test_a_longer_package_name_does_not_hide_a_peer_write(self) -> None:
         target = build_source._canonical(self.target)
-        writers.mark(target, ["demo-core"], writers.BUILDING, "identity")
+        directory = self.writer_directory()
+        writers.mark(directory, ["demo-core"], writers.BUILDING, "identity")
         time.sleep(0.05)
         peer = target / "debug" / "deps" / "libdemo_core-abcdef.rlib"
         peer.parent.mkdir(parents=True, exist_ok=True)
         peer.write_text("peer", encoding="utf-8")
-        self.assertEqual(writers.resumable(target, ["demo-core"], "identity"), frozenset())
+        self.assertEqual(writers.resumable(directory, ["demo-core"], "identity"), frozenset())
 
     def test_the_heartbeat_refreshes_a_building_mark_while_the_command_runs(self) -> None:
-        target = build_source._canonical(self.target)
-        writers.mark(target, ["demo"], writers.BUILDING, "identity")
-        first = json.loads(writers.writer_path(target, "demo").read_text(encoding="utf-8"))
+        directory = self.writer_directory()
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        first = json.loads(writers.writer_path(directory, "demo").read_text(encoding="utf-8"))
         with patch.object(writers, "HEARTBEAT_SECONDS", 0.02):
-            with writers.heartbeat(target, ["demo"], "identity"):
+            with writers.heartbeat(directory, ["demo"], "identity"):
                 deadline = time.monotonic() + 10
                 while time.monotonic() < deadline:
-                    beat = json.loads(writers.writer_path(target, "demo").read_text(encoding="utf-8"))
+                    beat = json.loads(
+                        writers.writer_path(directory, "demo").read_text(encoding="utf-8")
+                    )
                     if beat["heartbeat_ns"] > first["heartbeat_ns"]:
                         break
                     time.sleep(0.02)
@@ -2506,7 +2606,8 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_an_unlistable_directory_makes_the_scan_clean(self) -> None:
         target = build_source._canonical(self.target)
-        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        directory = self.writer_directory()
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
         time.sleep(0.05)
         peer = target / "debug" / "deps" / "libdemo-abcdef.rlib"
         peer.parent.mkdir(parents=True, exist_ok=True)
@@ -2520,19 +2621,20 @@ class BuildIdentityTestCase(unittest.TestCase):
             return real(path)
 
         with patch.object(os, "scandir", side_effect=scandir):
-            self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
         # The peer's write alone also cleans; without it the listable tree resumes.
         peer.unlink()
         (target / "atlas-cache").rmdir()
-        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
 
     def test_an_unwalkable_build_directory_makes_the_scan_clean(self) -> None:
         target = build_source._canonical(self.target)
+        directory = self.writer_directory()
         out = target / "debug" / "build" / "demo-0123456789abcdef" / "out"
         out.mkdir(parents=True)
         (out / "generated.rs").write_text("old", encoding="utf-8")
-        writers.mark(target, ["demo"], writers.BUILDING, "identity")
-        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
         real = os.walk
 
         def walk(top, *arguments, **options):
@@ -2542,23 +2644,25 @@ class BuildIdentityTestCase(unittest.TestCase):
             return real(top, *arguments, **options)
 
         with patch.object(os, "walk", side_effect=walk):
-            self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
 
     def test_a_file_rewritten_in_a_build_directory_makes_the_scan_clean(self) -> None:
         target = build_source._canonical(self.target)
+        directory = self.writer_directory()
         out = target / "debug" / "build" / "demo-0123456789abcdef" / "out"
         out.mkdir(parents=True)
-        writers.mark(target, ["demo"], writers.BUILDING, "identity")
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
         time.sleep(0.05)
         (out / "generated.rs").write_text("peer", encoding="utf-8")
-        self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
 
     def test_a_directory_removed_mid_scan_makes_the_scan_clean(self) -> None:
         target = build_source._canonical(self.target)
+        directory = self.writer_directory()
         deps = target / "debug" / "deps"
         deps.mkdir(parents=True, exist_ok=True)
-        writers.mark(target, ["demo"], writers.BUILDING, "identity")
-        self.assertEqual(writers.resumable(target, ["demo"], "identity"), {"demo"})
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
         real = os.scandir
 
         def scandir(path):
@@ -2569,7 +2673,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             return real(path)
 
         with patch.object(os, "scandir", side_effect=scandir):
-            self.assertEqual(writers.resumable(target, ["demo"], "identity"), frozenset())
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
 
     def test_progress_written_within_a_run_resumes_only_through_the_heartbeat(self) -> None:
         self.killed_after_source_change()
@@ -2595,7 +2699,7 @@ class BuildIdentityTestCase(unittest.TestCase):
 
     def test_an_unreadable_writer_mark_cleans(self) -> None:
         self.killed_after_source_change()
-        mark = writers.writer_path(build_source._canonical(self.target), "demo")
+        mark = writers.writer_path(self.writer_directory(), "demo")
         mark.write_text("{", encoding="utf-8")
         self.assertEqual(self.cleaned_packages("second"), ["demo"])
 
