@@ -24,7 +24,8 @@ Assumed and not checked: `actions/checkout` writes the tracked files of the comm
 nothing else that a reference can name; no step of another kind (`run`, another action, a local composite
 action) changes them; and the workflow runs on an event where `github.sha` or the pull-request head is the
 commit analysed (`workflow_call` and `pull_request_target` are not). References inside composite actions and
-reusable-workflow references are not read.
+reusable-workflow references are not read. The rule reads no tree, so it cannot see a symbolic link inside a
+checkout; `atlas_workflow_lint` rejects a reference through a link when it resolves the reference.
 """
 
 import re
