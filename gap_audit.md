@@ -362,3 +362,12 @@ Risk: commit subjects over 50 characters, body lines over 72, unparseable traile
 Catching check: a committed `scripts/git-hooks/commit-msg` (subject length and form, body width, literal `\n`, trailer parse, `Agent:` under a harness session variable; merge and `fixup!` commits exempt), installed by the stack setup path in every member, with the conformance scan asserting the installed hook path.
 
 Re-open trigger: a board line frees for the item, or a second over-length subject lands.
+
+<a id="fast-pytest-timeout-margin"></a>
+## Finding 2026-11-10: the fast script-test job runs at its timeout
+
+Risk: `script-tests / Run pytest (fast)` (`.github/workflows/python-tests.yml`, `timeout-minutes: 10`) is cancelled with every test passing, and the required ratchet verdict that needs it never runs. Evidence: run 42953704487 on ryancinsight/atlas#660 reported 2713 passed in 529.31 s and was cut after 602 s of job time; the seven successful runs before it took 391 to 539 s, against a five-minute verification target.
+
+Catching check: the job's duration against a committed budget in the scheduled CI report, and the suite's slowest tests moved to the slow job or sharded until the fast job holds the five-minute target; the bound itself does not rise.
+
+Re-open trigger: a second cancellation at the bound, or the fast job's median passing 480 s.
