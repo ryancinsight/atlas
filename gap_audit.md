@@ -353,3 +353,21 @@ Re-open trigger: the scan lands in the stack tooling, or a second occurrence is 
 ## Finding 2026-10-13: apollo rescue ref preserves a defect-masking test weakening
 
 Risk: `refs/rescue/apollo-scratch-order-isolation` (apollo checkout only, unpushed) preserves a hunk that renames the scratch-hook registry test and weakens its release-count assertion from an exact `assert_eq!` to `>= 1`; applying it would mask the thread-local hook leak instead of fixing it. Re-open trigger: the ref still exists; delete the ref and this finding together once its isolation hunk is confirmed landed on apollo main or obsolete against it.
+
+<a id="commit-msg-hook-absent"></a>
+## Finding 2026-11-10: no commit-msg hook is installed in the stack
+
+Risk: commit subjects over 50 characters, body lines over 72, unparseable trailers and agent commits without an `Agent:` trailer reach default branches, because nothing checks a message before it is pushed. Evidence: ryancinsight/kwavers#961 landed two 52-character subjects; `scripts/git-hooks/` at `origin/main` holds `pre-commit`, `pre-push` and `rescue-push` only, and `.git/atlas-hooks` has no `commit-msg`.
+
+Catching check: a committed `scripts/git-hooks/commit-msg` (subject length and form, body width, literal `\n`, trailer parse, `Agent:` under a harness session variable; merge and `fixup!` commits exempt), installed by the stack setup path in every member, with the conformance scan asserting the installed hook path.
+
+Re-open trigger: a board line frees for the item, or a second over-length subject lands.
+
+<a id="fast-pytest-timeout-margin"></a>
+## Finding 2026-11-10: the fast script-test job runs at its timeout
+
+Risk: `script-tests / Run pytest (fast)` (`.github/workflows/python-tests.yml`, `timeout-minutes: 10`) is cancelled with every test passing, and the required ratchet verdict that needs it never runs. Evidence: run 42953704487 on ryancinsight/atlas#660 reported 2713 passed in 529.31 s and was cut after 602 s of job time; the seven successful runs before it took 391 to 539 s, against a five-minute verification target.
+
+Catching check: the job's duration against a committed budget in the scheduled CI report, and the suite's slowest tests moved to the slow job or sharded until the fast job holds the five-minute target; the bound itself does not rise.
+
+Re-open trigger: a second cancellation at the bound, or the fast job's median passing 480 s.
