@@ -124,6 +124,18 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Validate called Atlas workflow revision
+        if: inputs.mdbook-test && inputs.cargo-package != ''
+        shell: bash
+        env:
+          CALLED_WORKFLOW_SHA: ${{ fromJSON(toJSON(job)).workflow_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${CALLED_WORKFLOW_SHA:-}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "called Atlas workflow revision must be a full commit SHA" >&2
+            exit 1
+          fi
+
       - name: Check out exact Atlas book tooling
         if: inputs.mdbook-test && inputs.cargo-package != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
