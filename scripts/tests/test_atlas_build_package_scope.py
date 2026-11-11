@@ -77,7 +77,7 @@ class PackageIdentityTestCase(unittest.TestCase):
         """Use the two `ls-files` walks that define the prior identity bytes."""
 
         def prior_status(
-            top: Path,
+            top: Path, _submodules=None
         ) -> tuple[str, bool, tuple[tuple[bytes, list[bytes]], ...]]:
             entries = tuple(
                 (
@@ -224,6 +224,26 @@ class PackageIdentityTestCase(unittest.TestCase):
         prior = self.prior_identities()
         self.assertEqual(dirty, (prior[self.root], prior[self.root / "c"]))
         self.assertNotEqual(dirty, clean)
+
+    def test_new_staged_gitlink_retains_its_raw_difference(self) -> None:
+        submodule = self.root.parent / "staged-submodule"
+        init_repository(submodule, {"tracked.txt": "one\n"})
+        git(
+            self.root,
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "add",
+            "-q",
+            str(submodule),
+            "vendor/submodule",
+        )
+        git(self.root, "commit", "-qm", "gitmodules", "--", ".gitmodules")
+
+        candidate = self.identities()
+        prior = self.prior_identities()
+        self.assertEqual(candidate, (prior[self.root], prior[self.root / "c"]))
+        self.assertNotEqual(candidate[0]["dirty"], "")
 
 
 @pytest.mark.slow

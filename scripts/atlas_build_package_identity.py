@@ -9,6 +9,7 @@ from typing import Iterable, Sequence
 
 from atlas_build_lease import BuildIdentityError
 from atlas_build_source import (
+    _SubmoduleScope,
     _canonical,
     _feed_framed,
     _git,
@@ -39,7 +40,7 @@ def _repository_identities(
     excluded: Sequence[Path],
     ignored: Sequence[Path],
 ) -> dict[Path, dict[str, str]]:
-    _, tracked_dirty, status_entries = _repository_status(top)
+    _, tracked_dirty, status_entries = _repository_status(top, _SubmoduleScope.SUPERPROJECT)
     files = {package: hashlib.sha256() for package in packages}
     has_gitlink = False
     for entry in _git(top, "ls-tree", "-r", "-z", "--full-tree", "HEAD").split(b"\0"):
