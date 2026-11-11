@@ -179,6 +179,8 @@ class CheckoutPrefixTests(unittest.TestCase):
             "tolerated failure": checkout() + "        continue-on-error: true\n",
             "condition after another repository": checkout(**FOREIGN) + checkout() + "        if: false\n",
             "path inside the repository": checkout(uses="actions/checkout/sub"),
+            "suffixed action name": checkout(uses="actions/checkout.git"),
+            "suffixed name over the prefix": checkout() + checkout(uses="Actions/Checkout.GIT", **FOREIGN),
             "unbroken space in the ref": checkout(ref="${{ github.sha }}"),
         }
         for name, steps in cases.items():
@@ -198,6 +200,10 @@ class CheckoutPrefixTests(unittest.TestCase):
         for name, caller in callers.items():
             with self.subTest(name=name):
                 self.assertEqual(outcomes(workflow(job(checkout(), caller))), [UNSHOWN])
+        for key in ("container: alpine:3", "Container: alpine:3", "'container ': alpine:3", "env: {}\n    env: {}"):
+            contained = job(checkout(), step()).replace("    steps:", f"    {key}\n    steps:")
+            with self.subTest(job_key=key):
+                self.assertEqual(outcomes(workflow(contained)), [UNSHOWN])
         shared = job("      - &shared\n        uses: " + REFERENCE + "\n", checkout(), "      - *shared\n")
         self.assertEqual(outcomes(workflow(shared)), [UNSHOWN])
 

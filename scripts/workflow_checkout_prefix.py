@@ -8,13 +8,15 @@ allow-list. Within one job, in step order:
 * a step that is not a mapping of distinct lower-case string keys without padding, or whose `uses` is neither
   a `./` reference nor `owner/repository[/path]@ref` in plain characters (`_REMOTE`), may be a checkout of any
   location: it voids every prefix defined before it;
-* a step whose `uses` names the repository `actions/checkout`, without letter case, is a checkout. Its location
-  is known when `with` is one mapping of distinct string names and `path` matches `_PLAIN_PATH`; otherwise it
-  voids every prefix. A known path voids each earlier prefix that is its ancestor, its descendant or equal to
-  it, without letter case, and then defines its own path as a prefix;
-* a prefix holds the candidate when its step has no key outside `STEP_KEYS` (so it always runs), names
-  `actions/checkout@<ref>` with no path inside the repository, passes no input outside `CANDIDATE_INPUTS` and
-  has no `ref` or one of `CANDIDATE_REFS`, ignoring spaces and tabs around the operands inside `${{ }}`;
+* a step whose `uses` names the repository `actions/checkout` or `actions/checkout.git`, without letter case,
+  is a checkout. Its location is known when `with` is one mapping of distinct string names and `path` matches
+  `_PLAIN_PATH`; otherwise it voids every prefix. A known path voids each earlier prefix that is its ancestor,
+  its descendant or equal to it, without letter case, and then defines its own path as a prefix;
+* a prefix holds the candidate when its job is a mapping of distinct string keys, none of them `container` in
+  any letter case or padding, its step has no key outside `STEP_KEYS` (so it always runs) and names
+  `actions/checkout@<ref>` with no `.git` suffix and no path inside the repository, passes no input outside
+  `CANDIDATE_INPUTS` and has no `ref` or one of `CANDIDATE_REFS`, ignoring spaces and tabs around the operands
+  inside `${{ }}`;
 * a reference at or under a prefix in force, compared without letter case, is governed by it, and a reference
   that is not a plain path (`_PLAIN_PATH`, no `.git` component) is governed by a prefix in force even when it
   names none. A governed reference is shown to load the candidate only when the prefix holds the candidate,
@@ -26,10 +28,10 @@ Assumed and not checked: `actions/checkout` writes the tracked files of the comm
 nothing else that a reference can name; no step of another kind (`run`, another action, a local composite
 action) changes them; and the workflow runs on an event where `github.sha` or the pull-request head is the
 commit analysed (`workflow_call` and `pull_request_target` are not). Also assumed: no symbolic link in a
-checked-out tree and no container volume redirects a checkout path or a reference; no environment variable
-named `INPUT_*`, however it is set, changes a checkout's inputs; the checkout release reads `path` relative
-to the workspace; and the runner accepts no other spelling of the action's name, such as
-`actions/checkout.git`. References inside composite actions and reusable-workflow references are not read.
+checked-out tree redirects a checkout path or a reference; no environment variable named `INPUT_*`, however
+it is set, changes a checkout's inputs; the checkout release reads `path` relative to the workspace; and the
+runner accepts no spelling of the action's name other than the two above. References inside composite
+actions and reusable-workflow references are not read.
 """
 
 import re
@@ -105,10 +107,17 @@ def _related(first: str, second: str) -> bool:
     return one[:shared] == other[:shared]
 
 
+def _host_job(job: Node) -> bool:
+    """Whether a job can be read key by key and has no `container`."""
+    names = _entries(job)
+    return names is not None and all(name.strip().casefold() != "container" for name in names)
+
+
 def governing(document: Node) -> dict[int, Checkout | None]:
     """Map the identity of each local `uses` node of a workflow's steps to the prefix that governs it."""
     found: dict[int, Checkout | None] = {}
     jobs = [job for block in _values(document, "jobs") if isinstance(block, MappingNode) for _, job in block.value]
+    contained = {id(steps) for job in jobs if not _host_job(job) for steps in _values(job, "steps")}
     for steps in (steps for job in jobs for steps in _values(job, "steps") if isinstance(steps, SequenceNode)):
         in_force: list[Checkout] = []
         for node in steps.value:
@@ -134,8 +143,9 @@ def governing(document: Node) -> dict[int, Checkout | None]:
             remote = None if uses is None else _REMOTE.fullmatch(uses)
             if step is None or ("uses" in step and remote is None and not (uses or "").startswith("./")):
                 in_force = []
-            elif remote is not None and remote[1].casefold() == "actions/checkout":
-                defined = _checkout(step, remote[2] is None)
+            elif remote is not None and remote[1].casefold().removesuffix(".git") == "actions/checkout":
+                host = id(steps) not in contained
+                defined = _checkout(step, host and remote[1].casefold() == "actions/checkout" and remote[2] is None)
                 unrelated = [held for held in in_force if defined and not _related(held.prefix, defined.prefix)]
                 in_force = unrelated + [defined] if defined else []
     return found
