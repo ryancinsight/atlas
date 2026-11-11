@@ -1430,25 +1430,39 @@ class BuildIdentityTestCase(unittest.TestCase):
         init_repo(self.root, "fn main() {}\n")
         progress = self.base / "progress"
         progress.mkdir()
-        replace = os.replace
-        sleeps: list[float] = []
+        run_id = identity.uuid.UUID(int=1)
+        obstruction = progress / f"identity-progress-{run_id.hex}.json"
+        obstruction.mkdir()
+        retry = build_records.retry_sharing_violation
+        diagnostic_policies: list[int] = []
+        diagnostic_replacements: list[Path] = []
 
-        def refuse_sidecar(source, destination):
-            if Path(destination).name.startswith("identity-progress-"):
-                raise PermissionError("progress unavailable")
-            replace(source, destination)
+        def observe_retry(operation, path, attempts=lock_module.SHARING_RETRY_ATTEMPTS):
+            if path.name.startswith("identity-progress-"):
+                diagnostic_policies.append(attempts)
+                replace = operation
+
+                def counted_replace():
+                    diagnostic_replacements.append(path)
+                    return replace()
+
+                operation = counted_replace
+            return retry(operation, path, attempts)
 
         with (
             patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity.uuid, "uuid4", return_value=run_id),
             patch.object(identity, "_progress_now_ns", return_value=100),
-            patch.object(build_records.os, "replace", side_effect=refuse_sidecar),
-            patch.object(lock_module.time, "sleep", side_effect=sleeps.append),
+            patch.object(
+                build_records, "retry_sharing_violation", side_effect=observe_retry
+            ),
         ):
             result = self.build(source_token="initial-write")
         self.assertEqual(result.status, "rebuilt")
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "initial-write")
-        self.assertEqual(list(progress.glob("identity-progress-*.json")), [])
-        self.assertEqual(sleeps, [])
+        self.assertTrue(obstruction.is_dir())
+        self.assertEqual(diagnostic_policies, [1])
+        self.assertEqual(diagnostic_replacements, [obstruction])
 
     def test_progress_sidecar_final_write_cannot_change_success(self) -> None:
         init_repo(self.root, "fn main() {}\n")
