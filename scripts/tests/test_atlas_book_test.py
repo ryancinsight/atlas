@@ -7,6 +7,7 @@ import tempfile
 import textwrap
 import unittest
 
+import pytest
 from scripts.tests.test_process_tree import _assert_process_inactive
 
 
@@ -45,6 +46,7 @@ class BookArtifactSelectionTests(unittest.TestCase):
                 if expected:
                     self.assertIn(b"must be a full commit SHA", result.stderr)
 
+    @pytest.mark.slow
     def test_real_graph_tests_values_and_excludes_stale_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -66,14 +68,12 @@ class BookArtifactSelectionTests(unittest.TestCase):
                                            build_timeout=180, test_timeout=120, temp_root=stages)
             finally:
                 stale.unlink(missing_ok=True)
-            names = [item["basename"] for item in report["artifacts"]]
             shared = [item for item in report["artifacts"] if "shared" in item["package_id"]]
-            macros = [item for item in report["artifacts"] if "book-macro" in item["package_id"]]
             self.assertEqual(2, len(shared))
             self.assertEqual(2, len({item["basename"] for item in shared}))
-            self.assertTrue(any(name.endswith((".dll", ".dylib", ".so")) for name in names))
-            self.assertEqual(1, len(macros))
-            self.assertNotIn(stale.name, names)
+            self.assertTrue(any(item["basename"].endswith((".dll", ".dylib", ".so")) for item in report["artifacts"]))
+            self.assertEqual(1, sum("book-macro" in item["package_id"] for item in report["artifacts"]))
+            self.assertNotIn(stale.name, [item["basename"] for item in report["artifacts"]])
             self.assertFalse(Path(report["stage"]).exists())
             self.assertEqual([], list(stages.iterdir()))
 
