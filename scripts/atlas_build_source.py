@@ -519,6 +519,7 @@ def _feed_config_text(
     base: Path,
     seen: set[Path],
     source: str,
+    forbidden_profile: str | None,
 ) -> None:
     """Hash `content` into `digest`, then recurse into its `include` value.
 
@@ -562,13 +563,22 @@ def _feed_config_text(
             "TOML 1.1 string escapes \\e and \\xHH are not TOML 1.0) so its `include` "
             "directive, if any, can be followed"
         ) from error
+    profiles = data.get("profile", {})
+    if forbidden_profile is not None:
+        if not isinstance(profiles, dict):
+            raise BuildIdentityError(f"Cargo profile table is malformed in {source}")
+        if forbidden_profile in profiles:
+            raise BuildIdentityError(f"reserved Cargo profile {forbidden_profile} is defined in {source}")
     for entry in _include_paths(data.get("include")):
         included = (base / entry).resolve()
         if included.is_file():
-            _feed_config_file(digest, b"include", included, seen)
+            _feed_config_file(digest, b"include", included, seen, forbidden_profile)
 
 
-def _feed_config_file(digest: "hashlib._Hash", marker: bytes, path: Path, seen: set[Path]) -> None:
+def _feed_config_file(
+    digest: "hashlib._Hash", marker: bytes, path: Path, seen: set[Path],
+    forbidden_profile: str | None,
+) -> None:
     """Hash `path` into `digest`, then recurse into its `include` directive.
 
     An edit confined to an included file changes the build without changing
@@ -586,13 +596,14 @@ def _feed_config_file(digest: "hashlib._Hash", marker: bytes, path: Path, seen: 
         content = path.read_bytes()
     except OSError as error:
         raise BuildIdentityError(f"cannot read cargo config {path}: {error}") from error
-    _feed_config_text(digest, marker, content, path.parent, seen, str(path))
+    _feed_config_text(digest, marker, content, path.parent, seen, str(path), forbidden_profile)
 
 
 def cargo_config_digest(
     execution_root: Path,
     config_arguments: Sequence[str] = (),
-    environment: Mapping[str, str] | None = None,
+    environment: Mapping[str, str] | None = None, *,
+    forbidden_profile: str | None = None,
 ) -> str:
     """A digest of every Cargo configuration source that shapes this build.
 
@@ -648,7 +659,7 @@ def cargo_config_digest(
             path = directory / name
             if path.is_file():
                 marker = b"dir:" + str(depth).encode("ascii") + b":" + name.encode("ascii")
-                _feed_config_file(digest, marker, path, seen)
+                _feed_config_file(digest, marker, path, seen, forbidden_profile)
         parent = directory.parent
         if parent == directory:
             break
@@ -658,14 +669,14 @@ def cargo_config_digest(
     for name in ("config.toml", "config"):
         path = home / name
         if path.is_file():
-            _feed_config_file(digest, b"home:" + name.encode("ascii"), path, seen)
+            _feed_config_file(digest, b"home:" + name.encode("ascii"), path, seen, forbidden_profile)
     for argument in config_arguments:
         text = str(argument)
         candidate = Path(text)
         if not candidate.is_absolute():
             candidate = origin / candidate
         if candidate.is_file():
-            _feed_config_file(digest, b"arg-file", candidate, seen)
+            _feed_config_file(digest, b"arg-file", candidate, seen, forbidden_profile)
         else:
             # An inline `--config` value is TOML text with no file of its
             # own (`--config 'include=["x.toml"]'`, or a dotted key such as
@@ -679,6 +690,7 @@ def cargo_config_digest(
                 origin,
                 seen,
                 f"inline --config argument {text!r}",
+                forbidden_profile,
             )
     return digest.hexdigest()
 

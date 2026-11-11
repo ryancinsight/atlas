@@ -79,6 +79,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -88,6 +89,9 @@ from dataclasses import dataclass
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
+HISTORICAL_CAST_KEY = "atlas-pre-push-casts-base"
+HISTORICAL_CAST_PROFILE = "cast-history"
+HISTORICAL_CAST_CONFIG = ("--config", f'profile.{HISTORICAL_CAST_PROFILE}.inherits="dev"')
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
 
@@ -123,21 +127,26 @@ def cargo(config: pathlib.Path | None) -> list[str]:
 
 def clippy_command(export: pathlib.Path, packages: Iterable[str],
                    config: pathlib.Path | None = None,
-                   manifest: str = "Cargo.toml") -> list[str]:
+                   manifest: str = "Cargo.toml", *,
+                   profile: str | None = None) -> list[str]:
     """The clippy run that reports every `as` in `packages` of `manifest`.
 
     `manifest` is relative to `export`: the member's root workspace, or a
     standalone crate (cargo-fuzz) that the root workspace excludes. No
     packages selects every package of that manifest's workspace.
     """
+    if profile not in (None, HISTORICAL_CAST_PROFILE):
+        raise ValueError(f"unsupported cast profile {profile}")
     selection: list[str] = []
     for package in packages:
         selection += ["-p", package]
     if not selection:
         selection = ["--workspace"]
     return [
-        *cargo(config), "clippy", "--manifest-path", str(export / manifest),
-        *selection, "--all-targets", "--locked", "--message-format=json",
+        *cargo(config), "clippy", *(HISTORICAL_CAST_CONFIG if profile is not None else ()),
+        "--manifest-path", str(export / manifest),
+        *selection, *(["--profile", profile] if profile is not None else []),
+        "--all-targets", "--locked", "--message-format=json",
         "--", "--force-warn", LINT,
     ]
 
@@ -296,7 +305,8 @@ def sites(messages: Iterable[str], export: pathlib.Path,
 def run_clippy(export: pathlib.Path, packages: Iterable[str],
                config: pathlib.Path | None = None,
                manifest: str = "Cargo.toml",
-               command_cwd: pathlib.Path | None = None) -> tuple[int, set[Site]]:
+               command_cwd: pathlib.Path | None = None, *,
+               profile: str | None = None) -> tuple[int, set[Site]]:
     """Run clippy on `packages` of `export`: its exit status and cast sites.
 
     Each diagnostic's rendered text goes to stderr, so a caller reading the
@@ -305,7 +315,8 @@ def run_clippy(export: pathlib.Path, packages: Iterable[str],
     space = workspace(export, config, manifest, command_cwd)
     names = space.names()
     proc = subprocess.Popen(
-        clippy_command(export, packages, config, manifest), cwd=command_cwd or export,
+        clippy_command(export, packages, config, manifest, profile=profile),
+        cwd=command_cwd or export,
         env=space.environment,
         stdout=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
     )
@@ -981,6 +992,11 @@ def counts(found: set[Site], sanctioned: frozenset[str]) -> dict[str, int]:
 
 def clippy(args: argparse.Namespace) -> int:
     export = pathlib.Path(args.export)
+    if args.profile is not None or args.config is not None:
+        if (not args.present_only or args.profile != HISTORICAL_CAST_PROFILE
+                or args.config != HISTORICAL_CAST_CONFIG[1] or args.cargo_config is not None):
+            raise ValueError("the historical cast profile requires its bound config and --present-only")
+        _check_historical_profile(export, export / args.manifest, args.command_cwd or export)
     sites_file = pathlib.Path(args.sites)
     packages = list(args.package)
     if args.present_only:
@@ -998,7 +1014,7 @@ def clippy(args: argparse.Namespace) -> int:
             write_sites(sites_file, set())
             return 0
     status, found = run_clippy(
-        export, packages, args.cargo_config, args.manifest, args.command_cwd
+        export, packages, args.cargo_config, args.manifest, args.command_cwd, profile=args.profile
     )
     write_sites(sites_file, found)
     if args.packages_out:
@@ -1125,6 +1141,108 @@ def measure(args: argparse.Namespace) -> int:
     return 0
 
 
+def _clippy_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--export", required=True, help="checkout of the pushed tip")
+    parser.add_argument("--sites", required=True, help="file the cast sites are written to")
+    parser.add_argument("-p", "--package", action="append", default=[],
+                     help="a package to gate; none gates every package of --manifest")
+    parser.add_argument("--manifest", default="Cargo.toml",
+                     help="manifest relative to the export: a standalone crate's, for one")
+    parser.add_argument("--packages-out",
+                     help="file the manifest's workspace package names are written to")
+    parser.add_argument("--present-only", action="store_true",
+                     help="skip packages (or a manifest) absent from the export: a range's base")
+    parser.add_argument("--command-cwd", type=pathlib.Path,
+                     help="directory Cargo runs from; defaults to the export")
+    parser.add_argument("--profile", choices=[HISTORICAL_CAST_PROFILE],
+                        help="physical Cargo profile for historical casts only")
+    parser.add_argument("--config", choices=[HISTORICAL_CAST_CONFIG[1]],
+                        help="stack-owned inline Cargo config for historical casts")
+
+
+def _check_historical_profile(
+    export: pathlib.Path, manifest: pathlib.Path, command_cwd: pathlib.Path,
+) -> None:
+    from atlas_build_source import cargo_config_digest
+
+    if any(name.upper().startswith("CARGO_PROFILE_CAST_HISTORY_") for name in os.environ):
+        raise ValueError("historical cast profile must inherit the stack dev profile")
+    if os.environ.get("CARGO_BUILD_PROFILE") not in (None, "", "debug", "dev"):
+        raise ValueError("historical cast comparison requires dev as the ordinary Cargo profile")
+    cargo_config_digest(command_cwd, forbidden_profile=HISTORICAL_CAST_PROFILE)
+    export = export.resolve(strict=True)
+    path = manifest.resolve(strict=True)
+    if not path.is_relative_to(export):
+        raise ValueError("historical cast manifest lies outside its export")
+    pending = [
+        directory / "Cargo.toml" for directory in (path.parent, *path.parent.parents)
+        if directory.is_relative_to(export) and (directory / "Cargo.toml").is_file()
+    ]
+    checked: set[pathlib.Path] = set()
+    while pending:
+        candidate = pending.pop()
+        source = candidate.resolve(strict=True)
+        if not source.is_relative_to(export):
+            raise ValueError(f"Cargo manifest {candidate} lies outside the export")
+        if source in checked:
+            continue
+        checked.add(source)
+        data = tomllib.loads(source.read_text(encoding="utf-8-sig"))
+        profiles = data.get("profile", {})
+        if not isinstance(profiles, dict):
+            raise ValueError(f"Cargo profile table is malformed in {candidate}")
+        if HISTORICAL_CAST_PROFILE in profiles:
+            raise ValueError(f"reserved Cargo profile {HISTORICAL_CAST_PROFILE} is defined in {candidate}")
+        workspace = data.get("package", {}).get("workspace")
+        if workspace is not None:
+            target = (source.parent / workspace / "Cargo.toml").resolve()
+            if not target.is_relative_to(export):
+                raise ValueError(f"Cargo workspace from {candidate} lies outside the export")
+            pending.append(target)
+
+
+def historical_cast_command(
+    command: tuple[str, ...], *, root: pathlib.Path, manifest: pathlib.Path,
+    command_cwd: pathlib.Path | None, selection: Iterable[str],
+) -> tuple[str, ...]:
+    """Bind the hook's historical command to the same profile as identity."""
+    if len(command) < 3 or command[2] != "clippy":
+        raise ValueError("historical cast identity requires the owned clippy command")
+    interpreter = shutil.which(command[0])
+    if interpreter is None or not pathlib.Path(interpreter).samefile(sys.executable):
+        raise ValueError("historical cast command requires the identity interpreter")
+    script = pathlib.Path(command[1])
+    owned = pathlib.Path(__file__).resolve()
+    if script.name != owned.name or not script.is_absolute():
+        raise ValueError("historical cast command must name the owned absolute script")
+    if script.read_bytes().replace(b"\r\n", b"\n") != owned.read_bytes().replace(b"\r\n", b"\n"):
+        raise ValueError("historical cast command differs from the bound stack tool")
+    parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False, exit_on_error=False)
+    _clippy_options(parser)
+    try:
+        options = parser.parse_args(command[3:])
+    except (argparse.ArgumentError, SystemExit) as error:
+        raise ValueError("invalid historical cast arguments") from error
+    export = pathlib.Path(options.export).resolve(strict=True)
+    manifest_path = (export / options.manifest).resolve(strict=True)
+    if (
+        not options.present_only
+        or options.profile is not None
+        or options.config is not None
+        or options.packages_out is not None
+        or export != root.resolve(strict=True)
+        or manifest_path != manifest.resolve(strict=True)
+        or not manifest_path.is_relative_to(export)
+        or (options.command_cwd or export).resolve(strict=True)
+            != (command_cwd or root).resolve(strict=True)
+        or not options.package
+        or sorted(options.package) != sorted(selection)
+    ):
+        raise ValueError("historical cast arguments do not match the selected build")
+    _check_historical_profile(export, manifest_path, command_cwd or root)
+    return (*command, "--profile", HISTORICAL_CAST_PROFILE, *HISTORICAL_CAST_CONFIG)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--baseline", type=pathlib.Path, default=BASELINE)
@@ -1133,18 +1251,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="cargo config file (the stack config without its [patch] overlay)")
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("clippy", help="run clippy, recording its cast sites")
-    run.add_argument("--export", required=True, help="checkout of the pushed tip")
-    run.add_argument("--sites", required=True, help="file the cast sites are written to")
-    run.add_argument("-p", "--package", action="append", default=[],
-                     help="a package to gate; none gates every package of --manifest")
-    run.add_argument("--manifest", default="Cargo.toml",
-                     help="manifest relative to the export: a standalone crate's, for one")
-    run.add_argument("--packages-out",
-                     help="file the manifest's workspace package names are written to")
-    run.add_argument("--present-only", action="store_true",
-                     help="skip packages (or a manifest) absent from the export: a range's base")
-    run.add_argument("--command-cwd", type=pathlib.Path,
-                     help="directory Cargo runs from; defaults to the export")
+    _clippy_options(run)
     run.set_defaults(run=clippy)
     gate = commands.add_parser("check", help="gate a pushed revision")
     gate.add_argument("--member", required=True)

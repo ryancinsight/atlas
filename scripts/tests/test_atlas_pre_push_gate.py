@@ -811,6 +811,7 @@ def _install_real_identity(stack: pathlib.Path) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source / "atlas-build-identity.py", destination)
     shutil.copy2(source / "atlas_claim_log.py", destination)
+    shutil.copy2(source / "atlas_cast_gate.py", destination)
     for module in source.glob("atlas_build_*.py"):
         shutil.copy2(module, destination)
 

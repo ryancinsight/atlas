@@ -132,6 +132,133 @@ def test_clippy_lints_every_target_against_the_lock(tmp_path):
     ]
 
 
+def historical_clippy(export, manifest, sites):
+    return (
+        sys.executable, str(SCRIPT), "clippy", "--export", str(export),
+        "--manifest", manifest, "--sites", str(sites),
+        "--present-only", "-p", "core", "-p", "ops",
+    )
+
+
+def test_historical_cast_binds_the_same_packages_and_profile(tmp_path):
+    manifest = tmp_path / "nested" / "Cargo.toml"
+    manifest.parent.mkdir()
+    manifest.write_text("[workspace]\n", encoding="utf-8")
+    command = historical_clippy(tmp_path, "nested/Cargo.toml", tmp_path / "sites.json")
+    normalized = gate.historical_cast_command(
+        command, root=tmp_path, manifest=manifest, command_cwd=tmp_path,
+        selection=["ops", "core"],
+    )
+    declaration = ("--config", 'profile.cast-history.inherits="dev"')
+    assert normalized == (*command, "--profile", "cast-history", *declaration)
+    ordinary = gate.clippy_command(tmp_path, ["core", "ops"], manifest="nested/Cargo.toml")
+    historical = gate.clippy_command(
+        tmp_path, ["core", "ops"], manifest="nested/Cargo.toml", profile="cast-history",
+    )
+    j = historical.index("--config")
+    assert historical[j:j + 2] == list(declaration)
+    historical_without_config = historical[:j] + historical[j + 2:]
+    i = historical_without_config.index("--profile")
+    assert historical_without_config[:i] + historical_without_config[i + 2:] == ordinary
+    assert historical_without_config[i:i + 2] == ["--profile", "cast-history"]
+
+
+@pytest.mark.parametrize(
+    "alter,selection,message",
+    [
+        ("missing-mode", ["core", "ops"], "do not match"),
+        ("wrong-manifest", ["core", "ops"], "do not match"),
+        ("wrong-argv", ["core", "ops"], "owned clippy command"),
+        ("profile", ["core", "ops"], "do not match"),
+        ("wrong-script", ["core", "ops"], "differs from"),
+        ("wrong-interpreter", ["core", "ops"], "requires the identity interpreter"),
+        ("unchanged", ["core", "other"], "do not match"),
+    ],
+)
+def test_historical_cast_rejects_an_unbound_compiler_request(
+    tmp_path, alter, selection, message,
+):
+    manifest = tmp_path / "Cargo.toml"
+    manifest.write_text("[workspace]\n", encoding="utf-8")
+    command = list(historical_clippy(tmp_path, manifest.name, tmp_path / "sites.json"))
+    if alter == "missing-mode":
+        command.remove("--present-only")
+    elif alter == "wrong-manifest":
+        (tmp_path / "other.toml").write_bytes(manifest.read_bytes())
+        command[command.index("--manifest") + 1] = "other.toml"
+    elif alter == "wrong-argv":
+        command[2] = "measure"
+    elif alter == "profile":
+        command.extend(["--profile", "cast-history"])
+    elif alter == "wrong-script":
+        wrong = tmp_path / SCRIPT.name
+        wrong.write_text("raise SystemExit(0)\n", encoding="utf-8")
+        command[1] = str(wrong)
+    elif alter == "wrong-interpreter":
+        command[0] = str(tmp_path / "absent-python")
+    with pytest.raises(ValueError, match=message):
+        gate.historical_cast_command(
+            tuple(command), root=tmp_path, manifest=manifest,
+            command_cwd=tmp_path, selection=selection,
+        )
+
+
+@pytest.mark.parametrize("source", ["manifest", "included config", "environment"])
+def test_historical_cast_refuses_conflicting_profiles(tmp_path, monkeypatch, source):
+    manifest = tmp_path / "Cargo.toml"
+    manifest.write_text("[workspace]\n", encoding="utf-8")
+    override = "[profile.cast-history]\ndebug-assertions = false\n"
+    if source == "manifest":
+        manifest.write_text("[workspace]\n" + override, encoding="utf-8")
+    elif source == "included config":
+        config = tmp_path / ".cargo"
+        config.mkdir()
+        (config / "config.toml").write_text('include = ["conflict.toml"]\n', encoding="utf-8")
+        (config / "conflict.toml").write_text(override, encoding="utf-8")
+    else:
+        monkeypatch.setenv("CARGO_PROFILE_CAST_HISTORY_DEBUG_ASSERTIONS", "false")
+    from atlas_build_lease import BuildIdentityError
+
+    with pytest.raises((ValueError, BuildIdentityError), match="cast-history|must inherit"):
+        gate.historical_cast_command(
+            historical_clippy(tmp_path, manifest.name, tmp_path / "sites.json"),
+            root=tmp_path, manifest=manifest, command_cwd=tmp_path,
+            selection=["core", "ops"],
+        )
+
+
+@pytest.mark.parametrize("workspace", ["sibling", "escaped"])
+def test_historical_cast_checks_explicit_workspace(tmp_path, workspace):
+    export = tmp_path / "export"
+    member = export / "member"
+    root = (export if workspace == "sibling" else tmp_path) / "workspace"
+    member.mkdir(parents=True)
+    root.mkdir()
+    manifest = member / "Cargo.toml"
+    relative = "../workspace" if workspace == "sibling" else "../../workspace"
+    manifest.write_text(
+        f'[package]\nname = "core"\nversion = "0.1.0"\nworkspace = "{relative}"\n',
+        encoding="utf-8",
+    )
+    workspace_manifest = root / "Cargo.toml"
+    content = '[workspace]\nmembers = ["../member"]\n'
+    workspace_manifest.write_text(content, encoding="utf-8")
+    command = historical_clippy(export, "member/Cargo.toml", tmp_path / "sites.json")
+    binding = dict(root=export, manifest=manifest, command_cwd=export, selection=["core", "ops"])
+    if workspace == "sibling":
+        assert gate.historical_cast_command(command, **binding)[-3:] == (
+            "cast-history", "--config", 'profile.cast-history.inherits="dev"',
+        )
+        workspace_manifest.write_text(
+            content + "[profile.cast-history]\ndebug-assertions = false\n", encoding="utf-8",
+        )
+        message = "reserved Cargo profile cast-history"
+    else:
+        message = "Cargo workspace .* lies outside the export"
+    with pytest.raises(ValueError, match=message):
+        gate.historical_cast_command(command, **binding)
+
+
 def test_a_standalone_manifest_is_linted_in_place(tmp_path):
     command = gate.clippy_command(tmp_path, [], manifest="fuzz/Cargo.toml")
     assert command[command.index("--manifest-path") + 1] == str(tmp_path / "fuzz" / "Cargo.toml")
