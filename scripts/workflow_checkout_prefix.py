@@ -12,11 +12,11 @@ allow-list. Within one job, in step order:
   is a checkout. Its location is known when `with` is one mapping of distinct string names and `path` matches
   `_PLAIN_PATH`; otherwise it voids every prefix. A known path voids each earlier prefix that is its ancestor,
   its descendant or equal to it, without letter case, and then defines its own path as a prefix;
-* a prefix holds the candidate when its job is a mapping of distinct string keys, none of them `container` in
-  any letter case or padding, its step has no key outside `STEP_KEYS` (so it always runs) and names
-  `actions/checkout@<ref>` with no `.git` suffix and no path inside the repository, passes no input outside
-  `CANDIDATE_INPUTS` and has no `ref` or one of `CANDIDATE_REFS`, ignoring spaces and tabs around the operands
-  inside `${{ }}`;
+* a prefix holds the candidate when its job is a mapping of string keys that, trimmed and without letter
+  case, are distinct and do not include `container`, its step has no key outside `STEP_KEYS` (so it always
+  runs) and names `actions/checkout@<ref>` with no `.git` suffix and no path inside the repository, passes no
+  input outside `CANDIDATE_INPUTS` and has no `ref` or one of `CANDIDATE_REFS`, ignoring spaces and tabs
+  around the operands inside `${{ }}`;
 * a reference at or under a prefix in force, compared without letter case, is governed by it, and a reference
   that is not a plain path (`_PLAIN_PATH`, no `.git` component) is governed by a prefix in force even when it
   names none. A governed reference is shown to load the candidate only when the prefix holds the candidate,
@@ -26,12 +26,16 @@ allow-list. Within one job, in step order:
 
 Assumed and not checked: `actions/checkout` writes the tracked files of the commit it names into its path and
 nothing else that a reference can name; no step of another kind (`run`, another action, a local composite
-action) changes them; and the workflow runs on an event where `github.sha` or the pull-request head is the
-commit analysed (`workflow_call` and `pull_request_target` are not). Also assumed: no symbolic link in a
-checked-out tree redirects a checkout path or a reference; no environment variable named `INPUT_*`, however
-it is set, changes a checkout's inputs; the checkout release reads `path` relative to the workspace; and the
-runner accepts no spelling of the action's name other than the two above. References inside composite
-actions and reusable-workflow references are not read.
+action) and no service container changes them; and the workflow runs on an event where `github.sha` or the
+pull-request head is the commit analysed (`workflow_call` and `pull_request_target` are not). Also assumed:
+no symbolic link in a checked-out tree redirects a checkout path or a reference; no environment variable
+named `INPUT_*`, however it is set, changes a checkout's inputs; the checkout release reads `path` relative
+to the workspace; and the runner accepts no spelling of the action's name other than the two above.
+
+`governing` reads only what lies under a document's `jobs` key, and of each job only its key names and its
+steps: not the `uses` of a job that calls a reusable workflow, and not the steps under `runs` of a composite
+action. It reads that key in any document, so its answer has a meaning only for a workflow, and a caller
+must not ask it about an action's metadata file.
 """
 
 import re

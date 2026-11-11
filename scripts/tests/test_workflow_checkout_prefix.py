@@ -239,7 +239,7 @@ class CheckoutPathGuardTests(unittest.TestCase):
             targets = lint.project(source.encode(), self.workflow, self.root, "workflow")[1]
         except lint.WorkflowSourceError as error:
             return str(error)
-        self.assertEqual(targets, [self.action] * len(targets))
+        self.assertEqual(targets, [self.action] * source.count("uses: ./"))
         return "accepted"
 
     def snapshot(self, source: str, message: str) -> tuple[dict[str, bytes], dict[str, bytes]]:
@@ -279,8 +279,12 @@ class CheckoutPathGuardTests(unittest.TestCase):
             f"invalid same-repository path: './' (as {at_root!r} under checkout 'nested-src')",
         )
         composite = f"runs:\n  using: composite\n  steps:\n{checkout()}{step()}".replace("\n      ", "\n    ")
-        with self.assertRaisesRegex(lint.WorkflowSourceError, f"{MISSING}: {REFERENCE!r}$"):
-            lint.project(composite.encode(), self.action, self.root, "action")
+        aliased = job(checkout(), "      - &inner\n        uses: " + REFERENCE + "\n")
+        unused_jobs = "jobs:\n" + aliased + "runs:\n  using: composite\n  steps:\n    - *inner\n"
+        at_the_root = f"{MISSING}: {REFERENCE!r}$"
+        for name, metadata in {"composite steps": composite, "jobs beside composite steps": unused_jobs}.items():
+            with self.subTest(name=name), self.assertRaisesRegex(lint.WorkflowSourceError, at_the_root):
+                lint.project(metadata.encode(), self.action, self.root, "action")
         reusable = "jobs:\n  call:\n    uses: ./nested-src/.github/workflows/check.yml\n"
         self.assertEqual(self.outcome(reusable), f"{MISSING}: './nested-src/.github/workflows/check.yml'")
 

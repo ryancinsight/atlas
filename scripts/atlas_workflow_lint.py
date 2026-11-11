@@ -201,7 +201,7 @@ def _project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, l
     tokens = [token for token in yaml.scan(text, Loader=yaml.SafeLoader) if isinstance(token, ScalarToken)]
     offsets: list[int] = []
     targets: list[tuple[Path, str | None]] = []
-    prefixes = governing(document)
+    prefixes = governing(document) if kind == "workflow" else {}
     for node, target_kind in _references(document, kind):
         if node.value.startswith("./"):
             targets.append(_local_target(root, node.value, target_kind, prefixes.get(id(node))))
