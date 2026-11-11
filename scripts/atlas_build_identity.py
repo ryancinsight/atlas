@@ -64,20 +64,124 @@ from atlas_build_writers import BUILDING, CLEANING, COMPLETE, heartbeat, mark, r
 DEFAULT_LEASE_SECONDS = 900
 _CLEAN_PLAN_PREFIX = "atlas-build-clean-plan: "
 _PROGRESS_DIR_ENV = "ATLAS_GATE_PROGRESS_DIR"
+_PROGRESS_STAGES = (
+    "pre-command",
+    "cleanup",
+    "command",
+    "source-dependencies",
+    "git-stamps",
+    "census-inputs",
+    "publication",
+)
 
 
 IdentityError = BuildIdentityError
 
 
+def _progress_directory() -> Path | None:
+    value = os.environ.get(_PROGRESS_DIR_ENV)
+    if value is None:
+        return None
+    progress = Path(value)
+    if not progress.is_absolute() or not progress.is_dir():
+        raise IdentityError(f"{_PROGRESS_DIR_ENV} must name an existing absolute directory")
+    return progress
+
+
+def _progress_now_ns() -> int:
+    """Read the monotonic clock used by every progress-stage boundary."""
+    return time.monotonic_ns()
+
+
+class _ProgressSidecar:
+    """Atomically retain diagnostic stage timing without certifying artifacts."""
+
+    def __init__(self, run_id: str) -> None:
+        self._path: Path | None = None
+        self._run_id = run_id
+        self._origin_ns: int | None = None
+        self._stages: list[dict[str, object]] = []
+        try:
+            progress = _progress_directory()
+            if progress is None:
+                return
+            self._path = progress / f"identity-progress-{run_id}.json"
+            self._origin_ns = _progress_now_ns()
+            self._stages.append(
+                {"name": _PROGRESS_STAGES[0], "started_after_ns": 0, "status": "running"}
+            )
+            self._publish("incomplete")
+        except Exception:
+            self._path = None
+
+    def advance(self, stage: str) -> None:
+        """Complete the current stage and start `stage` at one clock reading."""
+        if self._path is None:
+            return
+        try:
+            if stage != _PROGRESS_STAGES[len(self._stages)]:
+                raise IdentityError(f"unexpected build progress stage: {stage}")
+            elapsed = self._elapsed_ns()
+            current = self._stages[-1]
+            current["completed_after_ns"] = elapsed
+            current["status"] = "completed"
+            self._stages.append(
+                {"name": stage, "started_after_ns": elapsed, "status": "running"}
+            )
+            self._publish("incomplete")
+        except Exception:
+            self._path = None
+
+    def fail(self, error: BaseException) -> None:
+        """Retain the incomplete stage when the identity run raises."""
+        if self._path is None:
+            return
+        try:
+            current = self._stages[-1]
+            current["completed_after_ns"] = self._elapsed_ns()
+            current["status"] = "failed"
+            self._publish("incomplete", type(error).__name__)
+        except Exception:
+            self._path = None
+
+    def finish(self) -> None:
+        """Complete publication while keeping the sidecar diagnostic-only."""
+        if self._path is None:
+            return
+        try:
+            current = self._stages[-1]
+            current["completed_after_ns"] = self._elapsed_ns()
+            current["status"] = "completed"
+            self._publish("complete")
+        except Exception:
+            self._path = None
+
+    def _elapsed_ns(self) -> int:
+        if self._origin_ns is None:
+            raise IdentityError("build progress clock has no origin")
+        return _progress_now_ns() - self._origin_ns
+
+    def _publish(self, disposition: str, failure: str | None = None) -> None:
+        if self._path is None or self._origin_ns is None:
+            return
+        payload: dict[str, object] = {
+            "certifies_artifacts": False,
+            "clock": "monotonic_ns",
+            "disposition": disposition,
+            "origin_ns": self._origin_ns,
+            "run": self._run_id,
+            "schema": 1,
+            "stages": self._stages,
+        }
+        if failure is not None:
+            payload["failure"] = failure
+        _write_atomic(self._path, payload, replace_attempts=1)
+
+
 def _emit_clean_plan(payload: dict[str, object], run_id: str) -> None:
     """Emit one decision and retain it atomically when the gate owns progress."""
-    progress_value = os.environ.get(_PROGRESS_DIR_ENV)
-    if progress_value is not None:
-        progress = Path(progress_value)
-        if not progress.is_absolute() or not progress.is_dir():
-            raise IdentityError(
-                f"{_PROGRESS_DIR_ENV} must name an existing absolute directory"
-            )
+    progress = _progress_directory()
+    if progress is not None:
         _write_atomic(progress / f"clean-plan-{run_id}.json", payload)
     print(
         _CLEAN_PLAN_PREFIX
@@ -143,30 +247,40 @@ def run_build(
     selection: Sequence[str] = (),
 ) -> tuple[BuildResult, ...]:
     """Run a build under the manifest's effective compiler environment."""
-    execution_root = _canonical(command_cwd or root, strict=True)
-    environment = effective_compiler_environment(manifest, execution_root, command)
-    command = effective_compiler_command(command, environment)
-    environment["CARGO_TARGET_DIR"] = _canonical(target_dir).as_posix()
-    with compiler_environment(environment):
-        with overlay_stripped_configs(execution_root):
-            return _run_build(
-                root,
-                manifest,
-                packages,
-                target_dir,
-                command,
-                profile,
-                target,
-                features,
-                artifact_paths,
-                clean_command,
-                lease_seconds,
-                command_cwd,
-                command_key,
-                ignore_paths,
-                lease_wait_seconds,
-                selection,
-            )
+    run_id = uuid.uuid4().hex
+    progress = _ProgressSidecar(run_id)
+    try:
+        execution_root = _canonical(command_cwd or root, strict=True)
+        environment = effective_compiler_environment(manifest, execution_root, command)
+        command = effective_compiler_command(command, environment)
+        environment["CARGO_TARGET_DIR"] = _canonical(target_dir).as_posix()
+        with compiler_environment(environment):
+            with overlay_stripped_configs(execution_root):
+                result = _run_build(
+                    root,
+                    manifest,
+                    packages,
+                    target_dir,
+                    command,
+                    profile,
+                    target,
+                    features,
+                    artifact_paths,
+                    clean_command,
+                    lease_seconds,
+                    command_cwd,
+                    command_key,
+                    ignore_paths,
+                    lease_wait_seconds,
+                    selection,
+                    run_id=run_id,
+                    progress=progress,
+                )
+    except BaseException as error:
+        progress.fail(error)
+        raise
+    progress.finish()
+    return result
 
 
 def _run_build(
@@ -186,6 +300,9 @@ def _run_build(
     ignore_paths: Sequence[Path] = (),
     lease_wait_seconds: float = 0,
     selection: Sequence[str] = (),
+    *,
+    run_id: str,
+    progress: _ProgressSidecar,
 ) -> tuple[BuildResult, ...]:
     """Run `command` once for `packages`, binding each one's record to it.
 
@@ -285,7 +402,6 @@ def _run_build(
     # One bound for acquiring every lease, across both phases, and the run's
     # place in every queue, fixed by the same clock read: `(arrival, run)`.
     arrival_ns = time.monotonic_ns()
-    run_id = uuid.uuid4().hex
     deadline_ns = arrival_ns + int(lease_wait_seconds * 1_000_000_000)
 
     taken: list[OwnerLease] = []
@@ -500,6 +616,7 @@ def _run_build(
             "target": target,
         }
         _emit_clean_plan(clean_plan, run_id)
+        progress.advance("cleanup")
         if custom_clean:
             mark(target_dir, held, CLEANING, writer_identity)
             _run_checked(clean_command, execution_root, environment)
@@ -555,8 +672,10 @@ def _run_build(
                 raise IdentityError(
                     "a dependency is held shared but no record names its artifacts"
                 )
+        progress.advance("command")
         with heartbeat(target_dir, fresh, writer_identity):
             _run_checked(command, execution_root, environment)
+        progress.advance("source-dependencies")
         final_source = source_identity(root, (target_dir,), ignore_paths)
         if final_source.as_dict() != first_spec.source.as_dict():
             raise IdentityError("source tree changed while the build was running")
@@ -565,9 +684,11 @@ def _run_build(
         )
         if any(final_snapshots[package] != inputs[package][0] for package in packages):
             raise IdentityError("dependency graph changed while the build was running")
+        progress.advance("git-stamps")
         # The checkout content is the snapshot's, unchanged across the build.
         for package, (dependencies, _) in inputs.items():
             _write_git_stamps(dependencies, directory, git_built[package], building=False)
+        progress.advance("census-inputs")
         # A file several packages' records list is read once per run.
         settled: dict[str, str] = {}
         census_deadline_ns = time.monotonic_ns() + int(
@@ -661,6 +782,7 @@ def _run_build(
             )
         if time.monotonic_ns() >= census_deadline_ns:
             raise IdentityError("artifact census did not converge before its deadline")
+        progress.advance("publication")
         results = []
         for package, spec, artifact, record in prepared:
             _write_atomic(records[package], record)
