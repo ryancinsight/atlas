@@ -30,7 +30,8 @@ runner: no symbolic link in a checked-out tree and no container volume redirects
 reference; no `INPUT_*` environment variable of the workflow or job changes a checkout's inputs; the
 checkout release reads `path` relative to the workspace; and the runner accepts no other spelling of the
 action's name, such as `actions/checkout.git`. References inside composite actions and reusable-workflow
-references are not read.
+references are not read. `governing` reads the `jobs` key of any document, so its answer has a meaning only
+for a workflow, and a caller must not ask it about an action's metadata file.
 """
 
 import re
