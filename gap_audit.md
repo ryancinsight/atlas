@@ -353,3 +353,12 @@ Re-open trigger: the scan lands in the stack tooling, or a second occurrence is 
 ## Finding 2026-10-13: apollo rescue ref preserves a defect-masking test weakening
 
 Risk: `refs/rescue/apollo-scratch-order-isolation` (apollo checkout only, unpushed) preserves a hunk that renames the scratch-hook registry test and weakens its release-count assertion from an exact `assert_eq!` to `>= 1`; applying it would mask the thread-local hook leak instead of fixing it. Re-open trigger: the ref still exists; delete the ref and this finding together once its isolation hunk is confirmed landed on apollo main or obsolete against it.
+
+<a id="commit-msg-hook-absent"></a>
+## Finding 2026-11-10: no commit-msg hook is installed in the stack
+
+Risk: commit subjects over 50 characters, body lines over 72, unparseable trailers and agent commits without an `Agent:` trailer reach default branches, because nothing checks a message before it is pushed. Evidence: ryancinsight/kwavers#961 landed two 52-character subjects; `scripts/git-hooks/` at `origin/main` holds `pre-commit`, `pre-push` and `rescue-push` only, and `.git/atlas-hooks` has no `commit-msg`.
+
+Catching check: a committed `scripts/git-hooks/commit-msg` (subject length and form, body width, literal `\n`, trailer parse, `Agent:` under a harness session variable; merge and `fixup!` commits exempt), installed by the stack setup path in every member, with the conformance scan asserting the installed hook path.
+
+Re-open trigger: a board line frees for the item, or a second over-length subject lands.
