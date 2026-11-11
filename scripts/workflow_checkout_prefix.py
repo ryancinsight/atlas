@@ -156,7 +156,11 @@ def governing(document: Node) -> dict[int, Checkout | None]:
 
 
 def place_copies(inputs: dict[str, bytes], copies: set[tuple[str, str]]) -> str | None:
-    """Add each governed action's metadata under its checkout path, or name a directory with two sources."""
+    """Add each governed action's metadata under its checkout path, or name a path with two sources.
+
+    A path has two sources when a copy's directory holds candidate metadata or a copy from another directory,
+    or when a copy lies below or above the file path of another lint input.
+    """
     sources: dict[str, str] = {}
     for prefix, metadata in sorted(copies):
         source = metadata.rpartition("/")[0]
@@ -164,5 +168,16 @@ def place_copies(inputs: dict[str, bytes], copies: set[tuple[str, str]]) -> str 
         owned = any(f"{directory}/{name}" in inputs for name in METADATA_NAMES)
         if owned or sources.setdefault(directory, source) != source:
             return directory
-    inputs.update({f"{prefix}/{metadata}": inputs[metadata] for prefix, metadata in copies})
+    placed = {f"{prefix}/{metadata}": inputs[metadata] for prefix, metadata in copies}
+    files = placed.keys() | inputs.keys()
+    crossed = sorted(
+        above
+        for copy in placed
+        for other in files
+        for above, below in ((copy, other), (other, copy))
+        if below.startswith(f"{above}/")
+    )
+    if crossed:
+        return crossed[0]
+    inputs.update(placed)
     return None

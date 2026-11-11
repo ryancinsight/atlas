@@ -20,7 +20,7 @@ REFERENCE = "./nested-src/.github/actions/sample"
 FOREIGN = {"repository": "other/repository"}
 MISSING = "reference escapes or is missing from the checkout"
 UNDEFINED = "checkout path is not shown to hold the candidate"
-COLLISION = "lint input directory has two different sources"
+COLLISION = "lint input path has two different sources"
 HELD, UNSHOWN = Checkout("nested-src", True), Checkout("nested-src", False)
 
 
@@ -320,6 +320,29 @@ class CheckoutPathGuardTests(unittest.TestCase):
         copies = job(checkout("p"), twice, name="first") + job(checkout(f"p/{outer}"), twice, name="second")
         with self.assertRaisesRegex(lint.WorkflowSourceError, f"{COLLISION}: p/{outer}/.github/actions/sample$"):
             self.snapshot(workflow(copies), "two copies")
+
+    def test_a_copy_never_crosses_the_path_of_another_input(self) -> None:
+        inside = f".github/{base.ACTION_PATH}"
+        below = self.root.joinpath(*inside.split("/"), "below", "action.yml")
+        below.parent.mkdir(parents=True)
+        below.write_text(base.ACTION, encoding="utf-8", newline="\n")
+        check, copy = ".github/workflows/check.yml", f"p/{base.ACTION_PATH}"
+
+        def through(prefix: str, name: str = "build") -> str:
+            return job(checkout(prefix), step(f"./{prefix}/.github/actions/sample"), name=name)
+
+        at_the_root = job(step(f"./{inside}/below"), name="first")
+        cases = {
+            "workflow above a copy": (through(check), check),
+            "copy above a copy": (through("p", "first") + through(copy, "second"), copy),
+            "copy below a copy": (through(copy, "first") + through("p", "second"), copy),
+            "copy above a candidate action": (at_the_root + through(".github", "second"), inside),
+        }
+        for name, (definition, crossed) in cases.items():
+            with self.subTest(name=name), self.assertRaisesRegex(
+                lint.WorkflowSourceError, f"{COLLISION}: {crossed}$"
+            ):
+                self.snapshot(workflow(definition), name)
 
     def test_a_copy_never_shares_a_directory_with_a_workflow(self) -> None:
         metadata = self.root / "workflows" / "action.yml"

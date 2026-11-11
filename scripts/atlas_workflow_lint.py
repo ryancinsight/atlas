@@ -349,10 +349,10 @@ def _collect(
                 if metadata not in queued:
                     queued.add(metadata)
                     pending.append((metadata, "action"))
-    # Copies under a checkout path are added last, into directories no candidate file or other copy occupies.
+    # Copies under a checkout path are added last, sharing no directory and crossing no path of another source.
     clash = place_copies(inputs, copies)
     if clash is not None:
-        raise WorkflowSourceError(f"lint input directory has two different sources: {clash}")
+        raise WorkflowSourceError(f"lint input path has two different sources: {clash}")
     return projected, inputs, tuple(sorted(modes.items()))
 
 
