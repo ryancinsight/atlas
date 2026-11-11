@@ -5,6 +5,7 @@
 - Class: [arch]
 - Driver: [Atlas PR #626](https://github.com/ryancinsight/atlas/pull/626), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
+- Revision: 2026-11-10 — Indexed canonical record scopes while retaining flat version-7 records as sole authority and rereading every selected payload.
 - Revision: 2026-11-10 — Added revision-bound lock-owner inventories that disable promisor lazy fetch and fail when a committed Cargo input is missing locally.
 - Revision: 2026-11-10 — Lock updates resolve one graph against simultaneous immutable provider commits, then remove the temporary transport and verify full locked metadata.
 - Revision: 2026-11-09 — A killed run's rebuilt artifacts are resumed, not cleaned again: per-package writer marks (below), after a cold ritk push outlasted the 600-second deadline four times, each rerun cleaning what the killed run had rebuilt.
@@ -48,6 +49,24 @@ Record version 7 stores one record under `target/.atlas/source-identity` per sha
 Every package selected in one Cargo invocation participates because feature unification can change all selected artifacts; one gate step issues one command with every `-p`, reads metadata once, holds the union of leases, cleans one union, and keeps one record per package under command key `atlas-pre-push` without a package suffix.
 Older, missing, malformed, or unsupported records mismatch; versions 1–6 are stale. Records are atomic and contain diagnostic root and revision, dirty state, path-package identities and inputs, resolved closure and dimensions, and actual artifact hashes.
 Revision remains diagnostic and guards declared-artifact runs but is absent from record paths and lease keys. Workspace path sources use workspace-relative identity.
+
+The canonical writer names each flat record with the SHA-256 digest of its
+canonical build scope, excluding source and dependency digest. A versioned
+schema-1 index stores those validated scope fields under that exact digest;
+the command key is removed only to identify a sibling family. Flat version-7
+records remain the sole authority. A lookup enumerates every flat name,
+reconciles every missing index key from the real payload before filtering,
+then rereads each selected payload and applies every existing source,
+dependency, input, artifact, and lease predicate. Obsolete, malformed, or
+noncanonical records receive no persistent negative entry and are reread.
+
+The index is initialized by streaming one payload at a time and published by
+the record owner's existing atomic replacement. Malformed index data fails
+closed. Competing complete snapshots may omit a concurrent metadata entry;
+the next filename census reconstructs it. A canonical writer cannot change
+scope fields at a fixed filename without violating the digest binding, while
+same-package publication remains serialized by the existing package lease.
+This invariant does not claim equivalence for manually misfiled records.
 
 Each path package is identified by files in its own directory, never its whole repository: tracked `HEAD` entries plus its share of tracked, untracked, and ignored working-tree changes, assigned to the deepest containing path-package directory.
 The repository revision and tree digest remain for diagnostics, lease ownership, the mid-build guard, and declared-artifact runs. Target output is excluded; an overlay lock rewrite is excluded only after pushed-lock validation and restoration.
@@ -115,6 +134,11 @@ Provider changes require all 28 executable member hook copies before pin advance
 Equivalent exports and worktrees reuse exact-input artifacts in one target. Changed inputs rebuild the narrowest sound package set; ambiguous ownership fails closed and broadens cleaning.
 Concurrent roots cannot silently clean or overwrite managed artifacts. Records, stamps, and digest caches are derived state, so deletion causes conservative rebuild rather than acceptance.
 Hashing, metadata, queueing, and lease costs remain observable through claim histories and stage timings.
+The compact index reduces payload reads only for indexed canonical records.
+Unindexable records remain a conservative per-lookup cost, and no observed
+gate timeout or speedup is attributed to this index without an exact workload
+measurement. Evidence that a canonical writer can change scope at a fixed
+name, or that candidate selection differs for valid records, overturns it.
 
 ## Alternatives rejected
 
@@ -128,6 +152,7 @@ Hashing, metadata, queueing, and lease costs remain observable through claim his
 - Longer waits only delay refusal. Holding every dependency exclusive serializes safe readers; releasing and reacquiring during downgrade lets a queued writer clean between this run's clean and command.
 - Carrying pre-command artifact digests records bytes Cargo may have rewritten. Exclusive discovery for every shared dependency recreates serialization; only named-file settling plus post-command rehash is sound.
 - Rehashing every package dominated snapshots; a persistent cache without fresh stat checks missed changes. Stable stat-keyed caching plus per-snapshot memoization retains both bounds.
+- Migrating records into family directories lets an old writer recreate flat files after the migration. Hardcoded command families, unvalidated negative entries, timestamp-only proof, discarding valid records, and a payload-wide memory cache either miss concurrent records or replace authoritative validation with derived state.
 - `git archive | tar`, a new export path per push, an unrefreshed export, and repository-prefix artifact ownership failed symlinks, partial-clone/path bounds, reuse, dirty-export detection, or exact attribution; the reusable `read-tree` checkout and exact targets replace them.
 
 ## Evidence and verification
