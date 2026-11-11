@@ -6,29 +6,20 @@
 - Driver: [Atlas PR #665](https://github.com/ryancinsight/atlas/pull/665), [Atlas PR #626](https://github.com/ryancinsight/atlas/pull/626), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
 - Revision: 2026-11-10 — Allowed a stale exact-command record to recover only through a fully verified different-command sibling, without claiming preservation of arbitrary build variants.
-- Revision: 2026-11-10 — Indexed canonical record scopes while retaining flat version-7 records as sole authority and rereading every selected payload.
-- Revision: 2026-11-10 — Added revision-bound lock-owner inventories that disable promisor lazy fetch and fail when a committed Cargo input is missing locally.
-- Revision: 2026-11-10 — Lock updates resolve one graph against simultaneous immutable provider commits, then remove the temporary transport and verify full locked metadata.
-- Revision: 2026-11-09 — A killed run's rebuilt artifacts are resumed, not cleaned again: per-package writer marks (below), after a cold ritk push outlasted the 600-second deadline four times, each rerun cleaning what the killed run had rebuilt.
-- Revision: 2026-11-09 — Compacted the as-built contract and required hook installation and publication to materialize the same source-keyed immutable supervisor family; publication keeps that runtime invocation-local so preparing a publication cannot replace the live installed gate.
+- Revision: 2026-11-09–10 — Indexed canonical scopes while retaining flat version-7 authority; added revision-bound, no-fetch lock inventories and simultaneous immutable-provider resolution; resumed identical killed-run output through writer marks after four cold pushes exceeded 600 seconds; and required installation and publication to materialize the same immutable source-keyed supervisor family without replacing the live installed gate.
 
 ## Context
 
-Atlas members share one Cargo target. Cargo fingerprints and dep-info do not identify the producing checkout, revisions omit dirty and untracked source, branches move, and Cargo's fingerprint format is internal.
-Concurrent roots therefore need one protocol that prevents a clean or rewrite from invalidating another build while preserving one cache.
+Atlas members share one Cargo target. Cargo fingerprints and dep-info do not identify the producing checkout, revisions omit dirty and untracked source, branches move, and Cargo's fingerprint format is internal. Concurrent roots therefore need one protocol that prevents a clean or rewrite from invalidating another build while preserving one cache.
 
 ## Decision
 
-The lock sweep inventory reads every committed standalone lock owner at one Atlas revision, including nested and excluded workspaces, without consulting checkouts or fetching. Every Git process disables promisor lazy fetch, so a missing committed object fails instead of mutating the object store. It retains fixture exemptions and missing sibling-lock diagnostics; every first-party Git package identity must name a registered provider.
-The update sweep creates temporary bare views whose object alternates point at registered provider stores and whose sole advertised head is the selected commit. Per-process Git URL rewrites expose all selected heads to one narrowed Cargo update; no global configuration, manifest, or source URL changes. Query-constrained sources refuse. After the views and rewrites are removed, full locked offline metadata must report every selected package version, original URL spelling, and exact revision.
+The lock sweep inventories every committed standalone lock owner at one Atlas revision, including nested and excluded workspaces, without consulting checkouts or fetching; promisor lazy fetch is disabled so a missing committed object fails without mutating the store, fixture exemptions and missing sibling-lock diagnostics remain, and every first-party Git package identity names a registered provider. The update sweep exposes simultaneous selected commits through temporary bare views and per-process URL rewrites to one narrowed Cargo update without changing global configuration, manifests, or source URLs; query-constrained sources refuse, and after removing the transport full locked offline metadata must report every selected package version, original URL spelling, and exact revision.
 
 ### Tool and runner source
 
-The fetched immutable Atlas hook remains the trust root. Hooks normally extract conformance and build-identity tools from fetched Atlas default.
-A coordinated provider update may select exactly one immutable Atlas commit for those tools with command-scoped `git -c atlas.preparedTools=<full-sha> push`.
-The value occurs once, is a full 40-character commit ID in the registered Atlas object store, names a complete scripts tree, and is printed; empty, malformed, unavailable, or incomplete selection fails closed.
-Prepared member source never selects credential or secret scanners, artifact-budget or lockfile checkers, or conformance baselines; those remain fetched-default inputs.
-`publish-hooks --source-ref` passes its resolved immutable source as `atlas.preparedTools` only to the publication push; without it all tools come from fetched default.
+The fetched immutable Atlas hook remains the trust root and normally supplies conformance and build-identity tools. A coordinated provider update may select exactly one immutable Atlas commit with command-scoped `git -c atlas.preparedTools=<full-sha> push`; the printed value occurs once, is a full 40-character commit ID in the registered object store, and names a complete scripts tree, while empty, malformed, unavailable, or incomplete selection fails closed.
+Prepared source never selects credential or secret scanners, artifact-budget or lockfile checkers, or conformance baselines. `publish-hooks --source-ref` passes its resolved source only to the publication push; otherwise all tools come from fetched default.
 
 Hook installation and publication use one source-keyed materializer for the complete immutable runner family: `pre_push_gate.py`, `process_tree.py`, platform process-tree modules, `atlas_build_lock.py`, and the exact Python interpreter.
 Installation stores that family beside the immutable shims under the Git common directory, keyed by hook-source commit; the installed pre-push shim enters it before source-ref lookup.
@@ -51,31 +42,12 @@ Every package selected in one Cargo invocation participates because feature unif
 Older, missing, malformed, or unsupported records mismatch; versions 1–6 are stale. Records are atomic and contain diagnostic root and revision, dirty state, path-package identities and inputs, resolved closure and dimensions, and actual artifact hashes.
 Revision remains diagnostic and guards declared-artifact runs but is absent from record paths and lease keys. Workspace path sources use workspace-relative identity.
 
-The canonical writer names each flat record with the SHA-256 digest of its
-canonical build scope, excluding source and dependency digest. A versioned
-schema-1 index stores those validated scope fields under that exact digest;
-the command key is removed only to identify a sibling family. Flat version-7
-records remain the sole authority. A lookup enumerates every flat name,
-reconciles every missing index key from the real payload before filtering,
-then rereads each selected payload and applies every existing source,
-dependency, input, artifact, and lease predicate. Obsolete, malformed, or
-noncanonical records receive no persistent negative entry and are reread.
-An exact-command mismatch may recover from a different-command sibling only
-when source, every build dimension, multi-package selection, compiler,
-configuration, environment, complete dependency snapshot, current external
-inputs, and the current bytes of every stored artifact match that sibling's
-successful record. Lookup continues past malformed records, missing or
-unverified artifacts, changed bytes, and changed inputs. Stale Git or building
-stamps still force cleanup. Recovery never skips the requested command or
-claims that arbitrary A/B variants coexist in one target.
+The canonical writer names each flat record with the SHA-256 digest of its canonical build scope, excluding source and dependency digest. A schema-1 index stores validated scope fields under that digest and removes the command key only to identify a sibling family; flat version-7 records remain authoritative.
+A lookup enumerates every flat name, reconstructs missing index keys from the payload, rereads each selected payload, and applies every source, dependency, input, artifact, and lease predicate. Obsolete, malformed, or noncanonical records receive no persistent negative entry and are reread.
+An exact-command mismatch may recover from a different-command sibling only when source, every build dimension, multi-package selection, compiler, configuration, environment, complete dependency snapshot, current external inputs, and every stored artifact's current bytes match its successful record. Lookup continues past malformed records, missing or unverified artifacts, changed bytes, and changed inputs.
+Stale Git or building stamps still force cleanup. Recovery never skips the requested command or claims that arbitrary A/B variants coexist in one target.
 
-The index is initialized by streaming one payload at a time and published by
-the record owner's existing atomic replacement. Malformed index data fails
-closed. Competing complete snapshots may omit a concurrent metadata entry;
-the next filename census reconstructs it. A canonical writer cannot change
-scope fields at a fixed filename without violating the digest binding, while
-same-package publication remains serialized by the existing package lease.
-This invariant does not claim equivalence for manually misfiled records.
+The index streams one payload at a time and uses the record owner's atomic replacement; malformed data fails closed. Competing snapshots may omit a concurrent entry, which the next filename census reconstructs. A canonical writer cannot change scope fields at a fixed filename without violating the digest binding, and the package lease serializes same-package publication. This does not claim equivalence for manually misfiled records.
 
 Each path package is identified by files in its own directory, never its whole repository: tracked `HEAD` entries plus its share of tracked, untracked, and ignored working-tree changes, assigned to the deepest containing path-package directory.
 The repository revision and tree digest remain for diagnostics, lease ownership, the mid-build guard, and declared-artifact runs. Target output is excluded; an overlay lock rewrite is excluded only after pushed-lock validation and restoration.
@@ -143,11 +115,7 @@ Provider changes require all 28 executable member hook copies before pin advance
 Equivalent exports and worktrees reuse exact-input artifacts in one target. Changed inputs rebuild the narrowest sound package set; ambiguous ownership fails closed and broadens cleaning.
 Concurrent roots cannot silently clean or overwrite managed artifacts. Records, stamps, and digest caches are derived state, so deletion causes conservative rebuild rather than acceptance.
 Hashing, metadata, queueing, and lease costs remain observable through claim histories and stage timings.
-The compact index reduces payload reads only for indexed canonical records.
-Unindexable records remain a conservative per-lookup cost, and no observed
-gate timeout or speedup is attributed to this index without an exact workload
-measurement. Evidence that a canonical writer can change scope at a fixed
-name, or that candidate selection differs for valid records, overturns it.
+The compact index reduces payload reads only for indexed canonical records. Unindexable records remain a conservative per-lookup cost, and no gate timeout or speedup is attributed without an exact workload measurement. Evidence that a canonical writer can change scope at a fixed name, or that candidate selection differs for valid records, overturns it.
 
 ## Alternatives rejected
 
