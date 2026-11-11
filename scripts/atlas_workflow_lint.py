@@ -1,4 +1,4 @@
-"""Bind and lint Git candidate workflows byte-exactly; checkout paths follow `workflow_checkout_prefix`."""
+"""Bind and lint Git candidate workflows byte-exactly."""
 
 import argparse
 import os
@@ -13,7 +13,6 @@ from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 from yaml.tokens import ScalarToken
 
 import process_tree
-from workflow_checkout_prefix import Checkout, governing
 
 CONFIG_NAMES = ("actionlint.yaml", "actionlint.yml")
 FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -141,17 +140,6 @@ def _target(root: Path, reference: str, kind: str) -> Path:
     return resolved
 
 
-def _local_target(root: Path, reference: str, kind: str, checkout: Checkout | None) -> tuple[Path, str | None]:
-    if checkout is None:
-        return _target(root, reference, kind), None
-    if not checkout.holds_candidate:
-        raise WorkflowSourceError(f"action comes from a checkout the candidate does not define: {reference!r}")
-    try:
-        return _target(root, f"./{reference[len(checkout.prefix) + 3 :]}", kind), checkout.prefix
-    except WorkflowSourceError as error:
-        raise WorkflowSourceError(f"{error} (as {reference!r} under checkout {checkout.prefix!r})") from error
-
-
 def _scalar_token(node: ScalarNode, tokens: list[ScalarToken], path: Path) -> ScalarToken:
     matches = [
         token
@@ -185,11 +173,6 @@ def _sigil_offset(text: str, token: ScalarToken, path: Path) -> int:
 
 def project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, list[Path]]:
     """Replace only validated leading `$` bytes in one YAML document."""
-    projected, targets = _project(source, path, root, kind)
-    return projected, [target for target, _ in targets]
-
-
-def _project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, list[tuple[Path, str | None]]]:
     try:
         text = source.decode("utf-8", "strict")
     except UnicodeDecodeError as error:
@@ -200,18 +183,17 @@ def _project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, l
     ambiguous = _ambiguous(document)
     tokens = [token for token in yaml.scan(text, Loader=yaml.SafeLoader) if isinstance(token, ScalarToken)]
     offsets: list[int] = []
-    targets: list[tuple[Path, str | None]] = []
-    prefixes = governing(document) if kind == "workflow" else {}
+    targets: list[Path] = []
     for node, target_kind in _references(document, kind):
         if node.value.startswith("./"):
-            targets.append(_local_target(root, node.value, target_kind, prefixes.get(id(node))))
+            targets.append(_target(root, node.value, target_kind))
             continue
         if not node.value.startswith("$/"):
             continue
         if id(node) in ambiguous:
             raise WorkflowSourceError(f"aliased same-repository reference in {path}")
         offsets.append(_sigil_offset(text, _scalar_token(node, tokens, path), path))
-        targets.append((_target(root, node.value, target_kind), None))
+        targets.append(_target(root, node.value, target_kind))
     projected = bytearray(source)
     for offset in offsets:
         projected[offset] = ord(".")
@@ -328,15 +310,14 @@ def _collect(
     pending = [(path, "workflow") for path in workflows]
     queued = set(workflows)
     projected: dict[str, bytes] = {}
-    copies: set[tuple[str, str]] = set()
     while pending:
         relative, kind = pending.pop(0)
         source = _candidate_bytes(root, candidate, relative, modes[relative])
         inputs[relative] = source
-        content, targets = _project(source, root.joinpath(*relative.split("/")), root, kind)
+        content, targets = project(source, root.joinpath(*relative.split("/")), root, kind)
         if kind == "workflow":
             projected[relative] = content
-        for target, prefix in targets:
+        for target in targets:
             target_relative = target.relative_to(root).as_posix()
             if target_relative in workflows:
                 continue
@@ -344,15 +325,9 @@ def _collect(
             for metadata, mode in _metadata(root, candidate, directory):
                 modes[metadata] = mode
                 inputs[metadata] = _candidate_bytes(root, candidate, metadata, mode)
-                if prefix is not None:
-                    copies.add((prefix, metadata))
                 if metadata not in queued:
                     queued.add(metadata)
                     pending.append((metadata, "action"))
-    # Copies under a checkout path are added last, so no candidate file can replace one.
-    for path, metadata in sorted((f"{prefix}/{metadata}", metadata) for prefix, metadata in copies):
-        if path in projected or inputs.setdefault(path, inputs[metadata]) != inputs[metadata]:
-            raise WorkflowSourceError(f"lint input path has two different sources: {path}")
     return projected, inputs, tuple(sorted(modes.items()))
 
 
