@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -19,6 +20,32 @@ SPEC.loader.exec_module(book_test)
 
 
 class BookArtifactSelectionTests(unittest.TestCase):
+    def test_workflow_loads_tooling_from_called_revision(self) -> None:
+        workflow = (Path(__file__).parents[2] / ".github/workflows/book-pages.yml").read_text()
+        self.assertIn("repository: ryancinsight/atlas", workflow)
+        self.assertIn("ref: ${{ fromJSON(toJSON(job)).workflow_sha }}", workflow)
+        self.assertNotIn("ref: ${{ github.workflow_sha }}", workflow)
+
+        step = workflow.split("      - name: Validate called Atlas workflow revision\n", 1)[1]
+        step = step.split("\n      - name:", 1)[0]
+        shell = step.split("        run: |\n", 1)[1]
+        script = textwrap.dedent(shell)
+        valid = "0123456789abcdef0123456789abcdef01234567"
+        cases = ((valid, 0), (None, 1), ("", 1), ("main", 1))
+        for revision, expected in cases:
+            with self.subTest(revision=revision):
+                env = os.environ.copy()
+                if revision is None:
+                    env.pop("CALLED_WORKFLOW_SHA", None)
+                else:
+                    env["CALLED_WORKFLOW_SHA"] = revision
+                result = book_test.process_tree.run(
+                    ["bash", "-c", script], env=env, timeout=10
+                )
+                self.assertEqual(expected, result.returncode)
+                if expected:
+                    self.assertIn(b"must be a full commit SHA", result.stderr)
+
     @pytest.mark.slow
     def test_real_graph_tests_values_and_excludes_stale_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
