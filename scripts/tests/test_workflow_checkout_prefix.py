@@ -1,5 +1,6 @@
 import itertools
 import os
+import posixpath
 import sys
 import tempfile
 import unittest
@@ -63,6 +64,18 @@ def governed(sequence: list[tuple[str | None, bool]], reference: str) -> Checkou
     return None
 
 
+def candidate_at(sequence: list[tuple[str | None, bool]], reference: str) -> bool:
+    """Simulate the workspace: whether a candidate checkout last wrote the directory the reference resolves to."""
+    target = posixpath.normpath(reference[2:]).casefold().split("/")
+    writes = [(None if path is None else path.casefold().split("/"), holds) for path, holds in sequence]
+    for index in range(len(writes) - 1, -1, -1):
+        parts, holds_candidate = writes[index]
+        if parts is not None and target[: len(parts)] == parts:
+            later = [other for other, _ in writes[index + 1 :]]
+            return holds_candidate and all(o is not None and o[: len(parts)] != parts[: len(o)] for o in later)
+    return False
+
+
 class CheckoutPrefixTests(unittest.TestCase):
     def test_candidate_checkouts_hold_the_candidate(self) -> None:
         spellings = ("${{ github.sha }}", "${{github.event.pull_request.head.sha}}")
@@ -73,6 +86,9 @@ class CheckoutPrefixTests(unittest.TestCase):
         named = checkout(uses="Actions/Checkout") + "        name: Checkout\n        id: source\n"
         self.assertEqual(outcomes(workflow(job(named, step() + "        with: {}\n"))), [HELD])
         self.assertEqual(outcomes(workflow(job(checkout(), step("./nested-src")))), [HELD])
+        other_repository = checkout(uses="actions/checkout-x", **FOREIGN)
+        self.assertEqual(outcomes(workflow(job(checkout(), other_repository, step()))), [HELD])
+        self.assertEqual(outcomes(workflow(job(checkout("Nested-Src"), step()))), [Checkout("Nested-Src", False)])
 
     def test_every_order_of_checkouts_follows_the_rule(self) -> None:
         action_directory = "nested-src/.github/actions/sample"
@@ -83,20 +99,26 @@ class CheckoutPrefixTests(unittest.TestCase):
             checkout("nested-src/inner", **FOREIGN): ("nested-src/inner", False),
             checkout(action_directory, **FOREIGN): (action_directory, False),
             checkout("Nested-Src", **FOREIGN): ("Nested-Src", False),
+            checkout("Nested-Src"): ("Nested-Src", True),
             checkout("other-src", **FOREIGN): ("other-src", False),
             checkout(None, **FOREIGN): (None, False),
             checkout("./nested-src", **FOREIGN): (None, False),
         }
-        # After the deciding checkout only unrelated known paths may follow. `nested-src` decides for both
-        # references and admits one such shape: 1 + 10 + 91 = 102 sequences each. `nested-src/inner` decides
-        # for the second reference and admits two: 1 + 11 + 103 = 115.
+        plain = (REFERENCE, "./nested-src/inner/.github/actions/sample")
+        # After the deciding checkout only unrelated known paths may follow. `nested-src` decides for both plain
+        # references and admits one such shape: 1 + 11 + 111 = 123 sequences each. `nested-src/inner` decides
+        # for the second and admits two: 1 + 12 + 124 = 137. The third reference leaves its prefix through `..`.
         held = 0
-        for length, reference in itertools.product(range(4), (REFERENCE, "./nested-src/inner/.github/actions/sample")):
+        for length, reference in itertools.product(range(4), (*plain, "./nested-src/../other-src/x")):
             for steps in itertools.product(shapes, repeat=length):
-                expected = governed([shapes[text] for text in steps], reference)
-                held += expected is not None and expected.holds_candidate
-                self.assertEqual(outcomes(workflow(job(*steps, step(reference)))), [expected], (steps, reference))
-        self.assertEqual(held, 102 + 102 + 115)
+                sequence = [shapes[text] for text in steps]
+                (found,) = outcomes(workflow(job(*steps, step(reference))))
+                holds = found is not None and found.holds_candidate
+                held += holds
+                self.assertLessEqual(holds, candidate_at(sequence, reference), (steps, reference))
+                if reference in plain:
+                    self.assertEqual(found, governed(sequence, reference), (steps, reference))
+        self.assertEqual(held, 123 + 123 + 137)
 
     def test_unreadable_steps_void_the_prefixes_before_them(self) -> None:
         raw = f"      - uses: actions/checkout@{PIN}\n"
@@ -116,7 +138,15 @@ class CheckoutPrefixTests(unittest.TestCase):
             "merge key": raw + "        with:\n          <<: {repository: o/r}\n          path: other-src\n",
             "step merge key": "      - <<: {uses: actions/checkout@" + PIN + ", with: {path: other-src}}\n",
             "key in another case": raw.replace("uses", "Uses") + "        with:\n          path: other-src\n",
+            "short name": checkout("NESTED~1", **FOREIGN),
+            "padded repeat": raw + f"        with:\n          path: other-src\n          'path ': x\n{foreign}",
             "action name is not a string": "      - uses: [actions/checkout]\n",
+            "padded action name": checkout(uses="' actions/checkout", **FOREIGN).replace(PIN, f"{PIN}'", 1),
+            "space after ref": checkout("other-src", uses="'actions/checkout", **FOREIGN).replace(PIN, f"{PIN} '", 1),
+            "doubled separator": checkout(uses="actions//checkout", **FOREIGN),
+            "leading separator": checkout(uses="/actions/checkout", **FOREIGN),
+            "backslash in the name": checkout(uses="actions\\checkout", **FOREIGN),
+            "container reference": "      - uses: docker://alpine:3\n",
             "not a mapping": "      - plain\n",
         }
         for name, unreadable in cases.items():
@@ -141,8 +171,8 @@ class CheckoutPrefixTests(unittest.TestCase):
             "condition": checkout() + "        if: github.event_name == 'push'\n",
             "tolerated failure": checkout() + "        continue-on-error: true\n",
             "condition after another repository": checkout(**FOREIGN) + checkout() + "        if: false\n",
-            "another action": checkout(uses="actions/checkout-x"),
-            "padded action name": checkout(uses="' actions/checkout").replace(PIN, f"{PIN}'"),
+            "path inside the repository": checkout(uses="actions/checkout/sub"),
+            "unbroken space in the ref": checkout(ref="${{ github.sha }}"),
         }
         for name, steps in cases.items():
             with self.subTest(name=name):
@@ -152,6 +182,9 @@ class CheckoutPrefixTests(unittest.TestCase):
             "another letter case": step("./Nested-Src/.github/actions/sample"),
             "unreadable caller": step() + "        with: {}\n        with: {}\n",
             "checkout path itself": checkout(**FOREIGN) + step("./nested-src"),
+            "parent component": step("./nested-src/../other-src/.github/actions/sample"),
+            "repository metadata": step("./nested-src/.git/hooks"),
+            "odd spelling outside every prefix": step("./other-src./.github/actions/sample"),
         }
         for name, caller in callers.items():
             with self.subTest(name=name):
