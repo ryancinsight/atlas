@@ -9,25 +9,15 @@ from typing import Iterable, Sequence
 
 from atlas_build_lease import BuildIdentityError
 from atlas_build_source import (
+    _SubmoduleScope,
     _canonical,
     _feed_framed,
     _git,
     _ignored_source_path,
     _is_within,
+    _repository_status,
+    repository_top,
 )
-
-
-def repository_top(path: Path) -> Path:
-    """The working tree holding `path`: its nearest ancestor with a `.git` entry.
-
-    A file system walk, not `git rev-parse` per directory: a stack closure
-    names a hundred path packages, and each of the run's several snapshot
-    reads would otherwise start that many processes.
-    """
-    for candidate in (path, *path.parents):
-        if (candidate / ".git").exists():
-            return candidate
-    raise BuildIdentityError(f"{path} is in no Git repository")
 
 
 def _owner(path: str, packages: dict[str, Path]) -> str | None:
@@ -50,12 +40,15 @@ def _repository_identities(
     excluded: Sequence[Path],
     ignored: Sequence[Path],
 ) -> dict[Path, dict[str, str]]:
+    _, tracked_dirty, status_entries = _repository_status(top, _SubmoduleScope.SUPERPROJECT)
     files = {package: hashlib.sha256() for package in packages}
+    has_gitlink = False
     for entry in _git(top, "ls-tree", "-r", "-z", "--full-tree", "HEAD").split(b"\0"):
         if not entry:
             continue
         meta, _, raw_path = entry.partition(b"\t")
         mode, _, rest = meta.partition(b" ")
+        has_gitlink = has_gitlink or mode == b"160000"
         object_id = rest.rpartition(b" ")[2]
         path = raw_path.decode("utf-8", "surrogateescape")
         package = _owner(path, packages)
@@ -71,20 +64,17 @@ def _repository_identities(
     # root's `source_identity` rejects one outside the root repository.
     ignored = tuple(path for path in ignored if _is_within(path, top))
     arguments += [f":(exclude){path.relative_to(top).as_posix()}" for path in ignored]
-    tokens = _git(top, *arguments).split(b"\0")
+    tokens = _git(top, *arguments).split(b"\0") if tracked_dirty or has_gitlink else []
     changed = [
         (tokens[index], tokens[index + 1].decode("utf-8", "surrogateescape"))
         for index in range(0, len(tokens) - 1, 2)
         if tokens[index].startswith(b":")
     ]
     others: list[tuple[bytes, str]] = []
-    for marker, listing in (
-        (b"untracked", ("ls-files", "--others", "--exclude-standard", "-z")),
-        (b"ignored", ("ls-files", "--others", "--ignored", "--exclude-standard", "-z")),
-    ):
-        for raw_path in _git(top, *listing).split(b"\0"):
-            if raw_path:
-                others.append((marker, raw_path.decode("utf-8", "surrogateescape")))
+    for marker, raw_paths in status_entries:
+        others.extend(
+            (marker, raw_path.decode("utf-8", "surrogateescape")) for raw_path in raw_paths
+        )
     for marker, path in (*changed, *others):
         package = _owner(path, packages)
         if package is None:
@@ -139,8 +129,9 @@ def package_identities(
     changes against `HEAD` and of its untracked and ignored files, by their
     bytes, excluding what `source_identity` excludes. Neither holds a
     revision, so a commit that edits one member leaves every other
-    member's identity where it was. One `ls-tree`, one `diff` and two
-    `ls-files` serve every package of a repository.
+    member's identity where it was. One status snapshot replaces two
+    `ls-files` walks and certifies when the raw diff is empty; `ls-tree`
+    still supplies the committed file identities.
     """
     excluded = tuple(_canonical(path) for path in excluded_roots)
     ignored = tuple(_canonical(path) for path in ignored_paths)

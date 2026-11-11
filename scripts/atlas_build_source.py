@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, time
+from enum import Enum
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -152,8 +153,16 @@ def repository_top(root: Path) -> Path:
         directory = parent
 
 
+class _SubmoduleScope(Enum):
+    """The submodule changes a repository status snapshot observes."""
+
+    IGNORE = "all"
+    SUPERPROJECT = "dirty"
+
+
 def _repository_status(
     top: Path,
+    submodules: _SubmoduleScope = _SubmoduleScope.IGNORE,
 ) -> tuple[str, bool, tuple[tuple[bytes, list[bytes]], ...]]:
     """Return HEAD, tracked dirt, and untracked inputs from one Git snapshot.
 
@@ -165,7 +174,9 @@ def _repository_status(
     `ls-files --others` and `ls-files --others --ignored` walked it twice
     in two processes. Each group is the list those commands print, sorted
     as Git sorts it (byte order), so the source digest is unchanged.
-    Submodules are not entered: only `?` and `!` entries are read.
+    Source identity ignores submodules as before. Package identity observes
+    superproject gitlink entries, while still ignoring dirt inside their work
+    trees; an existing HEAD gitlink always requests the exact raw diff.
 
     `status` validates settings `ls-files` never reads: the `status.*`
     keys it knows, `color.status` and its slots, and `column.ui` and
@@ -183,7 +194,7 @@ def _repository_status(
         "-z",
         "--untracked-files=all",
         "--ignored=traditional",
-        "--ignore-submodules=all",
+        f"--ignore-submodules={submodules.value}",
         "--no-renames",
     )
     revision: bytes | None = None
