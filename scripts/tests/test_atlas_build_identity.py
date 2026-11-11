@@ -2512,14 +2512,18 @@ class BuildIdentityTestCase(unittest.TestCase):
         os.utime(cross_built, ns=(written_ns, written_ns))
         self.assertEqual(writers.resumable(debug, ["demo"], "debug-run"), frozenset())
 
-    def test_a_legacy_writer_action_after_a_profile_mark_disables_resume(self) -> None:
+    def test_legacy_writer_fingerprint_allows_unchanged_and_rejects_changes(self) -> None:
         directory = self.writer_directory()
         built = self.target / "debug" / "deps" / "libdemo-abcdef.rlib"
         built.write_text("progress", encoding="utf-8")
         os.utime(built, ns=(10, 10))
-        writers.mark(directory, ["demo"], writers.BUILDING, "identity", 20)
         legacy = {"version": 1, "state": writers.CLEANING, "identity": "old-tool", "heartbeat_ns": 30}
-        build_records._write_atomic(writers._legacy_writer_path(directory.target_dir, "demo"), legacy)
+        legacy_path = writers._legacy_writer_path(directory.target_dir, "demo")
+        build_records._write_atomic(legacy_path, legacy)
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity", 20)
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
+        legacy["identity"] = "later-old-tool"
+        build_records._write_atomic(legacy_path, legacy)
         self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
         writers.mark(directory, ["demo"], writers.BUILDING, "identity", 40)
         self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())

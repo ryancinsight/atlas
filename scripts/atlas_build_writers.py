@@ -140,8 +140,8 @@ def _legacy_fingerprint(target_dir: Path, package: str) -> dict[str, object]:
         return {"status": "absent"}
     except OSError as error:
         raise BuildIdentityError(f"cannot read legacy writer mark {path}: {error}") from error
-    first = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
-    second = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+    first = [before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns]
+    second = [after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns]
     if first != second:
         raise BuildIdentityError(f"legacy writer mark changed while reading {path}")
     return {"status": "present", "stat": first, "sha256": _sha256_bytes(content)}
