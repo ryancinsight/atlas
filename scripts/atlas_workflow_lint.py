@@ -13,6 +13,7 @@ from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 from yaml.tokens import ScalarToken
 
 import process_tree
+from workflow_checkout_prefix import Checkout, governing
 
 CONFIG_NAMES = ("actionlint.yaml", "actionlint.yml")
 FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -140,6 +141,17 @@ def _target(root: Path, reference: str, kind: str) -> Path:
     return resolved
 
 
+def _local_target(root: Path, reference: str, kind: str, checkout: Checkout | None) -> Path:
+    if checkout is None:
+        return _target(root, reference, kind)
+    if not checkout.holds_candidate:
+        raise WorkflowSourceError(f"checkout path is not shown to hold the candidate: {reference!r}")
+    try:
+        return _target(root, f"./{reference[len(checkout.prefix) + 3 :]}", kind)
+    except WorkflowSourceError as error:
+        raise WorkflowSourceError(f"{error} (as {reference!r} under checkout {checkout.prefix!r})") from error
+
+
 def _scalar_token(node: ScalarNode, tokens: list[ScalarToken], path: Path) -> ScalarToken:
     matches = [
         token
@@ -154,7 +166,7 @@ def _scalar_token(node: ScalarNode, tokens: list[ScalarToken], path: Path) -> Sc
     return matches[0]
 
 
-def _sigil_offset(text: str, token: ScalarToken, path: Path) -> int:
+def _leading_offset(text: str, token: ScalarToken, spelling: str, path: Path) -> int:
     span = text[token.start_mark.index : token.end_mark.index]
     if token.style is None:
         relative = 0
@@ -165,14 +177,18 @@ def _sigil_offset(text: str, token: ScalarToken, path: Path) -> int:
         relative = header + 1
         while 0 < relative < len(span) and span[relative] in " \r\n":
             relative += 1
-    if relative < 0 or not span.startswith("$/", relative):
+    if relative < 0 or not span.startswith(spelling, relative):
         raise WorkflowSourceError(f"unsupported leading self-reference spelling in {path}")
     character = token.start_mark.index + relative
     return len(text[:character].encode("utf-8"))
 
 
 def project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, list[Path]]:
-    """Replace only validated leading `$` bytes in one YAML document."""
+    """Rewrite validated references in one YAML document and name the files they reach.
+
+    The leading `$` of a `$/` reference becomes `.`. The bytes `P/` after the `./` of a workflow step reference
+    `./P/<rest>` under a checkout of the candidate at `P` are deleted. No other byte changes.
+    """
     try:
         text = source.decode("utf-8", "strict")
     except UnicodeDecodeError as error:
@@ -182,21 +198,31 @@ def project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, li
         raise WorkflowSourceError(f"empty YAML document: {path}")
     ambiguous = _ambiguous(document)
     tokens = [token for token in yaml.scan(text, Loader=yaml.SafeLoader) if isinstance(token, ScalarToken)]
-    offsets: list[int] = []
+    edits: list[tuple[int, int, bytes]] = []
     targets: list[Path] = []
+    prefixes = governing(document) if kind == "workflow" else {}
     for node, target_kind in _references(document, kind):
+        checkout = prefixes.get(id(node))
         if node.value.startswith("./"):
-            targets.append(_target(root, node.value, target_kind))
+            targets.append(_local_target(root, node.value, target_kind, checkout))
+            if checkout is not None:
+                if id(node) in ambiguous:
+                    raise WorkflowSourceError(f"aliased same-repository reference in {path}")
+                spelling = f"./{checkout.prefix}/"
+                start = _leading_offset(text, _scalar_token(node, tokens, path), spelling, path)
+                # `actionlint` reports the columns after this reference on its line len(prefix) + 1 to the left;
+                # line numbers are unchanged.
+                edits.append((start + 2, len(checkout.prefix) + 1, b""))
             continue
         if not node.value.startswith("$/"):
             continue
         if id(node) in ambiguous:
             raise WorkflowSourceError(f"aliased same-repository reference in {path}")
-        offsets.append(_sigil_offset(text, _scalar_token(node, tokens, path), path))
+        edits.append((_leading_offset(text, _scalar_token(node, tokens, path), "$/", path), 1, b"."))
         targets.append(_target(root, node.value, target_kind))
     projected = bytearray(source)
-    for offset in offsets:
-        projected[offset] = ord(".")
+    for offset, length, replacement in sorted(edits, reverse=True):
+        projected[offset : offset + length] = replacement
     return bytes(projected), targets
 
 
