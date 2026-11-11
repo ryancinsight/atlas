@@ -925,6 +925,229 @@ PEER_REWRITER = (
 )
 
 
+class RecordIndexTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-record-index-")
+        self.addCleanup(temp.cleanup)
+        self.target = Path(temp.name).resolve() / "target"
+        self.source = build_source.SourceIdentity("root", "revision", "tree", False)
+
+    def spec(self, **changes: str) -> build_records.BuildSpec:
+        fields = {
+            "package": "demo",
+            "profile": "test",
+            "target": "host",
+            "features": "default",
+            "toolchain": "stable",
+            "target_dir": str(self.target),
+            "command_key": "clippy",
+            "selection": "demo",
+            "environment_digest": "environment",
+            "cargo_config_digest": "configuration",
+            "dependency_digest": "dependencies",
+        }
+        fields.update(changes)
+        return build_records.BuildSpec(source=self.source, **fields)
+
+    def record(
+        self,
+        spec: build_records.BuildSpec,
+        *,
+        source: build_source.SourceIdentity | None = None,
+        version: int = build_records.VERSION,
+    ) -> dict[str, object]:
+        actual_source = source or self.source
+        return {
+            "version": version,
+            "source": actual_source.as_dict(),
+            "build": {**spec.as_dict(), "source": actual_source.as_dict()},
+            "artifact": {"files": {"deps/libdemo.rlib": "artifact"}, "digest": "artifact"},
+            "dependencies": {
+                "root": "workspace:demo",
+                "digest": "dependencies",
+                "packages": [],
+                "edges": [],
+                "clean_packages": [],
+            },
+            "inputs": {},
+        }
+
+    def write(self, spec: build_records.BuildSpec, **changes: object) -> Path:
+        path = build_records.record_path(spec)
+        build_records._write_atomic(path, self.record(spec, **changes))
+        return path
+
+    def sibling(self, spec: build_records.BuildSpec) -> dict[str, object] | None:
+        dependencies = self.record(spec)["dependencies"]
+        assert isinstance(dependencies, dict)
+        return build_records._sibling_record(spec, dependencies, lambda _record: True)
+
+    def test_warm_lookup_reads_only_the_family_and_unindexable_records(self) -> None:
+        requested = self.spec(command_key="nextest")
+        matching = self.spec(command_key="arbitrary-command")
+        matching_path = self.write(matching)
+        unrelated = [
+            self.write(self.spec(command_key=f"other-{field}", **{field: f"other-{field}"}))
+            for field in (
+                "package",
+                "profile",
+                "target",
+                "features",
+                "toolchain",
+                "selection",
+                "environment_digest",
+                "cargo_config_digest",
+            )
+        ]
+        obsolete = self.spec(command_key="obsolete")
+        obsolete_path = self.write(obsolete, version=6)
+        malformed_path = build_records.record_path(self.spec(command_key="malformed"))
+        malformed_path.write_text("{", encoding="utf-8")
+        paths = [matching_path, *unrelated, obsolete_path, malformed_path]
+        originals = {path.name: path.read_bytes() for path in paths}
+
+        self.assertEqual(self.sibling(requested), self.record(matching))
+        reads: list[str] = []
+        reader = build_records.read_record
+
+        def observe(path: Path) -> dict[str, object] | None:
+            reads.append(path.name)
+            return reader(path)
+
+        with patch.object(build_records, "read_record", side_effect=observe):
+            self.assertEqual(self.sibling(requested), self.record(matching))
+        self.assertEqual(
+            set(reads), {matching_path.name, obsolete_path.name, malformed_path.name}
+        )
+        self.assertTrue(all(path.name not in reads for path in unrelated))
+        self.assertEqual(
+            {path.name: path.read_bytes() for path in paths},
+            originals,
+        )
+
+    def test_every_scope_dimension_except_command_separates_families(self) -> None:
+        baseline = self.spec()
+        baseline_scope = {
+            key: baseline.as_dict()[key] for key in build_records._INDEX_SCOPE_FIELDS
+        }
+        for field in (*build_records._INDEX_SCOPE_FIELDS, "dependency_digest"):
+            with self.subTest(field=field):
+                changed = self.spec(**{field: f"other-{field}"})
+                changed_scope = {
+                    key: changed.as_dict()[key] for key in build_records._INDEX_SCOPE_FIELDS
+                }
+                if field == "command_key" or field == "dependency_digest":
+                    self.assertEqual(
+                        build_records._record_family(changed_scope),
+                        build_records._record_family(baseline_scope),
+                    )
+                else:
+                    self.assertNotEqual(
+                        build_records._record_family(changed_scope),
+                        build_records._record_family(baseline_scope),
+                    )
+
+    def test_missing_obsolete_and_recreated_records_are_reconciled(self) -> None:
+        requested = self.spec(command_key="nextest")
+        candidate = self.spec(command_key="clippy")
+        path = self.write(candidate, version=6)
+        self.assertIsNone(self.sibling(requested))
+        build_records._write_atomic(path, self.record(candidate))
+        self.assertEqual(self.sibling(requested), self.record(candidate))
+        path.unlink()
+        self.assertIsNone(self.sibling(requested))
+        path.write_text("{", encoding="utf-8")
+        self.assertIsNone(self.sibling(requested))
+        build_records._write_atomic(path, self.record(candidate))
+        self.assertEqual(self.sibling(requested), self.record(candidate))
+
+    def test_selected_record_is_reread_and_fully_compared(self) -> None:
+        requested = self.spec(command_key="nextest")
+        candidate = self.spec(command_key="clippy")
+        path = self.write(candidate)
+        self.assertEqual(self.sibling(requested), self.record(candidate))
+        moved = build_source.SourceIdentity("other", "other", "other", False)
+        build_records._write_atomic(path, self.record(candidate, source=moved))
+        self.assertIsNone(self.sibling(requested))
+        changed = self.record(candidate)
+        assert isinstance(changed["build"], dict)
+        changed["build"]["dependency_digest"] = "other"
+        build_records._write_atomic(path, changed)
+        self.assertIsNone(self.sibling(requested))
+
+    def test_malformed_index_content_fails_closed(self) -> None:
+        requested = self.spec(command_key="nextest")
+        self.write(self.spec(command_key="clippy"))
+        index = build_records._record_index_path(build_records.record_path(requested).parent)
+        index.parent.mkdir(parents=True)
+        scope = {
+            key: requested.as_dict()[key] for key in build_records._INDEX_SCOPE_FIELDS
+        }
+        for payload in (
+            '{"schema":1,"schema":1,"records":{}}',
+            json.dumps({"schema": 2, "records": {}}),
+            json.dumps({"schema": 1, "records": {"0" * 64: scope}}),
+        ):
+            with self.subTest(payload=payload):
+                index.write_text(payload, encoding="utf-8")
+                with self.assertRaises(BuildIdentityError):
+                    self.sibling(requested)
+
+    def test_competing_index_writers_leave_one_complete_index(self) -> None:
+        requested = self.spec(command_key="nextest")
+        candidate = self.spec(command_key="clippy")
+        expected = self.record(candidate)
+        self.write(candidate)
+        index = build_records._record_index_path(build_records.record_path(requested).parent)
+        barrier = threading.Barrier(2)
+        writer = build_records._write_atomic
+
+        def converge(path: Path, value: dict[str, object]) -> None:
+            if path == index:
+                barrier.wait()
+            writer(path, value)
+
+        results: list[dict[str, object] | None] = []
+        with patch.object(build_records, "_write_atomic", side_effect=converge):
+            threads = [
+                threading.Thread(target=lambda: results.append(self.sibling(requested)))
+                for _ in range(2)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+        self.assertEqual(results, [expected, expected])
+        self.assertEqual(
+            build_records._read_record_index(index),
+            {
+                build_records.record_path(candidate).stem: {
+                    key: candidate.as_dict()[key]
+                    for key in build_records._INDEX_SCOPE_FIELDS
+                }
+            }
+        )
+
+    def test_interrupted_index_publication_changes_no_record(self) -> None:
+        requested = self.spec(command_key="nextest")
+        candidate = self.spec(command_key="clippy")
+        record = self.write(candidate)
+        original = record.read_bytes()
+        index = build_records._record_index_path(record.parent)
+
+        def interrupt(path: Path, value: dict[str, object]) -> None:
+            if path == index:
+                raise BuildIdentityError("interrupted index publication")
+            build_records._write_atomic(path, value)
+
+        with patch.object(build_records, "_write_atomic", side_effect=interrupt):
+            with self.assertRaisesRegex(BuildIdentityError, "interrupted index publication"):
+                self.sibling(requested)
+        self.assertFalse(index.exists())
+        self.assertEqual(record.read_bytes(), original)
+        self.assertEqual(self.sibling(requested), self.record(candidate))
+
+
 class BuildIdentityTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-")
