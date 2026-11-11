@@ -2,6 +2,9 @@
 
 Status: Accepted
 
+Revised 2026-11-10: the evidence gains the two gate runs of kwavers#1024
+(one expired, one passed in 534 s), replacing the forecast of gate fit.
+
 ## Context
 
 Every member builds into one shared Cargo target (`.cargo/config.toml`,
@@ -37,17 +40,17 @@ they compute through (apollo, eunomia, hermes, leto).
 
 ## Evidence
 
-The head of ryancinsight/kwavers#1024 on 2026-11-10, `cargo nextest run
--p kwavers-analysis -p kwavers`, 1279 tests, on one host that other builds
-share. Per-test times vary with that load: two gate runs of the unchanged
+The head of ryancinsight/kwavers#1024 on 2026-11-10, `cargo nextest run -p
+kwavers-analysis -p kwavers`, 1279 tests, on one host that other builds share.
+Per-test times vary between runs on that host: two gate runs of the unchanged
 configuration differ by a factor of 1.51 in the summed time of the 152 tests
 both logs hold (313.0 s and 472.9 s). A group is therefore named only on a
 replicated comparison: baseline and candidate run interleaved twice on one
-fresh export, compared by the median per-test time ratio over the tests at
-1 s or more in the first baseline run. The band is the two
-same-configuration medians and their reciprocals; a group is measured when
-all four candidate-to-baseline medians lie below the band. Each rule was
-posted on the pull request before its runs.
+fresh export, compared by the median per-test time ratio over the tests at 1 s
+or more in the first baseline run. The band is the two same-configuration
+medians and their reciprocals; a group is measured when all four
+candidate-to-baseline medians lie below the band. Each rule was posted on the
+pull request before its runs.
 
 | Group | Baseline | Tests | Band | Four medians | Result |
 |---|---|---|---|---|---|
@@ -83,19 +86,16 @@ expired (positions 94 to 344 of 1279), matched by name in the other runs.
 | Everything (kwavers manifest, outside the stack) | 99 s | 412 s | 75 s |
 
 Stage commands of the named set in the second ablation, into the shared
-target: clippy `--all-targets` 124 s (5 units compiled, 81 checked); test
-build 169 s (83 units compiled); test command 279 s, of which the build phase
-reports 63 s for one recompiled unit and nextest 174 s; test command again 372
-s, of which the build phase reports 139 s for 99 recompiled units and nextest
-203 s. The gate then documents the packages and verifies artifact identity, 35
-s and 164 s on a kwavers-transducer push the same day. Run in sequence as
-measured, clippy, test build, nextest and those two stages sum to 666 s, above
-the 600 s deadline, so the first push after the configuration reaches a
-checkout is expected to expire. With the test binaries built, a test command
-and the two closing stages take 478 s (571 s with the second command), which
-leaves 122 s (29 s) for clippy. Gate fit is therefore not established: it
-depends on how many units a push rechecks and recompiles, and no gate run
-under this configuration exists. The real push of kwavers#1024 is its test.
+target: clippy `--all-targets` 124 s; test build 169 s (83 units compiled);
+test command 279 s, of which nextest reports 174 s; again 372 s with 99 units
+recompiled, nextest 203 s. After the configuration landed, two pushes of
+kwavers#1024 ran the gate under it. The first expired at the 600 s deadline
+inside the test stage: clippy took 112 s, the test build wrote its last
+executable six to seven minutes into the push, and 341 of the 1279 tests had
+passed. The second, started directly after it and compiling nothing, passed in
+534 s: clippy 23 s, tests 197 s, rustdoc 103 s, artifact-identity verification
+211 s. A push that finds its artifacts built fit with 66 s to spare; the push
+that had to build them did not.
 
 Not measured: any member other than kwavers, including what compiling the ten
 providers at level 1 costs its builds, and the rebuild of the kwavers crates
