@@ -1,9 +1,12 @@
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import tempfile
 import textwrap
 import unittest
+
+from scripts.tests.test_process_tree import _assert_process_inactive
 
 
 SCRIPT = Path(__file__).parents[1] / "atlas-book-test.py"
@@ -15,24 +18,33 @@ SPEC.loader.exec_module(book_test)
 
 
 class BookArtifactSelectionTests(unittest.TestCase):
+    def test_workflow_loads_tooling_from_called_revision(self) -> None:
+        workflow = (Path(__file__).parents[2] / ".github/workflows/book-pages.yml").read_text()
+        self.assertIn("repository: ryancinsight/atlas", workflow)
+        self.assertIn("ref: ${{ fromJSON(toJSON(job)).workflow_sha }}", workflow)
+        self.assertNotIn("ref: ${{ github.workflow_sha }}", workflow)
+
     def test_real_graph_tests_values_and_excludes_stale_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             self._fixture(root, expected=18)
-            book_test._run(
-                ["cargo", "generate-lockfile", "--manifest-path", str(root / "Cargo.toml")],
-                cwd=root,
-                timeout=60,
-            )
-            stale = root / "target/debug/deps/libstale-deadbeef.rlib"
-            stale.parent.mkdir(parents=True, exist_ok=True)
-            stale.write_bytes(b"not a Cargo artifact")
+            manifest = str(root / "Cargo.toml")
+            book_test._run(["cargo", "generate-lockfile", "--manifest-path", manifest], cwd=root, timeout=60)
+            command = ["cargo", "metadata", "--locked", "--no-deps", "--format-version", "1",
+                       "--manifest-path", manifest]
+            metadata = json.loads(book_test._run(command, cwd=root, timeout=60))
+            stale_dir = Path(metadata["target_directory"]) / "debug/deps"
+            stale_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(prefix="libatlas_book_stale_", suffix=".rlib", dir=stale_dir, delete=False) as file:
+                file.write(b"not a Cargo artifact")
+                stale = Path(file.name)
             stages = root / "stages"
             stages.mkdir()
-            report = book_test.execute(
-                root / "Cargo.toml", "book-root", "book_root", root / "book",
-                build_timeout=180, test_timeout=120, temp_root=stages,
-            )
+            try:
+                report = book_test.execute(root / "Cargo.toml", "book-root", "book_root", root / "book",
+                                           build_timeout=180, test_timeout=120, temp_root=stages)
+            finally:
+                stale.unlink(missing_ok=True)
             names = [item["basename"] for item in report["artifacts"]]
             shared = [item for item in report["artifacts"] if "shared" in item["package_id"]]
             macros = [item for item in report["artifacts"] if "book-macro" in item["package_id"]]
@@ -46,15 +58,27 @@ class BookArtifactSelectionTests(unittest.TestCase):
 
             self._chapter(root, expected=19)
             with self.assertRaisesRegex(book_test.BookTestError, "command exited"):
-                book_test.execute(
-                    root / "Cargo.toml", "book-root", None, root / "book",
-                    build_timeout=180, test_timeout=120, temp_root=stages,
-                )
+                book_test.execute(root / "Cargo.toml", "book-root", None, root / "book",
+                                  build_timeout=180, test_timeout=120, temp_root=stages)
             self.assertEqual([], list(stages.iterdir()))
 
     def test_rejects_malformed_missing_and_conflicting_artifacts(self) -> None:
         with self.assertRaisesRegex(book_test.BookTestError, "malformed Cargo JSON"):
             book_test._artifact_messages(b"not-json", "root 1.0.0", "root")
+        artifact = dict(reason="compiler-artifact", package_id="root 1.0.0",
+                        target={"name": "root", "kind": ["lib"], "crate_types": ["lib"]},
+                        filenames=["libroot.rlib"], fresh=False)
+        malformed = dict(artifact, fresh="false")
+        with self.assertRaisesRegex(book_test.BookTestError, "invalid fresh flag"):
+            book_test._artifact_messages(json.dumps(malformed).encode(), "root 1.0.0", "root")
+        non_json = json.dumps(artifact).replace('"fresh": false', '"fresh": NaN').encode()
+        with self.assertRaisesRegex(book_test.BookTestError, "non-JSON constant 'NaN'"):
+            book_test._artifact_messages(non_json, "root 1.0.0", "root")
+        for field, value, error in (("package_id", 1, "invalid identity fields"),
+                                    ("filenames", "libroot.rlib", "invalid filenames")):
+            invalid = dict(artifact, **{field: value})
+            with self.subTest(field=field), self.assertRaisesRegex(book_test.BookTestError, error):
+                book_test._artifact_messages(json.dumps(invalid).encode(), "root 1.0.0", "root")
         with self.assertRaisesRegex(book_test.BookTestError, "expected one library"):
             book_test._package({"packages": [{"name": "root", "id": "id", "targets": []}]}, "root", None)
         with tempfile.TemporaryDirectory() as raw:
@@ -81,24 +105,29 @@ class BookArtifactSelectionTests(unittest.TestCase):
             artifact.write_bytes(b"artifact")
             stages = root / "stages"
             stages.mkdir()
-            child = "import threading; print('ready', flush=True); threading.Event().wait()"
+            identity = root / "descendant.json"
+            child = (
+                "import json,os,pathlib,sys,threading; "
+                "pathlib.Path(sys.argv[1]).write_text(json.dumps({'pid':os.getpid(),'token':sys.argv[2]})); "
+                "print('ready', flush=True); threading.Event().wait()"
+            )
+            token = "atlas-book-descendant"
             parent = textwrap.dedent(
                 f"""
                 import subprocess, sys, threading
-                process = subprocess.Popen([sys.executable, '-c', {child!r}], stdout=subprocess.PIPE, text=True)
+                process = subprocess.Popen([sys.executable, '-c', {child!r}, {str(identity)!r}, {token!r}], stdout=subprocess.PIPE, text=True)
                 assert process.stdout.readline().strip() == 'ready'
                 threading.Event().wait()
                 """
             )
             with self.assertRaises(book_test.process_tree.ProcessTreeTimeout):
-                book_test._stage_and_run(
-                    [{"path": artifact, "package_id": "id", "target": "root", "fresh": False}],
-                    lambda _stage: [sys.executable, "-c", parent],
-                    cwd=root,
-                    timeout=1,
-                    temp_root=stages,
-                )
+                record = {"path": artifact, "package_id": "id", "target": "root", "fresh": False}
+                book_test._stage_and_run([record], lambda _stage: [sys.executable, "-c", parent],
+                                         cwd=root, timeout=1, temp_root=stages)
             self.assertEqual([], list(stages.iterdir()))
+            descendant = json.loads(identity.read_text(encoding="utf-8"))
+            self.assertEqual(token, descendant["token"])
+            _assert_process_inactive(self, descendant["pid"])
 
     @staticmethod
     def _write(path: Path, content: str) -> None:
@@ -119,6 +148,9 @@ class BookArtifactSelectionTests(unittest.TestCase):
             edition = "2024"
             [lib]
             name = "book_root"
+            [[bin]]
+            name = "book_root"
+            path = "src/bin/book_root.rs"
             [dependencies]
             shared_one = { package = "shared", path = "../shared-one" }
             shared_two = { package = "shared", path = "../shared-two" }
@@ -129,6 +161,7 @@ class BookArtifactSelectionTests(unittest.TestCase):
             #[identity]
             pub fn value() -> u32 { shared_one::value() + shared_two::value() }
         """)
+        self._write(root / "root/src/bin/book_root.rs", "fn main() {}")
         for directory, version, value in (("shared-one", "1.0.0", 7), ("shared-two", "2.0.0", 11)):
             self._write(root / directory / "Cargo.toml", f"""
                 [package]
@@ -164,7 +197,6 @@ class BookArtifactSelectionTests(unittest.TestCase):
             assert_eq!(book_root::value(), {expected});
             ```
         """)
-
 
 if __name__ == "__main__":
     unittest.main()
