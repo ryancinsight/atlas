@@ -4,24 +4,27 @@ A job that runs `actions/checkout` with `path: P` and later calls `uses: ./P/<re
 `<rest>` in that checkout. The lint guard resolves `./P/<rest>` as `./<rest>` in the candidate only when each
 link below is on an allow-list. Within one job, in step order:
 
-* a step that is not a mapping of distinct lower-case string keys without padding, or whose `uses` is not a
-  string, may be a checkout of any location: it voids every prefix defined before it;
-* a step whose `uses`, trimmed and without letter case, starts with `actions/checkout` is a checkout. Its
-  location is known when `with` is one mapping of distinct string names and `path` matches `_PLAIN_PATH`;
-  otherwise it voids every prefix. A known path voids each earlier prefix that is its ancestor, its descendant
-  or equal to it, without letter case, and then defines its own path as a prefix;
+* a step that is not a mapping of distinct lower-case string keys without padding, or whose `uses` is neither
+  a `./` reference nor `owner/repository[/path]@ref` in plain characters (`_REMOTE`), may be a checkout of any
+  location: it voids every prefix defined before it;
+* a step whose `uses` names the repository `actions/checkout`, without letter case, is a checkout. Its location
+  is known when `with` is one mapping of distinct string names and `path` matches `_PLAIN_PATH`; otherwise it
+  voids every prefix. A known path voids each earlier prefix that is its ancestor, its descendant or equal to
+  it, without letter case, and then defines its own path as a prefix;
 * a prefix holds the candidate when its step has no key outside `STEP_KEYS` (so it always runs), names
-  `actions/checkout@` unpadded, passes no input outside `CANDIDATE_INPUTS` and has no `ref` or one of
-  `CANDIDATE_REFS`, ignoring whitespace around the operands inside `${{ }}`;
-* a reference at or under a prefix in force, compared without letter case, is governed by it. It is shown to
-  load the candidate only when the prefix holds the candidate, the spelling matches exactly and the calling
-  step has no key outside `STEP_KEYS`. Every other reference resolves against the candidate root as written.
+  `actions/checkout@<ref>` with no path inside the repository, passes no input outside `CANDIDATE_INPUTS` and
+  has no `ref` or one of `CANDIDATE_REFS`, ignoring spaces and tabs around the operands inside `${{ }}`;
+* a reference at or under a prefix in force, compared without letter case, is governed by it, and a reference
+  that is not a plain path (`_PLAIN_PATH`, no `.git` component) is governed by a prefix in force even when it
+  names none. A governed reference is shown to load the candidate only when the prefix holds the candidate,
+  the reference is a plain path that spells the prefix exactly, and the calling step has no key outside
+  `STEP_KEYS`. Every other reference maps to `None` and resolves against the candidate root as written.
 
-Assumed and not checked: `actions/checkout` writes exactly the tracked files of the commit it names into its
-path; no step of another kind (`run`, another action, a local composite action) changes them; and the workflow
-runs on an event where `github.sha` or the pull-request head is the commit analysed (`workflow_call` and
-`pull_request_target` are not). References inside composite actions and reusable-workflow references resolve
-against the candidate root only.
+Assumed and not checked: `actions/checkout` writes the tracked files of the commit it names into its path and
+nothing else that a reference can name; no step of another kind (`run`, another action, a local composite
+action) changes them; and the workflow runs on an event where `github.sha` or the pull-request head is the
+commit analysed (`workflow_call` and `pull_request_target` are not). References inside composite actions and
+reusable-workflow references are not read.
 """
 
 import re
@@ -40,6 +43,7 @@ CANDIDATE_REFS = (
 _EXPRESSION = re.compile(r"\$\{\{(.*)\}\}")
 _COMPONENT = r"\.?[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*"
 _PLAIN_PATH = re.compile(rf"{_COMPONENT}(?:/{_COMPONENT})*")
+_REMOTE = re.compile(r"([\w.-]+/[\w.-]+)(/[\w./-]+)?@[\w./-]+", re.ASCII)
 
 
 class Checkout(NamedTuple):
@@ -56,7 +60,7 @@ def _text(node: Node | None) -> str | None:
 
 def _operands(value: str | None) -> tuple[str, ...] | None:
     match = None if value is None else _EXPRESSION.fullmatch(value)
-    return None if match is None else tuple(operand.strip() for operand in match.group(1).split("||"))
+    return None if match is None else tuple(operand.strip(" \t") for operand in match.group(1).split("||"))
 
 
 _CANDIDATE_OPERANDS = frozenset(_operands(spelling) for spelling in CANDIDATE_REFS)
@@ -108,9 +112,12 @@ def governing(document: Node) -> dict[int, Checkout | None]:
             nodes = _values(node, "uses")
             reference = _text(nodes[0]) if len(nodes) == 1 else None
             if reference is not None and reference.startswith("./"):
-                under = f"{reference}/".casefold()
+                under, parts = f"{reference}/".casefold(), reference[2:].casefold().split("/")
+                plain = _PLAIN_PATH.fullmatch(reference[2:]) is not None and ".git" not in parts
                 over = next((held for held in in_force if under.startswith(f"./{held.prefix}/".casefold())), None)
-                exact = over is not None and f"{reference}/".startswith(f"./{over.prefix}/")
+                if over is None and in_force and not plain:
+                    over = in_force[0]
+                exact = over is not None and plain and f"{reference}/".startswith(f"./{over.prefix}/")
                 if over is not None and not (exact and step is not None and set(step) <= STEP_KEYS):
                     over = over._replace(holds_candidate=False)
                 known = found.setdefault(id(nodes[0]), over)
@@ -118,10 +125,11 @@ def governing(document: Node) -> dict[int, Checkout | None]:
                     # One aliased node read under two different prefixes has no single meaning.
                     found[id(nodes[0])] = Checkout((known or over).prefix, False)
             uses = None if step is None else _text(step.get("uses"))
-            if step is None or ("uses" in step and uses is None):
+            remote = None if uses is None else _REMOTE.fullmatch(uses)
+            if step is None or ("uses" in step and remote is None and not (uses or "").startswith("./")):
                 in_force = []
-            elif uses is not None and uses.strip().casefold().startswith("actions/checkout"):
-                defined = _checkout(step, uses.casefold().startswith("actions/checkout@"))
+            elif remote is not None and remote[1].casefold() == "actions/checkout":
+                defined = _checkout(step, remote[2] is None)
                 unrelated = [held for held in in_force if defined and not _related(held.prefix, defined.prefix)]
                 in_force = unrelated + [defined] if defined else []
     return found
