@@ -337,12 +337,25 @@ class CheckoutPathGuardTests(unittest.TestCase):
             "copy above a copy": (through("p", "first") + through(copy, "second"), copy),
             "copy below a copy": (through(copy, "first") + through("p", "second"), copy),
             "copy above a candidate action": (at_the_root + through(".github", "second"), inside),
+            "two crossings": (through(check, "first") + through("p", "second") + through(copy, "third"), check),
         }
         for name, (definition, crossed) in cases.items():
             with self.subTest(name=name), self.assertRaisesRegex(
                 lint.WorkflowSourceError, f"{COLLISION}: {crossed}$"
             ):
                 self.snapshot(workflow(definition), name)
+        longer_name = self.snapshot(workflow(through(f"{check}2")), "a path that only starts alike")[1]
+        self.assertIn(f"{check}2/{base.ACTION_PATH}", longer_name)
+
+    def test_a_copy_that_cannot_be_written_is_a_source_error(self) -> None:
+        refused = {"a name of 300 characters": "L" * 300, "a path of 40,199 characters": "/".join(["D" * 200] * 200)}
+        for name, prefix in refused.items():
+            held = workflow(job(checkout(prefix), step(f"./{prefix}/.github/actions/sample")))
+            projected, inputs = self.snapshot(held, name)
+            analysis = Path(self.enterContext(tempfile.TemporaryDirectory()))
+            unwritable = f"^lint input cannot be written: {prefix}/{base.ACTION_PATH}: "
+            with self.subTest(name=name), self.assertRaisesRegex(lint.WorkflowSourceError, unwritable):
+                lint._write_project(analysis, projected, inputs, 30)
 
     def test_a_copy_never_shares_a_directory_with_a_workflow(self) -> None:
         metadata = self.root / "workflows" / "action.yml"

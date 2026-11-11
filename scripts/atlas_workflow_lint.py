@@ -395,16 +395,16 @@ def _output(result) -> str:
     return b"\n".join(part for part in (result.stdout, result.stderr) if part).decode("utf-8", "replace").strip()
 
 
-def _write_project(
-    root: Path,
-    projected: dict[str, bytes],
-    inputs: dict[str, bytes],
-    timeout: float,
-) -> None:
+def _write_project(root: Path, projected: dict[str, bytes], inputs: dict[str, bytes], timeout: float) -> None:
     for relative, source in inputs.items():
         target = root.joinpath(*relative.split("/"))
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(projected.get(relative, source))
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(projected.get(relative, source))
+        except (OSError, ValueError) as error:
+            # A copy under a checkout path has a name that no checkout of the candidate had to hold. A host
+            # refuses some names with OSError; Python refuses a path over the Windows limit with ValueError.
+            raise WorkflowSourceError(f"lint input cannot be written: {relative}: {error}") from error
     initialized = _invoke(["git", "init", "--quiet"], root, None, timeout, "git")
     if initialized.returncode != 0:
         raise WorkflowExecutionError(f"cannot initialize analysis project: {_output(initialized)}")
