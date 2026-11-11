@@ -5,6 +5,7 @@
 - Item: ATLAS-SEMVER-LOCKED-SOURCES
 - Revision: 2026-11-10 — Separate completed-major admission from reviewed
   disposition of recognized unsupported historical reconstruction.
+- Revision: 2026-11-11 — Bind separate locked registry reconstruction for development.
 
 ## Context
 
@@ -33,12 +34,11 @@ Patch exit 100 means only that patch impact is insufficient, so the same inputs
 run again at minor level: minor exit 0 requires minor impact and remains
 compatible, while minor exit 100 requires major impact and is breaking. Exit
 101, timeout, cleanup failure, or an unknown result in either run is unverified.
-The report records both native runs and separates required impact and native
-compatibility from declared impact, phase, manifest release admissibility, and
-the final gate verdict.
+The report records both native runs and separates their required impact and
+compatibility from declared impact, phase, release admission and gate verdict.
 
-Development analysis does not require a manifest bump. A breaking development
-result has two separately typed development dispositions:
+Development analysis does not require a manifest bump. The following reviewed
+development dispositions keep native findings and separate evidence distinct:
 
 1. Completed-major admission starts only from patch exit 100 followed by minor
    exit 100 on identical inputs. The native findings remain major and breaking;
@@ -48,11 +48,22 @@ result has two separately typed development dispositions:
    exact native failure, supplemental locked compiler-artifact identities and lock
    hashes, source analysis naming the unresolved API facts, value-semantic consumer
    contract evidence, and explicit coverage limits. It produces no compatibility
-   or required-impact verdict and remains unsupported and non-green. An unknown
-   exit 101, other execution error, timeout, cleanup failure, malformed report, or
-   omitted comparison has no disposition path.
+   or required-impact verdict and remains unsupported and non-green.
+3. A historical registry graph may use a separate locked-artifact comparison
+   after native exit 101 only when the recorded registry reconstruction and
+   the authenticated release's bundled lock select different dependencies and
+   matched stable compiler controls reproduce the named failure only on the
+   captured reconstruction. Bind the causal compiler unit, its dependency
+   identities and features, both source inputs and target, and raw diagnostics.
+   If the published and generated manifests have different root roles, show
+   why that difference does not account for the failure in the dependency
+   unit; unresolved causes remain unsupported. The native result stays
+   non-green. Only the independently reviewed development composition can
+   use the separate comparison.
 
-Both dispositions are reviewed pull-request compositions, not helper inputs. The
+Unknown failures, timeout, cleanup failure, malformed evidence, and omitted
+comparisons have no disposition path. All dispositions are reviewed pull
+request compositions, not helper inputs. The
 review binds the exact candidate, complete baseline set and report digests, an
 Accepted ADR and migration, inventory-derived consumer preparation at the exact
 provider revision, configured consumer results, and an independent `judge` status
@@ -84,10 +95,16 @@ The report sets `api_comparison` to `unsupported`. It does not replace the
 native result, waive exit 101, or claim full ready coverage. Unknown execution
 errors, timeouts, schema failures, and compilation failures remain failures.
 
-Atlas does not inject `RUSTC_BOOTSTRAP` and does not compare self-generated
-prebuilt Rustdoc as a native substitute. A future prebuilt-Rustdoc path requires
-a separately reviewed pinned nightly whose Rustdoc schema is supported by the
-pinned checker, plus explicit graph-identity and consumer-contract validation.
+Atlas does not inject `RUSTC_BOOTSTRAP` or substitute artifacts for native
+discovery. For separate development evidence use fresh `--locked` Rustdoc
+JSON from `nightly-2026-08-01`, schema 61. Bind each artifact to its tools,
+manifest, lock, graph, features, target and configuration. Authenticate source
+by exact commit/tree or by archive checksum and bundled lock. Verify identities
+and acquired digests before and after comparison. Real API removal must fail;
+graph or artifact substitution, missing/stale output and schema mismatch
+must refuse. Compare every applicable baseline and configuration, and
+exercise real consumer contracts where the checker cannot see a dependency
+surface. Retain all native results. Release cannot use this evidence.
 
 ## Rejected alternatives
 
@@ -105,17 +122,10 @@ pinned checker, plus explicit graph-identity and consumer-contract validation.
 
 ## Consequences
 
-Known resolution failures now provide reviewable source and compilation
-evidence without a fabricated SemVer verdict. Callers must still fail until a
-supported API comparison completes or a reviewed disposition addresses the
-strictly recognized unsupported coverage with the exact evidence and limits above.
-Completed breaking admission retains its findings and classification. Development
-integration can therefore proceed only through the reviewed composite, while the
-local report remains non-green. Major release policy can admit a completed
-breaking finding without relabeling it compatible; it cannot consume an unsupported
-reconstruction. The locked-resolution decision changes when the native tool
-preserves the committed lock, or when the dedicated nightly Rustdoc path satisfies
-the stated schema and identity requirements.
+Local native failures stay non-green. Development can proceed only through
+a supported comparison or the independently judged composition above.
+Release applies its version rule and cannot use this reconstruction.
+Revisit this distinction when native discovery preserves committed locks.
 
 ## Validation
 
@@ -132,7 +142,8 @@ compatible, rollback, native failure, and process-tree timeout.
 Admission review must falsify these cases: completed major findings remain present
 and breaking; recognized exit 101 remains unsupported and is accepted only with the
 specified diagnostic, exact identities, source analysis, value-semantic consumer
-contracts, and stated limits; an unknown failure or omitted comparison has no
+contracts, and limits; registry reconstruction also needs matched stable
+positive/negative controls. Unknown failure or omitted comparison has no
 disposition. Missing or stale exact-head review, an inventory omission, or a
 consumer lock at the wrong provider revision fails the composite. An arbitrary
 approval boolean changes nothing. Development disposition cannot admit the same
