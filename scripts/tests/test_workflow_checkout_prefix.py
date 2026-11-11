@@ -70,7 +70,7 @@ def candidate_at(sequence: list[tuple[str | None, bool]], reference: str) -> boo
 
 class CheckoutPrefixTests(unittest.TestCase):
     def test_candidate_checkouts_hold_the_candidate(self) -> None:
-        spellings = ("${{ github.sha }}", "${{github.event.pull_request.head.sha}}")
+        spellings = ("${{ github.sha }}", "${{github.event.pull_request.head.sha}}", "${{\tgithub.sha\t}}")
         for ref in (None, *spellings, "${{  github.event.pull_request.head.sha   ||github.sha }}"):
             options = {} if ref is None else {"ref": ref, "fetch-depth": "0", "persist-credentials": "false"}
             with self.subTest(ref=ref):
@@ -78,6 +78,9 @@ class CheckoutPrefixTests(unittest.TestCase):
         named = checkout(uses="Actions/Checkout") + "        name: Checkout\n        id: source\n"
         self.assertEqual(outcomes(workflow(job(named, step() + "        with: {}\n"))), [HELD])
         self.assertEqual(outcomes(workflow(job(checkout(), step("./nested-src")))), [HELD])
+        document = yaml.compose(workflow(job(checkout(), step())), Loader=yaml.SafeLoader)
+        reference = document.value[2][1].value[0][1].value[1][1].value[1].value[0][1]
+        self.assertEqual(governing(document), {id(reference): HELD})
         other_repository = checkout(uses="actions/checkout-x", **FOREIGN)
         self.assertEqual(outcomes(workflow(job(checkout(), other_repository, step()))), [HELD])
         self.assertEqual(outcomes(workflow(job(checkout("Nested-Src"), step()))), [Checkout("Nested-Src", False)])
@@ -138,6 +141,8 @@ class CheckoutPrefixTests(unittest.TestCase):
             "doubled separator": checkout(uses="actions//checkout", **FOREIGN),
             "leading separator": checkout(uses="/actions/checkout", **FOREIGN),
             "backslash in the name": checkout(uses="actions\\checkout", **FOREIGN),
+            "owner outside ASCII": checkout(uses="acti\u043ens/checkout", **FOREIGN),
+            "padded step key": checkout(**FOREIGN).replace("uses", "'uses '"),
             "container reference": "      - uses: docker://alpine:3\n",
             "not a mapping": "      - plain\n",
         }
@@ -176,6 +181,7 @@ class CheckoutPrefixTests(unittest.TestCase):
             "checkout path itself": checkout(**FOREIGN) + step("./nested-src"),
             "parent component": step("./nested-src/../other-src/.github/actions/sample"),
             "repository metadata": step("./nested-src/.git/hooks"),
+            "repository metadata in another case": step("./nested-src/.GIT/hooks"),
             "odd spelling outside every prefix": step("./other-src./.github/actions/sample"),
         }
         for name, caller in callers.items():
@@ -202,6 +208,7 @@ class CheckoutPrefixTests(unittest.TestCase):
         composite = f"runs:\n  using: composite\n  steps:\n    - uses: actions/checkout@{PIN}\n"
         composite += f"      with:\n        path: nested-src\n    - uses: {REFERENCE}\n"
         self.assertEqual(outcomes(composite), [])
+        self.assertEqual(outcomes(workflow(job(checkout(), step() + step().replace("- ", "  ")))), [])
         self.assertEqual(outcomes("jobs:\n  call:\n    uses: ./nested-src/.github/workflows/check.yml\n"), [])
 
 

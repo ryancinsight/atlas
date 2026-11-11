@@ -1,8 +1,9 @@
 """Local actions reached through the `path:` of an `actions/checkout` step.
 
 A job that runs `actions/checkout` with `path: P` and later calls `uses: ./P/<rest>` finds the action at
-`<rest>` in that checkout. The lint guard resolves `./P/<rest>` as `./<rest>` in the candidate only when each
-link below is on an allow-list. Within one job, in step order:
+`<rest>` in that checkout. `governing` says which checkout path governs each `./` step reference and whether
+that checkout is shown to hold the candidate, which it reports only when each link below is on an
+allow-list. Within one job, in step order:
 
 * a step that is not a mapping of distinct lower-case string keys without padding, or whose `uses` is neither
   a `./` reference nor `owner/repository[/path]@ref` in plain characters (`_REMOTE`), may be a checkout of any
@@ -18,14 +19,18 @@ link below is on an allow-list. Within one job, in step order:
   that is not a plain path (`_PLAIN_PATH`, no `.git` component) is governed by a prefix in force even when it
   names none. A governed reference is shown to load the candidate only when the prefix holds the candidate,
   the reference is a plain path that spells the prefix exactly, and the calling step has no key outside
-  `STEP_KEYS`. Every other reference maps to `None` and resolves against the candidate root as written.
+  `STEP_KEYS`. Every other reference maps to `None`. A step has an entry only when exactly one of its keys
+  is spelled `uses` and that value is a plain string starting with `./`.
 
 Assumed and not checked: `actions/checkout` writes the tracked files of the commit it names into its path and
 nothing else that a reference can name; no step of another kind (`run`, another action, a local composite
 action) changes them; and the workflow runs on an event where `github.sha` or the pull-request head is the
-commit analysed (`workflow_call` and `pull_request_target` are not). References inside composite actions and
-reusable-workflow references are not read. The rule reads no tree, so it cannot see a symbolic link inside a
-checkout; `atlas_workflow_lint` rejects a reference through a link when it resolves the reference.
+commit analysed (`workflow_call` and `pull_request_target` are not). Also assumed, and not looked up in the
+runner: no symbolic link in a checked-out tree and no container volume redirects a checkout path or a
+reference; no `INPUT_*` environment variable of the workflow or job changes a checkout's inputs; the
+checkout release reads `path` relative to the workspace; and the runner accepts no other spelling of the
+action's name, such as `actions/checkout.git`. References inside composite actions and reusable-workflow
+references are not read.
 """
 
 import re
