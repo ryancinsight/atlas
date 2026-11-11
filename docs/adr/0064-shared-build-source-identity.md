@@ -35,6 +35,11 @@ One 600-second process-tree deadline covers every pushed ref, helper, ref guard,
 
 ### Source-identity invariant and records
 
+The historical cast command binds its compiler command, physical profile,
+record, stamp and clean to cast-history before identity runs or checks it.
+The candidate keeps debug. Both commands keep the original leases, lint
+settings and deadlines; mismatched owners or selections refuse.
+
 An artifact is accepted only after one successful leased run proves that its package source, recorded external inputs, resolved dependency shape, build dimensions, and named artifact bytes match one atomic record and remain stable at final verification.
 Source-root paths and revisions never partition lease or record keys for overlapping artifacts: equivalent exports reuse, while different content contends and rebuilds.
 `atlas_build_records.py` owns record format, `atlas_build_inputs.py` dimensions and dependency data, and `atlas_build_identity.py` the run, clean, and lease protocol; operation-family modules under References own their stated parts.

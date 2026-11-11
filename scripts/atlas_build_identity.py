@@ -24,6 +24,7 @@ from atlas_build_artifacts import (
 )
 from atlas_build_dep_info import current_inputs, package_layout, record_inputs
 from atlas_build_inputs import (
+    _config_arguments,
     _dependency_data,
     build_spec,
     compiler_environment,
@@ -254,8 +255,12 @@ def run_build(
     ignore_paths: Sequence[Path] = (),
     lease_wait_seconds: float = 0,
     selection: Sequence[str] = (),
+    *,
+    clean_config: Sequence[str] = (),
 ) -> tuple[BuildResult, ...]:
     """Run a build under the manifest's effective compiler environment."""
+    if clean_config and (clean_command is not None or tuple(clean_config) != _config_arguments(command)):
+        raise IdentityError("cleanup Cargo config differs from the bound command")
     run_id = uuid.uuid4().hex
     progress = _ProgressSidecar(run_id)
     try:
@@ -282,6 +287,7 @@ def run_build(
                     ignore_paths,
                     lease_wait_seconds,
                     selection,
+                    clean_config=clean_config,
                     run_id=run_id,
                     progress=progress,
                 )
@@ -312,6 +318,7 @@ def _run_build(
     *,
     run_id: str,
     progress: _ProgressSidecar,
+    clean_config: Sequence[str],
 ) -> tuple[BuildResult, ...]:
     """Run `command` once for `packages`, binding each one's record to it.
 
@@ -643,6 +650,7 @@ def _run_build(
             _run_checked(
                 [
                     *_cargo_command(),
+                    *(argument for value in clean_config for argument in ("--config", value)),
                     "clean",
                     *(argument for clean_package in sorted(targets) for argument in ("-p", clean_package)),
                     *directory.clean_arguments(),

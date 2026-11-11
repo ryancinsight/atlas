@@ -38,6 +38,13 @@ for a dependency and the root profile's line tables for a workspace member.
 The first set is the 23 kwavers crates and ten first-party provider crates
 they compute through (apollo, eunomia, hermes, leto).
 
+Historical cast comparisons use the separate `cast-history` directory inside
+the shared target. The cast tool declares only inheritance from the existing
+`dev` profile and supplies that declaration to Clippy, the identity record
+and cleanup. The stack config still owns every compiler setting. Conflicting
+definitions refuse. This bounds duplication to historical Clippy and keeps
+its writes from retiring the candidate's separately checked artifacts.
+
 ## Evidence
 
 The head of ryancinsight/kwavers#1024 on 2026-11-10, `cargo nextest run -p
