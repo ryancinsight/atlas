@@ -1,10 +1,10 @@
 //! Output formatters for the coherence audit.
 //!
 //! Three formats are supported:
-//!  - [`Format::Human`]: compact text readable from a terminal.
-//!  - [`Format::Markdown`]: a Markdown table suitable for backlog / PR
+//!  - [`Format::Human`](crate::report::Format::Human): compact text readable from a terminal.
+//!  - [`Format::Markdown`](crate::report::Format::Markdown): a Markdown table suitable for backlog / PR
 //!    snippets.
-//!  - [`Format::Json`]: machine-readable JSON via `serde_json`.
+//!  - [`Format::Json`](crate::report::Format::Json): machine-readable JSON via `serde_json`.
 //!
 //! The formatters are separated from the probe logic so the CLI dispatcher
 //! can choose one without changing the audit body. They never invoke git.
