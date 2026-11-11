@@ -1,17 +1,25 @@
 import itertools
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import atlas_workflow_lint as lint  # noqa: E402
+import test_atlas_workflow_lint as base  # noqa: E402
 from workflow_checkout_prefix import Checkout, governing  # noqa: E402
 
 PIN = "0" * 40
 SAMPLE = "./.github/actions/sample"
 REFERENCE = "./nested-src/.github/actions/sample"
 FOREIGN = {"repository": "other/repository"}
+MISSING = "reference escapes or is missing from the checkout"
+UNDEFINED = "checkout path is not shown to hold the candidate"
+COLLISION = "lint input directory has two different sources"
 HELD, UNSHOWN = Checkout("nested-src", True), Checkout("nested-src", False)
 
 
@@ -170,6 +178,144 @@ class CheckoutPrefixTests(unittest.TestCase):
         composite += f"      with:\n        path: nested-src\n    - uses: {REFERENCE}\n"
         self.assertEqual(outcomes(composite), [])
         self.assertEqual(outcomes("jobs:\n  call:\n    uses: ./nested-src/.github/workflows/check.yml\n"), [])
+
+
+class CheckoutPathGuardTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.root, self.workflow, self.action = base.fixture(self)
+
+    def outcome(self, source: str) -> str:
+        try:
+            targets = lint.project(source.encode(), self.workflow, self.root, "workflow")[1]
+        except lint.WorkflowSourceError as error:
+            return str(error)
+        self.assertEqual(targets, [self.action] * len(targets))
+        return "accepted"
+
+    def snapshot(self, source: str, message: str) -> tuple[dict[str, bytes], dict[str, bytes]]:
+        self.workflow.write_text(source, encoding="utf-8", newline="\n")
+        return lint.snapshot(self.root, base.commit(self.root, message))
+
+    def test_the_guard_resolves_references_as_the_rule_governs_them(self) -> None:
+        inner = "./nested-src/inner/.github/actions/sample"
+        shapes = {
+            checkout(): ("nested-src", True),
+            checkout(ref="main"): ("nested-src", False),
+            checkout("nested-src/inner"): ("nested-src/inner", True),
+            checkout("Nested-Src", **FOREIGN): ("Nested-Src", False),
+            checkout("other-src", **FOREIGN): ("other-src", False),
+            checkout(None, **FOREIGN): (None, False),
+        }
+        # The candidate has the action only at its root, so a reference is accepted exactly when a holding
+        # prefix leaves `SAMPLE`: `nested-src` for the first reference, `nested-src/inner` for the second,
+        # each followed only by `other-src`. That is 1 + 7 sequences of up to two checkouts per reference.
+        accepted = 0
+        for length, reference in itertools.product(range(3), (REFERENCE, inner)):
+            for steps in itertools.product(shapes, repeat=length):
+                over = governed([shapes[text] for text in steps], reference)
+                rest = reference if over is None else f"./{reference[len(over.prefix) + 3 :]}"
+                under = "" if over is None else f" (as {reference!r} under checkout {over.prefix!r})"
+                expected = f"{MISSING}: {rest!r}{under}"
+                if over is not None and not over.holds_candidate:
+                    expected = f"{UNDEFINED}: {reference!r}"
+                elif rest == SAMPLE:
+                    expected = "accepted"
+                accepted += expected == "accepted"
+                self.assertEqual(self.outcome(workflow(job(*steps, step(reference)))), expected, (steps, reference))
+        self.assertEqual(accepted, 8 + 8)
+        at_root = "./nested-src"
+        self.assertEqual(
+            self.outcome(workflow(job(checkout(), step(at_root)))),
+            f"invalid same-repository path: './' (as {at_root!r} under checkout 'nested-src')",
+        )
+        composite = f"runs:\n  using: composite\n  steps:\n{checkout()}{step()}".replace("\n      ", "\n    ")
+        with self.assertRaisesRegex(lint.WorkflowSourceError, f"{MISSING}: {REFERENCE!r}$"):
+            lint.project(composite.encode(), self.action, self.root, "action")
+        reusable = "jobs:\n  call:\n    uses: ./nested-src/.github/workflows/check.yml\n"
+        self.assertEqual(self.outcome(reusable), f"{MISSING}: './nested-src/.github/workflows/check.yml'")
+
+    def test_action_metadata_is_copied_under_the_checkout_path(self) -> None:
+        projected, inputs = self.snapshot(workflow(job(step(SAMPLE), checkout(), step())), "copy")
+        prefixed = f"nested-src/{base.ACTION_PATH}"
+        self.assertEqual(set(inputs), {".github/workflows/check.yml", base.ACTION_PATH, prefixed})
+        self.assertEqual(inputs[base.ACTION_PATH], base.ACTION.encode())
+        self.assertEqual(inputs[prefixed], inputs[base.ACTION_PATH])
+        self.assertEqual(projected[".github/workflows/check.yml"], inputs[".github/workflows/check.yml"])
+        analysis = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        lint._write_project(analysis, projected, inputs, 30)
+        self.assertEqual((analysis / prefixed).read_bytes(), base.ACTION.encode())
+
+    def test_a_copy_never_shares_a_directory_with_another_source(self) -> None:
+        outer = ".github/actions/outer"
+        shadow = self.root.joinpath(*outer.split("/"), ".github", "actions", "sample", "action.yaml")
+        shadow.parent.mkdir(parents=True)
+        shadow.write_text(base.ACTION.replace("sample", "shadow"), encoding="utf-8", newline="\n")
+        copied, shadowed = step(f"./{outer}/.github/actions/sample"), step(f"./{outer}/{outer}/.github/actions/sample")
+        orders = {
+            "root reference first": job(copied, checkout(outer), copied),
+            "copy first": job(checkout(outer), copied, name="first") + job(copied, name="second"),
+            "shadow through the prefix": job(checkout(outer), copied, shadowed),
+            "shadow through the prefix first": job(checkout(outer), shadowed, copied),
+        }
+        for name, definition in orders.items():
+            with self.subTest(name=name), self.assertRaisesRegex(
+                lint.WorkflowSourceError, f"{COLLISION}: {outer}/.github/actions/sample$"
+            ):
+                self.snapshot(workflow(definition), name)
+        twice = step(f"./p/{outer}/.github/actions/sample")
+        copies = job(checkout("p"), twice, name="first") + job(checkout(f"p/{outer}"), twice, name="second")
+        with self.assertRaisesRegex(lint.WorkflowSourceError, f"{COLLISION}: p/{outer}/.github/actions/sample$"):
+            self.snapshot(workflow(copies), "two copies")
+
+    def test_a_copy_never_shares_a_directory_with_a_workflow(self) -> None:
+        metadata = self.root / "workflows" / "action.yml"
+        metadata.parent.mkdir()
+        same_bytes = base.ACTION + "on: push\njobs:\n" + job(step(SAMPLE))
+        metadata.write_text(same_bytes, encoding="utf-8", newline="\n")
+        lint._git(self.root, "init", "--quiet")
+        lint._git(self.root, "add", "--", "workflows")
+        calling = workflow(job(checkout(".github"), step("./.github/workflows")))
+        self.workflow.with_name("action.yml").write_text(same_bytes, encoding="utf-8", newline="\n")
+        for name in ("a.yml", "z.yml"):
+            caller = self.workflow.with_name(name)
+            caller.write_text(calling, encoding="utf-8", newline="\n")
+            with self.subTest(name=name), self.assertRaisesRegex(
+                lint.WorkflowSourceError, f"{COLLISION}: .github/workflows$"
+            ):
+                lint.snapshot(self.root, base.commit(self.root, name))
+            caller.unlink()
+
+
+@unittest.skipUnless(
+    all(os.environ.get(name) for name in ("ACTIONLINT", "SHELLCHECK", "PYFLAKES")),
+    "native workflow analyzers are not configured",
+)
+class NativeCheckoutPathTests(unittest.TestCase):
+    command = base.NativeActionlintTests.command
+
+    def setUp(self) -> None:
+        self.root, self.workflow, self.action = base.fixture(self)
+        config = self.root / ".github" / "actionlint.yaml"
+        config.write_text(base.CONFIG, encoding="utf-8", newline="\n")
+        declared = "description: sample action\ninputs:\n  known:\n    description: known input"
+        self.action.write_text(
+            base.ACTION.replace("description: sample action", declared), encoding="utf-8", newline="\n"
+        )
+
+    def lint_with_input(self, name: str):
+        source = workflow(job(checkout(), step() + f"        with:\n          {name}: yes\n"))
+        self.workflow.write_text(source, encoding="utf-8", newline="\n")
+        self.candidate = base.commit(self.root, f"test: pass the {name} input")
+        return self.command()
+
+    def test_actionlint_reads_the_action_under_the_checkout_path(self) -> None:
+        accepted = self.lint_with_input("known")
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        rejected = self.lint_with_input("unknown")
+        self.assertEqual(rejected.returncode, 2, rejected.stdout)
+        output = (rejected.stderr or b"").decode("utf-8", "replace")
+        self.assertIn("input \"unknown\"", output)
+        self.assertIn("check.yml", output)
 
 
 if __name__ == "__main__":

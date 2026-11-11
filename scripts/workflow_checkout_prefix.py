@@ -37,6 +37,7 @@ CANDIDATE_REFS = (
     "${{ github.event.pull_request.head.sha }}",
     "${{ github.event.pull_request.head.sha || github.sha }}",
 )
+METADATA_NAMES = ("action.yml", "action.yaml")
 _EXPRESSION = re.compile(r"\$\{\{(.*)\}\}")
 _COMPONENT = r"\.?[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*"
 _PLAIN_PATH = re.compile(rf"{_COMPONENT}(?:/{_COMPONENT})*")
@@ -125,3 +126,16 @@ def governing(document: Node) -> dict[int, Checkout | None]:
                 unrelated = [held for held in in_force if defined and not _related(held.prefix, defined.prefix)]
                 in_force = unrelated + [defined] if defined else []
     return found
+
+
+def place_copies(inputs: dict[str, bytes], copies: set[tuple[str, str]]) -> str | None:
+    """Add each governed action's metadata under its checkout path, or name a directory with two sources."""
+    sources: dict[str, str] = {}
+    for prefix, metadata in sorted(copies):
+        source = metadata.rpartition("/")[0]
+        directory = f"{prefix}/{source}"
+        owned = any(f"{directory}/{name}" in inputs for name in METADATA_NAMES)
+        if owned or sources.setdefault(directory, source) != source:
+            return directory
+    inputs.update({f"{prefix}/{metadata}": inputs[metadata] for prefix, metadata in copies})
+    return None
