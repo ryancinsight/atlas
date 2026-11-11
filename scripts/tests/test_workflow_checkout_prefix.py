@@ -1,3 +1,4 @@
+import os
 import sys
 import tempfile
 import unittest
@@ -165,6 +166,38 @@ class CheckoutPrefixTests(unittest.TestCase):
         reusable = "jobs:\n  call:\n    uses: ./nested-src/.github/workflows/check.yml\n"
         with self.assertRaisesRegex(lint.WorkflowSourceError, MISSING):
             self.project(reusable)
+
+
+@unittest.skipUnless(
+    all(os.environ.get(name) for name in ("ACTIONLINT", "SHELLCHECK", "PYFLAKES")),
+    "native workflow analyzers are not configured",
+)
+class NativeCheckoutPrefixTests(unittest.TestCase):
+    command = base.NativeActionlintTests.command
+
+    def setUp(self) -> None:
+        self.root, self.workflow, self.action = base.fixture(self)
+        config = self.root / ".github" / "actionlint.yaml"
+        config.write_text(base.CONFIG, encoding="utf-8", newline="\n")
+        declared = "description: sample action\ninputs:\n  known:\n    description: known input"
+        self.action.write_text(
+            base.ACTION.replace("description: sample action", declared), encoding="utf-8", newline="\n"
+        )
+
+    def lint_with_input(self, name: str):
+        source = workflow(job(checkout(), step() + f"        with:\n          {name}: yes\n"))
+        self.workflow.write_text(source, encoding="utf-8", newline="\n")
+        self.candidate = base.commit(self.root, f"test: pass the {name} input")
+        return self.command()
+
+    def test_actionlint_reads_the_action_under_the_checkout_path(self) -> None:
+        accepted = self.lint_with_input("known")
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        rejected = self.lint_with_input("unknown")
+        self.assertEqual(rejected.returncode, 2, rejected.stdout)
+        output = (rejected.stderr or b"").decode("utf-8", "replace")
+        self.assertIn("input \"unknown\"", output)
+        self.assertIn("check.yml", output)
 
 
 if __name__ == "__main__":
