@@ -1,10 +1,11 @@
-# ADR 0064: Shared build source, artifact, and gate identity
+# ADR 0064: Shared build source, artifact, sibling, and gate identity
 
 - Status: Accepted
 - Date: 2026-09-24
 - Class: [arch]
-- Driver: [Atlas PR #626](https://github.com/ryancinsight/atlas/pull/626), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
+- Driver: [Atlas PR #665](https://github.com/ryancinsight/atlas/pull/665), [Atlas PR #626](https://github.com/ryancinsight/atlas/pull/626), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
+- Revision: 2026-11-10 — Allowed a stale exact-command record to recover only through a fully verified different-command sibling, without claiming preservation of arbitrary build variants.
 - Revision: 2026-11-10 — Indexed canonical record scopes while retaining flat version-7 records as sole authority and rereading every selected payload.
 - Revision: 2026-11-10 — Added revision-bound lock-owner inventories that disable promisor lazy fetch and fail when a committed Cargo input is missing locally.
 - Revision: 2026-11-10 — Lock updates resolve one graph against simultaneous immutable provider commits, then remove the temporary transport and verify full locked metadata.
@@ -59,6 +60,14 @@ reconciles every missing index key from the real payload before filtering,
 then rereads each selected payload and applies every existing source,
 dependency, input, artifact, and lease predicate. Obsolete, malformed, or
 noncanonical records receive no persistent negative entry and are reread.
+An exact-command mismatch may recover from a different-command sibling only
+when source, every build dimension, multi-package selection, compiler,
+configuration, environment, complete dependency snapshot, current external
+inputs, and the current bytes of every stored artifact match that sibling's
+successful record. Lookup continues past malformed records, missing or
+unverified artifacts, changed bytes, and changed inputs. Stale Git or building
+stamps still force cleanup. Recovery never skips the requested command or
+claims that arbitrary A/B variants coexist in one target.
 
 The index is initialized by streaming one payload at a time and published by
 the record owner's existing atomic replacement. Malformed index data fails
@@ -100,7 +109,7 @@ A run acquires every lease or none, holds no lock while waiting, preserves queue
 A live owner causes a bounded refusal naming owner and revision, with no clean or write. Recorded expiry never overrides a live operating-system lock.
 
 Each commanded package starts exclusive and closure dependencies shared. An exact record match keeps that shape; a mismatch releases all leases, reacquires the complete set exclusive, rechecks, and cleans only if still stale.
-An equivalent sibling-command record may establish reuse. Before Cargo, a verified record lets unchanged, uncleaned non-root packages downgrade in place to shared without losing queue position.
+An equivalent different-command sibling record may establish reuse even when an exact-command record exists but mismatches. The sibling's artifact digest is reused from its guarded current-byte validation rather than rehashed for lease downgrade. Before Cargo, a verified record lets unchanged, uncleaned non-root packages downgrade in place to shared without losing queue position.
 Full/custom clean and declared-artifact runs retain exclusive leases; a failed downgrade releases everything and fails closed.
 Windows downgrades with an overlapping `LockFileEx` shared lock before releasing exclusive; POSIX converts `flock` under the original queue ticket once and fails closed if a racer takes the lock.
 Leases remain held through Cargo and final source, input, dependency, and artifact verification. Shared dependencies are checked only by record-named files, so new Cargo variants beside them do not mismatch.
@@ -159,7 +168,7 @@ name, or that candidate selection differs for valid records, overturns it.
 
 The design responds to measured failures: a 405-second Rustdoc phase; 36 identity runs for one 12-package step and a 00:17–01:53 gate; four 900-second lease refusals; a 35-package clean with 34 unchanged Git packages; dependency snapshots over 25 minutes reduced from 71 seconds warm to 5.4 seconds; repeated 2.5-minute clean walks; 13 partial clones, 260-character path failures, a 1.5 GB interrupted export, and live-expiry/35-hour stale-lease failures.
 Evidence identifiers remain `ATLAS-IDENTITY-MEMBER-SCOPE`, `ATLAS-GATE-STEP-BATCH`, `ATLAS-BUILD-IDENTITY-SPLIT`, `ATLAS-GATE-LEASE-HOLD-001`, `ATLAS-IDENTITY-NARROW-ADDED-DEPS`, `ATLAS-IDENTITY-MIDRUN-GIT-EDIT`, and `ryancinsight/atlas#418`.
-Real-Cargo regression cases cover exact reuse across exports; package-local and external inputs; dirty/ignored/final-mutated source; shape, feature, profile, manifest, Git-stamp, sentinel, custom-clean, artifact-retirement, and registry behavior; multi-package batching and failure; settled post-command hashes; and repeat pushes that clean nothing after the first.
+Real-Cargo regression cases cover exact reuse across exports; stale exact-command recovery through a compiled same-source sibling (`SelectionVariantTestCase.test_a_stale_exact_record_recovers_from_a_valid_compiled_sibling`); package-local and external inputs; dirty/ignored/final-mutated source; shape, feature, profile, manifest, Git-stamp, sentinel, custom-clean, artifact-retirement, and registry behavior; multi-package batching and failure; settled post-command hashes; and repeat pushes that clean nothing after the first. Indexed-record cases search past malformed, missing, unverified, changed-artifact, changed-input, dependency, and selection candidates, while the building-Git-stamp case proves the cleanup veto.
 Lease tests cover shared readers, dependency rewrites, all-or-none fairness, owner diagnostics, expiry, malformed recovery, exclusive retake, downgrade queue position, sibling records, deadlines, and dead owners. Hook tests cover pushed-revision export, committed locks, owner changes, documentation phases, prepared tools, runner bootstrap, and refusal paths.
 The configured focused identity, full scripts, pre-push, conformance, architecture/ARCH-008, and pin-drift suites are merge gates; pin readiness also requires the exact combined candidate's normal push, hosted checks, and independent acceptance recorded by the driver PR.
 

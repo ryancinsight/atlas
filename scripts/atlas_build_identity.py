@@ -391,7 +391,7 @@ def _run_build(
                 states = locked_records()
         siblings = {
             package: None
-            if state.matched or state.existing is not None
+            if state.matched
             else _sibling_record(
                 inputs[package][1], inputs[package][0],
                 lambda record: current_inputs(record["inputs"], layout) == record["inputs"],
@@ -402,7 +402,7 @@ def _run_build(
         # for the target's stale Git packages, which are cleaned regardless.
         stale = {
             package: not state.matched
-            and (state.existing is not None or siblings[package] is None or bool(state.stale_git))
+            and (siblings[package] is None or bool(state.stale_git))
             for package, state in states.items()
         }
         # The files each record lists, as read under this run's leases: its
@@ -415,7 +415,7 @@ def _run_build(
         }
         for package, sibling in siblings.items():
             if sibling is not None:
-                named[package] = _recorded_artifact(sibling, target_dir, ())
+                named[package] = sibling.artifact
         # Git packages this run builds: the stale ones it cleans, and the
         # unstamped ones it trusts. Each is stamped as building before the
         # clean and the command, and with its content only after both.

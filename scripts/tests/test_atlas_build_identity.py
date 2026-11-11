@@ -930,6 +930,9 @@ class RecordIndexTestCase(unittest.TestCase):
         temp = tempfile.TemporaryDirectory(prefix="atlas-record-index-")
         self.addCleanup(temp.cleanup)
         self.target = Path(temp.name).resolve() / "target"
+        self.artifact = self.target / "deps" / "libdemo.rlib"
+        self.artifact.parent.mkdir(parents=True)
+        self.artifact.write_bytes(b"artifact")
         self.source = build_source.SourceIdentity("root", "revision", "tree", False)
 
     def spec(self, **changes: str) -> build_records.BuildSpec:
@@ -957,11 +960,12 @@ class RecordIndexTestCase(unittest.TestCase):
         version: int = build_records.VERSION,
     ) -> dict[str, object]:
         actual_source = source or self.source
+        files = {"deps/libdemo.rlib": artifacts._file_digest(self.artifact)}
         return {
             "version": version,
             "source": actual_source.as_dict(),
             "build": {**spec.as_dict(), "source": actual_source.as_dict()},
-            "artifact": {"files": {"deps/libdemo.rlib": "artifact"}, "digest": "artifact"},
+            "artifact": {"files": files, "digest": artifacts.artifact_digest(files)},
             "dependencies": {
                 "root": "workspace:demo",
                 "digest": "dependencies",
@@ -980,7 +984,8 @@ class RecordIndexTestCase(unittest.TestCase):
     def sibling(self, spec: build_records.BuildSpec) -> dict[str, object] | None:
         dependencies = self.record(spec)["dependencies"]
         assert isinstance(dependencies, dict)
-        return build_records._sibling_record(spec, dependencies, lambda _record: True)
+        selected = build_records._sibling_record(spec, dependencies, lambda _record: True)
+        return None if selected is None else selected.record
 
     def test_warm_lookup_reads_only_the_family_and_unindexable_records(self) -> None:
         requested = self.spec(command_key="nextest")
@@ -1074,6 +1079,104 @@ class RecordIndexTestCase(unittest.TestCase):
         changed["build"]["dependency_digest"] = "other"
         build_records._write_atomic(path, changed)
         self.assertIsNone(self.sibling(requested))
+
+    def test_invalid_siblings_are_skipped_until_every_identity_holds(self) -> None:
+        requested = self.spec(command_key="verify")
+        dependencies = self.record(requested)["dependencies"]
+        assert isinstance(dependencies, dict)
+
+        malformed = build_records.record_path(self.spec(command_key="a-malformed"))
+        malformed.parent.mkdir(parents=True, exist_ok=True)
+        malformed.write_text("{", encoding="utf-8")
+
+        missing_spec = self.spec(command_key="b-missing-artifact")
+        missing = self.record(missing_spec)
+        missing_files = {"deps/missing.rlib": hashlib.sha256(b"missing").hexdigest()}
+        missing["artifact"] = {
+            "files": missing_files,
+            "digest": artifacts.artifact_digest(missing_files),
+        }
+        missing_path = build_records.record_path(missing_spec)
+        build_records._write_atomic(missing_path, missing)
+
+        unverified_spec = self.spec(command_key="c-unverified-artifact")
+        unverified = self.record(unverified_spec)
+        unverified_files = {"deps/libdemo.rlib": artifacts.UNVERIFIED}
+        unverified["artifact"] = {
+            "files": unverified_files,
+            "digest": artifacts.artifact_digest(unverified_files),
+        }
+        unverified_path = build_records.record_path(unverified_spec)
+        build_records._write_atomic(unverified_path, unverified)
+
+        changed_spec = self.spec(command_key="d-changed-artifact")
+        changed = self.record(changed_spec)
+        changed_files = {"deps/libdemo.rlib": hashlib.sha256(b"before").hexdigest()}
+        changed["artifact"] = {
+            "files": changed_files,
+            "digest": artifacts.artifact_digest(changed_files),
+        }
+        changed_path = build_records.record_path(changed_spec)
+        build_records._write_atomic(changed_path, changed)
+
+        input_spec = self.spec(command_key="e-changed-input")
+        input_record = self.record(input_spec)
+        input_record["inputs"] = {"demo": {"outside.rs": hashlib.sha256(b"old").hexdigest()}}
+        input_path = build_records.record_path(input_spec)
+        build_records._write_atomic(input_path, input_record)
+
+        dependency_spec = self.spec(command_key="f-changed-dependency")
+        dependency_record = self.record(dependency_spec)
+        assert isinstance(dependency_record["dependencies"], dict)
+        dependency_record["dependencies"]["digest"] = "other"
+        dependency_path = build_records.record_path(dependency_spec)
+        build_records._write_atomic(dependency_path, dependency_record)
+
+        selection_path = self.write(
+            self.spec(command_key="g-changed-selection", selection="other")
+        )
+        valid_spec = self.spec(command_key="z-valid")
+        valid_path = self.write(valid_spec)
+        candidates = [
+            malformed,
+            missing_path,
+            unverified_path,
+            changed_path,
+            input_path,
+            dependency_path,
+            selection_path,
+            valid_path,
+        ]
+
+        with patch.object(Path, "glob", return_value=candidates):
+            selected = build_records._sibling_record(
+                requested,
+                dependencies,
+                lambda record: record["inputs"] == {},
+            )
+        self.assertIsNotNone(selected)
+        assert selected is not None
+        self.assertEqual(selected.record, self.record(valid_spec))
+        self.assertEqual(selected.artifact, self.record(valid_spec)["artifact"])
+
+    def test_an_exact_command_record_is_not_its_own_sibling(self) -> None:
+        requested = self.spec(command_key="verify")
+        self.write(requested)
+        self.assertIsNone(self.sibling(requested))
+
+    def test_a_sibling_requires_the_same_revision_when_files_identify_the_root(self) -> None:
+        requested = self.spec(command_key="verify")
+        candidate = self.spec(command_key="compile")
+        moved = build_source.SourceIdentity("other-root", "other-revision", "other-tree", False)
+        record = self.record(candidate, source=moved)
+        dependencies = record["dependencies"]
+        assert isinstance(dependencies, dict)
+        dependencies["packages"] = [{"id": dependencies["root"], "kind": "path"}]
+        build_records._write_atomic(build_records.record_path(candidate), record)
+
+        self.assertIsNone(
+            build_records._sibling_record(requested, dependencies, lambda _record: True)
+        )
 
     def test_malformed_index_content_fails_closed(self) -> None:
         requested = self.spec(command_key="nextest")
@@ -1431,6 +1534,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         clean: bool = True,
         snapshot: dict[str, object] | None = None,
         owners: dict[str, frozenset[str]] | None = None,
+        command_key: str | None = None,
     ) -> identity.BuildResult:
         """Build `demo`, whose clean closure holds a path dependency `dep`."""
         snapshot = snapshot or {
@@ -1464,6 +1568,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 artifact_paths=() if discover else [self.artifact],
                 clean_command=[sys.executable, str(self.clean_script)] if clean else None,
                 lease_wait_seconds=wait,
+                command_key=command_key,
             )[0]
 
     def dep_lock(self, package: str = "dep") -> Path:
@@ -1668,6 +1773,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         snapshot: dict[str, object] | None = None,
         owners: dict[str, frozenset[str]] | None = None,
         clean: bool = False,
+        command_key: str | None = None,
     ) -> list[str]:
         """Rebuild through `cargo clean -p`, recording the packages instead of running Cargo.
 
@@ -1688,7 +1794,12 @@ class BuildIdentityTestCase(unittest.TestCase):
 
         with patch.object(identity, "_run_checked", side_effect=recording):
             self.dependency_build(
-                source_token, discover=True, clean=clean, snapshot=snapshot, owners=owners
+                source_token,
+                discover=True,
+                clean=clean,
+                snapshot=snapshot,
+                owners=owners,
+                command_key=command_key,
             )
         return sorted(packages)
 
@@ -1804,6 +1915,32 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(plan["packages"]["demo"]["reasons"], ["stale-git"])
         self.assertEqual(plan["packages"]["demo"]["stale_git"], ["dep"])
         self.assertFalse(plan["packages"]["demo"]["matched"])
+
+    def test_a_building_git_stamp_overrides_a_valid_sibling(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        first_revision = git(self.root, "rev-parse", "HEAD")
+        first_snapshot = self.path_and_git_snapshot(first_revision)
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build(
+            "first", discover=True, snapshot=first_snapshot, command_key="verify"
+        )
+        second_revision = self.commit_source_change(
+            "fn main() { changed(); }\n", "change source"
+        )
+        second_snapshot = self.path_and_git_snapshot(second_revision)
+        self.dependency_build(
+            "second", discover=True, snapshot=second_snapshot, command_key="compile"
+        )
+        self.git_stamp(second_revision).write_text(
+            json.dumps({"content_digest": build_stamps._BUILDING}), encoding="utf-8"
+        )
+
+        self.assertEqual(
+            self.cleaned_packages(
+                "second", snapshot=second_snapshot, command_key="verify"
+            ),
+            ["dep"],
+        )
 
     def test_cleanup_decision_identifies_resumable_path_build_progress(self) -> None:
         self.killed_after_source_change()
@@ -6223,8 +6360,12 @@ class SelectionVariantTestCase(unittest.TestCase):
             (root / relative).parent.mkdir(parents=True, exist_ok=True)
             (root / relative).write_text(text, encoding="utf-8")
 
-    def gate(self, packages: tuple[str, ...]) -> list[list[str] | None]:
-        """One build step over `packages`; the packages each `cargo clean` named."""
+    def run_gate(
+        self,
+        packages: tuple[str, ...],
+        command_key: str = "atlas-pre-push",
+    ) -> tuple[list[list[str] | None], tuple[identity.BuildResult, ...], list[list[str]]]:
+        """Run one real Cargo step and return cleans, results, and executed commands."""
         log = self.base / "cargo.log"
         log.unlink(missing_ok=True)
         wrapper = self.base / "cargo_log.py"
@@ -6236,21 +6377,35 @@ class SelectionVariantTestCase(unittest.TestCase):
             encoding="utf-8",
         )
         manifest = str(self.export / "Cargo.toml")
+        executed: list[list[str]] = []
+        run_checked = identity._run_checked
+
+        def observe(command, cwd, environment):
+            executed.append(list(command))
+            return run_checked(command, cwd, environment)
+
         with (
             patch.dict(os.environ, self.environment, clear=True),
             patch.object(identity, "_cargo_command", return_value=(sys.executable, str(wrapper))),
+            patch.object(identity, "_run_checked", side_effect=observe),
         ):
-            identity.run_build(
+            results = identity.run_build(
                 self.export, self.export / "Cargo.toml", packages, self.target,
                 ["cargo", "build", "-q", "--manifest-path", manifest, "--offline",
                  *(argument for package in packages for argument in ("-p", package))],
-                command_cwd=self.export, command_key="atlas-pre-push",
+                command_cwd=self.export, command_key=command_key,
             )
-        return [
+        cleans = [
             cleaned_names(argv)
             for argv in map(json.loads, log.read_text(encoding="utf-8").splitlines())
             if argv[1] == "clean"
         ]
+        return cleans, results, executed
+
+    def gate(self, packages: tuple[str, ...]) -> list[list[str] | None]:
+        """One build step over `packages`; the packages each `cargo clean` named."""
+        cleans, _, _ = self.run_gate(packages)
+        return cleans
 
     def run_a(self) -> str:
         binary = self.target / "debug" / ("a.exe" if os.name == "nt" else "a")
@@ -6277,6 +6432,46 @@ class SelectionVariantTestCase(unittest.TestCase):
         self.assertEqual(self.run_a(), "1")
         # The `-p a` record now exists: the same step again cleans nothing.
         self.assertEqual(self.gate(("a",)), [])
+
+    def test_a_stale_exact_record_recovers_from_a_valid_compiled_sibling(self) -> None:
+        stale_cleans, stale_results, _ = self.run_gate(("a",), command_key="verify")
+        self.assertEqual(stale_cleans, [["a", "d"]])
+        self.assertEqual(self.run_a(), "1")
+
+        self.write_workspace(self.export, value="2")
+        git(self.export, "add", ".")
+        git(self.export, "commit", "-q", "-m", "source two")
+        compile_cleans, compile_results, _ = self.run_gate(("a",), command_key="compile")
+        self.assertEqual(compile_cleans, [["a", "d"]])
+        self.assertNotEqual(stale_results[0].record_path, compile_results[0].record_path)
+        compiled_bytes = {
+            path.relative_to(self.target): path.read_bytes()
+            for path in compile_results[0].artifact_files
+        }
+        self.assertEqual(self.run_a(), "2")
+
+        verify_cleans, verify_results, executed = self.run_gate(("a",), command_key="verify")
+        verification_command = [
+            "cargo",
+            "build",
+            "-q",
+            "--manifest-path",
+            str(self.export / "Cargo.toml"),
+            "--offline",
+            "-p",
+            "a",
+        ]
+        self.assertEqual(verify_cleans, [])
+        self.assertIn(verification_command, executed)
+        self.assertEqual(
+            {
+                path.relative_to(self.target): path.read_bytes()
+                for path in verify_results[0].artifact_files
+            },
+            compiled_bytes,
+        )
+        self.assertFalse(verify_results[0].cleaned)
+        self.assertEqual(self.run_a(), "2")
 
 
 @pytest.mark.slow
