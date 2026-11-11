@@ -22,9 +22,8 @@ from typing import Callable, Iterable, Mapping
 
 from atlas_build_artifacts import UNVERIFIED, artifact_package, metadata_artifact_owners
 from atlas_build_lease import BuildIdentityError
-from atlas_build_package_identity import repository_top
 from atlas_build_snapshot import _cargo_metadata
-from atlas_build_source import _canonical, _cargo_home, _is_within
+from atlas_build_source import _canonical, _cargo_home, _is_within, repository_top
 
 # A recorded path that names nothing on disk now.
 MISSING = "missing"

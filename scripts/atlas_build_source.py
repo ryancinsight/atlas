@@ -165,7 +165,9 @@ def _repository_status(
     `ls-files --others` and `ls-files --others --ignored` walked it twice
     in two processes. Each group is the list those commands print, sorted
     as Git sorts it (byte order), so the source digest is unchanged.
-    Submodules are not entered: only `?` and `!` entries are read.
+    Submodules are not entered: only `?` and `!` entries are read. A package
+    identity that sees a gitlink in `ls-tree` always obtains the raw diff,
+    rather than using this snapshot to certify its tracked state as clean.
 
     `status` validates settings `ls-files` never reads: the `status.*`
     keys it knows, `color.status` and its slots, and `column.ui` and

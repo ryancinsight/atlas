@@ -18,8 +18,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import atlas_build_identity as identity
 import atlas_build_inputs as build_inputs
+import atlas_build_package_identity as package_identity
+import atlas_build_source as build_source
 from atlas_build_artifacts import UNVERIFIED
-from atlas_build_package_identity import package_identities
 
 
 B_SOURCE = "//! b\n#[path = \"../../common/m.rs\"]\nmod m;\n/// b\npub fn b() -> u32 { m::M }\n"
@@ -67,8 +68,42 @@ class PackageIdentityTestCase(unittest.TestCase):
         )
 
     def identities(self) -> tuple[dict[str, str], dict[str, str]]:
-        found = package_identities((self.root, self.root / "c"))
+        found = package_identity.package_identities((self.root, self.root / "c"))
         return found[self.root], found[self.root / "c"]
+
+    def prior_identities(
+        self, directories: tuple[Path, ...] | None = None
+    ) -> dict[Path, dict[str, str]]:
+        """Use the two `ls-files` walks that define the prior identity bytes."""
+
+        def prior_status(
+            top: Path,
+        ) -> tuple[str, bool, tuple[tuple[bytes, list[bytes]], ...]]:
+            entries = tuple(
+                (
+                    marker,
+                    [path for path in package_identity._git(top, *arguments).split(b"\0") if path],
+                )
+                for marker, arguments in (
+                    (b"untracked", ("ls-files", "--others", "--exclude-standard", "-z")),
+                    (
+                        b"ignored",
+                        ("ls-files", "--others", "--ignored", "--exclude-standard", "-z"),
+                    ),
+                )
+            )
+            return "0" * 40, True, entries
+
+        with patch.object(package_identity, "_repository_status", side_effect=prior_status):
+            return package_identity.package_identities(
+                directories or (self.root, self.root / "c")
+            )
+
+    def assert_matches_prior_git_walks(self, directories: tuple[Path, ...] | None = None) -> None:
+        selected = directories or (self.root, self.root / "c")
+        self.assertEqual(
+            package_identity.package_identities(selected), self.prior_identities(selected)
+        )
 
     def test_a_nested_members_files_are_not_its_containers(self) -> None:
         root, member = self.identities()
@@ -100,6 +135,95 @@ class PackageIdentityTestCase(unittest.TestCase):
         (self.root / "c" / "src" / "lib.rs").unlink()
         self.assertEqual(self.identities()[0], root)
         self.assertNotEqual(self.identities()[1]["dirty"], member["dirty"])
+
+    def test_porcelain_snapshot_preserves_every_existing_identity_byte(self) -> None:
+        ignore = self.root / ".gitignore"
+        ignore.write_text("*.ignored\n", encoding="utf-8")
+        git(self.root, "add", ".gitignore")
+        git(self.root, "commit", "-qm", "ignore")
+
+        self.assert_matches_prior_git_walks()
+        source = self.root / "src" / "lib.rs"
+        source.write_text("dirty\n", encoding="utf-8")
+        self.assert_matches_prior_git_walks()
+        git(self.root, "add", "src/lib.rs")
+        self.assert_matches_prior_git_walks()
+        git(self.root, "restore", "--source=HEAD", "--staged", "--worktree", "src/lib.rs")
+        source.unlink()
+        self.assert_matches_prior_git_walks()
+        git(self.root, "restore", "--source=HEAD", "--worktree", "src/lib.rs")
+
+        untracked = self.root / "c" / "untracked.txt"
+        untracked.write_text("untracked\n", encoding="utf-8")
+        self.assert_matches_prior_git_walks()
+        untracked.unlink()
+        ignored = self.root / "c" / "generated.ignored"
+        ignored.write_text("ignored\n", encoding="utf-8")
+        self.assert_matches_prior_git_walks()
+        ignored.unlink()
+
+        nested = self.root / "nested"
+        init_repository(
+            nested,
+            {"Cargo.toml": "[package]\nname = \"nested\"\n", "src/lib.rs": "nested\n"},
+        )
+        self.assert_matches_prior_git_walks((self.root, nested))
+
+    def test_clean_snapshot_omits_only_the_empty_raw_diff(self) -> None:
+        calls: list[tuple[str, ...]] = []
+        package_git = package_identity._git
+        source_git = build_source._git
+
+        def record_package(top: Path, *arguments: str) -> bytes:
+            calls.append(arguments)
+            return package_git(top, *arguments)
+
+        def record_status(top: Path, *arguments: str) -> bytes:
+            calls.append(arguments)
+            return source_git(top, *arguments)
+
+        with (
+            patch.object(package_identity, "_git", side_effect=record_package),
+            patch.object(build_source, "_git", side_effect=record_status),
+        ):
+            self.identities()
+        self.assertEqual(len(calls), 2, calls)
+        self.assertFalse(any(arguments[:1] == ("diff",) for arguments in calls))
+
+        (self.root / "src" / "lib.rs").write_text("dirty\n", encoding="utf-8")
+        calls.clear()
+        with (
+            patch.object(package_identity, "_git", side_effect=record_package),
+            patch.object(build_source, "_git", side_effect=record_status),
+        ):
+            self.identities()
+        self.assertEqual(len(calls), 3, calls)
+        self.assertEqual(sum(arguments[:1] == ("diff",) for arguments in calls), 1)
+
+    def test_dirty_gitlink_retains_its_raw_difference(self) -> None:
+        submodule = self.root.parent / "submodule"
+        init_repository(submodule, {"tracked.txt": "one\n"})
+        git(
+            self.root,
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "add",
+            "-q",
+            str(submodule),
+            "vendor/submodule",
+        )
+        git(self.root, "commit", "-qam", "gitlink")
+        clean = self.identities()
+        self.assert_matches_prior_git_walks()
+
+        (self.root / "vendor" / "submodule" / "tracked.txt").write_text(
+            "two\n", encoding="utf-8"
+        )
+        dirty = self.identities()
+        prior = self.prior_identities()
+        self.assertEqual(dirty, (prior[self.root], prior[self.root / "c"]))
+        self.assertNotEqual(dirty, clean)
 
 
 @pytest.mark.slow
