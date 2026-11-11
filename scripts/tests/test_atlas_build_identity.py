@@ -1290,12 +1290,15 @@ class BuildIdentityTestCase(unittest.TestCase):
             "Path(os.environ['ARTIFACT']).unlink(missing_ok=True)\n",
         )
 
-    def writer_directory(
-        self, profile: str = "debug", target: str = "host"
-    ) -> build_stamps.BuildDirectory:
-        return build_stamps.BuildDirectory(
-            build_source._canonical(self.target), profile, target
-        )
+    def writer_directory(self, profile: str = "debug", target: str = "host") -> build_stamps.BuildDirectory:
+        return build_stamps.BuildDirectory(build_source._canonical(self.target), profile, target)
+
+    def redirect_directory(self, target: Path, link: Path) -> None:
+        if os.name == "nt":
+            import _winapi
+            _winapi.CreateJunction(str(target), str(link))
+        else:
+            link.symlink_to(target, target_is_directory=True)
 
     def build(
         self,
@@ -2492,12 +2495,8 @@ class BuildIdentityTestCase(unittest.TestCase):
         debug = self.writer_directory()
         cross_debug = self.writer_directory(target="x86_64-unknown-linux-gnu")
         history = self.writer_directory(profile="cast-history")
-        self.assertEqual(
-            writers.writer_path(debug, "demo"), writers.writer_path(cross_debug, "demo")
-        )
-        self.assertNotEqual(
-            writers.writer_path(debug, "demo"), writers.writer_path(history, "demo")
-        )
+        self.assertEqual(writers.writer_path(debug, "demo"), writers.writer_path(cross_debug, "demo"))
+        self.assertNotEqual(writers.writer_path(debug, "demo"), writers.writer_path(history, "demo"))
         built = self.target / "debug" / "deps" / "libdemo-abcdef.rlib"
         built.write_text("progress", encoding="utf-8")
         mark_ns = built.stat().st_mtime_ns + 1_000_000
@@ -2506,13 +2505,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         writers.mark(history, ["demo"], writers.COMPLETE, "history-run", mark_ns)
         self.assertEqual(writers.resumable(debug, ["demo"], "debug-run"), {"demo"})
 
-        cross_built = (
-            self.target
-            / "x86_64-unknown-linux-gnu"
-            / "debug"
-            / "deps"
-            / "libdemo-abcdef.rlib"
-        )
+        cross_built = self.target / "x86_64-unknown-linux-gnu" / "debug" / "deps" / "libdemo-abcdef.rlib"
         cross_built.parent.mkdir(parents=True)
         cross_built.write_text("later same-profile write", encoding="utf-8")
         written_ns = mark_ns + 1_000_000
@@ -2525,15 +2518,8 @@ class BuildIdentityTestCase(unittest.TestCase):
         built.write_text("progress", encoding="utf-8")
         os.utime(built, ns=(10, 10))
         writers.mark(directory, ["demo"], writers.BUILDING, "identity", 20)
-        build_records._write_atomic(
-            writers._legacy_writer_path(directory.target_dir, "demo"),
-            {
-                "version": 1,
-                "state": writers.CLEANING,
-                "identity": "old-tool",
-                "heartbeat_ns": 30,
-            },
-        )
+        legacy = {"version": 1, "state": writers.CLEANING, "identity": "old-tool", "heartbeat_ns": 30}
+        build_records._write_atomic(writers._legacy_writer_path(directory.target_dir, "demo"), legacy)
         self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
         writers.mark(directory, ["demo"], writers.BUILDING, "identity", 40)
         self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
@@ -2545,9 +2531,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         writers.mark(history, ["demo"], writers.BUILDING, "history-run", 20)
         writers.mark_broad_clean(debug, ["demo"], "clean-run")
         for directory in (debug, history):
-            marker = json.loads(
-                writers.writer_path(directory, "demo").read_text(encoding="utf-8")
-            )
+            marker = json.loads(writers.writer_path(directory, "demo").read_text(encoding="utf-8"))
             self.assertEqual((marker["state"], marker["identity"]), (writers.CLEANING, "clean-run"))
 
         ambiguous = writers.writer_path(debug, "demo").parents[1] / "unknown"
@@ -2556,6 +2540,30 @@ class BuildIdentityTestCase(unittest.TestCase):
             writers.mark_broad_clean(debug, ["demo"], "other-clean")
         with self.assertRaises(BuildIdentityError):
             writers.writer_path(self.writer_directory(profile=".."), "demo")
+
+    def test_writer_junctions_cannot_redirect_publication(self) -> None:
+        for profile in (None, "custom"):
+            with self.subTest(profile=profile):
+                target = self.base / f"junction-target-{profile}"
+                directory = build_stamps.BuildDirectory(target, "debug", "host")
+                root = target / ".atlas" / "source-identity" / "writers"
+                link = root if profile is None else root / profile
+                link.parent.mkdir(parents=True)
+                outside = self.base / f"outside-{profile}"
+                outside.mkdir()
+                self.redirect_directory(outside, link)
+                with self.assertRaisesRegex(BuildIdentityError, "redirects outside|not confined"):
+                    writers.mark_broad_clean(directory, ["demo"], "identity")
+                self.assertEqual(list(outside.iterdir()), [])
+
+    def test_a_regular_host_profile_path_prevents_resume(self) -> None:
+        self.artifact.parent.rmdir()
+        (self.target / "debug").rmdir()
+        (self.target / "debug").write_text("not a profile directory", encoding="utf-8")
+        directory = self.writer_directory()
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
 
     def test_an_opaque_clean_invalidates_another_profiles_progress(self) -> None:
         self.killed_after_source_change()
@@ -2572,9 +2580,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         with patch.object(identity, "_run_checked", side_effect=killing):
             with self.assertRaises(identity.IdentityError):
                 self.dependency_build("third", discover=True, clean=True)
-        marker = json.loads(
-            writers.writer_path(history, "demo").read_text(encoding="utf-8")
-        )
+        marker = json.loads(writers.writer_path(history, "demo").read_text(encoding="utf-8"))
         self.assertEqual(marker["state"], writers.CLEANING)
 
     def test_a_longer_package_name_does_not_hide_a_peer_write(self) -> None:

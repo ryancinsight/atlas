@@ -44,6 +44,7 @@ BUILDING = "building"
 COMPLETE = "complete"
 _STATES = (CLEANING, BUILDING, COMPLETE)
 _VERSION = 2
+_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 # The most progress a kill can cost: the killed run's files written after the
 # last heartbeat are cleaned with a peer's. Short against a cold build of
 # minutes, long enough that the heartbeat's writes (one small file per
@@ -52,8 +53,28 @@ HEARTBEAT_SECONDS = 5.0
 _SUBDIRECTORIES = ("deps", ".fingerprint", "build")
 
 
+def _redirects(status: os.stat_result) -> bool:
+    return stat.S_ISLNK(status.st_mode) or bool(getattr(status, "st_file_attributes", 0) & _REPARSE_POINT)
+
+
+def _entry_status(path: Path, directory: bool = False) -> os.stat_result | None:
+    try:
+        status = os.lstat(path)
+    except FileNotFoundError:
+        return None
+    except OSError as error:
+        raise BuildIdentityError(f"cannot inspect writer path {path}: {error}") from error
+    if _redirects(status) or (directory and not stat.S_ISDIR(status.st_mode)):
+        raise BuildIdentityError(f"writer path is not confined to a directory: {path}")
+    return status
+
+
 def _writer_root(target_dir: Path) -> Path:
-    return target_dir / ".atlas" / "source-identity" / "writers"
+    root = target_dir / ".atlas" / "source-identity" / "writers"
+    for path in (root.parents[1], root.parent, root):
+        if _entry_status(path, directory=True) is None:
+            break
+    return root
 
 
 def _profile_key(profile: str) -> str:
@@ -65,13 +86,17 @@ def _profile_key(profile: str) -> str:
 
 def writer_path(directory: BuildDirectory, package: str) -> Path:
     """The package writer for one physical profile, shared across target triples."""
-    return _writer_root(directory.target_dir) / _profile_key(directory.profile) / (
-        f"{quote(package, safe='')}.json"
-    )
+    profile = _writer_root(directory.target_dir) / _profile_key(directory.profile)
+    _entry_status(profile, directory=True)
+    path = profile / f"{quote(package, safe='')}.json"
+    _entry_status(path)
+    return path
 
 
 def _legacy_writer_path(target_dir: Path, package: str) -> Path:
-    return _writer_root(target_dir) / f"{quote(package, safe='')}.json"
+    path = _writer_root(target_dir) / f"{quote(package, safe='')}.json"
+    _entry_status(path)
+    return path
 
 
 def run_identity(spec: BuildSpec, dependency_digests: dict[str, str]) -> str:
@@ -119,14 +144,7 @@ def _legacy_fingerprint(target_dir: Path, package: str) -> dict[str, object]:
     second = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
     if first != second:
         raise BuildIdentityError(f"legacy writer mark changed while reading {path}")
-    return {
-        "status": "present",
-        "device": before.st_dev,
-        "inode": before.st_ino,
-        "size": before.st_size,
-        "modified_ns": before.st_mtime_ns,
-        "sha256": _sha256_bytes(content),
-    }
+    return {"status": "present", "stat": first, "sha256": _sha256_bytes(content)}
 
 
 def _artifact_pattern(package: str) -> re.Pattern[str]:
@@ -138,28 +156,32 @@ def _raise(error: OSError) -> None:
     raise error
 
 
-def _subdirectories(directory: Path) -> list[Path]:
-    with os.scandir(directory) as scan:
-        paths = [entry.path for entry in scan]
-    return [Path(path) for path in paths if stat.S_ISDIR(os.stat(path).st_mode)]
-
-
 def _profile_directories(directory: BuildDirectory) -> Iterator[Path]:
     """The host and target-triple directories for one physical profile.
 
     A listing or stat error propagates: a scan that cannot see a directory
     cannot vouch for it.
     """
-    for first in _subdirectories(directory.target_dir):
-        if first.name == directory.profile:
+    with os.scandir(directory.target_dir) as scan:
+        entries = list(scan)
+    for entry in entries:
+        status = entry.stat(follow_symlinks=False)
+        first = Path(entry.path)
+        if _redirects(status):
+            raise OSError(f"target entry redirects outside its root: {first}")
+        if entry.name == directory.profile:
+            if not stat.S_ISDIR(status.st_mode):
+                raise NotADirectoryError(first)
             yield first
+            continue
+        if not stat.S_ISDIR(status.st_mode):
             continue
         profile = first / directory.profile
         try:
-            status = profile.stat()
+            status = os.lstat(profile)
         except FileNotFoundError:
             continue
-        if not stat.S_ISDIR(status.st_mode):
+        if _redirects(status) or not stat.S_ISDIR(status.st_mode):
             raise NotADirectoryError(profile)
         yield profile
 
@@ -267,9 +289,12 @@ def _marked_profiles(directory: BuildDirectory) -> set[str]:
     profiles = {directory.profile}
     for entry in entries:
         try:
-            if entry.is_file(follow_symlinks=False) and entry.name.endswith(".json"):
+            status = entry.stat(follow_symlinks=False)
+            if _redirects(status):
+                raise BuildIdentityError(f"writer profile redirects outside its root: {entry.path}")
+            if stat.S_ISREG(status.st_mode) and entry.name.endswith(".json"):
                 continue
-            if not entry.is_dir(follow_symlinks=False):
+            if not stat.S_ISDIR(status.st_mode):
                 raise BuildIdentityError(f"ambiguous writer profile entry {entry.path}")
         except OSError as error:
             raise BuildIdentityError(f"cannot inspect writer profile {entry.path}: {error}") from error
