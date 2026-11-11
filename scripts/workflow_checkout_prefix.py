@@ -20,17 +20,16 @@ allow-list. Within one job, in step order:
   names none. A governed reference is shown to load the candidate only when the prefix holds the candidate,
   the reference is a plain path that spells the prefix exactly, and the calling step has no key outside
   `STEP_KEYS`. Every other reference maps to `None`. A step has an entry only when exactly one of its keys
-  is spelled `uses` and that value is a plain string starting with `./`.
+  is spelled `uses` and that value is a string with the default tag, quoted or not, starting with `./`.
 
 Assumed and not checked: `actions/checkout` writes the tracked files of the commit it names into its path and
 nothing else that a reference can name; no step of another kind (`run`, another action, a local composite
 action) changes them; and the workflow runs on an event where `github.sha` or the pull-request head is the
-commit analysed (`workflow_call` and `pull_request_target` are not). Also assumed, and not looked up in the
-runner: no symbolic link in a checked-out tree and no container volume redirects a checkout path or a
-reference; no `INPUT_*` environment variable of the workflow or job changes a checkout's inputs; the
-checkout release reads `path` relative to the workspace; and the runner accepts no other spelling of the
-action's name, such as `actions/checkout.git`. References inside composite actions and reusable-workflow
-references are not read.
+commit analysed (`workflow_call` and `pull_request_target` are not). Also assumed: no symbolic link in a
+checked-out tree and no container volume redirects a checkout path or a reference; no environment variable
+named `INPUT_*`, however it is set, changes a checkout's inputs; the checkout release reads `path` relative
+to the workspace; and the runner accepts no other spelling of the action's name, such as
+`actions/checkout.git`. References inside composite actions and reusable-workflow references are not read.
 """
 
 import re

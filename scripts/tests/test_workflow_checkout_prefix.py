@@ -151,6 +151,7 @@ class CheckoutPrefixTests(unittest.TestCase):
             "backslash in the name": checkout(uses="actions\\checkout", **FOREIGN),
             "owner outside ASCII": checkout(uses="acti\u043ens/checkout", **FOREIGN),
             "padded step key": checkout(**FOREIGN).replace("uses", "'uses '"),
+            "step key padded in front": checkout(**FOREIGN).replace("uses", "' uses'"),
             "container reference": "      - uses: docker://alpine:3\n",
             "not a mapping": "      - plain\n",
         }
@@ -173,6 +174,7 @@ class CheckoutPrefixTests(unittest.TestCase):
             "two expressions": checkout(ref="${{ github.sha }} ${{ github.ref }}"),
             "split name": checkout(ref="${{ git hub.sha }}"),
             "padded expression": checkout(ref=" ${{ github.sha }} "),
+            "carriage return in the ref": checkout() + '          ref: "${{ github.sha\\r}}"\n',
             "condition": checkout() + "        if: github.event_name == 'push'\n",
             "tolerated failure": checkout() + "        continue-on-error: true\n",
             "condition after another repository": checkout(**FOREIGN) + checkout() + "        if: false\n",
@@ -190,6 +192,7 @@ class CheckoutPrefixTests(unittest.TestCase):
             "parent component": step("./nested-src/../other-src/.github/actions/sample"),
             "repository metadata": step("./nested-src/.git/hooks"),
             "repository metadata in another case": step("./nested-src/.GIT/hooks"),
+            "repository metadata directory": step("./nested-src/.git"),
             "odd spelling outside every prefix": step("./other-src./.github/actions/sample"),
         }
         for name, caller in callers.items():
@@ -217,6 +220,7 @@ class CheckoutPrefixTests(unittest.TestCase):
         composite += f"      with:\n        path: nested-src\n    - uses: {REFERENCE}\n"
         self.assertEqual(outcomes(composite), [])
         self.assertEqual(outcomes(workflow(job(checkout(), step() + step().replace("- ", "  ")))), [])
+        self.assertEqual(outcomes(workflow(job(checkout(), step() + 2 * step().replace("- ", "  ")))), [])
         self.assertEqual(outcomes("jobs:\n  call:\n    uses: ./nested-src/.github/workflows/check.yml\n"), [])
 
 
